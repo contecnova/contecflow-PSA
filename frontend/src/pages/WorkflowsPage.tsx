@@ -15,7 +15,7 @@ import { extractErr } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { projectsApi, projectWorkflowsApi } from '../services/api'
+import { projectWorkflowsApi } from '../services/api'
 import type { EstadoDelFlujoDeProyecto, FlujoDelProyecto } from '../services/api/tipos-rendimiento'
 import { Button, Spinner, EmptyState, Modal, Select, IconButton, Pulsable, Checkbox, useErroresDeCampo, Input } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
@@ -25,6 +25,7 @@ import { useAppT } from '../i18n/AppLangContext'
 import { CHART_COLORS_EXTENDED, COLOR_DATO_POR_DEFECTO, alpha } from '../constants/theme'
 import './WorkflowsPage.css'
 import { useRolesReales } from '../hooks/useRolesReales'
+import { useListaDeProyectos } from '../hooks/useListas'
 
 type ProjectItem = {
   id: string | number
@@ -211,14 +212,16 @@ export default function WorkflowsPage() {
   const [showTransitionForm, setShowTransitionForm] = useState(false)
   const [editingState, setEditingState] = useState<WorkflowState | null>(null)
 
-  const { data: projects = [] } = useQuery<ProjectItem[]>({
-    queryKey: ['projects'],
-    queryFn: () => projectsApi.list({}).then(r => Array.isArray(r.data) ? r.data : []).catch(() => []),
-  })
+  const { data: projectsRaw = [] } = useListaDeProyectos()
+  const projects = projectsRaw as unknown as ProjectItem[]
 
   const { data: workflow, isLoading } = useQuery({
     queryKey: ['workflow', selectedProject],
-    queryFn: () => projectWorkflowsApi.get(selectedProject).then(r => r.data).catch((): FlujoDelProyecto | null => null),
+    queryFn: () => projectWorkflowsApi.get(selectedProject).then(r => r.data).catch((err: { response?: { status?: number } }): FlujoDelProyecto | null => {
+      // 23-11-2026: solo el 404 («sin flujo propio») es un null válido; cualquier otro fallo sube y avisa.
+      if (err?.response?.status === 404) return null
+      throw err
+    }),
     enabled: !!selectedProject,
   })
 

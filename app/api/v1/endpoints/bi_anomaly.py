@@ -13,14 +13,14 @@ from typing import Any
 from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel, Field
 
-from app.core.deps import get_current_user, require_internal_user
+from app.core.deps import get_current_user, requiere_capacidad
 from app.core.responses import APIResponse
 from app.db.session import get_db
 from app.core.ratelimit import limiter
 from app.models.user import User
 from app.services import bi_anomaly_service as svc
 from sqlalchemy.orm import Session
-from app.core.codigos_de_error import ErrorConCodigo, desde_valor
+from app.core.codigos_de_error import ErrorConCodigo, desde_valor, error_http
 
 router = APIRouter()
 
@@ -73,7 +73,7 @@ def detect_anomalies(
     body: AnomalyDetectIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: analitica interna
+    _rol: User = Depends(requiere_capacidad("bi.usar")),  # auditoria 2026-09: dominio: analitica interna
 ):
     try:
         values = [float(v) for v in (body.values or [])]
@@ -107,7 +107,6 @@ def detect_anomalies(
         ]
         return APIResponse.ok(data=result)
     except ValueError as exc:
-        from fastapi import HTTPException
         raise desde_valor(422, exc)
 
 
@@ -117,7 +116,7 @@ def predict_churn(
     request: Request,
     body: ChurnPredictIn,
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: analitica interna
+    _rol: User = Depends(requiere_capacidad("bi.usar")),  # auditoria 2026-09: dominio: analitica interna
 ):
     clients_data: list[dict[str, Any]] = [c.model_dump() for c in (body.clients or [])]
 
@@ -142,9 +141,7 @@ def predict_churn(
         }]
 
     if not clients_data:
-        from fastapi import HTTPException
-
-        raise HTTPException(status_code=422, detail="clients_required")
+        raise error_http(422, "campo_obligatorio", campo="clients")
 
     out = svc.predict_churn(clients=clients_data)
     if body.client_id and out.get("clients"):

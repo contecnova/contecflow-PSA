@@ -13,7 +13,7 @@ from typing import List
 from app.schemas.custom_fields import CustomFieldIn, FieldValueIn, WorkflowStateIn, TransitionIn, TaskTransitionIn, PermissionIn
 
 from app.db.session import get_db
-from app.core.deps import get_current_user, require_admin_or_pm, require_internal_user
+from app.core.deps import get_current_user, requiere_capacidad
 from app.core.abac_enforce import enforce_abac
 from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
@@ -42,7 +42,7 @@ def create_project_custom_field(
     project_id: str,
     payload: CustomFieldIn,
     db: Session = Depends(get_db),
-    current: User = Depends(require_admin_or_pm),
+    current: User = Depends(requiere_capacidad("proyectos.dirigir")),
 ):
     return APIResponse.ok(data=_svc.create_project_custom_field(project_id, payload, db))
 
@@ -52,7 +52,7 @@ def update_project_custom_field(
     project_id: str, field_id: str,
     payload: CustomFieldIn,
     db: Session = Depends(get_db),
-    _: User = Depends(require_admin_or_pm),
+    _: User = Depends(requiere_capacidad("proyectos.dirigir")),
 ):
     return APIResponse.ok(data=_svc.update_project_custom_field(project_id, field_id, payload, db))
 
@@ -61,7 +61,7 @@ def update_project_custom_field(
 def delete_project_custom_field(
     project_id: str, field_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin_or_pm),
+    current_user: User = Depends(requiere_capacidad("proyectos.dirigir")),
 ):
     enforce_abac(db, current_user, "custom_field", field_id, action="delete")
     return APIResponse.ok(data=_svc.delete_project_custom_field(project_id, field_id, db))
@@ -90,7 +90,7 @@ def save_task_custom_values(
     payload: List[FieldValueIn],
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
+    _rol: User = Depends(requiere_capacidad("proyectos.usar")),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
 ):
     return APIResponse.ok(data=_svc.save_task_custom_values(project_id, task_id, payload, db))
 
@@ -119,7 +119,7 @@ def create_workflow_state(
     project_id: str,
     payload: WorkflowStateIn,
     db: Session = Depends(get_db),
-    _: User = Depends(require_admin_or_pm),
+    _: User = Depends(requiere_capacidad("proyectos.dirigir")),
 ):
     return APIResponse.ok(data=_svc.create_workflow_state(project_id, payload, db))
 
@@ -129,7 +129,7 @@ def update_workflow_state(
     project_id: str, state_id: str,
     payload: WorkflowStateIn,
     db: Session = Depends(get_db),
-    _: User = Depends(require_admin_or_pm),
+    _: User = Depends(requiere_capacidad("proyectos.dirigir")),
 ):
     return APIResponse.ok(data=_svc.update_workflow_state(project_id, state_id, payload, db))
 
@@ -138,7 +138,7 @@ def update_workflow_state(
 def delete_workflow_state(
     project_id: str, state_id: str,
     db: Session = Depends(get_db),
-    user: User = Depends(require_admin_or_pm),
+    user: User = Depends(requiere_capacidad("proyectos.dirigir")),
 ):
     enforce_abac(db, user, "workflow_state", state_id, action="delete")
     return APIResponse.ok(data=_svc.delete_workflow_state(project_id, state_id, db))
@@ -149,7 +149,7 @@ def create_transition(
     project_id: str,
     payload: TransitionIn,
     db: Session = Depends(get_db),
-    _: User = Depends(require_admin_or_pm),
+    _: User = Depends(requiere_capacidad("proyectos.dirigir")),
 ):
     return APIResponse.ok(data=_svc.create_transition(project_id, payload, db))
 
@@ -158,7 +158,7 @@ def create_transition(
 def delete_transition(
     project_id: str, transition_id: str,
     db: Session = Depends(get_db),
-    user: User = Depends(require_admin_or_pm),
+    user: User = Depends(requiere_capacidad("proyectos.dirigir")),
 ):
     enforce_abac(db, user, "workflow_transition", transition_id, action="delete")
     return APIResponse.ok(data=_svc.delete_transition(project_id, transition_id, db))
@@ -168,7 +168,7 @@ def delete_transition(
 def init_default_workflow(
     project_id: str,
     db: Session = Depends(get_db),
-    _: User = Depends(require_admin_or_pm),
+    _: User = Depends(requiere_capacidad("proyectos.dirigir")),
 ):
     return APIResponse.ok(data=_svc.init_default_workflow(project_id, db))
 
@@ -177,7 +177,7 @@ def init_default_workflow(
 def reset_workflow(
     project_id: str,
     db: Session = Depends(get_db),
-    user: User = Depends(require_admin_or_pm),
+    user: User = Depends(requiere_capacidad("proyectos.dirigir")),
 ):
     enforce_abac(db, user, "project_workflow", project_id, action="delete")
     return APIResponse.ok(data=_svc.reset_workflow(project_id, db))
@@ -189,7 +189,7 @@ def transition_task(
     payload: TaskTransitionIn,
     db: Session = Depends(get_db),
     current: User = Depends(get_current_user),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: excepcion revisada: mover una tarea por su flujo es trabajo diario
+    _rol: User = Depends(requiere_capacidad("proyectos.usar")),  # auditoria 2026-09: excepcion revisada: mover una tarea por su flujo es trabajo diario
 ):
     return APIResponse.ok(data=_svc.transition_task(project_id, task_id, payload, current, db))
 
@@ -214,7 +214,7 @@ def grant_permission(
     project_id: str,
     payload: PermissionIn,
     db: Session = Depends(get_db),
-    current: User = Depends(require_admin_or_pm),
+    current: User = Depends(requiere_capacidad("proyectos.dirigir")),
 ):
     return APIResponse.ok(data=_svc.grant_permission(project_id, payload, current, db))
 
@@ -224,7 +224,7 @@ def update_permission(
     project_id: str, permission_id: str,
     payload: PermissionIn,
     db: Session = Depends(get_db),
-    _: User = Depends(require_admin_or_pm),
+    _: User = Depends(requiere_capacidad("proyectos.dirigir")),
 ):
     return APIResponse.ok(data=_svc.update_permission(project_id, permission_id, payload, db))
 
@@ -233,7 +233,7 @@ def update_permission(
 def revoke_permission(
     project_id: str, permission_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin_or_pm),
+    current_user: User = Depends(requiere_capacidad("proyectos.dirigir")),
 ):
     enforce_abac(db, current_user, "project_permission", permission_id, action="delete")
     return APIResponse.ok(data=_svc.revoke_permission(project_id, permission_id, db))

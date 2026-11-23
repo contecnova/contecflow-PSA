@@ -1,5 +1,7 @@
 # Cifrado E2E Opcional en Collaboration (P3)
 
+> **Documento histórico (propuesta sin fecha, revisada el 2026-11-16): no refleja necesariamente el código actual; fuente viva: `app/services/collaboration/` y el `README.md` (no hay envelope `e2ee`: los mensajes siguen en claro).**
+
 > Propuesta de diseño (sin fecha), no implementada: a 2026-11-16 no hay envelope `e2ee` en `app/` ni en `frontend/src`; los mensajes siguen en claro (Fase 0).
 
 ## Objetivo

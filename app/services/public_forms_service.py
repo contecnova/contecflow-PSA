@@ -127,12 +127,33 @@ def _next_ticket_number(ticket_type: str, db: Session, org_id: Optional[str] = N
     return next_ticket_number(ticket_type, db, org_id)
 
 
-def validar_destino(form_type: str, target_project_id: Optional[str]) -> None:
-    """Un formulario de tareas necesita proyecto: una tarea no existe sin él."""
+def destino_de_la_empresa(db: Session, org_id: Optional[str], target_project_id: Optional[str],
+                          target_group_id: Optional[str]) -> bool:
+    """Auditoria 2026-11-22 (03, medios m-p): el proyecto y el grupo destino
+    son de la empresa del formulario. Antes se aceptaba cualquier id, y un
+    envio anonimo creaba tickets/tareas en el proyecto o grupo de otra empresa.
+    Se compara la empresa explicitamente (un superadmin no lleva filtro)."""
+    from app.models.project import Project
+    from app.models.service_desk.agents import AgentGroup
+    for modelo, ident in ((Project, target_project_id), (AgentGroup, target_group_id)):
+        if not ident:
+            continue
+        fila = db.query(modelo.organization_id).filter(modelo.id == ident).first()
+        if fila is None or (org_id is not None and fila[0] != org_id):
+            return False
+    return True
+
+
+def validar_destino(form_type: str, target_project_id: Optional[str], *, db: Optional[Session] = None,
+                    target_group_id: Optional[str] = None, org_id: Optional[str] = None) -> None:
+    """Un formulario de tareas necesita proyecto: una tarea no existe sin él.
+    Con `db`, además, proyecto y grupo han de ser de la empresa `org_id`."""
     if form_type not in ("ticket", "task"):
         raise ErrorConCodigo("valor_no_valido", detail="form_type: ticket o task", valor=form_type)
     if form_type == "task" and not target_project_id:
         raise ErrorConCodigo("formulario_sin_proyecto")
+    if db is not None and not destino_de_la_empresa(db, org_id, target_project_id, target_group_id):
+        raise ErrorConCodigo("formulario_destino_ajeno")
 
 
 def submit_form(
@@ -162,6 +183,9 @@ def submit_form(
     with como_organizacion(db, form.organization_id):
         sp = db.begin_nested()
         try:
+            # Un formulario antiguo con destino de otra empresa no crea nada alli.
+            if not destino_de_la_empresa(db, form.organization_id, form.target_project_id, form.target_group_id):
+                raise ErrorConCodigo("formulario_destino_ajeno")
             if form.form_type == "ticket":
                 entidad = Ticket(
                     number=_next_ticket_number("incident", db, form.organization_id),

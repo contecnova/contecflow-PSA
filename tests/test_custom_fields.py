@@ -304,8 +304,7 @@ class TestWorkflowTransitions:
             json={"from_state_id": s1["id"], "to_state_id": s2["id"], "label": "Complete"},
             headers=auth(admin_token),
         ).json()["data"]
-        if not trans.get("id"):
-            pytest.skip("Transition ID not returned")
+        assert trans.get("id"), f"la transicion creada no devolvio id: {trans!r}"
         res = client.delete(
             f"/api/v1/project-workflows/{proj['id']}/transitions/{trans['id']}",
             headers=auth(admin_token),

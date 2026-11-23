@@ -1,5 +1,6 @@
 // Portal en 8 idiomas, restos (16-11-2026): el kit (Spinner, Pagination,
-// Confirm…) y el aviso global (ToastContext) salen en el idioma del portal
+// Modal…; 23-11-2026: `ui/Confirm` retirado, la confirmación es ConfirmContext,
+// solo de operador) y el aviso global (ToastContext) salen en el idioma del portal
 // dentro de él, y en el del operador fuera. Los errores del servidor con código
 // (`{detail, code, params}`) se pintan en el idioma del portal.
 import { describe, it, expect, afterEach } from 'vitest'
@@ -9,7 +10,6 @@ import { useEffect, type ReactNode } from 'react'
 import { LangContext, TextosDeInterfazDelPortal, traductorDeCodigosDelPortal } from '../pages/portal-client/portalClientContext'
 import { Spinner } from '../components/ui'
 import Pagination from '../components/ui/Pagination'
-import Confirm from '../components/ui/Confirm'
 import { ToastProvider, useToast } from '../context/ToastContext'
 import { _reiniciarTextosDeInterfaz, useTextoUi } from '../components/ui/useTextoUi'
 import { mensajeDeError } from '../utils/mensajeDeError'
@@ -40,16 +40,6 @@ describe('kit de interfaz dentro del portal', () => {
     // Variables `{{n}}` del portal rellenadas.
     expect(screen.getByLabelText('Page 3')).toBeInTheDocument()
     expect(screen.getByText('26–50 sur 120')).toBeInTheDocument()
-  })
-
-  it('Confirm usa los botones del portal (alemán)', () => {
-    render(
-      <EnElPortal idioma="de">
-        <Confirm open title="T" description="D" onCancel={() => {}} onConfirm={() => {}} />
-      </EnElPortal>,
-    )
-    expect(screen.getByRole('button', { name: PORTAL_TRANSLATIONS.de['common.cancel'] })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: PORTAL_TRANSLATIONS.de['common.confirm'] })).toBeInTheDocument()
   })
 
   it('fuera del portal, el kit sigue con el traductor de operador', () => {

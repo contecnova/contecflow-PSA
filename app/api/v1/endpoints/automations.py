@@ -1,12 +1,12 @@
 
 from fastapi import APIRouter, Depends, Query
-from fastapi import HTTPException as FastAPIHTTPException
+from app.core.codigos_de_error import error_http
 from sqlalchemy.orm import Session
 from typing import Optional, List
 from pydantic import BaseModel
 
 from app.db.session import get_db
-from app.core.deps import require_any_manager, require_admin
+from app.core.deps import requiere_capacidad
 from app.core.abac_enforce import enforce_abac
 from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
@@ -20,11 +20,11 @@ router = APIRouter()
 def test_trigger(
     payload: dict,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("automatizacion.gestionar")),
 ):
     # Simula la lógica: si entity_type es "nonexistent_entity" devuelve 400, si no, matched=False
     if payload.get("entity_type") == "nonexistent_entity":
-        raise FastAPIHTTPException(status_code=400, detail="Entity not found")
+        raise error_http(400, "no_encontrado", que="entidad")
     return APIResponse.ok(data={"matched": False})
 
 
@@ -62,7 +62,7 @@ def list_rules(
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=MAX_TAMANO_DE_PAGINA),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("automatizacion.gestionar")),
 ):
     items = _svc.list_rules_for_user(db, current_user, project_id, is_active)
     return APIListResponse.ok(items=items, page=page, page_size=page_size)
@@ -72,7 +72,7 @@ def list_rules(
 def create_rule(
     payload: RuleCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("automatizacion.gestionar")),
 ):
     return APIResponse.ok(data=_svc.create_rule_db(payload, db, current_user))
 
@@ -82,7 +82,7 @@ def update_rule(
     rule_id: str,
     payload: RuleUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("automatizacion.gestionar")),
 ):
     return APIResponse.ok(data=_svc.update_rule_db(rule_id, payload, db, current_user))
 
@@ -91,7 +91,7 @@ def update_rule(
 def delete_rule(
     rule_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("automatizacion.gestionar")),
 ):
     enforce_abac(db, current_user, "automation_rule", rule_id, action="delete")
     return APIResponse.ok(data=_svc.delete_rule_db(rule_id, db, current_user))
@@ -100,7 +100,7 @@ def delete_rule(
 @router.post("/run-scheduled", summary="Ejecutar ahora el barrido periódico (fechas y umbrales)")
 def run_scheduled(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("automatizacion.administrar")),
 ):
     org = None if current_user.is_superadmin else current_user.organization_id
     return APIResponse.ok(data=_svc.run_scheduled_automations(db, org))
@@ -110,18 +110,20 @@ def run_scheduled(
 def test_rule(
     rule_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("automatizacion.gestionar")),
 ):
     return APIResponse.ok(data=_svc.test_rule_by_id(rule_id, db, current_user))
 
 
 @router.get("/templates/list", summary="Plantillas de automatización predefinidas")
-def get_templates(current_user: User = Depends(require_any_manager)):
-    return APIListResponse.ok(items=_svc.get_automation_templates())
+def get_templates(current_user: User = Depends(requiere_capacidad("automatizacion.gestionar")), db: Session = Depends(get_db)):
+    from app.services.formato_regional import idioma_de_salida
+    return APIListResponse.ok(items=_svc.get_automation_templates(
+        idioma_de_salida(db, user_id=current_user.id, org_id=current_user.organization_id)))
 
 
 @router.get("/catalog", summary="Disparadores, acciones y operadores que el motor sabe ejecutar")
-def get_catalog(current_user: User = Depends(require_any_manager)):
+def get_catalog(current_user: User = Depends(requiere_capacidad("automatizacion.gestionar"))):
     return APIResponse.ok(data=_svc.catalogo())
 
 
@@ -130,20 +132,20 @@ def get_executions(
     rule_id: str,
     limit: int = Query(20, le=100),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("automatizacion.gestionar")),
 ):
     return APIListResponse.ok(items=_svc.get_executions_db(rule_id, limit, db, current_user))
 
 
 @router.get("/trigger-types", summary="Listar tipos de trigger disponibles")
-def list_trigger_types(current_user: User = Depends(require_any_manager)):
+def list_trigger_types(current_user: User = Depends(requiere_capacidad("automatizacion.gestionar"))):
     return APIListResponse.ok(items=[
         {"type": k, "label": k.replace('_', ' ').title(), "value": k} for k in _svc.CATALOGO_DISPARADORES
     ])
 
 
 @router.get("/action-types", summary="Listar tipos de acción disponibles")
-def list_action_types(current_user: User = Depends(require_any_manager)):
+def list_action_types(current_user: User = Depends(requiere_capacidad("automatizacion.gestionar"))):
     return APIListResponse.ok(items=[
         {"type": k, "label": k.replace('_', ' ').title(), "value": k} for k in _svc.CATALOGO_ACCIONES
     ])

@@ -127,8 +127,7 @@ function Formulario({ id, inicial, turnos, onCerrar }: { id: string | null; inic
                 <DateInput aria-label={ta('hasta')} className="ausadm-campo" value={m.hasta ?? ''}
                   onChange={e => setD({ ...d, miembros: d.miembros.map((x, j) => (j === i ? { ...x, hasta: e.target.value || null } : x)) })} /></label>
               <label className="ausadm-fila"><span className="ausadm-ayuda">{ta('desfase')}</span>
-                <input aria-label={ta('desfase')} type="number" min={0} max={d.ciclo.length - 1} className="ausadm-campo ausadm-campo--corto" value={m.desfase}
-                  onChange={e => setD({ ...d, miembros: d.miembros.map((x, j) => (j === i ? { ...x, desfase: Number(e.target.value) || 0 } : x)) })} /></label>
+                <Input aria-label={ta('desfase')} type="number" min={0} max={d.ciclo.length - 1} value={m.desfase} onChange={e => setD({ ...d, miembros: d.miembros.map((x, j) => (j === i ? { ...x, desfase: Number(e.target.value) || 0 } : x)) })} className="ausadm-campo--corto" /></label>
               <Button size="xs" variant="ghost" icon={<Trash2 size={13} />} title={ta('quitar')}
                 onClick={() => setD({ ...d, miembros: d.miembros.filter((_, j) => j !== i) })}><span className="u-sr-only">{ta('quitar')}</span></Button>
             </div>

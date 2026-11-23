@@ -39,6 +39,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Any, Iterable, Sequence
 
+from app.core.celdas_seguras import fila_segura, neutralizar_formula
 from app.core.descargas import Descarga
 from app.core.errores import ErrorDeDominio
 from app.core.codigos_de_error import error
@@ -58,9 +59,11 @@ _ANCHO_MAXIMO = 60
 def _csv(cabecera: Sequence[str], filas: Iterable[Sequence[Any]]) -> bytes:
     salida = io.StringIO()
     escritor = csv.writer(salida)
-    escritor.writerow(cabecera)
+    # 22-11-2026 (02 A39): sin neutralizar, `=HYPERLINK(...)` o DDE en un texto
+    # del usuario se ejecutaba al abrir el CSV en una hoja de cálculo.
+    escritor.writerow(fila_segura(cabecera))
     for fila in filas:
-        escritor.writerow(fila)
+        escritor.writerow(fila_segura(fila))
     # `utf-8-sig`: el BOM es lo que hace que Excel abra un CSV con acentos sin
     # destrozarlos. Sin el, «Imputación» se ve como «ImputaciÃ³n», y eso se
     # reporta como «el export esta roto».
@@ -77,7 +80,7 @@ def _xlsx(cabecera: Sequence[str], filas: Iterable[Sequence[Any]], titulo: str) 
     # El nombre de una hoja no admite mas de 31 caracteres ni ciertos signos.
     hoja.title = "".join(c for c in titulo if c not in "[]:*?/\\")[:31] or "Datos"
 
-    hoja.append(list(cabecera))
+    hoja.append(fila_segura(cabecera))
     for celda in hoja[1]:
         celda.font = Font(bold=True)
         celda.alignment = Alignment(vertical="center")
@@ -85,7 +88,7 @@ def _xlsx(cabecera: Sequence[str], filas: Iterable[Sequence[Any]], titulo: str) 
 
     anchos = [len(str(c)) for c in cabecera]
     for fila in filas:
-        valores = [_valor_para_hoja(v) for v in fila]
+        valores = [neutralizar_formula(_valor_para_hoja(v)) for v in fila]
         hoja.append(valores)
         for i, v in enumerate(valores):
             if i < len(anchos):

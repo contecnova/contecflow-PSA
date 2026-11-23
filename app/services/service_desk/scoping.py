@@ -1,7 +1,7 @@
 from typing import Optional
 
-from sqlalchemy.orm import Session
-from sqlalchemy import and_, or_
+from sqlalchemy.orm import Session, object_session
+from sqlalchemy import and_, false, or_
 
 from app.models.clients import Client
 from app.models.pipeline import Contract
@@ -46,6 +46,27 @@ def resolve_sla_policy_for_ticket(
         SLAPolicy.is_default == True,
         SLAPolicy.is_active == True,
     ).first()
+
+
+def empresa_activa(user) -> Optional[str]:
+    """La empresa ACTIVA de la peticion (la del token, validada en
+    `deps.get_current_user` y guardada en `db.info`), no la de la ficha.
+
+    Auditoria 2026-11-22 (A-SD13): con pertenencia a varias empresas, los
+    endpoints de IA, del agente autonomo y del catalogo usaban
+    `user.organization_id` (la de la ficha) y trabajaban sobre otra empresa
+    que la elegida. Un superadministrador no tiene empresa activa (`None` en
+    `db.info`): se conserva la de su ficha para no convertir sus escrituras de
+    configuracion en globales.
+    """
+    if user is None:
+        return None
+    if getattr(user, "is_superadmin", False):
+        return getattr(user, "organization_id", None)
+    sesion = object_session(user)
+    if sesion is not None and "organization_id" in sesion.info:
+        return sesion.info.get("organization_id")
+    return getattr(user, "organization_id", None)
 
 
 def _org_user_ids_subquery(db: Session, current_user: User):
@@ -94,13 +115,14 @@ def scope_ticket_query(q, db: Session, current_user: User):
                 Ticket.id.in_(por_aprobar),
             )
         )
-    if current_user.organization_id:
+    org = empresa_activa(current_user)
+    if org:
         org_user_ids = db.query(User.id).filter(
-            User.organization_id == current_user.organization_id
+            User.organization_id == org
         ).scalar_subquery()
         return q.filter(
             or_(
-                Ticket.organization_id == current_user.organization_id,
+                Ticket.organization_id == org,
                 and_(
                     Ticket.organization_id.is_(None),
                     or_(
@@ -111,7 +133,9 @@ def scope_ticket_query(q, db: Session, current_user: User):
                 ),
             )
         )
-    return q
+    # Auditoria 2026-11-22: sin empresa y sin ser superadministrador no se ve
+    # nada (antes, `return q`: todos los tickets si la sesion no filtraba).
+    return q.filter(false())
 
 
 def get_scoped_ticket_or_404(

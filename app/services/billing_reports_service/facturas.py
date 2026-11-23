@@ -32,6 +32,7 @@ from app.services.billing_reports_service._comun import (
     _tenant_org_id,
 )
 from app.core.codigos_de_error import error
+from app.services.textos_guardados import pintar_campo
 
 
 # Obtener una factura por ID
@@ -50,13 +51,19 @@ def crear_enlace_de_pago(db: Session, invoice_id: str) -> dict:
     invoice = get_invoice_by_id(db, invoice_id)
     if not invoice:
         raise error(404, "no_encontrado", detail="Invoice not found", que="factura")
-    if not stripe_service.is_configured():
+    org_factura = getattr(invoice, "organization_id", None)
+    # 23-11-2026 (A-RZ6): la cuenta de Stripe de la empresa de la factura.
+    if not stripe_service.is_configured(db, org_factura):
         # Honesto: la funcionalidad no está disponible hasta configurar Stripe,
         # en vez de un 503 que sugiere un fallo transitorio.
         raise error(501, "integracion_no_configurada", detail="El cobro con Stripe no está disponible: configura STRIPE_SECRET_KEY.", nombre="Stripe")
     if invoice.status == InvoiceStatus.paid:
         raise error(409, "factura_ya_pagada")
-    if invoice.stripe_payment_link_url:
+    moneda_factura = invoice.currency or moneda_de_empresa(db, registro=invoice)
+    # 23-11-2026 (A-RZ6): solo si la sesion sigue abierta y cobra el total actual.
+    if invoice.stripe_payment_link_url and stripe_service.sesion_reutilizable(
+            invoice.stripe_payment_link_id, amount=invoice.total or 0, currency=moneda_factura,
+            db=db, org_id=org_factura):
         return {"url": invoice.stripe_payment_link_url, "id": invoice.stripe_payment_link_id, "reused": True}
     try:
         session = stripe_service.create_checkout_session(
@@ -67,6 +74,8 @@ def crear_enlace_de_pago(db: Session, invoice_id: str) -> dict:
             success_url=f"{settings.FRONTEND_URL}/invoices/{invoice.id}?paid=1",
             cancel_url=f"{settings.FRONTEND_URL}/invoices/{invoice.id}?canceled=1",
             customer_email=invoice.client_email,
+            db=db,
+            org_id=org_factura,
         )
     except stripe_service.StripeError as e:
         import logging
@@ -130,7 +139,7 @@ def invoice_out(inv: Invoice) -> dict:
         due_date=inv.due_date,
         paid_date=inv.paid_date,
         status=inv.status,
-        notes=inv.notes,
+        notes=pintar_campo(inv, "notes"),
         po_reference=inv.po_reference,
         period_from=inv.period_from,
         period_to=inv.period_to,
@@ -159,7 +168,9 @@ def create_invoice(payload, current_user: User, db: Session) -> dict:
         if not project:
             raise error(404, "no_encontrado", detail="Proyecto no encontrado o no accesible", que="proyecto")
 
-    client_name = payload.client_name or (project.client_name if project else None) or "Sin cliente"
+    # Auditoría 22-11-2026 (hardcode): sin cliente queda vacío (el PDF pinta «—»);
+    # antes se GUARDABA «Sin cliente» en castellano en la factura.
+    client_name = payload.client_name or (project.client_name if project else None) or None
     # Revisión 2026-11: el importe de cada línea lo calcula el servidor (antes se
     # aceptaba el `amount` que mandara el navegador).
     for l in payload.lines:
@@ -212,15 +223,7 @@ def create_invoice(payload, current_user: User, db: Session) -> dict:
         )
         db.add(line)
 
-    for line_data in payload.lines:
-        if line_data.get("source_type") == "timesheet":
-            raw_ids = line_data.get("source_ids", [])
-            imp_ids = json.loads(raw_ids) if isinstance(raw_ids, str) else raw_ids
-            if imp_ids:
-                db.query(Imputation).filter(Imputation.id.in_(imp_ids)).update(
-                    {"is_invoiced": True, "invoiced_invoice_id": inv.id},
-                    synchronize_session=False,
-                )
+    marcar_imputaciones_facturadas(db, inv, _imputaciones_de(payload.lines))
 
     audit_log(db, current_user, "CREATE", "invoices", inv.id, inv.number)
     try:
@@ -281,6 +284,36 @@ def _exigir_borrador(inv: Invoice) -> None:
         raise error(409, "factura_solo_borrador_editable")
 
 
+def marcar_imputaciones_facturadas(db: Session, inv, imp_ids) -> None:
+    """Marca como facturadas las imputaciones de las líneas de horas de `inv`.
+
+    Auditoría 22-11-2026 (A12): era `query(Imputation).filter(id.in_(ids)).update(...)`,
+    y un UPDATE masivo no pasa por el filtro de empresa de la sesión: se podían
+    marcar imputaciones de otra empresa o volver a facturar las ya facturadas
+    (doble facturación). Ahora el UPDATE se acota a las imputaciones ACTIVAS,
+    NO facturadas, de la empresa de la factura (y de su proyecto si lo tiene), y
+    si no se marcan todas las pedidas se rechaza la factura entera (409).
+    """
+    ids = {str(i) for i in (imp_ids or []) if i}
+    if not ids:
+        return
+    from app.models.project import Project
+    q = db.query(Imputation).filter(
+        Imputation.id.in_(ids),
+        Imputation.is_active.is_(True),
+        Imputation.is_invoiced.is_(False),
+    )
+    if inv.project_id:
+        q = q.filter(Imputation.project_id == inv.project_id)
+    if inv.organization_id:
+        q = q.filter(Imputation.project_id.in_(
+            db.query(Project.id).filter(Project.organization_id == inv.organization_id)))
+    marcadas = q.update({"is_invoiced": True, "invoiced_invoice_id": inv.id}, synchronize_session=False)
+    if int(marcadas or 0) != len(ids):
+        db.rollback()
+        raise error(409, "imputaciones_no_facturables", pedidas=len(ids), validas=int(marcadas or 0))
+
+
 def _imputaciones_de(lineas: list) -> set:
     ids = set()
     for l in lineas:
@@ -302,6 +335,8 @@ def editar_factura(db: Session, current_user: User, invoice_id: str, datos: dict
     for campo in _CABECERA_EDITABLE:
         if campo in datos:
             setattr(inv, campo, datos[campo])
+            if campo == "notes":   # migracion 200: la nota escrita a mano deja de ser la de serie
+                inv.notes_key = inv.notes_params = None
     if "lines" in datos:
         nuevas = list(datos["lines"] or [])
         # Las horas que deja de facturar vuelven a estar libres; las nuevas se marcan.
@@ -318,10 +353,7 @@ def editar_factura(db: Session, current_user: User, invoice_id: str, datos: dict
                                source_ids=json.dumps(l.get("source_ids", []) if not isinstance(l.get("source_ids"), str)
                                                      else json.loads(l["source_ids"])),
                                organization_id=inv.organization_id))
-        horas = _imputaciones_de(nuevas)
-        if horas:
-            db.query(Imputation).filter(Imputation.id.in_(horas)).update(
-                {"is_invoiced": True, "invoiced_invoice_id": inv.id}, synchronize_session=False)
+        marcar_imputaciones_facturadas(db, inv, _imputaciones_de(nuevas))
         subtotal = round(sum(importe_de_linea(l) for l in nuevas), 2)
     else:
         subtotal = round(sum(float(l.amount or 0) for l in inv.lines), 2)

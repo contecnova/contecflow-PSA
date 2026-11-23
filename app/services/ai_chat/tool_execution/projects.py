@@ -9,12 +9,13 @@ from app.models.project import Project
 from app.models.task import Task
 from app.services.ai_chat.context_service import build_tenant_context
 from app.services.ai_chat.tool_execution.politica import buscar_proyecto, proyectos_visibles
+from app.services.ai_chat.tool_execution.textos import mensaje as _msg
 
 
 def _get_project_status(tool_input, db, user, now, is_financial_role):
     pid = tool_input.get("project_id", "")
     p = buscar_proyecto(db, user, pid)
-    if not p: return {"error": f"Proyecto no encontrado: {pid}"}
+    if not p: return {"error": _msg(db, user, "proyecto_no_encontrado_id", id=pid)}
     tasks = db.query(Task).filter(Task.project_id == p.id).all()
     done = sum(1 for t in tasks if t.status == "done")
     overdue_count = sum(1 for t in tasks if t.status != "done" and t.due_date and t.due_date < now.date())
@@ -101,9 +102,9 @@ def _update_project_status(tool_input, db, user, now, is_financial_role):
     from app.schemas import ProjectUpdate
     from app.services.project_service import update_and_save_project
     p = buscar_proyecto(db, user, tool_input.get("project_id", ""))
-    if not p: return {"error": "Proyecto no encontrado"}
+    if not p: return {"error": _msg(db, user, "proyecto_no_encontrado")}
     if user.role == UserRole.pm and p.pm_id is not None and p.pm_id != user.id:
-        return {"error": "Solo puedes editar tus proyectos"}
+        return {"error": _msg(db, user, "solo_tus_proyectos")}
     cambios = ProjectUpdate(**{k: tool_input[k] for k in ("status", "risk_level") if tool_input.get(k)})
     p = update_and_save_project(db, p, cambios.model_dump(exclude_unset=True))
     return {"ok": True, "project_id": p.id, "name": p.name,

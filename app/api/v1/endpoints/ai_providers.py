@@ -6,7 +6,7 @@ from fastapi import APIRouter, Body, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.core.constantes import NOMBRE_DEL_PRODUCTO
-from app.core.deps import get_current_user, require_admin, require_internal_user
+from app.core.deps import get_current_user, requiere_capacidad
 from app.db.session import get_db
 from app.core.config import settings
 from app.models.user import User
@@ -88,7 +88,7 @@ def list_providers(db: Session = Depends(get_db), current_user: User = Depends(g
 
 
 @router.post("/env/import", summary="Importar el proveedor del .env a la aplicación")
-def import_env_provider(db: Session = Depends(get_db), cu=Depends(require_admin)):
+def import_env_provider(db: Session = Depends(get_db), cu=Depends(requiere_capacidad("ia.administrar"))):
     """Crea un proveedor editable con lo del `.env` (la clave se guarda cifrada)."""
     try:
         p = _ia.importar_proveedor_de_entorno(db, cu)
@@ -98,7 +98,7 @@ def import_env_provider(db: Session = Depends(get_db), cu=Depends(require_admin)
 
 
 @router.post("/env/test", summary="Probar el proveedor del .env")
-def test_env_provider(_=Depends(require_admin)):
+def test_env_provider(_=Depends(requiere_capacidad("ia.administrar"))):
     p = _ia.proveedor_desde_entorno()
     if p is None:
         raise error_http(404, "ia_sin_proveedor", detail="No hay proveedor de IA en el .env")
@@ -114,7 +114,7 @@ def test_env_provider(_=Depends(require_admin)):
 
 
 @router.post("")
-def create_provider(data: dict = Body(...), db: Session = Depends(get_db), cu=Depends(require_admin)):
+def create_provider(data: dict = Body(...), db: Session = Depends(get_db), cu=Depends(requiere_capacidad("ia.administrar"))):
     p = svc_create_provider(
         db,
         organization_id=cu.organization_id,
@@ -126,7 +126,7 @@ def create_provider(data: dict = Body(...), db: Session = Depends(get_db), cu=De
 
 
 @router.patch("/{pid}")
-def update_provider(pid: str, data: dict = Body(...), db: Session = Depends(get_db), _=Depends(require_admin)):
+def update_provider(pid: str, data: dict = Body(...), db: Session = Depends(get_db), _=Depends(requiere_capacidad("ia.administrar"))):
     p = get_provider(db, pid, is_superadmin=_.is_superadmin, organization_id=_.organization_id)
     if not p:
         raise error_http(404, "no_encontrado", detail="AI provider not found", que="proveedor_ia")
@@ -135,7 +135,7 @@ def update_provider(pid: str, data: dict = Body(...), db: Session = Depends(get_
 
 
 @router.delete("/{pid}")
-def delete_provider(pid: str, db: Session = Depends(get_db), _=Depends(require_admin)):
+def delete_provider(pid: str, db: Session = Depends(get_db), _=Depends(requiere_capacidad("ia.administrar"))):
     enforce_abac(db, _, "ai_provider", pid, action="delete")
     p = get_provider(db, pid, is_superadmin=_.is_superadmin, organization_id=_.organization_id)
     if not p:
@@ -145,7 +145,7 @@ def delete_provider(pid: str, db: Session = Depends(get_db), _=Depends(require_a
 
 
 @router.post("/{pid}/set-default")
-def set_default(pid: str, db: Session = Depends(get_db), _=Depends(require_admin)):
+def set_default(pid: str, db: Session = Depends(get_db), _=Depends(requiere_capacidad("ia.administrar"))):
     p = svc_set_default_provider(db, pid, is_superadmin=_.is_superadmin, organization_id=_.organization_id)
     if not p:
         raise error_http(404, "no_encontrado", detail="AI provider not found", que="proveedor_ia")
@@ -204,7 +204,7 @@ def _http_del_error_de_proveedor(mensaje: str) -> HTTPException:
 
 
 @router.post("/test-config", summary="Probar una configuración sin guardarla")
-def test_unsaved(data: dict = Body(...), _=Depends(require_admin)):
+def test_unsaved(data: dict = Body(...), _=Depends(requiere_capacidad("ia.administrar"))):
     """Revision 2026-11 (de contecmind): probar la clave escrita antes de guardarla."""
     try:
         p = _ia.proveedor_sin_guardar(data)
@@ -222,7 +222,7 @@ def test_unsaved(data: dict = Body(...), _=Depends(require_admin)):
 
 
 @router.post("/discover-models", summary="Modelos disponibles con la clave escrita (sin guardar)")
-def discover_unsaved(data: dict = Body(...), _=Depends(require_admin)):
+def discover_unsaved(data: dict = Body(...), _=Depends(requiere_capacidad("ia.administrar"))):
     try:
         modelos = _ia.list_models_for_provider(_ia.proveedor_sin_guardar(data))
     except ValueError as e:
@@ -233,7 +233,7 @@ def discover_unsaved(data: dict = Body(...), _=Depends(require_admin)):
 
 
 @router.get("/spend-today", summary="Gasto en IA de hoy frente al tope diario de la empresa")
-def gasto_de_hoy(db: Session = Depends(get_db), cu=Depends(require_admin)):
+def gasto_de_hoy(db: Session = Depends(get_db), cu=Depends(requiere_capacidad("ia.administrar"))):
     from app.services.ai_provider_service import gasto_de_hoy as _gasto, presupuesto_diario
     from app.services.settings_service import get_runtime_float
     org = cu.organization_id
@@ -248,7 +248,7 @@ def gasto_de_hoy(db: Session = Depends(get_db), cu=Depends(require_admin)):
 
 
 @router.get("/routing", summary="Proveedor y modelo por función")
-def get_routing(db: Session = Depends(get_db), cu=Depends(require_admin)):
+def get_routing(db: Session = Depends(get_db), cu=Depends(requiere_capacidad("ia.administrar"))):
     return APIResponse.ok(data={
         "modules": [{"key": k, "label": v} for k, v in _ia.MODULOS_DE_IA.items()],
         "routes": _ia.rutas_por_modulo(db, cu.organization_id),
@@ -256,7 +256,7 @@ def get_routing(db: Session = Depends(get_db), cu=Depends(require_admin)):
 
 
 @router.put("/routing", summary="Guardar proveedor y modelo por función")
-def put_routing(data: dict = Body(...), db: Session = Depends(get_db), cu=Depends(require_admin)):
+def put_routing(data: dict = Body(...), db: Session = Depends(get_db), cu=Depends(requiere_capacidad("ia.administrar"))):
     rutas = data.get("routes") or {}
     for ruta in rutas.values():
         pid = (ruta or {}).get("provider_id")
@@ -266,7 +266,7 @@ def put_routing(data: dict = Body(...), db: Session = Depends(get_db), cu=Depend
 
 
 @router.post("/{pid}/test")
-def test_provider(pid: str, db: Session = Depends(get_db), _=Depends(require_admin)):
+def test_provider(pid: str, db: Session = Depends(get_db), _=Depends(requiere_capacidad("ia.administrar"))):
     """Probar la conexión con el proveedor enviando un mensaje de prueba."""
     p = get_provider(db, pid, is_superadmin=_.is_superadmin, organization_id=_.organization_id)
     if not p:
@@ -300,7 +300,7 @@ def test_provider(pid: str, db: Session = Depends(get_db), _=Depends(require_adm
 
 
 @router.post("/{pid}/sync-models")
-def sync_provider_models(pid: str, db: Session = Depends(get_db), _=Depends(require_admin)):
+def sync_provider_models(pid: str, db: Session = Depends(get_db), _=Depends(requiere_capacidad("ia.administrar"))):
     """Discover and persist the live model list from the upstream provider."""
     p = get_provider(db, pid, is_superadmin=_.is_superadmin, organization_id=_.organization_id)
     if not p:
@@ -324,7 +324,7 @@ def sync_provider_models(pid: str, db: Session = Depends(get_db), _=Depends(requ
 
 
 @router.post("/sync-models/all")
-def sync_all_provider_models(db: Session = Depends(get_db), _=Depends(require_admin)):
+def sync_all_provider_models(db: Session = Depends(get_db), _=Depends(requiere_capacidad("ia.administrar"))):
     """Discover and persist live model lists for all configured providers in scope."""
     providers = svc_list_providers(
         db,
@@ -368,7 +368,7 @@ def sync_all_provider_models(db: Session = Depends(get_db), _=Depends(require_ad
 
 
 @router.get("/diagnostics")
-def diagnose_all_providers(db: Session = Depends(get_db), _=Depends(require_admin)):
+def diagnose_all_providers(db: Session = Depends(get_db), _=Depends(requiere_capacidad("ia.administrar"))):
     """
     Ejecuta un diagnóstico de conectividad para cada proveedor IA configurado.
     Devuelve un semáforo (ok/warning/error) por proveedor con latencia y detalle de error.
@@ -409,7 +409,7 @@ def get_stats(db: Session = Depends(get_db), _=Depends(get_current_user)):
 # ── Endpoint de chat unificado ────────────────────────────────────────────────
 @router.post("/chat")
 def unified_chat(data: dict = Body(...), db: Session = Depends(get_db),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
+    _rol: User = Depends(requiere_capacidad("ia.usar")),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
                  cu=Depends(get_current_user)):
     """Chat unificado que usa el proveedor configurado."""
     messages = data.get("messages", [])

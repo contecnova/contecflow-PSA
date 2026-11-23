@@ -15,7 +15,9 @@ Teams notifications:
 Milestones auto-sync:
   POST /m365/calendar/sync-milestones — push all upcoming milestones as calendar events
 
-NOTE: Real Graph API calls require AZURE_CLIENT_ID, AZURE_CLIENT_SECRET, AZURE_TENANT_ID.
+NOTE: Graph calls use the ACTIVE company's own "Microsoft 365 / Graph" credential
+      (tenant, client id, client secret; 23-11-2026, audit 03 A-MP3). The global
+      AZURE_* are a platform credential used only with M365_PLATFORM_CREDENTIALS_ENABLED.
       When not configured, endpoints return 503 with setup instructions.
 """
 
@@ -25,12 +27,12 @@ from typing import Optional
 import logging
 import httpx
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from app.schemas.m365 import CalendarEventCreate, TeamsNotification, MilestoneSyncRequest
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.core.deps import get_current_user, get_db, require_admin
+from app.core.deps import get_current_user, get_db, requiere_capacidad
 from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
 from app.core.abac_enforce import enforce_abac
@@ -44,7 +46,7 @@ logger = logging.getLogger(__name__)
 
 # ── Helpers (delegated to m365_service) ──────────────────────────────────────
 # Only the helpers actually referenced by the endpoints below are aliased;
-# unused passthroughs (GRAPH_BASE, get_graph_token{,_sync}, graph_patch) have
+# unused passthroughs (GRAPH_BASE, get_graph_token{,_sync}; graph_patch, retirado el 23-11-2026) have
 # been removed — they live in m365_service and can be imported directly there.
 _m365_configured = m365_service.m365_configured
 _require_m365 = m365_service.require_m365
@@ -55,23 +57,34 @@ _graph_get_sync = m365_service.graph_get_sync
 _graph_post_sync = m365_service.graph_post_sync
 
 
+def _empresa(usuario) -> Optional[str]:
+    """Empresa activa: sus credenciales de Graph (23-11-2026, 03 A-MP3)."""
+    from app.services.service_desk.scoping import empresa_activa
+    return empresa_activa(usuario)
+
+
 # ── Status endpoint ──────────────────────────────────────────────────────────
 
 @router.get("/status")
 def m365_status(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     from app.services.settings_service import get_runtime_bool
-    configured = _m365_configured()
-    teams_ok = bool(settings.TEAMS_WEBHOOK_URL)
-    org_id = getattr(current_user, "organization_id", None)
+    from app.services.m365_bi_embed_service import webhook_de_teams_de_la_empresa
+    org_id = _empresa(current_user)
+    origen = m365_service.origen_de_credenciales(db, org_id)
+    configured = origen is not None
+    teams_ok = bool(webhook_de_teams_de_la_empresa(db, org_id))
     return APIResponse.ok(data={
         "graph_configured":            configured,
         "calendar_sync_enabled":       get_runtime_bool(db, "M365_CALENDAR_SYNC_ENABLED", org_id),
         "teams_notifications_enabled": get_runtime_bool(db, "M365_TEAMS_NOTIFICATIONS_ENABLED", org_id),
         "teams_webhook_configured":    teams_ok,
+        # 23-11-2026: `empresa` (credencial propia), `plataforma` (AZURE_* con
+        # M365_PLATFORM_CREDENTIALS_ENABLED) o None.
+        "credential_source":           origen,
+        # Mismas claves que antes (la pantalla las pinta), pero de la EMPRESA:
+        # cada campo de su credencial «Microsoft 365 / Graph», no el entorno.
         "required_env_vars": {
-            "AZURE_TENANT_ID":     bool(settings.AZURE_TENANT_ID),
-            "AZURE_CLIENT_ID":     bool(settings.AZURE_CLIENT_ID),
-            "AZURE_CLIENT_SECRET": bool(settings.AZURE_CLIENT_SECRET),
+            **m365_service.campos_configurados(db, org_id, origen),
             "TEAMS_WEBHOOK_URL":   teams_ok,
         },
     })
@@ -85,11 +98,12 @@ async def sync_calendar_events(
     days: int = 14,
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
-    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: credenciales de Microsoft 365
+    _rol: User = Depends(requiere_capacidad("integraciones.administrar")),  # auditoria 2026-09: sensible: credenciales de Microsoft 365
 ):
     """Pull upcoming calendar events for the given user via Microsoft Graph."""
     from app.core.async_db import run_db
-    _require_m365()
+    org = _empresa(_)
+    await run_db(_require_m365, db, org)
     # Auditoria 2026-11 (#15): solo buzones de usuarios de la organizacion.
     user_upn = await run_db(m365_service.buzon_de_la_organizacion, db, _, user_upn)
     start = utcnow().strftime("%Y-%m-%dT%H:%M:%S")
@@ -97,7 +111,8 @@ async def sync_calendar_events(
     try:
         data = await _graph_get(
             f"/users/{user_upn}/calendarView?startDateTime={start}Z&endDateTime={end}Z&$top=50"
-            "&$select=id,subject,start,end,location,webLink,attendees"
+            "&$select=id,subject,start,end,location,webLink,attendees",
+            db=db, org_id=org,
         )
         events = data.get("value", [])
         return APIResponse.ok(data={"pulled": len(events), "events": events})
@@ -111,11 +126,12 @@ async def create_calendar_event(
     body: CalendarEventCreate,
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
-    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: credenciales de Microsoft 365
+    _rol: User = Depends(requiere_capacidad("integraciones.administrar")),  # auditoria 2026-09: sensible: credenciales de Microsoft 365
 ):
     """Create a calendar event in the specified user's Microsoft 365 calendar."""
     from app.core.async_db import run_db
-    _require_m365()
+    org = _empresa(_)
+    await run_db(_require_m365, db, org)
     buzon = await run_db(m365_service.buzon_de_la_organizacion, db, _, body.user_upn)
     payload = {
         "subject": body.subject,
@@ -129,7 +145,7 @@ async def create_calendar_event(
         ],
     }
     try:
-        result = await _graph_post(f"/users/{buzon}/events", payload)
+        result = await _graph_post(f"/users/{buzon}/events", payload, db=db, org_id=org)
         return APIResponse.ok(data={"id": result.get("id"), "webLink": result.get("webLink"), "subject": result.get("subject")})
     except httpx.HTTPStatusError as e:
         logger.warning("Graph API create event failed: status=%s", e.response.status_code)
@@ -142,18 +158,19 @@ async def delete_calendar_event(
     user_upn: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: credenciales de Microsoft 365
+    _rol: User = Depends(requiere_capacidad("integraciones.administrar")),  # auditoria 2026-09: sensible: credenciales de Microsoft 365
 ):
     # Audit #C7: ABAC enforcement reads from DB; offload to threadpool so the
     # sync ORM call does not block the event loop. The Graph API call is
     # legitimately async (httpx).
     from app.core.async_db import run_db
     await run_db(enforce_abac, db, current_user, "m365_calendar_event", event_id, action="delete")
-    _require_m365()
+    org = _empresa(current_user)
+    await run_db(_require_m365, db, org)
     buzon = await run_db(m365_service.buzon_de_la_organizacion, db, current_user, user_upn)
     from urllib.parse import quote
     try:
-        await _graph_delete(f"/users/{buzon}/events/{quote(event_id, safe='')}")
+        await _graph_delete(f"/users/{buzon}/events/{quote(event_id, safe='')}", db=db, org_id=org)
     except httpx.HTTPStatusError as e:
         logger.warning("Graph API delete event failed: status=%s", e.response.status_code)
         raise error_http(e.response.status_code, "servicio_externo_fallo", detail="Graph API request failed", servicio="Microsoft Graph")
@@ -165,10 +182,11 @@ def sync_milestones_to_calendar(
     req: MilestoneSyncRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: credenciales de Microsoft 365
+    _rol: User = Depends(requiere_capacidad("integraciones.administrar")),  # auditoria 2026-09: sensible: credenciales de Microsoft 365
 ):
     """Push upcoming project milestones as Microsoft 365 calendar events."""
-    _require_m365()
+    org = _empresa(current_user)
+    _require_m365(db, org)
     buzon = m365_service.buzon_de_la_organizacion(db, current_user, req.user_upn)
 
     cutoff = timeutil.today() + timedelta(days=req.days_ahead)
@@ -188,7 +206,7 @@ def sync_milestones_to_calendar(
             "body":    {"contentType": "text", "content": ms.description or ""},
         }
         try:
-            result = _graph_post_sync(f"/users/{buzon}/events", payload)
+            result = _graph_post_sync(f"/users/{buzon}/events", payload, db=db, org_id=org)
             created.append({"milestone_id": ms.id, "event_id": result.get("id")})
         except Exception as e:
             logger.warning("sync_milestones_to_calendar: excepcion ignorada", exc_info=True)
@@ -199,15 +217,25 @@ def sync_milestones_to_calendar(
 
 # ── Teams notification endpoints ──────────────────────────────────────────────
 
+async def _webhook_de_teams(db, usuario):
+    """El webhook de Teams de la empresa activa (2026-11-22, A-MP4: antes el
+    `TEAMS_WEBHOOK_URL` global, el mismo canal para todas las empresas)."""
+    from app.core.async_db import run_db
+    from app.services.m365_bi_embed_service import webhook_de_teams_de_la_empresa
+    from app.services.service_desk.scoping import empresa_activa
+    return await run_db(webhook_de_teams_de_la_empresa, db, empresa_activa(usuario))
+
+
 @router.post("/teams/notify")
 async def send_teams_notification(
     body: TeamsNotification,
     _: User = Depends(get_current_user),
-    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: credenciales de Microsoft 365
+    _rol: User = Depends(requiere_capacidad("integraciones.administrar")),  # auditoria 2026-09: sensible: credenciales de Microsoft 365
+    db: Session = Depends(get_db),
 ):
     """Send an Adaptive Card-style message to a Microsoft Teams channel via incoming webhook."""
     from app.core.outbound_url import cliente_httpx, validate_outbound_url
-    webhook_url = body.webhook_url or settings.TEAMS_WEBHOOK_URL
+    webhook_url = body.webhook_url or await _webhook_de_teams(db, _rol)
     if not webhook_url:
         raise error_http(503, "integracion_no_configurada", detail="TEAMS_WEBHOOK_URL not configured", nombre="Teams")
     # Auditoria 2026-11 (#25): la URL llegaba del cuerpo sin validar (SSRF).
@@ -247,10 +275,11 @@ async def notify_project_milestone(
     milestone_name: str,
     due_date: str,
     _: User = Depends(get_current_user),
-    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: credenciales de Microsoft 365
+    _rol: User = Depends(requiere_capacidad("integraciones.administrar")),  # auditoria 2026-09: sensible: credenciales de Microsoft 365
+    db: Session = Depends(get_db),
 ):
     """Send a formatted Teams notification about an upcoming milestone."""
-    webhook_url = settings.TEAMS_WEBHOOK_URL
+    webhook_url = await _webhook_de_teams(db, _rol)
     if not webhook_url:
         raise error_http(503, "integracion_no_configurada", detail="TEAMS_WEBHOOK_URL not configured", nombre="Teams")
 
@@ -265,7 +294,9 @@ async def notify_project_milestone(
             "markdown": True,
         }],
     }
-    async with httpx.AsyncClient(timeout=outbound_http_timeout(default=15)) as client:
+    # 23-11-2026 (01 M7): mismo guardia que el envío síncrono (IP conectada).
+    from app.core.outbound_url import cliente_httpx_async
+    async with cliente_httpx_async(timeout=outbound_http_timeout(default=15)) as client:
         resp = await client.post(webhook_url, json=card)
 
     if resp.status_code not in (200, 202):
@@ -278,7 +309,7 @@ async def notify_project_milestone(
 def receive_teams_webhook(
     payload: dict,
     _: User = Depends(get_current_user),
-    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: credenciales de Microsoft 365
+    _rol: User = Depends(requiere_capacidad("integraciones.administrar")),  # auditoria 2026-09: sensible: credenciales de Microsoft 365
 ):
     # Audit #C7: converted async→def — no awaits inside, was unnecessarily on
     # the event loop. Now runs in FastAPI's threadpool.
@@ -322,7 +353,9 @@ async def get_users_presence(
     Uses POST /v1.0/communications/getPresencesByUserId (delegated or app permissions).
     Presence availability values: Available, Busy, DoNotDisturb, Away, BeRightBack, Offline, PresenceUnknown.
     """
-    _require_m365()
+    from app.core.async_db import run_db
+    org = _empresa(_)
+    await run_db(_require_m365, db, org)
     upn_list = [u.strip() for u in upns.split(",") if u.strip()]
     if not upn_list:
         raise error_http(400, "upn_ninguno", detail="No UPNs provided")
@@ -330,7 +363,6 @@ async def get_users_presence(
         raise error_http(400, "upn_demasiados", detail="Maximum 650 UPNs per request", max=650)
     # Auditoria 2026-11 (#15): solo la presencia de usuarios de la organizacion;
     # los demas UPN se omiten.
-    from app.core.async_db import run_db
     upn_list = await run_db(m365_service.upns_de_la_organizacion, db, _, upn_list)
     if not upn_list:
         return APIListResponse.ok(items=[])
@@ -339,7 +371,7 @@ async def get_users_presence(
     ids = []
     for upn in upn_list:
         try:
-            user_data = await _graph_get(f"/users/{upn}?$select=id,displayName")
+            user_data = await _graph_get(f"/users/{upn}?$select=id,displayName", db=db, org_id=org)
             ids.append(user_data.get("id"))
         except Exception:
             logger.warning("Error resolviendo UPN M365 %s, se omite", upn, exc_info=True)
@@ -347,13 +379,14 @@ async def get_users_presence(
     if not ids:
         return APIListResponse.ok(items=[])
 
-    result = await _graph_post("/communications/getPresencesByUserId", {"ids": [i for i in ids if i]})
+    result = await _graph_post("/communications/getPresencesByUserId", {"ids": [i for i in ids if i]},
+                               db=db, org_id=org)
     return APIListResponse.ok(items=result.get("value", []))
 
 
 # ── Microsoft Planner sync ─────────────────────────────────────────────────────
 
-def _titulos_en_el_plan(plan_id: str) -> set[str]:
+def _titulos_en_el_plan(plan_id: str, db=None, org_id: Optional[str] = None) -> set[str]:
     """Títulos que ya existen en el plan, en minúsculas, para no duplicar.
 
     Un fallo al consultarlos devuelve el conjunto vacío y no detiene la
@@ -361,7 +394,7 @@ def _titulos_en_el_plan(plan_id: str) -> set[str]:
     no sincronizar nada porque Graph tuvo un mal momento.
     """
     try:
-        respuesta = _graph_get_sync(f"/planner/plans/{plan_id}/tasks")
+        respuesta = _graph_get_sync(f"/planner/plans/{plan_id}/tasks", db=db, org_id=org_id)
         return {t.get("title", "").lower() for t in respuesta.get("value", [])}
     except Exception:
         logger.warning(
@@ -370,7 +403,7 @@ def _titulos_en_el_plan(plan_id: str) -> set[str]:
         return set()
 
 
-def _crear_tarea_en_planner(plan_id: str, task) -> bool:
+def _crear_tarea_en_planner(plan_id: str, task, db=None, org_id: Optional[str] = None) -> bool:
     """Crea una tarea en Planner. Devuelve si lo consiguió.
 
     La fecha de vencimiento es opcional: si no se puede formatear, la tarea se
@@ -392,7 +425,7 @@ def _crear_tarea_en_planner(plan_id: str, task) -> bool:
             )
 
     try:
-        _graph_post_sync("/planner/tasks", payload)
+        _graph_post_sync("/planner/tasks", payload, db=db, org_id=org_id)
         return True
     except Exception:
         logger.warning(
@@ -407,14 +440,15 @@ def sync_to_planner(
     plan_id: Optional[str] = None,
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
-    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: credenciales de Microsoft 365
+    _rol: User = Depends(requiere_capacidad("integraciones.administrar")),  # auditoria 2026-09: sensible: credenciales de Microsoft 365
 ):
     """Sube las tareas activas de un proyecto a un plan de Microsoft Planner.
 
     Sólo crea lo que no está: las tareas que ya existen en el plan **por
     título** se saltan. Devuelve `{plan_id, created, skipped, errors}`.
     """
-    _require_m365()
+    org = _empresa(_)
+    _require_m365(db, org)
 
     tareas = m365_service.get_active_tasks_for_project(db, project_id, limit=200)
     if not tareas:
@@ -427,15 +461,13 @@ def sync_to_planner(
     # no tiene configurado, así que el plan lo da quien llama. Se dice cómo
     # encontrarlo en vez de fallar a secas.
     if not plan_id:
-        raise HTTPException(400, detail={
-            "error": "PLAN_ID_REQUIRED",
-            "message": (
-                "Provide plan_id. To find your plan ID: "
-                f"{settings.MICROSOFT_GRAPH_BASE}/v1.0/me/planner/plans"
-            ),
-        })
+        raise error_http(400, "campo_obligatorio", campo="plan_id", detail=(
+            "Provide plan_id. To find your plan ID: "
+            f"{settings.MICROSOFT_GRAPH_BASE}/v1.0/me/planner/plans"
+        ))
 
-    existentes = _titulos_en_el_plan(plan_id)
+    plan_id = m365_service.id_de_graph(plan_id, "plan_id")
+    existentes = _titulos_en_el_plan(plan_id, db, org)
     creadas = saltadas = fallidas = 0
 
     for tarea in tareas:
@@ -445,7 +477,7 @@ def sync_to_planner(
         if titulo.lower() in existentes:
             saltadas += 1
             continue
-        if _crear_tarea_en_planner(plan_id, tarea):
+        if _crear_tarea_en_planner(plan_id, tarea, db, org):
             creadas += 1
         else:
             fallidas += 1

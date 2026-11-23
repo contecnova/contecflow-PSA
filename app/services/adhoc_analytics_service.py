@@ -266,16 +266,15 @@ def run_adhoc_query(
 def _filtrar_por_mes(q, columna, valor: str):
     """Acota una consulta a un mes escrito como `YYYY-MM`.
 
-    `strftime` es de SQLite. Aquí se conserva porque es lo que había y este
-    camino no se ejecuta sobre PostgreSQL; el de `run_adhoc_query`, que sí,
-    usa `extract`. Queda anotado: si este drilldown llega a producción sobre
-    Postgres, hay que cambiarlo igual que allí.
+    Baja (auditoría 22-11-2026): por RANGO de fechas (primer día del mes ≤ fecha
+    < primer día del siguiente), que vale en SQLite y en PostgreSQL y usa el
+    índice; antes `strftime`, solo de SQLite.
     """
+    from datetime import date as _date
     anio, mes = int(valor[:4]), int(valor[5:7])
-    return q.filter(
-        func.strftime("%Y", columna) == str(anio),
-        func.strftime("%m", columna) == f"{mes:02d}",
-    )
+    inicio = _date(anio, mes, 1)
+    fin = _date(anio + (mes == 12), 1 if mes == 12 else mes + 1, 1)
+    return q.filter(columna >= inicio, columna < fin)
 
 
 #: Qué se puede desglosar y cómo. Por cada métrica: el modelo, un filtro base,

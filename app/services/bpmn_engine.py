@@ -15,8 +15,12 @@ Elementos que sabe ejecutar:
   o su nombre en la pantalla en es/en/zh), solo ese rol (o un admin) puede
   completarlo; si no, cualquiera de la organizacion. Al completarlo se pueden
   aportar variables.
-- **serviceTask, scriptTask, sendTask, businessRuleTask**: se anotan como hechos
-  y la ficha sigue. **No ejecutan nada**: no hay a que enlazarlos todavia.
+- **serviceTask, scriptTask, sendTask, businessRuleTask**: no hay a qué enlazarlos
+  (integraciones, scripts, envíos, reglas), así que **esperan confirmación
+  humana** como una tarea (auditoría 22-11-2026, M75/fantasma 8): antes se
+  marcaban «completadas» sin hacer nada y el proceso parecía automatizado.
+  Ahora quien tenga el rol de su calle confirma que se hizo (y aporta
+  variables si hace falta); el paso lleva `{"automatic": false, "tipo": …}`.
 - **exclusiveGateway**: la primera salida cuya condicion se cumple; si ninguna,
   la de por defecto; si no hay, la instancia falla con el motivo.
   Condiciones: `variable op valor` (==, !=, >, <, >=, <=), unidas por `and`/`or`
@@ -53,6 +57,8 @@ from xml.etree.ElementTree import ParseError
 
 from defusedxml import DefusedXmlException
 from defusedxml.ElementTree import fromstring as _xml_seguro
+import logging
+
 from sqlalchemy.orm import Session, contains_eager, selectinload
 
 from app.models.bpmn_process import (BPMNInstance, BPMNInstanceStep, BPMNProcess, BPMNProcessStatus,
@@ -465,8 +471,9 @@ def _avanzar(db: Session, inst: BPMNInstance, g: Grafo, entradas: list[tuple[str
         nodo_id, _flujo = pendientes.pop(0)
         n = g.nodos[nodo_id]
         siguientes = [g.flujos[f].destino for f in n.salidas]
-        if n.tipo in HUMANOS:
-            _paso(db, inst, n, "active", candidate_role=n.rol, wait_kind=ESPERA_TAREA)
+        if n.tipo in HUMANOS or n.tipo in AUTOMATICOS:
+            _paso(db, inst, n, "active", candidate_role=n.rol, wait_kind=ESPERA_TAREA,
+                  **({"result": json.dumps({"automatic": False, "tipo": n.tipo})} if n.tipo in AUTOMATICOS else {}))
         elif n.tipo == "intermediateCatchEvent":
             clase, texto = n.temporizador
             vence = _ahora() + _duracion(texto) if clase == "duration" else _fecha(texto)
@@ -513,8 +520,8 @@ def _avanzar(db: Session, inst: BPMNInstance, g: Grafo, entradas: list[tuple[str
                 union.completed_at = _ahora()
                 pendientes += [(d, None) for d in siguientes]
         else:
-            # startEvent, parallelGateway de reparto, automaticos, throw sin definicion
-            _paso(db, inst, n, "completed", result=json.dumps({"automatic": True}) if n.tipo in AUTOMATICOS else None)
+            # startEvent, parallelGateway de reparto, throw sin definicion
+            _paso(db, inst, n, "completed")
             pendientes += [(d, None) for d in siguientes]
     db.flush()
     if inst.status == "running" and not db.query(BPMNInstanceStep.id).filter(
@@ -622,7 +629,7 @@ def vencer_temporizadores(db: Session) -> dict:
                         BPMNInstance.status == "running")
                 .all())
     grafos = _Grafos(db)
-    n = 0
+    n = fallos = 0
     for paso in vencidos:
         inst = paso.instance
         # Segunda auditoría 2026-11 (#10): organización desactivada → se salta;
@@ -632,13 +639,20 @@ def vencer_temporizadores(db: Session) -> dict:
         with como_organizacion(db, inst.organization_id):
             if inst.status != "running" or paso.status != "active":
                 continue   # otro temporizador de la misma instancia la termino
-            paso.status = "completed"
-            paso.completed_at = _ahora()
-            g = grafos.de(inst)
-            _avanzar(db, inst, g, [(g.flujos[f].destino, f) for f in g.nodos[paso.element_id].salidas])
-            db.commit()
-            n += 1
-    return {"timers_fired": n}
+            # M75 (auditoría 22-11-2026): un fallo en una instancia se deshace
+            # y se anota; ya no deja la sesión abortada para las demás.
+            try:
+                paso.status = "completed"
+                paso.completed_at = _ahora()
+                g = grafos.de(inst)
+                _avanzar(db, inst, g, [(g.flujos[f].destino, f) for f in g.nodos[paso.element_id].salidas])
+                db.commit()
+                n += 1
+            except Exception:
+                db.rollback()
+                fallos += 1
+                logging.getLogger(__name__).exception("BPMN: temporizador %s de la instancia %s", paso.id, inst.id)
+    return {"timers_fired": n, "failed": fallos}
 
 
 def serializar(inst: BPMNInstance, con_pasos: bool = True, grafos: Optional[_Grafos] = None) -> dict:

@@ -1,0 +1,9 @@
+{
+ "codigos": {
+  "oauth_app_sin_empresa": {
+   "es": "La aplicación no tiene organización: no se pueden emitir tokens",
+   "en": "The application has no organization: tokens cannot be issued",
+   "zh": "该应用没有所属组织：无法签发令牌"
+  }
+ }
+}

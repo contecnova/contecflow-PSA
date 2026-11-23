@@ -3,10 +3,6 @@
 /* Barra de filtros (misma forma que /projects) */
 .sdqr-filters { margin-bottom: 16px; }
 .sdqr-search { position: relative; flex: 2 1 240px; min-width: 200px; }
-.sdqr-search__icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text-3); pointer-events: none; }
-.ds-input.sdqr-search__input { width: 100%; padding-left: 32px; box-sizing: border-box; }
-.ds-input.sdqr-filter { flex: 1 1 160px; min-width: 140px; }
-.ui-select--suelto.sdqr-filter { flex: 1 1 160px; min-width: 140px; }
 
 .sdqr-loading { text-align: center; padding: 40px; }
 .ds-card.sdqr-card { padding: 0; overflow: hidden; }

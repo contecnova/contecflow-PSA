@@ -29,7 +29,7 @@ from datetime import date, timedelta
 
 from app.services.settings_service.por_empresa import capacidad_semanal
 from app.db.session import get_db
-from app.core.deps import get_current_user, require_any_manager
+from app.core.deps import get_current_user, requiere_capacidad
 from app.core.responses import APIResponse
 from app.models.user import User
 from app.services.resource_analytics import (
@@ -105,7 +105,7 @@ def forecast_heatmap(
     from_date:   Optional[date] = Query(None),   # YYYY-MM-DD, default hoy
     p: Periodo = Depends(_horizonte(26)),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("recursos.gestionar")),
 ):
     """
     Devuelve una matriz:
@@ -196,7 +196,7 @@ def forecast_user_detail(
     u = get_forecast_user_by_id(db, user_id)
     if not u:
         from fastapi import HTTPException
-        raise HTTPException(404)
+        raise error_http(404, "no_encontrado", que="usuario")
 
     week_dates = _semanas(p, weeks, 13, from_date)
     capacity   = capacidad_semanal(db, u)
@@ -250,7 +250,7 @@ def find_available(
     department:   Optional[str] = Query(None),
     role:         Optional[str] = Query(None),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("recursos.gestionar")),
 ):
     """Devuelve personas con suficiente disponibilidad media en el rango dado."""
     start = _monday(from_date or timeutil.today())
@@ -302,7 +302,7 @@ def forecast_summary(
     department: Optional[str] = Query(None),
     p: Periodo = Depends(_horizonte(12)),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("recursos.gestionar")),
 ):
     """KPIs ejecutivos: carga media, semanas de riesgo, personas saturadas, capacidad libre."""
     week_dates = _semanas(p, weeks, 12)
@@ -376,7 +376,7 @@ def utilization_trend(
     department:   Optional[str] = Query(None),
     p: Periodo = Depends(periodo(dias_por_defecto=84, granularidades=(SEMANA,), alias_dias=())),
     db: Session = Depends(get_db),
-    _: User = Depends(require_any_manager),
+    _: User = Depends(requiere_capacidad("recursos.gestionar")),
 ):
     """
     Periodo libre (16-11-2026): con ``desde``/``hasta`` la serie cubre las

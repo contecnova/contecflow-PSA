@@ -13,7 +13,7 @@ from pydantic import BaseModel, field_validator
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.core.deps import get_current_user, get_db, require_admin
+from app.core.deps import get_current_user, get_db, requiere_capacidad
 from app.core.responses import APIResponse
 from app.models.user import User
 from app.core.abac_enforce import enforce_abac
@@ -176,7 +176,7 @@ def update_branding(
     org_id: str,
     payload: BrandingUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("org.administrar")),
 ):
     branding = svc.guardar_marca(
         db, current_user, org_id, payload.dict(exclude_none=True))
@@ -187,7 +187,7 @@ def update_branding(
 def reset_branding(
     org_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("org.administrar")),
 ):
     enforce_abac(db, current_user, "org_branding", org_id, action="delete")
     svc.restablecer_marca(db, current_user, org_id)

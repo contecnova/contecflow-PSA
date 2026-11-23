@@ -228,7 +228,7 @@ def _pie(est: dict, paleta) -> list:
         Spacer(1, 20),
         HRFlowable(width="100%", thickness=0.5, color=paleta.color("linea_separadora")),
         Paragraph(
-            _t_salida("pdf.pie_informe", est.get("_idioma"), marca=est.get("_marca", NOMBRE_DEL_PRODUCTO), anio=datetime.now().strftime('%Y')),
+            _t_salida("pdf.pie_informe", est.get("_idioma"), marca=est.get("_marca", NOMBRE_DEL_PRODUCTO), anio=_ahora_local().strftime('%Y')),
             est["pie"],
         ),
     ]
@@ -257,7 +257,7 @@ def generate_report_pdf(
     est = _estilos_de_informe(paleta)
     est["_idioma"] = idioma or IDIOMA_DE_RESPALDO
     est["_marca"] = marca or NOMBRE_DEL_PRODUCTO
-    est["_cuando"] = generado_el or formatear_fecha(datetime.now(), est["_idioma"], con_hora=True)
+    est["_cuando"] = generado_el or formatear_fecha(_ahora_local(), est["_idioma"], con_hora=True)
 
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(
@@ -278,3 +278,10 @@ def generate_report_pdf(
     doc.build(elements)
     buffer.seek(0)
     return buffer.read()
+
+
+def _ahora_local():
+    """La hora en la zona por defecto de la empresa (ronda 2 auditoria
+    2026-11-22: antes `datetime.now()`, la hora del servidor y sin zona)."""
+    from app.services.formato_regional import ahora_local
+    return ahora_local()

@@ -12,13 +12,13 @@
 import { useQuery } from '@tanstack/react-query'
 import { authApi } from '../services/api'
 import type { RolReal } from '../services/api/auth'
-import { useAppT } from './useAppT'
+import { useAppLang } from '../i18n/AppLangContext'
 import { etiquetaCodigo } from '../i18n/etiquetaCodigo'
 
 export type OpcionDeRol = { id: string; etiqueta: string; interno: boolean }
 
 export function useRolesReales(opciones: { soloInternos?: boolean } = {}): OpcionDeRol[] {
-  const { t, lang } = useAppT()
+  const { t, lang } = useAppLang()
   const { data } = useQuery<RolReal[]>({
     queryKey: ['roles-reales'],
     queryFn: () => authApi.roles().then(r => r.data.items),

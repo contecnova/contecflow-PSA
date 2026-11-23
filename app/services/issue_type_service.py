@@ -20,16 +20,20 @@ from app.models.issue_types import (
 )
 from app.models.epics import WikiSpace, WikiPage
 from app.core.codigos_de_error import error, ErrorConCodigo
+from app.services.textos_guardados import pintar_campo
 
 
+#: (clave del nombre, valor, icono, color, clave de la descripcion, es subtarea, orden). Nombre y
+#: descripcion salen de `textos_de_salida` (`tipo_incidencia.<valor>.nombre|descripcion`) en el idioma
+#: de la empresa al sembrarlos (23-11-2026: antes castellano fijo en el codigo).
 SYSTEM_ISSUE_TYPES = [
-    ("Historia",  "story",       "📖", "#00d4ff", "Historia de usuario — funcionalidad desde la perspectiva del usuario", False, 0),
-    ("Tarea",     "task",        "✅", "#00e5a0", "Unidad de trabajo técnico o de desarrollo",                           False, 1),
-    ("Bug",       "bug",         "🐛", "#ff4757", "Defecto o error a corregir",                                         False, 2),
-    ("Mejora",    "improvement", "✨", "#ffb800", "Mejora sobre una funcionalidad existente",                           False, 3),
-    ("Épica",     "epic",        "🎯", "#7c3aed", "Objetivo estratégico de alto nivel (vinculado a módulo Épicas)",     False, 4),
-    ("Subtarea",  "subtask",     "🔧", "#7a8aaa", "Parte de otra tarea principal",                                     True,  5),
-    ("Spike",     "spike",       "🔍", "#f97316", "Investigación técnica o de negocio sin entregable directo",         False, 6),
+    ("tipo_incidencia.story.nombre",       "story",       "📖", "#00d4ff", "tipo_incidencia.story.descripcion",       False, 0),
+    ("tipo_incidencia.task.nombre",        "task",        "✅", "#00e5a0", "tipo_incidencia.task.descripcion",        False, 1),
+    ("tipo_incidencia.bug.nombre",         "bug",         "🐛", "#ff4757", "tipo_incidencia.bug.descripcion",         False, 2),
+    ("tipo_incidencia.improvement.nombre", "improvement", "✨", "#ffb800", "tipo_incidencia.improvement.descripcion", False, 3),
+    ("tipo_incidencia.epic.nombre",        "epic",        "🎯", "#7c3aed", "tipo_incidencia.epic.descripcion",        False, 4),
+    ("tipo_incidencia.subtask.nombre",     "subtask",     "🔧", "#7a8aaa", "tipo_incidencia.subtask.descripcion",     True,  5),
+    ("tipo_incidencia.spike.nombre",       "spike",       "🔍", "#f97316", "tipo_incidencia.spike.descripcion",       False, 6),
 ]
 
 
@@ -56,7 +60,7 @@ def validar_tipo(project_id: str, valor: Optional[str], db: Session) -> None:
 def serialize_issue_type(it: IssueType) -> dict:
     return {
         "id": it.id, "project_id": it.project_id,
-        "name": it.name, "value": it.value,
+        "name": pintar_campo(it, "name", clave="texto_clave", params="texto_params"), "value": it.value,
         "icon": it.icon, "color": it.color,
         "description": it.description,
         "is_subtask": it.is_subtask,
@@ -96,17 +100,22 @@ def list_issue_types(project_id: str, db: Session) -> list:
 
 
 def init_issue_types(project_id: str, db: Session) -> dict:
-    if not db.query(Project).filter(Project.id == project_id).first():
+    proyecto = db.query(Project).filter(Project.id == project_id).first()
+    if not proyecto:
         raise ErrorConCodigo("no_encontrado", detail="404:Proyecto no encontrado", que="proyecto")
     existing = db.query(IssueType).filter(IssueType.project_id == project_id).count()
     if existing > 0:
         raise ErrorConCodigo("tipos_incidencia_ya_definidos", detail="Este proyecto ya tiene tipos de issue definidos")
     created = []
-    for name, value, icon, color, desc, is_sub, order in SYSTEM_ISSUE_TYPES:
+    from app.services.formato_regional import idioma_de_salida
+    from app.services.textos_de_salida import texto
+    idioma = idioma_de_salida(db, org_id=proyecto.organization_id)
+    for clave_nombre, value, icon, color, clave_desc, is_sub, order in SYSTEM_ISSUE_TYPES:
         it = IssueType(
-            project_id=project_id, name=name, value=value,
-            icon=icon, color=color, description=desc,
+            project_id=project_id, name=texto(clave_nombre, idioma), value=value,
+            icon=icon, color=color, description=texto(clave_desc, idioma),
             is_subtask=is_sub, sort_order=order,
+            texto_clave=clave_nombre,   # migracion 200: el nombre se pinta al leer en el idioma de quien mira
         )
         db.add(it)
         created.append(value)
@@ -146,6 +155,8 @@ def update_issue_type(project_id: str, type_id: str, payload_dict: dict, db: Ses
     ).first()
     if not it:
         raise ErrorConCodigo("no_encontrado", detail="404:Tipo de issue no encontrado", que="tipo_de_incidencia")
+    if payload_dict["name"] not in (it.name, pintar_campo(it, "name", clave="texto_clave", params="texto_params")):
+        it.texto_clave = it.texto_params = None   # migracion 200: nombre escrito a mano, se respeta
     it.name        = payload_dict["name"]
     it.icon        = payload_dict.get("icon")
     it.color       = payload_dict.get("color", "#7a8aaa")

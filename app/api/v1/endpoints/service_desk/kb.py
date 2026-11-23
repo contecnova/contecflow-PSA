@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from typing import Optional
 
 from app.db.session import get_db
-from app.core.deps import get_current_user, require_admin, require_internal_user
+from app.core.deps import get_current_user, requiere_capacidad
 from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
 from app.core.abac_enforce import enforce_abac
@@ -93,13 +93,13 @@ class EstadoIn(BaseModel):
 
 
 @router.get("/kb/quality", summary="Calidad de la base: preguntas sin respuesta, correcciones y avisos")
-def calidad_de_la_kb(db: Session = Depends(get_db), _rol: User = Depends(require_internal_user)):
+def calidad_de_la_kb(db: Session = Depends(get_db), _rol: User = Depends(requiere_capacidad("sd.completo"))):
     from app.services.service_desk.kb_calidad import resumen
     return APIResponse.ok(data=resumen(db))
 
 
 @router.post("/kb/quality/run", summary="Pasar ahora la revisión de caducados y contradicciones (admin)")
-def pasar_calidad(db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+def pasar_calidad(db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("sd.administrar"))):
     from app.services.service_desk.kb_calidad import pasada
     # Segunda auditoria 2026-11 (n.º 20): la pasada (comparaciones con IA entre
     # articulos) va al worker. Con cola: 202 `{status: "queued"}`.
@@ -112,7 +112,7 @@ def pasar_calidad(db: Session = Depends(get_db), current_user: User = Depends(re
 
 @router.post("/kb/corrections", summary="Dejar la respuesta buena para una pregunta (se aplica al momento)")
 def crear_correccion(payload: CorreccionIn, db: Session = Depends(get_db),
-                     current_user: User = Depends(get_current_user), _rol: User = Depends(require_internal_user)):
+                     current_user: User = Depends(get_current_user), _rol: User = Depends(requiere_capacidad("sd.completo"))):
     from app.services.service_desk.kb_calidad import crear_correccion as _crear
     from app.services.service_desk.kb_service import puede_publicar
     # Una corrección pasa por delante de los artículos: la deja quien puede publicar.
@@ -136,7 +136,7 @@ def _cambiar_estado(modelo, fila_id: str, payload: EstadoIn, db: Session, usuari
 
 @router.patch("/kb/corrections/{correction_id}", summary="Archivar o reactivar una corrección")
 def estado_correccion(correction_id: str, payload: EstadoIn, db: Session = Depends(get_db),
-                      current_user: User = Depends(get_current_user), _rol: User = Depends(require_internal_user)):
+                      current_user: User = Depends(get_current_user), _rol: User = Depends(requiere_capacidad("sd.completo"))):
     from app.models.service_desk.kb_calidad import KBCorrection
     from app.services.service_desk.kb_service import puede_publicar
     if not puede_publicar(db, current_user):
@@ -146,14 +146,14 @@ def estado_correccion(correction_id: str, payload: EstadoIn, db: Session = Depen
 
 @router.patch("/kb/gaps/{gap_id}", summary="Descartar o reabrir una pregunta sin respuesta")
 def estado_hueco(gap_id: str, payload: EstadoIn, db: Session = Depends(get_db),
-                 current_user: User = Depends(get_current_user), _rol: User = Depends(require_internal_user)):
+                 current_user: User = Depends(get_current_user), _rol: User = Depends(requiere_capacidad("sd.completo"))):
     from app.models.service_desk.kb_calidad import KBGap
     return _cambiar_estado(KBGap, gap_id, payload, db, current_user)
 
 
 @router.patch("/kb/findings/{finding_id}", summary="Dar por resuelto o descartar un aviso")
 def estado_aviso(finding_id: str, payload: EstadoIn, db: Session = Depends(get_db),
-                 current_user: User = Depends(get_current_user), _rol: User = Depends(require_internal_user)):
+                 current_user: User = Depends(get_current_user), _rol: User = Depends(requiere_capacidad("sd.completo"))):
     from app.models.service_desk.kb_calidad import KBFinding
     return _cambiar_estado(KBFinding, finding_id, payload, db, current_user)
 
@@ -173,7 +173,7 @@ class RevisionIn(BaseModel):
 
 @router.post("/kb/{article_id}/submit", summary="Enviar el artículo a revisión")
 def enviar_a_revision(article_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
-                      _rol: User = Depends(require_internal_user)):
+                      _rol: User = Depends(requiere_capacidad("sd.completo"))):
     from app.services.service_desk.kb_service import enviar_a_revision as svc
     a = get_scoped_kb_article_or_404(db, current_user, article_id)
     svc(db, a, current_user)
@@ -183,7 +183,7 @@ def enviar_a_revision(article_id: str, db: Session = Depends(get_db), current_us
 
 @router.post("/kb/{article_id}/review", summary="Publicar o devolver un artículo en revisión")
 def revisar(article_id: str, payload: RevisionIn, db: Session = Depends(get_db),
-            current_user: User = Depends(get_current_user), _rol: User = Depends(require_internal_user)):
+            current_user: User = Depends(get_current_user), _rol: User = Depends(requiere_capacidad("sd.completo"))):
     from app.services.service_desk.kb_service import revisar as svc
     a = get_scoped_kb_article_or_404(db, current_user, article_id)
     svc(db, a, current_user, payload.publish, payload.comment)
@@ -207,7 +207,7 @@ def get_kb_article(article_id: str, db: Session = Depends(get_db), lector: Lecto
 
 @router.post("/kb", summary="Crear artículo KB")
 def create_kb_article(payload: KBArticleIn, db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: los agentes escriben la base de conocimiento
+    _rol: User = Depends(requiere_capacidad("sd.completo")),  # auditoria 2026-09: dominio: los agentes escriben la base de conocimiento
 ):
     from app.services.service_desk.kb_service import exigir_que_pueda_publicar
     exigir_que_pueda_publicar(db, current_user, payload.status)
@@ -218,7 +218,7 @@ def create_kb_article(payload: KBArticleIn, db: Session = Depends(get_db), curre
 
 @router.patch("/kb/{article_id}", summary="Actualizar artículo KB")
 def update_kb_article(article_id: str, payload: KBArticleUpdate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: los agentes escriben la base de conocimiento
+    _rol: User = Depends(requiere_capacidad("sd.completo")),  # auditoria 2026-09: dominio: los agentes escriben la base de conocimiento
 ):
     from app.services.service_desk.kb_service import exigir_que_pueda_publicar
     a = get_scoped_kb_article_or_404(db, current_user, article_id)
@@ -231,7 +231,7 @@ def update_kb_article(article_id: str, payload: KBArticleUpdate, db: Session = D
 
 @router.delete("/kb/{article_id}", summary="Eliminar artículo KB")
 def delete_kb_article(article_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: los agentes escriben la base de conocimiento
+    _rol: User = Depends(requiere_capacidad("sd.completo")),  # auditoria 2026-09: dominio: los agentes escriben la base de conocimiento
 ):
     enforce_abac(db, current_user, "sd_kb_article", article_id, action="delete")
     delete_kb_article_svc(db, current_user, article_id)
@@ -271,7 +271,7 @@ def rollback_kb(
     version: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: los agentes escriben la base de conocimiento
+    _rol: User = Depends(requiere_capacidad("sd.completo")),  # auditoria 2026-09: dominio: los agentes escriben la base de conocimiento
 ):
     article = get_scoped_kb_article_or_404(db, current_user, article_id)
     rollback_kb_to_version(db, article, version, changed_by_user_id=current_user.id)

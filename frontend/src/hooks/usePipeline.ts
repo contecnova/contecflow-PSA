@@ -22,15 +22,6 @@ export function usePipeline(params: PipelineParams = {}): UseQueryResult<Oportun
   })
 }
 
-export function useOpportunity(id: string | undefined): UseQueryResult<Oportunidad> {
-  return useQuery({
-    queryKey: ['pipeline', id],
-    queryFn: () => pipelineApi.get(id).then((r) => r.data),
-    enabled: !!id,
-    staleTime: STALE,
-  })
-}
-
 export function useCreateOpportunity(): UseMutationResult<unknown, unknown, OpportunityPayload> {
   const qc = useQueryClient()
   return useMutation({

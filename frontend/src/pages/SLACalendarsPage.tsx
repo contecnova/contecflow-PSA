@@ -208,10 +208,10 @@ function HolidaysModal({ cal, onClose }: { cal: SlaCalendar; onClose: () => void
                   <DateInput value={editForm.holiday_date} aria-label={t('sla_calendars_page.fecha')}
                     onChange={e => setEditForm(f => ({...f, holiday_date: e.target.value}))}
                     className="slac-input slac-input--sm" />{msgB('holiday_date')}
-                  <input aria-label={t('slacalendars.nombre_del_festivo')} value={editForm.name}
+                  <Input aria-label={t('slacalendars.nombre_del_festivo')} value={editForm.name}
                     onChange={e => setEditForm(f => ({...f, name: e.target.value}))}
                     placeholder={t('slacalendars.nombre_del_festivo')}
-                    className="slac-input slac-input--sm slac-input--grow" />{msgB('name')}
+                    inputClassName="slac-input slac-input--sm slac-input--grow" />{msgB('name')}
                   <IconButton onClick={() => updateH(h.id)}
                     ariaLabel={t('sla_calendars_page.guardar_festivo')} title={t('sla_calendars_page.guardar_festivo')}>
                     <Check size={15} aria-hidden />
@@ -281,7 +281,7 @@ export default function SLACalendarsPage() {
   // #24b: la lista llega tipada y ya desenvuelta por el interceptor.
   const { data: calendars = [], isLoading } = useQuery({
     queryKey: ['sla-calendars'],
-    queryFn: () => slaCalendarsApi.list().then(r => r.data ?? []).catch((): SlaCalendar[] => []),
+    queryFn: () => slaCalendarsApi.list().then(r => r.data ?? []),
   })
 
   const { mutate: deleteCal } = useMutation({

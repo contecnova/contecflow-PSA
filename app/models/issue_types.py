@@ -8,7 +8,7 @@ Contecflow v20 — Módulos:
 """
 import uuid
 import enum
-from sqlalchemy import Column, String, Boolean, Integer, Text, DateTime, ForeignKey, Enum
+from sqlalchemy import JSON, Column, String, Boolean, Integer, Text, DateTime, ForeignKey, Enum
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.db.base import Base
@@ -23,9 +23,13 @@ class IssueType(Base):
     __tablename__ = "issue_types"
 
     id           = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     project_id   = Column(String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
     name         = Column(String(100), nullable=False)      # "Historia de usuario"
+    # Migracion 200: texto de serie por clave de `textos_de_salida` y sus datos;
+    # se pinta al leer en el idioma de quien mira (`textos_guardados`).
+    texto_clave  = Column(String(120), nullable=True)
+    texto_params = Column(JSON, nullable=True)
     value        = Column(String(50),  nullable=False)      # "story"
     icon         = Column(String(10),  nullable=True)       # emoji
     color        = Column(String(20),  default="#7a8aaa")
@@ -44,7 +48,7 @@ class IssueTypeField(Base):
     __tablename__ = "issue_type_fields"
 
     id             = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     issue_type_id  = Column(String(36), ForeignKey("issue_types.id", ondelete="CASCADE"), nullable=False, index=True)
     field_key      = Column(String(50), nullable=False)   # referencia a project_custom_fields
     is_required    = Column(Boolean, default=False)
@@ -80,12 +84,12 @@ class EpicDependencyMeta(Base):
     __tablename__ = "epic_dependency_meta"
 
     id            = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     epic_id       = Column(String(36), ForeignKey("epics.id", ondelete="CASCADE"), nullable=False, index=True)
     depends_on_id = Column(String(36), ForeignKey("epics.id", ondelete="CASCADE"), nullable=False, index=True)
     dep_type      = Column(Enum(EpicDepType), default=EpicDepType.finish_to_start)
     lag_days      = Column(Integer, default=0)
-    created_by    = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    created_by    = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at    = Column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -98,7 +102,7 @@ class FTSEntry(Base):
     __tablename__ = "fts_index"
 
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     entity_type = Column(String(30), nullable=False, index=True)  # task, ticket, wiki_page, epic, project, comment
     entity_id   = Column(String(36), nullable=False, index=True)
     project_id  = Column(String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=True, index=True)

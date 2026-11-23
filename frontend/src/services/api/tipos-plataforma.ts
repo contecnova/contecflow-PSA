@@ -367,6 +367,10 @@ export type WebhookSaliente = {
   has_secret: boolean
   events: string[]
   is_active: boolean
+  /** Suspendido por el cortacircuitos (A44): se reactiva con `reactivateWebhook`. */
+  suspended?: boolean
+  suspended_at?: string | null
+  consecutive_failures?: number
   project_id: string | null
   project_name: string | null
   total_deliveries: number

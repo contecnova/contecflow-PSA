@@ -118,6 +118,16 @@ def train_model(db: Session, organization_id: str) -> dict:
             "samples": n,
         }
 
+    # Auditoria 2026-11-22 (03, bajos m-p): con una sola clase (todos con
+    # sobrecoste, o ninguno) `GradientBoostingClassifier.fit` lanza ValueError y
+    # el trabajo del worker fallaba. Se omite con su motivo, como con pocos datos.
+    if len(set(y)) < 2:
+        return {
+            "status": "skipped",
+            "reason": "single_class",
+            "samples": n,
+        }
+
     X_arr = np.array(X, dtype=np.float32)
     y_arr = np.array(y, dtype=np.int32)
 
@@ -177,21 +187,6 @@ def train_model(db: Session, organization_id: str) -> dict:
         "samples": n,
         "accuracy_roc_auc": round(accuracy, 4) if accuracy else None,
     }
-
-
-def train_all_orgs(db: Session) -> list:
-    """Train models for all organizations that have completed projects."""
-    from app.models.mfa import Organization
-    orgs = db.query(Organization).filter(Organization.is_active == True).all()
-    results = []
-    for org in orgs:
-        try:
-            r = train_model(db, org.id)
-            results.append({"org_id": org.id, "org_name": org.name, **r})
-        except Exception as e:
-            logger.exception("ML training failed for org=%s", org.id)
-            results.append({"org_id": org.id, "error": str(e)})
-    return results
 
 
 # ── Prediction ─────────────────────────────────────────────────────────────────

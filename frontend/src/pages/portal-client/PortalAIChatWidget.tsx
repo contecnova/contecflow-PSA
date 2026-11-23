@@ -12,9 +12,10 @@
  */
 import { type CSSProperties, useState, useEffect, useRef } from 'react'
 import { CLIENT_API, useErrorDelPortal, useLang } from './portalClientContext'
+import { useToast } from '../../context/ToastContext'
 import { MessageCircle, X, Send, Sparkles, AlertTriangle, ThumbsUp, ThumbsDown } from 'lucide-react'
 import './PortalAIChatWidget.css'
-import { Pulsable } from '../../components/ui'
+import { Pulsable, Input } from '../../components/ui'
 
 const SESSION_KEY = 'portal_ai_session_id'
 
@@ -65,9 +66,9 @@ export default function PortalAIChatWidget() {
         setMessages(arr)
       })
       .catch(() => {
-        // 404 → la sesión guardada ya no existe (servidor reiniciado/limpiado)
+        // 404 → la sesión guardada ya no existe (servidor reiniciado/limpiado); es un caso esperado: se empieza una sesión nueva sin avisar
         if (cancelled) return
-        try { localStorage.removeItem(SESSION_KEY) } catch { /* noop */ }
+        try { localStorage.removeItem(SESSION_KEY) } catch { /* accesorio: sin almacenamiento, la sesión solo vive en memoria */ }
         setSessionId(null)
         setMessages([])
       })
@@ -97,7 +98,7 @@ export default function PortalAIChatWidget() {
       const data = (res?.data || {}) as ChatPostResponse
       if (data.session_id && data.session_id !== sessionId) {
         setSessionId(data.session_id)
-        try { localStorage.setItem(SESSION_KEY, data.session_id) } catch { /* noop */ }
+        try { localStorage.setItem(SESSION_KEY, data.session_id) } catch { /* accesorio: sin almacenamiento, la sesión solo vive en memoria */ }
       }
       setMessages(prev => [...prev, { id: data.message_id, role: 'assistant', content: data.response || '...', sources: data.sources || [] }])
     } catch (e: unknown) {
@@ -112,7 +113,7 @@ export default function PortalAIChatWidget() {
   }
 
   function handleClearSession() {
-    try { localStorage.removeItem(SESSION_KEY) } catch { /* noop */ }
+    try { localStorage.removeItem(SESSION_KEY) } catch { /* accesorio: sin almacenamiento, la sesión solo vive en memoria */ }
     setSessionId(null)
     setMessages([])
   }
@@ -208,14 +209,7 @@ export default function PortalAIChatWidget() {
 
       {/* Input */}
       <div className="poaiwi-row-2">
-        <input aria-label={t('portalaichatwidget.escribe_tu_pregunta')}
-          value={input}
-          onChange={e => setInput(e.target.value)}
-          onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() } }}
-          disabled={sending}
-          placeholder={t('portalaichatwidget.escribe_tu_pregunta')}
-          className="poaiwi-box-9"
-        />
+        <Input aria-label={t('portalaichatwidget.escribe_tu_pregunta')} value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() } }} disabled={sending} placeholder={t('portalaichatwidget.escribe_tu_pregunta')} className="u-flex1" />
         <Pulsable className={`poaiwi-row-4 ${input.trim() && !sending ? 'portal-aichat-widget-m3' : 'portal-aichat-widget-m4'}`} onClick={() => handleSend()} disabled={!input.trim() || sending}
           aria-label={t('chat.send')}>
           <Send size={14} />
@@ -236,9 +230,12 @@ export default function PortalAIChatWidget() {
 // Revisión 2026-11: 👍/👎 de cada respuesta; un 👎 avisa al equipo (pregunta sin respuesta).
 function Voto({ id }: { id: string }) {
   const t = useLang()
+  const toast = useToast()
+  const errorDe = useErrorDelPortal()
   const [voto, setVoto] = useState<boolean | null>(null)
+  // 23-11-2026: si el voto falla, se avisa (antes se tragaba el error).
   const votar = (util: boolean) =>
-    CLIENT_API.post(`/portal/ai-chat/messages/${id}/feedback`, { helpful: util }).then(() => setVoto(util)).catch(() => {})
+    CLIENT_API.post(`/portal/ai-chat/messages/${id}/feedback`, { helpful: util }).then(() => setVoto(util)).catch((e: unknown) => toast.error(errorDe(e, t('portalaichatwidget.voto_error'))))
   return (
     <div className="poaiwi-row-3">
       {([true, false] as const).map(util => (

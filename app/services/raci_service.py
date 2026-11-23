@@ -161,31 +161,31 @@ def _metricas_de_sprint(sprint: Sprint, db: Session) -> dict:
 #: texto se formatea con esas mismas métricas.
 _REGLAS_DE_RETRO: tuple[tuple, ...] = (
     (lambda m: m["completion_rate_pct"] >= 85, "went_well",
-     "Alta tasa de completitud: {completion_rate_pct}% de tareas entregadas", None, None),
+     "raci.r_completitud", None, None),
     (lambda m: m["completion_rate_pct"] >= 95, "went_well",
-     "Excelente predictibilidad — casi sin carryover", None, None),
+     "raci.r_predecible", None, None),
     (lambda m: m["blocked"] == 0, "went_well",
-     "Ninguna tarea bloqueada durante el sprint", None, None),
+     "raci.r_sin_bloqueos", None, None),
     (lambda m: m["velocity_ratio_pct"] >= 90, "went_well",
-     "Velocity muy ajustada a la planificación ({velocity_ratio_pct}%)", None, None),
+     "raci.r_velocity", None, None),
 
     (lambda m: m["completion_rate_pct"] < 70, "improve",
-     "Tasa de completitud baja ({completion_rate_pct}%) — revisar estimaciones o scope",
-     "Revisar criterios de aceptación antes del siguiente sprint planning", None),
+     "raci.r_completitud_baja",
+     "raci.a_criterios", None),
     (lambda m: m["blocked"] > 0, "improve",
-     "{blocked} tarea(s) bloqueadas — identificar patrones de impedimentos",
-     "Daily standup: escalar bloqueos en máximo 24h", None),
+     "raci.r_bloqueadas",
+     "raci.a_standup", None),
     (lambda m: m["added_mid_sprint"] > 2, "improve",
-     "Scope creep detectado: {added_mid_sprint} tareas añadidas a mitad de sprint",
-     "Reforzar la política de no añadir al sprint en curso salvo urgencias", None),
+     "raci.r_scope_creep",
+     "raci.a_politica", None),
     (lambda m: m["carryover"] > 0, "improve",
-     "{carryover} tarea(s) con carryover — afecta a la previsibilidad", None, None),
+     "raci.r_carryover", None, None),
     (lambda m: m["velocity_ratio_pct"] < 70, "improve",
-     "Velocity {velocity_ratio_pct}% — sobreestimación habitual, calibrar story points", None,
-     "Estimaciones sistemáticamente optimistas → riesgo de promesas no cumplidas"),
+     "raci.r_velocity_baja", None,
+     "raci.k_optimistas"),
 
     (lambda m: m["completion_rate_pct"] >= 80 and m["blocked"] == 0, None, None,
-     "Continuar con el ritmo actual; documentar las prácticas que funcionan", None),
+     "raci.a_continuar", None),
 )
 
 
@@ -197,6 +197,12 @@ def compute_retro_insights(sprint: Sprint, db: Session) -> dict:
     necesita para poder discutirse.
     """
     m = _metricas_de_sprint(sprint, db)
+    from app.services.textos_de_salida_servicios_m_z import texto_para
+    org_id = db.query(Project.organization_id).filter(Project.id == sprint.project_id).scalar()
+
+    def _t(clave: str, **p) -> str:
+        return texto_para(db, clave, org_id=org_id, **p)
+
     went_well: list[str] = []
     improve: list[str] = []
     actions: list[dict] = []
@@ -207,18 +213,18 @@ def compute_retro_insights(sprint: Sprint, db: Session) -> dict:
         if not condicion(m):
             continue
         if apartado and texto:
-            cajones[apartado].append(texto.format(**m))
+            cajones[apartado].append(_t(texto, **m))
         if accion:
-            actions.append({"text": accion, "owner_id": None})
+            actions.append({"text": _t(accion), "owner_id": None})
         if riesgo:
-            risks.append(riesgo)
+            risks.append(_t(riesgo))
 
     # Una retrospectiva sin nada que decir no ayuda a nadie: si ninguna regla
     # encajó, se dice eso explícitamente en vez de dejar la lista vacía.
     if not went_well:
-        went_well.append("Sprint completado — analiza métricas para detectar áreas de mejora")
+        went_well.append(_t("raci.bien_defecto"))
     if not improve:
-        improve.append("No se detectaron problemas estructurales significativos")
+        improve.append(_t("raci.mejorar_defecto"))
 
     return {
         "metrics": m,
@@ -239,11 +245,11 @@ def compute_retro_insights(sprint: Sprint, db: Session) -> dict:
 #: línea. Como tabla se ve la escala de pesos de un vistazo, que es lo que hay
 #: que poder revisar con quien lleva el equipo.
 _SENALES_DE_AGOTAMIENTO: tuple[tuple, ...] = (
-    (lambda m: m["current"] > 100, 25, "Sobrecarga actual: {current:.0f}%"),
-    (lambda m: m["media_4s"] > 90, 20, "Media 4 semanas: {media_4s:.0f}%"),
-    (lambda m: m["racha"] >= 2, "racha_x10", "{racha} semanas consecutivas al 100%+"),
-    (lambda m: m["racha"] >= 4, None, "Riesgo alto de agotamiento sostenido"),
-    (lambda m: m["current"] > 130, 20, "Sobrecarga severa (>130%)"),
+    (lambda m: m["current"] > 100, 25, "raci.b_actual"),
+    (lambda m: m["media_4s"] > 90, 20, "raci.b_media"),
+    (lambda m: m["racha"] >= 2, "racha_x10", "raci.b_racha"),
+    (lambda m: m["racha"] >= 4, None, "raci.b_alto"),
+    (lambda m: m["current"] > 130, 20, "raci.b_severa"),
 )
 
 #: Umbrales de nivel, de más grave a menos. El primero que alcance manda.
@@ -271,7 +277,9 @@ def _semanas_de_carga(user: User, db: Session, today: date) -> list[dict]:
             "week_start": inicio,
             "hours": horas,
             "capacity": capacidad,
-            "load_pct": round(horas / capacidad * 100, 1),
+            # Ronda 2 auditoría 2026-11-22: capacidad 0 (jornada sin horas,
+            # baja, externo sin contrato) daba ZeroDivisionError → 500.
+            "load_pct": round(horas / capacidad * 100, 1) if capacidad else (100.0 if horas else 0.0),
         })
     return semanas
 
@@ -294,6 +302,7 @@ def compute_user_burnout_risk(user: User, db: Session, today: date) -> dict:
             break
         racha += 1
 
+    from app.services.textos_de_salida_servicios_m_z import texto_para
     m = {"current": actual, "media_4s": media_4s, "racha": racha}
     puntos = 0.0
     factores = []
@@ -304,7 +313,7 @@ def compute_user_burnout_risk(user: User, db: Session, today: date) -> dict:
             puntos += racha * 10
         elif peso:
             puntos += peso
-        factores.append(texto.format(**m))
+        factores.append(texto_para(db, texto, user_id=user.id, **m))
 
     puntos = min(puntos, 100)
     nivel = next(n for umbral, n in _NIVELES_DE_AGOTAMIENTO if puntos >= umbral)
@@ -611,6 +620,7 @@ def generate_changelog(
     project_id: str, weeks: int, version_tag: "Optional[str]", author_id: str, db: Session
 ) -> dict:
     import json as _json
+    from app.services.textos_de_salida_servicios_m_z import texto_para
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project:
         raise ErrorConCodigo("no_encontrado", detail="Proyecto no encontrado", que="proyecto")
@@ -630,7 +640,7 @@ def generate_changelog(
         .all()
     )
     if not completed_tasks:
-        return {"generated": 0, "message": "No hay tareas completadas en el período indicado"}
+        return {"generated": 0, "message": texto_para(db, "raci.sin_tareas", user_id=author_id)}
 
     def _guess_type(task) -> ChangelogEntryType:
         title_lower = (task.title or "").lower()

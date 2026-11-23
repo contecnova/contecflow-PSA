@@ -28,7 +28,7 @@ export default function CicloHorasExtra({ id, onCerrar }: { id: string | null; o
       <div className="hext-ciclo">
         <div className="hext-ciclo-cabecera">
           <h2 className="hext-ciclo-titulo">{th('ciclo_completo')}</h2>
-          <IconButton ariaLabel={th('cerrar')} onClick={onCerrar}><X size={16} /></IconButton>
+          <IconButton ariaLabel={th('cerrar')} onClick={onCerrar} data-cierra-dialogo=""><X size={16} /></IconButton>
         </div>
         {q.isLoading && <Spinner label={th('cargando')} />}
         {q.isError && <AvisoDeError error={q.error} />}

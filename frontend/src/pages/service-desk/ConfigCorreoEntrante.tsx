@@ -12,14 +12,16 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Copy, Inbox, KeyRound } from 'lucide-react'
+import { Link, useNavigate } from 'react-router-dom'
 import { useAppT } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
 import { extractErr, fmtDateTime } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
-import { Button, EmptyState, Spinner, StatusBadge, TablaSimple } from '../../components/ui'
+import { Button, EmptyState, Spinner, StatusBadge, TablaSimple, Input } from '../../components/ui'
 import type { StatusBadgeKind } from '../../components/ui/StatusBadge'
 import { sdInboundApi, apiUrlAbsoluta } from '../../services/api'
 import type { SdPruebaDeBuzon } from '../../services/api/tipos-sd'
+import { textoDeResultado } from '../../utils/resultadoConCodigo'
 import './ConfigCorreoEntrante.css'
 
 const KIND_RESULTADO: Record<string, StatusBadgeKind> = {
@@ -28,6 +30,7 @@ const KIND_RESULTADO: Record<string, StatusBadgeKind> = {
 
 export default function ConfigCorreoEntrante() {
   const t = useAppT()
+  const navigate = useNavigate()
   const toast = useToast()
   const qc = useQueryClient()
   const [prueba, setPrueba] = useState<SdPruebaDeBuzon | null>(null)
@@ -63,14 +66,14 @@ export default function ConfigCorreoEntrante() {
           <span className="cocoen-ls">{t('sd_cfg.mail_mailbox')}</span>
           <div className="u-text2-sm">{t('sd_cfg.mail_mailbox_help')}</div>
           <div className="u-wrap-8">
-            <Button variant="secondary" icon={<KeyRound size={14} />} onClick={() => { window.location.href = '/settings/integrations' }}>{t('sd_cfg.mail_credentials')}</Button>
+            <Button variant="secondary" icon={<KeyRound size={14} />} onClick={() => navigate('/settings/integrations?sub=sd_mailbox')}>{t('sd_cfg.mail_credentials')}</Button>
             <Button variant="secondary" onClick={() => probar.mutate()} loading={probar.isPending}>{t('sd_cfg.mail_test')}</Button>
             <Button onClick={() => leer.mutate()} loading={leer.isPending}>{t('sd_cfg.mail_run')}</Button>
           </div>
           {prueba && (
             <div role="status">
               <StatusBadge kind={prueba.ok ? 'success' : 'danger'} caps={false}>
-                {prueba.ok ? t('sd_cfg.mail_ok', { n: prueba.unread ?? 0 }) : prueba.error}
+                {prueba.ok ? t('sd_cfg.mail_ok', { n: prueba.unread ?? 0 }) : textoDeResultado(t, prueba, t('settingsadvanced.conexion_fallo'))}
               </StatusBadge>
             </div>
           )}
@@ -83,9 +86,8 @@ export default function ConfigCorreoEntrante() {
           <span className="cocoen-ls">{t('sd_cfg.mail_gateway')}</span>
           <div className="u-text2-sm">{t('sd_cfg.mail_gateway_help')}</div>
           <div className="cocoen-copy">
-            <input readOnly value={webhook} aria-label={t('sd_cfg.mail_gateway')}
-              className="ds-input cocoen-url ds-campo-codigo" />
-            <Button variant="secondary" icon={<Copy size={14} />} onClick={() => { navigator.clipboard.writeText(webhook); toast.success(t('sd_cfg.cfg_copied')) }}>
+            <Input readOnly value={webhook} aria-label={t('sd_cfg.mail_gateway')} className="cocoen-url" inputClassName="ds-campo-codigo" />
+            <Button variant="secondary" icon={<Copy size={14} />} onClick={() => { navigator.clipboard.writeText(webhook).then(() => toast.success(t('sd_cfg.cfg_copied')), () => toast.error(t('sd_cfg.cfg_copy_failed'))) }}>
               {t('sd_cfg.mail_copy')}
             </Button>
           </div>
@@ -109,7 +111,7 @@ export default function ConfigCorreoEntrante() {
                     </td>
                     <td className="cocoen-celda">
                       {e.ticket_id
-                        ? <a href={`/service-desk?ticket=${e.ticket_id}`} className="cocoen-enlace">{e.ticket_number}</a>
+                        ? <Link to={`/service-desk?ticket=${e.ticket_id}`} className="cocoen-enlace">{e.ticket_number}</Link>
                         : <span className="u-text2">{e.reason}</span>}
                     </td>
                   </tr>

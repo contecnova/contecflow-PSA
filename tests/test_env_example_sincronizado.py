@@ -31,6 +31,9 @@ _FAMILIAS_FUERA = (
     "ALM_",
     # Valores de negocio que eran fijos (19-11-2026, `valores_de_negocio.py`): por empresa, en Configuración.
     "CHANGE_CANARY_", "CHAT_RETENTION_", "PERF_REMINDER_", "PERF_STALLED_",
+    # Umbrales por métrica (19-11-2026, `app/core/umbrales.py`, grupo `semaforos`): por
+    # empresa en Configuración, con defecto; documentados en README 4.2/4.1.
+    "UMBRAL_",
 )
 
 #: Fuera a propósito, uno a uno.

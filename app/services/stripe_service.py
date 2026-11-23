@@ -34,9 +34,33 @@ class StripeError(RuntimeError):
     """Error al interactuar con Stripe (no configurado, importe inválido o fallo de API)."""
 
 
-def is_configured() -> bool:
-    """True si hay una clave secreta de Stripe configurada."""
-    return bool(settings.STRIPE_SECRET_KEY)
+def clave_secreta(db=None, org_id=None) -> str | None:
+    """La clave secreta de Stripe de ESA empresa.
+
+    Auditoria 2026-11-22 (A-RZ6): solo existia `settings.STRIPE_SECRET_KEY`,
+    una cuenta para todo el despliegue: los cobros de las facturas de todas
+    las empresas entraban en la misma cuenta de Stripe. Ahora, con empresa, la
+    credencial `stripe.secret_key` de esa empresa (o su ajuste
+    `STRIPE_SECRET_KEY`), sin caer a la global; sin empresa (plataforma), la
+    global del entorno.
+    """
+    if org_id and db is not None:
+        from app.services.integration_credentials_service import secreto_propio_de_la_organizacion
+        return secreto_propio_de_la_organizacion(db, "stripe", "secret_key", "STRIPE_SECRET_KEY", org_id)
+    return settings.STRIPE_SECRET_KEY or None
+
+
+def secreto_del_webhook(db=None, org_id=None) -> str | None:
+    """El secreto de firma del webhook de Stripe de ESA empresa (como `clave_secreta`)."""
+    if org_id and db is not None:
+        from app.services.integration_credentials_service import secreto_propio_de_la_organizacion
+        return secreto_propio_de_la_organizacion(db, "stripe", "webhook_secret", "STRIPE_WEBHOOK_SECRET", org_id)
+    return getattr(settings, "STRIPE_WEBHOOK_SECRET", None) or None
+
+
+def is_configured(db=None, org_id=None) -> bool:
+    """True si hay una clave secreta de Stripe configurada (la de la empresa, si se indica)."""
+    return bool(clave_secreta(db, org_id))
 
 
 def to_minor_units(amount: float, currency: str) -> int:
@@ -55,6 +79,8 @@ def create_checkout_session(
     success_url: str,
     cancel_url: str,
     customer_email: str | None = None,
+    db=None,
+    org_id=None,
 ) -> dict:
     """Crea una Checkout Session de Stripe para cobrar una factura.
 
@@ -62,7 +88,8 @@ def create_checkout_session(
     no está configurado, el importe no es positivo o la API responde con error.
     Es idempotente por (factura, importe) mediante Idempotency-Key.
     """
-    if not is_configured():
+    clave = clave_secreta(db, org_id)
+    if not clave:
         raise StripeError("Stripe no está configurado (define STRIPE_SECRET_KEY).")
 
     unit_amount = to_minor_units(amount, currency)
@@ -88,7 +115,7 @@ def create_checkout_session(
         resp = httpx.post(
             _STRIPE_CHECKOUT_URL,
             data=form,
-            auth=(settings.STRIPE_SECRET_KEY or "", ""),
+            auth=(clave, ""),
             headers={"Idempotency-Key": f"invoice-checkout-{invoice_id}-{unit_amount}"},
             timeout=outbound_http_timeout(default=20.0),
         )
@@ -109,3 +136,30 @@ def create_checkout_session(
         "url": body.get("url"),
         "payment_intent": body.get("payment_intent"),
     }
+
+
+def sesion_reutilizable(session_id: str | None, *, amount: float, currency: str,
+                        db=None, org_id=None) -> bool:
+    """¿Sigue abierta la Checkout Session y cobra este mismo importe?
+
+    Auditoria 2026-11-22 (A-RZ6): el enlace guardado en la factura se
+    reutilizaba siempre, aunque la sesion de Stripe caduca a las 24 h y aunque
+    el total de la factura hubiera cambiado: el cliente pagaba otro importe o
+    no podia pagar. Ante cualquier duda (sin id, error de red, otro importe o
+    moneda), no se reutiliza y se crea una sesion nueva.
+    """
+    clave = clave_secreta(db, org_id)
+    if not session_id or not clave:
+        return False
+    try:
+        resp = httpx.get(f"{_STRIPE_CHECKOUT_URL}/{session_id}", auth=(clave, ""),
+                         timeout=outbound_http_timeout(default=20.0))
+    except httpx.HTTPError:
+        logging.getLogger(__name__).warning("Stripe: no se pudo consultar la sesion %s", session_id, exc_info=True)
+        return False
+    if resp.status_code >= 400:
+        return False
+    s = resp.json()
+    return (s.get("status") == "open"
+            and s.get("amount_total") == to_minor_units(amount, currency)
+            and (s.get("currency") or "").lower() == (currency or "").lower())

@@ -289,18 +289,32 @@ def coste_anual_vigente(db: Session) -> tuple[float, float]:
     lics = [lic for lic in lics if not (lic.expiry_date and lic.expiry_date < hoy)]
     contratos = {c.id: c for c in db.query(ALMContract).filter(ALMContract.status == "active",
                                                                ALMContract.is_active == True).all()}  # noqa: E712
+    # M2 (auditoría 22-11-2026): cada cuota en la moneda de la empresa con el
+    # tipo de hoy (antes se sumaban euros, dólares y libras tal cual). Un tipo
+    # que falte se cuenta 1:1 y queda en el `TiposQueFaltan` de quien llama.
+    from app.services.currency_rates_service import TablaDeTipos, tipo_o_aviso
+    from app.services.settings_service.por_empresa import moneda_de_empresa
+    moneda = moneda_de_empresa(db)
+
+    def _en_moneda(importe, de) -> float:
+        de = (de or moneda).upper()
+        return float(importe or 0) * (tipo_o_aviso(db, de, moneda, hoy) if de != moneda else 1.0)
+
     por_contrato: dict = {}
     sueltas = 0.0
-    for lic in lics:
-        if lic.contract_id in contratos:
-            por_contrato[lic.contract_id] = por_contrato.get(lic.contract_id, 0.0) + float(lic.annual_cost or 0)
-        else:
-            sueltas += float(lic.annual_cost or 0)
+    with TablaDeTipos(db):
+        for lic in lics:
+            cuota = _en_moneda(lic.annual_cost, getattr(lic.contract, "currency", None) if lic.contract_id else None)
+            if lic.contract_id in contratos:
+                por_contrato[lic.contract_id] = por_contrato.get(lic.contract_id, 0.0) + cuota
+            else:
+                sueltas += cuota
+        valores = {cid: _en_moneda(c.annual_value, getattr(c, "currency", None)) for cid, c in contratos.items()}
     contratos_total = 0.0
     licencias_en_contrato = 0.0
     for cid, c in contratos.items():
         propias = por_contrato.get(cid, 0.0)
-        valor = float(c.annual_value or 0)
+        valor = valores[cid]
         if propias > valor:
             licencias_en_contrato += propias
         else:

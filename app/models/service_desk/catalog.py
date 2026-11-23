@@ -5,6 +5,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import uuid
 from app.db.base import Base
+from app.models.money import Money
 from app.core.config import settings
 
 
@@ -14,7 +15,7 @@ class ServiceCategory(Base):
     __tablename__ = "sd_service_categories"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     name = Column(String(100), nullable=False)
     description = Column(Text, nullable=True)
     icon = Column(String(10), default="🔧")
@@ -31,7 +32,7 @@ class ServiceItem(Base):
     __tablename__ = "sd_service_items"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     category_id = Column(String(36), ForeignKey("sd_service_categories.id", ondelete="CASCADE"), nullable=False, index=True)
     name = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
@@ -42,13 +43,13 @@ class ServiceItem(Base):
     sla_response_hours = Column(Float, default=settings.SLA_P3_RESPONSE_HOURS)
     sla_resolution_hours = Column(Float, default=settings.SLA_P3_RESOLUTION_HOURS)
     # Rev. 193: precio del catálogo interno por petición atendida (showback/chargeback).
-    internal_price = Column(Float, nullable=True)
+    internal_price = Column(Money, nullable=True)
 
     custom_fields = Column(Text, nullable=True)
 
     auto_assign_group = Column(String(100), nullable=True)
     requires_approval = Column(Boolean, default=False)
-    approval_user_id = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    approval_user_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     # Tareas de cumplimiento (JSON): [{"title": ..., "group_id": ...}]. Cada una
     # nace como ticket hijo en su cola al pedirse el servicio (o al aprobarse).
     fulfillment_tasks = Column(Text, nullable=True)
@@ -73,7 +74,7 @@ class SLAPolicy(Base):
     __tablename__ = "sd_sla_policies"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     name = Column(String(100), nullable=False)
     description = Column(String(255), nullable=True)
     is_default = Column(Boolean, default=False)

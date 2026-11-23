@@ -39,8 +39,13 @@ def minutos(v) -> int:
     """'HH:MM' o time → minutos desde las 00:00. Error si no se entiende."""
     if isinstance(v, time):
         return v.hour * 60 + v.minute
-    h, m = str(v).strip().split(":")[:2]
-    h, m = int(h), int(m)
+    # Baja (auditoría 22-11-2026): un texto mal formado da el error con código
+    # (antes saltaba un ValueError suelto del `split`/`int` antes de llegar aquí).
+    try:
+        h, m = str(v).strip().split(":")[:2]
+        h, m = int(h), int(m)
+    except (ValueError, TypeError):
+        raise ErrorConCodigo("hora_no_valida", detail=f"hora no válida: {v}", valor=v)
     if not (0 <= h <= 24 and 0 <= m < 60) or h * 60 + m > DIA:
         raise ErrorConCodigo("hora_no_valida", detail=f"hora no válida: {v}", valor=v)
     return h * 60 + m

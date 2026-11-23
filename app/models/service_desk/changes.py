@@ -17,7 +17,7 @@ class ITSMChangeRequest(Base):
     __table_args__ = (Index("uq_sd_change_requests_org_number", "organization_id", "number", unique=True),)
 
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     number      = Column(String(20), nullable=False, index=True, default=lambda: f"CHG-{uuid.uuid4().hex[:8].upper()}")
     title       = Column(String(500), nullable=False)
     description = Column(Text, nullable=False)
@@ -50,11 +50,11 @@ class ITSMChangeRequest(Base):
     pir_date     = Column(DateTime(timezone=True), nullable=True)
 
     # Relaciones
-    requester_id = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
-    owner_id     = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
-    approver_id  = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    requester_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    owner_id     = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    approver_id  = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     approved_at  = Column(DateTime(timezone=True), nullable=True)
-    approved_by  = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    approved_by  = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     rejected_reason = Column(Text, nullable=True)
 
     # Phase 2 — Change Impact Analysis
@@ -62,7 +62,7 @@ class ITSMChangeRequest(Base):
     impact_analysis_json = Column(Text, nullable=True)
     suggested_window_json = Column(Text, nullable=True)
 
-    related_ticket_id  = Column(String(36), ForeignKey("sd_tickets.id"), nullable=True, index=True)
+    related_ticket_id  = Column(String(36), ForeignKey("sd_tickets.id", ondelete="SET NULL"), nullable=True, index=True)
 
     # Comite de cambios (CAB): sus votos viven en `sd_change_approvals`. Antes
     # el CAB era un JSON en `app_settings`, sin pantalla.
@@ -71,7 +71,11 @@ class ITSMChangeRequest(Base):
     cab_agenda     = Column(Text, nullable=True)
     implementer_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     release_id     = Column(String(36), ForeignKey("sd_releases.id", ondelete="SET NULL"), nullable=True, index=True)
-    related_problem_id = Column(String(36), ForeignKey("sd_problems.id"), nullable=True, index=True)
+    # 23-11-2026 (A-SD19): el modelo preaprobado del catalogo de cambios
+    # estandar. Sin el, el servidor no deja que el cambio sea `standard`.
+    standard_model_id = Column(String(36), ForeignKey("sd_standard_change_models.id", ondelete="SET NULL"),
+                               nullable=True, index=True)
+    related_problem_id = Column(String(36), ForeignKey("sd_problems.id", ondelete="SET NULL"), nullable=True, index=True)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
@@ -80,6 +84,7 @@ class ITSMChangeRequest(Base):
     owner     = relationship("User", foreign_keys=[owner_id])
     approver  = relationship("User", foreign_keys=[approver_id])
     approver_user = relationship("User", foreign_keys=[approved_by])
+    standard_model = relationship("StandardChangeModel", foreign_keys=[standard_model_id])
 
     requester_user_id = synonym("requester_id")
 
@@ -103,7 +108,7 @@ class ChangeApproval(Base):
     __tablename__ = "sd_change_approvals"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
     change_id = Column(String(36), ForeignKey("sd_change_requests.id", ondelete="CASCADE"), nullable=False, index=True)
     approver_user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     decision = Column(String(20), default="pending", nullable=False)  # pending | approved | rejected
@@ -119,7 +124,7 @@ class ChangeBlackout(Base):
     __tablename__ = "sd_change_blackouts"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
     name = Column(String(200), nullable=False)
     reason = Column(Text, nullable=True)
     start_at = Column(DateTime(timezone=True), nullable=False, index=True)
@@ -133,7 +138,7 @@ class Release(Base):
     __tablename__ = "sd_releases"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
     name = Column(String(200), nullable=False)
     version = Column(String(50), nullable=True)
     status = Column(String(20), default="planned", nullable=False)  # planned | in_progress | released | cancelled
@@ -145,3 +150,55 @@ class Release(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     owner = relationship("User", foreign_keys=[owner_id])
+
+
+class StandardChangeModel(Base):
+    """Modelo de cambio estandar (ITIL 4): un procedimiento preaprobado por el CAB.
+
+    23-11-2026, auditoria 2026-11-22 (A-SD19). Antes un cambio se aprobaba solo
+    porque el solicitante declaraba el tipo `standard`. Ahora un cambio solo es
+    estandar si referencia un modelo de su empresa que:
+
+    - esta aprobado (`status` = `ESTADO_MODELO_APROBADO`) y activo;
+    - no ha caducado (`next_review_at` futura: revision periodica);
+    - cubre su alcance (CIs, tipos de CI o servicios) y su riesgo (`max_risk`).
+
+    Si su tasa de fallo (`failure_count` / cierres) supera
+    `SD_STANDARD_CHANGE_MAX_FAILURE_PCT` se suspende y sus cambios vuelven al CAB.
+    Logica: `app/services/service_desk/cambios_estandar_service.py`.
+    """
+    __tablename__ = "sd_standard_change_models"
+    __table_args__ = (Index("ix_sd_standard_change_models_org_status", "organization_id", "status"),)
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
+    name = Column(String(200), nullable=False)
+    description = Column(Text, nullable=True)
+    # Procedimiento: pasos de implantacion, vuelta atras y prueba (plantilla del cambio).
+    procedure = Column(Text, nullable=False)
+    rollback_plan = Column(Text, nullable=True)
+    test_plan = Column(Text, nullable=True)
+    max_risk = Column(String(20), nullable=False, default="low")       # ChangeRisk
+    # Alcance (JSON, listas de ids o claves). Vacio en los tres: cualquier CI.
+    applies_to_ci_ids = Column(Text, nullable=True)
+    applies_to_ci_types = Column(Text, nullable=True)
+    applies_to_service_ids = Column(Text, nullable=True)
+    # Ciclo de vida: proposed -> approved -> (suspended -> proposed) / retired.
+    status = Column(String(20), nullable=False, default="proposed")
+    is_active = Column(Boolean, nullable=False, default=True)
+    proposed_by = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    approved_by = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    approved_at = Column(DateTime(timezone=True), nullable=True)
+    review_interval_days = Column(Integer, nullable=True)
+    next_review_at = Column(DateTime(timezone=True), nullable=True, index=True)
+    suspended_at = Column(DateTime(timezone=True), nullable=True)
+    suspended_reason = Column(Text, nullable=True)
+    # Uso: cambios aprobados con el modelo y sus cierres.
+    use_count = Column(Integer, nullable=False, default=0)
+    success_count = Column(Integer, nullable=False, default=0)
+    failure_count = Column(Integer, nullable=False, default=0)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    proposer = relationship("User", foreign_keys=[proposed_by])
+    approver = relationship("User", foreign_keys=[approved_by])

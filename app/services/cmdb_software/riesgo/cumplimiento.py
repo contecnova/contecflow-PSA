@@ -8,8 +8,9 @@
   sigue vivo (y sin otro control activo).
 """
 from __future__ import annotations
+import logging
 
-from datetime import date
+from app.core import timeutil
 
 
 def controles(db, org, _control) -> list[dict]:
@@ -27,6 +28,7 @@ def controles(db, org, _control) -> list[dict]:
         try:
             umbral = leer_umbral("RISK_LEVEL_HIGH", db, org)
         except Exception:  # noqa: BLE001 - sin el ajuste, el de fábrica
+            logging.getLogger(__name__).debug("controles: excepcion ignorada", exc_info=True)
             umbral = 50.0
     salida.append(_control(
         "sw_risk_index", "info" if not productos else ("pass" if idx["score"] <= umbral else "attention"),
@@ -44,7 +46,7 @@ def controles(db, org, _control) -> list[dict]:
         {"exploited_critical_high_open": explotados},
         "sw_findings críticos/altos vivos sin excepción con KEV o exploit_attempts > 0",
         ("ISO27001 A.8.8", "ENS op.exp.4", "NIS2 art. 21.2.e")))
-    hoy = date.today()
+    hoy = timeutil.today()
     activos = {c.finding_id for c in db.query(CompensatingControl).filter(
         CompensatingControl.organization_id == org, CompensatingControl.status == "active",
         CompensatingControl.expires_at >= hoy)}

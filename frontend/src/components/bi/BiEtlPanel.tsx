@@ -11,9 +11,10 @@ import { AlertCircle, CheckCircle, ChevronDown, ChevronUp, Database, FlaskConica
 import { biEtlApi } from '../../services/api'
 import type { ConectorEtl, FichaDeConectorEtl } from '../../services/api/tipos-bi'
 import { useAppT } from '../../i18n/AppLangContext'
-import { Button, Card, Confirm, EmptyState, IconButton, Modal, Spinner, Select, Input } from '../ui'
+import { Button, Card, EmptyState, IconButton, Modal, Spinner, Select, Input } from '../ui'
 import { etiquetaCodigo } from '../../i18n/etiquetaCodigo'
 import { useToast } from '../../context/ToastContext'
+import { confirmar } from '../../context/ConfirmContext'
 import { extractErr, fmtDateTime, fmtNumber } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import './BiEtlPanel.css'
@@ -33,9 +34,7 @@ function Campos({ ficha, valores, puestos, onChange }: { ficha: Ficha; valores: 
       {ficha.campos.map(c => (
         <label key={c.clave} className="bietpa-grid-2">
           <span>{etiquetaCodigo(t, 'etl.campo', c.clave, legible(c.clave))}</span>
-          <input type={c.secreto ? 'password' : 'text'} aria-label={etiquetaCodigo(t, 'etl.campo', c.clave, legible(c.clave))} autoComplete="off" className="bietpa-campo" value={valores[c.clave] ?? ''}
-            placeholder={c.secreto && puestos.includes(c.clave) ? t('etl.secreto_puesto') : ''}
-            onChange={e => onChange(c.clave, e.target.value)} />
+          <Input type={c.secreto ? 'password' : 'text'} aria-label={etiquetaCodigo(t, 'etl.campo', c.clave, legible(c.clave))} autoComplete="off" value={valores[c.clave] ?? ''} placeholder={c.secreto && puestos.includes(c.clave) ? t('etl.secreto_puesto') : ''} onChange={e => onChange(c.clave, e.target.value)} className="bietpa-campo" />
         </label>
       ))}
     </div>
@@ -118,7 +117,6 @@ function Tarjeta({ c, onConfigurar }: { c: Conector; onConfigurar: () => void })
   const qc = useQueryClient()
   const [ocupado, setOcupado] = useState<'' | 'test' | 'sync' | 'toggle'>('')
   const [verLog, setVerLog] = useState(false)
-  const [borrar, setBorrar] = useState(false)
   const log = useQuery({
     queryKey: ['bi-etl-log', c.connector_id],
     queryFn: () => biEtlApi.getLog(c.connector_id).then(r => r.data),
@@ -170,7 +168,10 @@ function Tarjeta({ c, onConfigurar }: { c: Conector; onConfigurar: () => void })
         <Button size="xs" variant="secondary" icon={<Settings2 size={12} />} onClick={onConfigurar}>{t('etl.configurar')}</Button>
         <Button size="xs" variant="secondary" icon={<FlaskConical size={12} />} loading={ocupado === 'test'} onClick={() => accion('test')}>{t('etl.probar')}</Button>
         <Button size="xs" variant="secondary" icon={<RefreshCw size={12} />} loading={ocupado === 'sync'} disabled={!c.enabled} title={c.enabled ? undefined : t('etl.activalo_antes')} onClick={() => accion('sync')}>{t('etl.sincronizar')}</Button>
-        {c.personalizado && <IconButton className="bietpa-del" ariaLabel={t('etl.quitar')} onClick={() => setBorrar(true)}><Trash2 size={13} /></IconButton>}
+        {c.personalizado && <IconButton className="bietpa-del" ariaLabel={t('etl.quitar')} onClick={async () => {
+          // 23-11-2026: confirmación única (ConfirmContext), antes `ui/Confirm`.
+          if (await confirmar({ title: t('etl.quitar_x', { x: c.nombre }), message: t('etl.quitar_ayuda'), danger: true })) quitar()
+        }}><Trash2 size={13} /></IconButton>}
         <Button size="xs" variant="ghost" icon={verLog ? <ChevronUp size={12} /> : <ChevronDown size={12} />} onClick={() => setVerLog(v => !v)}>
           {t(verLog ? 'etl.ocultar_registro' : 'etl.ver_registro')}
         </Button>
@@ -188,8 +189,6 @@ function Tarjeta({ c, onConfigurar }: { c: Conector; onConfigurar: () => void })
             ))}
         </div>
       )}
-      <Confirm open={borrar} onCancel={() => setBorrar(false)} onConfirm={() => { setBorrar(false); quitar() }}
-        title={t('etl.quitar_x', { x: c.nombre })} description={t('etl.quitar_ayuda')} />
     </div>
   )
 }

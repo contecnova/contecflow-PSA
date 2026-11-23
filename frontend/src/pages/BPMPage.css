@@ -25,15 +25,6 @@
   border-bottom: 1px solid var(--surface-4);
   position: relative;
 }
-.bpmp-search__icon {
-  position: absolute;
-  left: 22px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--text-3);
-  pointer-events: none;
-}
-.bpmp-search .ds-input { padding-left: 30px; font-size: var(--text-sm); }
 .bpmp-cats { flex: 1; overflow-y: auto; padding: 8px 0; }
 /* El color de la categoría (dato) llega por `--bpmp-cat`. */
 .bpmp-cat {

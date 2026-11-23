@@ -353,6 +353,8 @@ CLAVES = {
     "forecast_cost", "billing_rate", "avg_cost_rate", "progress_pct",
     "pv", "ev", "ac", "cpi", "spi", "cv", "sv", "evm_no_schedule",
     "eac", "etc", "vac", "margin_at_completion", "risk_flag",
+    # Auditoría 22-11-2026 (A41): los tipos de cambio que faltaron (antes 1:1 en silencio).
+    "fx_warnings",
 }
 
 
@@ -365,7 +367,8 @@ def test_el_resultado_trae_las_42_claves_exactas(db, proyecto_tm):
     )
     # +3 (2026-11): coste de gastos, de subcontrata y total; +1 (2026-11, ALM fase 3):
     # `alm_cost`, licencias y equipos asignados al proyecto, que ya suman al coste total.
-    assert len(CLAVES) == 42
+    # +1 (22-11-2026): `fx_warnings`.
+    assert len(CLAVES) == 43
 
 
 def test_la_tabla_de_pesos_cubre_todos_los_estados():

@@ -56,6 +56,8 @@ def _sector(org_id: Optional[str]) -> str:
         from app.db.session import SessionLocal
         from app.services.settings_service import get_runtime_str
         db = SessionLocal()
+        from app.db.contexto_de_tenant import fijar_contexto as _fijar_contexto
+        _fijar_contexto(db, org_id, "ajustes globales")  # auditoría 22-11-2026: TENANT_SESION_SIN_CONTEXTO=cerrar
         try:
             valor = (get_runtime_str(db, "COMPANY_SECTOR", org_id) or "").strip()
         finally:
@@ -101,6 +103,8 @@ def _regional(org_id: Optional[str], user_id: Optional[str], lang: Optional[str]
     try:
         from app.db.session import SessionLocal
         db = SessionLocal()
+        from app.db.contexto_de_tenant import fijar_contexto as _fijar_contexto
+        _fijar_contexto(db, org_id, "formato regional global")  # auditoría 22-11-2026: TENANT_SESION_SIN_CONTEXTO=cerrar
     except Exception:
         logger.debug("_regional: sin sesion; ajustes globales", exc_info=True)
         db = None
@@ -160,6 +164,8 @@ def generate_narrative(
         from app.services.formato_regional import instruccion_de_idioma
 
         db = SessionLocal()
+        from app.db.contexto_de_tenant import fijar_contexto as _fijar_contexto
+        _fijar_contexto(db, org_id, "IA sin empresa")  # auditoría 22-11-2026: TENANT_SESION_SIN_CONTEXTO=cerrar
         try:
             narrative_text = call_ai(
                 db,

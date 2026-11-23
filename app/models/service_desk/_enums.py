@@ -147,6 +147,15 @@ class ChangeType(str, enum.Enum):
     emergency = "emergency"   # ECAB, urgente
 
 
+#: Estados de un modelo de cambio estandar (`StandardChangeModel.status`).
+ESTADO_MODELO_PROPUESTO = "proposed"     # pendiente de aprobacion del CAB
+ESTADO_MODELO_APROBADO = "approved"      # preaprobado: sus cambios no pasan por el CAB
+ESTADO_MODELO_SUSPENDIDO = "suspended"   # por tasa de fallo o a mano: sus cambios van al CAB
+ESTADO_MODELO_RETIRADO = "retired"       # baja
+ESTADOS_DE_MODELO_ESTANDAR = (ESTADO_MODELO_PROPUESTO, ESTADO_MODELO_APROBADO,
+                              ESTADO_MODELO_SUSPENDIDO, ESTADO_MODELO_RETIRADO)
+
+
 class ChangeRisk(str, enum.Enum):
     low    = "low"
     medium = "medium"
@@ -166,6 +175,38 @@ class ChangeStatus(str, enum.Enum):
     closed_success  = "closed_success"
     closed_failed   = "closed_failed"
     cancelled       = "cancelled"
+
+
+#: Maquina de estados de los cambios ITSM (auditoria 2026-11-22, C-SD3).
+#: Origen → destinos permitidos. `approved` no es destino de nadie: solo lo
+#: escriben el CAB (`cab_workflow_service`), la decision de un administrador
+#: (`change_service.approve_change_request`) y la auto-aprobacion de un
+#: estandar de bajo riesgo. Antes se admitia `draft → in_progress →
+#: closed_success` con un PATCH, saltandose el comite.
+TRANSICIONES_DE_CAMBIO: dict[str, frozenset] = {
+    ChangeStatus.draft.value: frozenset({ChangeStatus.submitted.value, ChangeStatus.cab_review.value,
+                                         ChangeStatus.cancelled.value}),
+    ChangeStatus.submitted.value: frozenset({ChangeStatus.cab_review.value, ChangeStatus.draft.value,
+                                             ChangeStatus.cancelled.value}),
+    # Sin vuelta a borrador desde la revision: reiniciar el CAB borraba los
+    # votos en contra (A-SD19). Un cambio rechazado se cancela y se rehace.
+    ChangeStatus.cab_review.value: frozenset({ChangeStatus.cancelled.value}),
+    ChangeStatus.approved.value: frozenset({ChangeStatus.scheduled.value, ChangeStatus.in_progress.value,
+                                            ChangeStatus.cancelled.value}),
+    ChangeStatus.scheduled.value: frozenset({ChangeStatus.in_progress.value, ChangeStatus.cancelled.value}),
+    ChangeStatus.in_progress.value: frozenset({ChangeStatus.implemented.value,
+                                               ChangeStatus.closed_failed.value}),
+    ChangeStatus.implemented.value: frozenset({ChangeStatus.post_review.value, ChangeStatus.closed_success.value,
+                                               ChangeStatus.closed_failed.value}),
+    ChangeStatus.post_review.value: frozenset({ChangeStatus.closed_success.value,
+                                               ChangeStatus.closed_failed.value}),
+    ChangeStatus.closed_success.value: frozenset(),
+    ChangeStatus.closed_failed.value: frozenset(),
+    ChangeStatus.cancelled.value: frozenset(),
+}
+
+#: Estados desde los que se puede arrancar la implantacion (o un despliegue).
+ESTADOS_DE_CAMBIO_IMPLANTABLES = frozenset({ChangeStatus.approved.value, ChangeStatus.scheduled.value})
 
 
 class MajorIncidentStatus(str, enum.Enum):

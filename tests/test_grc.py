@@ -60,8 +60,9 @@ class TestGRCPermissions:
             module = p.get("module")
             action = p.get("action")
 
-        if not (role and module and action):
-            pytest.skip("No permissions to toggle — seed may have different structure")
+        assert role and module and action, (
+            f"la matriz sembrada no trae ningun permiso que conmutar: {permissions!r}"
+        )
 
         res = client.patch(
             f"/api/v1/grc/permissions/{role}/{module}/{action}",

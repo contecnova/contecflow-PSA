@@ -2,10 +2,16 @@
 Mapa de cobertura ABAC — qué prefijos de la API deben aplicar políticas ABAC.
 
 ╔══════════════════════════════════════════════════════════════════════════════╗
-║ Esto es DOCUMENTACIÓN VERIFICADA, no configuración en tiempo de ejecución.   ║
-║ Nada lo lee en caliente: el control real son los `enforce_abac(...)` que     ║
-║ cada endpoint llama con su resource_type y su action correctos.              ║
+║ Esto SÍ se lee en caliente (corregido 23-11-2026, auditoría 01 §4): la capa  ║
+║ ABAC por prefijo usa `ABAC_COVERED_PREFIXES` en cada petición               ║
+║ (`app/core/abac_dependency.py::_resolve_coverage`, aplicada con el principal ║
+║ resuelto en `get_current_user` → `aplicar_abac_a_principal`). Además, cada   ║
+║ endpoint puede llamar a `enforce_abac(...)` con su resource_type y action.   ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
+
+(La cabecera anterior decía «Nada lo lee en caliente»: era cierto antes de que
+`abac_dependency.py` lo importara, y dejó de serlo; cambiar un prefijo aquí
+cambia qué políticas se aplican.)
 
 Auditoría 2026-08 (hallazgo P1-5). Hasta ahora este dict se llamaba
 `ABAC_ROUTE_REGISTRY` y lo consumía `ABACMiddleware`, que se creía la capa de

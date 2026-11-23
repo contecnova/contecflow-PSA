@@ -89,8 +89,8 @@ export function ToastProvider({ children }: ToastProviderProps) {
 
   // Errores de queries (QueryCache.onError en main.tsx) → aviso de error.
   const lastQueryError = useRef<{ msg: string; at: number } | null>(null)
-  useEffect(() => subscribeQueryErrors((error) => {
-    const msg = mensajeDeError(error, errorDelServidor, t('toast.load_error'))
+  useEffect(() => subscribeQueryErrors((error, tipo) => {
+    const msg = mensajeDeError(error, errorDelServidor, tipo === 'escritura' ? t('toast.write_error') : t('toast.load_error'))
     const now = Date.now()
     const last = lastQueryError.current
     if (last && last.msg === msg && now - last.at < QUERY_ERROR_DEDUPE_MS) return

@@ -1,0 +1,99 @@
+{
+ "codigos": {
+  "sso_proveedor_no_soportado": {
+   "es": "Proveedor de SSO no soportado ({proveedor}): usa Azure AD / Entra ID, Okta, Google u OIDC",
+   "en": "Unsupported SSO provider ({proveedor}): use Azure AD / Entra ID, Okta, Google or OIDC",
+   "zh": "不支持的 SSO 提供方（{proveedor}）：请使用 Azure AD / Entra ID、Okta、Google 或 OIDC"
+  },
+  "sso_discovery_no_valida": {
+   "es": "La URL de discovery tiene que ser HTTPS y completa (sin marcadores como «tenant-id» por rellenar)",
+   "en": "The discovery URL must be HTTPS and complete (no placeholders such as «tenant-id» left)",
+   "zh": "发现 URL 必须是完整的 HTTPS 地址（不能留有 «tenant-id» 等占位符）"
+  },
+  "sso_discovery_entra_no_valida": {
+   "es": "En Entra ID la URL de discovery es https://login.microsoftonline.com/<id del inquilino>/v2.0/.well-known/openid-configuration",
+   "en": "For Entra ID the discovery URL is https://login.microsoftonline.com/<tenant id>/v2.0/.well-known/openid-configuration",
+   "zh": "Entra ID 的发现 URL 为 https://login.microsoftonline.com/<租户 ID>/v2.0/.well-known/openid-configuration"
+  },
+  "sso_client_id_no_valido": {
+   "es": "El Client ID no es válido (en Entra ID es el identificador de la aplicación, un GUID)",
+   "en": "The Client ID is not valid (in Entra ID it is the application ID, a GUID)",
+   "zh": "Client ID 无效（在 Entra ID 中为应用程序 ID，即 GUID）"
+  },
+  "sso_secreto_no_valido": {
+   "es": "El Client Secret no es válido",
+   "en": "The Client Secret is not valid",
+   "zh": "Client Secret 无效"
+  },
+  "sso_dominio_no_valido": {
+   "es": "Dominio permitido no válido: {dominio}",
+   "en": "Invalid allowed domain: {dominio}",
+   "zh": "允许的域无效：{dominio}"
+  },
+  "sso_rol_no_valido": {
+   "es": "El rol «{rol}» no existe",
+   "en": "The role «{rol}» does not exist",
+   "zh": "角色「{rol}」不存在"
+  },
+  "sso_mapeo_no_valido": {
+   "es": "El mapeo de grupos a roles no es válido: una línea grupo=rol por grupo (máximo 200)",
+   "en": "The group-to-role mapping is not valid: one group=role line per group (200 at most)",
+   "zh": "组到角色的映射无效：每组一行 组=角色（最多 200 行）"
+  },
+  "sso_claim_no_valido": {
+   "es": "El claim de grupos no es válido",
+   "en": "The groups claim is not valid",
+   "zh": "组声明无效"
+  },
+  "sso_falta_dato": {
+   "es": "Para activar el proveedor falta: {campo}",
+   "en": "To activate the provider this is missing: {campo}",
+   "zh": "启用该提供方还缺少：{campo}"
+  },
+  "integracion_valor_no_numerico": {
+   "es": "El campo «{campo}» tiene que ser un número",
+   "en": "The «{campo}» field must be a number",
+   "zh": "字段「{campo}」必须是数字"
+  },
+  "integracion_puerto_no_valido": {
+   "es": "El puerto tiene que estar entre 1 y 65535",
+   "en": "The port must be between 1 and 65535",
+   "zh": "端口必须在 1 到 65535 之间"
+  },
+  "buzon_protocolo_no_valido": {
+   "es": "Protocolo del buzón no válido ({valor}): imap o graph",
+   "en": "Invalid mailbox protocol ({valor}): imap or graph",
+   "zh": "邮箱协议无效（{valor}）：imap 或 graph"
+  },
+  "buzon_prueba_ok": {
+   "es": "{protocolo}: {n} correos sin leer",
+   "en": "{protocolo}: {n} unread emails",
+   "zh": "{protocolo}：{n} 封未读邮件"
+  },
+  "buzon_sin_configurar": {
+   "es": "El buzón no está configurado: elige el protocolo (imap o graph) y rellena sus datos",
+   "en": "The mailbox is not configured: choose the protocol (imap or graph) and fill in its details",
+   "zh": "邮箱尚未配置：请选择协议（imap 或 graph）并填写其信息"
+  },
+  "buzon_falta_m365": {
+   "es": "Falta el buzón de Microsoft 365",
+   "en": "The Microsoft 365 mailbox is missing",
+   "zh": "缺少 Microsoft 365 邮箱"
+  },
+  "buzon_conexion_fallida": {
+   "es": "No se pudo conectar con el buzón ({error}): revisa servidor, puerto, usuario y contraseña",
+   "en": "Could not connect to the mailbox ({error}): check server, port, user and password",
+   "zh": "无法连接邮箱（{error}）：请检查服务器、端口、用户和密码"
+  },
+  "integracion_desconocida": {
+   "es": "Integración desconocida: {proveedor}",
+   "en": "Unknown integration: {proveedor}",
+   "zh": "未知集成：{proveedor}"
+  },
+  "integracion_sin_prueba": {
+   "es": "Esta integración ({proveedor}) no tiene prueba de conexión",
+   "en": "This integration ({proveedor}) has no connection test",
+   "zh": "该集成（{proveedor}）没有连接测试"
+  }
+ }
+}

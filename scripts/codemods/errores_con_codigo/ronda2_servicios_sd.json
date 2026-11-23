@@ -1,0 +1,14 @@
+{
+ "codigos": {
+  "escalado_cola_ajena": {
+   "es": "La cola de la regla de escalado no es de tu empresa",
+   "en": "The escalation rule's queue does not belong to your company",
+   "zh": "升级规则的队列不属于您的公司"
+  },
+  "escalado_destinatario_ajeno": {
+   "es": "Alguna de las personas a avisar no es de tu empresa",
+   "en": "Some of the people to notify do not belong to your company",
+   "zh": "部分通知对象不属于您的公司"
+  }
+ }
+}

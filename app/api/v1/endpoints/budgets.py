@@ -23,7 +23,7 @@ from sqlalchemy.orm import Session
 
 import app.services.budgets_service as _budgets
 import app.services.presupuestos_seguir as _seguir
-from app.core.deps import require_any_manager
+from app.core.deps import requiere_capacidad
 from app.core.responses import APIListResponse, APIResponse
 from app.db.session import get_db
 from app.models.user import User
@@ -97,78 +97,78 @@ class VinculoIn(BaseModel):
 
 @router.get("/budgets", summary="Presupuestos (última versión de cada uno) con plan, real y previsión")
 def list_budgets(year: Optional[int] = None, ambito: Optional[str] = None, estado: Optional[str] = None,
-                 db: Session = Depends(get_db), current_user: User = Depends(require_any_manager)):
+                 db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("presupuestos.gestionar"))):
     items = _budgets.listar(db, current_user, year=year, ambito=ambito, estado=estado)
     return APIListResponse.ok(items=items, total=len(items))
 
 
 @router.get("/budgets/summary", summary="Resumen del ejercicio: plan, real y previsión por mes")
 def budget_summary(year: Optional[int] = Query(default=None), db: Session = Depends(get_db),
-                   current_user: User = Depends(require_any_manager)):
+                   current_user: User = Depends(requiere_capacidad("presupuestos.gestionar"))):
     return APIResponse.ok(data=_budgets.resumen(db, current_user, year))
 
 
 @router.get("/budgets/control-board", summary="Cuadro de control: un renglón por presupuesto con su semáforo")
 def control_board(year: Optional[int] = Query(default=None), db: Session = Depends(get_db),
-                  current_user: User = Depends(require_any_manager)):
+                  current_user: User = Depends(requiere_capacidad("presupuestos.gestionar"))):
     items = _seguir.cuadro(db, current_user, year)
     return APIListResponse.ok(items=items, total=len(items))
 
 
 @router.post("/budgets", summary="Crear presupuesto (proyecto, proyecto previsto, departamento o área)")
-def create_budget(body: PresupuestoIn, db: Session = Depends(get_db), current_user: User = Depends(require_any_manager)):
+def create_budget(body: PresupuestoIn, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("presupuestos.gestionar"))):
     return APIResponse.ok(data=_budgets.crear(db, current_user, body.model_dump(exclude_unset=True)))
 
 
 @router.get("/budgets/{budget_id}", summary="Ficha: partidas, seguimiento, versiones y aprobación")
-def get_budget(budget_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_any_manager)):
+def get_budget(budget_id: str, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("presupuestos.gestionar"))):
     return APIResponse.ok(data=_budgets.detalle(db, current_user, budget_id))
 
 
 @router.patch("/budgets/{budget_id}", summary="Editar la cabecera (borrador o rechazado)")
 def update_budget(budget_id: str, body: PresupuestoIn, db: Session = Depends(get_db),
-                  current_user: User = Depends(require_any_manager)):
+                  current_user: User = Depends(requiere_capacidad("presupuestos.gestionar"))):
     return APIResponse.ok(data=_budgets.editar(db, current_user, budget_id, body.model_dump(exclude_unset=True)))
 
 
 @router.post("/budgets/{budget_id}/lines", summary="Añadir una partida")
 def add_line(budget_id: str, body: PartidaIn, db: Session = Depends(get_db),
-             current_user: User = Depends(require_any_manager)):
+             current_user: User = Depends(requiere_capacidad("presupuestos.gestionar"))):
     return APIResponse.ok(data=_budgets.crear_linea(db, current_user, budget_id, body.model_dump(exclude_unset=True)))
 
 
 @router.patch("/budgets/{budget_id}/lines/{line_id}", summary="Editar una partida")
 def update_line(budget_id: str, line_id: str, body: PartidaIn, db: Session = Depends(get_db),
-                current_user: User = Depends(require_any_manager)):
+                current_user: User = Depends(requiere_capacidad("presupuestos.gestionar"))):
     return APIResponse.ok(data=_budgets.editar_linea(db, current_user, budget_id, line_id,
                                                      body.model_dump(exclude_unset=True)))
 
 
 @router.delete("/budgets/{budget_id}/lines/{line_id}", summary="Quitar una partida")
 def delete_line(budget_id: str, line_id: str, db: Session = Depends(get_db),
-                current_user: User = Depends(require_any_manager)):
+                current_user: User = Depends(requiere_capacidad("presupuestos.gestionar"))):
     return APIResponse.ok(data=_budgets.borrar_linea(db, current_user, budget_id, line_id))
 
 
 @router.post("/budgets/{budget_id}/submit", summary="Enviar a aprobación")
-def submit_budget(budget_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_any_manager)):
+def submit_budget(budget_id: str, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("presupuestos.gestionar"))):
     return APIResponse.ok(data=_budgets.enviar(db, current_user, budget_id))
 
 
 @router.post("/budgets/{budget_id}/decision", summary="Aprobar o rechazar (BUDGET_APPROVER_ROLES)")
 def decide_budget(budget_id: str, body: DecisionIn, db: Session = Depends(get_db),
-                  current_user: User = Depends(require_any_manager)):
+                  current_user: User = Depends(requiere_capacidad("presupuestos.gestionar"))):
     return APIResponse.ok(data=_budgets.decidir(db, current_user, budget_id, body.aprobado, body.motivo))
 
 
 @router.post("/budgets/{budget_id}/new-version", summary="Reprevisión: versión nueva a partir de ésta")
-def new_version(budget_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_any_manager)):
+def new_version(budget_id: str, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("presupuestos.gestionar"))):
     return APIResponse.ok(data=_budgets.nueva_version(db, current_user, budget_id))
 
 
 @router.post("/budgets/{budget_id}/link-project", summary="Vincular un proyecto previsto al proyecto ya creado")
 def link_project(budget_id: str, body: VinculoIn, db: Session = Depends(get_db),
-                 current_user: User = Depends(require_any_manager)):
+                 current_user: User = Depends(requiere_capacidad("presupuestos.gestionar"))):
     return APIResponse.ok(data=_budgets.vincular_proyecto(db, current_user, budget_id, body.project_id))
 
 
@@ -201,52 +201,52 @@ class CampanaIn(BaseModel):
 
 @router.post("/budgets/{budget_id}/scenario", summary="Otro escenario (optimista, pesimista…) con sus supuestos")
 def new_scenario(budget_id: str, body: EscenarioIn, db: Session = Depends(get_db),
-                 current_user: User = Depends(require_any_manager)):
+                 current_user: User = Depends(requiere_capacidad("presupuestos.gestionar"))):
     return APIResponse.ok(data=_budgets.crear_escenario(db, current_user, budget_id, body.nombre, body.supuestos))
 
 
 @router.post("/budgets/compare", summary="Comparar versiones o escenarios: gasto, ingreso y margen por tipo y mes")
-def compare_budgets(body: CompararIn, db: Session = Depends(get_db), current_user: User = Depends(require_any_manager)):
+def compare_budgets(body: CompararIn, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("presupuestos.gestionar"))):
     from app.services.presupuestos_preparar import comparar
     return APIResponse.ok(data=comparar(db, body.ids))
 
 
 @router.get("/budget-templates", summary="Plantillas de presupuesto")
-def list_templates(db: Session = Depends(get_db), current_user: User = Depends(require_any_manager)):
+def list_templates(db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("presupuestos.gestionar"))):
     items = _budgets.listar_plantillas(db, current_user)
     return APIListResponse.ok(items=items, total=len(items))
 
 
 @router.post("/budget-templates", summary="Crear plantilla (o guardar un presupuesto como plantilla)")
-def create_template(body: PlantillaIn, db: Session = Depends(get_db), current_user: User = Depends(require_any_manager)):
+def create_template(body: PlantillaIn, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("presupuestos.gestionar"))):
     return APIResponse.ok(data=_budgets.guardar_plantilla(db, current_user, body.model_dump(exclude_unset=True)))
 
 
 @router.patch("/budget-templates/{template_id}", summary="Editar plantilla")
 def update_template(template_id: str, body: PlantillaIn, db: Session = Depends(get_db),
-                    current_user: User = Depends(require_any_manager)):
+                    current_user: User = Depends(requiere_capacidad("presupuestos.gestionar"))):
     return APIResponse.ok(data=_budgets.guardar_plantilla(db, current_user, body.model_dump(exclude_unset=True), template_id))
 
 
 @router.delete("/budget-templates/{template_id}", summary="Borrar plantilla")
-def delete_template(template_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_any_manager)):
+def delete_template(template_id: str, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("presupuestos.gestionar"))):
     return APIResponse.ok(data=_budgets.borrar_plantilla(db, current_user, template_id))
 
 
 @router.get("/budget-campaigns", summary="Campañas de presupuestos con su avance")
-def list_campaigns(db: Session = Depends(get_db), current_user: User = Depends(require_any_manager)):
+def list_campaigns(db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("presupuestos.gestionar"))):
     items = _budgets.listar_campanas(db, current_user)
     return APIListResponse.ok(items=items, total=len(items))
 
 
 @router.post("/budget-campaigns", summary="Abrir campaña (BUDGET_APPROVER_ROLES)")
-def create_campaign(body: CampanaIn, db: Session = Depends(get_db), current_user: User = Depends(require_any_manager)):
+def create_campaign(body: CampanaIn, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("presupuestos.gestionar"))):
     return APIResponse.ok(data=_budgets.guardar_campana(db, current_user, body.model_dump(exclude_unset=True)))
 
 
 @router.patch("/budget-campaigns/{campaign_id}", summary="Editar o cerrar campaña (BUDGET_APPROVER_ROLES)")
 def update_campaign(campaign_id: str, body: CampanaIn, db: Session = Depends(get_db),
-                    current_user: User = Depends(require_any_manager)):
+                    current_user: User = Depends(requiere_capacidad("presupuestos.gestionar"))):
     return APIResponse.ok(data=_budgets.guardar_campana(db, current_user, body.model_dump(exclude_unset=True), campaign_id))
 
 
@@ -292,40 +292,40 @@ class TraspasoIn(BaseModel):
 
 
 @router.post("/budgets/{budget_id}/close", summary="Cerrar un mes: congela su real (exige explicar las desviaciones)")
-def close_month(budget_id: str, body: MesIn, db: Session = Depends(get_db), current_user: User = Depends(require_any_manager)):
+def close_month(budget_id: str, body: MesIn, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("presupuestos.gestionar"))):
     _seguir.cerrar_mes(db, current_user, budget_id, body.mes)
     return APIResponse.ok(data=_budgets.detalle(db, current_user, budget_id))
 
 
 @router.delete("/budgets/{budget_id}/close/{mes}", summary="Reabrir un mes cerrado (BUDGET_APPROVER_ROLES)")
-def reopen_month(budget_id: str, mes: str, db: Session = Depends(get_db), current_user: User = Depends(require_any_manager)):
+def reopen_month(budget_id: str, mes: str, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("presupuestos.gestionar"))):
     _seguir.reabrir_mes(db, current_user, budget_id, mes)
     return APIResponse.ok(data=_budgets.detalle(db, current_user, budget_id))
 
 
 @router.post("/budgets/{budget_id}/variance-notes", summary="Explicar la desviación de un tipo en un mes")
 def explain_variance(budget_id: str, body: ExplicacionIn, db: Session = Depends(get_db),
-                     current_user: User = Depends(require_any_manager)):
+                     current_user: User = Depends(requiere_capacidad("presupuestos.gestionar"))):
     _seguir.explicar(db, current_user, budget_id, body.mes, body.tipo, body.explicacion)
     return APIResponse.ok(data=_budgets.detalle(db, current_user, budget_id))
 
 
 @router.put("/budgets/{budget_id}/forecast", summary="Reprevisión de un tipo: plan, ritmo real o a mano")
 def set_forecast(budget_id: str, body: PrevisionIn, db: Session = Depends(get_db),
-                 current_user: User = Depends(require_any_manager)):
+                 current_user: User = Depends(requiere_capacidad("presupuestos.gestionar"))):
     _seguir.guardar_prevision(db, current_user, budget_id, body.tipo, body.metodo, body.meses)
     return APIResponse.ok(data=_budgets.detalle(db, current_user, budget_id))
 
 
 @router.get("/budgets/{budget_id}/drilldown", summary="Lo que compone el real de un mes: imputaciones, gastos y pedidos")
 def drilldown(budget_id: str, mes: str = Query(..., pattern=r"^\d{4}-\d{2}$"), tipo: Optional[str] = None,
-              db: Session = Depends(get_db), current_user: User = Depends(require_any_manager)):
+              db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("presupuestos.gestionar"))):
     items = _seguir.detalle_del_real(db, _budgets._cargar(db, budget_id), mes, tipo)
     return APIListResponse.ok(items=items, total=len(items))
 
 
 @router.get("/budgets/{budget_id}/export.csv", summary="Seguimiento por mes y tipo en CSV")
-def export_csv(budget_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_any_manager)):
+def export_csv(budget_id: str, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("presupuestos.gestionar"))):
     b = _budgets._cargar(db, budget_id)
     return Response(_seguir.exportar_csv(db, b), media_type="text/csv; charset=utf-8",
                     headers={"Content-Disposition": f'attachment; filename="presupuesto-{b.id[:8]}.csv"'})
@@ -333,23 +333,23 @@ def export_csv(budget_id: str, db: Session = Depends(get_db), current_user: User
 
 @router.post("/budgets/{budget_id}/commitments", summary="Dar de alta un pedido (comprometido) contra el presupuesto")
 def create_commitment(budget_id: str, body: PedidoIn, db: Session = Depends(get_db),
-                      current_user: User = Depends(require_any_manager)):
+                      current_user: User = Depends(requiere_capacidad("presupuestos.gestionar"))):
     return APIResponse.ok(data=_seguir.crear_pedido(db, current_user, budget_id, body.model_dump()))
 
 
 @router.patch("/budget-commitments/{commitment_id}", summary="Pedido facturado (pasa a real) o anulado")
 def update_commitment(commitment_id: str, body: PedidoEstadoIn, db: Session = Depends(get_db),
-                      current_user: User = Depends(require_any_manager)):
+                      current_user: User = Depends(requiere_capacidad("presupuestos.gestionar"))):
     return APIResponse.ok(data=_seguir.actualizar_pedido(db, current_user, commitment_id, body.model_dump(exclude_unset=True)))
 
 
 @router.post("/budgets/{budget_id}/transfers", summary="Pedir un traspaso entre partidas o una ampliación")
 def request_transfer(budget_id: str, body: TraspasoIn, db: Session = Depends(get_db),
-                     current_user: User = Depends(require_any_manager)):
+                     current_user: User = Depends(requiere_capacidad("presupuestos.gestionar"))):
     return APIResponse.ok(data=_seguir.solicitar_traspaso(db, current_user, budget_id, body.model_dump()))
 
 
 @router.post("/budget-transfers/{transfer_id}/decision", summary="Aprobar o rechazar un traspaso (BUDGET_APPROVER_ROLES)")
 def decide_transfer(transfer_id: str, body: DecisionIn, db: Session = Depends(get_db),
-                    current_user: User = Depends(require_any_manager)):
+                    current_user: User = Depends(requiere_capacidad("presupuestos.gestionar"))):
     return APIResponse.ok(data=_seguir.decidir_traspaso(db, current_user, transfer_id, body.aprobado, body.motivo))

@@ -144,6 +144,12 @@ def _enforce_superadmin_bypass_safety() -> None:
     """
     if not settings.ENABLE_SUPERADMIN_BYPASS:
         return
+    # 23-11-2026 (docs/seguridad/politicas_de_cuenta.md §8): encendido se avisa
+    # siempre; cada uso queda en audit_log (`SUPERADMIN_BYPASS_LOGIN`).
+    import logging as _logging
+    _logging.getLogger("app.main").critical(
+        "ENABLE_SUPERADMIN_BYPASS=1: el acceso de recuperacion del superadmin esta ENCENDIDO "
+        "(solo desarrollo + SQLite). Apagalo cuando no lo necesites.")
     if settings.ENVIRONMENT != "development":
         raise RuntimeError(
             "ENABLE_SUPERADMIN_BYPASS=1 is only allowed when ENVIRONMENT=development "
@@ -516,20 +522,39 @@ def _parar_servicios(_scheduler) -> None:
     logger.info("   ✅ Shutdown completo")
 
 
+def _rls_exigido() -> bool:
+    """`RLS_REQUIRED`; sin fijar, exigido en staging/production (auditoría 22-11-2026, A1)."""
+    if settings.RLS_REQUIRED is not None:
+        return bool(settings.RLS_REQUIRED)
+    return settings.ENVIRONMENT in {"production", "staging"}
+
+
 def _avisar_si_rls_desarmada() -> None:
-    """Revisión 2026-11: se mide el rol de conexión, no solo que haya políticas."""
+    """Revisión 2026-11: se mide el rol de conexión, no solo que haya políticas.
+
+    Auditoría 22-11-2026 (A1): en staging/production (o `RLS_REQUIRED=1`) un
+    RLS desarmado en Postgres impide arrancar; antes solo se avisaba.
+    """
+    estado = None
     try:
         from app.db import rls
         from app.db.session import engine
         with engine.connect() as conexion:
             estado = rls.estado(conexion)
-        if estado.get("reason") and estado["reason"] != "no es Postgres":
-            logger.warning("   ⚠️  Aislamiento en la base (RLS) desarmado: %s. Ver README, «Database isolation».",
-                           estado["reason"])
-        elif estado.get("armed"):
-            logger.info("   🔒 RLS armado: %s tablas, rol %s", estado["tables_with_rls"], estado["role"])
     except Exception:
         logger.debug("lifespan: no se pudo medir RLS", exc_info=True)
+    if estado is None:
+        if _rls_exigido() and not settings.DATABASE_URL.startswith("sqlite"):
+            raise RuntimeError("RLS_REQUIRED: no se pudo medir el aislamiento en la base (RLS)")
+        return
+    if estado.get("reason") and estado["reason"] != "no es Postgres":
+        if _rls_exigido():
+            raise RuntimeError(f"RLS_REQUIRED: aislamiento en la base (RLS) desarmado: {estado['reason']}. "
+                               "Conecta con APP_DB_USER (setup.sh / setup.bat / scripts/docker_stack.py lo crean).")
+        logger.warning("   ⚠️  Aislamiento en la base (RLS) desarmado: %s. Ver README, «Database isolation».",
+                       estado["reason"])
+    elif estado.get("armed"):
+        logger.info("   🔒 RLS armado: %s tablas, rol %s", estado["tables_with_rls"], estado["role"])
 
 
 @asynccontextmanager
@@ -601,13 +626,35 @@ import uuid as _uuid
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
+def _traza_saneada(exc: BaseException) -> str:
+    """Traza para el log sin datos personales en el mensaje (auditoría 22-11-2026, 01 B14).
+
+    Los marcos (fichero, línea, código) se conservan: es lo que hace falta para
+    depurar. El mensaje de la excepción, que puede llevar correos, teléfonos o
+    IBAN de los datos con los que falló, pasa por `redact_pii`; si eso falla,
+    se omite.
+    """
+    import traceback
+    marcos = "".join(traceback.format_tb(exc.__traceback__))
+    try:
+        from app.services.ai_governance import redact_pii
+        mensaje = redact_pii(str(exc))[0]
+    except Exception:  # noqa: BLE001 - sin redactor, sin mensaje
+        mensaje = "(mensaje omitido)"
+    return "Traceback (most recent call last):" + chr(10) + f"{marcos}{type(exc).__name__}: {mensaje}"
+
+
 class ExceptionHandlerMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request, call_next):
         try:
             return await call_next(request)
-        except Exception:
+        except Exception as exc:
             req_id = str(_uuid.uuid4())
-            logger.error("❌ Unhandled exception [req_id=%s]", req_id, exc_info=True)
+            if settings.ENVIRONMENT in {"production", "staging"}:
+                # 01 B14: en staging/producción, la traza sin datos personales.
+                logger.error("❌ Unhandled exception [req_id=%s] %s", req_id, _traza_saneada(exc))
+            else:
+                logger.error("❌ Unhandled exception [req_id=%s]", req_id, exc_info=True)
             return JSONResponse(
                 status_code=500,
                 content={
@@ -796,10 +843,10 @@ async def security_headers_middleware(request: Request, call_next):
         response.headers["Content-Security-Policy"] = (
             "default-src 'self' https://cdn.jsdelivr.net https://fastapi.tiangolo.com; "
             "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
-            "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; "
+            "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
             "img-src 'self' data: blob: https://fastapi.tiangolo.com; "
             "media-src 'self' blob:; "
-            "font-src 'self' data: https://fonts.gstatic.com; "
+            "font-src 'self' data:; "
             "connect-src 'self' ws: wss:; "
             "frame-ancestors 'none'; "
             "object-src 'none'; "
@@ -815,12 +862,12 @@ async def security_headers_middleware(request: Request, call_next):
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; "
             "script-src 'self'; "
-            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+            "style-src 'self' 'unsafe-inline'; "
             "img-src 'self' data: blob:; "
             # Item I25: media-src blob: necesario para preview de audio
             # grabado con MediaRecorder en el voice command modal.
             "media-src 'self' blob:; "
-            "font-src 'self' data: https://fonts.gstatic.com; "
+            "font-src 'self' data:; "
             "connect-src 'self' ws: wss:; "
             # Segunda auditoría 2026-11: DocumentsPage muestra el PDF en un
             # <iframe> con la URL de /documents/file/ (almacenamiento local). Con
@@ -876,11 +923,13 @@ from app.core.metrics import setup_metrics
 setup_metrics(app)
 
 
-from app.db.session import get_db as _get_db  # noqa: E402
+from app.db.session import sesion_de_sistema as _sesion_de_sistema  # noqa: E402
 
 
 @app.get("/status", response_class=HTMLResponse)
-def public_status_page(org: Optional[str] = Query(None, max_length=100), db: Session = Depends(_get_db)):
+def public_status_page(org: Optional[str] = Query(None, max_length=100),
+                       db: Session = Depends(_sesion_de_sistema("status page pública por slug"))):
+
     """Página de estado pública de una empresa (?org=<slug>), en su idioma."""
     from app.services.service_desk import pagina_de_estado_publica as pagina
     from app.services.service_desk.status_page_service import organizacion_de_la_pagina
@@ -963,8 +1012,8 @@ def _pista_de_usuario(request: Request) -> str:
     if not auth.startswith("Bearer "):
         return ""
     try:
-        from app.core.security import decode_token
-        payload = decode_token(auth[7:])
+        from app.core.security import decode_token_de_peticion
+        payload = decode_token_de_peticion(request, auth[7:])
     except Exception as e:
         logger.debug("JWT decode failed in request logging: %s", e)
         return ""
@@ -1011,6 +1060,11 @@ async def request_logger(request: Request, call_next):
 from app.core.network import EsquemaDelProxyMiddleware  # noqa: E402
 app.add_middleware(EsquemaDelProxyMiddleware)
 
+# Auditoría 22-11-2026 (01 M4): tope global del cuerpo (MAX_REQUEST_BODY_MB),
+# el más externo para que corte antes de que nada lea ni parsee el cuerpo.
+from app.core.limite_de_cuerpo import LimiteDeCuerpoMiddleware  # noqa: E402
+app.add_middleware(LimiteDeCuerpoMiddleware)
+
 
 @app.get("/health", tags=["Health"])
 def health():
@@ -1025,12 +1079,17 @@ def health():
         # BD, ruta del fichero) va al log, no a la respuesta.
         logger.exception("health: la BD no responde")
         db_status = "error"
-    return {
-        "status": "ok",
-        "version": settings.VERSION,
-        "project": settings.PROJECT_NAME,
-        "db": db_status,
-    }
+    # Auditoría 22-11-2026 (01 B1): /health es público (nginx lo publica). En
+    # staging y producción no dice versión ni producto (ayudan a identificar el
+    # sistema y buscarle fallos conocidos); en desarrollo sí, para depurar.
+    if _health_detallado():
+        return {"status": "ok", "version": settings.VERSION, "project": settings.PROJECT_NAME, "db": db_status}
+    return {"status": "ok", "db": db_status}
+
+
+def _health_detallado() -> bool:
+    """¿Las sondas públicas dan detalle (versión, entorno, planificador)? Solo fuera de staging/producción."""
+    return settings.ENVIRONMENT not in {"production", "staging"}
 
 
 @app.get("/ready", tags=["Health"])
@@ -1084,9 +1143,11 @@ def readiness():
         "detail": scheduler_detail,
     }
 
-    payload = {
-        "status": "ok" if http_status == 200 else "error",
-        "environment": settings.ENVIRONMENT,
-        "checks": checks,
-    }
+    payload = {"status": "ok" if http_status == 200 else "error", "checks": checks}
+    if _health_detallado():
+        payload["environment"] = settings.ENVIRONMENT
+    else:
+        # 01 B1: en público, solo el estado de cada comprobación (sin el modo del
+        # planificador ni los motivos, que describen la arquitectura).
+        payload["checks"] = {k: {"status": v.get("status")} for k, v in checks.items()}
     return JSONResponse(status_code=http_status, content=payload)

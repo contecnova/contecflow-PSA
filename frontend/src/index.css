@@ -9,8 +9,8 @@
 /* Auditoría 2026-11: se cargaba también Space Mono (solo era respaldo de Geist
    Mono, que siempre carga) y el 300 de Geist (0 usos). Pesos medidos en el
    código: 400, 500, 600, 700 y 800; los 6 usos de 900 los sintetiza el 800. */
-/* 19-11-2026: las fuentes ya no se importan aquí con URL fija: `src/fuentes.ts`
-   (VITE_FONTS_CSS_URL; vacía = fuentes del sistema, sin llamar a Google). */
+/* 23-11-2026: las fuentes se sirven desde el propio host (`src/fuentes.ts`,
+   paquetes @fontsource): ninguna petición a Google (RGPD). */
 
 /* ── Tokens de diseño ────────────────────────────────────────── */
 :root {
@@ -162,6 +162,23 @@
   --radius-xl:  18px;
   --radius-full: 9999px;
 
+  /* Alto de controles (23-11-2026). Input, Select, SelectRico, CampoFecha,
+     Segmentado y Button miden lo mismo en cada tamaño; ninguna página fija
+     alturas ni rellenos verticales de un control a mano (lo vigila
+     scripts/kit_pendientes.mjs → «altos de control a mano»). */
+  --alto-control-xs: 26px;
+  --alto-control-sm: 32px;
+  --alto-control:    38px;
+  --alto-control-lg: 44px;
+  /* Icono dentro de un campo (Input `icono`/`iconoFinal`, Buscador). */
+  --campo-icono:       14px;
+  --campo-icono-x:     12px;
+  --campo-pad-icono:   34px;
+  /* La lista nativa de un <select>, las barras de desplazamiento y los
+     controles del navegador siguen el tema oscuro por defecto; el tema claro
+     lo cambia a `light`. */
+  color-scheme: dark;
+
   /* Movimiento — curva por defecto de toda transición */
   --easing: cubic-bezier(0.4, 0, 0.2, 1);
 
@@ -191,6 +208,13 @@
   --orange-bg:         rgba(234,88,12,0.12);
   --on-dark-faint:     rgba(255,255,255,0.25);
   --on-dark-faint-sm:  rgba(255,255,255,0.15);
+  /* 23-11-2026 (M14): antes literales en TSX (LoginPage, portal; Avatar del kit). */
+  --on-dark-faint-xs:  rgba(255,255,255,0.12);
+  --avatar-fin-accent:  rgba(26,58,110,0.8);
+  --avatar-fin-success: rgba(15,70,50,0.8);
+  --avatar-fin-warning: rgba(107,62,0,0.8);
+  --avatar-fin-danger:  rgba(92,26,26,0.9);
+  --avatar-fin-purple:  rgba(59,31,110,0.9);
   /* Pasada final de estilos 2026-11: literales de estilos en linea sin token.
      Tintes y halos derivados del color semantico con color-mix: siguen a cada
      tema (oscuro, light, freight, alto contraste) y al acento. */
@@ -1770,6 +1794,10 @@ input::placeholder, textarea::placeholder { color: var(--text-3); }
   gap: var(--space-3);
   flex-wrap: wrap;
 }
+/* 23-11-2026: fila de filtros con etiquetas. Si algún campo lleva etiqueta
+   encima (Input/Select con `label`), todos los controles se alinean por abajo:
+   las cajas quedan en la misma línea aunque el resto no tenga etiqueta. */
+.ds-toolbar:has(> .ui-field > label) { align-items: flex-end; }
 .ds-toolbar__spacer { flex: 1; }
 .ds-toolbar__title {
   display: flex;
@@ -1949,7 +1977,7 @@ input::placeholder, textarea::placeholder { color: var(--text-3); }
   border: 1px solid var(--surface-4);
   border-radius: var(--radius-md);
   padding: 9px 13px;
-  min-height: 38px;
+  min-height: var(--alto-control);
   color: var(--text-1);
   font-size: var(--text-base);
   outline: none;
@@ -1966,7 +1994,16 @@ input::placeholder, textarea::placeholder { color: var(--text-3); }
 /* 16-11-2026 (migración al kit): un `<select class="ds-input">` mide lo
    mismo que el Select del kit, Input y Button md (38 px). Especificidad baja
    (`:where`) para que una celda densa lo baje con su propia clase. */
-select.ds-input:where(:not([multiple]):not([size])) { height: 38px; padding-block: 0; cursor: pointer; }
+select.ds-input:where(:not([multiple]):not([size])) { height: var(--alto-control); padding-block: 0; cursor: pointer; }
+/* 23-11-2026: la lista desplegable de un <select> nativo sigue el tema
+   (antes salía blanca y azul del sistema con el tema oscuro). El esquema lo
+   da `color-scheme` (:root y cada tema); aquí, los colores de las opciones. */
+select option,
+select optgroup {
+  background-color: var(--surface-2);
+  color: var(--text-1);
+}
+select option:disabled { color: var(--text-3); }
 textarea.ds-input { min-height: 76px; }
 
 /* Tab-style toggle: pill-shaped segmented control */

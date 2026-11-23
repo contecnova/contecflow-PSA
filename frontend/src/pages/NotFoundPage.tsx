@@ -1,5 +1,4 @@
 import { Link, useLocation } from 'react-router-dom'
-// TODO type: i18n/AppLangContext still JS — useAppT returns a translator function
 import { useAppT } from '../i18n/AppLangContext'
 import './NotFoundPage.css'
 

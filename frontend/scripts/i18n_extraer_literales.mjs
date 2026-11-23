@@ -250,6 +250,9 @@ function tEstaOcupado(fuente) {
 // `t(...)` sobre un objeto en `ITSMKnowledgeTab`: `Type 'AppT' has no call
 // signatures`. Queda anotado como hallazgo aparte: dos hooks públicos con el
 // mismo nombre y distinto contrato son una trampa para cualquiera.
+// 23-11-2026: `hooks/useAppT` retirado; todo usa `i18n/AppLangContext`
+// (`useAppLang()` → objeto, `useAppT()` → función). La rama se queda por si
+// se ejecuta sobre código antiguo.
 function fuenteDelImport(fuente, nombre) {
   for (const s of fuente.statements) {
     if (!ts.isImportDeclaration(s) || !s.importClause?.namedBindings) continue

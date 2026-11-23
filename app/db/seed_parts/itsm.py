@@ -221,7 +221,7 @@ def seed_itsm_v2():
         if d['name'] in nombres:
             continue
         d['attributes'] = json.dumps(d['attributes'])
-        db.add(ConfigurationItem(code=next_ci_number(db), status=CIStatus.operational,
+        db.add(ConfigurationItem(code=next_ci_number(db, org_demo), status=CIStatus.operational,
                                  organization_id=org_demo, **d))
         db.flush()
         nuevos += 1

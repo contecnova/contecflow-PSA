@@ -20,7 +20,7 @@ from fastapi import APIRouter, Depends, Query, Response
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_current_user, get_db, require_admin_or_pm, require_internal_user
+from app.core.deps import get_current_user, get_db, requiere_capacidad
 from app.core.paginacion import Paginacion, lista_paginada, paginacion
 from app.core.responses import APIResponse
 from app.models.user import User
@@ -87,7 +87,7 @@ def list_criteria(db: Session = Depends(get_db), current_user: User = Depends(ge
 
 @router.post("/criteria", summary="Crear criterio", status_code=201)
 def create_criterion(payload: CriterioIn, db: Session = Depends(get_db),
-                     current_user: User = Depends(require_admin_or_pm)):
+                     current_user: User = Depends(requiere_capacidad("cartera.gestionar"))):
     if not payload.name:
         from app.core.errores import ErrorDeDominio
         raise error(422, "criterio_sin_nombre")
@@ -96,7 +96,7 @@ def create_criterion(payload: CriterioIn, db: Session = Depends(get_db),
 
 @router.patch("/criteria/{criterion_id}", summary="Cambiar criterio")
 def update_criterion(criterion_id: str, payload: CriterioIn, db: Session = Depends(get_db),
-                     current_user: User = Depends(require_admin_or_pm)):
+                     current_user: User = Depends(requiere_capacidad("cartera.gestionar"))):
     return APIResponse.ok(data=svc.guardar_criterio(db, current_user, payload.model_dump(exclude_unset=True),
                                                     criterion_id))
 
@@ -108,7 +108,7 @@ def list_gates(db: Session = Depends(get_db), current_user: User = Depends(get_c
 
 @router.post("/gates", summary="Crear fase", status_code=201)
 def create_gate(payload: FaseIn, db: Session = Depends(get_db),
-                current_user: User = Depends(require_admin_or_pm)):
+                current_user: User = Depends(requiere_capacidad("cartera.gestionar"))):
     if not payload.name:
         from app.core.errores import ErrorDeDominio
         raise error(422, "fase_sin_nombre")
@@ -117,7 +117,7 @@ def create_gate(payload: FaseIn, db: Session = Depends(get_db),
 
 @router.patch("/gates/{gate_id}", summary="Cambiar fase")
 def update_gate(gate_id: str, payload: FaseIn, db: Session = Depends(get_db),
-                current_user: User = Depends(require_admin_or_pm)):
+                current_user: User = Depends(requiere_capacidad("cartera.gestionar"))):
     return APIResponse.ok(data=svc.guardar_fase(db, current_user, payload.model_dump(exclude_unset=True), gate_id))
 
 
@@ -136,7 +136,7 @@ def list_proposals(response: Response, status: Optional[str] = None,
 
 @router.post("/proposals", summary="Nueva propuesta (intake)", status_code=201)
 def create_proposal(payload: PropuestaIn, db: Session = Depends(get_db),
-                    current_user: User = Depends(require_internal_user)):
+                    current_user: User = Depends(requiere_capacidad("cartera.usar"))):
     datos = payload.model_dump(exclude_unset=True)
     if not datos.get("title"):
         from app.core.errores import ErrorDeDominio
@@ -153,25 +153,25 @@ def get_proposal(proposal_id: str, db: Session = Depends(get_db),
 
 @router.patch("/proposals/{proposal_id}", summary="Cambiar propuesta o su puntuación")
 def update_proposal(proposal_id: str, payload: PropuestaIn, db: Session = Depends(get_db),
-                    current_user: User = Depends(require_internal_user)):
+                    current_user: User = Depends(requiere_capacidad("cartera.usar"))):
     return APIResponse.ok(data=svc.guardar(db, current_user, payload.model_dump(exclude_unset=True), proposal_id))
 
 
 @router.post("/proposals/{proposal_id}/submit", summary="Enviar a la siguiente fase")
 def submit_proposal(proposal_id: str, db: Session = Depends(get_db),
-                    current_user: User = Depends(require_internal_user)):
+                    current_user: User = Depends(requiere_capacidad("cartera.usar"))):
     return APIResponse.ok(data=svc.enviar_a_fase(db, current_user, proposal_id))
 
 
 @router.post("/proposals/{proposal_id}/decision", summary="Decidir la fase (sin flujo de aprobación)")
 def decide_proposal(proposal_id: str, payload: DecisionIn, db: Session = Depends(get_db),
-                    current_user: User = Depends(require_admin_or_pm)):
+                    current_user: User = Depends(requiere_capacidad("cartera.gestionar"))):
     return APIResponse.ok(data=svc.decidir_en_pantalla(db, current_user, proposal_id, payload.approved, payload.note))
 
 
 @router.post("/proposals/{proposal_id}/convert", summary="Convertir en proyecto")
 def convert_proposal(proposal_id: str, payload: ConvertirIn, db: Session = Depends(get_db),
-                     current_user: User = Depends(require_admin_or_pm)):
+                     current_user: User = Depends(requiere_capacidad("cartera.gestionar"))):
     return APIResponse.ok(data=svc.convertir_en_proyecto(db, current_user, proposal_id, payload.model_dump()))
 
 

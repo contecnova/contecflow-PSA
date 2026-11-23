@@ -285,8 +285,10 @@
   width: 100%;
   background: var(--surface-3);
   border: 1px solid var(--surface-4);
-  border-radius: 8px;
-  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  /* 23-11-2026: 38 px como Select/Input (antes 33 px con 8 px de relleno). */
+  height: var(--alto-control);
+  padding: 0 13px;
   color: var(--text-1);
   font-size: var(--text-base);
   outline: none;
@@ -456,12 +458,76 @@
    Botón e input/select del kit miden lo mismo en una fila (antes el botón
    primario salía 4 px más bajo: sin borde y con 1 px menos de relleno). */
 :where(.ui-btn) { box-sizing: border-box; justify-content: center; }
-:where(.ui-btn--xs) { min-height: 26px; }
-:where(.ui-btn--sm) { min-height: 32px; }
-:where(.ui-btn--md) { min-height: 38px; }
-:where(.ui-btn--lg) { min-height: 44px; }
+:where(.ui-btn--xs) { min-height: var(--alto-control-xs); }
+:where(.ui-btn--sm) { min-height: var(--alto-control-sm); }
+:where(.ui-btn--md) { min-height: var(--alto-control); }
+:where(.ui-btn--lg) { min-height: var(--alto-control-lg); }
 .uiinde-box-18,
-.uiinde-box-19 { box-sizing: border-box; min-height: 38px; }
+.uiinde-box-19 { box-sizing: border-box; min-height: var(--alto-control); }
+/* 23-11-2026: alto FIJO (no mínimo) en Input y Select de una línea: un
+   line-height heredado o un relleno de la página ya no los hace crecer y la
+   fila de filtros queda alineada con Button md, SelectRico y CampoFecha. */
+:where(input:not([type=range]):not([type=color]):not([type=file]):not([type=checkbox]):not([type=radio])).uiinde-box-18,
+:where(select).uiinde-box-19 { height: var(--alto-control); line-height: normal; }
+:where(select).uiinde-box-19 { padding-block: 0; }
+/* El botón nativo de borrar de type="search" duplica la X del kit. */
+input.uiinde-box-18::-webkit-search-cancel-button { -webkit-appearance: none; appearance: none; }
+input[type="search"].uiinde-box-18 { -webkit-appearance: none; appearance: none; }
+input.uiinde-box-18::-webkit-search-decoration { -webkit-appearance: none; }
+
+/* ── Campo con icono (Input `icono` / `iconoFinal` / `onLimpiar`, Buscador) ──
+   El icono va DENTRO del campo, centrado en vertical, sin capturar el ratón
+   y con el relleno justo para que nunca pise el texto. */
+.ui-input-caja {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+}
+.ui-input-caja > input { flex: 1 1 auto; min-width: 0; }
+.ui-input-caja__icono,
+.ui-input-caja__fin {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  color: var(--text-3);
+}
+.ui-input-caja__icono { inset-inline-start: var(--campo-icono-x); pointer-events: none; }
+.ui-input-caja__icono svg { width: var(--campo-icono); height: var(--campo-icono); }
+.ui-input-caja__fin { inset-inline-end: 6px; gap: 2px; }
+.ui-input-caja__fin > :not(button) { pointer-events: none; }
+input.ui-input--icono-ini.ui-input--icono-ini { padding-inline-start: var(--campo-pad-icono); }
+input.ui-input--icono-fin.ui-input--icono-fin { padding-inline-end: var(--campo-pad-icono); }
+.ui-input-caja__limpiar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text-3);
+  cursor: pointer;
+}
+.ui-input-caja__limpiar:hover { background: var(--surface-4); color: var(--text-1); }
+.ui-input-caja__limpiar:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+/* Icono que gira (cargando) dentro de un campo o botón. */
+.ui-girando { animation: spin 0.8s linear infinite; }
+@media (prefers-reduced-motion: reduce) { .ui-girando { animation: none; } }
+
+/* Icono de botón (23-11-2026): un solo tamaño por tamaño de botón, venga el
+   `size` que venga en el icono lucide (había 12, 13, 14, 15 y 16 en botones md).
+   xs 12 · sm y md 14 · lg 16. */
+.ui-btn > .uiinde-txt-3 { display: inline-flex; align-items: center; }
+.ui-btn--xs > .uiinde-txt-3 svg { width: 12px; height: 12px; }
+.ui-btn--sm > .uiinde-txt-3 svg,
+.ui-btn--md > .uiinde-txt-3 svg { width: 14px; height: 14px; }
+.ui-btn--lg > .uiinde-txt-3 svg { width: 16px; height: 16px; }
 
 /* Botón-enlace (16-11-2026): `<Button variant="link">`. Texto en el acento,
    sin caja ni alto mínimo; va después de los tamaños para ganarles. */
@@ -478,7 +544,7 @@
 :where(.ui-btn--link:active:not(:disabled)) { transform: none; }
 
 /* Select del kit en tamaño pequeño (barras densas, tablas): 32 px como Button sm. */
-.uiinde-box-19.ui-select--sm { min-height: 32px; padding: 5px 10px; font-size: var(--text-sm); }
+.uiinde-box-19.ui-select--sm { min-height: var(--alto-control-sm); height: var(--alto-control-sm); padding: 0 10px; font-size: var(--text-sm); }
 .ui-select--suelto { width: auto; max-width: 100%; }
 
 /* Código (16-11-2026): la única tipografía monoespaciada permitida. Para

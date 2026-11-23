@@ -62,7 +62,9 @@ def vendor_scorecard_payload(db: Session, vendor_id: str) -> dict:
             "evaluated_at": s.evaluated_at.isoformat() if s.evaluated_at else None,
         } for s in scores],
         "latest_composite": scores[0].composite_score if scores else None,
-        "trend": [{"period": s.period, "score": s.composite_score} for s in reversed(scores[-6:])],
+        # M38 (auditoría 22-11-2026): `scores` va de más reciente a más antiguo;
+        # la tendencia son las 6 MÁS RECIENTES en orden cronológico (antes, las 6 más antiguas).
+        "trend": [{"period": s.period, "score": s.composite_score} for s in reversed(scores[:6])],
     }
 
 

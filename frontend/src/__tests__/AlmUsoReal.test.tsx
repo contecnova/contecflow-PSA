@@ -27,6 +27,7 @@ vi.mock('../context/AuthContext', () => ({
 }))
 
 import UsoRealTab from '../pages/alm/uso/UsoRealTab'
+import FuentesPanel from '../pages/alm/uso/FuentesPanel'
 import { codigoDeError } from '../services/api/almUso'
 import { puedeComo } from './capacidadesDelBackend'
 
@@ -74,11 +75,19 @@ describe('Uso real de licencias', () => {
     expect(screen.getByText('12 / 15')).toBeTruthy()
   })
 
-  it('las fuentes solo las ve un administrador', async () => {
-    estado.rol = 'pm'
+  // 23-11-2026 (auditoría 04b A4): las fuentes se configuran en /settings/alm-fuentes; en ALM no hay pestaña.
+  it('ALM no tiene pestaña de fuentes; el aviso enlaza a Configuración solo para administración', async () => {
     pintar()
     await screen.findByText('alm_uso.tab_uso')
     expect(screen.queryByText('alm_uso.tab_fuentes')).toBeNull()
+    expect(await screen.findByText('alm_uso.ir_a_fuentes')).toBeTruthy()
+  })
+
+  it('sin administración, el aviso sin fuentes no ofrece ir a Configuración', async () => {
+    estado.rol = 'pm'
+    pintar()
+    expect(await screen.findByText('alm_uso.sin_fuentes_titulo')).toBeTruthy()
+    expect(screen.queryByText('alm_uso.ir_a_fuentes')).toBeNull()
   })
 
   it('quien no gestiona ve solo sus licencias en recuperación', async () => {
@@ -89,8 +98,13 @@ describe('Uso real de licencias', () => {
   })
 
   it('una fuente sin credenciales completas no se puede activar y el secreto nunca se enseña', async () => {
-    pintar()
-    fireEvent.click(await screen.findByText('alm_uso.tab_fuentes'))
+    render(
+      <MemoryRouter>
+        <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+          <FuentesPanel />
+        </QueryClientProvider>
+      </MemoryRouter>,
+    )
     const activar = await screen.findByText('alm_uso.activar')
     expect((activar.closest('button') as HTMLButtonElement).disabled).toBe(true)
     fireEvent.click(screen.getByText('alm_uso.configurar'))

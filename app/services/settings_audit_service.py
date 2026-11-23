@@ -24,10 +24,19 @@ logger = logging.getLogger("contecflow.settings.audit")
 
 
 def _hash(value: Optional[str]) -> Optional[str]:
-    """SHA-256 hex of the stringified value, or None for empty/None."""
+    """HMAC-SHA256 (clave `SECRET_KEY`) del valor, o None si esta vacio.
+
+    Ronda 2 auditoria 2026-11-22: era SHA-256 sin sal; con la tabla de
+    auditoria se probaban por diccionario claves y contrasenas cortas. El HMAC
+    conserva lo util (dos filas con el mismo valor dan el mismo codigo) sin
+    poder adivinarse sin la clave del servidor. Mismo largo (64 hex).
+    """
     if value is None or value == "":
         return None
-    return hashlib.sha256(str(value).encode("utf-8")).hexdigest()
+    import hmac
+    from app.core.config import settings
+    return hmac.new(str(settings.SECRET_KEY).encode("utf-8"), str(value).encode("utf-8"),
+                    hashlib.sha256).hexdigest()
 
 
 def record_change(
@@ -43,8 +52,18 @@ def record_change(
     actor_ua: Optional[str] = None,
     organization_id: Optional[str] = None,
     provider: Optional[str] = None,
+    en_la_transaccion: bool = False,
 ) -> None:
-    """Append a row to `settings_audit_log`. Never raises into the caller."""
+    """Append a row to `settings_audit_log`. Never raises into the caller.
+
+    M93 (auditoría 22-11-2026): con `en_la_transaccion=True` la fila se añade a
+    la transacción de quien llama (sin commit propio ni tragar errores): el
+    cambio y su auditoría se confirman o se deshacen JUNTOS.
+    """
+    if en_la_transaccion:
+        db.add(_fila_de_auditoria(scope, key, is_secret, old_value, new_value, actor_id, actor_ip, actor_ua,
+                                  organization_id, provider))
+        return
     try:
         if scope not in ("runtime", "integration"):
             return
@@ -77,6 +96,20 @@ def record_change(
         except Exception:
             logger.debug("record_change: fallo best-effort ignorado", exc_info=True)
         logger.warning("settings audit log failed (scope=%s key=%s): %s", scope, key, exc)
+
+
+def _fila_de_auditoria(scope, key, is_secret, old_value, new_value, actor_id, actor_ip, actor_ua,
+                       organization_id, provider):
+    old_s = None if old_value is None else str(old_value)
+    new_s = None if new_value is None else str(new_value)
+    return SettingsAuditLog(
+        scope=scope, provider=provider, key=key, action="clear" if new_s in (None, "") else "set",
+        is_secret=bool(is_secret),
+        old_value=None if is_secret else old_s, new_value=None if is_secret else new_s,
+        old_value_hash=_hash(old_s) if is_secret else None, new_value_hash=_hash(new_s) if is_secret else None,
+        actor_id=actor_id, actor_ip=(actor_ip[:64] if actor_ip else None),
+        actor_ua=(actor_ua[:255] if actor_ua else None), organization_id=organization_id,
+    )
 
 
 def query_audit_log(

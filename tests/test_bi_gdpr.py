@@ -64,9 +64,10 @@ def test_create_dsr_portability(client, admin_token):
 
 
 def test_create_dsr_restriction(client, admin_token):
+    """Auditoría 22-11-2026 (A60): la restricción no tiene circuito que la aplique:
+    se rechaza (422) en vez de aceptarla y no hacer nada."""
     r = client.post("/api/v1/bi/gdpr/dsr", json={"user_id": "rest-user", "request_type": "restriction"}, headers=auth(admin_token))
-    assert r.status_code in (200, 201)
-    assert r.json()["data"]["request_type"] == "restriction"
+    assert r.status_code == 422
 
 
 def test_get_single_dsr(client, admin_token):

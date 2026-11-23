@@ -11,7 +11,7 @@
  */
 import { useId, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { uatApi, projectsApi, tasksApi } from '../services/api'
+import { uatApi, tasksApi } from '../services/api'
 import type { CasoUat, InformeUat } from '../services/api/tipos-proyectos'
 import { Spinner, EmptyState, Button, Modal, KpiCard, IconButton, StatusBadge, Select, Input, Textarea } from '../components/ui'
 import type { StatusBadgeKind } from '../components/ui/StatusBadge'
@@ -25,6 +25,7 @@ import { useAppT } from '../i18n/AppLangContext'
 import type { CSSProperties, ChangeEvent } from 'react'
 import './UATPage.css'
 import { UI_FEEDBACK_MS } from '../constants/timings'
+import { useListaDeProyectos } from '../hooks/useListas'
 
 // raci_service.serialize_uat_case / list_uat_cases / export_uat_report. La prioridad es
 // texto libre en la tabla (String(20)); la interfaz ofrece estas cuatro.
@@ -70,7 +71,6 @@ const PRIORITY_META: Record<UATPriority, { label: string; kind: StatusBadgeKind 
 }
 
 const fs = 'ds-input uat-input'
-const ta = 'ds-input uat-input uat-textarea'
 const ls = 'uat-label'
 
 function CaseFormModal({ open, onClose, onSave, initial, tasks = [] }: { open: boolean; onClose: () => void; onSave: (data: UATFormData) => void; initial?: UATCase | null; tasks?: TaskItem[] }) {
@@ -158,12 +158,13 @@ function CaseFormModal({ open, onClose, onSave, initial, tasks = [] }: { open: b
 
 function ExportModal({ open, onClose, report }: { open: boolean; onClose: () => void; report: InformeUat }) {
   const traducir = useAppT()
+  const toast = useToast()
   const [copied, setCopied] = useState(false)
   const handleCopy = () => {
     navigator.clipboard.writeText(report?.text || '').then(() => {
       setCopied(true)
       setTimeout(() => setCopied(false), UI_FEEDBACK_MS)
-    })
+    }, () => toast.error(traducir('uat.error_copiar')))
   }
   return (
     <Modal open={open} onClose={onClose} title={traducir('uat.exportar_plan')} width={700}>
@@ -195,10 +196,8 @@ export default function UATPage({ projectId }: { projectId?: string } = {}) {
   const [exportReport, setExportReport] = useState<InformeUat | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<UATCase | null>(null)
 
-  const { data: projects = [] } = useQuery<ProjectItem[]>({
-    queryKey: ['projects'],
-    queryFn: () => projectsApi.list({}).then(r => r.data ?? []),
-  })
+  const { data: projectsRaw = [] } = useListaDeProyectos()
+  const projects = projectsRaw as unknown as ProjectItem[]
 
   const { data: tasksData = [] } = useQuery<TaskItem[]>({
     queryKey: ['tasks', selectedProject],

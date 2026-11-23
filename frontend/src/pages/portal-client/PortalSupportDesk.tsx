@@ -15,7 +15,7 @@ import { fmtDate, fmtDateTime } from '../../utils/helpers'
 import { CLIENT_API, useErrorDelPortal, useLang, useIdiomaDelPortal, useEtiquetaEstado, rellenar } from './portalClientContext'
 import PortalKbArticulo from './PortalKbArticulo'
 import { EVENTO_ABRIR_TICKET } from './CampanaDelPortal'
-import TraduccionAutomatica, { MarcaDeTraduccion, textoDe, type ContenidoTraducido } from './TraduccionAutomatica'
+import TraduccionAutomatica, { MarcaDeTraduccion, textoDe } from './TraduccionAutomatica'
 import { PortalAsistente, PortalChatEnVivo } from './PortalAsistenteYChat'
 import {
   PortalPageHeader, PortalCard,
@@ -25,107 +25,13 @@ import {
   PortalSelect, PortalTextarea,
   PortalBanner, PortalTabs,
 } from './PortalUI'
-import { SLOW_INPUT_DEBOUNCE_MS } from '../../constants/timings'
 import { DYNAMIC_FORM_OPTIONS_LIMIT } from '../../constants/pagination'
 import './PortalSupportDesk.css'
 import { CampoFecha } from '../../components/ui/SelectorDeFecha'
 import { textosDeFechaDelPortal } from '../../i18n/fechaPortal'
-import { Pulsable, useErroresDeCampo } from '../../components/ui'
-
-
-const PRIORITY_TONE: Record<string, string> = {
-  p1_critical: 'danger',
-  p2_high:     'orange',
-  p3_medium:   'warning',
-  p4_low:      'default',
-}
-const PRIORITY_COLORS: Record<string, string> = {
-  p1_critical: 'var(--danger)',
-  p2_high:     'var(--orange)',
-  p3_medium:   'var(--warning)',
-  p4_low:      'var(--text-2)',
-}
-const STATUS_TONE: Record<string, string> = {
-  new: 'default', assigned: 'accent', in_progress: 'accent',
-  pending_client: 'warning', pending_third: 'warning',
-  resolved: 'success', closed: 'default', cancelled: 'default',
-}
-const TYPE_ICON: Record<string, typeof Bug> = {
-  incident: Bug, service_request: ClipboardList, change: GitBranch, question: HelpCircle,
-}
-
-interface Ticket {
-  id: string
-  number?: string
-  title?: string
-  ticket_type?: string
-  status?: string
-  status_label?: string
-  approval_status?: string | null
-  priority?: string
-  priority_label?: string
-  created_at?: string
-  assigned_to_name?: string
-  csat_requested_at?: string
-  csat_score?: number
-}
-interface TicketComment {
-  id: string
-  author_type?: string
-  author_name?: string
-  created_at?: string
-  body?: string
-  is_public?: boolean
-  /** 17-11-2026: editado o retirado en su canal (Slack). */
-  edited_at?: string | null
-  retracted_at?: string | null
-}
-interface TicketHistory {
-  changed_at?: string
-  changed_by?: string
-  field?: string
-  old_value?: unknown
-  new_value?: unknown
-}
-interface TicketDetail extends Ticket {
-  client_name?: string
-  service_item_name?: string
-  ci_name?: string
-  description?: string
-  resolution?: string
-  sla_resolution_due?: string
-  dynamic_fields?: Record<string, unknown>
-  comments?: TicketComment[]
-  history?: TicketHistory[]
-}
-// 16-11-2026: avisos, catálogo y etiquetas de los formularios dinámicos pueden
-// llegar traducidos automáticamente (`translated_from` + `original`).
-interface CatalogService extends ContenidoTraducido { id: string; name?: string; sla_resolution_hours?: number }
-interface CatalogGroup extends ContenidoTraducido { id: string; icon?: string; name?: string; services: CatalogService[] }
-interface KbArticle { id: string; title?: string; summary?: string; tags?: string; view_count?: number; helpful_count?: number }
-interface Announcement extends ContenidoTraducido {
-  id: string
-  type?: string
-  title?: string
-  body?: string
-  show_to_clients?: boolean
-  starts_at?: string
-  ends_at?: string
-}
-interface ContextItem { id?: string; name?: string; code?: string; [k: string]: unknown }
-interface ContextOptions { clients: ContextItem[]; services: ContextItem[]; cis: ContextItem[] }
-interface DynamicField extends ContenidoTraducido {
-  id: string
-  label?: string
-  type?: string
-  required?: boolean
-  options?: string[]
-  visible_when?: { field?: string; equals?: unknown; in?: unknown[] }
-  data_source?: string
-  data_attribute?: string
-}
-interface RoutingHint { when?: { field?: string; equals?: unknown; in?: unknown[] }; set?: Record<string, unknown> }
-interface DynamicRules { fields?: DynamicField[]; routing_hints?: RoutingHint[] }
+import { Buscador, useErroresDeCampo } from '../../components/ui'
+import { type Announcement, type CatalogGroup, type ContextItem, type ContextOptions, type DynamicField, type DynamicRules, type KbArticle, PRIORITY_COLORS, PRIORITY_TONE, STATUS_TONE, TYPE_ICON, type Ticket, type TicketDetail } from './PortalSupportDeskComun'
+import { SugerenciasDeLaKb } from './PortalSugerenciasDeLaKb'
 
 export function PortalSupportDesk() {
   const traducir = useLang()
@@ -151,7 +57,26 @@ export function PortalSupportDesk() {
   const valorDeCampo = (campo: string | undefined, valor: unknown) => {
     if (valor == null || valor === '') return '—'
     if (campo === 'status') return etiquetaEstado(String(valor))
-    return String(valor)
+    if (campo === 'priority') return etiquetaPrioridad(String(valor))
+    // Incidencia 3 (23-11-2026): la cola y los valores de serie, por su nombre.
+    const clave = campo === 'queue' ? `psd_cola_${valor}` : `psd_opcion_${valor}`
+    const v = _t(clave)
+    if (v && v !== clave) return v
+    const texto = String(valor).replace(/_/g, ' ')
+    return texto.charAt(0).toUpperCase() + texto.slice(1)
+  }
+  /** Etiqueta de los campos dinámicos de serie (`affected_environment`…) en el idioma del portal. */
+  const campoDeSerie = (id?: string) => {
+    if (!id) return null
+    const clave = `psd_campo_${id}`
+    const v = _t(clave)
+    return v && v !== clave ? v : null
+  }
+  /** Opción de un desplegable dinámico en el idioma del portal (el valor guardado no cambia). */
+  const opcionDinamica = (op: string) => {
+    const clave = `psd_opcion_${op}`
+    const v = _t(clave)
+    return v && v !== clave ? v : op
   }
   const idioma = useIdiomaDelPortal()
   const toast = useToast()
@@ -575,11 +500,7 @@ export function PortalSupportDesk() {
       )}
       {tab === 'kb' && !articuloAbierto && (
         <>
-          <div className="posude-box-11">
-            <Search size={14} className="portalsu-sx5" />
-            <PortalInput value={searchKB} onChange={(e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => setSearchKB(e.target.value)} placeholder={traducir('portalsupportdesk.buscar_articulo')}
-              className="portal-support-desk-e12" />
-          </div>
+          <Buscador className="posude-box-11" value={searchKB} onChange={setSearchKB} placeholder={traducir('portalsupportdesk.buscar_articulo')} />
           {kbArticles.length === 0 ? (
             <PortalEmpty icon={searchKB ? Search : BookOpen} title={searchKB ? rellenar(_t('support_kb_no_results'), { q: searchKB }) : _t('wiki_kb_empty')} />
           ) : (
@@ -732,14 +653,14 @@ export function PortalSupportDesk() {
               onAlternar={() => setFormularioOriginal(v => !v)} />
           )}
           {visibleDynamicFields.map((f) => (
-            <PortalField key={f.id} label={textoDe(f, 'label', f.label, formularioOriginal)} required={f.required}>
+            <PortalField key={f.id} label={(!formularioOriginal && campoDeSerie(f.id)) || textoDe(f, 'label', f.label, formularioOriginal)} required={f.required}>
               {f.type === 'select' ? (
                 <PortalSelect
                   value={dynamicValues[f.id] || ''}
                   onChange={(e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => setDynamicValues(v => ({ ...v, [f.id]: e.target.value }))}
                 >
                   <option value="">{traducir('invoices.select')}</option>
-                  {(f.options || []).map(op => <option key={op} value={op}>{op}</option>)}
+                  {(f.options || []).map(op => <option key={op} value={op}>{opcionDinamica(op)}</option>)}
                 </PortalSelect>
               ) : f.type === 'textarea' ? (
                 <PortalTextarea
@@ -779,61 +700,6 @@ export function PortalSupportDesk() {
           ))}
         </div>
       </PortalModal>
-    </div>
-  )
-}
-
-
-/**
- * Mientras el cliente escribe el título, los artículos públicos que podrían
- * resolverle el problema. Si uno se lo resuelve, no abre la petición y queda
- * contado como desvío en el artículo.
- */
-function SugerenciasDeLaKb({ texto, onResuelto }: { texto: string; onResuelto: () => void }) {
-  const traducir = useLang()
-  const errorDe = useErrorDelPortal()
-  const toast = useToast()
-  const [consulta, setConsulta] = useState('')
-  const [abierto, setAbierto] = useState<string | null>(null)
-  const idioma = useIdiomaDelPortal()
-  useEffect(() => {
-    const h = setTimeout(() => setConsulta(texto.trim()), SLOW_INPUT_DEBOUNCE_MS)
-    return () => clearTimeout(h)
-  }, [texto])
-  const { data: sugerencias = [] } = useQuery<{ id: string; title: string; summary?: string | null }[]>({
-    queryKey: ['portal-kb-suggest', consulta, idioma],
-    queryFn: () => CLIENT_API.get('/sd/kb/suggest', { params: { q: consulta, lang: idioma } }).then(r => r.data as { id: string; title: string; summary?: string | null }[]),
-    enabled: consulta.length >= 4,
-  })
-  const { data: detalle } = useQuery<{ body?: string }>({
-    queryKey: ['portal-kb-article', abierto, idioma],
-    queryFn: () => CLIENT_API.get(`/sd/kb/${abierto}`, { params: { lang: idioma } }).then(r => r.data as { body?: string }),
-    enabled: !!abierto,
-  })
-  const resuelto = useMutation({
-    mutationFn: (id: string) => CLIENT_API.post(`/sd/kb/${id}/deflected`),
-    onSuccess: () => { toast.success(traducir('sd_cfg.kb_solved_thanks')); onResuelto() },
-    onError: (e: unknown) => toast.error(errorDe(e, traducir('error_inesperado'))),
-  })
-  if (consulta.length < 4 || sugerencias.length === 0) return null
-  return (
-    <div role="region" aria-label={traducir('sd_cfg.kb_suggest_title')}
-      className="posude-stack-2">
-      <strong className="u-sm">{traducir('sd_cfg.kb_suggest_title')}</strong>
-      {sugerencias.slice(0, 3).map(a => (
-        <div key={a.id} className="posude-box-16">
-          <Pulsable onClick={() => setAbierto(abierto === a.id ? null : a.id)} aria-expanded={abierto === a.id}
-            className="posude-box-17">
-            {a.title}
-          </Pulsable>
-          {abierto === a.id && (
-            <div className="posude-stack-3">
-              <div className="posude-txt-3">{detalle?.body ?? a.summary ?? ''}</div>
-              <div><PortalButton onClick={() => resuelto.mutate(a.id)} loading={resuelto.isPending}>{traducir('sd_cfg.kb_solved')}</PortalButton></div>
-            </div>
-          )}
-        </div>
-      ))}
     </div>
   )
 }

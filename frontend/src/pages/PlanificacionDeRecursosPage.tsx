@@ -18,13 +18,14 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { BellRing, CalendarRange, FolderOpen, History, Scale, Sparkles } from 'lucide-react'
 import Page from '../components/ui/Page'
-import { Button, Checkbox, EmptyState, Pulsable, Select, Spinner, StatusBadge, Tabs, TablaSimple } from '../components/ui'
-import { projectsApi, recursosApi, skillsApi, usersApi } from '../services/api'
+import { Button, Checkbox, EmptyState, Pulsable, Select, Spinner, StatusBadge, Tabs, TablaSimple, Input } from '../components/ui'
+import { recursosApi, skillsApi, usersApi } from '../services/api'
 import VistasDeTrabajo from '../components/planificador/VistasDeTrabajo'
 import PanelDeNivelacion from '../components/planificador/PanelDeNivelacion'
 import { useAppT } from '../i18n/AppLangContext'
 import { useToast } from '../context/ToastContext'
 import { extractErr, fmtDateTime } from '../utils/helpers'
+import { useListaDeProyectos } from '../hooks/useListas'
 import '../components/planificador/planificador.css'
 import './PlanificacionDeRecursosPage.css'
 
@@ -34,7 +35,7 @@ export default function PlanificacionDeRecursosPage() {
   const t = useAppT()
   const [tab, setTab] = useState('availability')
   const [proyecto, setProyecto] = useState('')
-  const { data: proyectos = [] } = useQuery({ queryKey: ['projects'], queryFn: () => projectsApi.list({}).then(r => r.data) })
+  const { data: proyectos = [] } = useListaDeProyectos()
 
   const selector = (
     <Select suelto placeholder={false} className="plr-campo" aria-label={t('planificador.elige_proyecto')} value={proyecto} onChange={e => setProyecto(e.target.value)}>
@@ -151,7 +152,7 @@ function PanelDeAlertas() {
       {isLoading ? <Spinner /> : alertas.length === 0 ? <EmptyState icon={<BellRing size={28} />} title={t('planificador.sin_alertas')} description={t('planificador.sin_alertas_desc')} /> : (
         <div className="plan-card plan-tabla-scroll">
           <TablaSimple claseTabla="plan-tabla">
-            <thead><tr><th>{t('planificador.col_persona')}</th><th>{t('planificador.col_alerta')}</th><th>{t('planificador.col_severidad')}</th><th>{t('planificador.col_fecha')}</th><th /></tr></thead>
+            <thead><tr><th>{t('planificador.col_persona')}</th><th>{t('planificador.col_alerta')}</th><th>{t('planificador.col_severidad')}</th><th>{t('planificador.col_fecha')}</th><th><span className="u-sr-only">{t('common.col_acciones')}</span></th></tr></thead>
             <tbody>
               {alertas.map(a => (
                 <tr key={a.id}>
@@ -177,7 +178,7 @@ function PanelHistorico() {
   return (
     <div className="plan-stack">
       <label className="plan-row plan-muted">{t('planificador.semanas_atras')}
-        <input type="number" min={1} max={52} className="ds-input plr-campo plr-campo--num" value={semanas} onChange={e => setSemanas(Math.min(52, Math.max(1, Number(e.target.value) || 1)))} />
+        <Input type="number" min={1} max={52} inputClassName="plr-campo plr-campo--num" value={semanas} onChange={e => setSemanas(Math.min(52, Math.max(1, Number(e.target.value) || 1)))} />
       </label>
       {isLoading ? <Spinner /> : data.length === 0 ? <EmptyState icon={<History size={28} />} title={t('planificador.sin_historico')} description={t('planificador.sin_historico_desc')} /> : (
         <div className="plan-card plan-tabla-scroll">

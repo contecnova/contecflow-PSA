@@ -17,7 +17,7 @@ from sqlalchemy.orm import Session
 from typing import Optional, Dict, Any
 
 from app.db.session import get_db
-from app.core.deps import get_current_user, require_any_manager, require_internal_user
+from app.core.deps import get_current_user, requiere_capacidad
 from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
 from app.services import ml_trainer
@@ -32,7 +32,7 @@ def overrun_risk(
     body: Dict[str, Any] = Body(default_factory=dict),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: excepcion revisada: calcula una prediccion
+    _rol: User = Depends(requiere_capacidad("analitica.usar")),  # auditoria 2026-09: excepcion revisada: calcula una prediccion
 ):
     # Audit #C7: endpoint converted from async→def. It only does DB work; the
     # previous async wrapper forced sync ORM calls onto the event loop. FastAPI
@@ -64,7 +64,7 @@ def overrun_risk(
 @router.get("/portfolio-risk", summary="Resumen de riesgo de toda la cartera de proyectos")
 def portfolio_risk(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("analitica.responsables")),
 ):
     return APIResponse.ok(data=ml_trainer.portfolio_risk_summary(
         db,
@@ -76,7 +76,7 @@ def portfolio_risk(
 @router.post("/train", summary="Reentrenar modelo ML de predicción")
 def train_model(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("analitica.responsables")),
 ):
     result = ml_trainer.train_model(db, current_user.organization_id)
     return APIResponse.ok(data=result)
@@ -85,7 +85,7 @@ def train_model(
 @router.get("/models", summary="Listar versiones del modelo ML")
 def list_models(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("analitica.responsables")),
 ):
     return APIListResponse.ok(items=ml_trainer.list_models(db, current_user.organization_id))
 

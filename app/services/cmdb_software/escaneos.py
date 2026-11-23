@@ -90,21 +90,9 @@ def _primero(patron: str, texto: str) -> Optional[str]:
     return m.group(1) if m else None
 
 
-def _ruta(datos, ruta: Optional[str]):
-    """Valor de una ruta con puntos (``data.devices``) en un JSON."""
-    if not ruta:
-        return datos
-    actual = datos
-    for parte in ruta.split("."):
-        if isinstance(actual, dict):
-            actual = actual.get(parte)
-        elif isinstance(actual, list) and parte.isdigit() and int(parte) < len(actual):
-            actual = actual[int(parte)]
-        else:
-            return None
-    return actual
-
-
+# `_ruta` vive en `riesgo/terceros.py` (`ruta_json`), que la usa con el SIEM: así
+# `terceros` no importa `escaneos` de vuelta (ciclo escondido, 23-11-2026).
+from app.services.cmdb_software.riesgo.terceros import ruta_json as _ruta  # noqa: E402
 # ── Linux por SSH ────────────────────────────────────────────────────────────
 
 #: Sondas de versión: clave conocida → (orden, regex de versión, categoría, (orden de config, formato, ruta)).
@@ -331,14 +319,18 @@ def recoger_windows(ejecutar: Ejecutor, opciones: Optional[dict] = None) -> dict
     rc, salida = ejecutar(SCRIPT_WINDOWS)
     if rc != 0 or not (salida or "").strip():
         raise ErrorConCodigo("sw_escaneo_fallido", host="?", detalle=f"rc={rc}")
-    return interpretar_windows(json.loads(salida), opciones)
+    # M72: PowerShell 5 escribe UTF-8 con BOM; `json.loads` lo rechazaba.
+    return interpretar_windows(json.loads(salida.lstrip("\ufeff")), opciones)
 
 
 # ── API de EDR/RMM ───────────────────────────────────────────────────────────
 
 def _http_get(url: str, headers: Optional[dict] = None, timeout: float = 30):
-    import httpx
-    r = httpx.get(url, headers=headers, timeout=timeout, follow_redirects=True)
+    # SSRF: la URL es de la conexión (empresa); `peticion` valida URL, redirecciones e IP conectada.
+    # Con credenciales (cabeceras que no sean Accept) no se siguen redirecciones.
+    from app.core.outbound_url import peticion
+    con_credenciales = any(k.lower() != "accept" for k in (headers or {}))
+    r = peticion("GET", url, field="url", headers=headers, timeout=timeout, follow_redirects=not con_credenciales)
     r.raise_for_status()
     return r.json()
 
@@ -360,7 +352,13 @@ def recoger_api(conf: dict) -> list[dict]:
         lista = _ruta(datos, conf.get("list_path"))
         equipos += lista if isinstance(lista, list) else []
         siguiente = _ruta(datos, conf.get("next_path")) if conf.get("next_path") else None
-        url = siguiente if isinstance(siguiente, str) and siguiente.startswith(("http://", "https://")) else None
+        url = None
+        if isinstance(siguiente, str) and siguiente.startswith(("http://", "https://")):
+            from app.core.outbound_url import mismo_origen
+            if mismo_origen(conf.get("url"), siguiente):
+                url = siguiente
+            else:  # el `next` de la respuesta no decide a qué host va el token
+                logger.warning("paginación de la API de EDR/RMM: la página siguiente es de otro origen; se detiene")
     salida = []
     for e in equipos:
         if not isinstance(e, dict):
@@ -404,6 +402,7 @@ def _ssh(host: str, conf: dict):
                     for nombre in partes[0].split(","):
                         cliente.get_host_keys().add(nombre, partes[1], clave)
                 except Exception:  # noqa: BLE001 - una línea mala no invalida las demás
+                    logger.debug("_ssh: excepcion ignorada", exc_info=True)
                     continue
         cliente.set_missing_host_key_policy(paramiko.RejectPolicy())
     elif conf.get("accept_unknown_host_keys"):
@@ -417,6 +416,7 @@ def _ssh(host: str, conf: dict):
                 pkey = tipo.from_private_key(io.StringIO(conf["private_key"]), password=conf.get("passphrase") or None)
                 break
             except Exception:  # noqa: BLE001 - se prueba el siguiente tipo de clave
+                logger.warning("_ssh: excepcion ignorada", exc_info=True)
                 continue
     nombre, _, puerto = host.partition(":")
     cliente.connect(nombre, port=int(puerto or conf.get("port") or 22), username=conf.get("username"),
@@ -458,7 +458,20 @@ def recoger(tipo: str, conf: dict, hosts: Optional[list[str]] = None) -> list[di
     """Inventarios de todos los equipos de una conexión (los fallos van como ``{host, error}``)."""
     if tipo == "sw_api":
         return recoger_api(conf)
-    destinos = hosts or [h.strip() for h in re.split(r"[\s,;]+", str(conf.get("hosts") or "")) if h.strip()]
+    configurados = [h.strip() for h in re.split(r"[\s,;]+", str(conf.get("hosts") or "")) if h.strip()]
+    # A21: las credenciales guardadas SOLO se usan contra hosts que el admin configuró (si no, quien pudiera
+    # lanzar un escaneo las enviaría a cualquier host: relé de credenciales). Comparación normalizada.
+    # Decisión SSRF: como todo destino es un host configurado por el admin, NO se aplica `validar_host_saliente`
+    # (los escaneos internos de la red de la empresa son legítimos y bloquearía IP privadas); el guardia solo
+    # ocurre sobre lo que viene de la petición, y eso ya se rechaza aquí.
+    permitidos = {h.lower() for h in configurados}
+    if hosts:
+        for h in hosts:
+            if str(h or "").strip().lower() not in permitidos:
+                raise ErrorConCodigo("cmdb_host_no_configurado", host=str(h)[:100])
+        destinos = [str(h).strip() for h in hosts]
+    else:
+        destinos = configurados
     if not destinos:
         raise ErrorConCodigo("sw_conexion_incompleta", campo="hosts")
     salida = []
@@ -471,6 +484,7 @@ def recoger(tipo: str, conf: dict, hosts: Optional[list[str]] = None) -> list[di
             inv["target"] = destino
             salida.append(inv)
         except Exception as e:  # noqa: BLE001 - un equipo caído no para el resto
+            logger.debug("recoger: excepcion ignorada", exc_info=True)
             salida.append({"target": destino, "error": getattr(e, "code", None) or type(e).__name__,
                            "detail": str(e)[:300]})
         finally:
@@ -478,7 +492,7 @@ def recoger(tipo: str, conf: dict, hosts: Optional[list[str]] = None) -> list[di
                 try:
                     cerrar()
                 except Exception:  # noqa: BLE001
-                    pass
+                    logger.debug("recoger: excepcion ignorada", exc_info=True)
     return salida
 
 
@@ -487,6 +501,12 @@ def recoger(tipo: str, conf: dict, hosts: Optional[list[str]] = None) -> list[di
 def _q(db, org):
     q = db.query(CMDBDiscoveryProvider).filter(CMDBDiscoveryProvider.provider_type.in_(TIPOS))
     return q.filter(CMDBDiscoveryProvider.organization_id == org) if org else q
+
+
+def ultimas_ejecuciones(db: Session, conexion_, limite: int) -> list:
+    """Últimas ejecuciones de descubrimiento de una conexión de escaneo."""
+    return (db.query(CMDBDiscoveryJob).filter(CMDBDiscoveryJob.provider_id == conexion_.id)
+            .order_by(CMDBDiscoveryJob.started_at.desc()).limit(limite).all())
 
 
 def conexion(db, org, id_) -> CMDBDiscoveryProvider:
@@ -562,6 +582,20 @@ def borrar(db: Session, c: CMDBDiscoveryProvider, usuario) -> None:
     db.flush()
 
 
+def _unico_por_nombre_corto(db: Session, org, corto: str):
+    from sqlalchemy import func, or_
+    from app.models.service_desk.cmdb import ConfigurationItem
+    from app.services.cmdb_software import catalogo as cat
+    t = (corto or "").strip().lower()
+    if not t:
+        return None
+    candidatos = cat._q(db, ConfigurationItem, org).filter(
+        ConfigurationItem.is_active.is_(True),
+        or_(func.lower(ConfigurationItem.name) == t, func.lower(ConfigurationItem.hostname) == t,
+            func.lower(ConfigurationItem.hostname).like(t + ".%"))).limit(2).all()
+    return candidatos[0] if len(candidatos) == 1 else None
+
+
 def _ci_para(db: Session, org, host: dict, c: CMDBDiscoveryProvider, crear: bool):
     from app.services.cmdb.models import reconcile_cis
     from app.services.cmdb.parser import normalize_agent_payload
@@ -569,7 +603,9 @@ def _ci_para(db: Session, org, host: dict, c: CMDBDiscoveryProvider, crear: bool
     for clave in ("hostname", "fqdn", "ip_address"):
         encontrado = buscar_ci(db, org, host.get(clave))
         if encontrado is None and clave == "hostname" and host.get(clave) and "." in host[clave]:
-            encontrado = buscar_ci(db, org, host[clave].split(".")[0])
+            # M72 (auditoría 22-11-2026): por nombre corto solo si es INEQUÍVOCO
+            # (antes `web01.prod` casaba con el CI `web01` de desarrollo).
+            encontrado = _unico_por_nombre_corto(db, org, host[clave].split(".")[0])
         if encontrado is not None:
             return encontrado
     if not crear or not (host.get("hostname") or host.get("ip_address")):
@@ -639,6 +675,7 @@ def ejecutar_con_registro(db: Session, c: CMDBDiscoveryProvider, usuario=None, h
         job.cis_created, job.cis_updated = r["cis_created"], r["hosts"]
         job.summary_json = json.dumps(r, default=str)[:20000]
     except Exception as e:  # noqa: BLE001 - el error queda en la ejecución
+        logger.debug("ejecutar_con_registro: excepcion ignorada", exc_info=True)
         job.status, job.error_message = "error", f"{getattr(e, 'code', None) or type(e).__name__}: {e}"[:2000]
         r = {"error": job.error_message}
     job.finished_at = _ahora()
@@ -675,4 +712,5 @@ def probar(db: Session, c: CMDBDiscoveryProvider) -> dict:
             cerrar()
         return {"ok": rc == 0, "host": primero[0], "output": (salida or "").strip()[:200]}
     except Exception as e:  # noqa: BLE001
+        logger.warning("probar: excepcion ignorada", exc_info=True)
         return {"ok": False, "error": getattr(e, "code", None) or type(e).__name__}

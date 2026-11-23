@@ -24,8 +24,9 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
+from app.db.session import sesion_de_sistema
 
-from app.core.deps import get_current_user, get_db, require_admin
+from app.core.deps import get_current_user, get_db, requiere_capacidad
 from app.core.responses import APIListResponse, APIResponse
 from app.models.esign import ESignEnvelope, ESignProvider, ESignStatus
 from app.models.user import User, UserRole
@@ -154,7 +155,7 @@ def create_envelope(
     body:         EnvelopeCreate,
     db:           Session = Depends(get_db),
     current_user: User    = Depends(get_current_user),
-    _rol: User = Depends(require_admin),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
+    _rol: User = Depends(requiere_capacidad("firma.administrar")),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
     if not body.signers:
         raise error_http(400, "esign_sin_firmantes", detail="Al menos un firmante es obligatorio")
@@ -234,7 +235,7 @@ class ESignConfigIn(BaseModel):
 @router.get("/config", summary="Leer configuración de proveedores de firma")
 def get_esign_config(
     db: Session = Depends(get_db),
-    current_user:  User    = Depends(require_admin),
+    current_user:  User    = Depends(requiere_capacidad("firma.administrar")),
 ):
     result = {}
     for key in _ESIGN_KEYS:
@@ -256,7 +257,7 @@ def get_esign_config(
 def update_esign_config(
     payload: ESignConfigIn,
     db:  Session = Depends(get_db),
-    current_user:   User    = Depends(require_admin),
+    current_user:   User    = Depends(requiere_capacidad("firma.administrar")),
 ):
     field_key_map = {
         "docusign_integration_key": "esign.docusign_integration_key",
@@ -301,7 +302,7 @@ def update_status(
     status:      str,
     db:          Session = Depends(get_db),
     _:           User    = Depends(get_current_user),
-    _rol: User = Depends(require_admin),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
+    _rol: User = Depends(requiere_capacidad("firma.administrar")),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
     try:
         new_status = ESignStatus(status)
@@ -310,7 +311,7 @@ def update_status(
 
     env = esign_service.get_envelope(db, envelope_id)
     if not env:
-        raise HTTPException(404)
+        raise error_http(404, "no_encontrado", que="sobre_de_firma")
 
     env = esign_service.update_envelope_status(db, env, new_status)
     return APIResponse.ok(data={"id": envelope_id, "status": env.status})
@@ -320,16 +321,20 @@ def update_status(
 def mark_signer_signed(
     envelope_id: str,
     signer_id:   str,
+    request:     Request,
     db:          Session = Depends(get_db),
     _:           User    = Depends(get_current_user),
-    _rol: User = Depends(require_admin),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
+    _rol: User = Depends(requiere_capacidad("firma.administrar")),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
     signer = esign_service.get_signer(db, signer_id, envelope_id)
     if not signer:
         raise error_http(404, "no_encontrado", detail="Firmante no encontrado", que="firmante")
 
     envelope = esign_service.get_envelope(db, envelope_id)
-    esign_service.mark_signer_signed(db, signer, envelope)
+    # M87 (auditoría 22-11-2026): con evidencia (quién, IP, agente, huella del documento).
+    esign_service.mark_signer_signed(db, signer, envelope, actor=_, evidencia={
+        "ip": request.client.host if request.client else None,
+        "user_agent": (request.headers.get("user-agent") or "")[:300]})
     return APIResponse.ok(data={"signer_id": signer_id, "signed": True})
 
 
@@ -366,12 +371,12 @@ def void_envelope(
     envelope_id: str,
     db:          Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_admin),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
+    _rol: User = Depends(requiere_capacidad("firma.administrar")),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
     enforce_abac(db, current_user, "esign_envelope", str(envelope_id), action="delete")
     env = esign_service.get_envelope(db, envelope_id)
     if not env:
-        raise HTTPException(404)
+        raise error_http(404, "no_encontrado", que="sobre_de_firma")
     # Despues del 404: quien no puede anularla tampoco debe poder averiguar
     # por la respuesta si existe.
     _exigir_creador_o_gestor(current_user, env.created_by_id)
@@ -386,7 +391,7 @@ def void_envelope(
 @router.post("/webhooks/docusign", summary="Webhook de DocuSign Connect")
 async def docusign_webhook(
     request: Request,
-    db:      Session = Depends(get_db),
+    db:      Session = Depends(sesion_de_sistema("firma electrónica: HMAC de DocuSign")),
 ):
     """
     DocuSign sends XML connect events. We parse the minimal subset needed
@@ -472,7 +477,7 @@ async def adobe_webhook_verify(request: Request, response: Response):
 async def adobe_webhook(
     request:  Request,
     response: Response,
-    db:       Session = Depends(get_db),
+    db:       Session = Depends(sesion_de_sistema("firma electrónica: client id de Adobe Sign")),
 ):
     # Authenticate BEFORE parsing/mutating: Adobe echoes the registered OAuth
     # client id in every callback. Also echo it back, which Adobe requires to
@@ -549,7 +554,7 @@ async def adobe_webhook(
 @router.get("/auth/docusign/authorize", summary="Iniciar OAuth con DocuSign")
 def docusign_oauth_authorize(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("firma.administrar")),
 ):
     """
     Return the DocuSign OAuth authorization URL. Admin opens this URL to grant access.
@@ -580,7 +585,7 @@ def docusign_oauth_callback(
     code: str,
     state: Optional[str] = None,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("firma.administrar")),
 ):
     """Exchange authorization code for DocuSign access + refresh tokens and store them."""
     from app.services.esign_providers import docusign_exchange_code
@@ -619,7 +624,7 @@ def docusign_oauth_callback(
 @router.get("/auth/adobe/authorize", summary="Iniciar OAuth con Adobe Sign")
 def adobe_oauth_authorize(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("firma.administrar")),
 ):
     """Return the Adobe Sign OAuth authorization URL."""
     from app.services.esign_providers import adobe_sign_auth_url, adobe_sign_base_url
@@ -645,7 +650,7 @@ def adobe_oauth_callback(
     code: str,
     state: Optional[str] = None,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("firma.administrar")),
 ):
     """Exchange authorization code for Adobe Sign access + refresh tokens and store them."""
     from app.services.esign_providers import adobe_sign_base_url, adobe_sign_exchange_code
@@ -684,7 +689,7 @@ def adobe_oauth_callback(
 def store_docusign_token(
     payload: dict,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("firma.administrar")),
 ):
     """Allow admin to paste an access_token (and optionally refresh_token) obtained externally."""
     access_token = payload.get("access_token", "").strip()
@@ -701,7 +706,7 @@ def store_docusign_token(
 def store_adobe_token(
     payload: dict,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("firma.administrar")),
 ):
     """Allow admin to paste an access_token (and optionally refresh_token) obtained externally."""
     access_token = payload.get("access_token", "").strip()

@@ -86,6 +86,9 @@ class UploadProfile(enum.Enum):
     RECEIPT = "receipt"            # OCR de gastos: imágenes y PDF
     PDF_ONLY = "pdf_only"          # análisis de contratos
     CSV_IMPORT = "csv_import"      # importación de datos
+    # Importaciones de datos de terceros (SIEM/EDR, escáneres, avisos, SBOM):
+    # CSV, JSON, XML y hojas de cálculo. Sin comprimidos.
+    DATA_IMPORT = "data_import"
     ATTACHMENT = "attachment"      # adjuntos de chat: catálogo aprobado
     # Adjuntos que llegan por los canales del service desk (WhatsApp, Slack):
     # el catálogo aprobado sin SVG (puede llevar script) y con los formatos de
@@ -105,6 +108,10 @@ _PROFILE_MIME: dict[UploadProfile, set[str]] = {
     UploadProfile.RECEIPT: _IMAGE_MIME | {"application/pdf"},
     UploadProfile.PDF_ONLY: {"application/pdf"},
     UploadProfile.CSV_IMPORT: {"text/csv", "text/plain", "application/vnd.ms-excel"},
+    UploadProfile.DATA_IMPORT: {
+        "text/csv", "text/plain", "application/vnd.ms-excel", "application/json", "application/xml", "text/xml",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    },
 }
 
 _PROFILE_EXT: dict[UploadProfile, set[str]] = {
@@ -114,6 +121,7 @@ _PROFILE_EXT: dict[UploadProfile, set[str]] = {
     UploadProfile.RECEIPT: _IMAGE_EXT | {".pdf"},
     UploadProfile.PDF_ONLY: {".pdf"},
     UploadProfile.CSV_IMPORT: {".csv", ".txt"},
+    UploadProfile.DATA_IMPORT: {".csv", ".txt", ".json", ".xml", ".xlsx", ".xls"},
 }
 
 # Topes por perfil, en MB. El global sale de settings.MAX_FILE_SIZE_MB para que
@@ -125,6 +133,7 @@ _PROFILE_MAX_MB: dict[UploadProfile, int] = {
     UploadProfile.RECEIPT: 10,
     UploadProfile.PDF_ONLY: 10,
     UploadProfile.CSV_IMPORT: 5,
+    UploadProfile.DATA_IMPORT: 25,
 }
 
 _READ_CHUNK = 1024 * 1024  # 1 MB
@@ -345,6 +354,19 @@ def read_and_validate_upload_sync(
     return content
 
 
+def validate_audio_upload(file_name: str, content: bytes) -> None:
+    """Valida un trozo de audio de micrófono (MediaRecorder) con el perfil CHANNEL.
+
+    El navegador manda `audio/webm;codecs=opus` y un nombre que a veces no
+    lleva extensión, y los bytes de un WebM se detectan como `video/webm`: por
+    eso no se cruza el MIME declarado ni se exige extensión. Siguen valiendo la
+    lista de tipos reales, los ejecutables y los comprimidos.
+    """
+    ext = os.path.splitext(file_name or "")[1].lower()
+    nombre = file_name if ext in _CHANNEL_EXT else "audio.webm"
+    validate_upload(nombre, "", content, UploadProfile.CHANNEL)
+
+
 def safe_filename(name: Optional[str], *, fallback: str = "archivo") -> str:
     """Nombre de fichero sin componentes de ruta ni caracteres de control.
 
@@ -371,5 +393,6 @@ __all__: Iterable[str] = (
     "read_upload_within_limit",
     "read_upload_within_limit_sync",
     "safe_filename",
+    "validate_audio_upload",
     "validate_upload",
 )

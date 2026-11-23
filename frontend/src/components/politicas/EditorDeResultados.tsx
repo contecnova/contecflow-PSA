@@ -71,9 +71,7 @@ export default function EditorDeResultados({ dominio, valor, onChange, titulo, a
 function Mensaje({ r, onChange, obligatorio = false }: { r: Resultado; onChange: (r: Resultado) => void; obligatorio?: boolean }) {
   const { t } = useTextos()
   return (
-    <input className="pol-campo pol-campo--ancho" aria-label={t('pol.mensaje')} aria-required={obligatorio}
-      placeholder={obligatorio ? t('pol.mensaje_obligatorio') : t('pol.mensaje_opcional')}
-      value={r.mensaje ?? ''} onChange={e => onChange({ ...r, mensaje: e.target.value })} />
+    <Input aria-label={t('pol.mensaje')} aria-required={obligatorio} placeholder={obligatorio ? t('pol.mensaje_obligatorio') : t('pol.mensaje_opcional')} value={r.mensaje ?? ''} onChange={e => onChange({ ...r, mensaje: e.target.value })} className="pol-campo--ancho" />
   )
 }
 
@@ -121,8 +119,7 @@ function DatosDeResultado({ dominio, r, onChange }: { dominio: DominioDePolitica
         <div className="u-stack-10">
           <label className="pol-fila">
             <span className="pol-ayuda">{t('pol.niveles_jerarquicos')}</span>
-            <input type="number" min={0} max={catalogo?.max_niveles ?? 10} className="pol-campo pol-campo--corto"
-              aria-label={t('pol.niveles')} value={r.niveles ?? 0} onChange={e => onChange({ ...r, niveles: Number(e.target.value) || null })} />
+            <Input type="number" min={0} max={catalogo?.max_niveles ?? 10} aria-label={t('pol.niveles')} value={r.niveles ?? 0} onChange={e => onChange({ ...r, niveles: Number(e.target.value) || null })} className="pol-campo--corto" />
           </label>
           <PasosConcretos pasos={r.pasos ?? []} onChange={p => onChange({ ...r, pasos: p })} />
         </div>
@@ -176,8 +173,7 @@ function Parametro({ dominio, propio, p, valor, onChange }: {
     case 'numero':
       return (
         <label className="pol-fila"><span className="pol-ayuda">{etiqueta}</span>
-          <input type="number" min={p.minimo ?? undefined} className="pol-campo pol-campo--corto" aria-label={etiqueta}
-            value={(valor as number | null) ?? ''} onChange={e => onChange(e.target.value === '' ? null : Number(e.target.value))} />
+          <Input type="number" min={p.minimo ?? undefined} aria-label={etiqueta} value={(valor as number | null) ?? ''} onChange={e => onChange(e.target.value === '' ? null : Number(e.target.value))} className="pol-campo--corto" />
         </label>
       )
     case 'booleano':
@@ -249,8 +245,7 @@ export function SelectorDeAprobador({ paso, onChange }: { paso: PasoAnadido; onC
       {paso.approver_type === 'group' && <SelectorDeEntidad clase="grupo" valor={paso.approver_group_id} opciones={opciones}
         onChange={v => onChange({ ...paso, approver_group_id: v })} etiqueta={t('pol.grupo')} />}
       {paso.approver_type === 'manager_level' && (
-        <input type="number" min={1} max={10} className="pol-campo pol-campo--corto" aria-label={t('pol.nivel')}
-          value={paso.approver_level ?? 2} onChange={e => onChange({ ...paso, approver_level: Number(e.target.value) })} />
+        <Input type="number" min={1} max={10} aria-label={t('pol.nivel')} value={paso.approver_level ?? 2} onChange={e => onChange({ ...paso, approver_level: Number(e.target.value) })} className="pol-campo--corto" />
       )}
     </span>
   )
@@ -264,12 +259,10 @@ function PasosConcretos({ pasos, onChange }: { pasos: PasoAnadido[]; onChange: (
       <span className="pol-ayuda">{t('pol.pasos_concretos')}</span>
       {pasos.map((p, i) => (
         <div key={i} className="pol-fila">
-          <input className="pol-campo pol-campo--medio" aria-label={t('pol.nombre_del_paso')} value={p.nombre ?? ''}
-            placeholder={t('pol.nombre_del_paso')} onChange={e => cambiar(i, { ...p, nombre: e.target.value })} />
+          <Input aria-label={t('pol.nombre_del_paso')} value={p.nombre ?? ''} placeholder={t('pol.nombre_del_paso')} onChange={e => cambiar(i, { ...p, nombre: e.target.value })} className="pol-campo--medio" />
           <SelectorDeAprobador paso={p} onChange={n => cambiar(i, n)} />
           <label className="pol-fila"><span className="pol-ayuda">{t('pol.quorum')}</span>
-            <input type="number" min={1} className="pol-campo pol-campo--corto" aria-label={t('pol.quorum')}
-              value={p.required_approvals ?? 1} onChange={e => cambiar(i, { ...p, required_approvals: Number(e.target.value) || 1 })} />
+            <Input type="number" min={1} aria-label={t('pol.quorum')} value={p.required_approvals ?? 1} onChange={e => cambiar(i, { ...p, required_approvals: Number(e.target.value) || 1 })} className="pol-campo--corto" />
           </label>
           <Button size="xs" variant="ghost" icon={<Trash2 size={13} />} onClick={() => onChange(pasos.filter((_, j) => j !== i))}
             title={t('pol.quitar_paso')}><span className="u-sr-only">{t('pol.quitar_paso')}</span></Button>

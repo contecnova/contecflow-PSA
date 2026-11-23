@@ -100,7 +100,7 @@ def _abrir_en_el_motor(db: Session, ticket: Ticket, item: ServiceItem) -> str:
                 ApprovalRequestIn(entity_type=TIPO_EN_EL_MOTOR, entity_id=ticket.id,
                                   entity_summary=f"{ticket.number} · {item.name}"[:500], context=contexto,
                                   workflow_id=item.approval_workflow_id),
-                db, solicitante, confirmar=False, politicas=resultado or None)
+                db, solicitante, confirmar=False, politicas=resultado or None, de_confianza=True)
     except ErrorDeDominio:
         return "not_opened"
     estado = (req or {}).get("status") if isinstance(req, dict) else getattr(req, "status", None)

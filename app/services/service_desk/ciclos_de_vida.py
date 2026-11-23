@@ -167,7 +167,7 @@ def guardar(db: Session, org_id, datos: dict) -> dict:
     for t in transiciones:
         db.add(TicketLifecycleTransition(organization_id=org_id, lifecycle_id=ciclo.id,
                                          from_key=t["from_key"], to_key=t["to_key"]))
-    db.commit()
+    db.flush()  # confirma el endpoint (auditar_y_confirmar); auditoria 2026-11-22 (4.4)
     return serializar(db, ciclo)
 
 
@@ -177,4 +177,4 @@ def borrar(db: Session, org_id, ciclo_id: str) -> None:
     if ciclo is None:
         raise error(404, "no_encontrado", detail="Ciclo de vida no encontrado", que="ciclo_de_vida")
     db.delete(ciclo)
-    db.commit()
+    db.flush()  # confirma el endpoint (auditar_y_confirmar); auditoria 2026-11-22 (4.4)

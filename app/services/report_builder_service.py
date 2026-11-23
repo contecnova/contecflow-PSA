@@ -688,7 +688,8 @@ _TARIFAS_PERSONALES = {"users": {"hourly_rate"}, "imputations": {"hourly_rate_sn
 def _ve_tarifas(user) -> bool:
     if getattr(user, "is_superadmin", False):
         return True
-    return getattr(getattr(user, "role", None), "value", getattr(user, "role", None)) in ("admin", "hr")
+    from app.services.user_service import ROLES_QUE_VEN_TARIFAS  # la misma lista (ronda 2, §6)
+    return getattr(getattr(user, "role", None), "value", getattr(user, "role", None)) in ROLES_QUE_VEN_TARIFAS
 
 
 def _proyectos_sin_coste(db: Session, user) -> set:
@@ -856,7 +857,9 @@ def build_csv_response(columns: List[str], rows: List[Dict], entity: str, pagina
     buf = io.StringIO()
     writer = csv.DictWriter(buf, fieldnames=columns)
     writer.writeheader()
-    writer.writerows(rows)
+    # 22-11-2026 (03, «CSV sin neutralizar fórmulas»): ver app/core/celdas_seguras.py.
+    from app.core.celdas_seguras import dict_seguro
+    writer.writerows(dict_seguro(f) for f in rows)
     buf.seek(0)
     filename = f"report_{entity}_{timeutil.today().isoformat()}.csv"
     headers = {"Content-Disposition": f'attachment; filename="{filename}"'}

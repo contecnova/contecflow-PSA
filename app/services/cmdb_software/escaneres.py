@@ -154,9 +154,11 @@ class InventarioJson:
     def escanear(self, config: dict) -> list[dict]:
         contenido = config.get("contenido")
         if contenido is None and config.get("url"):
-            import httpx
-            r = httpx.get(config["url"], timeout=float(config.get("timeout") or 20),
-                          headers={"Authorization": f"Bearer {config['token']}"} if config.get("token") else None)
+            # SSRF: URL de la conexión (empresa); con token no se siguen redirecciones.
+            from app.core.outbound_url import peticion
+            r = peticion("GET", config["url"], field="url", timeout=float(config.get("timeout") or 20),
+                         headers={"Authorization": f"Bearer {config['token']}"} if config.get("token") else None,
+                         follow_redirects=not config.get("token"))
             r.raise_for_status()
             contenido = r.text
         datos = json.loads(contenido) if isinstance(contenido, str) else contenido

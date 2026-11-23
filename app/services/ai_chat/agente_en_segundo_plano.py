@@ -105,15 +105,24 @@ def ejecutar_agente(execution_id: str, instruction: str, user_id: str, auto_appr
             from app.services.ai_chat.agent_loop import run_tool_use_loop
             from app.services.ai_chat.tool_execution_service import WRITE_ACTION_TOOLS
 
+            pendientes = []
+
             def _persist_step(step_data: dict):
                 tool_result = step_data["output"]
+                # Auditoría 22-11-2026 (A7): una escritura sin aprobar queda
+                # guardada tal cual para aprobarla después
+                # (`POST /ai/agent/{id}/steps/{step_id}/approve`).
+                pendiente = isinstance(tool_result, dict) and tool_result.get("status") == "pending_approval"
+                if pendiente:
+                    pendientes.append(step_data["step"])
                 db.add(AIAgentStep(
                     execution_id=execution.id,
                     step_number=step_data["step"],
                     tool_name=step_data["tool"],
                     tool_input=json.dumps(step_data["input"]),
                     tool_output=json.dumps(tool_result),
-                    status="done" if "error" not in tool_result else "failed",
+                    status="pending_approval" if pendiente else ("done" if "error" not in tool_result else "failed"),
+                    requires_approval=pendiente,
                 ))
                 db.flush()
 
@@ -146,7 +155,7 @@ def ejecutar_agente(execution_id: str, instruction: str, user_id: str, auto_appr
 
             latency = int((time.time() - t0) * 1000)
             result_summary = guardrail_de_respuesta(db, current_user, result_summary)
-            execution.status = "done"
+            execution.status = "awaiting_approval" if pendientes else "done"
             execution.result = result_summary
             execution.steps_count = step_num
             execution.completed_at = datetime.now(timezone.utc)

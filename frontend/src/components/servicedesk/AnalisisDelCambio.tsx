@@ -36,7 +36,6 @@ import { confirmar } from '../../context/ConfirmContext'
 import { extractErr } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import { Button, EmptyState, GrupoDeOpciones, Select, Spinner, StatusBadge, Tabs, Input, Textarea } from '../ui'
-import { usersApi } from '../../services/api'
 import { cambiosApi } from '../../services/api/serviceDeskMercado'
 import type { WhatIf } from '../../services/api/serviceDeskMercado'
 import {
@@ -52,6 +51,7 @@ import type { RadioDeImpacto } from '../cmdb/InformesDeCmdb'
 import { etiquetaSd } from '../../pages/service-desk/sdUtils'
 import DateInput from '../ui/DateInput'
 import './sdMercado.css'
+import { useListaDeUsuarios } from '../../hooks/useListas'
 
 interface DetalleDeCi { id: string; name: string | null; code?: string | null; ci_type?: string | null }
 interface CambioMin {
@@ -234,7 +234,7 @@ function Aprobacion({ cambio }: { cambio: CambioMin }) {
   const [justificacion, setJustificacion] = useState('')
   const [aprobadores, setAprobadores] = useState<string[]>([])
   const [reunion, setReunion] = useState({ cuando: '', agenda: '' })
-  const usuarios = useQuery({ queryKey: ['users'], queryFn: () => usersApi.list().then(r => r.data), enabled: esResponsable })
+  const usuarios = useListaDeUsuarios(undefined, { enabled: esResponsable })
   const flujo = useQuery({ queryKey: ['sdm-cab-flujo', cambio.id], queryFn: () => cambiosApi.flujoCab(cambio.id), retry: false })
   const refrescar = () => { qc.invalidateQueries({ queryKey: ['sd-changes'] }); qc.invalidateQueries({ queryKey: ['sd-change-detail', cambio.id] }); qc.invalidateQueries({ queryKey: ['sdm-cab-flujo', cambio.id] }) }
   const err = (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))

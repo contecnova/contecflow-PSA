@@ -52,6 +52,8 @@ export type * from './tipos-proveedores'
 export { presupuestosApi } from './presupuestos'
 export { politicasApi } from './politicas'
 export type { ParametrosDeSimulacion } from './politicas'
+// Pantallas que llamaban a `api.*` sueltas (auditoría 04 M15, 23-11-2026)
+export { solicitudesDeFirmaApi, reservasApi, changelogApi, raciApi, puntuacionesDeRiesgoApi, aprobacionPorCorreoApi, preferenciasDeAvisosApi, armazonApi, menuPorDefectoApi } from './pantallasSueltas'
 // Flujo de demanda (22-11-2026)
 export { demandaApi } from './demanda'
 export type * from './demanda'
@@ -131,7 +133,7 @@ export type {
   AuditLogEntry,
 } from './settings'
 // Asistente de reuniones (19-11-2026): grabación propia, bot, Teams/Zoom/Meet
-export { reunionesApi, ESTADOS_REUNION, ORIGENES_REUNION, ESTADOS_EN_CURSO } from './reuniones'
+export { reunionesApi, ESTADOS_REUNION, ESTADOS_EN_CURSO } from './reuniones'
 export type {
   EstadoReunion, OrigenReunion, PlataformaImportable, ConectorReuniones, FormatoTranscripcion, MetodoConsentimiento,
   ReunionResumen, ReunionDetalle, ParticipanteReunion, SegmentoReunion, AccionReunion, EventoReunion, ReunionIn,

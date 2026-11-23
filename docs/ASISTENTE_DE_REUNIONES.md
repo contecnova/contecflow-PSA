@@ -168,7 +168,7 @@ Comprobado solo `py_compile` de lo tocado y que `import app.main` arranca (y `co
 
 **Avisos**
 
-- **Migración:** el otro agente (proveedores y externalización) prepara una revisión `187` y aún no estaba en disco al crear la `188`, que se encadenó a la head visible (`186`). Si su `187` también cuelga de `186` habrá **dos heads**: hay que cambiar `down_revision` de la `188` a la `187` (o hacer un `merge`).
+- **Migración (resuelto, medido el 23-11-2026):** el aviso de «dos cabezas» ya no aplica. No existe ninguna revisión `187` en disco; la `188` cuelga de la `186` y la `189` de la `188`, y la cadena de `alembic/versions/` tiene una sola cabeza (`198_cambios_estandar_y_portal`).
 - Requisitos en Entra para Teams: permisos de aplicación `OnlineMeetings.Read.All`, `OnlineMeetingTranscript.Read.All`, `Calendars.Read` y una *application access policy* de Teams. Meet: cuenta de servicio con delegación de dominio y ámbito `meetings.space.readonly`. Zoom: app Server-to-Server OAuth con `recording:read` y el secreto del webhook.
 - Los textos de eventos `linked`, `asked` y `gdpr_erased` no tienen etiqueta en la pantalla (se ven con su nombre).
 

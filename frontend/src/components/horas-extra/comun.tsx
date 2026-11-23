@@ -34,7 +34,11 @@ export const CONFIG_HE_POR_DEFECTO: ConfigHe = {
 export const useConfigHe = (enabled = true) =>
   useQuery({
     queryKey: ['horas-extra', 'config'],
-    queryFn: () => horasExtraApi.config().catch(() => CONFIG_HE_POR_DEFECTO),
+    // 23-11-2026: solo el 404 (aún sin configuración) vuelve a los valores por defecto; cualquier otro fallo se deja pasar para que avise.
+    queryFn: () => horasExtraApi.config().catch((e: { response?: { status?: number } }) => {
+      if (e?.response?.status === 404) return CONFIG_HE_POR_DEFECTO
+      throw e
+    }),
     staleTime: STALE_5_MIN_MS, retry: false, refetchOnWindowFocus: false, enabled,
   })
 

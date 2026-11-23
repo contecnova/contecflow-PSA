@@ -4,7 +4,7 @@ from typing import Optional
 from datetime import date, timedelta
 
 from app.db.session import get_db
-from app.core.deps import get_current_user, require_admin_or_pm, require_any_manager
+from app.core.deps import get_current_user, requiere_capacidad
 from app.core.abac_enforce import enforce_abac
 from app.core.periodo import SIN_HORA, Periodo, periodo
 from app.core.responses import APIListResponse, APIResponse
@@ -46,29 +46,21 @@ def get_profitability_summary(
     # valiendo. Sin periodo, el histórico completo (como antes).
     p: Periodo = Depends(_PERIODO),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin_or_pm),  # auditoria 2026-11: las dos pantallas son de admin y PM,
+    current_user: User = Depends(requiere_capacidad("finanzas.gestionar")),  # auditoria 2026-11: las dos pantallas son de admin y PM,
     response: Response = None,
 ):
     date_from, date_to = _fechas(p)
     projects = profitability_service.get_summary_projects(db, status)
     from app.services.clientes_internos.unidades import filtrar_proyectos
     projects = filtrar_proyectos(db, projects, client_kind)
-    project_ids = [pr.id for pr in projects]
 
-    imputation_totals_by_project = profitability_service.get_imputation_totals_by_project(
-        db, project_ids, date_from, date_to)
-    billed_milestones_by_project = profitability_service.get_billed_milestones_total_by_project(
-        db, project_ids, date_from, date_to)
+    # Auditoría 22-11-2026 (§7.2): el dinero de todos en bloque (cálculo único).
+    from app.services.margen_de_proyectos import margen_en_bloque
+    cifras = margen_en_bloque(db, projects, date_from, date_to)
 
     results = [
         profitability_service.calc_project_profitability(
-            pr,
-            db,
-            imputation_totals=imputation_totals_by_project.get(pr.id, {}),
-            billed_milestones_total=billed_milestones_by_project.get(pr.id, 0),
-            desde=date_from,
-            hasta=date_to,
-        )
+            pr, db, desde=date_from, hasta=date_to, cifras=cifras[pr.id])
         for pr in projects
     ]
 
@@ -99,7 +91,7 @@ def get_profitability_projects(
     # valiendo. Sin periodo, el histórico completo (como antes).
     p: Periodo = Depends(_PERIODO),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin_or_pm),  # auditoria 2026-11: margenes, no para cualquier empleado,
+    current_user: User = Depends(requiere_capacidad("finanzas.gestionar")),  # auditoria 2026-11: margenes, no para cualquier empleado,
     response: Response = None,
 ):
     """Returns a flat list of projects with profitability metrics (margin_pct, revenue, cost, etc.)."""
@@ -107,22 +99,14 @@ def get_profitability_projects(
     projects = profitability_service.get_summary_projects(db, status)
     from app.services.clientes_internos.unidades import filtrar_proyectos
     projects = filtrar_proyectos(db, projects, client_kind)
-    project_ids = [pr.id for pr in projects]
 
-    imputation_totals_by_project = profitability_service.get_imputation_totals_by_project(
-        db, project_ids, date_from, date_to)
-    billed_milestones_by_project = profitability_service.get_billed_milestones_total_by_project(
-        db, project_ids, date_from, date_to)
+    # Auditoría 22-11-2026 (§7.2): el dinero de todos en bloque (cálculo único).
+    from app.services.margen_de_proyectos import margen_en_bloque
+    cifras = margen_en_bloque(db, projects, date_from, date_to)
 
     results = [
         profitability_service.calc_project_profitability(
-            pr,
-            db,
-            imputation_totals=imputation_totals_by_project.get(pr.id, {}),
-            billed_milestones_total=billed_milestones_by_project.get(pr.id, 0),
-            desde=date_from,
-            hasta=date_to,
-        )
+            pr, db, desde=date_from, hasta=date_to, cifras=cifras[pr.id])
         for pr in projects
     ]
 
@@ -133,11 +117,9 @@ def get_profitability_projects(
 def get_project_profitability(
     project_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(requiere_capacidad("finanzas.gestionar")),
     response: Response = None,
 ):
-    if current_user.role not in [UserRole.admin, UserRole.pm]:
-        raise error_http(403, "sin_permiso", detail="Acceso denegado")
 
     project = profitability_service.get_project_with_tasks(db, project_id)
     if not project:
@@ -206,10 +188,8 @@ def create_milestone(
     payload: MilestoneIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_any_manager),  # auditoria 2026-09: dominio: margenes e hitos de facturacion
+    _rol: User = Depends(requiere_capacidad("finanzas.gestionar")),  # auditoria 2026-09: dominio: margenes e hitos de facturacion
 ):
-    if current_user.role not in [UserRole.admin, UserRole.pm]:
-        raise error_http(403, "sin_permiso", detail="Acceso denegado")
     m = profitability_service.create_milestone(db, project_id, payload.model_dump())
     return APIResponse.ok(data=_milestone_out(m))
 
@@ -221,10 +201,8 @@ def update_milestone(
     payload: MilestoneUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_any_manager),  # auditoria 2026-09: dominio: margenes e hitos de facturacion
+    _rol: User = Depends(requiere_capacidad("finanzas.gestionar")),  # auditoria 2026-09: dominio: margenes e hitos de facturacion
 ):
-    if current_user.role not in [UserRole.admin, UserRole.pm]:
-        raise error_http(403, "sin_permiso", detail="Acceso denegado")
     m = profitability_service.get_milestone(db, milestone_id, project_id)
     if not m:
         raise error_http(404, "no_encontrado", detail="Hito no encontrado", que="hito")
@@ -255,10 +233,8 @@ def delete_milestone(
     milestone_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_any_manager),  # auditoria 2026-09: dominio: margenes e hitos de facturacion
+    _rol: User = Depends(requiere_capacidad("finanzas.gestionar")),  # auditoria 2026-09: dominio: margenes e hitos de facturacion
 ):
-    if current_user.role not in [UserRole.admin, UserRole.pm]:
-        raise error_http(403, "sin_permiso", detail="Acceso denegado")
     m = profitability_service.get_milestone(db, milestone_id, project_id)
     if not m:
         raise error_http(404, "no_encontrado", detail="Hito no encontrado", que="hito")

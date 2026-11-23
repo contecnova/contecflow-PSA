@@ -3,11 +3,11 @@ Client Portal models – everything needed for the external client-facing portal
 """
 from sqlalchemy import Column, String, Float, DateTime, ForeignKey, Text, Boolean, Integer, Enum, Date
 from sqlalchemy.orm import relationship
-from sqlalchemy.sql import func
+from sqlalchemy.sql import func, false
 import enum
 import uuid
 from app.db.base import Base
-from app.core.config import settings
+from app.models.money import Money
 
 
 # ── Client User ───────────────────────────────────────────────────────────────
@@ -30,7 +30,7 @@ class ClientUser(Base):
     __tablename__ = "client_users"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     # Empresa cliente (entidad central) — ahora OPCIONAL para compatibilidad
     client_org_id = Column(String(36), ForeignKey("clients.id", ondelete="SET NULL"), nullable=True, index=True)
     # Proyecto principal legacy — nullable (usar `projects` M2M)
@@ -45,12 +45,18 @@ class ClientUser(Base):
 
     # Access
     hashed_password = Column(String(255), nullable=True)
+    # 23-11-2026: la contrasena la genero el sistema (alta o «Reenviar acceso»):
+    # el portal no deja usar mas que el cambio de contrasena hasta cambiarla.
+    must_change_password = Column(Boolean, nullable=False, default=False, server_default=false())
     is_active = Column(Boolean, default=True)
     can_approve_deliverables = Column(Boolean, default=True)
     can_request_changes = Column(Boolean, default=True)
     can_view_budget = Column(Boolean, default=True)   # Sees budget consumption, not costs
     can_view_team = Column(Boolean, default=False)    # Sees team members
-    language = Column(String(10), default=settings.DEFAULT_LANGUAGE)
+    # Incidencia 5 (23-11-2026): vacío = sin preferencia (idioma del portal de su
+    # empresa, el de la empresa proveedora, el del navegador o inglés). Antes el
+    # default del entorno (castellano) quedaba guardado como si lo hubiera elegido.
+    language = Column(String(10), nullable=True)
     avatar_initials = Column(String(5), nullable=True)
 
     last_login = Column(DateTime(timezone=True), nullable=True)
@@ -81,7 +87,7 @@ class ClientUser(Base):
 class ClientSession(Base):
     __tablename__ = "client_sessions"
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     client_id = Column(String(36), ForeignKey("client_users.id", ondelete="CASCADE"), nullable=False, index=True)
     token_hash = Column(String(255), nullable=False, index=True)
     expires_at = Column(DateTime(timezone=True), nullable=False)
@@ -113,10 +119,10 @@ class FeatureRequest(Base):
     __tablename__ = "feature_requests"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     code = Column(String(20), nullable=False)  # FR-001
     project_id = Column(String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
-    client_id = Column(String(36), ForeignKey("client_users.id"), nullable=True, index=True)
+    client_id = Column(String(36), ForeignKey("client_users.id", ondelete="SET NULL"), nullable=True, index=True)
 
     title = Column(String(255), nullable=False)
     description = Column(Text, nullable=False)
@@ -128,7 +134,7 @@ class FeatureRequest(Base):
     # PM response
     pm_response = Column(Text, nullable=True)
     estimated_hours = Column(Float, nullable=True)
-    estimated_cost = Column(Float, nullable=True)
+    estimated_cost = Column(Money, nullable=True)
     estimated_delivery_weeks = Column(Integer, nullable=True)
 
     # Client decision
@@ -137,7 +143,7 @@ class FeatureRequest(Base):
     client_rejection_reason = Column(Text, nullable=True)
 
     # Link to internal CR if approved
-    change_request_id = Column(String(36), ForeignKey("change_requests.id"), nullable=True, index=True)
+    change_request_id = Column(String(36), ForeignKey("change_requests.id", ondelete="SET NULL"), nullable=True, index=True)
 
     submitted_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
@@ -165,10 +171,10 @@ class UATSession(Base):
     __tablename__ = "uat_sessions"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     code = Column(String(20), nullable=False)  # UAT-001
     project_id = Column(String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
-    deliverable_id = Column(String(36), ForeignKey("deliverables.id"), nullable=True, index=True)
+    deliverable_id = Column(String(36), ForeignKey("deliverables.id", ondelete="SET NULL"), nullable=True, index=True)
 
     title = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
@@ -186,7 +192,7 @@ class UATSession(Base):
     # Client result
     client_result = Column(Enum(UATStatus, name='uat_session_status'), nullable=True)
     client_notes = Column(Text, nullable=True)
-    client_signed_by = Column(String(36), ForeignKey("client_users.id"), nullable=True, index=True)
+    client_signed_by = Column(String(36), ForeignKey("client_users.id", ondelete="SET NULL"), nullable=True, index=True)
     client_signed_at = Column(DateTime(timezone=True), nullable=True)
     # Rev. 193: en el portal interno firma un empleado (`users`), no un usuario del portal.
     internal_signed_by = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
@@ -206,7 +212,7 @@ class UATTestCase(Base):
     __tablename__ = "uat_test_cases"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     session_id = Column(String(36), ForeignKey("uat_sessions.id", ondelete="CASCADE"), nullable=False, index=True)
     title = Column(String(255), nullable=False)
     steps = Column(Text, nullable=True)
@@ -225,13 +231,13 @@ class UATIssue(Base):
     __tablename__ = "uat_issues"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     session_id = Column(String(36), ForeignKey("uat_sessions.id", ondelete="CASCADE"), nullable=False, index=True)
     title = Column(String(255), nullable=False)
     description = Column(Text, nullable=False)
     severity = Column(String(20), default="medium")  # low | medium | high | blocker
     status = Column(String(20), default="open")       # open | fixed | wontfix | deferred
-    reported_by = Column(String(36), ForeignKey("client_users.id"), nullable=True, index=True)
+    reported_by = Column(String(36), ForeignKey("client_users.id", ondelete="SET NULL"), nullable=True, index=True)
     steps_to_reproduce = Column(Text, nullable=True)
     screenshot_url = Column(String(500), nullable=True)
     fixed_at = Column(DateTime(timezone=True), nullable=True)
@@ -248,22 +254,22 @@ class ClientMessage(Base):
     __tablename__ = "client_messages"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     project_id = Column(String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
 
     # Context – message can be linked to different entities
-    feature_request_id = Column(String(36), ForeignKey("feature_requests.id"), nullable=True, index=True)
-    uat_session_id = Column(String(36), ForeignKey("uat_sessions.id"), nullable=True, index=True)
+    feature_request_id = Column(String(36), ForeignKey("feature_requests.id", ondelete="SET NULL"), nullable=True, index=True)
+    uat_session_id = Column(String(36), ForeignKey("uat_sessions.id", ondelete="SET NULL"), nullable=True, index=True)
     thread_id = Column(String(36), nullable=True, index=True)  # Groups messages in a thread
-    parent_id = Column(String(36), ForeignKey("client_messages.id"), nullable=True, index=True)
+    parent_id = Column(String(36), ForeignKey("client_messages.id", ondelete="SET NULL"), nullable=True, index=True)
 
     subject = Column(String(255), nullable=True)  # Only on first message in thread
     body = Column(Text, nullable=False)
     is_internal = Column(Boolean, default=False)   # Internal team notes not visible to client
 
     # Sender: either client or internal user
-    sender_client_id = Column(String(36), ForeignKey("client_users.id"), nullable=True, index=True)
-    sender_user_id = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    sender_client_id = Column(String(36), ForeignKey("client_users.id", ondelete="SET NULL"), nullable=True, index=True)
+    sender_user_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
 
     is_read_by_client = Column(Boolean, default=False)
     is_read_by_team = Column(Boolean, default=False)
@@ -291,10 +297,10 @@ class ClientSurvey(Base):
     __tablename__ = "client_surveys"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     project_id = Column(String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
-    client_id = Column(String(36), ForeignKey("client_users.id"), nullable=True, index=True)
-    milestone_id = Column(String(36), ForeignKey("project_milestones.id"), nullable=True, index=True)
+    client_id = Column(String(36), ForeignKey("client_users.id", ondelete="SET NULL"), nullable=True, index=True)
+    milestone_id = Column(String(36), ForeignKey("project_milestones.id", ondelete="SET NULL"), nullable=True, index=True)
 
     title = Column(String(255), nullable=False)
     status = Column(Enum(SurveyStatus), default=SurveyStatus.pending)
@@ -325,7 +331,7 @@ class ClientDocument(Base):
     __tablename__ = "client_documents"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     project_id = Column(String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
 
     title = Column(String(255), nullable=False)
@@ -343,8 +349,9 @@ class ClientDocument(Base):
     signed_by_job_title  = Column(String(255), nullable=True)   # cargo del firmante
     signature_ip         = Column(String(64),  nullable=True)   # IP como evidencia
     signed_pdf_path      = Column(String(500), nullable=True)   # ruta al PDF firmado
+    signed_pdf_sha256    = Column(String(64), nullable=True)    # huella del PDF firmado (migración 196, A17)
 
-    uploaded_by = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    uploaded_by = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     project = relationship("Project")

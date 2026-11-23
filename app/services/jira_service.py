@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import datetime
 import logging
+from urllib.parse import quote
 from typing import Optional, List
 
 from sqlalchemy.orm import Session
@@ -77,6 +78,19 @@ def verify_jira_webhook(body: bytes, token_header: Optional[str], signature_head
     return False
 
 
+_SECRETOS_DESCIFRADOS: dict = {}
+
+
+def _secreto_descifrado(cifrado: str) -> Optional[str]:
+    """Caché por proceso del secreto en claro, por su valor cifrado (rotar el
+    secreto cambia el cifrado: la entrada vieja deja de usarse)."""
+    if cifrado not in _SECRETOS_DESCIFRADOS:
+        if len(_SECRETOS_DESCIFRADOS) > 1024:
+            _SECRETOS_DESCIFRADOS.clear()
+        _SECRETOS_DESCIFRADOS[cifrado] = decrypt_value(cifrado)
+    return _SECRETOS_DESCIFRADOS[cifrado]
+
+
 def organizacion_del_webhook(db: Session, body: bytes, token_header: Optional[str],
                              signature_header: Optional[str], org_hint: Optional[str] = None) -> Optional[str]:
     """La organizacion cuyo secreto de webhook de Jira autentica la peticion, o None.
@@ -97,7 +111,11 @@ def organizacion_del_webhook(db: Session, body: bytes, token_header: Optional[st
             q = q.filter(AppSetting.organization_id == org_hint)
         filas = q.all()
     for fila in filas:
-        secreto = decrypt_value(fila.value) if fila.value else None
+        # Auditoría 22-11-2026 (baja): sin `?org=` se descifraban (KMS incluido)
+        # los secretos de todas las empresas en CADA webhook. Ahora cada valor
+        # cifrado se descifra una vez por proceso (`_secreto_descifrado`); la
+        # URL que da la pantalla lleva `?org=` y acota a una sola fila.
+        secreto = _secreto_descifrado(fila.value) if fila.value else None
         if secreto and verify_jira_webhook(body, token_header, signature_header, secreto):
             # Una empresa desactivada no recibe webhooks (revision 2026-11b).
             from app.db.session import exigir_organizacion_activa
@@ -118,12 +136,7 @@ def generar_secreto_de_webhook(db: Session, org_id: str) -> str:
     return secreto
 
 
-def tiene_secreto_de_webhook(db: Session, org_id: Optional[str]) -> bool:
-    if not org_id:
-        return False
-    return db.query(AppSetting.id).filter(
-        AppSetting.key == JIRA_WEBHOOK_SECRET_KEY, AppSetting.organization_id == org_id,
-    ).first() is not None
+# §5 (auditoría 22-11-2026): `tiene_secreto_de_webhook` (sin uso) retirada.
 
 # ── Mapas Jira <-> Contecflow (un solo sitio) ──────────────────────────────────
 #
@@ -196,8 +209,26 @@ JIRA_A_TICKET_ESTADO: dict[str, str] = {
 }
 
 
+#: A57 (auditoría 22-11-2026): la categoría del estado (`status.statusCategory.key`,
+#: igual en todos los idiomas y flujos de Jira Cloud: `new`, `indeterminate`,
+#: `done`). Un Jira en castellano («Tareas por hacer», «En curso», «Listo») o con
+#: estados propios ya no devuelve las tareas a `todo` en cada sincronización.
+JIRA_CATEGORIA_A_ESTADO = {"new": "todo", "indeterminate": "in_progress", "done": "done"}
+
+
 def estado_de_tarea(nombre_en_jira: Optional[str], defecto: Optional[str] = None) -> Optional[str]:
     return JIRA_STATUS_MAP.get((nombre_en_jira or "").strip().lower(), defecto)
+
+
+def estado_de_incidencia(estado: Optional[dict]) -> Optional[str]:
+    """Estado de tarea para el objeto `status` de una incidencia de Jira: por el
+    nombre si es uno conocido (más fino: `in review`, `blocked`, `cancelled`) y,
+    si no, por la categoría. None si no hay ni una cosa ni otra (se deja el actual)."""
+    estado = estado or {}
+    por_nombre = estado_de_tarea(estado.get("name"))
+    if por_nombre:
+        return por_nombre
+    return JIRA_CATEGORIA_A_ESTADO.get(((estado.get("statusCategory") or {}).get("key") or "").lower())
 
 
 def prioridad_de_tarea(nombre_en_jira: Optional[str], defecto: Optional[str] = None) -> Optional[str]:
@@ -206,10 +237,26 @@ def prioridad_de_tarea(nombre_en_jira: Optional[str], defecto: Optional[str] = N
 
 # ── AppSetting helpers ─────────────────────────────────────────────────────────
 
+def _es_cifrado(valor: Optional[str]) -> bool:
+    return bool(valor) and str(valor).startswith(("v2:", "kmsv1:"))
+
+
+def _descifrar(valor: Optional[str]) -> Optional[str]:
+    """M96 (auditoría 22-11-2026): si no se descifra un valor CIFRADO (clave
+    retirada), None; antes `decrypt_value(x) or x` mandaba el criptograma a Jira
+    como token. Lo antiguo sin cifrar se usa tal cual."""
+    if not valor:
+        return None
+    dec = decrypt_value(valor)
+    if dec is None and _es_cifrado(valor):
+        logger.error("Jira: no se pudo descifrar un secreto guardado (¿clave retirada?)")
+        return None
+    return dec if dec is not None else valor
+
+
 def _en_claro(key: str, value: Optional[str]) -> Optional[str]:
     if value and key in _SENSITIVE_SETTING_KEYS:
-        dec = decrypt_value(value)
-        return dec if dec is not None else value
+        return _descifrar(value)
     return value
 
 
@@ -263,8 +310,7 @@ def token_en_claro(config) -> str:
 
     Lo guardado antes de cifrarse (no descifra) se usa tal cual.
     """
-    guardado = config.jira_api_token_enc or ""
-    return decrypt_value(guardado) or guardado
+    return _descifrar(config.jira_api_token_enc or "") or ""
 
 
 def credenciales(config) -> dict:
@@ -334,7 +380,9 @@ def save_jira_config(
         db.add(config)
     config.jira_base_url = (jira_url or "").rstrip("/")
     config.jira_email = jira_email
-    config.jira_api_token_enc = encrypt_value(jira_api_token) if jira_api_token else ""
+    # M96: sin token nuevo se conserva el guardado (antes, guardar sin teclearlo lo borraba).
+    if jira_api_token:
+        config.jira_api_token_enc = encrypt_value(jira_api_token)
     config.jira_project_key = jira_project_key
     config.is_active = True
     db.commit()
@@ -480,11 +528,10 @@ def sync_jira_issues(
         jira_key     = iss["key"]
         jira_id      = iss["id"]
         title        = f.get("summary") or jira_key
-        raw_status   = (f.get("status", {}).get("name") or "").lower()
-        raw_priority = (f.get("priority", {}).get("name") or "").lower()
-        nm_status    = JIRA_STATUS_MAP.get(raw_status, "todo")
-        nm_priority  = JIRA_PRIORITY_MAP.get(raw_priority, "medium")
-        due_date     = f.get("duedate")
+        raw_priority = ((f.get("priority") or {}).get("name") or "").lower()
+        nm_status    = estado_de_incidencia(f.get("status"))          # A57
+        nm_priority  = JIRA_PRIORITY_MAP.get(raw_priority)
+        due_date     = _fecha_de_jira(f.get("duedate"))                # M96: fecha, no texto
 
         desc_adf  = f.get("description")
         desc_text = None
@@ -499,8 +546,10 @@ def sync_jira_issues(
 
         if existing:
             if not dry_run:
-                existing.status         = nm_status
-                existing.priority       = nm_priority
+                if nm_status:
+                    _aplicar_estado(existing, nm_status)
+                if nm_priority:
+                    existing.priority   = nm_priority
                 existing.jira_issue_id  = jira_id
                 existing.jira_synced_at = now
                 if due_date:
@@ -514,8 +563,8 @@ def sync_jira_issues(
                 task = Task(
                     title=title,
                     description=desc_text,
-                    status=nm_status,
-                    priority=nm_priority,
+                    status=nm_status or "todo",
+                    priority=nm_priority or "medium",
                     due_date=due_date,
                     project_id=project_id,
                     jira_issue_key=jira_key,
@@ -532,6 +581,37 @@ def sync_jira_issues(
 
     return {"created": created, "updated": updated, "skipped": skipped,
             "skipped_without_project": sin_proyecto}
+
+
+def _fecha_de_jira(valor) -> Optional[datetime.date]:
+    if not valor:
+        return None
+    if isinstance(valor, datetime.date):
+        return valor
+    try:
+        return datetime.date.fromisoformat(str(valor)[:10])
+    except ValueError:
+        return None
+
+
+def _aplicar_estado(task: Task, nuevo: str) -> bool:
+    """M96: el estado que llega de Jira pasa por las reglas de transición de la
+    tarea (y sus efectos: fecha de cierre…), como desde la pantalla. Si la
+    transición no es válida se deja el estado y se anota en el log."""
+    from app.core.errores import ErrorDeDominio
+    from app.models.task import TaskStatus
+    from app.services.tasks.core import apply_status_side_effects, validate_task_transition
+    actual = getattr(task.status, "value", task.status)
+    if actual == nuevo:
+        return False
+    try:
+        validate_task_transition(TaskStatus(actual), TaskStatus(nuevo))
+    except (ErrorDeDominio, ValueError):
+        logger.info("Jira: la tarea %s no puede pasar de %s a %s; se deja", task.id, actual, nuevo)
+        return False
+    task.status = TaskStatus(nuevo)
+    apply_status_side_effects(task, TaskStatus(nuevo))
+    return True
 
 
 def get_tasks_for_push(db: Session, project_id: str, statuses: List[str], org_id: Optional[str] = None) -> list:
@@ -563,8 +643,7 @@ def update_task_from_webhook(
     Commits if anything changed.  Returns True when the task was updated.
     """
     changed = False
-    if nm_status and task.status != nm_status:
-        task.status = nm_status
+    if nm_status and _aplicar_estado(task, nm_status):   # M96: reglas de transición
         changed = True
     if nm_priority and task.priority != nm_priority:
         task.priority = nm_priority
@@ -665,10 +744,78 @@ def probar_conexion(cfg: dict, timeout: float = 10) -> dict:
         "account_id": data.get("accountId"),
         "display_name": data.get("displayName"),
         "email": data.get("emailAddress"),
+        "comprobaciones": _comprobaciones_de_uso(cfg, timeout),
+    }
+
+
+def _comprobaciones_de_uso(cfg: dict, timeout: float) -> dict:
+    """23-11-2026 (auditoría 02 A56/A57, «sin probar contra el servicio real»):
+    además de la autenticación (`/myself`), lo que usa la sincronización de
+    verdad, cada cosa con su resultado (`True`/`False`, o `None` si no aplica):
+
+    - `proyecto`: `GET /rest/api/3/project/{clave}` (la clave configurada existe
+      y la cuenta la ve).
+    - `busqueda`: `POST /rest/api/3/search/jql` con `maxResults=1` (la ruta de
+      búsqueda que usan la sincronización y el buscador; A56).
+    - `estados`: `GET /rest/api/3/status` y que traigan `statusCategory`, que es
+      por lo que se mapean (A57; vale para un Jira en cualquier idioma).
+
+    Un fallo aquí no tumba la prueba (la autenticación ya pasó): se informa.
+    Solo lectura; nunca crea ni cambia nada en Jira."""
+    import httpx
+
+    def _ok(fn) -> bool:
+        try:
+            return bool(fn())
+        except (httpx.HTTPError, PermissionError, ValueError):
+            return False
+        except Exception:  # ErrorDeDominio del guardia u otro: no válido, sin texto remoto
+            logger.debug("prueba de Jira: comprobación fallida", exc_info=True)
+            return False
+
+    clave = (cfg.get("jira_project_key") or "").strip()
+    jql = f"project = {comillas_jql(clave)}" if clave else "order by created DESC"
+    return {
+        "proyecto": _ok(lambda: llamar_a_jira_crudo(
+            cfg, "GET", f"/rest/api/3/project/{quote(clave, safe='')}", timeout=timeout)) if clave else None,
+        "busqueda": _ok(lambda: "issues" in (llamar_a_jira_crudo(
+            cfg, "POST", RUTA_DE_BUSQUEDA, json={"jql": jql, "maxResults": 1, "fields": ["status"]},
+            timeout=timeout) or {})),
+        "estados": _ok(lambda: any(isinstance(e, dict) and e.get("statusCategory") for e in (
+            llamar_a_jira_crudo(cfg, "GET", "/rest/api/3/status", timeout=timeout) or []))),
     }
 
 
 # ── Sincronizacion periodica (worker) ─────────────────────────────────────────
+
+#: A56 (auditoría 22-11-2026): la búsqueda de Jira Cloud es
+#: `POST /rest/api/3/search/jql` (las antiguas `/search` e `/issue/search` están
+#: retiradas). Pagina con `nextPageToken` hasta `isLast`.
+RUTA_DE_BUSQUEDA = "/rest/api/3/search/jql"
+
+
+def comillas_jql(valor: str) -> str:
+    """Un literal JQL entre comillas dobles (M40: la clave de proyecto iba sin escapar)."""
+    return '"' + str(valor or "").replace("\\", "\\\\").replace('"', '\\"') + '"'
+
+
+def buscar_incidencias(cfg: dict, jql: str, fields: list, *, por_pagina: int = 100, tope: int = 5000,
+                       timeout: float = 25, crudo: bool = True) -> list:
+    """Todas las incidencias de `jql` (hasta `tope`), página a página."""
+    llamar = llamar_a_jira_crudo if crudo else llamar_a_jira
+    salida: list = []
+    token = None
+    while len(salida) < tope:
+        cuerpo = {"jql": jql, "maxResults": min(por_pagina, tope - len(salida)), "fields": fields}
+        if token:
+            cuerpo["nextPageToken"] = token
+        datos = llamar(cfg, "POST", RUTA_DE_BUSQUEDA, json=cuerpo, timeout=timeout) or {}
+        salida.extend(datos.get("issues") or [])
+        token = datos.get("nextPageToken")
+        if datos.get("isLast", True) or not token:
+            break
+    return salida
+
 
 def organizaciones_con_jira(db: Session) -> list[str]:
     """Las organizaciones con conexion de tareas activa. El worker no tiene sujeto: va explicito."""
@@ -701,21 +848,20 @@ def sincronizar_organizacion(db: Session, org_id: str, *, minutos: int = 65) -> 
     if not all(cfg.values()):
         return {"synced": 0, "errors": 0, "skipped": "configuración incompleta"}
 
-    cutoff = (utcnow() - datetime.timedelta(minutes=minutos)).strftime("%Y-%m-%d %H:%M")
-    jql = f"project = {cfg['jira_project_key']} AND updated >= '{cutoff}' ORDER BY updated DESC"
-    datos = llamar_a_jira_crudo(cfg, "POST", "/rest/api/3/issue/search", timeout=25, json={
-        "jql": jql, "maxResults": 100,
-        "fields": ["summary", "status", "priority", "description", "duedate", "assignee", "issuetype", "labels"],
-    })
+    # M40 (auditoría 22-11-2026): ventana RELATIVA (`-65m`): JQL interpreta las
+    # fechas absolutas en la zona del usuario de Jira, no en UTC, y la ventana
+    # se desplazaba horas. Clave de proyecto entre comillas y paginación.
+    jql = f"project = {comillas_jql(cfg['jira_project_key'])} AND updated >= -{int(minutos)}m ORDER BY updated DESC"
+    incidencias = buscar_incidencias(cfg, jql, [
+        "summary", "status", "priority", "description", "duedate", "assignee", "issuetype", "labels"])
     synced = errors = skipped = 0
-    for issue in datos.get("issues", []):
+    for issue in incidencias:
         try:
             key = issue["key"]
             fields = issue.get("fields", {})
-            estado = estado_de_tarea((fields.get("status") or {}).get("name"))
+            estado = estado_de_incidencia(fields.get("status"))       # A57: por categoría
             prioridad = prioridad_de_tarea((fields.get("priority") or {}).get("name"))
-            due_raw = fields.get("duedate")
-            due_date = datetime.date.fromisoformat(due_raw) if due_raw else None
+            due_date = _fecha_de_jira(fields.get("duedate"))
             existing = db.query(Task).filter(
                 Task.jira_issue_key == key, Task.organization_id == org_id,
             ).first()
@@ -724,7 +870,7 @@ def sincronizar_organizacion(db: Session, org_id: str, *, minutos: int = 65) -> 
                 continue
             existing.title = fields.get("summary") or key
             if estado:
-                existing.status = TaskStatus(estado)
+                _aplicar_estado(existing, estado)
             if prioridad:
                 existing.priority = TaskPriority(prioridad)
             if due_date:

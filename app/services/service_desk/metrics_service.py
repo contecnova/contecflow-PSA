@@ -50,10 +50,14 @@ def compute_itil_metrics(tickets, now=None) -> dict:
         total = sum((_safe_dt(t.resolved_at) - _safe_dt(t.created_at)).total_seconds() / 60 for t in resolved)
         mttr_minutes = round(total / len(resolved), 1)
 
+    # Auditoria 2026-11-22 (servicios m-z, 4.3): `is_client` no existe en
+    # `TicketComment`, asi que contaba todos los comentarios (del cliente y
+    # del sistema incluidos). Cuentan los de agentes: con autor interno.
     fcr_count = sum(
         1
         for t in resolved
-        if len([c for c in (t.comments or []) if not getattr(c, "is_client", False)]) <= 2
+        if len([c for c in (t.comments or [])
+                if c.author_user_id and not c.author_client_id]) <= 2
     )
     fcr_pct = round(fcr_count / len(resolved) * 100, 1) if resolved else 0
 

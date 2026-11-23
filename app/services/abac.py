@@ -157,7 +157,8 @@ class ABACEngine:
     }
 
     @staticmethod
-    def evaluate_condition(user_attribute_value: Any, rule: Dict[str, Any]) -> bool:
+    def evaluate_condition(user_attribute_value: Any, rule: Dict[str, Any],
+                           ausente_cumple_negativos: bool = False) -> bool:
         """
         Evaluate a single attribute condition.
 
@@ -171,8 +172,14 @@ class ABACEngine:
         operator = rule.get("operator", "equals")
         expected_value = rule.get("value")
 
-        # Handle None values
+        # Handle None values. Auditoría 22-11-2026 (M41): en una política DENY
+        # (`ausente_cumple_negativos`), un atributo ausente tampoco «está en» la
+        # lista ni «contiene» el valor: `not_in`, `not_contains` e `is_empty` se
+        # cumplen (antes daban False y la denegación no se aplicaba). En una
+        # ALLOW sigue sin cumplirse: lo dudoso no concede acceso.
         if user_attribute_value is None:
+            if ausente_cumple_negativos and operator in ("is_empty", "not_in", "not_contains"):
+                return True
             return operator in ["not_equals"] if expected_value is not None else False
 
         funcion = ABACEngine._OPERADORES.get(operator)
@@ -187,7 +194,8 @@ class ABACEngine:
             return False
 
     @staticmethod
-    def evaluate_rules(rules: List[Dict[str, Any]], user_attributes: Dict[str, Any]) -> bool:
+    def evaluate_rules(rules: List[Dict[str, Any]], user_attributes: Dict[str, Any],
+                       es_denegacion: bool = False) -> bool:
         """
         Evaluate all rules in a policy (AND logic: all must pass).
 
@@ -202,7 +210,7 @@ class ABACEngine:
             attribute_key = rule.get("attribute")
             user_value = user_attributes.get(attribute_key)
 
-            if not ABACEngine.evaluate_condition(user_value, rule):
+            if not ABACEngine.evaluate_condition(user_value, rule, ausente_cumple_negativos=es_denegacion):
                 return False
 
         return True
@@ -368,7 +376,10 @@ class ABACService:
         policy = self.db.query(ABACPolicy).filter(
             ABACPolicy.id == policy_id,
             ABACPolicy.org_id == self.org_id,
-        ).one_or_404()
+        ).first()
+        # Auditoría 22-11-2026 (A1): `.one_or_404()` no existe en `Query` (500).
+        if policy is None:
+            raise error(404, "no_encontrado", que="politica")
 
         for key, value in kwargs.items():
             if hasattr(policy, key):
@@ -383,7 +394,9 @@ class ABACService:
         policy = self.db.query(ABACPolicy).filter(
             ABACPolicy.id == policy_id,
             ABACPolicy.org_id == self.org_id,
-        ).one_or_404()
+        ).first()
+        if policy is None:
+            raise error(404, "no_encontrado", que="politica")
         policy.is_active = False
         self.db.commit()
         return True
@@ -472,7 +485,8 @@ class ABACService:
                 continue
 
             # Evaluate policy rules
-            if self.engine.evaluate_rules(policy.rules, evaluation_attrs):
+            if self.engine.evaluate_rules(policy.rules, evaluation_attrs,
+                                          es_denegacion=policy.effect != "allow"):
                 if policy.effect == "allow":
                     matched_allow_policies.append(policy.id)
                 else:  # deny
@@ -570,11 +584,14 @@ class ABACService:
 
     def get_user_by_id_and_org(self, user_id: str):
         """Return a User in this org or raise 404."""
-        return (
+        usuario = (
             self.db.query(User)
             .filter(User.id == user_id, User.organization_id == self.org_id)
-            .one_or_404()
+            .first()
         )
+        if usuario is None:
+            raise error(404, "no_encontrado", que="usuario")
+        return usuario
 
     def list_audit_log(self, user_id: Optional[str], limit: int, offset: int) -> dict:
         """Return paginated ABAC audit log entries for this org."""
@@ -672,19 +689,28 @@ def get_attribute_summary(db: Session, org: str) -> list:
 def get_policy_effectiveness(db: Session, org: str, since: datetime, days: float,
                              until: Optional[datetime] = None) -> list:
     policies = db.query(ABACPolicy).filter(ABACPolicy.org_id == org).all()
+    # M42 (auditoría 22-11-2026): `json_extract` solo existe en SQLite (en
+    # PostgreSQL el panel daba error) y había dos consultas por política. Ahora
+    # una sola lectura de la ventana y el recuento por política en memoria, que
+    # además compara ids exactos (antes `LIKE '%id%'`).
+    from collections import Counter
+    total, denegadas = Counter(), Counter()
+    for coincidencias, resultado in db.query(PolicyAudit.matched_policies, PolicyAudit.result).filter(
+            PolicyAudit.org_id == org, *_en_ventana(PolicyAudit.created_at, since, until)).yield_per(1000):
+        if isinstance(coincidencias, str):
+            try:
+                import json as _json
+                coincidencias = _json.loads(coincidencias)
+            except ValueError:
+                coincidencias = []
+        for pid in set(coincidencias or []):
+            total[str(pid)] += 1
+            if resultado == "deny":
+                denegadas[str(pid)] += 1
     result = []
     for p in policies:
-        total_hits = db.query(func.count(PolicyAudit.id)).filter(
-            PolicyAudit.org_id == org,
-            *_en_ventana(PolicyAudit.created_at, since, until),
-            func.json_extract(PolicyAudit.matched_policies, "$").like(f"%{p.id}%"),
-        ).scalar() or 0
-        deny_hits = db.query(func.count(PolicyAudit.id)).filter(
-            PolicyAudit.org_id == org,
-            PolicyAudit.result == "deny",
-            *_en_ventana(PolicyAudit.created_at, since, until),
-            func.json_extract(PolicyAudit.matched_policies, "$").like(f"%{p.id}%"),
-        ).scalar() or 0
+        total_hits = total.get(str(p.id), 0)
+        deny_hits = denegadas.get(str(p.id), 0)
         allow_hits = total_hits - deny_hits
         result.append({
             "policy_id": p.id,

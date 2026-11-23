@@ -1,0 +1,51 @@
+{
+ "codigos": {
+  "cambio_estandar_no_aplica": {
+   "es": "El modelo estándar no se puede aplicar a este cambio ({motivo}): va por el flujo normal del CAB",
+   "en": "The standard model cannot be applied to this change ({motivo}): use the normal CAB flow",
+   "zh": "该标准模型不适用于此变更（{motivo}）：请走正常的 CAB 流程"
+  },
+  "cambio_estandar_no_propuesto": {
+   "es": "Solo se aprueba un modelo estándar propuesto y activo",
+   "en": "Only a proposed, active standard model can be approved",
+   "zh": "只能批准已提议且有效的标准模型"
+  },
+  "cambio_estandar_no_suspendido": {
+   "es": "Solo se reactiva un modelo estándar suspendido",
+   "en": "Only a suspended standard model can be reactivated",
+   "zh": "只能重新启用已暂停的标准模型"
+  },
+  "cambio_estandar_retirado": {
+   "es": "El modelo estándar está dado de baja",
+   "en": "The standard model has been retired",
+   "zh": "该标准模型已停用"
+  },
+  "cambio_estandar_revision_no_valida": {
+   "es": "La revisión periódica tiene que ser de al menos un día",
+   "en": "The periodic review must be at least one day",
+   "zh": "定期复审至少为一天"
+  },
+  "cambio_estandar_sin_modelo": {
+   "es": "Un cambio estándar necesita un modelo del catálogo de cambios estándar",
+   "en": "A standard change needs a model from the standard change catalogue",
+   "zh": "标准变更需要标准变更目录中的模型"
+  },
+  "cambio_estandar_solo_cab": {
+   "es": "Solo un miembro del CAB o un administrador aprueba un modelo estándar",
+   "en": "Only a CAB member or an administrator can approve a standard model",
+   "zh": "只有 CAB 成员或管理员可以批准标准模型"
+  },
+  "cambio_tipo_no_editable": {
+   "es": "El tipo del cambio ya no se puede cambiar en el estado «{estado}»",
+   "en": "The change type can no longer be modified in status «{estado}»",
+   "zh": "变更处于「{estado}」状态时不能再修改类型"
+  }
+ },
+ "que": {
+  "modelo_de_cambio_estandar": {
+   "es": "Modelo de cambio estándar",
+   "en": "Standard change model",
+   "zh": "标准变更模型"
+  }
+ }
+}

@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_current_user, require_admin
+from app.core.deps import get_current_user, requiere_capacidad
 from app.core.periodo import CON_HORA, Periodo, periodo
 from app.core.ratelimit import limiter
 from app.core.responses import APIListResponse, APIResponse
@@ -44,7 +44,7 @@ class PolicyIn(BaseModel):
 def get_governance_config(
     request: Request,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("bi.administrar")),
 ):
     org_id = getattr(current_user, 'organization_id', None)
     return APIResponse.ok(data=svc._get_json(db, GOVERNANCE_CONFIG_KEY, org_id, _DEFAULT_CONFIG))
@@ -57,7 +57,7 @@ def update_governance_config(
     request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: gobierno del dato
+    _rol: User = Depends(requiere_capacidad("bi.administrar")),  # auditoria 2026-09: sensible: gobierno del dato
 ):
     org_id = getattr(current_user, 'organization_id', None)
     current = svc._get_json(db, GOVERNANCE_CONFIG_KEY, org_id, dict(_DEFAULT_CONFIG))
@@ -74,7 +74,7 @@ def update_governance_config(
 def list_policies(
     request: Request,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("bi.administrar")),
 ):
     org_id = getattr(current_user, 'organization_id', None)
     policies = svc._get_json(db, GOVERNANCE_POLICIES_KEY, org_id, [])
@@ -88,7 +88,7 @@ def create_policy(
     request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: gobierno del dato
+    _rol: User = Depends(requiere_capacidad("bi.administrar")),  # auditoria 2026-09: sensible: gobierno del dato
 ):
     import uuid as _uuid
     org_id = getattr(current_user, 'organization_id', None)
@@ -115,7 +115,7 @@ def get_audit_log(
     p: Periodo = Depends(periodo(dias_por_defecto=30, granularidades=CON_HORA, serie=False,
                                  dias_alias_max=90)),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("bi.administrar")),
 ):
     org_id = getattr(current_user, 'organization_id', None)
     items = svc.get_access_history(db, organization_id=org_id, desde=p.desde, hasta=p.hasta)
@@ -154,7 +154,7 @@ def list_access_history(
     action: Optional[str] = Query(None),
     limit: int = Query(200, ge=1, le=1000),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("bi.administrar")),
 ):
     org_id = getattr(current_user, 'organization_id', None)
     items = svc.get_access_history(
@@ -176,7 +176,7 @@ def list_lineage(
     request: Request,
     target_table: Optional[str] = Query(None),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("bi.administrar")),
 ):
     org_id = getattr(current_user, 'organization_id', None)
     items = svc.list_lineage(db, organization_id=org_id, target_table=target_table)
@@ -190,7 +190,7 @@ def track_lineage(
     request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: gobierno del dato
+    _rol: User = Depends(requiere_capacidad("bi.administrar")),  # auditoria 2026-09: sensible: gobierno del dato
 ):
     org_id = getattr(current_user, 'organization_id', None)
     row = svc.track_data_lineage(
@@ -210,7 +210,7 @@ def list_fields(
     request: Request,
     dataset_id: Optional[str] = Query(None),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("bi.administrar")),
 ):
     org_id = getattr(current_user, 'organization_id', None)
     items = svc.list_field_sensitivity(db, organization_id=org_id, dataset_id=dataset_id)
@@ -224,7 +224,7 @@ def upsert_field(
     request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: gobierno del dato
+    _rol: User = Depends(requiere_capacidad("bi.administrar")),  # auditoria 2026-09: sensible: gobierno del dato
 ):
     org_id = getattr(current_user, 'organization_id', None)
     try:

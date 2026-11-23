@@ -5,19 +5,15 @@ import { extractErr } from '../utils/helpers'
 import { useState, useId } from 'react'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { projectsApi, issueTypesApi, customFieldsApi } from '../services/api'
+import { issueTypesApi, customFieldsApi } from '../services/api'
+import { useListaDeProyectos } from '../hooks/useListas'
 import type { CampoPersonalizado, TipoDeIncidencia } from '../services/api/tipos-rendimiento'
-import { Button, Spinner, EmptyState, Modal, Pulsable, Select, TablaSimple, Checkbox, useErroresDeCampo, Input } from '../components/ui'
+import { Button, Spinner, EmptyState, Modal, Pulsable, Select, TablaSimple, Checkbox, useErroresDeCampo, Input, EstadoDeError } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { Pencil, Plus, Tag, Trash2, Wand2 } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 import './IssueTypesPage.css'
-
-interface ProjectItem {
-  id: string | number
-  name?: string
-}
 
 type IssueTypeItem = TipoDeIncidencia
 
@@ -46,7 +42,7 @@ function IssueTypeForm({ projectId, type, customFields, onClose }: { projectId: 
     name:       type?.name        || '',
     value:      type?.value       || autoValue(type?.name || ''),
     icon:       type?.icon        || '',
-    color:      type?.color       || '#7a8aaa',
+    color:      type?.color       || COLOR_DATO_POR_DEFECTO,
     description:type?.description || '',
     is_subtask: type?.is_subtask  || false,
     sort_order: type?.sort_order  || 0,
@@ -150,19 +146,17 @@ export default function IssueTypesPage(): JSX.Element {
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<IssueTypeItem | null>(null)
 
-  const { data: projectsRaw = [] } = useQuery({
-    queryKey: ['projects'],
-    queryFn: () => projectsApi.list({}).then(r => Array.isArray(r.data) ? r.data : []).catch(() => []),
-  })
-  const projects = projectsRaw as ProjectItem[]
-  const { data: types = [], isLoading } = useQuery({
+  // 23-11-2026 (04 A8 / M6): lista compartida de proyectos y sin `.catch` tragados (avisa el onError global;
+  // la lista de tipos, además, pinta el estado de error con reintento).
+  const { data: projects = [] } = useListaDeProyectos()
+  const { data: types = [], isLoading, error: errorTipos, refetch: refetchTipos } = useQuery({
     queryKey: ['issue-types', project],
-    queryFn: () => issueTypesApi.list(project).then(r => r.data).catch((): TipoDeIncidencia[] => []),
+    queryFn: () => issueTypesApi.list(project).then(r => r.data),
     enabled: !!project,
   })
   const { data: customFields = [] } = useQuery({
     queryKey: ['custom-fields', project],
-    queryFn: () => customFieldsApi.list(project).then(r => r.data).catch((): CampoPersonalizado[] => []),
+    queryFn: () => customFieldsApi.list(project).then(r => r.data),
     enabled: !!project,
   })
 
@@ -201,7 +195,9 @@ export default function IssueTypesPage(): JSX.Element {
       {!project && <EmptyState icon={<Tag size={28} />} title={t('issue_types.select_project_title')} description={t('issue_types.select_project_desc')} />}
       {project && isLoading && <Spinner />}
 
-      {project && !isLoading && types.length === 0 && (
+      {project && errorTipos && <EstadoDeError error={errorTipos} onReintentar={() => { void refetchTipos() }} />}
+
+      {project && !isLoading && !errorTipos && types.length === 0 && (
         <EmptyState icon={<Tag size={28} />} title={t('issue_types.no_types')} description={t('issue_types.no_types_desc')}
           action={
             <div className="ityp-row-3">

@@ -214,18 +214,31 @@ def _tarifa_por_excepcion(db: Session, role_label: str, client_id, project_id,
     for ambito_id, columna in ((project_id, "project_id"), (client_id, "client_id")):
         if not ambito_id:
             continue
-        excepciones = db.query(RateOverride).filter(
+        # Ronda 2 auditoría 2026-11-22: solo excepciones de tablas ACTIVAS
+        # (antes una tabla desactivada seguía imponiendo sus excepciones).
+        excepciones = db.query(RateOverride).join(
+            RateTable, RateTable.id == RateOverride.table_id,
+        ).filter(
             getattr(RateOverride, columna) == ambito_id,
             RateOverride.role_label == role_label,
+            RateTable.is_active == True,  # noqa: E712
         ).all()
-        for o in excepciones:
-            if _date_valid(o.valid_from, o.valid_to, hoy):
-                return {
-                    "billing_rate": o.billing_rate,
-                    "source": f"override_{columna}",
-                    "role_label": role_label,
-                    "override_id": o.id,
-                }
+        r = _elegir_excepcion(excepciones, columna, role_label, hoy)
+        if r:
+            return r
+    return None
+
+
+def _elegir_excepcion(excepciones, columna: str, role_label: str, hoy: str) -> Optional[dict]:
+    """La primera excepción vigente de la lista (regla común a la consulta y a la precarga)."""
+    for o in excepciones:
+        if _date_valid(o.valid_from, o.valid_to, hoy):
+            return {
+                "billing_rate": o.billing_rate,
+                "source": f"override_{columna}",
+                "role_label": role_label,
+                "override_id": o.id,
+            }
     return None
 
 
@@ -236,7 +249,9 @@ def _con_escalado(entry, hoy_anio: int) -> float:
     una tarifa de 2024 con 3 % anual vale, en 2026, `base * 1.03²`. El
     `max(0, ...)` evita que una entrada con fecha futura escale hacia atrás.
     """
-    tarifa = entry.billing_rate or 0
+    tarifa = entry.billing_rate
+    if tarifa is None:        # entrada solo de coste: sin tarifa de venta (no 0)
+        return None
     if not entry.escalation_pct or not entry.valid_from:
         return tarifa
     anios = hoy_anio - _fecha(entry.valid_from).year
@@ -254,7 +269,12 @@ def _tarifa_en_tablas(db: Session, role_label: str, client_id, project_id,
         db.query(RateTable).filter(RateTable.is_active == True),  # noqa: E712
         RateTable, org_id, is_superadmin,
     )
-    tablas = sorted(q.all(), key=lambda t: (
+    return _elegir_en_tablas(q.all(), role_label, client_id, project_id, hoy)
+
+
+def _elegir_en_tablas(tablas, role_label: str, client_id, project_id, hoy: str) -> Optional[dict]:
+    """La regla de `_tarifa_en_tablas` sobre tablas ya cargadas (también la precarga)."""
+    tablas = sorted(tablas, key=lambda t: (
         0 if (project_id and t.applies_to == "client") else
         1 if (client_id and t.applies_to == "client") else
         2 if t.is_default else 3
@@ -358,6 +378,68 @@ def tarifa_de_facturacion(db: Session, usuario, project, fecha, _cache: Optional
                                    project.organization_id, False)
             if _cache is not None:
                 _cache[clave] = r
-        if r.get("billing_rate"):
+        # Ronda 2: una tarifa 0 pactada (p. ej. horas sin cargo) es una tarifa, no
+        # «sin tarifa»: antes caía a la del proyecto o la persona.
+        if r.get("billing_rate") is not None:
             return float(r["billing_rate"])
     return float(project.billing_rate or getattr(usuario, "hourly_rate", 0) or 0)
+
+
+class TarifasPrecargadas:
+    """`tarifa_de_facturacion` y «¿hay tablas de tarifas?» para una LISTA de
+    proyectos con tres consultas en total (auditoría 22-11-2026, §7.2: el
+    cálculo único del margen en bloque). Mismas reglas que la versión con
+    consultas (`_elegir_excepcion`, `_elegir_en_tablas`): excepción de
+    proyecto, de cliente, tabla; si no, tarifa del proyecto o de la persona.
+    """
+
+    def __init__(self, db: Session, proyectos) -> None:
+        from sqlalchemy import or_
+        from sqlalchemy.orm import selectinload
+        pids = {p.id for p in proyectos}
+        cids = {getattr(p, "client_id", None) for p in proyectos} - {None}
+        orgs = {p.organization_id for p in proyectos}
+        self._exc: dict = {}
+        if pids or cids:
+            conds = [RateOverride.project_id.in_(pids)] if pids else []
+            if cids:
+                conds.append(RateOverride.client_id.in_(cids))
+            for o in (db.query(RateOverride)
+                      .join(RateTable, RateTable.id == RateOverride.table_id)
+                      .filter(or_(*conds), RateTable.is_active == True)  # noqa: E712
+                      .all()):
+                if o.project_id in pids:
+                    self._exc.setdefault(("project_id", o.project_id, o.role_label), []).append(o)
+                if o.client_id in cids:
+                    self._exc.setdefault(("client_id", o.client_id, o.role_label), []).append(o)
+        q = db.query(RateTable).options(selectinload(RateTable.entries)).filter(RateTable.is_active == True)  # noqa: E712
+        if None not in orgs:
+            q = q.filter(RateTable.organization_id.in_(orgs))
+        self._tablas = q.all() if orgs else []
+        self._cache: dict = {}
+
+    def hay_tarifas(self, org_id) -> bool:
+        """Como `profitability_service._hay_tarifas`: alguna tabla activa de esa empresa."""
+        return any(t.organization_id == org_id for t in self._tablas)
+
+    def _efectiva(self, perfil: str, project, hoy: str) -> dict:
+        for ambito_id, columna in ((project.id, "project_id"), (getattr(project, "client_id", None), "client_id")):
+            if ambito_id:
+                r = _elegir_excepcion(self._exc.get((columna, ambito_id, perfil), ()), columna, perfil, hoy)
+                if r:
+                    return r
+        org = project.organization_id
+        tablas = [t for t in self._tablas if org is None or t.organization_id == org]
+        return (_elegir_en_tablas(tablas, perfil, getattr(project, "client_id", None), project.id, hoy)
+                or {"billing_rate": None, "source": "not_found", "role_label": perfil})
+
+    def tarifa(self, usuario, project, fecha) -> float:
+        perfil = (getattr(usuario, "job_title", None) or "").strip()
+        if perfil:
+            clave = (perfil.lower(), project.id, str(fecha))
+            if clave not in self._cache:
+                self._cache[clave] = self._efectiva(perfil, project, str(fecha))
+            r = self._cache[clave]
+            if r.get("billing_rate") is not None:
+                return float(r["billing_rate"])
+        return float(project.billing_rate or getattr(usuario, "hourly_rate", 0) or 0)

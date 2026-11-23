@@ -135,9 +135,10 @@ def _avisar(db: Session, user_ids: set, titulo: str, cuerpo: str, canales: list,
     if "canal" in canales:
         try:
             from app.services.integrations import notify_event
-            notify_event("alm.license_reclaim", {"title": titulo, "summary": cuerpo, "id": rec.id}, db,
-                         organization_id=rec.organization_id)
-            n += 1
+            enviados = notify_event("alm.license_reclaim", {"title": titulo, "summary": cuerpo, "id": rec.id}, db,
+                                    organization_id=rec.organization_id)
+            # A55 (auditoría 22-11-2026): solo cuenta lo que de verdad salió.
+            n += sum(1 for r in (enviados or []) if isinstance(r, dict) and (r.get("result") or {}).get("ok"))
         except Exception:
             logger.warning("no se pudo avisar al canal de la recuperación", exc_info=True)
     return n

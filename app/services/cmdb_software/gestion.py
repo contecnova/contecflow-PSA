@@ -24,9 +24,11 @@ nunca quien la pidió. Aprobada → hallazgo `accepted`; caducada o revocada →
 `open` (trabajo diario `caducar_excepciones`).
 """
 from __future__ import annotations
+import logging
 
 import json
 from datetime import date, datetime, timedelta, timezone
+from app.core import timeutil
 from typing import Optional
 
 from sqlalchemy import or_
@@ -94,6 +96,7 @@ def serializar(db: Session, f: VulnerabilityFinding, v: Optional[Vulnerability] 
         try:
             tono = tono_de("vencimiento", restantes, db=db, org_id=org or f.organization_id)
         except Exception:  # noqa: BLE001 - el semáforo es informativo
+            logging.getLogger(__name__).debug("serializar: excepcion ignorada", exc_info=True)
             tono = "danger" if restantes < 0 else None
     return {
         "id": f.id, "status": f.status, "severity": f.severity, "priority_score": f.priority_score,
@@ -213,8 +216,12 @@ def cambiar(db: Session, org, f: VulnerabilityFinding, datos: dict, usuario) -> 
 # ── Remediación ──────────────────────────────────────────────────────────────
 
 def _contexto_texto(db, f: VulnerabilityFinding) -> tuple[str, str, list[str]]:
+    from app.services.formato_regional import idioma_de_salida
+    from app.services.textos_de_salida import texto as _tx
     datos = serializar(db, f)
-    titulo = f"{datos['vuln_id']} en {datos['product_name']} {datos['affected_version'] or ''}".strip()
+    _id = idioma_de_salida(db, org_id=getattr(f, "organization_id", None))
+    titulo = _tx("sw_remediacion.titulo", _id, vuln=datos['vuln_id'], producto=datos['product_name'],
+                 version=datos['affected_version'] or '').strip()
     cis = []
     if datos["ci_id"]:
         cis.append(datos["ci_id"])
@@ -223,16 +230,18 @@ def _contexto_texto(db, f: VulnerabilityFinding) -> tuple[str, str, list[str]]:
             SoftwareInstance.version_id == f.parent_version_id, SoftwareInstance.is_active.is_(True),
             SoftwareInstance.ci_id.isnot(None))]
     lineas = [datos.get("title") or "", "",
-              f"Vulnerabilidad: {datos['vuln_id']} (severidad {datos['severity']}, CVSS {datos['cvss_score']}"
-              f"{', KEV' if datos['kev'] else ''})",
-              f"Afecta a: {datos['product_name']} {datos['affected_version'] or ''}",
-              f"Corregida en: {datos['fixed_version'] or 'sin versión corregida conocida'}"]
+              _tx("sw_remediacion.vulnerabilidad", _id, vuln=datos['vuln_id'], severidad=datos['severity'],
+                  cvss=datos['cvss_score'], kev=", KEV" if datos['kev'] else ""),
+              _tx("sw_remediacion.afecta", _id, producto=datos['product_name'], version=datos['affected_version'] or ''),
+              _tx("sw_remediacion.corregida", _id,
+                  version=datos['fixed_version'] or _tx("sw_remediacion.sin_version", _id))]
     if datos["parent_product_name"]:
-        lineas.append(f"Dentro de: {datos['parent_product_name']} {datos['parent_version'] or ''}")
+        lineas.append(_tx("sw_remediacion.dentro_de", _id, producto=datos['parent_product_name'],
+                          version=datos['parent_version'] or ''))
     if datos["ci_name"]:
-        lineas.append(f"Máquina: {datos['ci_name']}")
+        lineas.append(_tx("sw_remediacion.maquina", _id, nombre=datos['ci_name']))
     if datos["sla_due_at"]:
-        lineas.append(f"Plazo de remediación (SLA): {datos['sla_due_at'][:10]}")
+        lineas.append(_tx("sw_remediacion.plazo", _id, fecha=datos['sla_due_at'][:10]))
     return titulo[:250], "\n".join(lineas), list(dict.fromkeys(cis))
 
 
@@ -268,11 +277,14 @@ def remediar(db: Session, org, f: VulnerabilityFinding, tipo: str, usuario, dato
         creado_id = p.id
     elif tipo == "change":
         from app.services.service_desk.change_service import create_change_record
-        fixed = f.fixed_version or "la versión corregida"
+        from app.services.formato_regional import idioma_de_salida
+        from app.services.textos_de_salida import texto as _tx
+        _id = idioma_de_salida(db, org_id=getattr(f, "organization_id", None))
+        fixed = f.fixed_version or _tx("sw_remediacion.version_corregida", _id)
         c = create_change_record(db, usuario, {
-            "title": f"Actualizar {titulo}"[:250], "description": descripcion, "change_type": "normal",
+            "title": _tx("sw_remediacion.cambio_titulo", _id, titulo=titulo)[:250], "description": descripcion, "change_type": "normal",
             "risk": "high" if ORDEN_SEV.get(f.severity, 2) >= 3 else "medium", "priority": prioridad,
-            "implementation_plan": datos.get("implementation_plan") or f"Actualizar a {fixed}.",
+            "implementation_plan": datos.get("implementation_plan") or _tx("sw_remediacion.cambio_plan", _id, version=fixed),
             "rollback_plan": datos.get("rollback_plan"), "business_justification": descripcion[:2000],
             "planned_start": datos.get("planned_start"), "planned_end": datos.get("planned_end")})
         c.affected_cis = json.dumps(cis) if cis else None
@@ -282,7 +294,7 @@ def remediar(db: Session, org, f: VulnerabilityFinding, tipo: str, usuario, dato
             with db.begin_nested():
                 score_and_persist(db, c.id)
         except Exception:  # noqa: BLE001 - el cambio queda creado aunque no se puntúe ahora
-            pass
+            logging.getLogger(__name__).debug("remediar: excepcion ignorada", exc_info=True)
         creado_id = c.id
     else:
         from app.schemas import TaskCreate
@@ -331,7 +343,7 @@ def pedir_excepcion(db: Session, org, f: VulnerabilityFinding, datos: dict, usua
         caduca = date.fromisoformat(str(datos.get("expires_at"))[:10])
     except ValueError:
         raise error(422, "sw_excepcion_caducidad", max=maximo)
-    hoy = date.today()
+    hoy = timeutil.today()
     if not (hoy < caduca <= hoy + timedelta(days=maximo)):
         raise error(422, "sw_excepcion_caducidad", max=maximo)
     if _q(db, VulnerabilityException, org).filter(VulnerabilityException.finding_id == f.id,
@@ -344,22 +356,28 @@ def pedir_excepcion(db: Session, org, f: VulnerabilityFinding, datos: dict, usua
     db.flush()
     audit_log(db, usuario, "SUBMIT", "sw_vuln_exception", e.id, f.finding_key[:80],
               new_values=serializar_excepcion(e))
-    # Bandeja de aprobaciones, si la empresa tiene flujo para este tipo.
-    try:
-        from app.services.approval_engine import fuentes
-        v = db.get(Vulnerability, f.vulnerability_id)
-        p = db.get(SoftwareProduct, f.product_id)
-        fuentes.abrir(db, "vuln_exception", e.id, f"Excepción {v.vuln_id if v else ''} en {p.name if p else ''} "
-                      f"{f.affected_version or ''} hasta {caduca.isoformat()}", usuario.id,
-                      contexto={"severity": f.severity, "kev": bool(v and v.kev), "days": (caduca - hoy).days})
-        from app.models.billing_reports import ApprovalRequest
-        req = db.query(ApprovalRequest).filter(ApprovalRequest.entity_type == "vuln_exception",
-                                               ApprovalRequest.entity_id == e.id).first()
-        if req is not None:
-            e.approval_request_id = req.id
-            db.flush()
-    except Exception:  # noqa: BLE001 - sin flujo (o sin motor), la decide software.aprobar
-        pass
+    # Bandeja de aprobaciones, si la empresa tiene flujo para este tipo (sin
+    # flujo, `abrir` no hace nada y la decide software.aprobar).
+    # Baja (auditoría 22-11-2026): antes un `except Exception` lo tragaba todo
+    # y `abrir` hacía `rollback` (la excepción recién creada se perdía o quedaba
+    # sin aprobador). Ahora `propagar=True`: si falla, falla todo el alta.
+    from app.services.approval_engine import fuentes
+    v = db.get(Vulnerability, f.vulnerability_id)
+    p = db.get(SoftwareProduct, f.product_id)
+    from app.services.formato_regional import idioma_de_salida
+    from app.services.textos_de_salida import texto as _tx
+    fuentes.abrir(db, "vuln_exception", e.id,
+                  _tx("sw_remediacion.excepcion", idioma_de_salida(db, org_id=org),
+                      vuln=v.vuln_id if v else '', producto=p.name if p else '',
+                      version=f.affected_version or '', fecha=caduca.isoformat()), usuario.id,
+                  contexto={"severity": f.severity, "kev": bool(v and v.kev), "days": (caduca - hoy).days},
+                  propagar=True)
+    from app.models.billing_reports import ApprovalRequest
+    req = db.query(ApprovalRequest).filter(ApprovalRequest.entity_type == "vuln_exception",
+                                           ApprovalRequest.entity_id == e.id).first()
+    if req is not None:
+        e.approval_request_id = req.id
+        db.flush()
     return e
 
 
@@ -408,7 +426,7 @@ def revocar_excepcion(db: Session, org, e: VulnerabilityException, usuario) -> V
 
 def caducar_excepciones(db: Session, org) -> int:
     """Excepciones aprobadas vencidas → `expired` y su hallazgo vuelve a `open`."""
-    hoy = date.today()
+    hoy = timeutil.today()
     n = 0
     for e in _q(db, VulnerabilityException, org).filter(VulnerabilityException.status == "approved",
                                                         VulnerabilityException.expires_at < hoy):
@@ -466,5 +484,6 @@ def tickets_automaticos(db: Session, org, ids_nuevos: list[str]) -> int:
                 remediar(db, org, f, "ticket", dueno)
             n += 1
         except Exception:  # noqa: BLE001 - un ticket que no se puede abrir no para el resto
+            logging.getLogger(__name__).debug("tickets_automaticos: excepcion ignorada", exc_info=True)
             continue
     return n

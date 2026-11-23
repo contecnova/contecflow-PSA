@@ -645,7 +645,7 @@ export type SdCorreoEntrante = {
 }
 
 /** buzones.probar_buzon: `unread` es null si Graph no lo da. */
-export type SdPruebaDeBuzon = { ok: boolean; protocol: string | null; unread?: number | null; error?: string }
+export type SdPruebaDeBuzon = { ok: boolean; protocol: string | null; unread?: number | null; error?: string; code?: string; params?: Record<string, unknown> }
 
 /** buzones.leer_buzon: o el recuento de la pasada o el motivo por el que no se leyó. */
 export type SdLecturaDeBuzon =

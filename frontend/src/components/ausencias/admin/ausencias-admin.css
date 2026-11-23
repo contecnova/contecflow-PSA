@@ -19,9 +19,10 @@
 .ausadm-acciones { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
 .ausadm-fieldset { border: 1px solid var(--surface-4); border-radius: var(--radius-md, 10px); padding: 10px 12px; margin: 0; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
 .ausadm-campo-con-etiqueta { display: flex; flex-direction: column; gap: 2px; }
+/* 23-11-2026: igual que el Input/Select del kit (superficie, radio, letra y alto 38 px). */
 .ausadm-campo {
-  background: var(--surface-1); border: 1px solid var(--surface-4); border-radius: var(--radius-sm, 8px);
-  padding: 6px 10px; color: var(--text-1); font-size: var(--text-sm); font-family: inherit; min-height: 32px;
+  background: var(--surface-3); border: 1px solid var(--surface-4); border-radius: var(--radius-md);
+  padding: 0 12px; color: var(--text-1); font-size: var(--text-base); font-family: inherit; min-height: var(--alto-control);
 }
 .ausadm-campo:focus-visible, .ausadm-pincel:focus-visible, .ausadm-icono:focus-visible,
 .ausadm-item:focus-visible  { outline: 2px solid var(--accent); outline-offset: 1px; }

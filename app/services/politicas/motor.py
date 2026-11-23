@@ -393,9 +393,10 @@ def ejecutar_avisos(db: Session, resultado: dict, solicitante_id: Optional[str],
         if "canal" in aviso["canales"]:
             try:
                 from app.services.integrations import notify_event
-                notify_event("policy.matched", {"title": titulo, "summary": cuerpo, "resource": recurso,
-                                                "id": recurso_id}, db, organization_id=organization_id)
-                n += 1
+                enviados = notify_event("policy.matched", {"title": titulo, "summary": cuerpo, "resource": recurso,
+                                                           "id": recurso_id}, db, organization_id=organization_id)
+                # A55 (auditoría 22-11-2026): solo cuenta lo que de verdad salió.
+                n += sum(1 for r in (enviados or []) if isinstance(r, dict) and (r.get("result") or {}).get("ok"))
             except Exception:
                 logger.warning("no se pudo avisar al canal de la política", exc_info=True)
     return n

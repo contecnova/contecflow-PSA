@@ -3,15 +3,7 @@
 Tabla completa de los 191 settings de `app/core/config.py` + `config_groups/*.py`.
 Cada fila indica el destino exacto y el estado del consumer.
 
-> **Estado (revisado contra el código el 2026-11-16).** Esta tabla se escribió con
-> 191 settings y ya no está completo: hoy `app/core/config.py` +
-> `app/core/config_groups/*.py` declaran unos 476 campos, y la pantalla
-> *Config. dinámica* edita 256 claves en 24 grupos. Las fuentes de verdad son el
-> código: los campos de `Settings` (`app/core/config.py`, `config_groups/`) y el
-> catálogo de la pantalla, `RUNTIME_FLAG_GROUPS` en
-> `app/services/settings_service/_catalogo.py` (clave, tipo, etiqueta por grupo).
-> Las filas de abajo que siguen existiendo son válidas como orientación; para
-> saber si una clave es editable en la UI, mira el catálogo.
+> **Documento histórico al día de su fecha (191 ajustes, mayo-junio 2026): no refleja el código actual.** Revisado el 2026-11-23. Esta tabla se escribió con 191 settings y hoy está muy por detrás del código: `app/core/config.py` y `app/core/config_groups/*.py` declaran 679 campos (293 en `config.py` y 386 en `config_groups/`, contados con una expresión regular sobre las declaraciones `CLAVE: tipo = ...`), y la pantalla *Config. dinámica* edita 428 claves en 32 grupos (`RUNTIME_FLAG_GROUPS`, contado con `ast`). El cuerpo **no se ha reescrito** (no es abarcable fila a fila): sus filas valen solo como orientación de lo que existía entonces. **Fuente viva:** el catálogo de ajustes de la pantalla, `RUNTIME_FLAG_GROUPS` en `app/services/settings_service/_catalogo.py` (clave, tipo y etiqueta por grupo), la tabla «Runtime settings reference» del `README.md` y los campos de `Settings` (`app/core/config.py`, `config_groups/`). Para saber si una clave se edita en la UI, mira el catálogo.
 
 ## Leyenda
 

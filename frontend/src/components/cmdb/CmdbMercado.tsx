@@ -134,7 +134,7 @@ function ProveedorModal({ inicial, onClose, onSaved }: { inicial: ProveedorDeDes
         <div className="sdm-form">
           {campos.map(k => (
             <label key={k} className="sdm-field"><span className="u-mono">{k}</span>
-              <input className="ds-input" type={esSecreto(k) ? 'password' : 'text'} autoComplete="off" value={config[k] ?? ''} onChange={e => setConfig({ ...config, [k]: e.target.value })} /></label>
+              <Input type={esSecreto(k) ? 'password' : 'text'} autoComplete="off" value={config[k] ?? ''} onChange={e => setConfig({ ...config, [k]: e.target.value })} /></label>
           ))}
         </div>
         <div className="u-text3-xs">{t('sd_mercado.secretos_cifrados')}</div>

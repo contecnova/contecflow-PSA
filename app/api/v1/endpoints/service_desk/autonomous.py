@@ -15,7 +15,7 @@ from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from app.core.deps import require_internal_user, requiere_capacidad
+from app.core.deps import requiere_capacidad
 from app.core.tenancy import org_scoped_or_404
 from app.db.session import get_db
 from app.models.user import User
@@ -42,7 +42,9 @@ router = APIRouter(prefix="/autonomous", tags=["Autonomous Agents"])
 
 
 def _org(user: User):
-    return getattr(user, "organization_id", None)
+    # 23-11-2026 (A-SD13): la empresa ACTIVA, no la de la ficha.
+    from app.services.service_desk.scoping import empresa_activa
+    return empresa_activa(user)
 
 
 def _idioma(db: Session, user: User) -> str:
@@ -90,7 +92,7 @@ class EjecutarIn(BaseModel):
 # ── Configuracion ─────────────────────────────────────────────────────────────
 
 @router.get("/config", summary="Configuración del agente autónomo de la empresa")
-def get_config(db: Session = Depends(get_db), current_user: User = Depends(require_internal_user)):
+def get_config(db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("sd.completo"))):
     return APIResponse.ok(data=configuracion_del_agente(db, _org(current_user)))
 
 
@@ -106,7 +108,7 @@ def put_config(payload: ConfigIn, db: Session = Depends(get_db), current_user: U
 # ── Playbooks ─────────────────────────────────────────────────────────────────
 
 @router.get("/playbooks", summary="Listar playbooks (de serie y de la empresa)")
-def get_playbooks(db: Session = Depends(get_db), current_user: User = Depends(require_internal_user)):
+def get_playbooks(db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("sd.completo"))):
     return APIListResponse.ok(items=list_playbooks(db, _org(current_user), _idioma(db, current_user)))
 
 
@@ -145,7 +147,7 @@ def delete_playbook(
 
 @router.post("/tickets/{ticket_id}/evaluate", summary="Evaluar si un ticket es apto para resolución autónoma")
 def evaluate_ticket(ticket_id: str, db: Session = Depends(get_db),
-                    current_user: User = Depends(require_internal_user)):
+                    current_user: User = Depends(requiere_capacidad("sd.completo"))):
     from app.models.service_desk import Ticket
     ticket = org_scoped_or_404(db, Ticket, ticket_id, current_user, detail="Ticket not found")
     return APIResponse.ok(data=evaluate_ticket_for_autonomy(db, ticket, _idioma(db, current_user)))
@@ -163,7 +165,7 @@ def resolve_ticket(ticket_id: str, payload: EjecutarIn = EjecutarIn(), db: Sessi
 
 @router.post("/executions/{execution_id}/apply", summary="Aplicar la propuesta del agente (modo sugerir)")
 def apply_suggestion(execution_id: str, db: Session = Depends(get_db),
-                     current_user: User = Depends(require_internal_user)):
+                     current_user: User = Depends(requiere_capacidad("sd.completo"))):
     resultado = decidir_sugerencia(db, execution_id, current_user, aplicar=True)
     auditar_y_confirmar(db, current_user, "APPROVE", "sd_autonomous_execution", execution_id)
     return APIResponse.ok(data=resultado)
@@ -171,7 +173,7 @@ def apply_suggestion(execution_id: str, db: Session = Depends(get_db),
 
 @router.post("/executions/{execution_id}/discard", summary="Descartar la propuesta del agente (modo sugerir)")
 def discard_suggestion(execution_id: str, db: Session = Depends(get_db),
-                       current_user: User = Depends(require_internal_user)):
+                       current_user: User = Depends(requiere_capacidad("sd.completo"))):
     resultado = decidir_sugerencia(db, execution_id, current_user, aplicar=False)
     auditar_y_confirmar(db, current_user, "REJECT", "sd_autonomous_execution", execution_id)
     return APIResponse.ok(data=resultado)
@@ -184,7 +186,7 @@ def autonomous_scan(db: Session = Depends(get_db), current_user: User = Depends(
 
 
 @router.get("/stats", summary="Estadísticas del agente autónomo de la empresa")
-def agent_stats(db: Session = Depends(get_db), current_user: User = Depends(require_internal_user)):
+def agent_stats(db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("sd.completo"))):
     return APIResponse.ok(data=get_execution_stats(db, _org(current_user)))
 
 
@@ -195,7 +197,7 @@ def execution_log(
     status: Optional[str] = Query(None, max_length=20),
     ticket_id: Optional[str] = Query(None, max_length=36),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_internal_user),
+    current_user: User = Depends(requiere_capacidad("sd.completo")),
 ):
     result = get_execution_log(db, page=page, page_size=page_size, org_id=_org(current_user),
                                estado=status, ticket_id=ticket_id,

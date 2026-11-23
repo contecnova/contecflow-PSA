@@ -16,7 +16,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_current_user, require_internal_user
+from app.core.deps import get_current_user, requiere_capacidad
 from app.core.responses import APIResponse
 from app.core.tenancy import assert_org_id_is_own, org_scoped_or_404
 from app.db.session import get_db
@@ -139,7 +139,7 @@ def merge_cluster_to_problem(
     payload: MergeClusterIn,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: operacion diaria del service desk
+    _rol: User = Depends(requiere_capacidad("sd.administrar")),  # auditoria 2026-09: dominio: operacion diaria del service desk
 ):
     """
     Create a Problem record from a correlation cluster and link all tickets.
@@ -147,8 +147,6 @@ def merge_cluster_to_problem(
     The new Problem will have auto_detected=True and, if auto_rca=True,
     an AI-generated RCA suggestion.
     """
-    if current_user.role not in (UserRole.admin,):  # 2026-11: "support" no existe en UserRole
-        raise error_http(403, "solo_admin_o_soporte", detail="Only admin/support can merge clusters")
 
     from app.services.service_desk.alert_correlation_service import merge_cluster_to_problem as _merge
     from app.services.service_desk.ticket_ops_service import commit_or_rollback
@@ -170,7 +168,7 @@ def run_correlation_scan(
     organization_id: Optional[str] = Query(None),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: operacion diaria del service desk
+    _rol: User = Depends(requiere_capacidad("sd.administrar")),  # auditoria 2026-09: dominio: operacion diaria del service desk
 ):
     """
     Admin-only: trigger a full alert correlation scan.
@@ -178,8 +176,6 @@ def run_correlation_scan(
     High-confidence clusters (score >= ALERT_CORRELATION_PROBLEM_SCORE, 0.65 by default; size >= 3) automatically
     generate Problem records if none already exist.
     """
-    if current_user.role != UserRole.admin:
-        raise error_http(403, "solo_admin", detail="Admin only")
 
     from app.services.service_desk.alert_correlation_service import run_correlation_scan_job
 
@@ -205,7 +201,7 @@ def deduplicate_ticket(
     ticket_id: str,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: operacion diaria del service desk
+    _rol: User = Depends(requiere_capacidad("sd.completo")),  # auditoria 2026-09: dominio: operacion diaria del service desk
 ):
     """
     Check whether *ticket_id* is a duplicate of an existing open ticket

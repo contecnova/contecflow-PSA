@@ -33,6 +33,7 @@ import type { Subcontratista } from '../../services/api/tipos-alm'
 import { useFormatoMoneda } from '../../hooks/useFormatoMoneda'
 import { useOrgSettings } from '../../hooks/useOrgSettings'
 import { extractErr, fmtDate, fmtNumber } from '../../utils/helpers'
+import { sanitizeUrl } from '../../utils/security'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import { ALCANCES, TIPOS_DE_INFORME_DE_SERVICIO, TONO_PAQUETE, numeroONull, pasosDePaquete, texto, textoONull } from './logica'
 import { etiquetaDe, useProyectosActivos, usePermisosDeProveedores, useReferencias, useT } from './comunes'
@@ -269,7 +270,7 @@ export function AdjuntosDeInforme({ informe, abrir }: { informe: InformeDeProvee
   return (
     <div className="prv-insignias">
       {adjuntos.map((a, i) => a.kind === 'link' ? (
-        <a key={i} href={a.url} target="_blank" rel="noopener noreferrer" className="u-text2-sm"><Link2 size={12} aria-hidden /> {a.name}</a>
+        <a key={i} href={sanitizeUrl(a.url)} target="_blank" rel="noopener noreferrer" className="u-text2-sm"><Link2 size={12} aria-hidden /> {a.name}</a>
       ) : (
         <Button key={i} size="xs" variant="ghost" icon={<Paperclip size={12} />} onClick={() => abrirFichero(a)} title={t('proveedores.abrir_evidencia')}>{a.name}</Button>
       ))}

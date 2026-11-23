@@ -22,24 +22,27 @@ def normalize_ticket_status(status: Optional[str]) -> Optional[str]:
     return LEGACY_TICKET_STATUS_MAP.get(normalized, normalized)
 
 
-def sanitize_legacy_ticket_statuses(db: Session) -> int:
+def sanitize_legacy_ticket_statuses(db: Session, org_id: Optional[str] = None) -> int:
     """Replace legacy ticket statuses in DB with canonical values.
 
     Uses raw SQL so it can repair rows even when ORM Enum decoding would fail.
     Casts the status column to text in the WHERE clause so PostgreSQL does not
     validate the legacy string against the current enum type before we fix it.
+
+    Auditoria 2026-11-22 (servicios m-z, 4.3): ya no se llama en cada GET
+    (`ticket_read_service`), no hace commit (lo decide quien la llama: es una
+    reparacion de mantenimiento) y, con `org_id`, solo toca esa empresa.
     """
     updated_rows = 0
+    filtro = " AND organization_id = :org" if org_id else ""
     for legacy, canonical in LEGACY_TICKET_STATUS_MAP.items():
         try:
-            result = db.execute(
-                text("UPDATE sd_tickets SET status = :canonical WHERE status::text = :legacy"),
-                {"canonical": canonical, "legacy": legacy},
-            )
+            with db.begin_nested():
+                result = db.execute(
+                    text("UPDATE sd_tickets SET status = :canonical WHERE status::text = :legacy" + filtro),
+                    {"canonical": canonical, "legacy": legacy, "org": org_id},
+                )
             updated_rows += int(result.rowcount or 0)
         except Exception:
             logger.debug("sanitize_legacy_ticket_statuses: skipped %s (no rows or already clean)", legacy)
-
-    if updated_rows:
-        db.commit()
     return updated_rows

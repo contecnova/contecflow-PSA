@@ -13,7 +13,7 @@
      venga (ds-input, la de una barra de filtros…): el relleno vertical de esa
      clase más el botón del calendario lo dejaban en 46-56 px. Una tabla densa
      puede bajarlo con `--uifecha-alto`. */
-  height: var(--uifecha-alto, 38px);
+  height: var(--uifecha-alto, var(--alto-control));
   min-height: 0;
   padding-top: 0;
   padding-bottom: 0;
@@ -25,7 +25,7 @@
   border: 1px solid var(--surface-4);
   border-radius: var(--radius-md);
   padding: 0 4px 0 10px;
-  min-height: 38px;
+  min-height: var(--alto-control);
   color: var(--text-1);
   font-size: var(--text-sm);
 }

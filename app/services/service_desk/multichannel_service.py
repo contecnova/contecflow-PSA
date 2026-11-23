@@ -209,6 +209,7 @@ def notify_requester(
                 try:
                     _cliente = idioma_del_cliente(db, ticket=ticket)[0]
                 except Exception:
+                    logger.debug("notify_requester: excepcion ignorada", exc_info=True)
                     _cliente = None
                 _idioma = idioma_de_salida(db, org_id=getattr(ticket, "organization_id", None),
                                            preferido=_cliente or getattr(ticket, "language", None))
@@ -224,7 +225,7 @@ def notify_requester(
                     sms_body = build_sms_ticket_notification(
                         ticket_number=ticket.number,
                         title=ticket.title or "",
-                        status=str(ticket.status),
+                        status=str(getattr(ticket.status, "value", ticket.status)),
                     )
                     ok = send_sms(phone, sms_body)
                     results["sms"] = ok

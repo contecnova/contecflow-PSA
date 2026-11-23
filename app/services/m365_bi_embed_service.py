@@ -13,6 +13,8 @@ y con fallback sync para operaciones de larga duración.
 """
 from __future__ import annotations
 
+from app.core.celdas_seguras import fila_segura
+
 import io
 import json
 import logging
@@ -26,6 +28,7 @@ from app.core.config import settings
 from app.services.m365_service import (
     GRAPH_BASE,
     get_graph_token_sync,
+    id_de_graph,
     graph_post_sync,
     require_m365,
     m365_configured,
@@ -140,7 +143,11 @@ def generate_teams_tab_config(
     }
 
     if register_via_graph and team_id and channel_id:
-        require_m365()
+        # 23-11-2026 (03 A-MP3): credencial de Graph de ESTA empresa e
+        # identificadores validados (no pueden cambiar la ruta de Graph).
+        require_m365(db, org_id)
+        team_id = id_de_graph(team_id, "team_id")
+        channel_id = id_de_graph(channel_id, "channel_id")
         try:
             graph_payload = {
                 "displayName": tab_config["suggestedDisplayName"],
@@ -157,13 +164,14 @@ def generate_teams_tab_config(
             tab = graph_post_sync(
                 f"/teams/{team_id}/channels/{channel_id}/tabs",
                 graph_payload,
+                db=db, org_id=org_id,
             )
             result["graph_registered"] = True
             result["teams_tab_id"] = tab.get("id")
             result["teams_tab_web_url"] = tab.get("webUrl")
         except Exception as exc:
             logger.warning("Teams Tab Graph registration failed: %s", exc)
-            result["graph_error"] = str(exc)
+            result["graph_error"] = type(exc).__name__  # sin el texto remoto
 
     return result
 
@@ -231,6 +239,21 @@ def _build_adaptive_card(snapshot: dict[str, Any], dashboard_id: str, deep_link:
     return card
 
 
+def webhook_de_teams_de_la_empresa(db: Session, org_id: Optional[str]) -> Optional[str]:
+    """El webhook de Teams de ESA empresa, validado como URL saliente, o None.
+
+    Auditoria 2026-11-22 (A-MP4): se usaba `settings.TEAMS_WEBHOOK_URL`, uno
+    global para todo el despliegue: los KPI (ingresos, coste, horas) de todas
+    las empresas acababan en el mismo canal. Ahora la credencial cifrada
+    `ms_graph.teams_webhook` de la empresa o, si no, su ajuste `TEAMS_WEBHOOK_URL`;
+    sin ninguno, no hay webhook (nunca el global).
+    """
+    from app.core.outbound_url import validate_outbound_url
+    from app.services.integration_credentials_service import secreto_propio_de_la_organizacion
+    url = secreto_propio_de_la_organizacion(db, "ms_graph", "teams_webhook", "TEAMS_WEBHOOK_URL", org_id)
+    return validate_outbound_url(url, "TEAMS_WEBHOOK_URL", require_https=True) if url else None
+
+
 def post_bi_card_to_teams_channel(
     db: Session,
     *,
@@ -249,8 +272,10 @@ def post_bi_card_to_teams_channel(
     deep_link = f"{_frontend_base(db, org_id)}/bi/dashboards/{dashboard_id}"
     card = _build_adaptive_card(snapshot, dashboard_id, deep_link)
 
-    if m365_configured():
-        token = get_graph_token_sync()
+    if m365_configured(db, org_id):
+        token = get_graph_token_sync(db, org_id)
+        team_id = id_de_graph(team_id, "team_id")
+        channel_id = id_de_graph(channel_id, "channel_id")
         message_payload = {
             "body": {
                 "contentType": "html",
@@ -287,9 +312,9 @@ def post_bi_card_to_teams_channel(
             logger.warning("Graph Teams message failed (%s), falling back to webhook: %s", exc.response.status_code, exc)
 
     # Webhook fallback (MessageCard format)
-    webhook_url = settings.TEAMS_WEBHOOK_URL
+    webhook_url = webhook_de_teams_de_la_empresa(db, org_id)
     if not webhook_url:
-        raise error(503, "integracion_no_configurada", detail="M365 Graph no configurado y TEAMS_WEBHOOK_URL no está definido", nombre="Microsoft Teams")
+        raise error(503, "integracion_no_configurada", detail="M365 Graph no configurado y la empresa no tiene webhook de Teams (TEAMS_WEBHOOK_URL)", nombre="Microsoft Teams")
 
     sections: list[dict] = []
     latest = snapshot.get("latest_month")
@@ -318,7 +343,9 @@ def post_bi_card_to_teams_channel(
             }
         ],
     }
-    with httpx.Client(timeout=outbound_http_timeout(db, default=15)) as client:
+    from app.core.outbound_url import cliente_httpx
+    # Cliente que comprueba la IP en la conexion (DNS rebinding), no solo al validar.
+    with cliente_httpx(timeout=outbound_http_timeout(db, default=15)) as client:
         resp = client.post(webhook_url, json=card_fallback)
     if resp.status_code not in (200, 202):
         raise error(502, "webhook_entrega_fallida", detail=f"Teams webhook error: {resp.text}", servicio="Microsoft Teams")
@@ -379,7 +406,8 @@ def create_sharepoint_page_with_bi(
 
     Requires Graph permissions: Sites.ReadWrite.All.
     """
-    require_m365()
+    require_m365(db, org_id)
+    site_id = id_de_graph(site_id, "site_id")
 
     embed_cfg = get_sharepoint_webpart_config(
         db,
@@ -418,7 +446,7 @@ def create_sharepoint_page_with_bi(
         },
     }
 
-    token = get_graph_token_sync()
+    token = get_graph_token_sync(db, org_id)
     try:
         with httpx.Client(timeout=outbound_http_timeout(db, default=30)) as client:
             resp = client.post(
@@ -476,10 +504,10 @@ def _escribir_hoja(ws, cabecera: list[str], filas, *, si_vacia: Optional[list] =
 
     escritas = 0
     for fila in filas:
-        ws.append(fila)
+        ws.append(fila_segura(fila))
         escritas += 1
     if escritas == 0 and si_vacia is not None:
-        ws.append(si_vacia)
+        ws.append(fila_segura(si_vacia))
 
     for columna in ws.columns:
         ancho = max((len(str(c.value or "")) for c in columna), default=8)
@@ -685,18 +713,28 @@ def upload_to_onedrive(
     file_bytes: bytes,
     *,
     filename: str,
-    user_upn: Optional[str] = None,
+    user_upn: str,
     folder_path: str = f"{NOMBRE_DEL_PRODUCTO} BI Exports",
+    db: Optional[Session] = None,
+    org_id: Optional[str] = None,
 ) -> dict[str, Any]:
     """Upload *file_bytes* to the user's OneDrive via Graph API.
 
+    23-11-2026 (03 A-MP3): con la credencial de Graph de la empresa `org_id`.
+
     Returns the drive item with webUrl for sharing.
-    Requires Files.ReadWrite.All (app) or Files.ReadWrite (delegated).
+    Requires Files.ReadWrite.All (app).
+
+    Auditoria 2026-11-22 (A-MP2): `user_upn` llega YA validado y codificado
+    por `m365_service.buzon_de_la_organizacion` (lo hace el endpoint): antes
+    iba libre y se subian datos financieros a cualquier OneDrive del tenant.
+    Sin UPN no se sube: `/me/drive` no existe con un token de aplicacion.
     """
-    require_m365()
-    token = get_graph_token_sync()
-    # Use /me/drive for delegated or /users/{upn}/drive for app-only
-    drive_base = f"/users/{user_upn}/drive" if user_upn else "/me/drive"
+    if not user_upn:
+        raise error(400, "campo_obligatorio", detail="user_upn es obligatorio", campo="user_upn")
+    require_m365(db, org_id)
+    token = get_graph_token_sync(db, org_id)
+    drive_base = f"/users/{user_upn}/drive"
     upload_path = f"{drive_base}/root:/{folder_path}/{filename}:/content"
 
     with httpx.Client(timeout=outbound_http_timeout(default=60)) as client:
@@ -709,7 +747,7 @@ def upload_to_onedrive(
             },
         )
     if resp.status_code not in (200, 201):
-        raise error(resp.status_code, "servicio_externo_fallo", detail=f"OneDrive upload error: {resp.text}", servicio="OneDrive")
+        raise error(502, "servicio_externo_fallo", detail=f"OneDrive upload error: HTTP {resp.status_code}", servicio="OneDrive")
     data = resp.json()
     return {
         "item_id": data.get("id"),

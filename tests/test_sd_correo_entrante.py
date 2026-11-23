@@ -28,11 +28,17 @@ def contacto(db):
     return c
 
 
+#: Lo que anota el servidor que recibe un correo legitimo. 23-11-2026 (A-SD6):
+#: sin SPF/DKIM/DMARC superados el remitente no actua como su persona.
+AUTENTICADO = "mx.empresa.com; dmarc=pass header.from=cliente.com"
+
+
 def _correo(asunto="La VPN no conecta", texto="Desde esta mañana", remitente="ana@cliente.com",
-            message_id=None, **cabeceras):
+            message_id=None, autenticacion=AUTENTICADO, **cabeceras):
     from app.services.service_desk.inbound_mail import CorreoEntrante
     return CorreoEntrante(remitente=remitente, nombre="Ana", asunto=asunto, texto=texto,
-                          message_id=message_id, cabeceras={k.replace("_", "-"): v for k, v in cabeceras.items()})
+                          message_id=message_id, autenticacion=autenticacion,
+                          cabeceras={k.replace("_", "-"): v for k, v in cabeceras.items()})
 
 
 def _procesar(db, correo, org=ORG):

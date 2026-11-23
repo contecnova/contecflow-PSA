@@ -27,9 +27,10 @@ import type { FechaSugerida, MotivoDePlanificacion } from '../services/api/tipos
 import { useToast } from '../context/ToastContext'
 import { AlertTriangle, Check, CheckCircle2, Lightbulb, Sparkles, X, RefreshCw } from 'lucide-react'
 import { useAppLang } from '../i18n/AppLangContext'
-import { Button, Checkbox, IconButton, useDialogo } from './ui'
+import { Button, Checkbox, IconButton, useDialogoEditable } from './ui'
 import DateInput from './ui/DateInput'
 import './SmartScheduleModal.css'
+import { Input } from './ui'
 
 /** Una sugerencia del modelo con lo que el usuario edita en el modal. */
 type Suggestion = Omit<FechaSugerida, 'suggested_start' | 'suggested_due'> & {
@@ -154,15 +155,15 @@ export default function SmartScheduleModal({ open, onClose, projectId, projectNa
   }
 
   const selectedCount = useMemo(() => suggestions.filter(s => s._selected).length, [suggestions])
-  const dialogRef = useDialogo<HTMLDivElement>(open, onClose)
+  // Fondo, Esc y X preguntan si hay cambios sin guardar (kit, 23-11-2026).
+  const { ref: dialogRef, pedirCierre } = useDialogoEditable<HTMLDivElement>(open, onClose)
 
   if (!open) return null
 
   return (
-    <div role="presentation" onClick={onClose} className="smartsch-sx1">
+    <div role="presentation" onMouseDown={e => { if (e.target === e.currentTarget) pedirCierre() }} className="smartsch-sx1">
       <div ref={dialogRef} role="dialog" aria-modal="true" tabIndex={-1}
-        onClick={e => e.stopPropagation()}
-        onKeyDown={e => { if (e.key === 'Escape') onClose() }} className="smartsch-sx2">
+        className="smartsch-sx2">
         {/* Header */}
         <div className="smscmo-row-1">
           <div>
@@ -174,7 +175,7 @@ export default function SmartScheduleModal({ open, onClose, projectId, projectNa
               {unscheduledCount > 0 && <> · {unscheduledCount} {traducir('smartschedulemodal.sin_planificar')}</>}
             </div>
           </div>
-          <IconButton onClick={onClose} ariaLabel={traducir('common.close')} title={traducir('common.close')}
+          <IconButton onClick={pedirCierre} ariaLabel={traducir('common.close')} title={traducir('common.close')}
             className="smscmo-box-2">
             <X size={18} aria-hidden />
           </IconButton>
@@ -182,15 +183,7 @@ export default function SmartScheduleModal({ open, onClose, projectId, projectNa
 
         {/* Controls */}
         <div className="smscmo-row-3">
-          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="u-text3-sm">
-            {traducir('smartschedulemodal.max_tareas_a_planificar')}
-          </label>
-          <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`}
-            type="number" min={1} max={100} value={maxTasks}
-            onChange={e => setMaxTasks(parseInt(e.target.value, 10) || 20)}
-            disabled={isLoading || isApplying}
-            className="smscmo-box-3"
-          />
+          <Input label={traducir('smartschedulemodal.max_tareas_a_planificar')} id={`${idCampo}-1`} type="number" min={1} max={100} value={maxTasks} onChange={e => setMaxTasks(parseInt(e.target.value, 10) || 20)} disabled={isLoading || isApplying} />
           <Button size="sm" variant="secondary" icon={<RefreshCw size={13} />}
             onClick={() => requestSuggestions()}
             disabled={isLoading || isApplying}

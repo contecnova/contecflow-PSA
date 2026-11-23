@@ -44,9 +44,3 @@ def borrar(clave: str) -> bool:
         ruta.unlink()
         return True
     return False
-
-
-def borrar_reunion(org: str, reunion_id: str) -> None:
-    carpeta = _ruta(f"{org or 'sin-empresa'}/{reunion_id}")
-    if carpeta.exists():
-        shutil.rmtree(carpeta, ignore_errors=True)

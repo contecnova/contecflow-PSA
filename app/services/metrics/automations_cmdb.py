@@ -205,7 +205,7 @@ def metric_opportunity_by_owner(
 ) -> tuple[list[dict], dict]:
     """Pipeline comercial (valor ponderado) por propietario de la oportunidad."""
     try:
-        from app.models.pipeline import Opportunity
+        from app.models.pipeline import ETAPAS_CERRADAS, Opportunity
         from app.models.user import User
 
         q = db.query(
@@ -214,7 +214,7 @@ def metric_opportunity_by_owner(
             func.sum(Opportunity.expected_revenue).label("revenue"),
             func.avg(Opportunity.probability).label("avg_prob"),
         ).filter(
-            Opportunity.stage.notin_(["won", "lost"]),
+            Opportunity.stage.notin_(ETAPAS_CERRADAS),  # auditoria 04b M9: sin canceladas
         ).group_by(Opportunity.owner_id).order_by(func.sum(Opportunity.expected_revenue).desc()).limit(top_n)
 
         owner_ids = [r.owner_id for r in q.all() if r.owner_id]

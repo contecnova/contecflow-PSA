@@ -150,15 +150,10 @@ def _siguiente_codigo_de_tarea(session) -> str:
     exactamente lo que hace `create_task_record`, que captura el `IntegrityError`
     y devuelve 409. Aquí no hay quien lo reintente, y queda anotado.
     """
-    import re as _re
-
-    max_code = session.query(func.max(TaskModel.code)).scalar()
-    if max_code:
-        m = _re.search(r"(\d+)$", max_code)
-        n = (int(m.group(1)) + 1) if m else 1
-    else:
-        n = 1
-    return f"TSK-{n:05d}"
+    # Auditoría 22-11-2026 (M37): la MISMA secuencia bloqueada que el alta de
+    # tareas (`task_service.create_task_record`), no `max(code)` de texto.
+    from app.services.numbering import next_numbered_code
+    return next_numbered_code(session, "task", prefix="TSK", padding=5)
 
 
 def _fecha_de_titulo(db: Session, rt, dia, current_user: User) -> str:
@@ -205,10 +200,22 @@ def materialize_recurring_tasks_cmd(db: Session, dry_run: bool, current_user: Us
             rt.is_active = False
             continue
 
-        for dia in _ocurrencias_pendientes(rt, hoy):
+        # M37 (auditoría 22-11-2026): tope de recuperación. Una recurrencia
+        # parada un año creaba 365 tareas en una transacción; ahora solo las
+        # `RECURRING_TASKS_MAX_CATCHUP` más recientes (las anteriores se dan por
+        # pasadas, como hacen Jira o Asana con las repeticiones atrasadas), y cada
+        # recurrencia se confirma por separado.
+        from app.services.settings_service import get_runtime_int
+        tope = int(get_runtime_int(db, "RECURRING_TASKS_MAX_CATCHUP", getattr(rt, "organization_id", None)) or 0)
+        pendientes = list(_ocurrencias_pendientes(rt, hoy))
+        if tope and len(pendientes) > tope:
+            pendientes = pendientes[-tope:]
+        for dia in pendientes:
             if not dry_run:
                 _tarea_de_la_recurrencia(db, rt, dia, current_user)
             created += 1
+        if not dry_run and pendientes:
+            db.commit()
 
     if not dry_run:
         db.commit()

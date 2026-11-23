@@ -26,13 +26,13 @@ function ficherosDelPortal(): string[] {
 
 const GOVERNED = join(SRC, 'components', 'portal', 'GovernedConversations.tsx')
 
-/** GovernedConversations sin el panel de políticas (solo operadores). */
+/** Troceado de GovernedConversations (23-11-2026, auditoria M12): la bandeja son estos tres ficheros; el panel de politicas (solo operadores) vive aparte en ConversationPoliciesPanel.tsx y no cuenta. */
+const GOVERNED_FICHEROS = ['GovernedConversationsComun.tsx', 'GovernedConversationsPiezas.tsx', 'GovernedConversations.tsx']
+  .map((f) => join(SRC, 'components', 'portal', f))
+
+/** La bandeja de conversaciones gobernadas sin el panel de politicas (solo operadores). */
 function governedSinPanelDePoliticas(): string {
-  const fuente = readFileSync(GOVERNED, 'utf8')
-  const ini = fuente.indexOf('export function ConversationPoliciesPanel')
-  if (ini < 0) return fuente
-  const fin = fuente.indexOf('\nexport ', ini + 1)
-  return fuente.slice(0, ini) + (fin < 0 ? '' : fuente.slice(fin))
+  return GOVERNED_FICHEROS.map((f) => readFileSync(f, 'utf8')).join('\n')
 }
 
 /** Nombres con los que el portal guarda su traductor (`const X = useLang()`). */

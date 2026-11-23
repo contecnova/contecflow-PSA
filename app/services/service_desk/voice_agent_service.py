@@ -12,7 +12,7 @@ Auditoria 2026-11: no hay telefonia ni reconocimiento de voz: los turnos llegan
 ya transcritos por la API (de una centralita externa o del simulador de la
 pantalla). Decia tener un respaldo con LLM que no existia.
 
-All state stored as AppSetting JSON blobs (no new DB tables).
+Configuracion en `AppSetting`; las sesiones, en `sd_voice_sessions` (migracion 200).
 """
 from __future__ import annotations
 import logging
@@ -29,6 +29,7 @@ from app.models.settings import AppSetting
 from app.core.config import settings as app_settings
 from app.core.codigos_de_error import ErrorConCodigo
 
+#: Clave antigua (hasta la migracion 200 las sesiones vivian aqui); ya no se escribe.
 _SESSIONS_KEY = "sd.voice_agent.sessions"
 _CONFIG_KEY = "sd.voice_agent.config"
 
@@ -137,78 +138,143 @@ def update_config(db: Session, org_id: Optional[str], updates: Dict[str, Any]) -
     return cfg
 
 
-def create_session(db: Session, org_id: Optional[str], caller_id: str, channel: str = "phone") -> Dict[str, Any]:
-    sessions = _get_json(db, _SESSIONS_KEY, org_id, default={}) or {}
-    sid = str(uuid.uuid4())
-    session = {
-        "id": sid,
-        "caller_id": caller_id,
-        "channel": channel,
-        "status": "active",
-        "intent": None,
-        "entities": {},
-        "transcript": [],
-        "ticket_id": None,
-        "created_at": _now_iso(),
-        "updated_at": _now_iso(),
+# ── Sesiones (migracion 200: tabla `sd_voice_sessions`) ────────────────────────
+#
+# Antes todas las sesiones de la empresa iban en UN blob JSON de `AppSetting`
+# (`sd.voice_agent.sessions`): telefono y transcripcion en claro, sin retencion
+# ni supresion, y dos llamadas a la vez se pisaban. Ahora una fila por llamada,
+# con el numero y la transcripcion cifrados y la huella HMAC del numero para
+# buscar (bloqueo legal y RGPD). La forma del diccionario que devuelve la API
+# no cambia.
+
+
+def huella_del_numero(numero: Optional[str]) -> Optional[str]:
+    """HMAC-SHA256 (con `SECRET_KEY`) del numero normalizado: busca sin guardar el numero en claro."""
+    import hashlib
+    import hmac
+    limpio = re.sub(r"[^\d+]", "", numero or "")
+    if not limpio:
+        return None
+    clave = (getattr(app_settings, "SECRET_KEY", "") or "").encode()
+    return hmac.new(clave, limpio.encode(), hashlib.sha256).hexdigest()
+
+
+def _cifrar_json(valor: Any) -> str:
+    from app.core.encryption import encrypt_value
+    return encrypt_value(json.dumps(valor, ensure_ascii=False, separators=(",", ":")))
+
+
+def _descifrar_json(valor: Optional[str], respaldo):
+    if not valor:
+        return respaldo
+    from app.core.encryption import decrypt_value
+    try:
+        return json.loads(decrypt_value(valor) or "null") or respaldo
+    except Exception:
+        logging.getLogger(__name__).warning("voz: no se pudo descifrar una sesion")
+        return respaldo
+
+
+def _iso(fecha) -> Optional[str]:
+    return fecha.isoformat() if fecha else None
+
+
+def _a_dict(fila) -> Dict[str, Any]:
+    from app.core.encryption import decrypt_value
+    salida = {
+        "id": fila.id,
+        "caller_id": (decrypt_value(fila.caller_id_enc) if fila.caller_id_enc else None)
+        or (f"***{fila.caller_id_last4}" if fila.caller_id_last4 else None),
+        "channel": fila.channel,
+        "status": fila.status,
+        "intent": fila.intent,
+        "entities": _descifrar_json(fila.entities_enc, {}),
+        "transcript": _descifrar_json(fila.transcript_enc, []),
+        "ticket_id": fila.ticket_id,
+        "created_at": _iso(fila.created_at),
+        "updated_at": _iso(fila.updated_at),
     }
-    sessions[sid] = session
-    _set_json(db, _SESSIONS_KEY, org_id, sessions, "Voice Agent session store")
+    if fila.resolution:
+        salida["resolution"] = fila.resolution
+    if fila.closed_at:
+        salida["closed_at"] = _iso(fila.closed_at)
+    return salida
+
+
+def _sesion(db: Session, org_id: Optional[str], session_id: str):
+    from app.models.service_desk import VoiceSession
+    q = db.query(VoiceSession).filter(VoiceSession.id == session_id)
+    q = q.filter(VoiceSession.organization_id == org_id) if org_id else q.filter(VoiceSession.organization_id.is_(None))
+    fila = q.first()
+    if fila is None:
+        raise ErrorConCodigo("no_encontrado", detail=f"Session {session_id!r} not found", que="sesion")
+    return fila
+
+
+def create_session(db: Session, org_id: Optional[str], caller_id: str, channel: str = "phone") -> Dict[str, Any]:
+    from app.core.encryption import encrypt_value
+    from app.models.service_desk import VoiceSession
+    if not org_id:
+        # `sd_voice_sessions.organization_id` es obligatoria: sin empresa no hay sesion.
+        raise ErrorConCodigo("empresa_requerida")
+    digitos = re.sub(r"\D", "", caller_id or "")
+    ahora = datetime.now(timezone.utc)
+    fila = VoiceSession(
+        id=str(uuid.uuid4()), organization_id=org_id,
+        caller_id_hash=huella_del_numero(caller_id), caller_id_last4=digitos[-4:] or None,
+        caller_id_enc=encrypt_value(caller_id) if caller_id else None,
+        channel=channel, status="active", entities_enc=_cifrar_json({}), transcript_enc=_cifrar_json([]),
+        created_at=ahora, updated_at=ahora,
+    )
+    db.add(fila)
+    db.commit()
     cfg = get_config(db, org_id)
-    return {"session": session, "greeting": cfg.get("greeting", _DEFAULT_CONFIG["greeting"])}
+    return {"session": _a_dict(fila), "greeting": cfg.get("greeting", _DEFAULT_CONFIG["greeting"])}
 
 
 def add_transcript_turn(
     db: Session, org_id: Optional[str], session_id: str, speaker: str, text: str
 ) -> Dict[str, Any]:
-    sessions = _get_json(db, _SESSIONS_KEY, org_id, default={}) or {}
-    session = sessions.get(session_id)
-    if not session:
-        raise ErrorConCodigo("no_encontrado", detail=f"Session {session_id!r} not found", que="sesion")
-    turn = {"speaker": speaker, "text": text, "ts": _now_iso()}
-    session["transcript"].append(turn)
+    fila = _sesion(db, org_id, session_id)
+    transcript = _descifrar_json(fila.transcript_enc, [])
+    transcript.append({"speaker": speaker, "text": text, "ts": _now_iso()})
+    fila.transcript_enc = _cifrar_json(transcript)
     # Classify intent from user turns
     if speaker == "user":
         cfg = get_config(db, org_id)
         intent = _classify_intent(text, cfg)
         if intent != "unknown":
-            session["intent"] = intent
-        entities = _extract_entities(text)
-        session["entities"].update(entities)
-    session["updated_at"] = _now_iso()
-    sessions[session_id] = session
-    _set_json(db, _SESSIONS_KEY, org_id, sessions, "Voice Agent session store")
-    return session
+            fila.intent = intent
+        entidades = _descifrar_json(fila.entities_enc, {})
+        entidades.update(_extract_entities(text))
+        fila.entities_enc = _cifrar_json(entidades)
+    fila.updated_at = datetime.now(timezone.utc)
+    db.commit()
+    return _a_dict(fila)
 
 
 def close_session(
     db: Session, org_id: Optional[str], session_id: str, resolution: str = "resolved"
 ) -> Dict[str, Any]:
-    sessions = _get_json(db, _SESSIONS_KEY, org_id, default={}) or {}
-    session = sessions.get(session_id)
-    if not session:
-        raise ErrorConCodigo("no_encontrado", detail=f"Session {session_id!r} not found", que="sesion")
-    session["status"] = "closed"
-    session["resolution"] = resolution
-    session["closed_at"] = _now_iso()
-    sessions[session_id] = session
-    _set_json(db, _SESSIONS_KEY, org_id, sessions, "Voice Agent session store")
-    return session
+    fila = _sesion(db, org_id, session_id)
+    fila.status = "closed"
+    fila.resolution = resolution
+    fila.closed_at = datetime.now(timezone.utc)
+    db.commit()
+    return _a_dict(fila)
 
 
 def create_ticket_from_session(
     db: Session, org_id: Optional[str], session_id: str, created_by_id: Any
 ) -> Dict[str, Any]:
     """Create a real Service Desk ticket from the voice session summary."""
-    sessions = _get_json(db, _SESSIONS_KEY, org_id, default={}) or {}
-    session = sessions.get(session_id)
-    if not session:
-        raise ErrorConCodigo("no_encontrado", detail=f"Session {session_id!r} not found", que="sesion")
+    fila = _sesion(db, org_id, session_id)
+    session = _a_dict(fila)
 
     from app.models.service_desk import Ticket, TicketHistory, TicketImpact, TicketPriority, TicketType, TicketUrgency
     from app.services.sla_service import next_ticket_number
 
-    intent = session.get("intent", "query")
+    intent = session.get("intent") or "query"
     # «Urgente», «crítico»… mandan aunque la intencion ganadora sea otra: «no
     # funciona, es urgente» empata y se quedaba en incidencia media.
     if intent != "urgent" and (session.get("entities") or {}).get("urgency_words"):
@@ -252,9 +318,8 @@ def create_ticket_from_session(
         changed_by_user_id=str(created_by_id),
     ))
 
-    session["ticket_id"] = ticket["id"] if isinstance(ticket, dict) else ticket.id
-    sessions[session_id] = session
-    _set_json(db, _SESSIONS_KEY, org_id, sessions, "Voice Agent session store")
+    fila.ticket_id = ticket.id
+    fila.updated_at = datetime.now(timezone.utc)
     db.commit()
     return {
         "id": ticket.id,
@@ -273,12 +338,40 @@ def create_ticket_from_session(
 def list_sessions(
     db: Session, org_id: Optional[str], status: Optional[str] = None, limit: int = 50
 ) -> List[Dict[str, Any]]:
-    sessions = _get_json(db, _SESSIONS_KEY, org_id, default={}) or {}
-    items = list(sessions.values())
+    from app.models.service_desk import VoiceSession
+    q = db.query(VoiceSession)
+    q = q.filter(VoiceSession.organization_id == org_id) if org_id else q.filter(VoiceSession.organization_id.is_(None))
     if status:
-        items = [s for s in items if s.get("status") == status]
-    items.sort(key=lambda s: s.get("created_at", ""), reverse=True)
-    return items[:limit]
+        q = q.filter(VoiceSession.status == status)
+    return [_a_dict(f) for f in q.order_by(VoiceSession.created_at.desc()).limit(limit).all()]
+
+
+# ── RGPD (migracion 200) ───────────────────────────────────────────────────────
+
+def sesiones_de_numero(db: Session, numero: Optional[str], org_id: Optional[str] = None) -> list:
+    """Sesiones de voz de ese numero (por su huella), en `org_id` si se da."""
+    from app.models.service_desk import VoiceSession
+    huella = huella_del_numero(numero)
+    if not huella:
+        return []
+    q = db.query(VoiceSession).filter(VoiceSession.caller_id_hash == huella)
+    if org_id:
+        q = q.filter(VoiceSession.organization_id == org_id)
+    return q.order_by(VoiceSession.created_at).all()
+
+
+def copia_rgpd(db: Session, numero: Optional[str], org_id: Optional[str] = None) -> List[Dict[str, Any]]:
+    """Copia (art. 15/20) de las sesiones de voz de ese numero."""
+    return [_a_dict(f) for f in sesiones_de_numero(db, numero, org_id)]
+
+
+def suprimir_rgpd(db: Session, numero: Optional[str], org_id: Optional[str] = None) -> int:
+    """Borra las sesiones de voz de ese numero (art. 17). El bloqueo legal lo impide (before_flush). No hace commit."""
+    filas = sesiones_de_numero(db, numero, org_id)
+    for f in filas:
+        db.delete(f)
+    db.flush()
+    return len(filas)
 
 
 # ── Llamadas entrantes de Twilio (varias organizaciones) ───────────────────────

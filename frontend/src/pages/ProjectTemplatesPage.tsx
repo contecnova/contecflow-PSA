@@ -12,7 +12,8 @@
  */
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { templatesApi, type ApiError } from '../services/api'
+import { templatesApi } from '../services/api'
+import { extractErr } from '../utils/helpers'
 import type { PlantillaDeProyecto, ProyectoDesdePlantilla } from '../services/api/tipos-proyectos'
 import { Button, Card, ClientSelect, EmptyState, Input, Modal, Select, Spinner, Pulsable, Textarea } from '../components/ui'
 import { useAppT } from '../i18n/AppLangContext'
@@ -130,7 +131,7 @@ function CreateTemplateModal({ onClose, onDone }: { onClose: () => void; onDone:
   const mutation = useMutation({
     mutationFn: (payload: Record<string, unknown>) => templatesApi.create(payload),
     onSuccess: () => onDone(),
-    onError: (err: ApiError) => setError(err.response?.data?.detail || t('plantillas_ui.error_crear')),
+    onError: (err: unknown) => setError(extractErr(err, t('plantillas_ui.error_crear'))),
   })
 
   const set = (k: string) => (e: { target: { value: string } }) => setForm(f => ({ ...f, [k]: e.target.value }))
@@ -340,9 +341,7 @@ function InstantiateModal({ tpl, onClose, onDone, t }: { tpl: Tpl; onClose: () =
     onSuccess: (res) => {
       onDone(res.data)
     },
-    onError: (err: ApiError) => {
-      setError(err.response?.data?.detail || t('project_templates.creation_error'))
-    },
+    onError: (err: unknown) => setError(extractErr(err, t('project_templates.creation_error'))),
   })
 
   const submit = () => {

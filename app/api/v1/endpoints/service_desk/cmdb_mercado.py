@@ -14,7 +14,7 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from app.core.deps import require_admin, require_internal_user
+from app.core.deps import requiere_capacidad
 from app.core.responses import APIResponse
 from app.db.session import get_db
 from app.models.user import User
@@ -33,22 +33,22 @@ class ClaseIn(BaseModel):
 
 
 @router.get("/ci-classes", summary="Clases de CI de la empresa y las clases base")
-def list_ci_classes(db: Session = Depends(get_db), current_user: User = Depends(require_internal_user)):
+def list_ci_classes(db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("cmdb.usar"))):
     return APIResponse.ok(data=clases.listar(db, current_user.organization_id))
 
 
 @router.post("/ci-classes", summary="Crear clase de CI", status_code=201)
-def create_ci_class(payload: ClaseIn, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+def create_ci_class(payload: ClaseIn, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("cmdb.administrar"))):
     return APIResponse.ok(data=clases.crear(db, current_user, payload.model_dump()))
 
 
 @router.put("/ci-classes/{class_id}", summary="Cambiar clase de CI (la clave no cambia)")
 def update_ci_class(class_id: str, payload: ClaseIn, db: Session = Depends(get_db),
-                    current_user: User = Depends(require_admin)):
+                    current_user: User = Depends(requiere_capacidad("cmdb.administrar"))):
     return APIResponse.ok(data=clases.cambiar(db, current_user, class_id, payload.model_dump()))
 
 
 @router.delete("/ci-classes/{class_id}", summary="Desactivar clase de CI (sus CIs la conservan)")
-def delete_ci_class(class_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+def delete_ci_class(class_id: str, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("cmdb.administrar"))):
     clases.desactivar(db, current_user, class_id)
     return APIResponse.ok(data={"ok": True})

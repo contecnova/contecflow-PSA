@@ -27,8 +27,11 @@ import json
 import logging
 import hashlib
 import uuid
+
+from sqlalchemy import func
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
+from app.core.celdas_seguras import fila_segura, neutralizar_formula
 
 from sqlalchemy.orm import Session
 
@@ -200,7 +203,9 @@ def create_schedule(
     _validate_channels(channels)
     _validate_format(export_format)
     _validate_frequency(frequency)
+    validar_cron(cron_expression)
     _validate_webhooks({"slack_webhook_url": slack_webhook_url, "teams_webhook_url": teams_webhook_url})
+    recipients = validar_destinatarios(db, organization_id, recipients)
 
     schedules = _get_json(db, SCHEDULES_KEY_TPL, organization_id, default={})
     schedule_id = str(uuid.uuid4())
@@ -254,6 +259,10 @@ def update_schedule(
         _validate_channels(sched["channels"])
     if "export_format" in payload:
         _validate_format(sched["export_format"])
+    if "cron_expression" in payload:
+        validar_cron(sched["cron_expression"])
+    if "recipients" in payload:
+        sched["recipients"] = validar_destinatarios(db, organization_id, sched["recipients"])
     _validate_webhooks(payload)
 
     sched["updated_at"] = _iso_now()
@@ -288,6 +297,47 @@ def _validate_webhooks(datos: Dict[str, Any]) -> None:
     for campo in ("slack_webhook_url", "teams_webhook_url"):
         if datos.get(campo):
             validate_outbound_url(datos[campo], field=campo)
+
+
+def _dominios_permitidos(db: Session, organization_id) -> set:
+    from app.services.settings_service import get_runtime_str
+    texto = get_runtime_str(db, "BI_DELIVERY_ALLOWED_DOMAINS", organization_id) or ""
+    return {d.strip().lower().lstrip("@") for d in texto.split(",") if d.strip()}
+
+
+def _destinatarios_permitidos(db: Session, organization_id, recipients: List[str]) -> tuple[list, list]:
+    """(permitidos, rechazados). A36 (auditoría 22-11-2026), estándar de las
+    suscripciones de informes de Power BI/Tableau: un informe programado solo
+    llega a personas ACTIVAS de la empresa o a direcciones de los dominios que
+    el administrador autoriza (`BI_DELIVERY_ALLOWED_DOMAINS`, vacío = ninguno)."""
+    from app.models.user import User
+    limpios = []
+    for r in recipients or []:
+        r = str(r or "").strip().lower()
+        if r and r not in limpios:
+            limpios.append(r)
+    if not limpios:
+        return [], []
+    q = db.query(func.lower(User.email)).filter(func.lower(User.email).in_(limpios), User.is_active.is_(True))
+    if organization_id:
+        q = q.filter(User.organization_id == organization_id)
+    internos = {e for (e,) in q.all()}
+    dominios = _dominios_permitidos(db, organization_id)
+    ok, malos = [], []
+    for r in limpios:
+        if "@" in r and (r in internos or r.rsplit("@", 1)[1] in dominios):
+            ok.append(r)
+        else:
+            malos.append(r)
+    return ok, malos
+
+
+def validar_destinatarios(db: Session, organization_id, recipients: List[str]) -> list:
+    ok, malos = _destinatarios_permitidos(db, organization_id, recipients)
+    if malos:
+        from app.core.codigos_de_error import error
+        raise error(422, "bi_destinatario_no_permitido", destinatarios=", ".join(malos[:5]))
+    return ok
 
 
 def _validate_format(fmt: str) -> None:
@@ -326,7 +376,7 @@ def _export_to_excel(columns: List[str], rows: List[Dict], sheet_name: str = "Re
     # Data rows
     for row_idx, row in enumerate(rows, start=2):
         for col_idx, col_name in enumerate(columns, start=1):
-            ws.cell(row=row_idx, column=col_idx, value=row.get(col_name))
+            ws.cell(row=row_idx, column=col_idx, value=neutralizar_formula(row.get(col_name)))
 
     # Auto-width columns
     for column in ws.columns:
@@ -474,6 +524,12 @@ def _estado_de_la_entrega(errores: list, omitido_sin_cambios: bool) -> str:
     return "skipped_no_changes" if omitido_sin_cambios else "ok"
 
 
+def _max_filas(db: Session, organization_id) -> int:
+    """Filas por informe entregado (`BI_DELIVERY_MAX_ROWS`; antes 5.000 fijas en el código)."""
+    from app.services.settings_service import get_runtime_int
+    return int(get_runtime_int(db, "BI_DELIVERY_MAX_ROWS", organization_id) or 5000)
+
+
 def _generar_informe(db: Session, organization_id, preset_id: str, errores: list):
     """Genera los datos del informe. Devuelve (columnas, filas).
 
@@ -485,7 +541,7 @@ def _generar_informe(db: Session, organization_id, preset_id: str, errores: list
 
     try:
         datos = preview_preset(
-            db, organization_id=organization_id, preset_id=preset_id, limit=5000
+            db, organization_id=organization_id, preset_id=preset_id, limit=_max_filas(db, organization_id)
         )
         return (datos.get("columns") or []), (datos.get("rows") or [])
     except Exception as exc:
@@ -610,7 +666,10 @@ def send_schedule_now(
     export_format = sched.get("export_format", "xlsx")
     title = sched.get("name", preset_id)
     channels = sched.get("channels", [])
-    recipients = sched.get("recipients", [])
+    # A36: se vuelve a comprobar al enviar (una persona dada de baja deja de recibirlo).
+    recipients, descartados = _destinatarios_permitidos(db, organization_id, sched.get("recipients", []))
+    if descartados:
+        logger.warning("BI delivery %s: %d destinatarios ya no permitidos", schedule_id, len(descartados))
     send_only_on_change = bool(sched.get("send_only_on_change", False))
 
     started_at = _iso_now()
@@ -703,7 +762,8 @@ def get_schedule_report_diff(
     sched = get_schedule(db, organization_id=organization_id, schedule_id=schedule_id)
     preset_id = sched.get("report_preset_id", "")
 
-    report_data = preview_preset(db, organization_id=organization_id, preset_id=preset_id, limit=5000)
+    report_data = preview_preset(db, organization_id=organization_id, preset_id=preset_id,
+                                 limit=_max_filas(db, organization_id))
     columns = report_data.get("columns") or []
     rows = report_data.get("rows") or []
 
@@ -764,13 +824,107 @@ def run_due_deliveries(db: Session) -> Dict[str, Any]:
     return {"total_run": total_run, "total_errors": total_errors, "checked_at": _iso_now()}
 
 
+# ── Expresión cron (auditoría 22-11-2026, A59) ───────────────────────────────
+#
+# `cron_expression` se guardaba y no se leía nunca: la programación iba solo
+# por umbrales desde `last_run_at` (1 h/24 h/7 d/30 d), con deriva. Ahora, si
+# el programa tiene expresión cron (5 campos: minuto hora día-mes mes
+# día-semana, en UTC; `*`, listas, rangos y `/paso`), se envía cuando ha
+# llegado una hora que la cumple posterior al último envío (o al alta).
+
+_RANGOS_CRON = ((0, 59), (0, 23), (1, 31), (1, 12), (0, 7))
+
+
+def _campo_cron(texto: str, minimo: int, maximo: int) -> set:
+    valores: set = set()
+    for parte in texto.split(","):
+        paso = 1
+        if "/" in parte:
+            parte, paso_txt = parte.split("/", 1)
+            paso = int(paso_txt)
+            if paso < 1:
+                raise ValueError("cron_paso_no_valido")
+        if parte in ("*", ""):
+            ini, fin = minimo, maximo
+        elif "-" in parte:
+            ini, fin = (int(x) for x in parte.split("-", 1))
+        else:
+            ini = fin = int(parte)
+        if ini < minimo or fin > maximo or ini > fin:
+            raise ValueError("cron_rango_no_valido")
+        valores.update(range(ini, fin + 1, paso))
+    return valores
+
+
+def parsear_cron(expresion: str) -> tuple:
+    """(minutos, horas, días, meses, días de semana) o ValueError. Domingo = 0 (y 7)."""
+    campos = (expresion or "").split()
+    if len(campos) != 5:
+        raise ValueError("cron_campos_no_validos")
+    m, h, d, mes, sem = (_campo_cron(c, a, b) for c, (a, b) in zip(campos, _RANGOS_CRON))  # noqa: B905
+    return m, h, d, mes, {x % 7 for x in sem}
+
+
+def validar_cron(expresion: Optional[str]) -> None:
+    if not expresion:
+        return
+    try:
+        parsear_cron(expresion)
+    except (ValueError, TypeError):
+        raise ErrorConCodigo("cron_no_valido", expresion=expresion)
+
+
+def ultima_hora_del_cron(expresion: str, ahora: datetime) -> Optional[datetime]:
+    """La hora más reciente (<= ahora, minuto exacto) que cumple la expresión, en el último año."""
+    from datetime import timedelta
+    minutos, horas, dias, meses, semana = parsear_cron(expresion)
+    dia_libre, semana_libre = len(dias) == 31, len(semana) == 7
+    base = ahora.replace(second=0, microsecond=0)
+    for atras in range(0, 367):
+        d = (base - timedelta(days=atras)).date()
+        if d.month not in meses:
+            continue
+        en_dia, en_semana = d.day in dias, (d.isoweekday() % 7) in semana
+        # Como cron: con los dos campos restringidos basta uno de los dos.
+        if not ((en_dia or en_semana) if not (dia_libre or semana_libre) else (en_dia and en_semana)):
+            continue
+        for h in sorted(horas, reverse=True):
+            if atras == 0 and h > base.hour:
+                continue
+            for m in sorted(minutos, reverse=True):
+                if atras == 0 and h == base.hour and m > base.minute:
+                    continue
+                return datetime(d.year, d.month, d.day, h, m, tzinfo=timezone.utc)
+    return None
+
+
 def _is_schedule_due(sched: Dict[str, Any]) -> bool:
-    """Return True if the schedule should run now based on its frequency."""
+    """Return True if the schedule should run now based on its cron or its frequency."""
     from datetime import timedelta
 
     last_run = sched.get("last_run_at")
     frequency = sched.get("frequency", "daily")
     now = datetime.now(timezone.utc)
+
+    if sched.get("cron_expression"):
+        try:
+            ultima = ultima_hora_del_cron(sched["cron_expression"], now)
+        except (ValueError, TypeError):
+            logger.warning("Schedule %s: cron_expression no válida %r", sched.get("id"), sched.get("cron_expression"))
+            return False
+        if ultima is None:
+            return False
+        referencia = last_run or sched.get("created_at")
+        if not referencia:
+            return True
+        try:
+            ref_dt = datetime.fromisoformat(referencia)
+        except Exception:
+            logger.debug("_is_schedule_due: excepcion ignorada", exc_info=True)
+            return True
+        if ref_dt.tzinfo is None:
+            ref_dt = ref_dt.replace(tzinfo=timezone.utc)
+        return ultima > ref_dt
 
     if not last_run:
         return True  # Never run — due immediately

@@ -24,6 +24,7 @@ Cada propuesta lleva el motivo en datos (horas, persona, días, si esperó a una
 predecesora) para que la pantalla lo pinte en el idioma del usuario.
 """
 from __future__ import annotations
+import logging
 
 from collections import defaultdict
 from datetime import date, timedelta
@@ -126,6 +127,7 @@ def proponer(db: Session, user, *, project_id: Optional[str] = None, max_tareas:
             try:
                 proyectos.append(proyecto_visible(db, user, p.id))
             except Exception:  # noqa: BLE001 — sin acceso a ese proyecto: no se planifica
+                logging.getLogger(__name__).debug("proponer: excepcion ignorada", exc_info=True)
                 continue
     ids_proyecto = [p.id for p in proyectos]
     if not ids_proyecto:

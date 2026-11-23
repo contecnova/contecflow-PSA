@@ -31,12 +31,21 @@ from app.core import timeutil
 
 
 def _org_id(current_user: Optional[User]) -> Optional[str]:
-    """Return the organization_id to scope queries to, or None for superadmin/unscoped."""
+    """Return the organization_id to scope queries to, or None for superadmin/unscoped.
+
+    A25 (auditoría 22-11-2026): un usuario SIN empresa que no es superadmin ya
+    no cae en «sin filtro» (veía todas): devuelve una empresa imposible y las
+    consultas salen vacías (falla cerrado).
+    """
     if current_user is None:
         return None
     if getattr(current_user, "is_superadmin", False):
         return None
-    return getattr(current_user, "organization_id", None)
+    return getattr(current_user, "organization_id", None) or _SIN_EMPRESA
+
+
+#: A25: marcador de «ninguna empresa» (ningún id real coincide).
+_SIN_EMPRESA = "__sin_empresa__"
 
 # ── KPI cache ──────────────────────────────────────────────────────────────────
 _kpi_cache: TTLCache = TTLCache(maxsize=64, ttl=60)
@@ -69,10 +78,6 @@ def get_global_kpis(db: Session, current_user: Optional[User] = None):
     ).scalar() or 0.0
 
     active_project_ids = proj_base.scalar_subquery()
-    total_spent = db.query(func.sum(Imputation.cost_amount)).filter(
-        Imputation.project_id.in_(active_project_ids)
-    ).scalar() or 0.0
-    budget_used_pct = round((total_spent / total_budget) * 100, 1) if total_budget > 0 else 0
 
     org_proj_filters = [Project.organization_id == org] if org else []
     org_user_filters = [User.organization_id == org] if org else []
@@ -97,7 +102,7 @@ def get_global_kpis(db: Session, current_user: Optional[User] = None):
         Imputation.user_id,
         func.sum(Imputation.hours).label("total"),
     ).filter(
-        Imputation.date >= week_start,
+        Imputation.date >= week_start, Imputation.is_active.is_(True),
         *([Imputation.project_id.in_(active_project_ids)] if org else []),
     ).group_by(Imputation.user_id).subquery()
 
@@ -126,7 +131,7 @@ def get_global_kpis(db: Session, current_user: Optional[User] = None):
     ).scalar() or 0
 
     hours_this_week = db.query(func.sum(Imputation.hours)).filter(
-        Imputation.date >= week_start,
+        Imputation.date >= week_start, Imputation.is_active.is_(True),
         *([Imputation.project_id.in_(active_project_ids)] if org else []),
     ).scalar() or 0.0
 
@@ -134,7 +139,7 @@ def get_global_kpis(db: Session, current_user: Optional[User] = None):
         func.sum(Imputation.hours).label("real_hours"),
         func.sum(Task.estimated_hours).label("estimated_hours"),
     ).join(Task, Task.id == Imputation.task_id).filter(
-        Task.status == TaskStatus.done,
+        Task.status == TaskStatus.done, Imputation.is_active.is_(True),
         Task.estimated_hours > 0,
         *([Task.project_id.in_(active_project_ids)] if org else []),
     ).first()
@@ -143,18 +148,20 @@ def get_global_kpis(db: Session, current_user: Optional[User] = None):
     else:
         avg_efficiency = 0.0
 
-    projects_over_budget = 0
+    # Auditoría 22-11-2026 (§7.2 / M8): el coste es el del cálculo único en
+    # bloque (personal convertido + gastos + subcontrata + ALM; antes una
+    # consulta por proyecto con borradas y sin convertir).
+    from app.services.margen_de_proyectos import margen_en_bloque
     active_projects_list = db.query(Project).filter(
         Project.status == ProjectStatus.active,
         *org_proj_filters,
     ).all()
-    for p in active_projects_list:
-        if p.budget_amount and p.budget_amount > 0:
-            cost = db.query(func.sum(Imputation.cost_amount)).filter(
-                Imputation.project_id == p.id
-            ).scalar() or 0.0
-            if cost > p.budget_amount:
-                projects_over_budget += 1
+    cifras = margen_en_bloque(db, active_projects_list)
+    total_spent = round(sum(c["total_cost"] for c in cifras.values()), 2)
+    budget_used_pct = round((total_spent / total_budget) * 100, 1) if total_budget > 0 else 0
+    projects_over_budget = sum(
+        1 for p in active_projects_list
+        if p.budget_amount and p.budget_amount > 0 and cifras[p.id]["total_cost"] > p.budget_amount)
 
     result = DashboardKPIs(
         total_budget=total_budget,
@@ -225,11 +232,9 @@ def get_projects_health(db: Session, current_user: Optional[User] = None) -> lis
     from app.core.umbrales import cortes as _cortes, tono_con
     cortes_presupuesto = _cortes("presupuesto", db, org)
 
-    cost_rows = db.query(
-        Imputation.project_id,
-        func.sum(Imputation.cost_amount).label("total_cost"),
-    ).filter(Imputation.project_id.in_(project_ids)).group_by(Imputation.project_id).all()
-    cost_by_pid = {r.project_id: float(r.total_cost or 0) for r in cost_rows}
+    # Auditoría 22-11-2026 (§7.2): el coste del cálculo único en bloque.
+    from app.services.margen_de_proyectos import margen_en_bloque
+    cost_by_pid = {pid: c["total_cost"] for pid, c in margen_en_bloque(db, projects).items()}
 
     task_total_rows = db.query(
         Task.project_id, func.count(Task.id).label("cnt"),
@@ -244,7 +249,7 @@ def get_projects_health(db: Session, current_user: Optional[User] = None) -> lis
     team_rows = db.query(
         Imputation.project_id,
         func.count(func.distinct(Imputation.user_id)).label("cnt"),
-    ).filter(Imputation.project_id.in_(project_ids)).group_by(Imputation.project_id).all()
+    ).filter(Imputation.project_id.in_(project_ids), Imputation.is_active.is_(True)).group_by(Imputation.project_id).all()
     team_by_pid = {r.project_id: r.cnt for r in team_rows}
 
     alert_rows = db.query(
@@ -303,12 +308,18 @@ def get_resource_load(
     db: Session,
     current_user: Optional[User] = None,
 ) -> list:
-
+    """Carga de cada persona en la semana. Auditoría 22-11-2026 (M8): consultas
+    agregadas (antes cuatro por persona), solo imputaciones activas y, sin horas
+    esta semana, la media de las cuatro anteriores marcada con `estimated`."""
     org = _org_id(current_user)
+    if org is None and current_user is not None and not getattr(current_user, "is_superadmin", False):
+        return []
     if not week_start:
         today = timeutil.today()
         week_start = today - timedelta(days=today.weekday())
     week_end = week_start + timedelta(days=6)
+    four_weeks_ago = week_start - timedelta(weeks=4)
+    prev_week_end = week_start - timedelta(days=1)
 
     q = db.query(User).filter(User.is_active == True, User.status == UserStatus.active)
     if org:
@@ -316,52 +327,51 @@ def get_resource_load(
     if department:
         q = q.filter(User.department == department)
     users = q.all()
+    if not users:
+        return []
+    uids = [u.id for u in users]
+    activa = Imputation.is_active.is_(True)
+
+    def _suma(desde_, hasta_) -> dict:
+        return dict(db.query(Imputation.user_id, func.sum(Imputation.hours)).filter(
+            Imputation.user_id.in_(uids), activa, Imputation.date.between(desde_, hasta_),
+        ).group_by(Imputation.user_id).all())
+
+    semana = _suma(week_start, week_end)
+    previas = _suma(four_weeks_ago, prev_week_end)
+    proyectos = dict(db.query(Imputation.user_id, func.count(func.distinct(Imputation.project_id))).filter(
+        Imputation.user_id.in_(uids), activa, Imputation.date >= week_start,
+    ).group_by(Imputation.user_id).all())
+    eficiencia = {r.user_id: r for r in db.query(
+        Imputation.user_id,
+        func.sum(Imputation.hours).label("real_h"),
+        func.sum(Task.estimated_hours).label("est_h"),
+    ).join(Task, Task.id == Imputation.task_id).filter(
+        Imputation.user_id.in_(uids), activa,
+        Task.status == TaskStatus.done,
+        Task.estimated_hours > 0,
+    ).group_by(Imputation.user_id).all()}
 
     result = []
     for user in users:
-        hours_week = db.query(func.sum(Imputation.hours)).filter(
-            Imputation.user_id == user.id,
-            Imputation.date.between(week_start, week_end),
-        ).scalar() or 0.0
-
+        hours_week = float(semana.get(user.id) or 0.0)
+        estimada = False
         if hours_week == 0:
-            four_weeks_ago = week_start - timedelta(weeks=4)
-            prev_week_end = week_start - timedelta(days=1)
-            hours_recent = db.query(func.sum(Imputation.hours)).filter(
-                Imputation.user_id == user.id,
-                Imputation.date.between(four_weeks_ago, prev_week_end),
-            ).scalar() or 0.0
-            hours_week = round(hours_recent / 4, 1)
-
+            hours_week = round(float(previas.get(user.id) or 0.0) / 4, 1)
+            estimada = hours_week > 0
         capacity = capacidad_semanal(db, user)
-        load_pct = round((hours_week / capacity) * 100, 1)
-
-        active_projects = db.query(func.count(func.distinct(Imputation.project_id))).filter(
-            Imputation.user_id == user.id,
-            Imputation.date >= week_start,
-        ).scalar() or 0
-
-        eff_data = db.query(
-            func.sum(Imputation.hours).label("real_h"),
-            func.sum(Task.estimated_hours).label("est_h"),
-        ).join(Task, Task.id == Imputation.task_id).filter(
-            Imputation.user_id == user.id,
-            Task.status == TaskStatus.done,
-            Task.estimated_hours > 0,
-        ).first()
-        if eff_data and eff_data.real_h and eff_data.est_h:
-            efficiency = round(eff_data.est_h / eff_data.real_h, 2)
-        else:
-            efficiency = 0.0
-
+        load_pct = round((hours_week / capacity) * 100, 1) if capacity else 0.0
+        eff = eficiencia.get(user.id)
+        efficiency = round(eff.est_h / eff.real_h, 2) if eff and eff.real_h and eff.est_h else 0.0
         result.append(ResourceLoadItem(
             user_id=user.id,
             user_name=user.full_name,
             department=user.department or "",
             load_pct=load_pct,
             hours_week=hours_week,
-            active_projects=active_projects,
+            active_projects=int(proyectos.get(user.id) or 0),
             efficiency=efficiency,
+            estimated=estimada,
         ))
 
     return sorted(result, key=lambda x: x.load_pct, reverse=True)
@@ -375,46 +385,47 @@ def get_profitability(
     db: Session,
     current_user: Optional[User] = None,
 ) -> list:
+    """Rentabilidad por proyecto del panel.
 
+    Auditoría 22-11-2026: (A25) sin empresa y sin ser superadmin, ninguna fila;
+    (§7.2 / M8) las cifras son las del cálculo ÚNICO y en bloque
+    (`margen_de_proyectos.margen_en_bloque`): personal convertido a la moneda de
+    la empresa, gastos, subcontrata, licencias y equipos, ingreso por tarifas o
+    hitos. Las mismas que rentabilidad, la evolución del margen, el EVM y el BI,
+    con un número fijo de consultas sea cual sea el número de proyectos.
+    """
+    from app.services.margen_de_proyectos import margen_en_bloque
     org = _org_id(current_user)
     proj_q = db.query(Project).filter(
         Project.status.in_([ProjectStatus.active, ProjectStatus.closed])
     )
     if org:
         proj_q = proj_q.filter(Project.organization_id == org)
+    elif current_user is not None and not getattr(current_user, "is_superadmin", False):
+        return []
     projects = proj_q.all()
-
-    agg_q = db.query(
-        Imputation.project_id.label("project_id"),
-        func.sum(Imputation.cost_amount).label("total_cost"),
-        func.sum(Imputation.hours).label("total_hours"),
-    )
-    if date_from:
-        agg_q = agg_q.filter(Imputation.date >= date_from)
-    if date_to:
-        agg_q = agg_q.filter(Imputation.date <= date_to)
-    aggregates = {
-        row.project_id: (row.total_cost or 0, row.total_hours or 0)
-        for row in agg_q.group_by(Imputation.project_id).all()
-    }
+    cifras = margen_en_bloque(db, projects, date_from, date_to)
 
     result = []
     for p in projects:
-        cost, hours = aggregates.get(p.id, (0, 0))
-        revenue = (hours or 0) * (p.billing_rate or 0) if p.is_billable else 0
-        margin = revenue - (cost or 0)
-        margin_pct = round((margin / revenue) * 100, 1) if revenue > 0 else None
+        c = cifras[p.id]
         result.append({
             "project_id": p.id,
             "project_code": p.code,
             "project_name": p.name,
             "is_billable": p.is_billable,
             "budget_amount": p.budget_amount,
-            "total_cost": cost or 0,
-            "total_hours": hours or 0,
-            "revenue": revenue,
-            "margin": margin,
-            "margin_pct": margin_pct,
+            "total_cost": c["total_cost"],
+            "internal_cost": c["internal_cost"],
+            "expenses_cost": c["expenses_cost"],
+            "subcontract_cost": c["subcontract_cost"],
+            "alm_cost": c["alm_cost"],
+            "total_hours": c["hours"],
+            "revenue": c["revenue"],
+            "margin": c["margin"],
+            "margin_pct": c["margin_pct"],
+            "currency": c["currency"],
+            "fx_warnings": c["fx_warnings"],
         })
 
     return sorted(result, key=lambda x: x["total_cost"], reverse=True)
@@ -429,39 +440,44 @@ def get_team_productivity(
     db: Session,
     current_user: Optional[User] = None,
 ) -> dict:
-
+    """Horas y tareas terminadas por persona EN EL PERIODO (auditoría 22-11-2026,
+    M8: antes las tareas contaban de siempre y las horas incluían borradas; dos
+    consultas por persona → dos agregadas)."""
+    from datetime import datetime, time, timezone
     if not date_from:
         date_from = timeutil.today().replace(day=1)
     if not date_to:
         date_to = timeutil.today()
 
     org = _org_id(current_user)
+    if org is None and current_user is not None and not getattr(current_user, "is_superadmin", False):
+        return {"period_start": date_from, "period_end": date_to, "team_stats": []}
     q = db.query(User).filter(User.is_active == True)
     if org:
         q = q.filter(User.organization_id == org)
     if department:
         q = q.filter(User.department == department)
     users = q.all()
+    uids = [u.id for u in users] or [""]
 
-    result = []
-    for user in users:
-        hours = db.query(func.sum(Imputation.hours)).filter(
-            Imputation.user_id == user.id,
-            Imputation.date.between(date_from, date_to),
-        ).scalar() or 0.0
+    horas = dict(db.query(Imputation.user_id, func.sum(Imputation.hours)).filter(
+        Imputation.user_id.in_(uids), Imputation.is_active.is_(True),
+        Imputation.date.between(date_from, date_to),
+    ).group_by(Imputation.user_id).all())
+    ini = datetime.combine(date_from, time.min, tzinfo=timezone.utc)
+    fin = datetime.combine(date_to, time.max, tzinfo=timezone.utc)
+    hechas = dict(db.query(Task.assignee_id, func.count(Task.id)).filter(
+        Task.assignee_id.in_(uids), Task.status == TaskStatus.done,
+        Task.completed_at.isnot(None), Task.completed_at >= ini, Task.completed_at <= fin,
+    ).group_by(Task.assignee_id).all())
 
-        tasks_done = db.query(func.count(Task.id)).filter(
-            Task.assignee_id == user.id,
-            Task.status == TaskStatus.done,
-        ).scalar() or 0
-
-        result.append({
-            "user_id": user.id,
-            "user_name": user.full_name,
-            "department": user.department,
-            "job_title": user.job_title,
-            "hours_logged": hours,
-            "tasks_completed": tasks_done,
-        })
+    result = [{
+        "user_id": user.id,
+        "user_name": user.full_name,
+        "department": user.department,
+        "job_title": user.job_title,
+        "hours_logged": float(horas.get(user.id) or 0.0),
+        "tasks_completed": int(hechas.get(user.id) or 0),
+    } for user in users]
 
     return {"period_start": date_from, "period_end": date_to, "team_stats": result}

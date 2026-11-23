@@ -9,21 +9,24 @@
  * 4. Seguridad (cambio de contraseña, MFA)
  */
 import { PRODUCT_NAME } from '../../constants/brand'
+import { useNavigate } from 'react-router-dom'
 import React, { type CSSProperties, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import api, { usersApi, authApi } from '../../services/api'
+import { usersApi, authApi, preferenciasDeAvisosApi } from '../../services/api'
 import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
 import useUserPreferences from '../../hooks/useUserPreferences'
 import { useAppLang } from '../../i18n/AppLangContext'
-import { Bell, Languages, Palette, ShieldCheck, UserRound } from 'lucide-react'
-import { Avatar, Checkbox, IconButton, Pulsable, useErroresDeCampo, Input } from '../ui'
+import { Bell, Languages, Palette, ShieldCheck, SlidersHorizontal, UserRound } from 'lucide-react'
+import { Avatar, Button, Checkbox, IconButton, Pulsable, useErroresDeCampo, Input, cambiosGuardados } from '../ui'
+import { EVENTO_PERSONALIZAR_MENU } from './menuLateral'
 import { Drawer } from '../ui/Drawer'
 import { useTabListKeys } from '../ui/Tabs'
 import PasskeysSection from '../security/PasskeysSection'
 import { AVAILABLE_LANGUAGES } from '../../i18n/appTranslations'
 import { applyAccent as applyAccentToDom } from '../../utils/appearance'
 import { localeActivo } from '../../utils/helpers'
+import { ACENTO_POR_DEFECTO, PALETA_DE_ACENTO } from '../../constants/theme'
 import './UserProfilePanel.css'
 
 // ── Temas disponibles ─────────────────────────────────────────────────────────
@@ -38,20 +41,8 @@ const THEMES = [
   { id: 'system',        clave: 'system',        icon: '💻' },
 ]
 
-// Son DATOS, no estilo: se guardan como `accent_color` y applyAccent() sólo
-// acepta #rrggbb. Con var() (lo que dejó el codemod de colores) el preset no
-// hacía nada. Hex a propósito.
-// Nombre: userprofilepanel.acento_<clave>.
-const ACCENT_PRESETS = [
-  { clave: 'indigo',  color: '#4f8ef7' },
-  { clave: 'violeta', color: '#a78bfa' },
-  { clave: 'teal',    color: '#1d9e75' },
-  { clave: 'azul',    color: '#60a5fa' },
-  { clave: 'rosa',    color: '#f43f5e' },
-  { clave: 'ambar',   color: '#f59e0b' },
-  { clave: 'verde',   color: '#34d399' },
-  { clave: 'coral',   color: '#fb923c' },
-]
+// 23-11-2026 (M14): la paleta de acentos vive en constants/theme.ts (datos hex).
+const ACCENT_PRESETS = PALETA_DE_ACENTO
 
 // Auditoría 2026-08 (hallazgo 16): aquí había una lista de idiomas escrita a
 // mano, distinta del registro de src/i18n. Dos fuentes de verdad para lo mismo:
@@ -81,6 +72,8 @@ interface Props {
 }
 
 export default function UserProfilePanel({ onClose }: Props) {
+  // 23-11-2026 (M7 del 04): sin recarga y directo a la ruta final (antes /mfa → /settings/mfa).
+  const navigate = useNavigate()
   const idCampo = React.useId()
   const { t: traducir } = useAppLang()
   const { user, setUser } = useAuth()
@@ -113,6 +106,8 @@ export default function UserProfilePanel({ onClose }: Props) {
       setUser(res.data as import('../../context/AuthContext').User)
       qc.invalidateQueries({ queryKey: ['auth-me'] })
       toast.success(traducir('userprofilepanel.perfil_actualizado'))
+      // Guardado sin cerrar el panel: ya no hay cambios que avisar (kit, 23-11-2026).
+      cambiosGuardados()
     },
     // TODO type: backend error envelope — needs shared type
     onError: (e: { response?: { data?: { detail?: string } } }) => { if (!campos.recoger(e)) toast.error(e?.response?.data?.detail || traducir('userprofilepanel.error_guardar')) },
@@ -144,6 +139,7 @@ export default function UserProfilePanel({ onClose }: Props) {
   const saveAppearance = () => {
     savePrefs({ theme_mode: localTheme, accent_color: localAccent, ui_density: localDensity })
     toast.success(traducir('userprofilepanel.apariencia_guardada'))
+    cambiosGuardados()
   }
 
   // ── Contraseña ──────────────────────────────────────────────────────────────
@@ -153,7 +149,7 @@ export default function UserProfilePanel({ onClose }: Props) {
   const { mutate: changePassword, isPending: changingPw } = useMutation({
     mutationFn: (data: { current_password: string; new_password: string }) => authApi.changePassword(data),
     onMutate: () => camposPw.limpiar(),
-    onSuccess: () => { toast.success(traducir('userprofilepanel.contrasena_actualizada')); setPwForm({ current:'', new:'', confirm:'' }) },
+    onSuccess: () => { toast.success(traducir('userprofilepanel.contrasena_actualizada')); setPwForm({ current:'', new:'', confirm:'' }); cambiosGuardados() },
     // TODO type: backend error envelope — needs shared type
     onError: (e: { response?: { data?: { detail?: string } } }) => { if (!camposPw.recoger(e)) toast.error(e?.response?.data?.detail || traducir('userprofilepanel.error_contrasena')) },
   })
@@ -189,7 +185,7 @@ export default function UserProfilePanel({ onClose }: Props) {
               {user?.role} · {user?.department || traducir('userprofilepanel.sin_departamento')}
             </div>
           </div>
-          <Pulsable aria-label={traducir('common.close')} onClick={onClose} className="usprpa-box-3">✕</Pulsable>
+          <Pulsable aria-label={traducir('common.close')} onClick={onClose} className="usprpa-box-3" data-cierra-dialogo="">✕</Pulsable>
         </div>
 
         {/* Tabs */}
@@ -309,7 +305,7 @@ export default function UserProfilePanel({ onClose }: Props) {
                   ))}
                 </div>
                 <div className="u-row-center-10">
-                  <input type="color" value={localAccent ?? '#4f8ef7'} aria-label={traducir('userprofile.color_personalizado')}
+                  <input type="color" value={localAccent ?? ACENTO_POR_DEFECTO} aria-label={traducir('userprofile.color_personalizado')}
                     onChange={e => applyAccent(e.target.value)}
                     className="usprpa-box-12" />
                   <div>
@@ -342,6 +338,16 @@ export default function UserProfilePanel({ onClose }: Props) {
                     </Pulsable>
                   ))}
                 </div>
+              </div>
+
+              {/* Menú lateral personalizable (23-11-2026): abre el modo «Personalizar menú» del propio menú. */}
+              <div>
+                <div className="usprpa-box-9">{traducir('menu_personal.perfil_titulo')}</div>
+                <div className="u-hint">{traducir('menu_personal.perfil_texto')}</div>
+                <Button variant="secondary" size="sm" icon={<SlidersHorizontal size={13} />}
+                  onClick={() => { window.dispatchEvent(new CustomEvent(EVENTO_PERSONALIZAR_MENU)); onClose() }}>
+                  {traducir('menu_personal.personalizar')}
+                </Button>
               </div>
 
               <Pulsable onClick={saveAppearance} className="usprpa-box-15">
@@ -441,7 +447,7 @@ export default function UserProfilePanel({ onClose }: Props) {
                     ? traducir('userprofilepanel.mfa_activado')
                     : traducir('userprofilepanel.mfa_desactivado')}
                 </div>
-                <Pulsable className={`usprpa-box-31 ${user?.mfa_enabled ? 'user-profile-panel-m18' : 'user-profile-panel-m19'}`} onClick={() => window.location.href = '/mfa'}>
+                <Pulsable className={`usprpa-box-31 ${user?.mfa_enabled ? 'user-profile-panel-m18' : 'user-profile-panel-m19'}`} onClick={() => { navigate('/settings/mfa'); onClose() }}>
                   {user?.mfa_enabled ? traducir('userprofilepanel.gestionar_mfa') : `🛡 ${traducir('userprofilepanel.activar_mfa')}`}
                 </Pulsable>
               </div>
@@ -469,7 +475,7 @@ export default function UserProfilePanel({ onClose }: Props) {
 
 // Revisión 2026-11: qué avisos quiere cada uno y por qué canal.
 // Nombre de cada tipo: userprofilepanel.aviso_<tipo>; si el servidor manda uno nuevo, se ve su código.
-const TIPOS_DE_AVISO = new Set(["task_assigned","task_mentioned","task_due_soon","task_overdue","sprint_started","sprint_ending","expense_approved","expense_rejected","ticket_assigned","ticket_replied","ticket_resolved","ticket_created","ticket_updated","ticket_sla_warning","ticket_sla_breached","ticket_escalated","approval_requested","project_risk_high","timesheet_reminder","timesheet_approved","budget_warning","mention","automation","system"])
+const TIPOS_DE_AVISO = new Set(["task_assigned","task_mentioned","task_due_soon","task_overdue","sprint_started","sprint_ending","expense_approved","expense_rejected","milestone_approved","milestone_rejected","ticket_assigned","ticket_replied","ticket_resolved","ticket_created","ticket_updated","ticket_sla_warning","ticket_sla_breached","ticket_escalated","approval_requested","project_risk_high","timesheet_reminder","timesheet_approved","budget_warning","mention","automation","system"])
 
 function PreferenciasDeAviso() {
   const toast = useToast()
@@ -477,15 +483,15 @@ function PreferenciasDeAviso() {
   const qc = useQueryClient()
   const { data } = useQuery<{ types: { type: string; channels: string[] }[]; preferences: Record<string, Record<string, boolean>>; digest?: boolean }>({
     queryKey: ['notification-preferences'],
-    queryFn: () => api.get('/users/me/notification-preferences').then(r => r.data),
+    queryFn: () => preferenciasDeAvisosApi.leer<{ types: { type: string; channels: string[] }[]; preferences: Record<string, Record<string, boolean>>; digest?: boolean }>().then(r => r.data),
   })
   const [prefs, setPrefs] = useState<Record<string, Record<string, boolean>> | null>(null)
   const [resumen, setResumen] = useState<boolean | null>(null)
   const actuales = prefs ?? data?.preferences ?? {}
   const resumenActual = resumen ?? !!data?.digest
   const { mutate: guardar, isPending } = useMutation({
-    mutationFn: () => api.put('/users/me/notification-preferences', { preferences: actuales, digest: resumenActual }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['notification-preferences'] }); setPrefs(null); setResumen(null); toast.success(traducir('userprofilepanel.guardado')) },
+    mutationFn: () => preferenciasDeAvisosApi.guardar({ preferences: actuales, digest: resumenActual }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['notification-preferences'] }); setPrefs(null); setResumen(null); cambiosGuardados(); toast.success(traducir('userprofilepanel.guardado')) },
     onError: () => toast.error(traducir('userprofilepanel.no_se_pudo_guardar')),
   })
   const nombreDelAviso = (tipo: string) => TIPOS_DE_AVISO.has(tipo) ? traducir(`userprofilepanel.aviso_${tipo}`) : tipo

@@ -16,9 +16,9 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
 from app.core.abac_enforce import enforce_abac
-from app.core.deps import get_current_user, require_admin
+from app.core.deps import get_current_user, requiere_capacidad
 from app.core.responses import APIResponse
-from app.db.session import get_db
+from app.db.session import get_db, sesion_de_sistema
 from app.models.user import User
 from app.services.collaboration import _push as push_svc
 from app.services.collaboration import admin as svc
@@ -69,7 +69,7 @@ def push_unsubscribe(
 
 # ── Email digest ────────────────────────────────────────────────────────────
 @router.post("/admin/email-digest/run", summary="Ejecutar digest (admin)",
-             dependencies=[Depends(require_admin)])
+             dependencies=[Depends(requiere_capacidad("colaboracion.administrar"))])
 def run_digest(
     dry_run: bool = Query(False),
     frequency: Optional[str] = Query(None, pattern="^(daily|weekly)$"),
@@ -128,7 +128,7 @@ async def oauth_callback(
     request: Request,
     state: str = Query(...),
     code: str = Query(...),
-    db: Session = Depends(get_db),
+    db: Session = Depends(sesion_de_sistema("colaboración: state OAuth firmado")),
 ):
     """El callback llega sin sesión de usuario: lo que autoriza la escritura es
     el `state` firmado que valida `handle_callback`.

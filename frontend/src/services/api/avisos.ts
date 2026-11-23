@@ -54,6 +54,9 @@ export const avisosApi = {
   ultimos: (cuantos: number): Promise<AvisoDelServidor[]> =>
     api.get('/enterprise/notifications', { params: { page_size: cuantos } })
       .then((r: { data?: { notifications?: AvisoDelServidor[] } }) => r.data?.notifications || []),
+  /** Página de avisos con filtros (`is_read`, `page_size`); 23-11-2026: antes `api.get` en NotificationsPage. */
+  listar: <T>(params?: Record<string, unknown>): Promise<T> =>
+    api.get('/enterprise/notifications', { params }).then((r: { data: T }) => r.data),
   marcarLeido: (id: string | number) => api.post(`/enterprise/notifications/${id}/read`),
   marcarTodos: () => api.post('/enterprise/notifications/read-all'),
   /** Alertas sin resolver (la bandeja las cuenta como sin leer si `!is_read`). */

@@ -343,22 +343,22 @@ def _sembrar_clientes(db, users):
         # Idem: `CLIENTS_DATA` no se declara; el `getattr` daba siempre esta lista.
         clients_data = [
             dict(name="Acme Industries SA",  short_name="Acme",       industry=ClientIndustry.technology,    status=ClientStatus.active,
-                contact_name="Pedro Garcia",    contact_email="pedro.garcia@acme.com",   contact_phone="+34 91 100 2000",
+                contact_name="Pedro Garcia",    contact_email="pedro.garcia@acme.example.com",   contact_phone="+34 91 100 2000",
                 contact_role="Director de Tecnologia",  city="Madrid",    country="ES",
                 payment_terms="30 dias",  currency=settings.DEFAULT_CURRENCY,
                 account_manager_id=users["carlos.ruiz"].id),
             dict(name="TechStart SL",        short_name="TechStart",  industry=ClientIndustry.technology,    status=ClientStatus.active,
-                contact_name="Laura Mora",      contact_email="laura@techstart.io",      contact_phone="+34 93 200 3000",
+                contact_name="Laura Mora",      contact_email="laura@techstart.example.com", contact_phone="+34 93 200 3000",
                 contact_role="CEO",             city="Barcelona",  country="ES",
                 payment_terms="15 dias",  currency=settings.DEFAULT_CURRENCY,
                 account_manager_id=users["carlos.ruiz"].id),
             dict(name="RetailCorp SA",       short_name="RetailCorp", industry=ClientIndustry.retail,        status=ClientStatus.active,
-                contact_name="Maria Blanco",    contact_email="m.blanco@retailcorp.es",  contact_phone="+34 95 300 4000",
+                contact_name="Maria Blanco",    contact_email="m.blanco@retailcorp.example.com",  contact_phone="+34 95 300 4000",
                 contact_role="Directora de Compras",    city="Sevilla",   country="ES",
                 payment_terms="45 dias",  currency=settings.DEFAULT_CURRENCY,
                 account_manager_id=users["ana.torres"].id),
             dict(name="Hospital X",          short_name="HospX",      industry=ClientIndustry.healthcare,    status=ClientStatus.active,
-                contact_name="Dr. Javier Sanz", contact_email="javier.sanz@hospitalx.es", contact_phone="+34 96 400 5000",
+                contact_name="Dr. Javier Sanz", contact_email="javier.sanz@hospitalx.example.com", contact_phone="+34 96 400 5000",
                 contact_role="Director TI",    city="Valencia",  country="ES",
                 payment_terms="60 dias",  currency=settings.DEFAULT_CURRENCY,
                 account_manager_id=users["carlos.ruiz"].id),
@@ -668,6 +668,8 @@ def seed():
 
     Base.metadata.create_all(bind=engine)
     db = SessionLocal()
+    from app.db.contexto_de_tenant import declarar_sistema as _declarar_sistema
+    _declarar_sistema(db, "siembra de datos")  # auditoría 22-11-2026: TENANT_SESION_SIN_CONTEXTO=cerrar
     print("Seeding Contecflow database...")
     today = date.today()
 

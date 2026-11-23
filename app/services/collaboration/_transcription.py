@@ -59,6 +59,7 @@ def _via_openai(data: bytes, filename: str, lang: str) -> Optional[str]:
         from app.core.config import settings
         from app.services.stt.openai_stt import clave_openai_de_proceso
         files = {"file": (filename, data, "audio/webm")}
+        # SSRF: host fijo de plataforma (settings.OPENAI_API_URL)
         r = httpx.post(
             f"{settings.OPENAI_API_URL.rstrip('/')}/audio/transcriptions",
             headers={"Authorization": f"Bearer {clave_openai_de_proceso()}"},
@@ -82,7 +83,10 @@ def _via_whisper_local(data: bytes, filename: str, lang: str) -> Optional[str]:
     binary = settings.WHISPER_BIN or "whisper"
     model = settings.WHISPER_MODEL or "base"
     with tempfile.TemporaryDirectory() as td:
-        in_path = os.path.join(td, filename)
+        # M76 (auditoría 22-11-2026): solo el nombre base y sin caracteres raros
+        # (antes `../../x` escribía fuera del directorio temporal).
+        from app.core.uploads import safe_filename
+        in_path = os.path.join(td, safe_filename(os.path.basename(filename or ""), fallback="chunk.webm"))
         with open(in_path, "wb") as f:
             f.write(data)
         try:

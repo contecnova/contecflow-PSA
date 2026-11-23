@@ -154,6 +154,23 @@ CONNECTOR_CATALOG = [
 ]
 
 
+def _descripcion(db: Session, conector, *, user_id: Optional[str] = None,
+                 org_id: Optional[str] = None) -> Optional[str]:
+    """Descripción del conector en el idioma de quien mira.
+
+    La del catálogo de serie se sembró en inglés (`description` en BD): sale por
+    clave (`marketplace.desc.<slug>`) mientras siga siendo la sembrada; si la
+    empresa la cambió, o el conector es propio, sale como se guardó.
+    """
+    from app.services.textos_de_salida import TEXTOS
+    from app.services.textos_de_salida_servicios_m_z import texto_para
+    clave = f"marketplace.desc.{conector.slug}"
+    sembrada = next((i["description"] for i in CONNECTOR_CATALOG if i["slug"] == conector.slug), None)
+    if clave in TEXTOS and conector.description == sembrada:
+        return texto_para(db, clave, user_id=user_id, org_id=org_id)
+    return conector.description
+
+
 def _seed_connectors(db: Session) -> None:
     if db.query(IntegrationConnector).count() == 0:
         for item in CONNECTOR_CATALOG:
@@ -229,20 +246,12 @@ def crear_instancia(
     """Guarda una instalacion con su configuracion CIFRADA.
 
     El cifrado es lo que la puerta del Service Desk no hacia — porque no
-    recibia configuracion en absoluto. Si el cifrado falla se guarda en claro y
-    se avisa: el comportamiento viene del codigo original y se conserva
-    verbatim, pero queda escrito que es un respaldo y no la intencion.
+    recibia configuracion en absoluto. 23-11-2026 (03, «si falla el cifrado,
+    guarda en claro»): ya no hay respaldo en claro; si no se puede cifrar, la
+    instalación falla y no se guarda ningún secreto.
     """
     config_json = json.dumps(config or {})
-    try:
-        cifrada = encrypt_value(config_json)
-    except Exception:
-        logger.warning(
-            "Fallo cifrando config de instancia de integración; "
-            "almacenando en claro como fallback",
-            exc_info=True,
-        )
-        cifrada = config_json
+    cifrada = encrypt_value(config_json)
 
     instancia = IntegrationInstance(
         organization_id=organization_id,
@@ -295,7 +304,7 @@ def catalogo_para_service_desk(
             "name": c.name,
             "slug": c.slug,
             "category": c.category,
-            "description": c.description,
+            "description": _descripcion(db, c, user_id=getattr(user, "id", None), org_id=org_id),
             "docs_url": c.docs_url,
             "auth_scheme": c.auth_scheme,
             "is_certified": c.is_certified,
@@ -397,7 +406,8 @@ def list_marketplace_connectors(
     return [
         {
             "id": c.id, "name": c.name, "slug": c.slug, "category": c.category,
-            "description": c.description, "logo_url": c.logo_url, "docs_url": c.docs_url,
+            "description": _descripcion(db, c, org_id=organization_id),
+            "logo_url": c.logo_url, "docs_url": c.docs_url,
             "auth_scheme": c.auth_scheme, "is_certified": c.is_certified,
             "is_installed": c.slug in installed_slugs,
         }
@@ -417,6 +427,8 @@ def install_integration_connector(
     connector = (
         _conectores_visibles(db, organization_id)
         .filter(IntegrationConnector.slug == connector_slug)
+        # M-MOD2 (migracion 200): el de la empresa antes que el del catalogo global.
+        .order_by(IntegrationConnector.organization_id.is_(None))
         .first()
     )
     if not connector:

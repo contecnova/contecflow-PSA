@@ -25,21 +25,11 @@
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-glow);
 }
-.srch-input--query { padding-left: 42px; font-size: var(--text-md-em); }
 .srch-input--auto { width: auto; }
 .srch-input--nql { min-height: 80px; resize: vertical; font-variant-numeric: tabular-nums; }
 
 .srch-bar { display: flex; gap: 12px; margin-bottom: 14px; }
-.srch-bar__field { flex: 1; position: relative; }
-.srch-bar__icon {
-  position: absolute;
-  left: 14px;
-  top: 50%;
-  transform: translateY(-50%);
-  font-size: var(--text-lg);
-  color: var(--text-2);
-  pointer-events: none;
-}
+.srch-bar__field { flex: 1; }
 
 /* Filtros por tipo: el color de cada entidad llega en --srch-color */
 .srch-chip {

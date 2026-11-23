@@ -82,13 +82,21 @@ def _rl(hex_color: str):
 
 # ── Data fetchers ─────────────────────────────────────────────────────────────
 
+def _sin_datos_olap(que: str, exc: Exception):
+    """Ronda 2 auditoria 2026-11-22: si OLAP falla, el PDF no sale vacio como si
+    no hubiera datos: error 503 con codigo (el informe programado queda en
+    error y se reintenta). «Sin datos» (lista vacia) sigue siendo un PDF valido."""
+    logger.warning("%s data fetch failed: %s", que, exc)
+    from app.core.codigos_de_error import error
+    raise error(503, "informe_bi_sin_datos", que=que) from exc
+
+
 def _fetch_executive_data(org_id: Optional[str]) -> dict:
     try:
         from app.services.olap.query_engine import get_kpi_summary
         return get_kpi_summary(org_id)
     except Exception as exc:
-        logger.warning("executive data fetch failed: %s", exc)
-        return {}
+        _sin_datos_olap("executive", exc)
 
 
 def _fetch_utilization_data(org_id: Optional[str]) -> list:
@@ -96,8 +104,7 @@ def _fetch_utilization_data(org_id: Optional[str]) -> list:
         from app.services.olap.query_engine import get_utilization_by_user
         return get_utilization_by_user(org_id)
     except Exception as exc:
-        logger.warning("utilization data fetch failed: %s", exc)
-        return []
+        _sin_datos_olap("utilization", exc)
 
 
 def _fetch_pipeline_data(org_id: Optional[str]) -> list:
@@ -105,8 +112,7 @@ def _fetch_pipeline_data(org_id: Optional[str]) -> list:
         from app.services.olap.query_engine import get_pipeline_funnel
         return get_pipeline_funnel(org_id)
     except Exception as exc:
-        logger.warning("pipeline data fetch failed: %s", exc)
-        return []
+        _sin_datos_olap("pipeline", exc)
 
 
 def _fetch_portfolio_data(org_id: Optional[str]) -> list:
@@ -114,8 +120,7 @@ def _fetch_portfolio_data(org_id: Optional[str]) -> list:
         from app.services.olap.query_engine import get_portfolio_health
         return get_portfolio_health(org_id)
     except Exception as exc:
-        logger.warning("portfolio data fetch failed: %s", exc)
-        return []
+        _sin_datos_olap("portfolio", exc)
 
 
 def _fetch_narrative(org_id: Optional[str], lang: Optional[str] = None) -> str:
@@ -193,7 +198,8 @@ def _header_block(title: str, subtitle: str, styles: dict) -> list:
         now_str = styles["_cuando"]
     else:
         from app.services.formato_regional import formatear_fecha
-        now_str = formatear_fecha(datetime.now(), styles.get("_idioma"), con_hora=True)
+        from app.services.formato_regional import ahora_local
+        now_str = formatear_fecha(ahora_local(), styles.get("_idioma"), con_hora=True)   # con zona (ronda 2)
     return [
         Paragraph(title, styles["title"]),
         Paragraph(f"{subtitle} · {_t(styles, 'pdf.generado', cuando=now_str)}", styles["subtitle"]),

@@ -42,7 +42,7 @@ def remove_user_from_org(
 ):
     enforce_abac(db, current_user, "organization", org_id, action="delete")
     try:
-        return APIResponse.ok(data=_orgs.remove_user_from_org(org_id, user_id, db))
+        return APIResponse.ok(data=_orgs.remove_user_from_org(org_id, user_id, db, actor=current_user))
     except ValueError as e:
         msg = str(e)
         if msg.startswith("404:"):
@@ -122,7 +122,7 @@ def get_organization(
     try:
         return APIResponse.ok(data=_orgs.get_organization(org_id, db))
     except ValueError:
-        raise HTTPException(404)
+        raise error_http(404, "no_encontrado", que="organizacion")
 
 
 @router.patch("/organizations/{org_id}", summary="Actualizar organización")
@@ -139,7 +139,7 @@ def update_organization(
             raise error_http(422, "suspension_requiere_motivo")
         if str(e) != "not_found":
             raise desde_valor(400, e)
-        raise HTTPException(404)
+        raise error_http(404, "no_encontrado", que="organizacion")
 
 
 @router.post("/organizations/{org_id}/assign-user", summary="Asignar usuario a organización")
@@ -150,7 +150,7 @@ def assign_user_to_org(
     current_user: User = Depends(require_superadmin),
 ):
     try:
-        return APIResponse.ok(data=_orgs.assign_user_to_org(org_id, payload.user_id, db))
+        return APIResponse.ok(data=_orgs.assign_user_to_org(org_id, payload.user_id, db, actor=current_user))
     except ValueError as e:
         msg = str(e)
         if msg.startswith("404:"):
@@ -231,3 +231,13 @@ def impersonate(org_id: str, payload: EntrarComoIn, response: Response, db: Sess
     if _exp:
         poner_fin_de_sesion(response, max(1, int(_exp) - int(_time.time())))
     return APIResponse.ok(data={"ok": True, "user": usuario.email})
+
+
+# Ronda 2 auditoria 2026-11-22 (23-11-2026): el token SCIM propio de la empresa.
+# Antes `generate_scim_token` no tenia llamantes y solo valia el token global.
+@router.post("/organizations/{org_id}/scim-token", summary="Generar el token SCIM de la empresa (se muestra una vez)")
+def generar_token_scim(org_id: str, db: Session = Depends(get_db),
+                       current_user: User = Depends(require_superadmin)):
+    from app.services.scim_service import rotar_token_scim
+    token = rotar_token_scim(db, org_id, getattr(current_user, "id", None))
+    return APIResponse.ok(data={"token": token})

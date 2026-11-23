@@ -15,7 +15,7 @@ import { extractErr, fmtDate } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { skillsApi, usersApi } from '../services/api'
+import { skillsApi } from '../services/api'
 import type { SkillDelCatalogo } from '../services/api/tipos-alm'
 import type { CambioDeNivelDeSkill, MatrizDeSkills, PersonaPorSkills, SkillDePersona } from '../services/api/tipos-personas'
 import { Button, Card, KpiCard, Modal, Section, Spinner, EmptyState, Tabs, IconButton, Select, Pulsable, TablaSimple, Checkbox, useErroresDeCampo, Input } from '../components/ui'
@@ -26,6 +26,7 @@ import { useAuth } from '../context/AuthContext'
 import { useAppT } from '../i18n/AppLangContext'
 import './SkillsPage.css'
 import StatusBadge from '../components/ui/StatusBadge'
+import { useListaDeUsuarios } from '../hooks/useListas'
 
 // ── Estilos compartidos (SkillsPage.css) ─────────────────────────────────────
 const fs = 'ds-input skl-input'
@@ -161,7 +162,7 @@ function UserSkillModal({ user, onClose }: { user: DomainUser; onClose: () => vo
   const { data: userSkills = [] } = useQuery<UserSkill[]>({ queryKey: ['user-skills', user.id], queryFn: () => skillsApi.userSkills(user.id).then(r => r.data) })
   const { data: skillHistory = [] } = useQuery<SkillHistoryEntry[]>({
     queryKey: ['skill-history', user.id],
-    queryFn: () => skillsApi.userHistory(user.id).then(r => r.data).catch((): SkillHistoryEntry[] => []),
+    queryFn: () => skillsApi.userHistory(user.id).then(r => r.data),
     enabled: modalTab === 'history',
   })
 
@@ -277,7 +278,7 @@ function UserSkillModal({ user, onClose }: { user: DomainUser; onClose: () => vo
           <Checkbox className="skl-check" checked={!!form.certified} onChange={v => { campos.limpiar('certified'); setForm(f => ({ ...f, certified: v })) }}
             label={t('skills.tiene_certificacion')} />
           {form.certified && (
-            <input aria-label={t('skills.nombre_de_la_certificacion')} value={form.cert_name} onChange={e => { campos.limpiar('cert_name'); setForm(f => ({ ...f, cert_name: e.target.value })) }} className={`${fs} skl-input--grow`} placeholder={t('skills.nombre_de_la_certificacion')} />
+            <Input aria-label={t('skills.nombre_de_la_certificacion')} value={form.cert_name} onChange={e => { campos.limpiar('cert_name'); setForm(f => ({ ...f, cert_name: e.target.value })) }} inputClassName={`${fs} skl-input--grow`} placeholder={t('skills.nombre_de_la_certificacion')} />
           )}
           {msg('cert_name')}
         </div>
@@ -422,11 +423,8 @@ export default function SkillsPage() {
     enabled: tab === 'catalog',
   })
 
-  const { data: users = [] } = useQuery<DomainUser[]>({
-    queryKey: ['users'],
-    queryFn: () => usersApi.list().then(r => r.data),
-    enabled: tab === 'profiles',
-  })
+  const { data: usersRaw = [] } = useListaDeUsuarios(undefined, { enabled: tab === 'profiles' })
+  const users = usersRaw as unknown as DomainUser[]
 
   const { mutate: createSkill } = useMutation({
     mutationFn: (data: Record<string, unknown>) => skillsApi.createCatalog(data),
@@ -525,7 +523,7 @@ export default function SkillsPage() {
           <Card>
             <Section title={t('skills.anadir_nuevo_skill_al_catalogo')}>
             <div className="skl-catalog__form">
-              <input aria-label={t('skills.nombre_del_skill')} value={newSkill.name} onChange={e => setNewSkill(f => ({ ...f, name: e.target.value }))} className={`${fs} skl-input--grow2`} placeholder={t('skills.nombre_del_skill')} />
+              <Input aria-label={t('skills.nombre_del_skill')} value={newSkill.name} onChange={e => setNewSkill(f => ({ ...f, name: e.target.value }))} inputClassName={`${fs} skl-input--grow2`} placeholder={t('skills.nombre_del_skill')} />
               <Select suelto placeholder={false} aria-label={t('skills.category')} value={newSkill.category} onChange={e => setNewSkill(f => ({ ...f, category: e.target.value }))} className={`${fs} skl-input--grow1`}>
                 {CATEGORIES.map(c => <option key={c} value={c}>{catLabel(c)}</option>)}
               </Select>

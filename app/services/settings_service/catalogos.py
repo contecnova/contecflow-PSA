@@ -8,7 +8,7 @@ from __future__ import annotations
 from typing import Optional
 from sqlalchemy.orm import Session
 from app.models.settings import CustomProjectType, CustomProjectStatus, CustomTaskStatus, Department, Holiday
-from app.core.codigos_de_error import ErrorConCodigo
+from app.core.codigos_de_error import ErrorConCodigo, error as error_con_codigo
 
 
 DEFAULT_PROJECT_TYPES = [

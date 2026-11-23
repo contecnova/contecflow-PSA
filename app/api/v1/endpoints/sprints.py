@@ -8,7 +8,7 @@ from datetime import date, timedelta
 from pydantic import BaseModel
 
 from app.db.session import get_db
-from app.core.deps import get_current_user, require_any_manager
+from app.core.deps import get_current_user, requiere_capacidad
 from app.core.abac_enforce import enforce_abac
 from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
@@ -110,7 +110,7 @@ def create_sprint(
     project_id: str,
     payload: SprintCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("proyectos.responsables")),
 ):
     # Auto-number
     number = svc.get_next_sprint_number(db, project_id)
@@ -134,7 +134,7 @@ def update_sprint(
     sprint_id: str,
     payload: SprintUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("proyectos.responsables")),
 ):
     enforce_abac(db, current_user, "sprint", sprint_id, action="update")
     sprint = svc.get_sprint_simple(db, sprint_id, project_id, current_user)
@@ -156,7 +156,7 @@ def start_sprint(
     project_id: str,
     sprint_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("proyectos.responsables")),
 ):
     enforce_abac(db, current_user, "sprint", sprint_id, action="update")
     sprint = svc.get_sprint_with_tasks(db, sprint_id, project_id, current_user)
@@ -187,7 +187,7 @@ def close_sprint(
     project_id: str,
     sprint_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("proyectos.responsables")),
 ):
     enforce_abac(db, current_user, "sprint", sprint_id, action="update")
     return APIResponse.ok(data=close_sprint_flow(db, project_id, sprint_id))
@@ -199,7 +199,7 @@ def add_tasks_to_sprint(
     sprint_id: str,
     payload: AddTasksToSprint,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("proyectos.responsables")),
 ):
     sprint = svc.get_sprint_simple(db, sprint_id, project_id, current_user)
     if not sprint: raise error_http(404, "no_encontrado", detail="Sprint no encontrado", que="sprint")
@@ -214,11 +214,11 @@ def remove_task_from_sprint(
     sprint_id: str,
     task_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("proyectos.responsables")),
 ):
     enforce_abac(db, current_user, "sprint_task", task_id, action="delete")
     st = svc.get_sprint_task(db, sprint_id, task_id)
-    if not st: raise HTTPException(404)
+    if not st: raise error_http(404, "no_encontrado", que="tarea")
     svc.delete_sprint_task(db, st)
     return APIResponse.ok(data={"ok": True, "message": "Tarea retirada del sprint correctamente"})
 
@@ -230,7 +230,7 @@ def reorder_sprint_backlog(
     payload: ReorderBacklog,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_any_manager),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
+    _rol: User = Depends(requiere_capacidad("proyectos.responsables")),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
     svc.reorder_sprint_backlog(db, sprint_id, payload.task_ids)
     return APIResponse.ok(data={"ok": True})
@@ -244,7 +244,7 @@ def get_burndown(
     current_user: User = Depends(get_current_user),
 ):
     sprint = svc.get_sprint_for_charts(db, sprint_id, project_id, current_user)
-    if not sprint: raise HTTPException(404)
+    if not sprint: raise error_http(404, "no_encontrado", que="sprint")
     return APIResponse.ok(data={"burndown": _compute_burndown(sprint, db)})
 
 
@@ -262,7 +262,7 @@ def get_burnup(
     """
     sprint = svc.get_sprint_for_charts(db, sprint_id, project_id, current_user)
     if not sprint:
-        raise HTTPException(404)
+        raise error_http(404, "no_encontrado", que="sprint")
 
     if not sprint.start_date or not sprint.end_date:
         return APIResponse.ok(data={"burnup": [], "sprint": _sprint_out(sprint)})

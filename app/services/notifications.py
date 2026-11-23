@@ -22,7 +22,9 @@ se queda aparte porque su responsabilidad es otra: el correo saliente.
 """
 import json
 import logging
+import threading
 from typing import Optional
+from sqlalchemy import event
 from sqlalchemy.orm import Session
 from app.models.enterprise import Notification
 from app.models.user import User
@@ -32,18 +34,54 @@ logger = logging.getLogger(__name__)
 _REDIS_URL: Optional[str] = settings.REDIS_URL or ""
 
 
+_redis_cliente = None
+_redis_cerrojo = threading.Lock()
+
+
+def _redis():
+    """Un cliente Redis por proceso (con su pool de conexiones).
+
+    Auditoria 2026-11-22 (03, bajos m-p): antes se abria y cerraba una conexion
+    por cada aviso (un `notify_role` a 200 personas = 200 conexiones)."""
+    global _redis_cliente
+    if _redis_cliente is None:
+        with _redis_cerrojo:
+            if _redis_cliente is None:
+                import redis as sync_redis
+                _redis_cliente = sync_redis.from_url(_REDIS_URL, decode_responses=True)
+    return _redis_cliente
+
+
 def _push_ws_notification(user_id: str, payload: dict) -> None:
     """Fire-and-forget: publish notification to Redis WS channel if available."""
     if not _REDIS_URL:
         return
     try:
-        import redis as sync_redis
-        r = sync_redis.from_url(_REDIS_URL, decode_responses=True)
         from app.services.ws_manager import canal_de_usuario
-        r.publish(canal_de_usuario(user_id), json.dumps(payload))
-        r.close()
+        _redis().publish(canal_de_usuario(user_id), json.dumps(payload))
     except Exception as exc:
         logger.debug(f"WS Redis push failed (non-critical): {exc}")
+
+
+_PENDIENTES = "_avisos_ws_pendientes"
+
+
+def _empujar_al_confirmar(db: Session, user_id: str, payload: dict) -> None:
+    """Auditoria 2026-11-22 (03, bajos m-p): el empujon por WebSocket sale
+    cuando la transaccion se confirma. Antes salia al hacer `db.add`, y si la
+    peticion fallaba despues el usuario veia un aviso que no existia."""
+    db.info.setdefault(_PENDIENTES, []).append((user_id, payload))
+
+
+@event.listens_for(Session, "after_commit")
+def _tras_confirmar(sesion) -> None:
+    for user_id, payload in sesion.info.pop(_PENDIENTES, None) or ():
+        _push_ws_notification(user_id, payload)
+
+
+@event.listens_for(Session, "after_rollback")
+def _tras_deshacer(sesion) -> None:
+    sesion.info.pop(_PENDIENTES, None)
 
 
 async def publish_user_notification(user_id: str, payload: dict) -> None:
@@ -64,6 +102,8 @@ NOTIFICATION_ICONS = {
     "sprint_ending":     ("🏁", "#ffb800"),
     "expense_approved":  ("✅", "#00e5a0"),
     "expense_rejected":  ("❌", "#ff4757"),
+    "milestone_approved": ("✅", "#00e5a0"),
+    "milestone_rejected": ("❌", "#ff4757"),
     "ticket_assigned":   ("🎫", "#00d4ff"),
     "ticket_replied":    ("💬", "#7c3aed"),
     "ticket_resolved":   ("✓",  "#00e5a0"),
@@ -122,9 +162,9 @@ def notify_user(
         action_url=action_url,
     )
     db.add(n)
-    # Push to WS immediately via Redis (cross-worker) if available.
+    # Push to WS via Redis (cross-worker) once the row is committed.
     # This is best-effort — the WS polling loop is the guaranteed fallback.
-    _push_ws_notification(user_id, {
+    _empujar_al_confirmar(db, user_id, {
         "type": "notification_push",
         "ntype": ntype,
         "title": title,

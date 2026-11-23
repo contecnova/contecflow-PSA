@@ -175,9 +175,23 @@ def descanso(db: Session, user_id: str, fecha: date, franja: Optional[tr.Tramo],
         return None
     candidatos = []
     _, fin_prev = _fin_y_inicio(dias.get(fecha - timedelta(days=1)))
+    ini_sig, _ = _fin_y_inicio(dias.get(fecha + timedelta(days=1)))
+    # M24 (auditoría 22-11-2026): el descanso se mide contra lo que de verdad se
+    # trabaja: las horas extra aprobadas o pendientes del día anterior y del
+    # siguiente amplían su jornada (antes solo el horario teórico, y una tarde
+    # larga de ayer no recortaba el descanso de hoy).
+    for p in db.query(PeticionDeHorasExtra).filter(
+            PeticionDeHorasExtra.user_id == user_id, PeticionDeHorasExtra.estado.in_(VIVOS),
+            PeticionDeHorasExtra.fecha.in_((fecha - timedelta(days=1), fecha + timedelta(days=1)))).all():
+        f = franja_de(p)
+        if f is None:
+            continue
+        if p.fecha < fecha:
+            fin_prev = f.fin if fin_prev is None else max(fin_prev, f.fin)
+        else:
+            ini_sig = f.inicio if ini_sig is None else min(ini_sig, f.inicio)
     if fin_prev is not None:
         candidatos.append(ini - (fin_prev - tr.DIA))
-    ini_sig, _ = _fin_y_inicio(dias.get(fecha + timedelta(days=1)))
     if ini_sig is not None:
         candidatos.append(ini_sig + tr.DIA - fin)
     return round(min(candidatos) / 60, 2) if candidatos else None

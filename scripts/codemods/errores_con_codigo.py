@@ -73,6 +73,17 @@ def cargar() -> dict:
 
 # ── sincronizar ──────────────────────────────────────────────────────────────
 
+def _escribir_conservando_saltos(ruta, texto: str) -> None:
+    """Escribe `texto` con los saltos de línea que ya tenía el fichero (23-11-2026).
+
+    `read_text` normaliza a `\\n` y `write_text` en Windows escribe CRLF: cada
+    sincronización convertía a CRLF ficheros que en git son LF (y al revés).
+    """
+    crlf = b"\r\n" in ruta.read_bytes()
+    with open(ruta, "w", encoding="utf-8", newline="\r\n" if crlf else "\n") as f:
+        f.write(texto.replace("\r\n", "\n"))
+
+
 def _bloque(texto: str, marca: str, lineas: list[str], sangria: str) -> str:
     ini = re.search(rf"^[ \t]*(?://|#) >>> {marca}\b.*$", texto, re.M)
     fin = re.search(rf"^[ \t]*(?://|#) <<< {marca}\s*$", texto, re.M)
@@ -112,14 +123,14 @@ def sincronizar() -> None:
     py = _bloque(py, "que",
                  [f"{json.dumps(c)}: {json.dumps(t['es'], ensure_ascii=False)}," for c, t in sorted(src["que"].items())],
                  "    ")
-    CATALOGO.write_text(py, encoding="utf-8")
+    _escribir_conservando_saltos(CATALOGO, py)
     py_compile.compile(str(CATALOGO), doraise=True)
     for lang in IDIOMAS:
         f = LANGS / f"{lang}.mjs"
         texto = _asegurar_marcas_mjs(f.read_text(encoding="utf-8"))
         lineas = [f"{c}: {json.dumps(t[lang], ensure_ascii=False)}," for c, t in sorted(src["codigos"].items())]
         lineas += [f"que_{c}: {json.dumps(t[lang], ensure_ascii=False)}," for c, t in sorted(src["que"].items())]
-        f.write_text(_bloque(texto, "errores_con_codigo", lineas, "    "), encoding="utf-8")
+        _escribir_conservando_saltos(f, _bloque(texto, "errores_con_codigo", lineas, "    "))
     print(f"sincronizado: {len(src['codigos'])} codigos, {len(src['que'])} entidades")
 
 

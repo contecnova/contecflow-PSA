@@ -25,8 +25,8 @@ from app.core.codigos_de_error import error_http, ErrorConCodigo, desde_valor
 
 logger = logging.getLogger("contecflow.v14")
 
-from app.db.session import get_db
-from app.core.deps import get_current_user, require_admin, require_any_manager
+from app.db.session import get_db, sesion_de_sistema
+from app.core.deps import get_current_user, requiere_capacidad
 from app.core.ratelimit import limiter
 from app.core.paginacion import Paginacion, lista_paginada, paginacion
 from app.core.responses import APIListResponse, APIResponse
@@ -46,7 +46,7 @@ def cab_pending_changes(
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=MAX_TAMANO_DE_PAGINA),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("cab.gestionar")),
 ):
     """All change requests that need CAB review."""
     items = _svc.get_cab_pending_changes(db, current_user.id)
@@ -65,7 +65,7 @@ def cast_cab_vote(
     payload: CABVoteCreate,
     request: Request,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("cab.gestionar")),
 ):
     try:
         return APIResponse.ok(data=_svc.cast_cab_vote(cr_id, payload.vote, payload.comment, current_user, db))
@@ -80,7 +80,7 @@ def close_cab_vote(
     payload: dict = Body(...),
     request: Request = None,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("cab.administrar")),
 ):
     try:
         return APIResponse.ok(data=_svc.close_cab_vote(cr_id, payload.get("decision"), payload.get("reason"), current_user, db))
@@ -116,7 +116,7 @@ def create_maintenance_window(
     payload: WindowCreate,
     request: Request,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("cab.administrar")),
 ):
     return APIResponse.ok(data=_svc.create_maintenance_window(payload, current_user.id, db))
 
@@ -128,7 +128,7 @@ def schedule_cr_in_window(
     payload: dict = Body(...),
     request: Request = None,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("cab.gestionar")),
 ):
     window_id = payload.get("window_id")
     if not window_id:
@@ -157,7 +157,7 @@ def list_webhook_triggers(
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=MAX_TAMANO_DE_PAGINA),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("cab.gestionar")),
 ):
     items = _svc.list_webhook_triggers(db)
     return APIListResponse.ok(items=items, page=page, page_size=page_size)
@@ -167,7 +167,7 @@ def list_webhook_triggers(
 def create_webhook_trigger(
     payload: WebhookTriggerCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("cab.administrar")),
 ):
     try:
         return APIResponse.ok(data=_svc.create_webhook_trigger(payload, current_user.id, db))
@@ -189,7 +189,7 @@ async def fire_webhook(
     slug: str,
     request: Request,
     background_tasks: BackgroundTasks,
-    db: Session = Depends(get_db),
+    db: Session = Depends(sesion_de_sistema("webhook entrante: slug + firma HMAC")),
 ):
     """
     External systems POST here to trigger automations.
@@ -214,16 +214,21 @@ async def fire_webhook(
     import hmac as _hmac
     import hashlib as _hashlib
     signature_header = request.headers.get("X-Contecflow-Signature")
-    if not trigger.secret:
-        # Trigger without a secret must not be callable — reject silently to avoid enumeration
+    # 23-11-2026: el secreto se guarda cifrado (`decrypt_value` devuelve tal cual
+    # los antiguos en claro). Sin secreto o sin firma, el MISMO 401 (01 B8:
+    # respuestas distintas permitían enumerar slugs).
+    from app.core.encryption import decrypt_value
+    secreto = decrypt_value(trigger.secret) if trigger.secret else None
+    if not secreto or not signature_header:
         raise error_http(401, "webhook_no_autorizado", detail="Webhook trigger no autorizado")
-    if not signature_header:
-        raise error_http(401, "cab_firma_requerida", detail="Se requiere cabecera X-Contecflow-Signature")
     expected = "sha256=" + _hmac.new(
-        trigger.secret.encode(), body, _hashlib.sha256
+        secreto.encode(), body, _hashlib.sha256
     ).hexdigest()
     if not _hmac.compare_digest(signature_header, expected):
         raise error_http(401, "firma_no_valida", detail="Firma HMAC inválida")
+    # Auditoría 22-11-2026 (M8): la firma ya dice la empresa; desde aquí filtra.
+    from app.db.session import publicar_empresa
+    await run_db(publicar_empresa, db, trigger.organization_id)
 
     # Log the call and update fire stats (DB op → threadpool)
     # Revisión 2026-11: sin credenciales en el log (antes se guardaban todas las
@@ -247,7 +252,7 @@ def _execute_workflow_from_webhook(workflow_id: str, context: dict, organization
 def webhook_logs(
     trigger_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("cab.gestionar")),
 ):
     return APIListResponse.ok(items=_svc.get_webhook_logs(trigger_id, db))
 
@@ -257,7 +262,7 @@ def rotate_webhook_trigger_slug(
     trigger_id: str,
     expires_in_days: Optional[int] = None,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("cab.administrar")),
 ):
     """Regenerates the slug immediately, invalidating the previous URL.
 
@@ -279,7 +284,7 @@ def rotate_webhook_trigger_slug(
 def delete_webhook_trigger(
     trigger_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("cab.administrar")),
 ):
     enforce_abac(db, current_user, "cab_webhook", trigger_id, action="delete")
     try:
@@ -298,7 +303,7 @@ SYSTEM_EMAIL_TEMPLATES = _svc.SYSTEM_EMAIL_TEMPLATES
 @router.get("/email/templates", summary="Listar plantillas de email")
 def list_email_templates(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("cab.gestionar")),
 ):
     return APIResponse.ok(data=_svc.list_email_templates(db))
 
@@ -316,7 +321,7 @@ class EmailTemplateCreate(BaseModel):
 def create_email_template(
     payload: EmailTemplateCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("cab.gestionar")),
 ):
     return APIResponse.ok(data=_svc.create_email_template(payload, current_user.id, db))
 
@@ -336,7 +341,7 @@ class SendEmailPayload(BaseModel):
 def send_email(
     payload: SendEmailPayload,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("cab.gestionar")),
 ):
     return APIResponse.ok(data=_svc.send_email_action(payload, db))
 
@@ -346,7 +351,7 @@ def email_logs(
     limit: int = Query(50, le=MAX_TAMANO_DE_PAGINA),
     status: Optional[str] = None,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("cab.administrar")),
 ):
     return APIListResponse.ok(items=_svc.get_email_logs(limit, status, db))
 
@@ -360,7 +365,7 @@ def list_gdpr_requests(
     response: Response,
     pagina: Paginacion = Depends(paginacion),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("cab.administrar")),
 ):
     # Segunda auditoria 2026-11: `page`/`page_size` se aceptaban y se ignoraban.
     return lista_paginada(response, _svc.list_gdpr_requests(db, pagina, current_user.organization_id))
@@ -391,7 +396,7 @@ def create_gdpr_request(
     payload: GDPRRequestCreate,
     request: Request,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("cab.administrar")),
 ):
     return APIResponse.ok(data=_svc.create_gdpr_request(payload, current_user, db))
 
@@ -402,7 +407,7 @@ def process_gdpr_request(
     request_id: str,
     request: Request,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("cab.administrar")),
 ):
     """Ejecuta la solicitud: supresión, copia de datos (acceso/portabilidad) o constancia de rectificación."""
     return APIResponse.ok(data=_svc.process_gdpr_request(request_id, current_user, db))
@@ -415,7 +420,7 @@ def reject_gdpr_request(
     payload: GDPRRejectIn,
     request: Request,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("cab.administrar")),
 ):
     return APIResponse.ok(data=_svc.reject_gdpr_request(request_id, payload.reason, current_user, db))
 
@@ -424,7 +429,7 @@ def reject_gdpr_request(
 def export_gdpr_request(
     request_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("cab.administrar")),
 ):
     from fastapi.responses import Response as _Respuesta
     datos = _svc.export_of_gdpr_request(request_id, current_user, db)
@@ -514,7 +519,7 @@ def complete_onboarding_step(
     payload: dict = Body(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_admin),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
+    _rol: User = Depends(requiere_capacidad("cab.administrar")),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
     try:
         return APIResponse.ok(data=_svc.complete_onboarding_step(payload.get("step_id"), current_user, db))
@@ -537,7 +542,7 @@ def dismiss_onboarding(
 @router.get("/oauth-integrations", summary="Listar integraciones configuradas")
 def list_integrations(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("cab.administrar")),
 ):
     return APIListResponse.ok(items=_svc.list_integrations(db))
 
@@ -554,7 +559,7 @@ class IntegrationCreate(BaseModel):
 def create_integration(
     payload: IntegrationCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("cab.administrar")),
 ):
     return APIResponse.ok(data=_svc.create_integration(payload, current_user.id, db,
                                                        organization_id=current_user.organization_id))
@@ -564,7 +569,7 @@ def create_integration(
 def delete_integration(
     integration_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("cab.administrar")),
 ):
     """Auditoria 2026-08 (hallazgo 37): esta ruta **no existia**.
 
@@ -580,7 +585,7 @@ def sync_integration(
     integration_id: str,
     payload: dict = Body(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("cab.administrar")),
 ):
     try:
         return APIResponse.ok(data=_svc.run_integration_sync(integration_id, payload, db))
@@ -617,7 +622,7 @@ def get_commit_links(
 def get_risk_scores(
     refresh: bool = Query(False),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("cab.gestionar")),
 ):
     return APIResponse.ok(data=_svc.get_risk_scores(refresh, db))
 
@@ -626,7 +631,7 @@ def get_risk_scores(
 def get_project_risk_score(
     project_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("cab.gestionar")),
 ):
     try:
         return APIResponse.ok(data=_svc.get_project_risk_score(project_id, db))

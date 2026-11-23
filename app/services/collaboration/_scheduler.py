@@ -37,6 +37,8 @@ async def _tick():
     from app.services.collaboration.messages import _notify_recipients, _serialize_message
 
     db = SessionLocal()
+    from app.db.contexto_de_tenant import declarar_sistema as _declarar_sistema
+    _declarar_sistema(db, "colaboración: mensajes programados de todas las empresas")  # auditoría 22-11-2026: TENANT_SESION_SIN_CONTEXTO=cerrar
     try:
         now = datetime.now(timezone.utc)
         # SQLite guarda datetime sin tz; Postgres con tz. Usamos un margen
@@ -114,6 +116,8 @@ def _maybe_run_daily_tasks() -> None:
         logger.warning("signed-token purge failed: %s", exc)
     from app.db.session import SessionLocal as _SessionLocal
     db = _SessionLocal()
+    from app.db.contexto_de_tenant import declarar_sistema as _declarar_sistema
+    _declarar_sistema(db, "colaboración: purga de suscripciones push")  # auditoría 22-11-2026: TENANT_SESION_SIN_CONTEXTO=cerrar
     try:
         from app.services.collaboration._push import purge_stale_subscriptions
         n = purge_stale_subscriptions(db, days=30)
@@ -131,6 +135,8 @@ def _tick_workflow_engine() -> None:
         from app.db.session import SessionLocal as _SessionLocal
         from app.services.service_desk import workflow_engine as _engine
         db = _SessionLocal()
+        from app.db.contexto_de_tenant import declarar_sistema as _declarar_sistema
+        _declarar_sistema(db, "motor de flujos: temporizadores de todas las empresas")  # auditoría 22-11-2026: TENANT_SESION_SIN_CONTEXTO=cerrar
         try:
             n = _engine.tick_waiting(db)
             if n:

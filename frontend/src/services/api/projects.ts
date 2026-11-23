@@ -66,6 +66,7 @@ export interface ProjectDetail {
   billing_rate: number | null
   budget_hours: number | null
   budget_amount: number | null
+  contract_amount: number | null
   start_date: string | null
   end_date_planned: string | null
   tags: string | null
@@ -132,6 +133,7 @@ export interface ProjectCreatePayload {
   billing_rate?: number | null
   budget_hours?: number | null
   budget_amount?: number | null
+  contract_amount?: number | null
   start_date?: string | null
   end_date_planned?: string | null
   tags?: string | null
@@ -158,6 +160,7 @@ export interface ProjectUpdatePayload {
   department?: string | null
   budget_hours?: number | null
   budget_amount?: number | null
+  contract_amount?: number | null
   billing_rate?: number | null
   start_date?: string | null
   end_date_planned?: string | null

@@ -11,7 +11,7 @@
  */
 export const CAPACIDADES = [
   'plataforma.empresas', 'org.administrar',
-  'colaboracion.ver', 'tareas.editar', 'tareas.crear', 'tareas.gestionar', 'partes.equipo',
+  'colaboracion.ver', 'tareas.editar', 'tareas.crear', 'tareas.gestionar', 'tareas.usar','partes.equipo',
   'gastos.ver', 'gastos.gestionar', 'procesos.bandeja',
   'proyectos.ver', 'proyectos.trabajo', 'proyectos.panel', 'proyectos.gestionar', 'proyectos.lineas_base',
   'proyectos.gobierno', 'cambios.gestionar', 'cartera.gestionar', 'bpm.editar',
@@ -43,6 +43,32 @@ export const CAPACIDADES = [
   'demanda.ver', 'demanda.gestionar', 'demanda.config',
   // Clientes internos (22-11-2026): portal de la unidad (internos), gestión (admin, PM) y cargos/servicios compartidos (admin).
   'interno.portal', 'interno.gestionar', 'interno.cargos',
+  // Seguridad de cuentas (23-11-2026): administrar políticas (admin) y recertificar accesos (responsables).
+  'seguridad.administrar', 'seguridad.recertificar',
+  // >>> guardas_a_capacidades (generado: scripts/codemods/guardas_a_capacidades.py --aplicar)
+  // Auditoría 22-11-2026 (M9): capacidades de las guardas de la API que eran de rol.
+  'alertas.administrar', 'alertas.gestionar', 'alertas.usar', 'alm.administrar', 'analitica.gestionar',
+  'analitica.responsables', 'analitica.usar', 'aprobaciones.administrar', 'aprobaciones.gestionar',
+  'ausencias.administrar', 'ausencias.responsables', 'ausencias.trabajar', 'ausencias.usar',
+  'automatizacion.administrar', 'automatizacion.gestionar', 'bi.administrar', 'bi.gestionar', 'bi.usar',
+  'bpm.gestionar', 'bpm.usar', 'cab.administrar', 'cab.gestionar', 'cambios.responsables', 'cartera.usar',
+  'clientes.dirigir', 'clientes.gestionar', 'cmdb.administrar', 'cmdb.gestionar', 'cmdb.usar', 'colaboracion.administrar',
+  'colaboracion.gestionar', 'colaboracion.trabajar', 'colaboracion.usar', 'comercial.administrar',
+  'comercial.gestionar', 'comercial.usar', 'competencias.usar', 'contratos.administrar', 'contratos.gestionar',
+  'divisas.administrar', 'divisas.gestionar', 'divisas.usar', 'empresa.administrar', 'empresa.gestionar',
+  'evaluaciones.responsables', 'exportar.gestionar', 'exportar.usar', 'facturacion.gestionar',
+  'facturacion.usar', 'finanzas.gestionar', 'finanzas.responsables', 'firma.administrar',
+  'formacion.responsables', 'formacion.usar', 'gastos.dirigir', 'gastos.responsables', 'gastos.trabajar',
+  'gastos.usar', 'gobierno.administrar', 'gobierno.gestionar', 'gobierno.usar', 'horas_extra.trabajar',
+  'ia.administrar', 'ia.gestionar', 'ia.rrhh', 'ia.usar', 'informes.gestionar', 'informes.usar',
+  'integraciones.administrar', 'integraciones.gestionar', 'integraciones.responsables', 'integraciones.usar',
+  'observabilidad.administrar', 'okr.gestionar', 'okr.usar', 'org.rrhh', 'panel.administrar',
+  'panel.gestionar', 'partes.gestionar', 'personas.administrar', 'personas.gestionar', 'personas.rrhh',
+  'personas.usar', 'presupuestos.gestionar', 'proyectos.administrar', 'proyectos.dirigir',
+  'proyectos.responsables', 'proyectos.usar', 'recursos.gestionar', 'recursos.usar', 'reservas.administrar',
+  'reservas.gestionar', 'reservas.usar', 'sd.trabajar', 'soc.administrar', 'software.administrar',
+  'tareas.dirigir', 'tareas.trabajar', 'traduccion.administrar', 'traduccion.usar',
+  // <<< guardas_a_capacidades
 ] as const
 
 export type Capacidad = typeof CAPACIDADES[number]

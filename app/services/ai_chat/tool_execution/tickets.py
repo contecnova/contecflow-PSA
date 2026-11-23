@@ -4,6 +4,7 @@ from __future__ import annotations
 from app.models.service_desk._enums import ESTADOS_DE_TICKET_EN_CURSO
 from app.models.service_desk import Ticket
 from app.services.ai_chat.tool_execution.politica import buscar_persona
+from app.services.ai_chat.tool_execution.textos import mensaje as _msg
 
 
 def _get_open_tickets(tool_input, db, user, now, is_financial_role):
@@ -51,8 +52,8 @@ def _reassign_tickets(tool_input, db, user, now, is_financial_role):
     from app.services.service_desk.scoping import scope_ticket_query
     from_user = buscar_persona(db, user, tool_input["from_user_name"])
     to_user   = buscar_persona(db, user, tool_input["to_user_name"])
-    if not from_user: return {"error": f"Usuario no encontrado: {tool_input['from_user_name']}"}
-    if not to_user:   return {"error": f"Usuario no encontrado: {tool_input['to_user_name']}"}
+    if not from_user: return {"error": _msg(db, user, "usuario_no_encontrado", nombre=tool_input['from_user_name'])}
+    if not to_user:   return {"error": _msg(db, user, "usuario_no_encontrado", nombre=tool_input['to_user_name'])}
     tickets = scope_ticket_query(db.query(Ticket), db, user).filter(
         Ticket.assigned_to_user_id == from_user.id, Ticket.status.in_(ESTADOS_DE_TICKET_EN_CURSO)
     ).all()

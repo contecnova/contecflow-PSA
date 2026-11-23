@@ -5,12 +5,11 @@ from typing import Optional
 from app.db.session import get_db
 from app.core.deps import (
     get_current_user,
-    require_admin,
-    require_any_manager,
-    require_internal_user,
+    requiere_capacidad,
 )
 from app.core.abac_enforce import enforce_abac
 from app.models.user import User
+from app.models.pipeline import ETAPAS_ABIERTAS, ETAPAS_CERRADAS
 from app.services import pipeline_service
 from app.services.pipeline_service import STAGE_LABELS, serialize_opportunity as _opp_out
 from app.services import proposal_service as proposal_svc
@@ -21,7 +20,7 @@ from app.core.codigos_de_error import error_http
 
 router = APIRouter()
 
-STAGE_ORDER = ["lead", "qualification", "proposal", "negotiation", "won", "lost", "cancelled"]
+STAGE_ORDER = [*ETAPAS_ABIERTAS, *ETAPAS_CERRADAS]
 
 
 @router.get("", summary="Listar oportunidades")
@@ -30,7 +29,7 @@ def list_opportunities(
     owner_id: Optional[str] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_any_manager),  # segunda auditoria 2026-11: lectura financiera, como sus hermanas (la matriz GRC `pipeline/ver` ya cuelga del router)
+    _rol: User = Depends(requiere_capacidad("comercial.gestionar")),  # segunda auditoria 2026-11: lectura financiera, como sus hermanas (la matriz GRC `pipeline/ver` ya cuelga del router)
 ):
     opps = pipeline_service.get_opportunities(db, current_user, stage=stage, owner_id=owner_id)
     items = [_opp_out(o) for o in opps]
@@ -41,7 +40,7 @@ def list_opportunities(
 def get_pipeline(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_any_manager),  # segunda auditoria 2026-11: lectura financiera, como sus hermanas (la matriz GRC `pipeline/ver` ya cuelga del router)
+    _rol: User = Depends(requiere_capacidad("comercial.gestionar")),  # segunda auditoria 2026-11: lectura financiera, como sus hermanas (la matriz GRC `pipeline/ver` ya cuelga del router)
 ):
     opps = pipeline_service.get_pipeline_opps(db, current_user)
     stages = {}
@@ -54,15 +53,24 @@ def get_pipeline(
             "total_revenue": sum(o["expected_revenue"] or 0 for o in stage_opps),
             "weighted_revenue": sum(o["weighted_revenue"] for o in stage_opps),
         }
-    total_pipeline = sum(o["weighted_revenue"] for o in [_opp_out(op) for op in opps] if o["stage"] not in ["won", "lost", "cancelled"])
+    # Auditoria 04b M9: los totales salen de `resumir_pipeline` (regla unica:
+    # pipeline abierto sin ganadas/perdidas/canceladas; win rate sin canceladas,
+    # que se dan aparte). Se conservan las claves de antes y se anaden las nuevas.
+    r = pipeline_service.resumir_pipeline(opps)
     return APIResponse.ok(data={
         "stages": stages,
         "summary": {
             "total_opportunities": len(opps),
-            "open_opportunities": sum(1 for o in opps if o.stage not in ["won", "lost", "cancelled"]),
-            "total_pipeline_weighted": round(total_pipeline, 0),
-            "won_ytd": sum((o.expected_revenue or 0) for o in opps if o.stage == "won"),
-            "win_rate": round(sum(1 for o in opps if o.stage == "won") / max(sum(1 for o in opps if o.stage in ["won", "lost"]), 1) * 100, 1),
+            "open_opportunities": r["open_count"],
+            "total_pipeline_weighted": round(r["weighted_value"], 0),
+            "open_pipeline_value": round(r["open_value"], 0),
+            "won_ytd": r["won_value"],
+            "won_count": r["won_count"],
+            "lost_count": r["lost_count"],
+            "lost_value": r["lost_value"],
+            "cancelled_count": r["cancelled_count"],
+            "cancelled_value": r["cancelled_value"],
+            "win_rate": r["win_rate"],
         }
     })
 
@@ -72,7 +80,7 @@ def create_opportunity(
     payload: OpportunityIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_any_manager),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
+    _rol: User = Depends(requiere_capacidad("comercial.gestionar")),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
     opp = pipeline_service.create_opportunity(db, current_user, payload.model_dump())
     return APIResponse.ok(data=_opp_out(opp))
@@ -83,7 +91,7 @@ def update_opportunity(
     opp_id: str,
     payload: OpportunityUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("comercial.gestionar")),
 ):
     new_stage = payload.stage if "stage" in payload.model_fields_set else None
     opp = pipeline_service.update_opportunity(
@@ -99,7 +107,7 @@ def update_opportunity(
 def delete_opportunity(
     opp_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("comercial.gestionar")),
 ):
     enforce_abac(db, current_user, "opportunity", opp_id, action="delete")
     return APIResponse.ok(data=pipeline_service.delete_opportunity(db, current_user, opp_id))
@@ -110,9 +118,9 @@ def get_activities(
     opp_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_any_manager),  # segunda auditoria 2026-11: lectura financiera, como sus hermanas (la matriz GRC `pipeline/ver` ya cuelga del router)
+    _rol: User = Depends(requiere_capacidad("comercial.gestionar")),  # segunda auditoria 2026-11: lectura financiera, como sus hermanas (la matriz GRC `pipeline/ver` ya cuelga del router)
 ):
-    acts = pipeline_service.list_activities(db, opp_id)
+    acts = pipeline_service.list_activities(db, opp_id, current_user)
     items = [{
         "id": a.id, "type": a.type, "content": a.content,
         "user_name": a.user.full_name if a.user else "Sistema",
@@ -127,7 +135,7 @@ def add_activity(
     payload: ActivityIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_any_manager),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
+    _rol: User = Depends(requiere_capacidad("comercial.gestionar")),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
     act = pipeline_service.add_activity(db, current_user, opp_id, payload.type, payload.content)
     return APIResponse.ok(data={"id": act.id, "message": "Actividad añadida"})
@@ -136,7 +144,7 @@ def add_activity(
 def convert_opportunity_to_project(
     opp_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("comercial.gestionar")),
 ):
     """Crea un proyecto a partir de los datos de la oportunidad y vincula ambos.
     También crea automáticamente un RevenueContract ASC 606 si el módulo está disponible.
@@ -152,7 +160,7 @@ def generate_proposal(
     payload: dict = Body(default={}),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_any_manager),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
+    _rol: User = Depends(requiere_capacidad("comercial.gestionar")),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
     opp = proposal_svc.generate_proposal(
         db, opp_id,
@@ -174,7 +182,7 @@ def mark_proposal_sent(
     opp_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
+    _rol: User = Depends(requiere_capacidad("comercial.usar")),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
 ):
     opp = proposal_svc.mark_proposal_sent(db, opp_id)
     return APIResponse.ok(data={
@@ -190,7 +198,7 @@ def get_proposal(
     opp_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_any_manager),  # segunda auditoria 2026-11: lectura financiera, como sus hermanas (la matriz GRC `pipeline/ver` ya cuelga del router)
+    _rol: User = Depends(requiere_capacidad("comercial.gestionar")),  # segunda auditoria 2026-11: lectura financiera, como sus hermanas (la matriz GRC `pipeline/ver` ya cuelga del router)
 ):
     opp = proposal_svc.get_opportunity_by_id(db, opp_id)
     return APIResponse.ok(data={
@@ -218,7 +226,7 @@ def list_templates(
 def create_template(
     payload: dict = Body(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("comercial.gestionar")),
 ):
     t = proposal_svc.create_template(db, current_user.organization_id, current_user.id, payload)
     return APIResponse.ok(data=proposal_svc.serialize_template(t))
@@ -229,7 +237,7 @@ def update_template(
     template_id: str,
     payload: dict = Body(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("comercial.gestionar")),
 ):
     t = proposal_svc.update_template(db, template_id, payload)
     return APIResponse.ok(data=proposal_svc.serialize_template(t))
@@ -239,7 +247,7 @@ def update_template(
 def delete_template(
     template_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("comercial.gestionar")),
 ):
     enforce_abac(db, current_user, "proposal_template", template_id, action="delete")
     proposal_svc.delete_template(db, template_id)
@@ -253,7 +261,7 @@ def get_weighted_forecast(
     months: int = 6,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_any_manager),  # segunda auditoria 2026-11: lectura financiera, como sus hermanas (la matriz GRC `pipeline/ver` ya cuelga del router)
+    _rol: User = Depends(requiere_capacidad("comercial.gestionar")),  # segunda auditoria 2026-11: lectura financiera, como sus hermanas (la matriz GRC `pipeline/ver` ya cuelga del router)
 ):
     """
     Returns expected revenue weighted by win probability, aggregated by expected close month.
@@ -338,7 +346,7 @@ def list_stage_configs(
 def create_stage_config(
     payload: StageConfigIn,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("comercial.administrar")),
 ):
     try:
         stage = pipeline_service.create_stage_config(db, payload.model_dump())
@@ -357,7 +365,7 @@ def update_stage_config(
     stage_id: str,
     payload: StageConfigIn,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("comercial.administrar")),
 ):
     stage = pipeline_service.update_stage_config(db, stage_id, payload.model_dump(exclude_unset=True))
     return APIResponse.ok(data={"ok": True, "id": stage.id})
@@ -369,7 +377,7 @@ def update_stage_config(
 def delete_stage_config(
     stage_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("comercial.administrar")),
 ):
     enforce_abac(db, current_user, "pipeline_stage_config", stage_id, action="delete")
     pipeline_service.delete_stage_config(db, stage_id)
@@ -403,7 +411,7 @@ def delete_stage_config(
 def get_opportunity(
     opp_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("comercial.gestionar")),
 ):
     """Detalle de una oportunidad. Ver la nota de arriba sobre el orden."""
     opp = pipeline_service.oportunidad_propia(db, current_user, opp_id)

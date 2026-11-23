@@ -22,6 +22,8 @@ from sqlalchemy import select
 import logging
 from typing import Optional
 
+from decimal import ROUND_HALF_UP, Decimal
+
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -29,16 +31,19 @@ from app.models.expenses import Expense, ExpenseAllocation, ExpenseAttachment, E
 from app.core.errores import ErrorDeDominio
 from app.core.codigos_de_error import error
 
-CATEGORY_LABELS = {
-    "travel": "Viajes y transporte",
-    "accommodation": "Alojamiento",
-    "meals": "Dietas y comidas",
-    "software": "Software y licencias",
-    "hardware": "Hardware y equipamiento",
-    "training": "Formación",
-    "subcontract": "Subcontratación",
-    "other": "Otros",
-}
+_CATEGORIAS_DE_SERIE = ("travel", "accommodation", "meals", "software", "hardware", "training",
+                        "marketing", "office", "subcontract", "other")
+
+
+def etiqueta_de_categoria(categoria, idioma=None) -> str:
+    """Nombre de la categoria de serie en `idioma` (23-11-2026: unica fuente; antes habia
+    dos diccionarios en castellano, aqui y en `expense_service`)."""
+    from app.services.textos_de_salida import texto
+    return texto(f"gasto.categoria.{categoria}", idioma) if categoria in _CATEGORIAS_DE_SERIE else (categoria or "")
+
+
+#: Por compatibilidad: etiquetas en el idioma de respaldo (castellano).
+CATEGORY_LABELS = {c: etiqueta_de_categoria(c) for c in _CATEGORIAS_DE_SERIE}
 
 
 def _aj(db: Session, clave: str, org, tipo: str = "float"):
@@ -87,10 +92,24 @@ def aplicar_kilometraje(db: Session, expense: Expense) -> None:
             if tipo is None:
                 raise error(422, "tarifa_km_sin_tipo_de_cambio", nombre=fila['tabla'], moneda=desde, desde=desde, hasta=hacia, fecha=expense.expense_date.isoformat())
             tarifa *= tipo
-    expense.amount = round(float(expense.km) * tarifa, 2)
+    expense.amount = float(_cent(Decimal(str(expense.km)) * Decimal(str(tarifa))))   # M3: céntimo exacto
 
 
 # ── Justificantes ─────────────────────────────────────────────────────────────
+
+#: A33 (auditoría 22-11-2026): estados en los que un justificante ya es soporte
+#: de un gasto aprobado o pagado: nadie (tampoco el gestor) lo sube, cambia ni
+#: borra. Es el estándar de las herramientas de gastos (el justificante de un
+#: gasto aprobado es documento contable y fiscal con plazo legal de
+#: conservación); para corregirlo se rechaza o se anula el gasto. Además, el
+#: bloqueo legal general (`app/db/bloqueo_legal.py`, tipo `expense_attachments`)
+#: impide borrarlo mientras haya un bloqueo activo.
+ESTADOS_CON_JUSTIFICANTE_FIRME = (ExpenseStatus.approved, ExpenseStatus.reimbursed)
+
+
+def _justificantes_editables(e: Expense) -> None:
+    if e.status in ESTADOS_CON_JUSTIFICANTE_FIRME:
+        raise error(409, "justificante_de_gasto_aprobado")
 
 def _adjunto_dict(a: ExpenseAttachment) -> dict:
     return {"id": a.id, "filename": a.filename, "content_type": a.content_type, "size_bytes": a.size_bytes,
@@ -118,6 +137,7 @@ def subir_adjunto(db: Session, usuario, expense_id: str, contenido: bytes, nombr
     from app.services.audit import audit_log
     from app.services.s3_service import file_storage
     e = _gasto(db, usuario, expense_id, editar=True)
+    _justificantes_editables(e)
     tipo_de_documento = _tipo_de_documento(db, e.organization_id, tipo_de_documento)
     maximo = int(_aj(db, "EXPENSE_ATTACHMENT_MAX_MB", e.organization_id, "int")) * 1024 * 1024
     if not contenido:
@@ -144,6 +164,7 @@ def tipar_adjunto(db: Session, usuario, attachment_id: str, tipo_de_documento: O
     if a is None:
         raise error(404, "no_encontrado", detail="Justificante no encontrado", que="justificante")
     e = _gasto(db, usuario, a.expense_id, editar=True)
+    _justificantes_editables(e)
     antes = a.document_type
     a.document_type = _tipo_de_documento(db, e.organization_id, tipo_de_documento)
     audit_log(db, usuario, "UPDATE", "expense_attachments", e.id, e.code,
@@ -168,6 +189,7 @@ def borrar_adjunto(db: Session, usuario, attachment_id: str) -> None:
     if a is None:
         raise error(404, "no_encontrado", detail="Justificante no encontrado", que="justificante")
     e = _gasto(db, usuario, a.expense_id, editar=True)
+    _justificantes_editables(e)
     audit_log(db, usuario, "DELETE", "expense_attachments", e.id, e.code, old_values={"fichero": a.filename})
     db.delete(a)
     db.flush()
@@ -200,8 +222,9 @@ def repartir(db: Session, usuario, expense_id: str, partes: list[dict]) -> list[
             raise error(400, "reparto_proyecto_repetido")
         if any(float(p["percentage"]) <= 0 for p in partes):
             raise error(400, "reparto_parte_cero")
-        total = sum(float(p["percentage"]) for p in partes)
-        if abs(total - 100) > 0.01:
+        total = sum(Decimal(str(p["percentage"])) for p in partes)
+        # M3: exactamente 100 % a dos decimales (antes pasaba el 99,99 %).
+        if total.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP) != Decimal("100.00"):
             raise error(400, "reparto_no_suma_100", suma=round(total, 2))
         existentes = {pid for (pid,) in db.query(Project.id).filter(Project.id.in_(ids)).all()}
         if set(ids) - existentes:
@@ -215,21 +238,44 @@ def repartir(db: Session, usuario, expense_id: str, partes: list[dict]) -> list[
     return reparto(db, usuario, expense_id)
 
 
+def _cent(v) -> Decimal:
+    return Decimal(str(v or 0)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+
+def _partes_cuadradas(importe, pcts: dict) -> dict:
+    """M3 (auditoría 22-11-2026): el reparto en céntimos y CUADRADO: el resto del
+    redondeo va a la parte mayor, así que la suma de las partes es el gasto
+    (antes cada parte se redondeaba por su lado y sobraban o faltaban céntimos)."""
+    total = _cent(importe)
+    partes = {pid: _cent(total * Decimal(str(pct)) / 100) for pid, pct in pcts.items() if pct}
+    if partes and abs(sum(Decimal(str(x)) for x in pcts.values()) - 100) < Decimal("0.01"):
+        mayor = max(partes, key=lambda k: (partes[k], k))
+        partes[mayor] += total - sum(partes.values())
+    return {k: float(v) for k, v in partes.items()}
+
+
 def importe_por_proyecto(db: Session, gastos: list[Expense], project_id: str) -> list[tuple[Expense, float]]:
     """(gasto, parte del proyecto). Con reparto cuenta la parte; sin reparto, el gasto entero si es suyo."""
+    return [(g, imp) for _, g, imp in importe_por_proyectos(db, gastos, [project_id])]
+
+
+def importe_por_proyectos(db: Session, gastos: list[Expense], project_ids) -> list[tuple[str, Expense, float]]:
+    """`importe_por_proyecto` para varios proyectos con UNA consulta de repartos
+    (auditoría 22-11-2026, M3: antes una por proyecto): ``[(project_id, gasto, parte)]``."""
     if not gastos:
         return []
+    ids = set(project_ids)
     partes: dict[str, dict[str, float]] = {}
     for r in db.query(ExpenseAllocation).filter(ExpenseAllocation.expense_id.in_([g.id for g in gastos])).all():
         partes.setdefault(r.expense_id, {})[r.project_id] = r.percentage
     salida = []
     for g in gastos:
         if g.id in partes:
-            pct = partes[g.id].get(project_id)
-            if pct:
-                salida.append((g, round(float(g.amount) * pct / 100, 2)))
-        elif g.project_id == project_id:
-            salida.append((g, float(g.amount)))
+            for pid, imp in _partes_cuadradas(g.amount, partes[g.id]).items():
+                if pid in ids:
+                    salida.append((pid, g, imp))
+        elif g.project_id in ids:
+            salida.append((g.project_id, g, float(g.amount)))
     return salida
 
 
@@ -304,8 +350,18 @@ def totales_por_proyecto(db: Session, project_ids, *, desde=None, hasta=None) ->
     if hasta is not None:
         q = q.filter(Expense.expense_date <= hasta)
     gastos = q.all()
+    # M3 (auditoría 22-11-2026): una consulta de repartos (antes una por
+    # proyecto) y cada gasto convertido a la moneda de la empresa con el tipo de
+    # su fecha (antes se sumaban euros, dólares y libras tal cual). Los tipos
+    # que falten se avisan (`TiposQueFaltan` de quien llama), no se esconden.
+    from app.services.currency_rates_service import TablaDeTipos, tipo_o_aviso
+    from app.services.settings_service.por_empresa import moneda_de_empresa
+    moneda = moneda_de_empresa(db)
     totales: dict[str, float] = {}
-    for pid in ids:
-        for _, importe in importe_por_proyecto(db, gastos, pid):
+    with TablaDeTipos(db):
+        for pid, g, importe in importe_por_proyectos(db, gastos, ids):
+            de = (g.currency or moneda).upper()
+            if de != moneda:
+                importe = importe * tipo_o_aviso(db, de, moneda, g.expense_date)
             totales[pid] = round(totales.get(pid, 0.0) + importe, 2)
     return totales

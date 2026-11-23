@@ -61,7 +61,13 @@ def summarize_scheduled_reports(db: Session) -> dict[str, Any]:
     # Revision multitenant 2026-11: el SQL a mano no pasa por el filtro de
     # tenant y contaba los informes de todas las empresas.
     sql, params = f"SELECT {', '.join(interesantes)} FROM scheduled_reports", {}  # noqa: S608
-    if "organization_id" in columnas and not db.info.get("is_superadmin", True):
+    # Ronda 2 auditoria 2026-11-22: la decision es la del filtro ORM
+    # (`contexto_de_tenant.estado`). Antes `db.info.get("is_superadmin", True)`
+    # fallaba ABIERTO: una sesion sin contexto (worker) contaba todas las empresas.
+    from app.db import contexto_de_tenant as _ctx
+    if "organization_id" in columnas and _ctx.estado(db.info) != _ctx.LIBRE:
+        if _ctx.estado(db.info) != _ctx.EMPRESA or not db.info.get("organization_id"):
+            return dict(_RESUMEN_VACIO)
         sql += " WHERE organization_id = :org"
         params["org"] = db.info.get("organization_id")
     filas = db.execute(text(sql), params).fetchall()

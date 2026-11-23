@@ -4,7 +4,7 @@ from typing import Optional
 from datetime import date, timedelta
 
 from app.db.session import get_db
-from app.core.deps import get_current_user, require_any_manager
+from app.core.deps import get_current_user, requiere_capacidad
 from app.core.abac_enforce import enforce_abac
 from app.core.paginacion import Paginacion, lista_paginada, paginacion
 from app.core.responses import APIResponse, APIListResponse
@@ -22,6 +22,7 @@ from app.schemas.timesheets import (
     TimesheetSendBackPayload as SendBackPayload,
 )
 from app.core import timeutil
+from app.services.textos_guardados import pintar_campo
 
 router = APIRouter()
 
@@ -54,7 +55,7 @@ def get_my_timesheets(
             "total_cost": ts.total_cost,
             "submitted_at": ts.submitted_at,
             "reviewed_at": ts.reviewed_at,
-            "review_notes": ts.review_notes,
+            "review_notes": pintar_campo(ts, "review_notes"),
         })
     return APIListResponse.ok(items=results, total=len(results))
 
@@ -86,7 +87,7 @@ def get_pending_timesheets(
     date_to: Optional[date] = Query(None, description="Semanas hasta (inclusive)"),
     pagina: Paginacion = Depends(paginacion),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("partes.gestionar")),
 ):
     # Segunda auditoria 2026-11: `page`/`page_size` se aceptaban y se ignoraban.
     return lista_paginada(response, _tsvc.list_pending_timesheets(db, pagina, q, date_from, date_to))
@@ -105,7 +106,7 @@ def get_team_timesheets(
     response: Response = None,
     pagina: Paginacion = Depends(paginacion),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("partes.gestionar")),
 ):
     enforce_abac(db, current_user, "timesheet", action="read")
     return lista_paginada(response, _tsvc.list_team_timesheets(
@@ -117,7 +118,7 @@ def review_timesheet(
     timesheet_id: str,
     payload: TimesheetReview,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("partes.gestionar")),
 ):
     enforce_abac(db, current_user, "timesheet", timesheet_id, action="approve")
     ts = review_timesheet_flow(db, timesheet_id, current_user, payload.approved, payload.notes)
@@ -132,7 +133,7 @@ def send_back_timesheet(
     timesheet_id: str,
     payload: SendBackPayload,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("partes.gestionar")),
 ):
     """Return a submitted timesheet to the employee so they can correct and re-submit it."""
     ts = send_back_timesheet_flow(db, timesheet_id, current_user, payload.notes)

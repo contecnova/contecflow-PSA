@@ -23,6 +23,7 @@ el planificador** (camino crítico con el calendario de la empresa). Crear una
 plantilla desde un proyecto hace el camino inverso.
 """
 from __future__ import annotations
+from app.services import numbering as _numeracion  # prefijos por defecto (§6)
 
 from datetime import date, timedelta
 from typing import Optional
@@ -304,7 +305,7 @@ def instanciar(db: Session, user, template_id: str, datos: dict) -> dict:
     inicio = date.fromisoformat(datos["start_date"]) if datos.get("start_date") else timeutil.today()
     proyecto = Project(
         organization_id=org,
-        code=datos.get("code") or next_numbered_code(db, "project", prefix="PRJ", padding=4),
+        code=datos.get("code") or next_numbered_code(db, "project", prefix=_numeracion.PREFIJO_PROYECTO, padding=4),
         name=datos.get("name") or f"{t.name} — {inicio.isoformat()}",
         description=datos.get("description", t.description),
         project_type=t.project_type or get_runtime_str(db, "DEFAULT_PROJECT_TYPE", org) or settings.DEFAULT_PROJECT_TYPE,

@@ -1,5 +1,6 @@
 import { CHART } from '../../constants/theme'
-import { useDialogo } from './useDialogo'
+import { useDialogoEditable } from './useDialogo'
+import { SinGuardarContext } from './useCambiosSinGuardar'
 import React, { type CSSProperties } from 'react'
 import { BarChart3, ClipboardList, FileText, Folder, Inbox, Plus, Search, Users, X } from 'lucide-react'
 import { DATA_TABLE_PAGE_SIZE } from '../../constants/pagination'
@@ -12,7 +13,9 @@ import { eventoDeCambio } from './DateInput'
 import StatusBadge, { type StatusBadgeKind } from './StatusBadge'
 import { Tabla } from './Tabla'
 
-export { default as Confirm } from './Confirm'
+// 23-11-2026: `Confirm` retirado; la única confirmación es `context/ConfirmContext` (confirmar/openConfirmGlobal).
+export { default as EstadoDeError } from './EstadoDeError'
+export type { EstadoDeErrorProps } from './EstadoDeError'
 export { default as IconButton } from './IconButton'
 export { default as Tabs, TabPanel } from './Tabs'
 export { default as Toolbar } from './Toolbar'
@@ -29,8 +32,8 @@ export { SelectRico } from './SelectRico'
 export type { SelectRicoProps, OpcionRica } from './SelectRico'
 export { Checkbox, Radio, Switch, GrupoDeOpciones } from './Opciones'
 export type { CheckboxProps, GrupoDeOpcionesProps, OpcionDeGrupo } from './Opciones'
-export { BarraDeFiltros, Chip, Segmentado, Pulsable } from './Controles'
-export type { BarraDeFiltrosProps, ChipProps, SegmentadoProps, OpcionSegmentada, PulsableProps } from './Controles'
+export { BarraDeFiltros, FiltrosDeLista, Chip, Segmentado, Pulsable } from './Controles'
+export type { BarraDeFiltrosProps, FiltrosDeListaProps, ChipProps, SegmentadoProps, OpcionSegmentada, PulsableProps } from './Controles'
 // Recurso externo («Externo · proveedor») en listas y selectores de persona
 export { default as MarcaExterno, esExterno, textoMarcaExterno, etiquetaDePersona } from './MarcaExterno'
 export type { PersonaConEmpresa } from './MarcaExterno'
@@ -43,7 +46,7 @@ export {
   TicketSelect, ProblemSelect, SubcontractorSelect,
 } from './EntitySelect'
 
-export { useSort, SortableTH, ariaSort, ViewToggle, FilterSelect, SearchInput, ActiveFilters } from './TableControls'
+export { useSort, SortableTH, ariaSort, ViewToggle, FilterSelect, ActiveFilters } from './TableControls'
 // Fechas propias del kit y periodo libre de los informes (16-11-2026)
 export { CampoFecha, CampoRangoDeFechas } from './SelectorDeFecha'
 export type { CampoFechaProps, CampoRangoDeFechasProps, TextosDeFecha } from './SelectorDeFecha'
@@ -169,8 +172,9 @@ interface AvatarProps {
 export function Avatar({ name = '', size = 34, url }: AvatarProps) {
   const initials = name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase()
   const palettes = [
-    ['var(--accent)', 'rgba(26,58,110,0.8)'], ['var(--success)', 'rgba(15,70,50,0.8)'], ['var(--warning)', 'rgba(107,62,0,0.8)'],
-    ['var(--danger)', 'rgba(92,26,26,0.9)'], ['var(--purple)', 'rgba(59,31,110,0.9)'], [CHART.sky, 'var(--surface-5)'],
+    // 23-11-2026 (M14): fin del degradado como token (`--avatar-fin-*`, index.css).
+    ['var(--accent)', 'var(--avatar-fin-accent)'], ['var(--success)', 'var(--avatar-fin-success)'], ['var(--warning)', 'var(--avatar-fin-warning)'],
+    ['var(--danger)', 'var(--avatar-fin-danger)'], ['var(--purple)', 'var(--avatar-fin-purple)'], [CHART.sky, 'var(--surface-5)'],
   ]
   const [from, to] = palettes[name.charCodeAt(0) % palettes.length]
   return url ? (
@@ -369,6 +373,14 @@ export interface InputProps extends Omit<React.InputHTMLAttributes<HTMLInputElem
   min?: number | string
   max?: number | string
   step?: number | string
+  /** Icono DENTRO del campo, a la izquierda (lucide, p. ej. `<Mail />`). El kit
+   *  lo centra, le da el tamaño (`--campo-icono`), el relleno del texto y
+   *  `aria-hidden`. Nunca un icono absoluto a mano junto a un Input. */
+  icono?: React.ReactNode
+  /** Icono o texto corto DENTRO del campo, a la derecha (unidad, estado…). */
+  iconoFinal?: React.ReactNode
+  /** Pinta una X para vaciar el campo cuando tiene valor (búsquedas). */
+  onLimpiar?: () => void
 }
 
 /** Ids del control y de sus textos de apoyo (ayuda, error). */
@@ -382,8 +394,15 @@ function useIdsDeCampo(id: string | undefined, hint: unknown, error: unknown) {
 }
 
 
-export const Input = React.forwardRef<HTMLInputElement, InputProps>(function Input({ label, value, onChange, placeholder, type = 'text', required, className, inputClassName, style, hint, error, id, 'aria-label': ariaLabel, maxLength, autoFocus, inputMode, disabled, min, max, step, onFocus, onBlur, ...resto }, ref) {
+export const Input = React.forwardRef<HTMLInputElement, InputProps>(function Input({ label, value, onChange, placeholder, type = 'text', required, className, inputClassName, style, hint, error, id, 'aria-label': ariaLabel, maxLength, autoFocus, inputMode, disabled, min, max, step, onFocus, onBlur, icono, iconoFinal, onLimpiar, ...resto }, ref) {
+  const t = useTextoUi()
   const { base, idHint, idError, describedBy } = useIdsDeCampo(id, hint, error)
+  const propio = React.useRef<HTMLInputElement | null>(null)
+  const unirRef = React.useCallback((nodo: HTMLInputElement | null) => {
+    propio.current = nodo
+    if (typeof ref === 'function') ref(nodo)
+    else if (ref) ref.current = nodo
+  }, [ref])
   // 16-11-2026: fecha, fecha y hora u hora → el selector propio del kit (nunca el nativo).
   const modoFecha = type === 'date' ? 'fecha' : type === 'datetime-local' ? 'fechaHora' : type === 'time' ? 'hora' : null
   if (modoFecha) {
@@ -415,6 +434,35 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(function Inp
       </div>
     )
   }
+  const adornos = Boolean(icono || iconoFinal || onLimpiar)
+  const conValor = value != null && String(value) !== ''
+  const clases = ['uiinde-box-18 index-sx3 ui-index-e7', icono ? 'ui-input--icono-ini' : '', (iconoFinal || onLimpiar) ? 'ui-input--icono-fin' : '', inputClassName ?? ''].filter(Boolean).join(' ')
+  const campo = (
+    <input className={clases}
+      ref={unirRef}
+      {...resto}
+      id={base}
+      aria-labelledby={label ? `${base}-etiqueta` : resto['aria-labelledby']}
+      aria-label={label ? undefined : ariaLabel}
+      type={type} value={value} onChange={onChange} placeholder={placeholder}
+      maxLength={maxLength} autoFocus={autoFocus} inputMode={inputMode} disabled={disabled}
+      min={min} max={max} step={step}
+      required={required || undefined}
+      aria-invalid={error ? true : undefined}
+      aria-describedby={resto['aria-describedby'] ?? describedBy}
+      style={{ '--ui-index-border': `1px solid ${error ? 'var(--danger-border)' : 'var(--surface-4)'}` } as CSSProperties}
+      onFocus={e => {
+        e.target.style.borderColor = 'color-mix(in srgb, var(--accent) 50%, transparent)'
+        e.target.style.boxShadow = '0 0 0 3px color-mix(in srgb, var(--accent) 8%, transparent)'
+        onFocus?.(e)
+      }}
+      onBlur={e => {
+        e.target.style.borderColor = error ? 'var(--danger-border)' : 'var(--surface-4)'
+        e.target.style.boxShadow = 'none'
+        onBlur?.(e)
+      }}
+    />
+  )
   return (
     <div className={className ? `ui-field ${className}` : 'ui-field'} style={style}>
       {label && (
@@ -422,33 +470,68 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(function Inp
           {label}{required && <span className="u-danger" aria-hidden="true"> *</span>}
         </label>
       )}
-      <input className={inputClassName ? `uiinde-box-18 index-sx3 ui-index-e7 ${inputClassName}` : 'uiinde-box-18 index-sx3 ui-index-e7'}
-        ref={ref}
-        {...resto}
-        id={base}
-        aria-labelledby={label ? `${base}-etiqueta` : resto['aria-labelledby']}
-        aria-label={label ? undefined : ariaLabel}
-        type={type} value={value} onChange={onChange} placeholder={placeholder}
-        maxLength={maxLength} autoFocus={autoFocus} inputMode={inputMode} disabled={disabled}
-        min={min} max={max} step={step}
-        required={required || undefined}
-        aria-invalid={error ? true : undefined}
-        aria-describedby={resto['aria-describedby'] ?? describedBy}
-        style={{ '--ui-index-border': `1px solid ${error ? 'var(--danger-border)' : 'var(--surface-4)'}` } as CSSProperties}
-        onFocus={e => {
-          e.target.style.borderColor = 'color-mix(in srgb, var(--accent) 50%, transparent)'
-          e.target.style.boxShadow = '0 0 0 3px color-mix(in srgb, var(--accent) 8%, transparent)'
-          onFocus?.(e)
-        }}
-        onBlur={e => {
-          e.target.style.borderColor = error ? 'var(--danger-border)' : 'var(--surface-4)'
-          e.target.style.boxShadow = 'none'
-          onBlur?.(e)
-        }}
-      />
+      {adornos ? (
+        <span className="ui-input-caja">
+          {icono && <span className="ui-input-caja__icono" aria-hidden="true">{icono}</span>}
+          {campo}
+          {(iconoFinal || (onLimpiar && conValor && !disabled)) && (
+            <span className="ui-input-caja__fin">
+              {iconoFinal && <span aria-hidden="true">{iconoFinal}</span>}
+              {onLimpiar && conValor && !disabled && (
+                <button type="button" className="ui-input-caja__limpiar" aria-label={t('uikit.borrar_busqueda')} title={t('uikit.borrar_busqueda')}
+                  onClick={() => { onLimpiar(); propio.current?.focus() }}>
+                  <X size={14} aria-hidden />
+                </button>
+              )}
+            </span>
+          )}
+        </span>
+      ) : campo}
       {hint && <div id={idHint} className="u-text3-xs">{hint}</div>}
       {error && <div id={idError} role="alert" className="u-field-error">{error}</div>}
     </div>
+  )
+})
+
+// ── Buscador ──────────────────────────────────────────────────────────────────
+// 23-11-2026: EL campo de búsqueda de la plataforma. Lupa dentro del campo
+// (siempre en el mismo sitio, sin pisar el texto), X para vaciar y, si se
+// pide, espera `retardo` ms antes de avisar (consultas al servidor). Nunca se
+// monta a mano un icono absoluto junto a un Input.
+export interface BuscadorProps extends Omit<InputProps, 'value' | 'onChange' | 'icono' | 'onLimpiar' | 'type'> {
+  /** El texto buscado (vacío si llega null/undefined). */
+  value: string | number | null | undefined
+  /** Recibe el texto (no el evento). Con `retardo`, cuando se deja de escribir. */
+  onChange: (valor: string) => void
+  /** Milisegundos de espera antes de llamar a `onChange` (0 = al momento). */
+  retardo?: number
+}
+
+export const Buscador = React.forwardRef<HTMLInputElement, BuscadorProps>(function Buscador({ value: valorExterno, onChange, retardo = 0, placeholder, 'aria-label': ariaLabel, label, className, ...resto }, ref) {
+  const t = useTextoUi()
+  const value = valorExterno == null ? '' : String(valorExterno)
+  const [texto, setTexto] = React.useState(value)
+  const aviso = React.useRef(onChange)
+  aviso.current = onChange
+  const ultimo = React.useRef(value)
+  // Un cambio de fuera (limpiar filtros, URL) manda sobre lo escrito.
+  React.useEffect(() => { if (value !== ultimo.current) { ultimo.current = value; setTexto(value) } }, [value])
+  React.useEffect(() => {
+    if (!retardo || texto === ultimo.current) return undefined
+    const id = window.setTimeout(() => { ultimo.current = texto; aviso.current(texto) }, retardo)
+    return () => window.clearTimeout(id)
+  }, [texto, retardo])
+  const cambiar = (v: string) => {
+    setTexto(v)
+    if (!retardo) { ultimo.current = v; aviso.current(v) }
+  }
+  const ph = placeholder ?? t('uikit.buscar')
+  return (
+    <Input ref={ref} {...resto} className={className ? `ui-buscador ${className}` : 'ui-buscador'} label={label} type="search" autoComplete="off"
+      value={retardo ? texto : value} onChange={e => cambiar(e.target.value)}
+      placeholder={ph} aria-label={label ? undefined : (ariaLabel ?? ph)}
+      icono={<Search aria-hidden />}
+      onLimpiar={() => { setTexto(''); ultimo.current = ''; aviso.current('') }} />
   )
 })
 
@@ -685,18 +768,25 @@ interface ModalProps {
    *  props del kit; antes no habia nada que pudiera destaparlo. */
   size?: 'sm' | 'md' | 'lg' | 'xl'
   subtitle?: React.ReactNode
+  /** 23-11-2026: false en modales de solo lectura o de confirmacion (no
+   *  preguntan por cambios sin guardar al cerrar). Por defecto, true. */
+  avisarSinGuardar?: boolean
+  /** Controlado por la pantalla: si se pasa, manda sobre la deteccion
+   *  automatica de cambios (eventos `input`/`change` del contenido). */
+  cambiosSinGuardar?: boolean
 }
 
-export function Modal({ open, onClose, title, children, width, size, subtitle }: ModalProps) {
+export function Modal({ open, onClose, title, children, width, size, subtitle, avisarSinGuardar = true, cambiosSinGuardar }: ModalProps) {
   const t = useTextoUi()
   const anchoFinal = width ?? ANCHOS_DE_MODAL[size ?? 'md']
-  // Trampa de foco, Esc y devolucion del foco: compartido con los dialogos propios.
-  const dialogRef = useDialogo<HTMLDivElement>(open, onClose)
+  // Trampa de foco, Esc, devolucion del foco y aviso de cambios sin guardar
+  // (fondo, Esc y X preguntan; el cierre programatico tras guardar, no).
+  const { ref: dialogRef, pedirCierre, sinGuardar } = useDialogoEditable<HTMLDivElement>(open, onClose, { avisarSinGuardar, cambiosSinGuardar })
 
   if (!open) return null
   return (
     <div
-      onMouseDown={onClose}
+      onMouseDown={e => { if (e.target === e.currentTarget) e.preventDefault(); pedirCierre() }}
       role="presentation" className="index-sx4"
     >
       <div className="uiinde-box-21 index-sx5 ui-index-e11"
@@ -714,12 +804,12 @@ export function Modal({ open, onClose, title, children, width, size, subtitle }:
           </div>
           <button
             type="button"
-            onClick={onClose}
+            onClick={pedirCierre}
             aria-label={t('uikit.cerrar')}
             className="uiinde-row-4"
           ><X size={14} aria-hidden="true" /></button>
         </div>
-        {children}
+        <SinGuardarContext.Provider value={sinGuardar}>{children}</SinGuardarContext.Provider>
       </div>
     </div>
   )
@@ -760,7 +850,7 @@ export function DataTable<T>({ columns, data = [], loading, emptyIcon = 'inbox',
     <div>
       {data.length > pageSize && (
         <div className="u-mb-12">
-          <input aria-label={t('uikit.filtrar')} value={filter} onChange={e => { setFilter(e.target.value); setPage(0) }}
+          <input data-sin-guardar="ignorar" aria-label={t('uikit.filtrar')} value={filter} onChange={e => { setFilter(e.target.value); setPage(0) }}
             placeholder={t('uikit.filtrar')} className="uiinde-box-5" />
         </div>
       )}
@@ -796,5 +886,9 @@ export function Table<T>({ columns = [], data = [], onRowClick }: TableProps<T>)
   return <Tabla<T> columnas={columns} filas={data} onFila={onRowClick} claveDeFila={(_f, i) => i} />
 }
 
-export { useDialogo } from './useDialogo'
+export { useDialogo, useDialogoEditable } from './useDialogo'
+export type { OpcionesDeDialogo, DialogoEditable } from './useDialogo'
 export { Drawer } from './Drawer'
+// Cambios sin guardar (23-11-2026): ver DESIGN_SYSTEM.md, seccion Modal / Drawer.
+export { useCambiosSinGuardar, useSinGuardarDelDialogo, avisarCambio, hayCambiosSinGuardar, cambiosGuardados, confirmarDescarte, EVENTO_CAMBIO } from './useCambiosSinGuardar'
+export type { CambiosSinGuardar, OpcionesSinGuardar, SinGuardarDelDialogo } from './useCambiosSinGuardar'

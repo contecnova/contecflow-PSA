@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from typing import Optional
 
 from app.db.session import get_db
-from app.core.deps import get_current_user, require_internal_user
+from app.core.deps import get_current_user, requiere_capacidad
 from app.core.periodo import CON_HORA, Periodo, periodo
 from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
@@ -43,7 +43,7 @@ def get_agent_performance(
 @router.get("/dashboard/layout", summary="Panel del service desk de quien mira (suyo, de la empresa o de serie)")
 def get_dashboard_layout(
     role: str = Query("operation", pattern="^(operation|manager|executive)$"),
-    db: Session = Depends(get_db), current_user: User = Depends(require_internal_user),
+    db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("sd.completo")),
 ):
     org_id = getattr(current_user, "organization_id", None)
     return APIResponse.ok(data={"role": role, "layout": get_layout(db, org_id, role, current_user.id),
@@ -55,7 +55,7 @@ def put_dashboard_layout(
     role: str = Query("operation", pattern="^(operation|manager|executive)$"),
     scope: str = Query("user", pattern="^(user|org)$"),
     layout: dict = Body(...),
-    db: Session = Depends(get_db), current_user: User = Depends(require_internal_user),
+    db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("sd.completo")),
 ):
     # Mejoras de mercado 16-11-2026: antes cualquier agente cambiaba el panel de
     # toda la empresa. El de la empresa es de administrador; el resto, el suyo.
@@ -69,7 +69,7 @@ def put_dashboard_layout(
 @router.delete("/dashboard/layout", summary="Volver al panel de la empresa (borra el propio)")
 def reset_dashboard_layout(
     role: str = Query("operation", pattern="^(operation|manager|executive)$"),
-    db: Session = Depends(get_db), current_user: User = Depends(require_internal_user),
+    db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("sd.completo")),
 ):
     org_id = getattr(current_user, "organization_id", None)
     return APIResponse.ok(data={"role": role, "layout": reset_layout(db, org_id, role, current_user.id)})

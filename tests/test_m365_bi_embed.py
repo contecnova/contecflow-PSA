@@ -82,10 +82,10 @@ def test_teams_tab_config_graph_register_no_m365(client, admin_token, monkeypatc
     """register_via_graph=True pero Graph no configurado → graceful (graph_error en respuesta)."""
     import app.services.m365_bi_embed_service as embed_svc
 
-    def _mock_graph_post(path, payload):
+    def _mock_graph_post(path, payload, **k):
         raise RuntimeError("Graph not configured")
 
-    monkeypatch.setattr(embed_svc, "require_m365", lambda: None)  # bypass require check
+    monkeypatch.setattr(embed_svc, "require_m365", lambda *a, **k: None)  # bypass require check
     monkeypatch.setattr(embed_svc, "graph_post_sync", _mock_graph_post)
 
     res = client.post(
@@ -112,8 +112,8 @@ def test_teams_card_graph_success(client, admin_token, monkeypatch):
     """Cuando Graph está configurado, posta via Graph API."""
     import app.services.m365_bi_embed_service as embed_svc
 
-    monkeypatch.setattr(embed_svc, "m365_configured", lambda: True)
-    monkeypatch.setattr(embed_svc, "get_graph_token_sync", lambda: "bearer-token")
+    monkeypatch.setattr(embed_svc, "m365_configured", lambda *a, **k: True)
+    monkeypatch.setattr(embed_svc, "get_graph_token_sync", lambda *a, **k: "bearer-token")
 
     class _MockResp:
         status_code = 201
@@ -143,7 +143,7 @@ def test_teams_card_fallback_to_webhook(client, admin_token, monkeypatch):
     import app.services.m365_bi_embed_service as embed_svc
     import app.core.config as cfg_mod
 
-    monkeypatch.setattr(embed_svc, "m365_configured", lambda: False)
+    monkeypatch.setattr(embed_svc, "m365_configured", lambda *a, **k: False)
     monkeypatch.setattr(cfg_mod.settings, "TEAMS_WEBHOOK_URL", "https://webhook.example/hook", raising=False)
     monkeypatch.setattr(embed_svc.settings, "TEAMS_WEBHOOK_URL", "https://webhook.example/hook", raising=False)
 
@@ -172,7 +172,7 @@ def test_teams_card_no_graph_no_webhook(client, admin_token, monkeypatch):
     """Sin Graph ni webhook → 503."""
     import app.services.m365_bi_embed_service as embed_svc
 
-    monkeypatch.setattr(embed_svc, "m365_configured", lambda: False)
+    monkeypatch.setattr(embed_svc, "m365_configured", lambda *a, **k: False)
     monkeypatch.setattr(embed_svc.settings, "TEAMS_WEBHOOK_URL", None, raising=False)
 
     res = client.post(
@@ -214,8 +214,8 @@ def test_sharepoint_page_no_m365_returns_503(client, admin_token):
 def test_sharepoint_page_graph_success(client, admin_token, monkeypatch):
     import app.services.m365_bi_embed_service as embed_svc
 
-    monkeypatch.setattr(embed_svc, "require_m365", lambda: None)
-    monkeypatch.setattr(embed_svc, "get_graph_token_sync", lambda: "bearer-token")
+    monkeypatch.setattr(embed_svc, "require_m365", lambda *a, **k: None)
+    monkeypatch.setattr(embed_svc, "get_graph_token_sync", lambda *a, **k: "bearer-token")
 
     class _MockResp:
         status_code = 201

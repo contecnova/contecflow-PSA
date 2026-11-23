@@ -676,6 +676,8 @@ class CollaborationWebhook(Base):
     name = Column(String(120), nullable=False)
     url = Column(String(800), nullable=True)
     secret_token = Column(String(160), nullable=False, default=_uid)
+    # Migración 196 (A23): SHA-256 del secreto; la entrega busca por él.
+    secret_token_hash = Column(String(64), nullable=True)
     target_channel_id = Column(String(36), ForeignKey("collaboration_channels.id", ondelete="SET NULL"), nullable=True, index=True)
     events = Column(JSON, nullable=False, default=list)  # ['message.created', 'channel.created', ...]
     is_active = Column(Boolean, nullable=False, default=True)
@@ -766,6 +768,14 @@ class CollaborationAuditEvent(Base):
     ip_address = Column(String(60), nullable=True)
     user_agent = Column(String(500), nullable=True)
     integrity_hash = Column(String(64), nullable=True)
+    # Migración 196 (23-11-2026, C5): "v1" = sha256 sin clave (filas antiguas);
+    # "v2" = HMAC con clave sobre actor, IP y fecha también (`_audit.write`).
+    hash_version = Column(String(10), nullable=False, server_default="v1")
+    # Migración 201 (23-11-2026, C5): HMAC de la fila con la clave activa del
+    # llavero (`key_management`) y el `kid` de esa clave. NULL en las filas
+    # anteriores a la 201 (se verifican solo por `integrity_hash`).
+    hmac = Column(String(64), nullable=True)
+    key_id = Column(String(64), nullable=True)
     prev_event_id = Column(String(36), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False, index=True)
 

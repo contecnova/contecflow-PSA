@@ -7,13 +7,16 @@ import { useAppLang } from '../i18n/AppLangContext'
 import { ChangeEvent, useState, useId } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import api, { documentsApi } from '../services/api'
+import { documentsApi, solicitudesDeFirmaApi } from '../services/api'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { AlertTriangle, CheckCircle2, Clock, ExternalLink, FileSignature, PenLine, Plus, X, XCircle } from 'lucide-react'
-import { Button, Spinner, EmptyState, Modal, KpiCard, IconButton, Pulsable, Select, TablaSimple, Input, Textarea } from '../components/ui'
+import { Button, Spinner, EmptyState, Modal, KpiCard, IconButton, Pulsable, Select, TablaSimple, Input, Textarea, EstadoDeError } from '../components/ui'
 import { useAppT } from '../i18n/AppLangContext'
-import { fmtDate } from '../utils/helpers'
+import { extractErr, fmtDate } from '../utils/helpers'
+import { sanitizeUrl } from '../utils/security'
+import { useAuth } from '../context/AuthContext'
+import { Link } from 'react-router-dom'
 import StatusBadge from '../components/ui/StatusBadge'
 import type { StatusBadgeKind } from '../components/ui/StatusBadge'
 import './ESignPage.css'
@@ -25,8 +28,9 @@ type StatusColor = {
   key: string
 }
 
+// 23-11-2026 (C1 del 04): los ids son UUID (texto), no números.
 type Signer = {
-  id: number
+  id: string
   name: string
   email: string
   routing_order: number
@@ -35,7 +39,7 @@ type Signer = {
 }
 
 type Envelope = {
-  id: number
+  id: string
   subject?: string
   message?: string
   provider: 'manual' | 'docusign' | 'adobe_sign' | string
@@ -71,13 +75,6 @@ type CreateEnvelopeForm = {
   expires_days: number
 }
 
-type ApiError = {
-  response?: {
-    data?: {
-      detail?: string | Array<{ msg?: string }>
-    }
-  }
-}
 
 const STATUS_COLORS: Record<EnvelopeStatus, StatusColor> = {
   draft:     { kind: 'neutral', key: 'esign.status_draft' },
@@ -137,13 +134,11 @@ function CreateEnvelopeModal({ onClose, onCreated }: { onClose: () => void; onCr
     setSaving(true)
     setError('')
     try {
-      const res = await api.post('/esign', { ...form, document_id: Number(form.document_id), expires_days: Number(form.expires_days), signers })
+      const res = await solicitudesDeFirmaApi.crear<Envelope>({ ...form, expires_days: Number(form.expires_days), signers })
       onCreated(res.data)
       onClose()
     } catch (e: unknown) {
-      const err = e as ApiError
-      const raw = err?.response?.data?.detail
-      setError(Array.isArray(raw) ? raw.map(e => e.msg).join(', ') : (raw || t('esign.error_create')))
+      setError(extractErr(e, t('esign.error_create')))
     } finally {
       setSaving(false)
     }
@@ -189,11 +184,11 @@ function CreateEnvelopeModal({ onClose, onCreated }: { onClose: () => void; onCr
           </div>
           {signers.map((s, i: number) => (
             <div key={i} className="esign-row-2">
-              <input aria-label={t('esign.signer_name_ph')} value={s.name} onChange={e => setSigner(i, 'name', e.target.value)}
+              <Input aria-label={t('esign.signer_name_ph')} value={s.name} onChange={e => setSigner(i, 'name', e.target.value)}
                 placeholder={t('esign.signer_name_ph')} className="esign-page-e3" />
-              <input aria-label={t('esign.signer_email_ph')} value={s.email} onChange={e => setSigner(i, 'email', e.target.value)}
+              <Input aria-label={t('esign.signer_email_ph')} value={s.email} onChange={e => setSigner(i, 'email', e.target.value)}
                 placeholder={t('esign.signer_email_ph')} type="email" className="esign-page-e3" />
-              <input aria-label={t('esign.signer_order_ph')} value={s.routing_order} onChange={e => setSigner(i, 'routing_order', Number(e.target.value))}
+              <Input aria-label={t('esign.signer_order_ph')} value={s.routing_order} onChange={e => setSigner(i, 'routing_order', Number(e.target.value))}
                 type="number" min={1} className="esign-page-e4" title={t('esign.signer_order_ph')} />
               {signers.length > 1 && (
                 <IconButton className="esign-quitar" ariaLabel={t('esign.cancel')} onClick={() => removeSigner(i)}><X size={14} aria-hidden /></IconButton>
@@ -220,18 +215,19 @@ export default function ESignPage(): JSX.Element {
   const [detail, setDetail]       = useState<Envelope | null>(null)
   const qc = useQueryClient()
 
+  const { puede } = useAuth()
   const { data: stats } = useQuery<ESignStats>({
     queryKey: ['esign-stats'],
-    queryFn: () => api.get('/esign/summary/stats').then(r => r.data),
+    queryFn: () => solicitudesDeFirmaApi.estadisticas<ESignStats>().then(r => r.data),
   })
 
-  const { data: envelopes = [], isLoading } = useQuery<Envelope[]>({
+  const { data: envelopes = [], isLoading, isError, error, refetch } = useQuery<Envelope[]>({
     queryKey: ['esign-envelopes'],
-    queryFn: () => api.get('/esign').then(r => r.data?.items ?? r.data ?? []),
+    queryFn: () => solicitudesDeFirmaApi.listar<Envelope[] | { items?: Envelope[] }>().then(r => (Array.isArray(r.data) ? r.data : r.data?.items) ?? []),
   })
 
   const { mutate: voidEnv } = useMutation({
-    mutationFn: (id: number) => api.delete(`/esign/${id}`),
+    mutationFn: (id: string) => solicitudesDeFirmaApi.anular(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['esign-envelopes'] })
       qc.invalidateQueries({ queryKey: ['esign-stats'] })
@@ -239,7 +235,7 @@ export default function ESignPage(): JSX.Element {
   })
 
   const { mutate: markSigned } = useMutation({
-    mutationFn: ({ envelopeId, signerId }: { envelopeId: number; signerId: number }) => api.patch(`/esign/${envelopeId}/signers/${signerId}/signed`),
+    mutationFn: ({ envelopeId, signerId }: { envelopeId: string; signerId: string }) => solicitudesDeFirmaApi.marcarFirmado(envelopeId, signerId),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['esign-envelopes'] }); setDetail(null) },
   })
 
@@ -259,14 +255,11 @@ export default function ESignPage(): JSX.Element {
       <div className="esign-row-3">
         <ProviderBadge label="DocuSign" ok={!!docusignOk} />
         <ProviderBadge label="Adobe Sign" ok={!!adobeOk} />
-        {!docusignOk && !adobeOk && (
-          <a
-            href="/settings/esign"
-            onClick={e => { e.preventDefault(); window.location.href = '/settings/esign' }}
-            className="esign-link"
-          >
+        {/* 23-11-2026 (M7 del 04): aviso contextual sin recarga y solo para quien puede configurarlo. */}
+        {!docusignOk && !adobeOk && puede('org.administrar') && (
+          <Link to="/settings/esign" className="esign-link">
             {t('esign.configura_las_credenciales_en_settings_e_firma')}
-          </a>
+          </Link>
         )}
       </div>
 
@@ -280,7 +273,7 @@ export default function ESignPage(): JSX.Element {
         </div>
       )}
 
-      {isLoading ? <Spinner /> : envelopes.length === 0 ? (
+      {isLoading ? <Spinner /> : isError ? <EstadoDeError error={error} onReintentar={() => refetch()} /> : envelopes.length === 0 ? (
         <EmptyState icon={<PenLine size={28} />} title={t('esign.empty_title')}
           description={t('esign.empty_desc')}
           action={<Button icon={<Plus size={14} />} onClick={() => setCreating(true)}>{t('esign.nueva_solicitud')}</Button>} />
@@ -380,7 +373,7 @@ export default function ESignPage(): JSX.Element {
             </div>
 
             {detail.signing_url && (
-              <a href={detail.signing_url} target="_blank" rel="noreferrer"
+              <a href={sanitizeUrl(detail.signing_url)} target="_blank" rel="noreferrer"
                 className="esign-link-2">
                 <ExternalLink size={14} aria-hidden /> {t('esign.abrir_portal_de_firma')}
               </a>

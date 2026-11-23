@@ -164,6 +164,10 @@ aprobación*.
 *Service Desk → Cambios*, con cuatro vistas: Lista, Calendario, Versiones y
 Congelaciones.
 
+- **Cambios estándar (23-11-2026).** Un cambio solo es estándar si referencia
+  un modelo del **catálogo de cambios estándar** (*Configuración → Service desk →
+  Cambios estándar*) aprobado por el CAB, vigente y cuyo alcance lo cubre; ver
+  «Catálogo de cambios estándar» más abajo. El tipo lo fija el servidor.
 - **Enviar al CAB.** Un cambio estándar de bajo riesgo se aprueba solo. El
   resto va al comité: los miembros de la cola configurada como CAB; en una
   emergencia, solo sus responsables. Cada miembro vota en el panel del cambio, y
@@ -367,10 +371,15 @@ con su último error en `sd_ticket_events.last_error`.
 | `SD_INBOUND_ADDRESS` | — | Dirección de soporte: identifica a la organización y es el Reply-To. |
 | `SD_REOPEN_ON_REPLY` | sí | Una respuesta reabre un ticket resuelto. |
 | `SD_CHANNEL_TICKET_TYPE` | incident | Tipo del ticket que abre un correo o un SMS. |
+| `SD_INBOUND_REQUIRE_SENDER_AUTH` | sí | Un correo actúa como su remitente (comenta como él, cambia el estado) solo si SPF/DKIM/DMARC pasan para su dominio en `Authentication-Results`; si no, comenta como externo (auditoría 22-11-2026, A-SD6). |
+| `SD_INBOUND_AUTHSERV_ID` | — | Servidor de correo (authserv-id) cuya cabecera `Authentication-Results` vale; vacío: la de arriba. |
 | `SD_MAIL_MAX_PER_RUN` / `SD_MAIL_MAX_ATTACHMENT_MB` | 50 / 15 | Correos por pasada y tamaño máximo de adjunto. |
 | `SD_CAB_GROUP_ID` | — | Cola que hace de CAB. Sin ella, un cambio normal no se puede enviar. |
 | `SD_CAB_APPROVAL_RULE` | majority | majority, all o any. |
 | `SD_CHANGE_AUTO_APPROVE_MAX_RISK` | 30 | Riesgo máximo con el que un cambio estándar se aprueba solo. |
+| `SD_STANDARD_CHANGE_MAX_FAILURE_PCT` | 20 | Tasa de fallo (%) por encima de la cual un modelo de cambio estándar se suspende y sus cambios vuelven al CAB. |
+| `SD_STANDARD_CHANGE_MIN_CLOSURES` | 5 | Cierres que necesita un modelo antes de que cuente su tasa de fallo. |
+| `SD_STANDARD_CHANGE_REVIEW_DAYS` | 365 | Días que dura la aprobación de un modelo hasta su revisión periódica (si el modelo no fija los suyos). |
 | `SD_EVENT_SEVERITY_MAP` | JSON | Gravedad de la alerta → prioridad. |
 | `SD_EVENT_AUTO_RESOLVE` | sí | Resolver la incidencia al recuperarse la alerta si nadie la tocó. |
 | `SD_ONCALL_PRIORITIES` / `SD_ONCALL_SMS` | P1,P2 / sí | Qué avisa a la guardia, y si por SMS. |
@@ -910,3 +919,143 @@ Credenciales nuevas: `slack.bot_token` (cifrada), `whatsapp.template_name` y
 ### CMDB de software y vulnerabilidades (19-11-2026)
 
 Qué software corre en cada CI, con qué está hecho (SBOM), con qué configuración, qué vulnerabilidades le afectan y su remediación: ver [CMDB_SOFTWARE_Y_VULNERABILIDADES.md](CMDB_SOFTWARE_Y_VULNERABILIDADES.md). El análisis de impacto de un cambio incluye `software_on_cis`; un hallazgo abre ticket, problema o cambio sobre los CIs afectados.
+
+## Arreglos de la auditoría del 22-11-2026 (informe 03, 23-11-2026)
+
+Qué cambia para quien usa y opera el Service Desk. Detalle y estado por hallazgo:
+`docs/auditoria/2026-11-22/03_servicios_m_z_modelos.md`.
+
+- **Agente autónomo.** La confianza es 0-1 de verdad (la puntuación de la base de conocimiento se
+  divide entre 100) y los umbrales `SD_AUTONOMY_*` vuelven a decidir. Un playbook casa por palabra
+  completa de sus `trigger_keywords` (una categoría sola no basta). Un ticket que hable de seguridad
+  (phishing, malware, brecha…) siempre va a una persona (motivo `seguridad`).
+- **Auto-resolución con IA.** La confianza que declara el modelo ya no cuenta (base de conocimiento
+  60 % + histórico 40 %). La propuesta queda como **borrador interno** salvo que la empresa active
+  la regla `auto_publish` en la configuración de auto-resolución; aun así no se publica sin artículo
+  de la base de conocimiento ni si el texto parece una inyección de instrucciones. El texto del
+  ticket va al modelo delimitado como dato. La llamada lleva la empresa del ticket: aplica sus
+  guardarraíles y su redacción de datos personales (sin usuario, con el sujeto de sistema). La
+  resolución pasa por la vía normal: historial, SLA, encuesta y auditoría. El bucle de aprendizaje
+  cuenta también las reaperturas.
+- **Cambios.** Máquina de estados (`TRANSICIONES_DE_CAMBIO`): `borrador → enviado/revisión CAB →
+  aprobado → programado → en curso → implantado → revisión → cerrado`; `aprobado` solo lo da el
+  CAB (o un administrador fuera del comité, o la auto-aprobación de un estándar de bajo riesgo). Un
+  despliegue solo arranca sobre un cambio aprobado o programado. El solicitante no vota su cambio;
+  un CAB ya votado no se reinicia; el fast-track de emergencia abre un ECAB con los aprobadores
+  indicados (sin el solicitante) en vez de aprobar con una sola persona. El informe semanal de
+  cumplimiento lee quién aprobó de verdad (`approved_by`) y los cambios `closed_failed`.
+- **SLA.** La pausa se cuenta en el **calendario del SLA** (horario laboral, festivos), no en reloj
+  de pared; reanudar a mano no la cuenta dos veces; pasar de una espera a otra no la pierde;
+  resolver un ticket en espera cierra la pausa. Si el enrutado cambia la prioridad, los
+  vencimientos se recalculan.
+- **Enrutado y asignación.** Solo reglas y agentes de la empresa del ticket; sin empresa, el ticket
+  queda en la cola. Las acciones de una regla se validan (prioridad, nivel, grupo y agente de la
+  empresa).
+- **Canales.** Correo: el remitente actúa como esa persona solo con SPF/DKIM/DMARC superados
+  (`SD_INBOUND_REQUIRE_SENDER_AUTH`, `SD_INBOUND_AUTHSERV_ID`). Slack: la persona se identifica por
+  su ID de Slack (`users.info` → correo), no por el nombre que ella misma elige.
+- **Problemas y conocimiento.** La RCA con IA funciona; un aviso del proveedor no se escribe como
+  causa raíz. El artículo que nace de un error conocido queda **en revisión** e interno. El
+  incidente mayor agrupa sus tickets. La fusión solo une tickets de la misma empresa y cliente.
+- **Flujos.** Una rama sin conectar deja el run en error (no sigue por la primera arista); un
+  evento sin empresa no lanza flujos; un nodo de aprobación exige el rol del nodo.
+
+**GRC.** Auditoría nueva: cada resolución automática (`audit_log` con `origen`), cierre y
+reapertura de periodos de ingresos. Retención: 9 tipos nuevos (ver `DOCS.md`). Privilegios:
+`GET /services/{id}/provisioning` pasa a administración; exportar BI a Excel/Word exige
+`analitica.ver`. RGPD: la supresión solo toca filas de las empresas de la persona.
+
+### Ronda 2 de service desk (23-11-2026)
+
+Cambios visibles de los hallazgos medios y bajos del informe 03:
+
+- **Filtro «SLA incumplido»** del listado: descuenta las pausas (en el calendario del SLA), no cuenta la
+  respuesta ya dada a tiempo y un ticket en espera tiene el reloj parado.
+- **Búsqueda** de tickets: `%` y `_` se buscan como texto.
+- **Portal**: el contrato y el CI que cuelga un cliente han de ser suyos (contrato de su cliente; CI de su
+  proyecto); si no, 404.
+- **Escalado**: la cola de destino, la cola de la regla y las personas a avisar han de ser de la empresa
+  (422 `escalado_cola_ajena` / `escalado_destinatario_ajeno`); mover de cola o subir la prioridad deja historial.
+- **Enrutado**: las condiciones de hora y día usan la zona horaria de la empresa (`DEFAULT_TIMEZONE`) y
+  admiten rangos que cruzan la medianoche («22:00-06:00»).
+- **Cambios**: las fechas con zona («…+01:00») se guardan convertidas a UTC; una fecha ilegible es 422.
+  Los avisos por Slack van al webhook de la empresa del cambio (credencial Slack o ajuste
+  `SLACK_WEBHOOK_URL` de la empresa), nunca al global. El script de marcha atrás trae el plan comentado:
+  se revisa y se activa paso a paso.
+- **Peticiones del catálogo**: si alguna tarea se cancela, la petición ya no se resuelve sola; decide el agente.
+- **CSAT**: solo 1 a 5 (422 fuera de rango).
+- **Avisos de ticket**: el webhook, los flujos y el cierre de la petición se hacen antes de enviar correos
+  y SMS, para que un reintento no los repita.
+- **Jira**: el estado que llega de Jira pasa por el flujo central (historial, SLA, encuesta, auditoría).
+- **Buzón de entrada**: la prueba de conexión dice el tipo de error, no el texto del servidor.
+- **Informe de cumplimiento**: la muestra de cuentas inactivas lleva ids, no correos.
+- **Formularios dinámicos**: leerlos ya no guarda las reglas por defecto.
+
+Pendiente: las sesiones del agente de voz siguen en `AppSetting` (falta la tabla `sd_voice_sessions` con
+retención; ver el informe 03).
+
+### Catálogo de cambios estándar (23-11-2026, A-SD19)
+
+ITIL 4: un cambio estándar es un procedimiento **preaprobado** por el CAB, no un
+tipo que declara el solicitante. Antes bastaba con elegir «estándar» para que un
+cambio de riesgo bajo se aprobase solo (hallazgo A-SD19 del informe 03).
+
+**El modelo** (`sd_standard_change_models`, uno por empresa; *Configuración →
+Service desk → Cambios estándar*, capacidad `sd.gestionar`):
+
+- nombre, descripción, **procedimiento** (pasos de implantación), vuelta atrás y prueba:
+  rellenan los planes del cambio que lo use si vienen vacíos;
+- **riesgo máximo** (`low` … `critical`);
+- **alcance**: CIs concretos, tipos de CI y servicios (un CI de tipo `service` y los CIs
+  relacionados con él en la CMDB, un salto). Sin nada marcado vale para cualquier CI;
+  con algo marcado, **todos** los CIs afectados del cambio tienen que caer dentro (y el
+  cambio necesita al menos uno);
+- ciclo de vida: `proposed` → `approved` → `suspended` → (`proposed`) y `retired` (baja
+  lógica, `is_active = false`); estados en `app/models/service_desk/_enums.py`
+  (`ESTADO_MODELO_*`);
+- quién lo propuso, **quién lo aprobó y cuándo**, **próxima revisión** (`next_review_at` =
+  aprobación + `review_interval_days` del modelo o `SD_STANDARD_CHANGE_REVIEW_DAYS`);
+- **uso** (`use_count`: cambios aprobados con el modelo) y **tasa de fallo**
+  (`failure_count` / cierres).
+
+**Reglas** (`app/services/service_desk/cambios_estandar_service.py`):
+
+- Proponer y editar: `sd.gestionar`. **Aprobar como estándar**: `sd.gestionar`, ser
+  miembro de la cola del CAB (`SD_CAB_GROUP_ID`) o administrador, y **no** haberlo
+  propuesto (SoD, `exigir_que_no_sea_suyo`, módulo GRC `itsm_change`).
+- Editar el procedimiento, la vuelta atrás, la prueba, el riesgo o el alcance de un
+  modelo aprobado lo devuelve a `proposed`: lo aprobado era otro procedimiento.
+- **Vigente** = aprobado, activo y con la revisión sin vencer. Caducada la revisión,
+  deja de ser estándar hasta que se vuelva a aprobar.
+- Cada cierre de un cambio estándar (`closed_success` / `closed_failed`) suma al modelo.
+  Con al menos `SD_STANDARD_CHANGE_MIN_CLOSURES` cierres y una tasa de fallo por encima de
+  `SD_STANDARD_CHANGE_MAX_FAILURE_PCT`, el modelo **se suspende solo** y sus cambios
+  vuelven al CAB. Reactivarlo lo deja en `proposed` (nueva aprobación) con los
+  contadores de cierre a cero.
+- **El tipo lo fija el servidor.** Al crear un cambio, `change_type` llega siempre como
+  `normal` salvo que se pida `standard` **con** `standard_model_id`:
+  - sin modelo: 422 `cambio_estandar_sin_modelo`;
+  - modelo de otra empresa, sin aprobar, suspendido, caducado, de baja, con riesgo menor
+    que el del cambio o fuera de alcance: 409 `cambio_estandar_no_aplica` con el motivo
+    (`sin_aprobar`, `suspendido`, `caducado`, `retirado`, `riesgo`, `fuera_de_alcance`…).
+  - El tipo y el modelo solo se cambian en `draft`/`submitted` (409 `cambio_tipo_no_editable`).
+- **Auto-aprobación**: además de `auto_risk_score ≤ SD_CHANGE_AUTO_APPROVE_MAX_RISK`, el
+  modelo tiene que seguir encajando al enviar el cambio; si ya no (suspendido, caducado,
+  fuera de alcance), el servidor lo pasa a `normal` y va al CAB.
+- El flujo de demanda (`tipo_cambio = estandar`) necesita `modelo_estandar_id` en el
+  expediente; sin él crea un cambio normal.
+
+**API** (`/api/v1/sd/standard-changes`): `GET` (lista; `solo_vigentes=true` para el
+selector del alta de cambio; `incluir_bajas`), `GET /{id}`, `POST` (proponer), `PATCH /{id}`,
+`POST /{id}/approve`, `POST /{id}/suspend` (`reason`), `POST /{id}/reactivate`,
+`DELETE /{id}` (baja). Leer: `sd.completo`; el resto, `sd.gestionar`.
+
+**Pantalla del cambio**: en el alta (*Service Desk → Cambios → Nuevo*), al elegir el tipo
+«Estándar» aparece el selector de modelo (solo los vigentes); sin modelo no se puede crear.
+
+**GRC**: altas, ediciones, aprobaciones, suspensiones (a mano o automáticas, con la tasa),
+reactivaciones y bajas van a `audit_log` (`resource = sd_standard_change_model`,
+`metadata.accion`). El modelo no tiene datos personales salvo quién propuso y aprobó
+(claves a `users`, `ON DELETE SET NULL`). No se borra: la baja es lógica y los cambios que
+lo usaron conservan la referencia (`sd_change_requests.standard_model_id`, `ON DELETE SET
+NULL`). Migración: `198_cambios_estandar_y_portal`.

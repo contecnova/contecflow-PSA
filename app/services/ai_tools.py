@@ -276,7 +276,7 @@ def _turno_openai(base_url, api_key, modelo, mensajes, system, herramientas, max
 
 
 def _turno_gemini(api_key, modelo, mensajes, system, herramientas, max_tokens):
-    url = f"{settings.GEMINI_API_URL}/models/{modelo}:generateContent?key={api_key}"
+    url = f"{settings.GEMINI_API_URL}/models/{modelo}:generateContent"   # M43: clave en cabecera
     cuerpo = {
         "contents": mensajes,
         "tools": herramientas_para("gemini", herramientas),
@@ -288,7 +288,7 @@ def _turno_gemini(api_key, modelo, mensajes, system, herramientas, max_tokens):
         # confunde al modelo sobre de quién es cada parte.
         cuerpo["system_instruction"] = {"parts": [{"text": system}]}
 
-    datos = _post(url, cuerpo, {"Content-Type": "application/json"}, "Gemini")
+    datos = _post(url, cuerpo, {"Content-Type": "application/json", "x-goog-api-key": api_key}, "Gemini")
 
     partes = (datos.get("candidates", [{}])[0].get("content", {}).get("parts", []))
     texto = "".join(p.get("text", "") for p in partes if "text" in p)
@@ -310,9 +310,12 @@ def _turno_gemini(api_key, modelo, mensajes, system, herramientas, max_tokens):
 
 def _post(url: str, cuerpo: dict, cabeceras: dict, quien: str) -> dict:
     from app.services.ai_provider_service import espera_de_ia
-    resp = httpx.post(url, json=cuerpo, headers=cabeceras, timeout=espera_de_ia("AI_AGENT_TURN_TIMEOUT_SECONDS"))
+    # 22-11-2026 (02, ai_tools «sin SSRF»): misma puerta que el chat normal:
+    # destino de plataforma o guardia SSRF con comprobación de la IP conectada.
+    from app.services.ai_provider_service.clientes import _cuerpo, _http
+    resp = _http("POST", url, json=cuerpo, headers=cabeceras, timeout=espera_de_ia("AI_AGENT_TURN_TIMEOUT_SECONDS"))
     if resp.status_code != 200:
-        raise ConnectionError(f"{quien} {resp.status_code}: {resp.text[:200]}")
+        raise ConnectionError(f"{quien} {resp.status_code}: {_cuerpo(resp, 200)}")
     return resp.json()
 
 

@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.core import timeutil
 from app.core.codigos_de_error import error
+from app.models.proveedores import SupplierReport
 from app.services.audit import audit_log
 from app.services.proveedores import serializar as ser
 from app.services.proveedores.tipos import SCOPE_TYPES, WP_TRANSICIONES, modos
@@ -249,3 +250,10 @@ def revisar_informe(db: Session, informe_id: str, notas: Optional[str], actor) -
     db.commit()
     db.refresh(r)
     return ser.informe(r)
+
+
+def informe_o_404(db: Session, rid: str):
+    r = db.query(SupplierReport).filter(SupplierReport.id == rid).first()
+    if r is None:
+        raise error(404, "no_encontrado", detail="Informe no encontrado", que="informe")
+    return r

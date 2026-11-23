@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, Query, Header, Body
 from sqlalchemy.orm import Session
 from typing import Optional
 
-from app.db.session import get_db
+from app.db.session import get_db, sesion_de_sistema
 from app.core.deps import get_current_user, requiere_capacidad
 from app.core.abac_enforce import enforce_abac
 from app.core.responses import APIResponse, APIListResponse
@@ -90,7 +90,7 @@ def delete_canned_response(canned_id: str, db: Session = Depends(get_db), cu: Us
 def inbound_email(
     payload: dict = Body(...),
     x_contecflow_email_secret: Optional[str] = Header(default=None),
-    db: Session = Depends(get_db),
+    db: Session = Depends(sesion_de_sistema("correo entrante: secreto de la empresa del destinatario")),
 ):
     r = process_inbound_email(db, payload, x_contecflow_email_secret)
     _commit_or_rollback(db)

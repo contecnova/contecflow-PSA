@@ -13,7 +13,7 @@ from fastapi import APIRouter, Depends, HTTPException, Body, Query
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
-from app.core.deps import get_current_user, require_any_manager
+from app.core.deps import get_current_user, requiere_capacidad
 from app.core.abac_enforce import enforce_abac
 from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
@@ -66,7 +66,7 @@ def create_milestone(
     project_id: str,
     payload: MilestoneIn,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("proyectos.responsables")),
 ):
     m = svc_create_milestone(db, project_id, **payload.model_dump())
     return APIResponse.ok(data=_ms_out(m, db))
@@ -77,10 +77,10 @@ def update_milestone(
     milestone_id: str,
     payload: dict = Body(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("proyectos.responsables")),
 ):
     m = svc_get_milestone_by_id(db, milestone_id)
-    if not m: raise HTTPException(404)
+    if not m: raise error_http(404, "no_encontrado", que="hito")
     allowed = ["name", "description", "due_date", "billing_amount", "billing_pct", "sort_order"]
     m = svc_update_milestone_fields(db, m, {k: v for k, v in payload.items() if k in allowed})
     return APIResponse.ok(data=_ms_out(m, db))
@@ -90,10 +90,10 @@ def update_milestone(
 def delete_milestone(
     milestone_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("proyectos.responsables")),
 ):
     m = svc_get_milestone_by_id(db, milestone_id)
-    if not m: raise HTTPException(404)
+    if not m: raise error_http(404, "no_encontrado", que="hito")
     enforce_abac(db, current_user, "project_milestone", milestone_id, action="delete")
     if m.invoice_id:
         raise error_http(400, "hito_facturado_no_eliminable", detail="No se puede eliminar un milestone ya facturado")
@@ -106,7 +106,7 @@ def delete_milestone(
 def complete_milestone(
     milestone_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("proyectos.responsables")),
 ):
     m = svc_complete_milestone(milestone_id, current_user, db)
     return APIResponse.ok(data=_ms_out(m, db))
@@ -116,7 +116,7 @@ def complete_milestone(
 def uncomplete_milestone(
     milestone_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("proyectos.responsables")),
 ):
     m = svc_uncomplete_milestone(milestone_id, current_user, db)
     return APIResponse.ok(data=_ms_out(m, db))
@@ -129,7 +129,7 @@ def request_approval(
     payload: ApprovalRequestIn = Body(default=ApprovalRequestIn()),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_any_manager),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
+    _rol: User = Depends(requiere_capacidad("proyectos.responsables")),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
     m = request_milestone_approval(milestone_id, payload.message, current_user, db)
     return APIResponse.ok(data={**_ms_out(m, db), "message": "Solicitud de aprobación enviada"})
@@ -141,7 +141,7 @@ def approve_milestone(
     milestone_id: str,
     payload: ApprovalDecisionIn,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("proyectos.responsables")),
 ):
     m = decide_milestone_approval(
         milestone_id, payload.approved, payload.rejection_reason, current_user, db
@@ -155,7 +155,7 @@ def approve_milestone(
 def generate_invoice(
     milestone_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("proyectos.responsables")),
 ):
     invoice_data = generate_milestone_invoice(milestone_id, current_user, db)
     m = svc_get_milestone_by_id(db, milestone_id)
@@ -178,7 +178,7 @@ def pending_milestones_dashboard(
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=MAX_TAMANO_DE_PAGINA),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("proyectos.responsables")),
 ):
     ms, projects_map = svc_get_pending_milestones_dashboard(db)
 

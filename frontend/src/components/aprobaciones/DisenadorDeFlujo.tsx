@@ -23,6 +23,7 @@ import { SelectorDeAprobador } from '../politicas/EditorDeResultados'
 import { UserSelect } from '../ui/EntitySelect'
 import { useCatalogo, useTextos } from '../politicas/comun'
 import '../politicas/politicas.css'
+import { Input } from '../ui'
 
 type DatosNodo = DatosDeNodoDeFlujo & { tipo: TipoDeNodoDeFlujo; error?: string | null }
 type NodoAp = Node<DatosNodo>
@@ -169,7 +170,7 @@ function Propiedades({ nodo, dominio, onChange }: { nodo: NodoAp; dominio: strin
   return (
     <div className="u-stack-10">
       <label><span className="pol-etiqueta">{t('pol.nombre')}</span>
-        <input className="pol-campo pol-campo--ancho" value={d.nombre ?? ''} onChange={e => onChange({ nombre: e.target.value })} /></label>
+        <Input value={d.nombre ?? ''} onChange={e => onChange({ nombre: e.target.value })} className="pol-campo--ancho" /></label>
       {d.tipo === 'condition' ? (
         dom ? <ConstructorDeCondiciones dominio={dom} valor={d.arbol ?? null} onChange={(g: GrupoDeCondiciones) => onChange({ arbol: g })} />
           : <p className="pol-error">{t('pol.sin_catalogo')}</p>
@@ -182,11 +183,9 @@ function Propiedades({ nodo, dominio, onChange }: { nodo: NodoAp; dominio: strin
           {d.tipo === 'approve' && (
             <>
               <label className="pol-fila"><span className="pol-ayuda">{t('pol.quorum')}</span>
-                <input type="number" min={1} className="pol-campo pol-campo--corto" value={d.required_approvals ?? 1}
-                  onChange={e => onChange({ required_approvals: Number(e.target.value) || 1 })} /></label>
+                <Input type="number" min={1} value={d.required_approvals ?? 1} onChange={e => onChange({ required_approvals: Number(e.target.value) || 1 })} className="pol-campo--corto" /></label>
               <label className="pol-fila"><span className="pol-ayuda">{t('pol.caduca_en_horas')}</span>
-                <input type="number" min={1} className="pol-campo pol-campo--corto" value={d.timeout_hours ?? 72}
-                  onChange={e => onChange({ timeout_hours: Number(e.target.value) || 72 })} /></label>
+                <Input type="number" min={1} value={d.timeout_hours ?? 72} onChange={e => onChange({ timeout_hours: Number(e.target.value) || 72 })} className="pol-campo--corto" /></label>
               <label className="pol-fila"><span className="pol-ayuda">{t('pol.al_caducar')}</span>
                 <Select suelto placeholder={false} className="pol-campo" value={d.on_timeout ?? 'escalate'} onChange={e => onChange({ on_timeout: e.target.value as DatosNodo['on_timeout'] })}>
                   {(['escalate', 'auto_approve', 'reject'] as const).map(o => <option key={o} value={o}>{t(`pol.caducar_${o}`)}</option>)}
@@ -196,8 +195,7 @@ function Propiedades({ nodo, dominio, onChange }: { nodo: NodoAp; dominio: strin
                   <UserSelect value={d.escalate_to_user_id ?? ''} onChange={id => onChange({ escalate_to_user_id: id || null })} placeholder={t('pol.elige_persona')} /></div>
               )}
               <label className="pol-fila"><span className="pol-ayuda">{t('pol.recordar_cada')}</span>
-                <input type="number" min={0} className="pol-campo pol-campo--corto" value={d.reminder_hours ?? ''}
-                  onChange={e => onChange({ reminder_hours: e.target.value ? Number(e.target.value) : null })} /></label>
+                <Input type="number" min={0} value={d.reminder_hours ?? ''} onChange={e => onChange({ reminder_hours: e.target.value ? Number(e.target.value) : null })} className="pol-campo--corto" /></label>
               <label className="pol-chip"><Checkbox checked={!!d.requires_attachment}
                 onChange={(_, e) => onChange({ requires_attachment: e.target.checked })} />{t('pol.exige_adjunto')}</label>
             </>

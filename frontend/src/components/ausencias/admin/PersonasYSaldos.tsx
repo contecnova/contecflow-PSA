@@ -11,7 +11,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Calculator, Plus, Trash2, Users, Wallet } from 'lucide-react'
 import { ausenciasApi } from '../../../services/api/ausencias'
 import type { FichaLaboral, FichaLaboralIn, SaldoDeAusencia, SaldosDePersona, UnidadDeSaldo } from '../../../services/api/tipos-ausencias'
-import { Button, EmptyState, Modal, Spinner, Select, TablaSimple, SearchInput, useErroresDeCampo, Input } from '../../ui'
+import { Button, EmptyState, Modal, Spinner, Select, TablaSimple, Buscador, useErroresDeCampo, Input } from '../../ui'
 import DateInput from '../../ui/DateInput'
 import { confirmar } from '../../../context/ConfirmContext'
 import { useToast } from '../../../context/ToastContext'
@@ -57,7 +57,7 @@ export default function PersonasYSaldos({ puedeEditar }: { puedeEditar: boolean 
       <p className="ausadm-ayuda">{ta('personas_ayuda')}</p>
       {puedeEditar && <RecalcularBolsa userIds={filas.map(f => f.user_id)} />}
       <div className="ds-toolbar">
-        <SearchInput value={busca} onChange={setBusca} placeholder={ta('buscar_persona')} />
+        <Buscador value={busca} onChange={setBusca} placeholder={ta('buscar_persona')} />
         <Filtros equipo={equipo} departamento={departamento} equipos={opciones?.equipos ?? []}
           departamentos={opciones?.departamentos ?? []} onEquipo={setEquipo} onDepartamento={setDepartamento} />
       </div>
@@ -255,8 +255,7 @@ function NuevoAjuste({ userId, saldo }: { userId: string; saldo: SaldoDeAusencia
       <span id="ausadm-ajuste-titulo" className="ausadm-etiqueta">{ta('nuevo_ajuste')}</span>
       <div className="ausadm-fila">
         <label className="ausadm-fila"><span className="ausadm-ayuda">{ta('cantidad_mas_menos')}</span>
-          <input type="number" step="0.25" required className="ausadm-campo ausadm-campo--corto" aria-label={ta('cantidad_mas_menos')}
-            value={cantidad} onChange={e => setCantidad(e.target.value)} />{msg('cantidad_mas_menos')}
+          <Input type="number" step="0.25" required aria-label={ta('cantidad_mas_menos')} value={cantidad} onChange={e => setCantidad(e.target.value)} className="ausadm-campo--corto" />{msg('cantidad_mas_menos')}
         </label>
         <Select suelto className="ausadm-campo" aria-label={ta('unidad')} value={unidad} placeholder={false}
           onChange={e => setUnidad(e.target.value as UnidadDeSaldo)}>

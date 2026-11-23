@@ -4,11 +4,8 @@ Parte de `app.services.auth_service` (auditoria 2026-11, #24): se partio por res
 sin cambiar el codigo. El paquete reexporta todos los nombres.
 """
 import logging
-import ipaddress
-import socket
 import uuid
 from typing import Optional
-from urllib.parse import urlparse
 from sqlalchemy.orm import Session
 from app.models.mfa import Organization
 from app.models.user import User, UserRole, UserStatus
@@ -42,54 +39,15 @@ def resolve_sso_organization_id(db: Session, config, email: str) -> str:
 
 
 def validate_https_discovery_url(discovery_url: str) -> str:
-    """Validate OIDC discovery URL to avoid SSRF to private/internal networks."""
-    parsed = urlparse(discovery_url or "")
-    if parsed.scheme.lower() != "https" or not parsed.netloc:
-        raise error(400, "url_debe_ser_https", campo="oidc_discovery_url")
+    """URL de discovery OIDC / metadatos: HTTPS y sin redes internas.
 
-    hostname = (parsed.hostname or "").strip().lower()
-    if not hostname:
-        raise error(400, "url_sin_host", detail="oidc_discovery_url debe incluir hostname", campo="oidc_discovery_url")
+    22-11-2026 (01 M7): era una copia del guardia SSRF; ahora delega en el
+    central (`app.core.outbound_url`). Quien la descarga usa `abrir()`, que
+    además comprueba la IP conectada.
+    """
+    from app.core.outbound_url import validate_outbound_url
 
-    if hostname in {"localhost", "localhost.localdomain"} or hostname.endswith(".local"):
-        raise error(400, "url_host_local", detail="oidc_discovery_url no puede apuntar a hosts locales", campo="oidc_discovery_url")
-
-    try:
-        ip_obj = ipaddress.ip_address(hostname)
-    # intentional: best-effort fallback, log noise outweighs diagnostic value
-    except ValueError:
-        ip_obj = None
-
-    if ip_obj is not None and (
-        ip_obj.is_private
-        or ip_obj.is_loopback
-        or ip_obj.is_link_local
-        or ip_obj.is_multicast
-        or ip_obj.is_reserved
-        or ip_obj.is_unspecified
-    ):
-        raise error(400, "url_red_no_permitida", campo="oidc_discovery_url")
-
-    try:
-        addrinfo = socket.getaddrinfo(hostname, parsed.port or 443, proto=socket.IPPROTO_TCP)
-    except Exception:
-        logger.warning("Error resolviendo getaddrinfo para hostname=%s puerto=%s", hostname, parsed.port or 443, exc_info=True)
-        addrinfo = []
-
-    for entry in addrinfo:
-        ip_raw = entry[4][0]
-        resolved_ip = ipaddress.ip_address(ip_raw)
-        if (
-            resolved_ip.is_private
-            or resolved_ip.is_loopback
-            or resolved_ip.is_link_local
-            or resolved_ip.is_multicast
-            or resolved_ip.is_reserved
-            or resolved_ip.is_unspecified
-        ):
-            raise error(400, "url_red_no_permitida", detail="oidc_discovery_url resuelve a una red no permitida", campo="oidc_discovery_url")
-
-    return discovery_url
+    return validate_outbound_url(discovery_url, field="oidc_discovery_url", require_https=True)
 
 
 # ── SSO helpers ───────────────────────────────────────────────────────────────
@@ -305,6 +263,8 @@ def sso_timeout_http() -> float:
         from app.db.session import SessionLocal
         from app.services.settings_service import get_runtime_float
         with SessionLocal() as _db:
+            from app.db.contexto_de_tenant import declarar_sistema as _declarar_sistema
+            _declarar_sistema(_db, "ajustes globales de SSO")  # auditoría 22-11-2026: TENANT_SESION_SIN_CONTEXTO=cerrar
             v = get_runtime_float(_db, "SSO_HTTP_TIMEOUT_SECONDS")
         return float(v) if v else float(_cfg.SSO_HTTP_TIMEOUT_SECONDS)
     except Exception:
@@ -322,6 +282,8 @@ def sso_holgura_de_reloj() -> int:
         from app.db.session import SessionLocal
         from app.services.settings_service import get_runtime_int
         with SessionLocal() as _db:
+            from app.db.contexto_de_tenant import declarar_sistema as _declarar_sistema
+            _declarar_sistema(_db, "ajustes globales de SSO")  # auditoría 22-11-2026: TENANT_SESION_SIN_CONTEXTO=cerrar
             v = get_runtime_int(_db, "SSO_CLOCK_SKEW_SECONDS")
         return int(v) if v is not None else int(_cfg.SSO_CLOCK_SKEW_SECONDS)
     except Exception:

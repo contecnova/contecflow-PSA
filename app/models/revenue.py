@@ -10,6 +10,7 @@ Tables:
 import enum
 import uuid
 
+from sqlalchemy import JSON
 from sqlalchemy import (
     Boolean, Column, Date, DateTime, Enum, Float,
     ForeignKey, Index, Integer, String, Text, UniqueConstraint, text,
@@ -18,6 +19,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
 from app.db.base import Base
+from app.models.money import Money
 from app.core.config import settings
 
 
@@ -50,7 +52,7 @@ class RevenueContract(Base):
     client_id       = Column(String(36), ForeignKey("clients.id",       ondelete="SET NULL"), nullable=True, index=True)
 
     name            = Column(String(255), nullable=False)
-    contract_value  = Column(Float, nullable=False, default=0.0)
+    contract_value  = Column(Money, nullable=False, default=0.0)
     currency        = Column(String(8), nullable=False, default=settings.DEFAULT_CURRENCY)
     method          = Column(Enum(ASCMethod), nullable=False, default=ASCMethod.over_time)
 
@@ -84,7 +86,7 @@ class RevenueObligation(Base):
     name            = Column(String(255), nullable=False)
     # % del valor total del contrato asignado a esta obligación (0–100)
     allocated_pct   = Column(Float, nullable=False, default=100.0)
-    allocated_amount = Column(Float, nullable=False, default=0.0)
+    allocated_amount = Column(Money, nullable=False, default=0.0)
 
     is_satisfied    = Column(Boolean, nullable=False, default=False)
     satisfied_date  = Column(Date, nullable=True)
@@ -93,7 +95,7 @@ class RevenueObligation(Base):
     # precio de venta independiente (ASC 606 paso 4) y notas. La pantalla los mandaba
     # y el alta fallaba con 500 porque el modelo no los tenia.
     method           = Column(String(32), nullable=True)
-    standalone_price = Column(Float, nullable=True)
+    standalone_price = Column(Money, nullable=True)  # migracion 200: Numeric (A-MOD2)
     notes            = Column(Text, nullable=True)
 
     created_at      = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
@@ -158,7 +160,7 @@ class RevenueEntry(Base):
     timesheet_id    = Column(String(36), nullable=True)  # referencia libre a hoja de horas
 
     entry_type      = Column(Enum(EntryType), nullable=False, default=EntryType.recognized)
-    amount          = Column(Float, nullable=False, default=0.0)
+    amount          = Column(Money, nullable=False, default=0.0)
     currency        = Column(String(8), nullable=False, default=settings.DEFAULT_CURRENCY)
 
     period_year     = Column(Integer, nullable=False)
@@ -168,6 +170,9 @@ class RevenueEntry(Base):
     reverses_entry_id = Column(String(36), ForeignKey("rev_entries.id", ondelete="SET NULL"), nullable=True, index=True)
 
     description     = Column(Text, nullable=True)
+    # Migracion 200: descripcion del sistema por clave (se pinta en el idioma de quien lee).
+    description_key    = Column(String(120), nullable=True)
+    description_params = Column(JSON, nullable=True)
     created_by      = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at      = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 

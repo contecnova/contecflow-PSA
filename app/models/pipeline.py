@@ -14,7 +14,7 @@ class PipelineStageConfig(Base):
     __tablename__ = "pipeline_stage_configs"
 
     id            = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     stage_key     = Column(String(50), nullable=False, index=True)  # slug-like key
     label         = Column(String(100), nullable=False)
     description   = Column(Text, nullable=True)
@@ -39,6 +39,33 @@ class OpportunityStage(str, enum.Enum):
     cancelled = "cancelled"         # Cancelled
 
 
+# ── Estados del pipeline: un único sitio (auditoría 04b M9) ──────────────────
+#
+# Regla de mercado (Salesforce/HubSpot) para todos los totales comerciales:
+#   - Valor del pipeline abierto y previsión ponderada: SOLO etapas abiertas.
+#     Ganadas, perdidas y canceladas no suman (las ganadas ya son contratación).
+#   - Tasa de éxito (win rate) = ganadas / (ganadas + perdidas).
+#   - Canceladas = «sin decisión» (no-decision): fuera de la tasa de éxito y del
+#     pipeline; se informan aparte con su recuento e importe.
+# Son valores (str): sirven igual en `Opportunity.stage.notin_(...)` (la columna
+# Enum guarda el nombre, que coincide con el valor) que en Python y en el OLAP.
+ETAPA_GANADA = OpportunityStage.won.value
+ETAPA_PERDIDA = OpportunityStage.lost.value
+ETAPA_CANCELADA = OpportunityStage.cancelled.value
+ETAPAS_ABIERTAS: tuple[str, ...] = (
+    OpportunityStage.lead.value, OpportunityStage.qualification.value,
+    OpportunityStage.proposal.value, OpportunityStage.negotiation.value,
+)
+ETAPAS_CERRADAS: tuple[str, ...] = (ETAPA_GANADA, ETAPA_PERDIDA, ETAPA_CANCELADA)
+# Denominador de la tasa de éxito: las decididas (la cancelada no es decisión).
+ETAPAS_DECIDIDAS: tuple[str, ...] = (ETAPA_GANADA, ETAPA_PERDIDA)
+
+
+def etapa_de(valor) -> str:
+    """La etapa como texto plano, venga como enum, como valor o vacía."""
+    return str(getattr(valor, "value", valor) or "")
+
+
 class Opportunity(Base):
     __tablename__ = "opportunities"
     # Unico por organizacion (revision multitenant 2026-11): antes era global y
@@ -46,7 +73,7 @@ class Opportunity(Base):
     __table_args__ = (Index("uq_opportunities_org_code", "organization_id", "code", unique=True),)
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     code = Column(String(20), nullable=False)  # OPP-001
     name = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
@@ -85,7 +112,7 @@ class Opportunity(Base):
     expected_duration_weeks = Column(Integer, nullable=True)
 
     # Assignment
-    owner_id = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    owner_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     team_required = Column(Text, nullable=True)  # JSON description of team needed
 
     # Billing details (used on convert → RevenueContract)
@@ -93,7 +120,7 @@ class Opportunity(Base):
     contract_type   = Column(String(30), nullable=True)   # fixed_price | time_material | retainer | hourly_bag
 
     # Link to project if won
-    project_id = Column(String(36), ForeignKey("projects.id"), nullable=True, index=True)
+    project_id = Column(String(36), ForeignKey("projects.id", ondelete="SET NULL"), nullable=True, index=True)
 
     # Proposal / SOW tracking
     proposal_template_id  = Column(String(36), ForeignKey("proposal_templates.id", ondelete="SET NULL"), nullable=True, index=True)
@@ -119,9 +146,9 @@ class OpportunityActivity(Base):
     __tablename__ = "opportunity_activities"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     opportunity_id = Column(String(36), ForeignKey("opportunities.id", ondelete="CASCADE"), nullable=False, index=True)
-    user_id = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    user_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     type = Column(String(30), default="note")  # note | call | meeting | email | stage_change
     content = Column(Text, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -153,7 +180,7 @@ class Contract(Base):
     __table_args__ = (Index("uq_contracts_org_code", "organization_id", "code", unique=True),)
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     code = Column(String(30), nullable=False)  # CTR-001
     name = Column(String(255), nullable=False)
     project_id = Column(String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
@@ -172,6 +199,8 @@ class Contract(Base):
     hours_bag = Column(Float, nullable=True)             # For hourly bag (hours)
     hours_used = Column(Float, default=0)                # Tracked automatically (hours)
     monthly_retainer = Column(Money, nullable=True)      # For retainer
+    # Migracion 200: moneda de los importes; NULL = la de la empresa (se resuelve al leer).
+    currency = Column(String(3), nullable=True)
 
     start_date = Column(Date, nullable=True)
     end_date = Column(Date, nullable=True)
@@ -181,9 +210,9 @@ class Contract(Base):
     document_url = Column(String(500), nullable=True)
     notes = Column(Text, nullable=True)
     payment_terms = Column(String(255), nullable=True)   # "30 days", "milestone"
-    sla_policy_id = Column(String(36), ForeignKey("sd_sla_policies.id"), nullable=True, index=True)
+    sla_policy_id = Column(String(36), ForeignKey("sd_sla_policies.id", ondelete="SET NULL"), nullable=True, index=True)
 
-    created_by = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    created_by = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
@@ -200,10 +229,10 @@ class WorkOrder(Base):
     __table_args__ = (Index("uq_work_orders_org_code", "organization_id", "code", unique=True),)
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     code = Column(String(30), nullable=False)  # WO-001
     contract_id = Column(String(36), ForeignKey("contracts.id", ondelete="CASCADE"), nullable=False, index=True)
-    project_id = Column(String(36), ForeignKey("projects.id"), nullable=True, index=True)
+    project_id = Column(String(36), ForeignKey("projects.id", ondelete="SET NULL"), nullable=True, index=True)
 
     name = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
@@ -250,7 +279,7 @@ class Risk(Base):
     __tablename__ = "risks"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     code = Column(String(20), nullable=False)  # RSK-001 (per project)
     project_id = Column(String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
 
@@ -271,8 +300,8 @@ class Risk(Base):
     response_type = Column(String(20), nullable=True)  # avoid | mitigate | transfer | accept
 
     # People
-    owner_id = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
-    identified_by = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    owner_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    identified_by = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
 
     # Dates
     identified_date = Column(Date, server_default=func.current_date())

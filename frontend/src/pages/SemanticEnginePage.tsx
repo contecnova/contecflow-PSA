@@ -11,27 +11,28 @@
  * 19-11-2026: la pestaña «Configuración» (modo, embeddings, umbrales y
  * auto-asignación) vive en Configuración → IA e idiomas → Asignación por IA
  * (`/settings/ia-asignacion`, components/asignacion-ia/ConfigMotorSemantico.tsx).
- * Aquí quedan perfiles, prueba y estadísticas, el botón «Configurar» para quien
- * tiene `ia.asignacion_config`, y `?tab=config` redirige allí.
+ * Aquí quedan perfiles, prueba y estadísticas, y `?tab=config` redirige allí
+ * (23-11-2026: no hay botón «Configurar» en esta pantalla; el acceso a la
+ * configuración es el menú de Configuración).
  */
 import type { CSSProperties } from 'react'
 import { Navigate, useSearchParams } from 'react-router-dom'
-import type { AxiosError } from 'axios'
 import { useState, useEffect, useId } from 'react'
 import { extractErr } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { semanticApi, usersApi } from '../services/api'
+import { semanticApi } from '../services/api'
 import type { EstadisticasDelMotorSemantico, PerfilSemantico, SugerenciaDeAsignacionDeTicket } from '../services/api/tipos-analitica'
-import { Button, EmptyState, KpiCard, Modal, Tabs, Input } from '../components/ui'
+import { Button, EmptyState, KpiCard, Modal, Tabs, Input, Textarea } from '../components/ui'
 import { ENGINE_MODES } from '../components/asignacion-ia/ConfigMotorSemantico'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { AlertTriangle, BarChart3, Brain, CheckCircle2, CheckSquare, FlaskConical, Info, Layers, Pencil, RefreshCw, Sparkles, Target, Ticket, UserCheck, Users, Wand2, XCircle, Zap } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 import { CLOCK_TICK_MS } from '../constants/timings'
+import { useListaDeUsuarios } from '../hooks/useListas'
 import './SemanticEnginePage.css'
 
 const fs = 'ds-input sem-input'
@@ -46,9 +47,6 @@ type ProfileRow = Partial<SemProfile> & { user_id: string; user_name: string; ha
 
 /** La sugerencia pedida, o el error al pedirla. */
 type TestResult = Partial<SugerenciaDeAsignacionDeTicket> & { error?: string }
-
-/** FastAPI devuelve `detail` como texto o, en un 422, como lista de errores. */
-type ErrorDeValidacion = AxiosError<{ detail?: string | Array<{ msg?: string }> }>
 
 function ProfileModal({ user, onClose }: { user: ProfileRow; onClose: () => void }) {
   const idCampo = useId()
@@ -71,14 +69,14 @@ function ProfileModal({ user, onClose }: { user: ProfileRow; onClose: () => void
       </p>
       <div className="u-mb-14">
         <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className={ls}>{traducir('semanticengine.texto_del_perfil')}</label>
-        <textarea id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={text} onChange={e => setText(e.target.value)} rows={6}
-          className={`${fs} sem-textarea sem-textarea--lh`}
+        <Textarea id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={text} onChange={e => setText(e.target.value)} rows={6}
+          inputClassName={`${fs} sem-textarea sem-textarea--lh`}
           placeholder={traducir('semanticengine.describe_las_capacidades_rol_tecnologias_y_area_2')} />
       </div>
       <div className="u-mb-20">
         <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className={ls}>{traducir('semanticengine.carga_maxima_simultanea_tickets_tareas')}</label>
-        <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="number" value={maxLoad} onChange={e => setMaxLoad(parseInt(e.target.value))}
-          className={`${fs} sem-input--narrow`} min={1} max={50} />
+        <Input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="number" value={maxLoad} onChange={e => setMaxLoad(parseInt(e.target.value))}
+          inputClassName={`${fs} sem-input--narrow`} min={1} max={50} />
       </div>
       <div className="u-actions-10">
         <Button variant="secondary" onClick={onClose}>{traducir('common.cancel')}</Button>
@@ -109,8 +107,7 @@ function TestPanel() {
       const res = await fn({ title, description: desc })
       setResult(res.data)
     } catch (e) {
-      const raw = (e as ErrorDeValidacion)?.response?.data?.detail
-      setResult({ error: Array.isArray(raw) ? raw.map(d => d.msg).join(', ') : (raw || traducir('semanticengine.error')) })
+      setResult({ error: extractErr(e, traducir('semanticengine.error')) })
     } finally { setTesting(false) }
   }
 
@@ -136,8 +133,8 @@ function TestPanel() {
         </div>
         <div>
           <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className={ls}>{traducir('semanticengine.descripcion_opcional')}</label>
-          <textarea id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={desc} onChange={e => setDesc(e.target.value)} rows={3}
-            className={`${fs} sem-textarea`} placeholder={traducir('semanticengine.descripcion_opcional_del_ticket_o_tarea')} />
+          <Textarea id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={desc} onChange={e => setDesc(e.target.value)} rows={3}
+            inputClassName={`${fs} sem-textarea`} placeholder={traducir('semanticengine.descripcion_opcional_del_ticket_o_tarea')} />
         </div>
       </div>
       <Button icon={<Wand2 size={14} />} onClick={runTest} disabled={!title.trim()} loading={testing}>
@@ -226,11 +223,7 @@ export default function SemanticEnginePage() {
     queryKey: ['sem-stats'],
     queryFn: () => semanticApi.stats().then(r => r.data),
   })
-  const { data: users = [] } = useQuery({
-    queryKey: ['users'],
-    queryFn: () => usersApi.list().then(r => r.data),
-    enabled: tab === 'profiles',
-  })
+  const { data: users = [] } = useListaDeUsuarios(undefined, { enabled: tab === 'profiles' })
 
   const { mutate: autoGenerate, isPending: generating } = useMutation({
     mutationFn: () => semanticApi.autoGenerate(),

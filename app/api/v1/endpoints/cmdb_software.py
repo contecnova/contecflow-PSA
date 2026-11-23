@@ -24,12 +24,15 @@ from sqlalchemy.orm import Session
 from app.core.abac_enforce import enforce_abac
 from app.core.codigos_de_error import error
 from app.core.constantes import MAX_TAMANO_DE_PAGINA
-from app.core.deps import require_admin, require_admin_or_pm
+from app.core.deps import requiere_capacidad
 from app.core.responses import APIListResponse, APIResponse
+from app.core.uploads import UploadProfile, max_bytes_for, read_and_validate_upload, read_upload_within_limit
+from app.core.async_db import run_db
 from app.db.session import get_db
 from app.models.cmdb_software import (SoftwareBaseline, SoftwareComponent, SoftwareInstance, Vulnerability,
                                       VulnerabilityAffect, VulnerabilitySyncRun)
 from app.models.user import User
+from app.services.cmdb_software.transaccion import confirmar as _confirmar
 from app.services.cmdb_software import (ajustes, analisis, avisos, catalogo as cat, correlacion, fuentes, gestion,
                                         importacion)
 
@@ -40,16 +43,16 @@ def _org(u: User) -> Optional[str]:
     return u.organization_id
 
 
-def _confirmar(db: Session) -> None:
-    try:
-        db.commit()
-    except Exception:
-        db.rollback()
-        raise
-
-
 async def _leer(fichero: UploadFile) -> bytes:
-    contenido = await fichero.read(importacion.TAMANO_MAXIMO_MB * 1024 * 1024 + 1)
+    contenido = await read_and_validate_upload(fichero, UploadProfile.DATA_IMPORT)
+    importacion.comprobar_fichero(contenido)
+    return contenido
+
+
+async def _leer_paquete(fichero: UploadFile) -> bytes:
+    """Lectura con tope para los ficheros de componentes, que admiten un zip
+    (lo abre el servicio con sus propios límites): sin validación de tipo."""
+    contenido = await read_upload_within_limit(fichero, max_bytes_for(UploadProfile.DATA_IMPORT))
     importacion.comprobar_fichero(contenido)
     return contenido
 
@@ -67,7 +70,7 @@ def _d(payload: Datos) -> dict:
 # ── Meta y cuadro de mando ───────────────────────────────────────────────────
 
 @router.get("/meta", summary="Valores permitidos (categorías, orígenes, entornos, relaciones...)")
-def meta(current_user: User = Depends(require_admin_or_pm)):
+def meta(current_user: User = Depends(requiere_capacidad("software.gestionar"))):
     from app.services.cmdb_software import configuracion as cfg, formatos, licencias
     return APIResponse.ok(data={
         "categories": cat.CATEGORIAS, "origins": cat.ORIGENES, "criticalities": cat.CRITICIDADES,
@@ -82,7 +85,7 @@ def meta(current_user: User = Depends(require_admin_or_pm)):
 
 
 @router.get("/dashboard", summary="Cuadro de mando de software y vulnerabilidades")
-def dashboard(db: Session = Depends(get_db), current_user: User = Depends(require_admin_or_pm)):
+def dashboard(db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("software.gestionar"))):
     return APIResponse.ok(data=analisis.cuadro_de_mando(db, _org(current_user)))
 
 
@@ -92,28 +95,28 @@ def dashboard(db: Session = Depends(get_db), current_user: User = Depends(requir
 def list_products(q: Optional[str] = None, category: Optional[str] = None, origin: Optional[str] = None,
                   lifecycle: Optional[str] = None, include_retired: bool = False, apps_only: bool = False,
                   page: int = Query(1, ge=1), page_size: int = Query(50, ge=1, le=500),
-                  db: Session = Depends(get_db), current_user: User = Depends(require_admin_or_pm)):
+                  db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("software.gestionar"))):
     r = analisis.listar_productos(db, _org(current_user), q, category, origin, lifecycle, include_retired, apps_only,
                                   page, page_size)
     return APIListResponse.ok(items=r["items"], total=r["total"], page=page, page_size=page_size)
 
 
 @router.post("/products", summary="Alta de software en el catálogo", status_code=201)
-def create_product(payload: Datos, db: Session = Depends(get_db), current_user: User = Depends(require_admin_or_pm)):
+def create_product(payload: Datos, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("software.gestionar"))):
     p = cat.crear_producto(db, _org(current_user), _d(payload), current_user)
     _confirmar(db)
     return APIResponse.ok(data=cat.serializar_producto(p))
 
 
 @router.get("/products/{product_id}", summary="Ficha de software (versiones, instancias, uso, licencias)")
-def get_product(product_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_admin_or_pm)):
+def get_product(product_id: str, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("software.gestionar"))):
     org = _org(current_user)
     return APIResponse.ok(data=analisis.ficha(db, org, cat.producto(db, org, product_id)))
 
 
 @router.patch("/products/{product_id}", summary="Cambiar software del catálogo")
 def update_product(product_id: str, payload: Datos, db: Session = Depends(get_db),
-                   current_user: User = Depends(require_admin_or_pm)):
+                   current_user: User = Depends(requiere_capacidad("software.gestionar"))):
     org = _org(current_user)
     p = cat.actualizar_producto(db, org, cat.producto(db, org, product_id), _d(payload), current_user)
     _confirmar(db)
@@ -121,7 +124,7 @@ def update_product(product_id: str, payload: Datos, db: Session = Depends(get_db
 
 
 @router.delete("/products/{product_id}", summary="Retirar software del catálogo (baja lógica)")
-def delete_product(product_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_admin_or_pm)):
+def delete_product(product_id: str, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("software.gestionar"))):
     enforce_abac(db, current_user, "software_product", product_id, action="delete")
     org = _org(current_user)
     cat.retirar_producto(db, cat.producto(db, org, product_id), current_user)
@@ -131,7 +134,7 @@ def delete_product(product_id: str, db: Session = Depends(get_db), current_user:
 
 @router.post("/products/{product_id}/versions", summary="Alta de versión", status_code=201)
 def create_version(product_id: str, payload: Datos, db: Session = Depends(get_db),
-                   current_user: User = Depends(require_admin_or_pm)):
+                   current_user: User = Depends(requiere_capacidad("software.gestionar"))):
     org = _org(current_user)
     v = cat.crear_version(db, org, cat.producto(db, org, product_id), _d(payload), current_user)
     _confirmar(db)
@@ -140,7 +143,7 @@ def create_version(product_id: str, payload: Datos, db: Session = Depends(get_db
 
 @router.post("/products/{product_id}/lifecycle", summary="Ciclo de vida por ramas (formato endoflife.date)")
 def import_lifecycle(product_id: str, payload: list[dict] = Body(...), db: Session = Depends(get_db),
-                     current_user: User = Depends(require_admin_or_pm)):
+                     current_user: User = Depends(requiere_capacidad("software.gestionar"))):
     org = _org(current_user)
     p = cat.producto(db, org, product_id)
     n = fuentes.aplicar_ciclos(db, org, p, payload, fuente="import")
@@ -152,7 +155,7 @@ def import_lifecycle(product_id: str, payload: list[dict] = Body(...), db: Sessi
 
 @router.post("/products/{product_id}/licenses", summary="Vincular una licencia de Activos")
 def link_license(product_id: str, payload: Datos, db: Session = Depends(get_db),
-                 current_user: User = Depends(require_admin_or_pm)):
+                 current_user: User = Depends(requiere_capacidad("software.gestionar"))):
     org = _org(current_user)
     p = cat.producto(db, org, product_id)
     cat.vincular_licencia(db, org, p, _d(payload).get("license_id"), current_user)
@@ -162,7 +165,7 @@ def link_license(product_id: str, payload: Datos, db: Session = Depends(get_db),
 
 @router.delete("/products/{product_id}/licenses/{license_id}", summary="Desvincular una licencia de Activos")
 def unlink_license(product_id: str, license_id: str, db: Session = Depends(get_db),
-                   current_user: User = Depends(require_admin_or_pm)):
+                   current_user: User = Depends(requiere_capacidad("software.gestionar"))):
     org = _org(current_user)
     p = cat.producto(db, org, product_id)
     cat.desvincular_licencia(db, org, p, license_id, current_user)
@@ -171,7 +174,7 @@ def unlink_license(product_id: str, license_id: str, db: Session = Depends(get_d
 
 
 @router.get("/products/{product_id}/baselines", summary="Líneas base de configuración del producto")
-def list_baselines(product_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_admin_or_pm)):
+def list_baselines(product_id: str, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("software.gestionar"))):
     org = _org(current_user)
     p = cat.producto(db, org, product_id)
     return APIListResponse.ok(items=[cat.serializar_linea_base(b) for b in cat._q(db, SoftwareBaseline, org)
@@ -180,7 +183,7 @@ def list_baselines(product_id: str, db: Session = Depends(get_db), current_user:
 
 @router.post("/products/{product_id}/baselines", summary="Alta de línea base", status_code=201)
 def create_baseline(product_id: str, payload: Datos, db: Session = Depends(get_db),
-                    current_user: User = Depends(require_admin_or_pm)):
+                    current_user: User = Depends(requiere_capacidad("software.gestionar"))):
     org = _org(current_user)
     b = cat.guardar_linea_base(db, org, cat.producto(db, org, product_id), _d(payload), current_user)
     _confirmar(db)
@@ -193,7 +196,7 @@ def _linea_base(db, org, id_) -> SoftwareBaseline:
 
 @router.patch("/baselines/{baseline_id}", summary="Cambiar línea base (retira su aprobación)")
 def update_baseline(baseline_id: str, payload: Datos, db: Session = Depends(get_db),
-                    current_user: User = Depends(require_admin_or_pm)):
+                    current_user: User = Depends(requiere_capacidad("software.gestionar"))):
     org = _org(current_user)
     b = _linea_base(db, org, baseline_id)
     b = cat.guardar_linea_base(db, org, cat.producto(db, org, b.product_id), _d(payload), current_user, b)
@@ -202,7 +205,7 @@ def update_baseline(baseline_id: str, payload: Datos, db: Session = Depends(get_
 
 
 @router.post("/baselines/{baseline_id}/approve", summary="Aprobar línea base (dirección)")
-def approve_baseline(baseline_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+def approve_baseline(baseline_id: str, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("software.administrar"))):
     b = _linea_base(db, _org(current_user), baseline_id)
     cat.aprobar_linea_base(db, b, current_user)
     _confirmar(db)
@@ -210,12 +213,10 @@ def approve_baseline(baseline_id: str, db: Session = Depends(get_db), current_us
 
 
 @router.delete("/baselines/{baseline_id}", summary="Borrar línea base")
-def delete_baseline(baseline_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_admin_or_pm)):
+def delete_baseline(baseline_id: str, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("software.gestionar"))):
     enforce_abac(db, current_user, "software_baseline", baseline_id, action="delete")
     b = _linea_base(db, _org(current_user), baseline_id)
-    from app.services.audit import audit_log
-    audit_log(db, current_user, "DELETE", "sw_baseline", b.id, b.name, old_values=cat.serializar_linea_base(b))
-    db.delete(b)
+    cat.borrar_linea_base(db, b, current_user)
     _confirmar(db)
     return APIResponse.ok(data={"ok": True})
 
@@ -224,14 +225,14 @@ def delete_baseline(baseline_id: str, db: Session = Depends(get_db), current_use
 
 @router.patch("/versions/{version_id}", summary="Cambiar versión (fechas de soporte y fin de vida)")
 def update_version(version_id: str, payload: Datos, db: Session = Depends(get_db),
-                   current_user: User = Depends(require_admin_or_pm)):
+                   current_user: User = Depends(requiere_capacidad("software.gestionar"))):
     v = cat.actualizar_version(db, cat.version(db, _org(current_user), version_id), _d(payload), current_user)
     _confirmar(db)
     return APIResponse.ok(data=cat.serializar_version(v))
 
 
 @router.delete("/versions/{version_id}", summary="Borrar versión (y su composición)")
-def delete_version(version_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_admin_or_pm)):
+def delete_version(version_id: str, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("software.gestionar"))):
     enforce_abac(db, current_user, "software_version", version_id, action="delete")
     cat.borrar_version(db, cat.version(db, _org(current_user), version_id), current_user)
     _confirmar(db)
@@ -239,7 +240,7 @@ def delete_version(version_id: str, db: Session = Depends(get_db), current_user:
 
 
 @router.get("/versions/{version_id}/tree", summary="Árbol de dependencias de una versión de software")
-def version_tree(version_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_admin_or_pm)):
+def version_tree(version_id: str, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("software.gestionar"))):
     org = _org(current_user)
     return APIResponse.ok(data=analisis.arbol(db, org, cat.version(db, org, version_id)))
 
@@ -247,7 +248,7 @@ def version_tree(version_id: str, db: Session = Depends(get_db), current_user: U
 @router.post("/versions/{version_id}/components", summary="Añadir componente (lenguaje, framework, librería...)",
              status_code=201)
 def add_component(version_id: str, payload: Datos, db: Session = Depends(get_db),
-                  current_user: User = Depends(require_admin_or_pm)):
+                  current_user: User = Depends(requiere_capacidad("software.gestionar"))):
     org = _org(current_user)
     c = cat.anadir_componente(db, org, cat.version(db, org, version_id), _d(payload), current_user)
     _confirmar(db)
@@ -255,7 +256,7 @@ def add_component(version_id: str, payload: Datos, db: Session = Depends(get_db)
 
 
 @router.delete("/components/{component_id}", summary="Quitar componente")
-def delete_component(component_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_admin_or_pm)):
+def delete_component(component_id: str, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("software.gestionar"))):
     enforce_abac(db, current_user, "software_component", component_id, action="delete")
     org = _org(current_user)
     c = cat._uno(db, SoftwareComponent, org, component_id, "sw_componente_no_encontrado")
@@ -268,18 +269,21 @@ def delete_component(component_id: str, db: Session = Depends(get_db), current_u
 async def import_components(version_id: str, file: Optional[UploadFile] = File(None),
                             files: Optional[list[UploadFile]] = File(None), format: Optional[str] = Form(None),
                             replace: bool = Form(False), db: Session = Depends(get_db),
-                            current_user: User = Depends(require_admin_or_pm)):
+                            current_user: User = Depends(requiere_capacidad("software.gestionar"))):
     """Un fichero (`file`) o varios (`files`: pom.xml con su padre, requirements + lock, un zip...)."""
     org = _org(current_user)
-    v = cat.version(db, org, version_id)
     lista = [f for f in ([file] if file else []) + list(files or []) if f is not None]
-    if not lista:
-        raise error(422, "sw_fichero_vacio")
-    ficheros = [(f.filename or "", await _leer(f)) for f in lista[:50]]
-    r = importacion.importar_ficheros_de_componentes(db, org, v, ficheros, format, current_user, replace)
-    correlacion.reevaluar(db, org, current_user)
-    _confirmar(db)
-    return APIResponse.ok(data=r)
+    ficheros = [(f.filename or "", await _leer_paquete(f)) for f in lista[:50]]
+
+    def _hacer():
+        v = cat.version(db, org, version_id)
+        if not lista:
+            raise error(422, "sw_fichero_vacio")
+        r = importacion.importar_ficheros_de_componentes(db, org, v, ficheros, format, current_user, replace)
+        correlacion.reevaluar(db, org, current_user)
+        _confirmar(db)
+        return r
+    return APIResponse.ok(data=await run_db(_hacer))
 
 
 # ── Instancias ───────────────────────────────────────────────────────────────
@@ -287,7 +291,7 @@ async def import_components(version_id: str, file: Optional[UploadFile] = File(N
 @router.get("/instances", summary="Instancias desplegadas")
 def list_instances(product_id: Optional[str] = None, ci_id: Optional[str] = None, environment: Optional[str] = None,
                    include_retired: bool = False, db: Session = Depends(get_db),
-                   current_user: User = Depends(require_admin_or_pm)):
+                   current_user: User = Depends(requiere_capacidad("software.gestionar"))):
     from app.models.cmdb_software import SoftwareProduct
     from app.models.service_desk.cmdb import ConfigurationItem
     org = _org(current_user)
@@ -310,7 +314,7 @@ def list_instances(product_id: Optional[str] = None, ci_id: Optional[str] = None
 
 
 @router.post("/instances", summary="Alta de instancia (qué corre dónde y con qué configuración)", status_code=201)
-def create_instance(payload: Datos, db: Session = Depends(get_db), current_user: User = Depends(require_admin_or_pm)):
+def create_instance(payload: Datos, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("software.gestionar"))):
     org = _org(current_user)
     i = cat.crear_instancia(db, org, _d(payload), current_user)
     correlacion.reevaluar(db, org, current_user)
@@ -319,23 +323,22 @@ def create_instance(payload: Datos, db: Session = Depends(get_db), current_user:
 
 
 @router.get("/instances/{instance_id}", summary="Instancia con relaciones e historial de configuración")
-def get_instance(instance_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_admin_or_pm)):
-    from app.models.cmdb_software import SoftwareInstanceRelation, SoftwareProduct
-    from app.models.service_desk.cmdb import ConfigurationItem
+def get_instance(instance_id: str, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("software.gestionar"))):
+    from app.models.cmdb_software import SoftwareInstanceRelation
     from sqlalchemy import or_
     org = _org(current_user)
     i = cat.instancia(db, org, instance_id)
+    producto, ci = cat.producto_y_ci_de(db, i)
     relaciones = [cat.serializar_relacion(r) for r in cat._q(db, SoftwareInstanceRelation, org).filter(or_(
         SoftwareInstanceRelation.source_instance_id == i.id, SoftwareInstanceRelation.target_instance_id == i.id))]
     return APIResponse.ok(data={
-        **cat.serializar_instancia(i, db.get(SoftwareProduct, i.product_id),
-                                   db.get(ConfigurationItem, i.ci_id) if i.ci_id else None),
+        **cat.serializar_instancia(i, producto, ci),
         "relations": relaciones, "config_history": cat.historial_de_configuracion(db, org, i, 20)})
 
 
 @router.patch("/instances/{instance_id}", summary="Cambiar instancia (versión, configuración, CI...)")
 def update_instance(instance_id: str, payload: Datos, db: Session = Depends(get_db),
-                    current_user: User = Depends(require_admin_or_pm)):
+                    current_user: User = Depends(requiere_capacidad("software.gestionar"))):
     org = _org(current_user)
     i = cat.actualizar_instancia(db, org, cat.instancia(db, org, instance_id), _d(payload), current_user)
     correlacion.reevaluar(db, org, current_user)
@@ -344,7 +347,7 @@ def update_instance(instance_id: str, payload: Datos, db: Session = Depends(get_
 
 
 @router.delete("/instances/{instance_id}", summary="Retirar instancia")
-def delete_instance(instance_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_admin_or_pm)):
+def delete_instance(instance_id: str, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("software.gestionar"))):
     enforce_abac(db, current_user, "software_instance", instance_id, action="delete")
     org = _org(current_user)
     cat.retirar_instancia(db, org, cat.instancia(db, org, instance_id), current_user)
@@ -355,14 +358,14 @@ def delete_instance(instance_id: str, db: Session = Depends(get_db), current_use
 
 @router.get("/instances/{instance_id}/config-history", summary="Historial de configuración (enmascarado)")
 def config_history(instance_id: str, limit: int = Query(50, ge=1, le=500), db: Session = Depends(get_db),
-                   current_user: User = Depends(require_admin_or_pm)):
+                   current_user: User = Depends(requiere_capacidad("software.gestionar"))):
     org = _org(current_user)
     return APIListResponse.ok(items=cat.historial_de_configuracion(db, org, cat.instancia(db, org, instance_id), limit))
 
 
 @router.post("/instances/{instance_id}/approve-baseline", summary="Aprobar la configuración actual como línea base")
 def approve_instance_baseline(instance_id: str, db: Session = Depends(get_db),
-                              current_user: User = Depends(require_admin)):
+                              current_user: User = Depends(requiere_capacidad("software.administrar"))):
     org = _org(current_user)
     i = cat.instancia(db, org, instance_id)
     cat.aprobar_linea_base_de_instancia(db, i, current_user)
@@ -371,14 +374,14 @@ def approve_instance_baseline(instance_id: str, db: Session = Depends(get_db),
 
 
 @router.post("/relations", summary="Relacionar instancias (depende de, se conecta a, publica en...)", status_code=201)
-def create_relation(payload: Datos, db: Session = Depends(get_db), current_user: User = Depends(require_admin_or_pm)):
+def create_relation(payload: Datos, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("software.gestionar"))):
     r = cat.crear_relacion(db, _org(current_user), _d(payload), current_user)
     _confirmar(db)
     return APIResponse.ok(data=cat.serializar_relacion(r))
 
 
 @router.delete("/relations/{relation_id}", summary="Quitar relación")
-def delete_relation(relation_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_admin_or_pm)):
+def delete_relation(relation_id: str, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("software.gestionar"))):
     enforce_abac(db, current_user, "software_relation", relation_id, action="delete")
     cat.borrar_relacion(db, _org(current_user), relation_id, current_user)
     _confirmar(db)
@@ -390,14 +393,14 @@ def delete_relation(relation_id: str, db: Session = Depends(get_db), current_use
 @router.get("/where-used", summary="Dónde se usa: «nginx», «php < 8.2», «pkg:npm/lodash»")
 def where_used(q: str = Query(..., min_length=1), op: Optional[str] = None, version: Optional[str] = None,
                environment: Optional[str] = None, exact: bool = False, db: Session = Depends(get_db),
-               current_user: User = Depends(require_admin_or_pm)):
+               current_user: User = Depends(requiere_capacidad("software.gestionar"))):
     return APIResponse.ok(data=analisis.donde_se_usa(db, _org(current_user), q, op, version, environment, exact))
 
 
 @router.get("/impact", summary="Impacto inverso: software, máquinas, servicios y clientes afectados")
 def impact(product_id: Optional[str] = None, instance_id: Optional[str] = None,
            vulnerability_id: Optional[str] = None, finding_id: Optional[str] = None,
-           db: Session = Depends(get_db), current_user: User = Depends(require_admin_or_pm)):
+           db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("software.gestionar"))):
     if not any((product_id, instance_id, vulnerability_id, finding_id)):
         raise error(422, "sw_valor_no_valido", campo="product_id", valor="")
     return APIResponse.ok(data=analisis.impacto(db, _org(current_user), product_id, instance_id, vulnerability_id,
@@ -406,34 +409,34 @@ def impact(product_id: Optional[str] = None, instance_id: Optional[str] = None,
 
 @router.get("/analysis/eol", summary="Software sin soporte o en fin de vida (y el que vence pronto)")
 def analysis_eol(days: Optional[int] = Query(None, ge=0, le=3650), prod_only: bool = False,
-                 db: Session = Depends(get_db), current_user: User = Depends(require_admin_or_pm)):
+                 db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("software.gestionar"))):
     return APIResponse.ok(data=analisis.fin_de_vida(db, _org(current_user), days, prod_only))
 
 
 @router.get("/analysis/drift", summary="Deriva de configuración e incumplimientos de línea base")
-def analysis_drift(db: Session = Depends(get_db), current_user: User = Depends(require_admin_or_pm)):
+def analysis_drift(db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("software.gestionar"))):
     return APIResponse.ok(data=analisis.deriva(db, _org(current_user)))
 
 
 @router.get("/analysis/licenses", summary="Licencias de componentes y compatibilidad")
-def analysis_licenses(db: Session = Depends(get_db), current_user: User = Depends(require_admin_or_pm)):
+def analysis_licenses(db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("software.gestionar"))):
     return APIResponse.ok(data=analisis.licencias(db, _org(current_user)))
 
 
 @router.get("/machines/{ci_id}", summary="Vista por máquina: software, configuración, hallazgos, activo y licencias")
-def machine(ci_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_admin_or_pm)):
+def machine(ci_id: str, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("software.gestionar"))):
     return APIResponse.ok(data=analisis.maquina(db, _org(current_user), ci_id))
 
 
 @router.get("/graph", summary="Grafo de relaciones (formato del grafo de la CMDB)")
 def graph(product_id: Optional[str] = None, instance_id: Optional[str] = None, ci_id: Optional[str] = None,
-          db: Session = Depends(get_db), current_user: User = Depends(require_admin_or_pm)):
+          db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("software.gestionar"))):
     return APIResponse.ok(data=analisis.grafo(db, _org(current_user), product_id, instance_id, ci_id))
 
 
 @router.get("/ci-summary", summary="Software de unos CIs (cambios, incidentes y problemas)")
 def ci_summary(ci_ids: str = Query(..., description="ids separados por comas"), db: Session = Depends(get_db),
-               current_user: User = Depends(require_admin_or_pm)):
+               current_user: User = Depends(requiere_capacidad("software.gestionar"))):
     return APIResponse.ok(data=analisis.resumen_de_cis(db, _org(current_user),
                                                        [x for x in ci_ids.split(",") if x.strip()][:200]))
 
@@ -441,12 +444,12 @@ def ci_summary(ci_ids: str = Query(..., description="ids separados por comas"), 
 # ── Conciliación e importación ───────────────────────────────────────────────
 
 @router.get("/reconciliation/duplicates", summary="Software que parece duplicado")
-def duplicates(db: Session = Depends(get_db), current_user: User = Depends(require_admin_or_pm)):
+def duplicates(db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("software.gestionar"))):
     return APIListResponse.ok(items=importacion.productos_duplicados(db, _org(current_user)))
 
 
 @router.post("/reconciliation/merge", summary="Fundir dos productos del catálogo")
-def merge(payload: Datos, db: Session = Depends(get_db), current_user: User = Depends(require_admin_or_pm)):
+def merge(payload: Datos, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("software.gestionar"))):
     org = _org(current_user)
     d = _d(payload)
     r = cat.fusionar_productos(db, org, cat.producto(db, org, d.get("source_id")),
@@ -458,16 +461,20 @@ def merge(payload: Datos, db: Session = Depends(get_db), current_user: User = De
 
 @router.post("/import/csv", summary="Importar catálogo e instancias desde CSV")
 async def import_csv(file: UploadFile = File(...), db: Session = Depends(get_db),
-                     current_user: User = Depends(require_admin_or_pm)):
+                     current_user: User = Depends(requiere_capacidad("software.gestionar"))):
     org = _org(current_user)
-    r = importacion.importar_csv(db, org, await _leer(file), current_user)
-    correlacion.reevaluar(db, org, current_user)
-    _confirmar(db)
-    return APIResponse.ok(data=r)
+    contenido = await _leer(file)
+
+    def _hacer():
+        r = importacion.importar_csv(db, org, contenido, current_user)
+        correlacion.reevaluar(db, org, current_user)
+        _confirmar(db)
+        return r
+    return APIResponse.ok(data=await run_db(_hacer))
 
 
 @router.post("/import/alm", summary="Conciliar desde Activos (instalaciones de licencias en equipos con CI)")
-def import_alm(db: Session = Depends(get_db), current_user: User = Depends(require_admin_or_pm)):
+def import_alm(db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("software.gestionar"))):
     org = _org(current_user)
     r = importacion.importar_desde_alm(db, org, current_user)
     correlacion.reevaluar(db, org, current_user)
@@ -477,7 +484,7 @@ def import_alm(db: Session = Depends(get_db), current_user: User = Depends(requi
 
 @router.post("/import/inventory", summary="Inventario de software de una máquina (formato del agente o de un escáner)")
 def import_inventory(payload: dict = Body(...), db: Session = Depends(get_db),
-                     current_user: User = Depends(require_admin_or_pm)):
+                     current_user: User = Depends(requiere_capacidad("software.gestionar"))):
     org = _org(current_user)
     c = cat.ci(db, org, payload.get("ci_id"))
     r = importacion.aplicar_inventario(db, org, c.id, payload.get("inventory") or {}, origen="scan",
@@ -495,21 +502,21 @@ def list_findings(status: Optional[str] = "live", severity: Optional[str] = None
                   q: Optional[str] = None, environment: Optional[str] = None, possible: Optional[bool] = None,
                   page: int = Query(1, ge=1),
                   page_size: int = Query(50, ge=1, le=500), db: Session = Depends(get_db),
-                  current_user: User = Depends(require_admin_or_pm)):
+                  current_user: User = Depends(requiere_capacidad("software.gestionar"))):
     r = gestion.listar(db, _org(current_user), status, severity, product_id, ci_id, kev, out_of_sla, q, environment,
                        page, page_size, possible)
     return APIListResponse.ok(items=r["items"], total=r["total"], page=page, page_size=page_size)
 
 
 @router.get("/findings/{finding_id}", summary="Hallazgo con aviso, impacto y excepciones")
-def get_finding(finding_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_admin_or_pm)):
+def get_finding(finding_id: str, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("software.gestionar"))):
     org = _org(current_user)
     return APIResponse.ok(data=gestion.detalle(db, org, gestion.hallazgo(db, org, finding_id)))
 
 
 @router.patch("/findings/{finding_id}", summary="Triaje: estado, responsable y notas")
 def update_finding(finding_id: str, payload: Datos, db: Session = Depends(get_db),
-                   current_user: User = Depends(require_admin_or_pm)):
+                   current_user: User = Depends(requiere_capacidad("software.gestionar"))):
     org = _org(current_user)
     f = gestion.cambiar(db, org, gestion.hallazgo(db, org, finding_id), _d(payload), current_user)
     _confirmar(db)
@@ -518,7 +525,7 @@ def update_finding(finding_id: str, payload: Datos, db: Session = Depends(get_db
 
 @router.post("/findings/{finding_id}/remediate", summary="Remediar con ticket, problema, cambio o tarea")
 def remediate(finding_id: str, payload: Datos, db: Session = Depends(get_db),
-              current_user: User = Depends(require_admin_or_pm)):
+              current_user: User = Depends(requiere_capacidad("software.gestionar"))):
     org = _org(current_user)
     d = _d(payload)
     r = gestion.remediar(db, org, gestion.hallazgo(db, org, finding_id), d.get("type") or "", current_user, d)
@@ -529,7 +536,7 @@ def remediate(finding_id: str, payload: Datos, db: Session = Depends(get_db),
 @router.post("/findings/{finding_id}/exceptions", summary="Pedir excepción (riesgo aceptado con caducidad)",
              status_code=201)
 def request_exception(finding_id: str, payload: Datos, db: Session = Depends(get_db),
-                      current_user: User = Depends(require_admin_or_pm)):
+                      current_user: User = Depends(requiere_capacidad("software.gestionar"))):
     org = _org(current_user)
     e = gestion.pedir_excepcion(db, org, gestion.hallazgo(db, org, finding_id), _d(payload), current_user)
     _confirmar(db)
@@ -538,13 +545,13 @@ def request_exception(finding_id: str, payload: Datos, db: Session = Depends(get
 
 @router.get("/exceptions", summary="Excepciones de vulnerabilidad")
 def list_exceptions(status: Optional[str] = None, db: Session = Depends(get_db),
-                    current_user: User = Depends(require_admin_or_pm)):
+                    current_user: User = Depends(requiere_capacidad("software.gestionar"))):
     return APIListResponse.ok(items=gestion.listar_excepciones(db, _org(current_user), status))
 
 
 @router.post("/exceptions/{exception_id}/approve", summary="Aprobar excepción (dirección; nunca la propia)")
 def approve_exception(exception_id: str, payload: Optional[Datos] = None, db: Session = Depends(get_db),
-                      current_user: User = Depends(require_admin)):
+                      current_user: User = Depends(requiere_capacidad("software.administrar"))):
     org = _org(current_user)
     e = gestion.decidir_excepcion(db, org, gestion.excepcion(db, org, exception_id), True, current_user,
                                   (_d(payload) if payload else {}).get("note"))
@@ -554,7 +561,7 @@ def approve_exception(exception_id: str, payload: Optional[Datos] = None, db: Se
 
 @router.post("/exceptions/{exception_id}/reject", summary="Rechazar excepción (dirección)")
 def reject_exception(exception_id: str, payload: Optional[Datos] = None, db: Session = Depends(get_db),
-                     current_user: User = Depends(require_admin)):
+                     current_user: User = Depends(requiere_capacidad("software.administrar"))):
     org = _org(current_user)
     e = gestion.decidir_excepcion(db, org, gestion.excepcion(db, org, exception_id), False, current_user,
                                   (_d(payload) if payload else {}).get("note"))
@@ -563,7 +570,7 @@ def reject_exception(exception_id: str, payload: Optional[Datos] = None, db: Ses
 
 
 @router.post("/exceptions/{exception_id}/revoke", summary="Revocar excepción (el hallazgo vuelve a abierto)")
-def revoke_exception(exception_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+def revoke_exception(exception_id: str, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("software.administrar"))):
     org = _org(current_user)
     e = gestion.revocar_excepcion(db, org, gestion.excepcion(db, org, exception_id), current_user)
     _confirmar(db)
@@ -584,7 +591,7 @@ def _serializar_aviso(v: Vulnerability) -> dict:
 @router.get("/vulnerabilities", summary="Avisos conocidos")
 def list_vulnerabilities(q: Optional[str] = None, severity: Optional[str] = None, kev: Optional[bool] = None,
                          page: int = Query(1, ge=1), page_size: int = Query(50, ge=1, le=500),
-                         db: Session = Depends(get_db), current_user: User = Depends(require_admin_or_pm)):
+                         db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("software.gestionar"))):
     from sqlalchemy import or_
     consulta = cat._q(db, Vulnerability, _org(current_user))
     if q:
@@ -603,7 +610,7 @@ def list_vulnerabilities(q: Optional[str] = None, severity: Optional[str] = None
 
 @router.get("/vulnerabilities/{vulnerability_id}", summary="Aviso con a qué afecta y su impacto en la empresa")
 def get_vulnerability(vulnerability_id: str, db: Session = Depends(get_db),
-                      current_user: User = Depends(require_admin_or_pm)):
+                      current_user: User = Depends(requiere_capacidad("software.gestionar"))):
     import json
     org = _org(current_user)
     v = cat._uno(db, Vulnerability, org, vulnerability_id, "sw_vulnerabilidad_no_encontrada")
@@ -619,7 +626,7 @@ def get_vulnerability(vulnerability_id: str, db: Session = Depends(get_db),
 
 @router.post("/vulnerabilities", summary="Alta manual de un aviso (formato común)", status_code=201)
 def create_vulnerability(payload: Datos, db: Session = Depends(get_db),
-                         current_user: User = Depends(require_admin_or_pm)):
+                         current_user: User = Depends(requiere_capacidad("software.gestionar"))):
     org = _org(current_user)
     d = _d(payload)
     if not (d.get("vuln_id") or "").strip():
@@ -634,30 +641,19 @@ def create_vulnerability(payload: Datos, db: Session = Depends(get_db),
 
 @router.post("/vulnerabilities/import", summary="Importar avisos de un fichero (OSV, NVD, GitHub, Trivy, Grype, CSV)")
 async def import_vulnerabilities(file: UploadFile = File(...), db: Session = Depends(get_db),
-                                 current_user: User = Depends(require_admin_or_pm)):
+                                 current_user: User = Depends(requiere_capacidad("software.gestionar"))):
     org = _org(current_user)
     contenido = await _leer(file)
-    try:
-        formato, lista = avisos.leer_fichero(contenido, file.filename)
-    except Exception as e:  # noqa: BLE001 - fichero ilegible: 422 con código
-        raise error(422, "sw_formato_no_reconocido", nombre=file.filename or type(e).__name__)
-    r = VulnerabilitySyncRun(organization_id=org, source="file", triggered_by="import", created_by=current_user.id)
-    db.add(r)
-    res = avisos.guardar_avisos(db, org, lista, "file" if formato not in ("trivy", "grype") else formato)
-    cor = correlacion.reevaluar(db, org, current_user)
-    from datetime import datetime, timezone
-    r.status, r.finished_at = "ok", datetime.now(timezone.utc)
-    r.vulnerabilities, r.findings_new, r.findings_resolved = res["created"] + res["updated"], cor["findings_new"], \
-        cor["findings_resolved"]
-    from app.services.audit import audit_log
-    audit_log(db, current_user, "IMPORT", "sw_vulnerabilities", r.id, file.filename,
-              metadata={"format": formato, **res, "findings_new": cor["findings_new"]})
-    _confirmar(db)
-    return APIResponse.ok(data={"format": formato, **res, **{k: v for k, v in cor.items() if k != "new_ids"}})
+
+    def _hacer():
+        r = avisos.importar_fichero_de_avisos(db, org, contenido, file.filename, current_user)
+        _confirmar(db)
+        return r
+    return APIResponse.ok(data=await run_db(_hacer))
 
 
 @router.post("/reevaluate", summary="Reevaluar hallazgos (correlación, prioridad y SLA)")
-def reevaluate(db: Session = Depends(get_db), current_user: User = Depends(require_admin_or_pm)):
+def reevaluate(db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("software.gestionar"))):
     r = correlacion.reevaluar_y_registrar(db, _org(current_user), current_user)
     _confirmar(db)
     return APIResponse.ok(data={k: v for k, v in r.items() if k != "new_ids"})
@@ -665,7 +661,7 @@ def reevaluate(db: Session = Depends(get_db), current_user: User = Depends(requi
 
 @router.post("/sync", summary="Sincronizar fuentes de avisos activas y reevaluar")
 def sync(payload: Optional[Datos] = None, db: Session = Depends(get_db),
-         current_user: User = Depends(require_admin_or_pm)):
+         current_user: User = Depends(requiere_capacidad("software.gestionar"))):
     org = _org(current_user)
     res = fuentes.sincronizar(db, org, (_d(payload) if payload else {}).get("sources"), current_user)
     cor = correlacion.reevaluar_y_registrar(db, org, current_user)
@@ -675,7 +671,7 @@ def sync(payload: Optional[Datos] = None, db: Session = Depends(get_db),
 
 @router.get("/sync/runs", summary="Últimas sincronizaciones e importaciones de avisos")
 def sync_runs(limit: int = Query(50, ge=1, le=500), db: Session = Depends(get_db),
-              current_user: User = Depends(require_admin_or_pm)):
+              current_user: User = Depends(requiere_capacidad("software.gestionar"))):
     filas = (cat._q(db, VulnerabilitySyncRun, _org(current_user)).order_by(VulnerabilitySyncRun.started_at.desc())
              .limit(limit).all())
     return APIListResponse.ok(items=[{"id": r.id, "source": r.source, "status": r.status,
@@ -689,20 +685,20 @@ def sync_runs(limit: int = Query(50, ge=1, le=500), db: Session = Depends(get_db
 # ── Configuración (Configuración → Software y vulnerabilidades) ─────────────
 
 @router.get("/config", summary="Configuración del módulo (sin secretos)")
-def get_config(db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+def get_config(db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("software.administrar"))):
     return APIResponse.ok(data=ajustes.leer(db, _org(current_user)))
 
 
 @router.put("/config", summary="Guardar configuración (credenciales cifradas; vacío = no cambia)")
 def put_config(payload: dict[str, Any] = Body(...), db: Session = Depends(get_db),
-               current_user: User = Depends(require_admin)):
+               current_user: User = Depends(requiere_capacidad("software.administrar"))):
     datos = ajustes.guardar(db, _org(current_user), payload, current_user)
     _confirmar(db)
     return APIResponse.ok(data=datos)
 
 
 @router.post("/config/test/{source}", summary="Probar la conexión con una fuente")
-def test_source(source: str, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+def test_source(source: str, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("software.administrar"))):
     return APIResponse.ok(data=fuentes.probar(db, _org(current_user), source))
 
 
@@ -711,20 +707,20 @@ def test_source(source: str, db: Session = Depends(get_db), current_user: User =
 # demanda desde la CMDB (`software.gestionar`). Programadas: `cmdb_discovery_run`.
 
 @router.get("/scanners", summary="Conexiones de escaneo (sin secretos)")
-def list_scanners(db: Session = Depends(get_db), current_user: User = Depends(require_admin_or_pm)):
+def list_scanners(db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("software.gestionar"))):
     from app.services.cmdb_software import escaneos
     return APIListResponse.ok(items=escaneos.listar(db, _org(current_user)))
 
 
 @router.get("/scanners/fields", summary="Campos de configuración de cada tipo de conexión")
-def scanner_fields(current_user: User = Depends(require_admin_or_pm)):
+def scanner_fields(current_user: User = Depends(requiere_capacidad("software.gestionar"))):
     from app.services.cmdb_software import escaneos
     return APIResponse.ok(data={t: [{"key": k.rstrip("*"), "secret": k.endswith("*")} for k in campos]
                                 for t, campos in escaneos.CAMPOS.items()})
 
 
 @router.post("/scanners", summary="Alta de conexión de escaneo (credenciales cifradas)", status_code=201)
-def create_scanner(payload: dict = Body(...), db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+def create_scanner(payload: dict = Body(...), db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("software.administrar"))):
     from app.services.cmdb_software import escaneos
     c = escaneos.guardar(db, _org(current_user), payload, current_user)
     _confirmar(db)
@@ -733,7 +729,7 @@ def create_scanner(payload: dict = Body(...), db: Session = Depends(get_db), cur
 
 @router.patch("/scanners/{scanner_id}", summary="Cambiar conexión de escaneo (secreto vacío = no cambia)")
 def update_scanner(scanner_id: str, payload: dict = Body(...), db: Session = Depends(get_db),
-                   current_user: User = Depends(require_admin)):
+                   current_user: User = Depends(requiere_capacidad("software.administrar"))):
     from app.services.cmdb_software import escaneos
     org = _org(current_user)
     c = escaneos.guardar(db, org, payload, current_user, escaneos.conexion(db, org, scanner_id))
@@ -742,7 +738,7 @@ def update_scanner(scanner_id: str, payload: dict = Body(...), db: Session = Dep
 
 
 @router.delete("/scanners/{scanner_id}", summary="Borrar conexión de escaneo")
-def delete_scanner(scanner_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+def delete_scanner(scanner_id: str, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("software.administrar"))):
     from app.services.cmdb_software import escaneos
     enforce_abac(db, current_user, "software_scanner", scanner_id, action="delete")
     org = _org(current_user)
@@ -752,14 +748,14 @@ def delete_scanner(scanner_id: str, db: Session = Depends(get_db), current_user:
 
 
 @router.post("/scanners/{scanner_id}/test", summary="Probar la conexión con el primer equipo")
-def test_scanner(scanner_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+def test_scanner(scanner_id: str, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("software.administrar"))):
     from app.services.cmdb_software import escaneos
     return APIResponse.ok(data=escaneos.probar(db, escaneos.conexion(db, _org(current_user), scanner_id)))
 
 
 @router.post("/scanners/{scanner_id}/run", summary="Escanear ahora (todos los equipos o los indicados)")
 def run_scanner(scanner_id: str, payload: Optional[Datos] = None, db: Session = Depends(get_db),
-                current_user: User = Depends(require_admin_or_pm)):
+                current_user: User = Depends(requiere_capacidad("software.gestionar"))):
     from app.services.cmdb_software import escaneos
     org = _org(current_user)
     c = escaneos.conexion(db, org, scanner_id)
@@ -771,13 +767,12 @@ def run_scanner(scanner_id: str, payload: Optional[Datos] = None, db: Session = 
 
 @router.get("/scanners/{scanner_id}/runs", summary="Ejecuciones de una conexión de escaneo")
 def scanner_runs(scanner_id: str, limit: int = Query(20, ge=1, le=MAX_TAMANO_DE_PAGINA), db: Session = Depends(get_db),
-                 current_user: User = Depends(require_admin_or_pm)):
+                 current_user: User = Depends(requiere_capacidad("software.gestionar"))):
     import json as _json
     from app.models.cmdb import CMDBDiscoveryJob
     from app.services.cmdb_software import escaneos
     c = escaneos.conexion(db, _org(current_user), scanner_id)
-    filas = (db.query(CMDBDiscoveryJob).filter(CMDBDiscoveryJob.provider_id == c.id)
-             .order_by(CMDBDiscoveryJob.started_at.desc()).limit(limit).all())
+    filas = escaneos.ultimas_ejecuciones(db, c, limit)
 
     def resumen(j):
         try:
@@ -793,7 +788,7 @@ def scanner_runs(scanner_id: str, limit: int = Query(20, ge=1, le=MAX_TAMANO_DE_
 # ── Exportación ──────────────────────────────────────────────────────────────
 
 @router.get("/export/findings.csv", summary="Exportar hallazgos (CSV)")
-def export_findings(db: Session = Depends(get_db), current_user: User = Depends(require_admin_or_pm)):
+def export_findings(db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("software.gestionar"))):
     from app.services.audit import audit_log
     texto = analisis.exportar_hallazgos_csv(db, _org(current_user))
     audit_log(db, current_user, "EXPORT", "sw_findings", None, "findings.csv")
@@ -803,7 +798,7 @@ def export_findings(db: Session = Depends(get_db), current_user: User = Depends(
 
 
 @router.get("/export/inventory.csv", summary="Exportar inventario de software desplegado (CSV)")
-def export_inventory(db: Session = Depends(get_db), current_user: User = Depends(require_admin_or_pm)):
+def export_inventory(db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("software.gestionar"))):
     from app.services.audit import audit_log
     texto = analisis.exportar_inventario_csv(db, _org(current_user))
     audit_log(db, current_user, "EXPORT", "sw_instances", None, "inventory.csv")

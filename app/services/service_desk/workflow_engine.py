@@ -395,6 +395,8 @@ def resume(
     if not node:
         _record_error(db, run, "nodo actual no existe")
         return run
+    if _node_type(node) == "approval":
+        _exigir_aprobador(db, _node_config(node), user_id)
 
     # Cierra la step pendiente con el branch indicado
     pending = (
@@ -426,6 +428,25 @@ def resume(
     run.status = WorkflowRunStatus.running
     db.flush()
     return advance(db, run)
+
+
+def _exigir_aprobador(db: Session, config: dict, user_id: Optional[str]) -> None:
+    """Un nodo de aprobacion lo resuelve una persona con el rol del nodo.
+
+    Auditoria 2026-11-22 (A-SD18): `approver_role` se guardaba y no se
+    comprobaba: cualquiera con acceso al run lo aprobaba. Un administrador o
+    superadministrador puede decidir siempre.
+    """
+    if not user_id:
+        raise ErrorConCodigo("aprobacion_sin_aprobador")
+    rol = (config or {}).get("approver_role")
+    if not rol:
+        return
+    from app.models.user import User
+    usuario = db.get(User, user_id)
+    actual = getattr(getattr(usuario, "role", None), "value", getattr(usuario, "role", None))
+    if usuario is None or not (getattr(usuario, "is_superadmin", False) or actual in (rol, "admin")):
+        raise ErrorConCodigo("aprobacion_rol_requerido", rol=rol)
 
 
 def cancel_run(db: Session, run: WorkflowRun, reason: Optional[str] = None) -> WorkflowRun:
@@ -476,12 +497,30 @@ def tick_waiting(db: Session) -> int:
 
 # ── Internal: executors por tipo ────────────────────────────────────────────
 def _render_template(text: Optional[str], ctx: dict) -> str:
-    """Best-effort {var} substitution from the run context; never raises."""
+    """Best-effort {var} substitution from the run context; never raises.
+
+    Auditoria 2026-11-22 (servicios m-z, 4.4): `text.format(**ctx)` admitia
+    `{ticket.__class__.__init__.__globals__}` y similares (recorrer atributos
+    desde la plantilla que escribe el disenador del flujo). Ahora solo
+    `{nombre}` o `{nombre.clave}` sobre diccionarios del contexto; lo demas se
+    deja tal cual.
+    """
     if not text:
         return ""
+    import re
+
+    def _valor(m):
+        partes = m.group(1).split(".")
+        actual = ctx
+        for p in partes:
+            if p.startswith("_") or not isinstance(actual, dict) or p not in actual:
+                return m.group(0)
+            actual = actual[p]
+        return "" if actual is None else str(actual)
+
     try:
-        return text.format(**ctx)
-    except (KeyError, IndexError, ValueError):
+        return re.sub(r"\{([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z0-9_]+)*)\}", _valor, text)
+    except Exception:
         return text
 
 
@@ -795,25 +834,28 @@ def _nodo_crear_ticket(n: _Nodo) -> tuple[str, dict, int]:
         n.config.get("description_template") or n.config.get("description"), n.ctx
     ) or title
     try:
-        ticket = Ticket(
-            number=next_ticket_number(ttype.value, n.db, n.run.organization_id),
-            ticket_type=ttype,
-            title=title[:500],
-            description=description,
-            priority=priority,
-            organization_id=n.run.organization_id,
-            source="workflow",
-        )
-        n.db.add(ticket)
-        n.db.flush()
+        # Auditoria 2026-11-22 (A-SD18): punto de guardado. Antes un fallo hacia
+        # `db.rollback()` de TODA la sesion y deshacia tambien los pasos ya
+        # registrados del run (y lo que el llamante tuviera pendiente).
+        with n.db.begin_nested():
+            ticket = Ticket(
+                number=next_ticket_number(ttype.value, n.db, n.run.organization_id),
+                ticket_type=ttype,
+                title=title[:500],
+                description=description,
+                priority=priority,
+                organization_id=n.run.organization_id,
+                source="workflow",
+            )
+            n.db.add(ticket)
+            n.db.flush()
     except Exception as exc:
-        # El rollback no es opcional. Sin el, un flush fallido deja la sesion en
-        # transaccion abortada y TODO lo que viene despues del nodo falla con
+        # El rollback (del punto de guardado, al salir del `with`) no es
+        # opcional. Sin el, un flush fallido deja la sesion en transaccion abortada y TODO lo que viene despues del nodo falla con
         # «transaction has been rolled back»: el registro del paso, el avance del
         # run e incluso `_record_error`, que es justo quien tiene que anotar el
         # problema. Un nodo que falla debe dejar el run anotable.
         logger.warning("_nodo_crear_ticket: excepcion ignorada", exc_info=True)
-        n.db.rollback()
         return "failure", {
             "queue": n.config.get("queue"), "error": str(exc)[:300], "created": False,
         }, 0
@@ -859,14 +901,26 @@ def _execute_node(ntype: str, config: dict, run: WorkflowRun, db: "Session") -> 
 
 
 def _pick_next(graph: dict, source_id: str, branch: str) -> Optional[str]:
+    """El destino de la rama `branch`, o None (el run queda en error).
+
+    Auditoria 2026-11-22 (A-SD18): sin arista para la rama se tomaba la
+    PRIMERA, asi que un «rechazado» o un «false» sin conectar seguia por el
+    camino de «aprobado»/«true». Ahora: la arista de esa rama; si la rama es
+    `next` y solo hay una salida, esa; si hay una arista marcada por defecto
+    (`branch: "default"` o `is_default`), esa. Si no, ninguna.
+    """
     edges = _outgoing(graph, source_id)
     # 1) coincidencia exacta de branch
     for e in edges:
         if str(e.get("branch") or e.get("type") or "next") == branch:
             return str(e.get("target"))
-    # 2) si no hay match, toma el primero (default)
-    if edges:
+    # 2) un nodo de paso con una sola salida (aristas sin etiqueta de rama)
+    if branch == "next" and len(edges) == 1:
         return str(edges[0].get("target"))
+    # 3) la arista marcada explicitamente por defecto
+    for e in edges:
+        if e.get("is_default") is True or str(e.get("branch") or "") == "default":
+            return str(e.get("target"))
     return None
 
 

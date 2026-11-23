@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 from app.db.session import get_db
 from app.core.abac_enforce import enforce_abac
-from app.core.deps import get_current_user, require_admin_or_pm, require_worker
+from app.core.deps import get_current_user, requiere_capacidad
 from app.core.responses import APIResponse, APIListResponse
 from app.models.user import User
 from app.models.task import Task, TaskStatus, TaskPriority
@@ -208,7 +208,7 @@ def create_dependency(
     note: Optional[str] = Body(None, max_length=500),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_admin_or_pm),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
+    _rol: User = Depends(requiere_capacidad("tareas.dirigir")),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
     return APIResponse.ok(data=svc_create_task_dependency(
         db, predecessor_id, successor_id, dependency_type, lag_days, current_user.id, link_type, note))
@@ -223,7 +223,7 @@ def update_dependency(
     note: Optional[str] = Body(None, max_length=500),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_admin_or_pm),
+    _rol: User = Depends(requiere_capacidad("tareas.dirigir")),
 ):
     enforce_abac(db, current_user, "task_dependency", dep_id, action="update")
     cambios = {"dependency_type": dependency_type, "lag_days": lag_days, "link_type": link_type}
@@ -241,7 +241,7 @@ def delete_dependency(
     # politicas activas no comprueba nada. Una dependencia entre tareas es
     # estructura de proyecto: la decide quien planifica, igual que
     # `POST /epics/{id}/dependencies/{id}`, que ya exige lo mismo.
-    _: User = Depends(require_admin_or_pm),
+    _: User = Depends(requiere_capacidad("tareas.dirigir")),
 ):
     enforce_abac(db, current_user, "task_dependency", dep_id, action="delete")
     return APIResponse.ok(data=svc_delete_task_dependency(db, dep_id))
@@ -288,7 +288,7 @@ def create_task(
     current_user: User = Depends(get_current_user),
     # Externos como internos (16-11-2026): tambien el subcontratado; el servicio
     # (`_exigir_alta_en_su_proyecto`) acota a los proyectos donde trabaja.
-    _rol: User = Depends(require_worker),
+    _rol: User = Depends(requiere_capacidad("tareas.trabajar")),
 ):
     enforce_abac(db, current_user, "task", action="create")
     return APIResponse.ok(data=create_task_record(db, payload, current_user))
@@ -333,7 +333,7 @@ def get_movement_log(
 def delete_task(
     task_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin_or_pm),
+    current_user: User = Depends(requiere_capacidad("tareas.dirigir")),
 ):
     enforce_abac(db, current_user, "task", task_id, action="delete")
     return APIResponse.ok(data=cancel_task_record(db, task_id, current_user))
@@ -347,7 +347,7 @@ def add_comment(
     current_user: User = Depends(get_current_user),
     # Externos como internos (16-11-2026): `add_comment_record` exige ser PM del
     # proyecto, asignado o informador de la tarea (las que ve).
-    _rol: User = Depends(require_worker),
+    _rol: User = Depends(requiere_capacidad("tareas.trabajar")),
 ):
     return APIResponse.ok(data=add_comment_record(db, task_id, payload, current_user))
 
@@ -356,7 +356,7 @@ def add_comment(
 def bulk_update_dates(
     payload: dict = Body(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin_or_pm),
+    current_user: User = Depends(requiere_capacidad("tareas.dirigir")),
 ):
     """
     Actualiza start_date y/o due_date de múltiples tareas en una sola llamada.
@@ -388,7 +388,7 @@ def cascade_reschedule(
     new_end_date: date = Body(..., embed=True),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_admin_or_pm),  # auditoria 2026-09: excepcion revisada: replanifica en cascada: estructura
+    _rol: User = Depends(requiere_capacidad("tareas.dirigir")),  # auditoria 2026-09: excepcion revisada: replanifica en cascada: estructura
 ):
     # Rev. 173: la tarea se busca acotada a la empresa y proyectos del usuario
     # antes de mover nada (la cascada sola buscaba por id).

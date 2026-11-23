@@ -5,9 +5,10 @@ import { extractErr, localeActivo } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { projectsApi, epicsApi, epicDependenciesApi } from '../services/api'
-import type { DependenciaDeEpica, EpicaDelRoadmap, RoadmapDeEpicas } from '../services/api/tipos-proyectos'
-import { Button, Spinner, EmptyState, Modal, IconButton, Pulsable, Select, useErroresDeCampo, Input } from '../components/ui'
+import { epicsApi, epicDependenciesApi } from '../services/api'
+import { useListaDeProyectos } from '../hooks/useListas'
+import type { DependenciaDeEpica, EpicaDelRoadmap } from '../services/api/tipos-proyectos'
+import { Button, Spinner, EmptyState, Modal, IconButton, Pulsable, Select, useErroresDeCampo, Input, EstadoDeError } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { ArrowRight, BarChart2, CalendarRange, FolderKanban, GitMerge, Plus, Target, Trash2 } from 'lucide-react'
@@ -15,11 +16,6 @@ import { useAppT } from '../i18n/AppLangContext'
 import { alpha } from '../constants/theme'
 import './EpicGanttPage.css'
 import { px } from '../utils/estilos'
-
-interface ProjectItem {
-  id: string | number
-  name?: string
-}
 
 /** epics_service.get_roadmap_data. */
 type EpicItem = EpicaDelRoadmap
@@ -215,21 +211,20 @@ export default function EpicGanttPage(): JSX.Element {
   const [project,  setProject]  = useState('')
   const [showForm, setShowForm] = useState(false)
 
-  const { data: projectsRaw = [] } = useQuery({
-    queryKey: ['projects'],
-    queryFn: () => projectsApi.list({}).then(r => Array.isArray(r.data) ? r.data : []).catch(() => []),
-  })
-  const projects = projectsRaw as ProjectItem[]
-  const { data: roadmap, isLoading: lRoadmap } = useQuery({
+  // 23-11-2026 (04 A8 / M6): lista compartida de proyectos y sin `.catch` tragados; si falla el roadmap o las
+  // dependencias se pinta el estado de error en vez de un Gantt vacío que parece correcto.
+  const { data: projects = [] } = useListaDeProyectos()
+  const { data: roadmap, isLoading: lRoadmap, error: errorRoadmap, refetch: refetchRoadmap } = useQuery({
     queryKey: ['epic-gantt', project],
-    queryFn: () => epicsApi.roadmap(project).then(r => r.data).catch((): RoadmapDeEpicas | null => null),
+    queryFn: () => epicsApi.roadmap(project).then(r => r.data),
     enabled: !!project,
   })
-  const { data: epicDeps = [], isLoading: lDeps } = useQuery({
+  const { data: epicDeps = [], isLoading: lDeps, error: errorDeps, refetch: refetchDeps } = useQuery({
     queryKey: ['epic-deps', project],
-    queryFn: () => epicDependenciesApi.get(project).then(r => r.data).catch((): EpicDependency[] => []),
+    queryFn: () => epicDependenciesApi.get(project).then(r => r.data),
     enabled: !!project,
   })
+  const errorDeCarga = errorRoadmap ?? errorDeps ?? null
 
   const { mutate: deleteDep } = useMutation({
     mutationFn: (id: string | number) => epicDependenciesApi.delete(id),
@@ -258,7 +253,9 @@ export default function EpicGanttPage(): JSX.Element {
       {!project && <EmptyState icon={<FolderKanban size={28} />} title={t('epicgantt.selecciona_un_proyecto_2')} description={t('pagina_egantt.elige_un_proyecto_para_ver_el')} />}
       {project && isLoading && <Spinner />}
 
-      {project && !isLoading && epics.length === 0 && (
+      {project && errorDeCarga && <EstadoDeError error={errorDeCarga} onReintentar={() => { void refetchRoadmap(); void refetchDeps() }} />}
+
+      {project && !isLoading && !errorDeCarga && epics.length === 0 && (
         <EmptyState icon={<Target size={28} />} title={t('epicgantt.sin_epicas')}
           description={<>{t('epicgantt.crea_epicas_con_fechas_en_la_seccion')} <strong>{t('epicgantt.epicas')}</strong> {t('epicgantt.para_verlas_en_el_gantt_con_dependencias')}</>} />
       )}

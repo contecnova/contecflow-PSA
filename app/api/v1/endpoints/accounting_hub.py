@@ -17,7 +17,7 @@ import json
 
 from app.services.settings_service import por_empresa as _pe
 from app.db.session import get_db
-from app.core.deps import require_any_manager
+from app.core.deps import requiere_capacidad
 from app.core.responses import APIResponse
 from app.models.user import User
 from app.services import accounting_hub_service
@@ -46,7 +46,7 @@ def _get_cfg(integration_type: str, db: Session) -> dict:
 def test_xero(
     payload: dict = Body(default={}),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("finanzas.responsables")),
 ):
     from app.services.integrations import test_xero_connection
 
@@ -61,7 +61,7 @@ def test_xero(
 def test_qb(
     payload: dict = Body(default={}),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("finanzas.responsables")),
 ):
     from app.services.integrations import test_quickbooks_connection
 
@@ -78,7 +78,7 @@ def test_qb(
 def push_invoice(
     payload: dict = Body(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("finanzas.responsables")),
 ):
     """
     Envía una factura de Contecflow al sistema contable configurado.
@@ -142,7 +142,7 @@ def push_invoice(
 def push_invoices_bulk(
     payload: dict = Body(default={}),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("finanzas.responsables")),
 ):
     """
     Envía todas las facturas en estado 'sent' que no han sido sincronizadas aún.
@@ -169,7 +169,7 @@ def push_invoices_bulk(
 def pull_xero_contacts(
     import_to_contecflow: bool = Query(False),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("finanzas.responsables")),
 ):
     """
     Obtiene los contactos de Xero.
@@ -194,6 +194,6 @@ def pull_xero_contacts(
 @router.get("/sync-status", summary="Estado de sincronización contable")
 def sync_status(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("finanzas.responsables")),
 ):
     return APIResponse.ok(data=accounting_hub_service.get_sync_status(db))

@@ -19,6 +19,7 @@ from app.models.performance import (
 from app.models.enterprise import Notification, NotificationType
 from app.models.user import User
 from app.core import timeutil
+from app.services.textos_de_salida_servicios_m_z import texto_para
 
 logger = logging.getLogger(__name__)
 
@@ -81,14 +82,14 @@ def send_pending_review_reminders(db: Session, *, today: date | None = None) -> 
             created_d = created.date() if hasattr(created, "date") else created
             if (today - created_d).days < plazos["sin_cierre_dias"]:
                 continue
-            days_left_label = "sin fecha de cierre"
+            days_left_label = ("perf.sin_cierre", {})
         else:
             days_left = (c.end_date - today).days
             if days_left < 0:
                 continue  # ciclo vencido, lo gestionará HR a mano
             days_left_label = (
-                "hoy" if days_left == 0
-                else f"en {days_left} día(s) ({c.end_date.isoformat()})"
+                ("perf.hoy", {}) if days_left == 0
+                else ("perf.en_dias", {"dias": days_left, "fecha": c.end_date.isoformat()})
             )
 
         # Agrupamos pending por reviewer
@@ -109,23 +110,18 @@ def send_pending_review_reminders(db: Session, *, today: date | None = None) -> 
                 skipped += 1
                 continue
             n = len(revs)
-            title = (
-                f"Tienes {n} evaluación pendiente — cierra {days_left_label}"
-                if n == 1
-                else f"Tienes {n} evaluaciones pendientes — el ciclo cierra {days_left_label}"
-            )
-            db.add(Notification(
-                user_id=reviewer_id,
-                type=NotificationType.system,
-                title=title,
-                body=f"Ciclo: {c.name}. Accede al módulo de evaluaciones para completarlas.",
-                icon="⏰",
-                color="#f59e0b",
-                resource="performance_reminder",
-                resource_id=c.id,
-                action_url="/performance-reviews",
-            ))
-            sent += 1
+            cuando = texto_para(db, days_left_label[0], user_id=reviewer_id, **days_left_label[1])
+            title = texto_para(db, "perf.titulo_uno" if n == 1 else "perf.titulo_varias",
+                               user_id=reviewer_id, n=n, cuando=cuando)
+            # Auditoria 2026-11-22 (03, medios m-p): por `notify_user`, no una
+            # `Notification` a mano: respeta las preferencias de aviso y empuja
+            # por WebSocket (al confirmar), como el resto de avisos.
+            from app.services.notifications import notify_user
+            if notify_user(db, reviewer_id, NotificationType.system.value, title,
+                           texto_para(db, "perf.cuerpo", user_id=reviewer_id, ciclo=c.name),
+                           resource="performance_reminder", resource_id=c.id,
+                           action_url="/performance-reviews") is not None:
+                sent += 1
 
     db.commit()
     return {

@@ -6,6 +6,7 @@ from sqlalchemy import DateTime, Enum
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.db.base import Base
+from app.models.money import Money
 
 
 class CourseStatus(str, enum.Enum):
@@ -19,14 +20,14 @@ class Course(Base):
     """Curso o formación del catálogo."""
     __tablename__ = "training_courses"
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     title       = Column(String(300), nullable=False)
     description = Column(Text, nullable=True)
     provider    = Column(String(200), nullable=True)
     category    = Column(String(100), nullable=True)   # técnico, soft, idioma…
     duration_h  = Column(Float, nullable=True)
     url         = Column(String(500), nullable=True)
-    cost        = Column(Float, nullable=True)
+    cost        = Column(Money, nullable=True)
     is_active   = Column(Boolean, default=True)
     created_at  = Column(DateTime(timezone=True), server_default=func.now())
     enrollments = relationship("CourseEnrollment", back_populates="course",
@@ -37,7 +38,7 @@ class CourseEnrollment(Base):
     """Inscripción de un usuario a un curso."""
     __tablename__ = "training_enrollments"
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     course_id   = Column(String(36), ForeignKey("training_courses.id", ondelete="CASCADE"),
                          nullable=False, index=True)
     user_id     = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"),
@@ -56,7 +57,7 @@ class Certification(Base):
     """Certificación obtenida por un usuario."""
     __tablename__ = "user_certifications"
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     user_id     = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"),
                          nullable=False, index=True)
     name        = Column(String(300), nullable=False)

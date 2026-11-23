@@ -11,7 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_current_user, require_admin
+from app.core.deps import get_current_user, requiere_capacidad
 from app.core.responses import APIListResponse, APIResponse
 from app.db.session import get_db
 from app.models.user import User
@@ -77,7 +77,7 @@ def phase3_upsert_lineage_edge(
     payload: LineageEdgeIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: plataforma de datos
+    _rol: User = Depends(requiere_capacidad("bi.administrar")),  # auditoria 2026-09: sensible: plataforma de datos
 ):
     org_id = getattr(current_user, "organization_id", None)
     return APIResponse.ok(data=svc.upsert_lineage_edge(
@@ -95,7 +95,7 @@ def phase3_log_access(
     payload: AccessAuditIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: plataforma de datos
+    _rol: User = Depends(requiere_capacidad("bi.administrar")),  # auditoria 2026-09: sensible: plataforma de datos
 ):
     org_id = getattr(current_user, "organization_id", None)
     return APIResponse.ok(data=svc.log_access_event(
@@ -115,7 +115,7 @@ def phase3_create_dataset_snapshot(
     payload: DatasetSnapshotIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: plataforma de datos
+    _rol: User = Depends(requiere_capacidad("bi.administrar")),  # auditoria 2026-09: sensible: plataforma de datos
 ):
     org_id = getattr(current_user, "organization_id", None)
     return APIResponse.ok(data=svc.create_dataset_snapshot(
@@ -178,7 +178,7 @@ def phase3_upsert_field_sensitivity(
     payload: FieldSensitivityIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: plataforma de datos
+    _rol: User = Depends(requiere_capacidad("bi.administrar")),  # auditoria 2026-09: sensible: plataforma de datos
 ):
     org_id = getattr(current_user, "organization_id", None)
     try:
@@ -202,7 +202,7 @@ def phase3_delete_field_sensitivity(
     sensitivity_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: plataforma de datos
+    _rol: User = Depends(requiere_capacidad("bi.administrar")),  # auditoria 2026-09: sensible: plataforma de datos
 ):
     enforce_abac(db, current_user, "bi_field_sensitivity", sensitivity_id, action="delete")
     org_id = getattr(current_user, "organization_id", None)

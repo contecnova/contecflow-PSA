@@ -24,7 +24,6 @@ from app.services.ai_chat.prompt_service import (
 from app.services.ai_chat.rate_limit_service import check_rate_limit
 
 # Knowledge base RAG
-from app.services.ai_chat.rag_service import kb_rag_context
 
 # Conversation management
 from app.services.ai_chat.conversation_service import (
@@ -65,7 +64,6 @@ __all__ = [
     # Governance & Rate Limit
     "check_rate_limit",
     # RAG
-    "kb_rag_context",
     # Conversations
     "list_conversations",
     "get_conversation",

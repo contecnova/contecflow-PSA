@@ -8,7 +8,7 @@
  *   t('tasks.new_task', 'es')    → fuerza español independientemente
  */
 import { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react'
-import { APP_LANGUAGES, APP_TRANSLATIONS, diccionarioCargado, loadLanguage, respaldoIngles } from './appTranslations.ts'
+import { APP_LANGUAGES, APP_TRANSLATIONS, diccionarioCargado, idiomaDelNavegador, loadLanguage, respaldoIngles } from './appTranslations.ts'
 import { resolveTranslation, getByPath } from './translationRuntime.mjs'
 
 // TODO type: translations come from .mjs runtime with deep dynamic shape; keep loose
@@ -85,12 +85,12 @@ function isTestEnvironment(): boolean {
 
 export function AppLangProvider({ children }: { children?: ReactNode }) {
   const [lang, setLangState] = useState<string>(() => {
+    // Incidencia 5 (23-11-2026): el último idioma resuelto (preferencia del
+    // usuario o de la empresa, que sincroniza useUserPreferences); si no hay,
+    // el del navegador si se ofrece y, si no, inglés.
     const stored = localStorage.getItem(STORAGE_KEY)
-    if (stored) return stored
-    // Detectar idioma navegador (primer acceso)
-    const navLang = (navigator.language || 'es').slice(0,2)
-    // 2026-11: `in` sobre un array miraba los índices ("0","1"…), así que siempre caía en 'es'.
-    return APP_LANGUAGES.some(l => l.code === navLang) ? navLang : 'es'
+    if (stored && APP_LANGUAGES.some(l => l.code === stored)) return stored
+    return idiomaDelNavegador()
   })
   const inTest = isTestEnvironment()
 

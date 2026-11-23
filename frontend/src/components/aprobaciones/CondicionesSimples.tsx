@@ -30,7 +30,7 @@ export function leerCondicion(raw: string | null | undefined): CondicionSimple |
     const v = JSON.parse(raw)
     if (!v || typeof v !== 'object' || Array.isArray(v) || 'arbol' in v) return null
     return v as CondicionSimple
-  } catch { return null }
+  } catch { /* accesorio: la condición guardada no es JSON; el editor simple no la puede mostrar (se trata como avanzada) */ return null }
 }
 
 export function escribirCondicion(c: CondicionSimple): string {
@@ -43,7 +43,7 @@ export function leerReglas(raw: string | null | undefined): ReglaDeAutoaprobacio
   try {
     const v = JSON.parse(raw)
     return Array.isArray(v) ? v.map(r => ({ label: r?.label ?? '', action: 'auto_approve', conditions: r?.conditions ?? {} })) : []
-  } catch { return [] }
+  } catch { /* accesorio: reglas guardadas mal formadas; se parte de cero */ return [] }
 }
 
 /** Las reglas, sin claves vacías. Una regla sin condiciones se guarda, pero el motor no aprueba nada con ella. */

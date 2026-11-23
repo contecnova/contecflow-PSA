@@ -33,9 +33,9 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_current_user, require_admin, require_admin_or_pm
+from app.core.deps import get_current_user, requiere_capacidad
 from app.core.responses import APIListResponse, APIResponse
-from app.db.session import get_db
+from app.db.session import get_db, sesion_de_sistema
 from app.models.jira_integration import (
     JiraConfig,
     JiraSyncDirection,
@@ -140,7 +140,7 @@ def list_jira_configs(
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin_or_pm),
+    current_user: User = Depends(requiere_capacidad("integraciones.gestionar")),
 ):
     configs, total = listar_configuraciones(
         db, current_user, page=page, page_size=page_size)
@@ -152,7 +152,7 @@ def list_jira_configs(
 def create_jira_config(
     payload: JiraConfigIn,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin_or_pm),
+    current_user: User = Depends(requiere_capacidad("integraciones.gestionar")),
 ):
     config = crear_configuracion(db, current_user, {
         "name": payload.name,
@@ -183,7 +183,7 @@ def patch_jira_config(
     config_id: str,
     payload: JiraConfigPatch,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin_or_pm),
+    current_user: User = Depends(requiere_capacidad("integraciones.gestionar")),
 ):
     config: JiraConfig = configuracion_propia(db, current_user, config_id)
     config = aplicar_cambios_de_configuracion(
@@ -195,7 +195,7 @@ def patch_jira_config(
 def delete_jira_config(
     config_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin_or_pm),
+    current_user: User = Depends(requiere_capacidad("integraciones.gestionar")),
 ):
     enforce_abac(db, current_user, "jira_config", config_id, action="delete")
     borrar_configuracion(db, current_user, config_id)
@@ -206,7 +206,7 @@ def delete_jira_config(
 def test_jira_connection(
     config_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin_or_pm),
+    current_user: User = Depends(requiere_capacidad("integraciones.gestionar")),
 ):
     """Verify credentials by calling Jira's /myself endpoint (`jira_service.probar_conexion`)."""
     from app.core.errores import ErrorDeDominio
@@ -218,7 +218,8 @@ def test_jira_connection(
     except ErrorDeDominio as exc:
         # Contrato de esta ruta: 200 con ok=False (sin el cuerpo remoto, #25).
         return APIResponse.ok(data={"ok": False, "error": str(exc.detail)})
-    return APIResponse.ok(data={"ok": True, "jira_account_id": r["account_id"], "display_name": r["display_name"]})
+    return APIResponse.ok(data={"ok": True, "jira_account_id": r["account_id"], "display_name": r["display_name"],
+                                "comprobaciones": r.get("comprobaciones")})
 
 
 @router.get("/configs/{config_id}/sync-log", summary="Ver log de sincronización")
@@ -227,7 +228,7 @@ def get_sync_log(
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin_or_pm),
+    current_user: User = Depends(requiere_capacidad("integraciones.gestionar")),
 ):
     # La configuracion se comprueba ANTES de exponer sus registros.
     config = configuracion_propia(db, current_user, config_id)
@@ -255,7 +256,7 @@ def push_ticket(
     config_id: str = Query(..., description="Jira config ID to use"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: credenciales de integracion
+    _rol: User = Depends(requiere_capacidad("integraciones.administrar")),  # auditoria 2026-09: sensible: credenciales de integracion
 ):
     """Manually push or re-push a Contecflow ticket to Jira."""
     # Las dos guardas son de la organizacion de quien llama. La de la
@@ -278,7 +279,7 @@ async def receive_jira_webhook(
     x_atlassian_webhook_token: Optional[str] = Header(None),
     x_hub_signature_256: Optional[str] = Header(None),
     org: Optional[str] = Query(None, description="Organización (solo acota; autentica el secreto)"),
-    db: Session = Depends(get_db),
+    db: Session = Depends(sesion_de_sistema("jira: secreto de webhook de la empresa")),
 ):
     """
     Receives Jira Cloud webhooks (issue_updated, comment_created, etc.)
@@ -300,6 +301,9 @@ async def receive_jira_webhook(
     if not org_id:
         logger.warning("Jira webhook rejected: invalid/missing authentication token")
         raise error_http(403, "webhook_auth_no_valida", detail="Invalid Jira webhook authentication", servicio="Jira")
+    # Auditoría 22-11-2026 (M8): el secreto ya dice la empresa; desde aquí filtra.
+    from app.db.session import publicar_empresa
+    await run_db(publicar_empresa, db, org_id)
 
     try:
         payload = json.loads(body or b"{}")
@@ -321,7 +325,7 @@ async def receive_jira_webhook(
 def run_manual_sync(
     config_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin_or_pm),
+    current_user: User = Depends(requiere_capacidad("integraciones.gestionar")),
 ):
     """Trigger an incremental sync poll for all mapped tickets of a config."""
     # La configuracion se comprueba antes de encolar: sin esto un administrador

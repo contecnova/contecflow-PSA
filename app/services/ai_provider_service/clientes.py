@@ -25,6 +25,59 @@ from app.core.codigos_de_error import ErrorConCodigo
 _logger = logging.getLogger("ai_provider_service")
 
 
+# ── Salida a la red (auditoría 22-11-2026, 02 C4) ─────────────────────────────
+#
+# `api_base_url` lo edita el admin de empresa: sin guardia, la API key viajaba a
+# cualquier host y `169.254.169.254` o la intranet quedaban a un «probar» de
+# distancia. Todas las llamadas pasan por `_http`: si el destino es el de la
+# configuración de PLATAFORMA (`settings.*_API_URL`, `OLLAMA_BASE_URL`, mismo
+# esquema+host+puerto) se confía en él (Ollama local en localhost es legítimo);
+# cualquier otro pasa por el guardia SSRF central con comprobación de la IP
+# conectada. El cuerpo de la respuesta remota solo se devuelve en el error si
+# el destino es de plataforma (si no, sería un oráculo para sondear la red).
+
+def _origenes_de_plataforma() -> set[tuple]:
+    from urllib.parse import urlparse
+
+    origenes = set()
+    for clave in ("ANTHROPIC_API_URL", "OPENAI_API_URL", "GEMINI_API_URL", "DEEPSEEK_API_URL",
+                  "GROQ_API_URL", "MISTRAL_API_URL", "OLLAMA_BASE_URL", "AZURE_OPENAI_API_URL"):
+        u = urlparse(str(getattr(settings, clave, "") or ""))
+        if u.hostname:
+            origenes.add((u.scheme.lower(), u.hostname.lower(), u.port))
+    return origenes
+
+
+def _es_de_plataforma(url: str) -> bool:
+    from urllib.parse import urlparse
+
+    u = urlparse(str(url))
+    return (u.scheme.lower(), (u.hostname or "").lower(), u.port) in _origenes_de_plataforma()
+
+
+def _http(metodo: str, url: str, **kwargs) -> httpx.Response:
+    """Petición a un proveedor de IA: destino de plataforma o guardia SSRF."""
+    if _es_de_plataforma(url):
+        return getattr(httpx, metodo.lower())(url, **kwargs)
+    from app.core.outbound_url import cliente_httpx, validar_url_o_valueerror
+
+    validar_url_o_valueerror(url, field="api_base_url")
+    timeout = kwargs.pop("timeout", 30.0)
+    with cliente_httpx(timeout=timeout) as c:
+        return c.request(metodo, url, **kwargs)
+
+
+def _cuerpo(resp: httpx.Response, n: int = 200) -> str:
+    """El cuerpo remoto para el mensaje de error, solo si el destino es de plataforma."""
+    try:
+        if _es_de_plataforma(str(resp.request.url)):
+            return resp.text[:n]
+    except Exception:  # noqa: BLE001 — sin petición asociada (tests)
+        _logger.debug("_cuerpo: excepcion ignorada", exc_info=True)
+        return resp.text[:n]
+    return "(respuesta omitida: destino configurado por la empresa)"
+
+
 # ── Adjuntos (imágenes y PDF) ────────────────────────────────────────────────
 #
 # Revisión 2026-11. Un mensaje puede llevar `adjuntos=[{"media": "image/png",
@@ -71,10 +124,10 @@ def _call_anthropic(api_key, model, messages, system, max_tokens, temperature) -
             "messages": _con_adjuntos(messages, "anthropic")}
     if system:
         body["system"] = system
-    resp = httpx.post(f"{settings.ANTHROPIC_API_URL.rstrip('/')}/messages",
+    resp = _http("POST", f"{settings.ANTHROPIC_API_URL.rstrip('/')}/messages",
                       json=body, headers=headers, timeout=espera_de_ia("OUTBOUND_AI_TIMEOUT_SECONDS"))
     if resp.status_code != 200:
-        raise Exception(f"Anthropic {resp.status_code}: {resp.text[:200]}")
+        raise Exception(f"Anthropic {resp.status_code}: {_cuerpo(resp, 200)}")
     data  = resp.json()
     text  = "".join(b.get("text", "") for b in data.get("content", []) if b.get("type") == "text")
     usage = data.get("usage", {})
@@ -94,9 +147,9 @@ def _call_openai_compat(base_url, api_key, model, messages, system, max_tokens, 
         all_messages.append({"role": "system", "content": system})
     all_messages.extend(_con_adjuntos(messages, "openai"))
     body = {"model": model, "messages": all_messages, "max_tokens": max_tokens, "temperature": temperature}
-    resp = httpx.post(endpoint, json=body, headers=headers, timeout=espera_de_ia("OUTBOUND_AI_TIMEOUT_SECONDS"))
+    resp = _http("POST", endpoint, json=body, headers=headers, timeout=espera_de_ia("OUTBOUND_AI_TIMEOUT_SECONDS"))
     if resp.status_code != 200:
-        raise Exception(f"API {resp.status_code}: {resp.text[:200]}")
+        raise Exception(f"API {resp.status_code}: {_cuerpo(resp, 200)}")
     data  = resp.json()
     text  = data["choices"][0]["message"]["content"]
     usage = data.get("usage", {})
@@ -106,7 +159,10 @@ def _call_openai_compat(base_url, api_key, model, messages, system, max_tokens, 
 
 
 def _call_gemini(api_key, model, messages, system, max_tokens, temperature) -> dict:
-    url = f"{settings.GEMINI_API_URL}/models/{model}:generateContent?key={api_key}"
+    # M43 (auditoría 22-11-2026): la clave va en la cabecera `x-goog-api-key`
+    # (documentada por la API de Gemini), no en la URL que registran httpx y los proxies.
+    url = f"{settings.GEMINI_API_URL}/models/{model}:generateContent"
+    cabeceras = {"x-goog-api-key": api_key, "Content-Type": "application/json"}
     contents = []
     if system:
         contents.append({"role": "user",  "parts": [{"text": system}]})
@@ -127,9 +183,9 @@ def _call_gemini(api_key, model, messages, system, max_tokens, temperature) -> d
             "contents": contents,
             "generationConfig": {"maxOutputTokens": tope, "temperature": temperature},
         }
-        resp = httpx.post(url, json=body, timeout=espera_de_ia("OUTBOUND_AI_TIMEOUT_SECONDS"))
+        resp = _http("POST", url, json=body, headers=cabeceras, timeout=espera_de_ia("OUTBOUND_AI_TIMEOUT_SECONDS"))
         if resp.status_code != 200:
-            raise Exception(f"Gemini {resp.status_code}: {resp.text[:200]}")
+            raise Exception(f"Gemini {resp.status_code}: {_cuerpo(resp, 200)}")
         data  = resp.json()
         candidato = (data.get("candidates") or [{}])[0]
         partes = (candidato.get("content") or {}).get("parts") or []
@@ -159,11 +215,29 @@ def espera_de_ia(clave: str) -> float:
 
     La lectura va a la cache de `settings_service`; la llamada al modelo tarda
     segundos, una consulta mas no se nota.
+
+    Baja (auditoría 22-11-2026): el valor se guarda 60 s por clave; antes cada
+    llamada HTTP a un proveedor abría una sesión de base de datos nueva.
     """
+    import time as _time
+    guardado = _ESPERAS.get(clave)
+    if guardado and _time.monotonic() - guardado[1] < 60:
+        return guardado[0]
+    valor = _espera_de_ia_sin_cache(clave)
+    _ESPERAS[clave] = (valor, _time.monotonic())
+    return valor
+
+
+_ESPERAS: dict = {}
+
+
+def _espera_de_ia_sin_cache(clave: str) -> float:
     try:
         from app.db.session import SessionLocal
         from app.services.settings_service import get_runtime_float
         with SessionLocal() as _db:
+            from app.db.contexto_de_tenant import declarar_sistema as _declarar_sistema
+            _declarar_sistema(_db, "ajustes globales de IA")  # auditoría 22-11-2026: TENANT_SESION_SIN_CONTEXTO=cerrar
             v = get_runtime_float(_db, clave)
         if v:
             return float(v)
@@ -180,9 +254,9 @@ def _call_ollama(base_url, model, messages, system, max_tokens, temperature) -> 
     all_messages.extend(_con_adjuntos(messages, "ollama"))
     body = {"model": model, "messages": all_messages, "stream": False,
             "options": {"num_predict": max_tokens, "temperature": temperature}}
-    resp = httpx.post(url, json=body, timeout=espera_de_ia("AI_LOCAL_HTTP_TIMEOUT_SECONDS"))
+    resp = _http("POST", url, json=body, timeout=espera_de_ia("AI_LOCAL_HTTP_TIMEOUT_SECONDS"))
     if resp.status_code != 200:
-        raise Exception(f"Ollama {resp.status_code}: {resp.text[:200]}")
+        raise Exception(f"Ollama {resp.status_code}: {_cuerpo(resp, 200)}")
     data = resp.json()
     text = data.get("message", {}).get("content", "")
     return {"text": text, "model": model,
@@ -195,9 +269,9 @@ def _list_openai_compatible_models(base_url: str, api_key: str) -> list[str]:
     if not base:
         raise ErrorConCodigo("integracion_no_configurada", detail="Base URL vacía para proveedor compatible OpenAI", nombre="OpenAI")
     headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
-    resp = httpx.get(f"{base}/models", headers=headers, timeout=espera_de_ia("AI_MODELS_LIST_TIMEOUT_SECONDS"))
+    resp = _http("GET", f"{base}/models", headers=headers, timeout=espera_de_ia("AI_MODELS_LIST_TIMEOUT_SECONDS"))
     if resp.status_code != 200:
-        raise Exception(f"List Models {resp.status_code}: {resp.text[:250]}")
+        raise Exception(f"List Models {resp.status_code}: {_cuerpo(resp, 250)}")
     data = resp.json()
     raw = data.get("data", []) if isinstance(data, dict) else []
     models = sorted({str(m.get("id", "")).strip() for m in raw if isinstance(m, dict) and m.get("id")})
@@ -210,9 +284,9 @@ def _list_anthropic_models(api_key: str) -> list[str]:
         "anthropic-version": "2023-06-01",
         "content-type": "application/json",
     }
-    resp = httpx.get(f"{settings.ANTHROPIC_API_URL.rstrip('/')}/models", headers=headers, timeout=espera_de_ia("AI_MODELS_LIST_TIMEOUT_SECONDS"))
+    resp = _http("GET", f"{settings.ANTHROPIC_API_URL.rstrip('/')}/models", headers=headers, timeout=espera_de_ia("AI_MODELS_LIST_TIMEOUT_SECONDS"))
     if resp.status_code != 200:
-        raise Exception(f"Anthropic list models {resp.status_code}: {resp.text[:250]}")
+        raise Exception(f"Anthropic list models {resp.status_code}: {_cuerpo(resp, 250)}")
     data = resp.json()
     raw = data.get("data", []) if isinstance(data, dict) else []
     models = sorted({str(m.get("id", "")).strip() for m in raw if isinstance(m, dict) and m.get("id")})
@@ -221,12 +295,13 @@ def _list_anthropic_models(api_key: str) -> list[str]:
 
 def _list_gemini_models(api_key: str) -> list[str]:
     base = settings.GEMINI_API_URL.rstrip("/")
-    url = f"{base}/models?key={api_key}"
+    url = f"{base}/models"   # M43: clave en cabecera
     models: set[str] = set()
     for _ in range(3):
-        resp = httpx.get(url, timeout=espera_de_ia("AI_MODELS_LIST_TIMEOUT_SECONDS"))
+        resp = _http("GET", url, headers={"x-goog-api-key": api_key},
+                     timeout=espera_de_ia("AI_MODELS_LIST_TIMEOUT_SECONDS"))
         if resp.status_code != 200:
-            raise Exception(f"Gemini list models {resp.status_code}: {resp.text[:250]}")
+            raise Exception(f"Gemini list models {resp.status_code}: {_cuerpo(resp, 250)}")
         data = resp.json() if resp.content else {}
         for m in data.get("models", []) if isinstance(data, dict) else []:
             if not isinstance(m, dict):
@@ -241,8 +316,7 @@ def _list_gemini_models(api_key: str) -> list[str]:
         next_token = data.get("nextPageToken") if isinstance(data, dict) else None
         if not next_token:
             break
-        sep = "&" if "?" in url else "?"
-        url = f"{base}/models?key={api_key}{sep}pageToken={next_token}"
+        url = f"{base}/models?pageToken={next_token}"
     return sorted(models)
 
 
@@ -250,9 +324,9 @@ def _list_ollama_models(base_url: str) -> list[str]:
     base = _normalize_ollama_base(base_url)
     if not base:
         raise ErrorConCodigo("integracion_no_configurada", detail="Base URL vacía para Ollama", nombre="Ollama")
-    resp = httpx.get(f"{base}/api/tags", timeout=espera_de_ia("AI_MODELS_LIST_TIMEOUT_SECONDS"))
+    resp = _http("GET", f"{base}/api/tags", timeout=espera_de_ia("AI_MODELS_LIST_TIMEOUT_SECONDS"))
     if resp.status_code != 200:
-        raise Exception(f"Ollama list models {resp.status_code}: {resp.text[:250]}")
+        raise Exception(f"Ollama list models {resp.status_code}: {_cuerpo(resp, 250)}")
     data = resp.json() if resp.content else {}
     raw = data.get("models", []) if isinstance(data, dict) else []
     names = sorted({str(m.get("name", "")).strip() for m in raw if isinstance(m, dict) and m.get("name")})
@@ -265,9 +339,9 @@ def _list_azure_models(base_url: str, api_key: str) -> list[str]:
         raise ErrorConCodigo("integracion_no_configurada", detail="Base URL vacía para Azure OpenAI", nombre="Azure OpenAI")
     headers = {"api-key": api_key, "Content-Type": "application/json"}
     # Data-plane model listing in Azure OpenAI
-    resp = httpx.get(f"{base}/models?api-version=2024-10-21", headers=headers, timeout=espera_de_ia("AI_MODELS_LIST_TIMEOUT_SECONDS"))
+    resp = _http("GET", f"{base}/models?api-version=2024-10-21", headers=headers, timeout=espera_de_ia("AI_MODELS_LIST_TIMEOUT_SECONDS"))
     if resp.status_code != 200:
-        raise Exception(f"Azure list models {resp.status_code}: {resp.text[:250]}")
+        raise Exception(f"Azure list models {resp.status_code}: {_cuerpo(resp, 250)}")
     data = resp.json() if resp.content else {}
     raw = data.get("data", []) if isinstance(data, dict) else []
     models = sorted({str(m.get("id", "")).strip() for m in raw if isinstance(m, dict) and m.get("id")})

@@ -36,7 +36,17 @@ from tests.conftest import auth, engine
 
 def _nuevo(db, modelo, **campos):
     """Fila con las columnas obligatorias sin valor por defecto rellenas."""
+    # Desde la revisión 186 (19-11-2026) tipo de proyecto, sector, categoría de
+    # gasto... son claves VARCHAR validadas contra su catálogo en `before_flush`
+    # (antes eran enums y aquí salía el primer miembro). Un texto al azar ya no
+    # vale: se usa la primera clave del sistema de ese catálogo.
+    from app.services.settings_service.catalogos_de_clave import CATALOGOS, _VIGILADOS
+    claves_de_catalogo = {atr: CATALOGOS[cat][1][0][0] for _m, nombre, atr, cat in _VIGILADOS
+                          if nombre == modelo.__name__}
     for col in sa_inspect(modelo).columns:
+        if col.key in claves_de_catalogo and col.key not in campos and not col.nullable:
+            campos[col.key] = claves_de_catalogo[col.key]
+            continue
         if (col.key in campos or col.nullable or col.default is not None
                 or col.server_default is not None or col.foreign_keys):
             continue

@@ -31,3 +31,35 @@ def credenciales_opcionales(conn: HTTPConnection) -> Optional[HTTPAuthorizationC
 
 def es_websocket(conn: HTTPConnection) -> bool:
     return conn.scope.get("type") == "websocket"
+
+
+# ── Auditoría 22-11-2026 (A2, M1): un solo principal para GRC y ABAC ─────────
+#
+# Las guardas globales de GRC y ABAC decodificaban el JWT por su cuenta: con una
+# clave de API (`X-API-Key`/`Bearer nxpm_…`) o un token OAuth no veían usuario y
+# no decidían, y con JWT evaluaban la empresa de la FICHA y no la activa.
+# Ahora se aplican dentro de `get_current_user`, con el principal ya resuelto
+# (sesión, clave o token) y la empresa activa publicada. La guarda global solo
+# actúa en las rutas que NO resuelven al usuario con `get_current_user`.
+
+_RESUELVE_USUARIO: dict[int, bool] = {}
+
+
+def _llamadas(dependant, acumuladas: set) -> set:
+    for dep in getattr(dependant, "dependencies", ()) or ():
+        acumuladas.add(dep.call)
+        _llamadas(dep, acumuladas)
+    return acumuladas
+
+
+def ruta_resuelve_usuario(conn: HTTPConnection) -> bool:
+    """¿La ruta de esta petición depende de `get_current_user`? (cacheado por ruta)."""
+    ruta = conn.scope.get("route")
+    dependant = getattr(ruta, "dependant", None)
+    if dependant is None:
+        return False
+    clave = id(ruta)
+    if clave not in _RESUELVE_USUARIO:
+        from app.core.deps import get_current_user
+        _RESUELVE_USUARIO[clave] = get_current_user in _llamadas(dependant, set())
+    return _RESUELVE_USUARIO[clave]

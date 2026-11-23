@@ -5,7 +5,7 @@ from datetime import date, timedelta
 
 from app.services.settings_service.por_empresa import capacidad_semanal, jornada_de_empresa
 from app.db.session import get_db
-from app.core.deps import get_current_user, require_any_manager
+from app.core.deps import get_current_user, requiere_capacidad
 from app.core.abac_enforce import enforce_abac
 from app.core.responses import APIResponse, APIListResponse
 from app.models.user import User
@@ -23,7 +23,7 @@ _get_weeks = capacity_service.get_weeks
 def get_capacity_overview(
     weeks: int = Query(8, ge=1, le=26),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("recursos.gestionar")),
 ):
     """
     Returns a grid: users x weeks with planned hours, actual hours and load %.
@@ -37,7 +37,7 @@ def get_capacity_overview(
     plans = capacity_service.get_plans_for_period(db, week_list[0], week_list[-1], user_ids)
 
     actual_data = capacity_service.get_actual_hours_by_week(
-        db, week_list[0], week_list[-1] + timedelta(days=6)
+        db, week_list[0], week_list[-1] + timedelta(days=6), user_ids=user_ids
     )
 
     # Build actual hours by user/week
@@ -108,7 +108,7 @@ def list_plans(
     week_from: Optional[date] = None,
     week_to: Optional[date] = None,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("recursos.gestionar")),
 ):
     plans = capacity_service.list_capacity_plans(db, user_id, project_id, week_from, week_to)
     return APIListResponse.ok(items=[{
@@ -129,7 +129,7 @@ def get_availability(
     weeks: int = Query(4, ge=1, le=12),
     min_hours: float = Query(0),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("recursos.gestionar")),
 ):
     """Shows available hours per person for the next N weeks."""
     today = timeutil.today()
@@ -182,7 +182,7 @@ def get_capacity_board(
     week_from: Optional[date] = Query(None),
     week_to:   Optional[date] = Query(None),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),  # revisión 2026-11: las horas de todos; sus hermanas usan esta guarda
+    current_user: User = Depends(requiere_capacidad("recursos.gestionar")),  # revisión 2026-11: las horas de todos; sus hermanas usan esta guarda
 ):
     """
     Devuelve todos los CapacityPlan en el rango de semanas dado,
@@ -215,7 +215,7 @@ def create_capacity_plan(
     payload: dict = Body(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_any_manager),  # revisión 2026-11: planificaba a cualquiera; editar y borrar ya la exigían
+    _rol: User = Depends(requiere_capacidad("recursos.gestionar")),  # revisión 2026-11: planificaba a cualquiera; editar y borrar ya la exigían
 ):
     user_id = payload.get("user_id", current_user.id)
     week_start_val = payload.get("week_start")
@@ -249,11 +249,11 @@ def update_capacity_plan(
     payload: dict = Body(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_any_manager),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
+    _rol: User = Depends(requiere_capacidad("recursos.gestionar")),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
     plan = capacity_service.get_capacity_plan_by_id(db, plan_id)
     if not plan:
-        raise HTTPException(404)
+        raise error_http(404, "no_encontrado", que="plan")
     capacity_service.update_capacity_plan(db, plan, payload)
     return APIResponse.ok(data={"ok": True, "id": plan.id})
 
@@ -267,11 +267,11 @@ def delete_capacity_plan(
     # politicas activas no comprueba nada. Planificar capacidad es funcion de
     # gestion por definicion: quien no puede asignar carga tampoco
     # deberia poder borrar el plan que la reparte.
-    _: User = Depends(require_any_manager),
+    _: User = Depends(requiere_capacidad("recursos.gestionar")),
 ):
     plan = capacity_service.get_capacity_plan_by_id(db, plan_id)
     if not plan:
-        raise HTTPException(404)
+        raise error_http(404, "no_encontrado", que="plan")
     enforce_abac(db, current_user, "capacity_plan", plan_id, action="delete")
     capacity_service.delete_capacity_plan(db, plan)
     return APIResponse.ok(data={"ok": True, "message": "Plan de capacidad eliminado correctamente"})
@@ -337,7 +337,7 @@ def get_resource_leveling(
     week_from: date = Query(...),
     week_to: date = Query(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("recursos.gestionar")),
 ):
     """Detecta sobreasignación en el rango y propone mover horas a semanas libres.
 

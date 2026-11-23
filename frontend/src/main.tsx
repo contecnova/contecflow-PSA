@@ -1,7 +1,6 @@
 /// <reference types="vite/client" />
 import './silenciarAvisoDeDevTools'
-import { cargarFuentes } from './fuentes'
-cargarFuentes()  // tipografías configurables (19-11-2026)
+import './fuentes'  // tipografías locales (@fontsource, 23-11-2026: sin Google, RGPD)
 // Patch HTMLCanvasElement.getContext so Plotly 3D charts don't trigger the
 // "willReadFrequently" browser warning on repeated getImageData calls.
 // Audit #C9: getContext is a heavily overloaded method (2d / webgl / bitmaprenderer
@@ -22,16 +21,13 @@ import { registrarClienteDeConsultas } from './services/api/refrescoTrasEscritur
 import type { ReactNode } from 'react'
 import ReactDOM from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
-import { QueryCache, QueryClient } from '@tanstack/react-query'
-import { reportQueryError } from './lib/queryErrorBus'
+import { MutationCache, QueryCache, QueryClient } from '@tanstack/react-query'
+import { reportMutationError, reportQueryError } from './lib/queryErrorBus'
 import App from './App'
 import { Button } from './components/ui'
 import AppProviders from './AppProviders'
-import { useAppT } from './hooks/useAppT'
-import type { TranslationParams } from './hooks/useAppT'
-// TODO type: services/offlineQueue still JS
+import { useAppLang } from './i18n/AppLangContext'
 import { initOfflineSync } from './services/offlineQueue'
-// TODO type: services/api still JS
 import api from './services/api'
 import './index.css'
 import { GC_DEFAULT_MS, STALE_SHORT_MS } from './constants/timings'
@@ -40,6 +36,7 @@ import './main.estilos.css'
 // Initialize offline sync — auto-syncs queued imputations when the browser comes back online
 const _bootOfflineSync = () => {
   initOfflineSync(api, ({ synced, failed }: { synced: number; failed: number }) => {
+    // Las abandonadas las avisa AuthContext (evento `offline:imputaciones-abandonadas`).
     if (synced > 0) console.warn(`[Contecflow] Offline sync: ${synced} imputations uploaded${failed ? `, ${failed} failed` : ''}`)
   })
 }
@@ -56,7 +53,7 @@ if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
 // ── Error Boundary — captura errores de render Y de lazy loading ──────────────
 interface RootErrorBoundaryProps {
   children?: ReactNode
-  // i18n translator — TODO type: useAppT().t signature
+  // i18n translator (`useAppLang().t`)
   t: (key: string, vars?: Record<string, unknown>) => string
 }
 interface RootErrorBoundaryState {
@@ -126,8 +123,9 @@ class ErrorBoundary extends React.Component<RootErrorBoundaryProps, RootErrorBou
 }
 
 function RootBoundary({ children }: { children?: ReactNode }) {
-  const { t } = useAppT()
-  const translate = (key: string, vars?: Record<string, unknown>) => t(key, vars as TranslationParams | undefined)
+  // 23-11-2026: un solo traductor de operador (`useAppLang`); fuera `hooks/useAppT`, que traducía aparte.
+  const { t } = useAppLang()
+  const translate = (key: string, vars?: Record<string, unknown>) => t(key, vars)
   return <ErrorBoundary t={translate}>{children}</ErrorBoundary>
 }
 
@@ -137,6 +135,14 @@ function RootBoundary({ children }: { children?: ReactNode }) {
 const queryClient = new QueryClient({
   queryCache: new QueryCache({
     onError: (error, query) => reportQueryError(error, query.meta),
+  }),
+  // Auditoría 22-11-2026 (M1 del 04b): una mutación sin `onError` propio fallaba
+  // en silencio. Ahora avisa con el texto traducido (extractErr vía mensajeDeError).
+  mutationCache: new MutationCache({
+    onError: (error, _vars, _ctx, mutation) => {
+      if (mutation.options.onError) return
+      reportMutationError(error, mutation.meta)
+    },
   }),
   defaultOptions: {
     queries: {
@@ -152,6 +158,9 @@ const queryClient = new QueryClient({
 })
 // Tras cualquier escritura con éxito se refrescan las pantallas (refrescoTrasEscritura.ts).
 registrarClienteDeConsultas(queryClient)
+// Auditoría 22-11-2026 (H3 del 05): al cerrar sesión o caducar se vacía la caché;
+// en un puesto compartido el siguiente usuario no ve datos del anterior.
+window.addEventListener('auth:session-cleared', () => queryClient.clear())
 
 // ── Render ────────────────────────────────────────────────────────────────────
 const rootEl = document.getElementById('root')

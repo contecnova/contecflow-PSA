@@ -6,7 +6,7 @@ based on project, client, region, data classification, team, and other context.
 """
 from app.core.timeutil import utcnow
 from sqlalchemy import Column, String, Integer, DateTime, ForeignKey, JSON, Boolean, Text, Index
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import synonym, relationship
 from app.db.base import Base
 
 
@@ -15,7 +15,10 @@ class AttributeDefinition(Base):
     __tablename__ = "abac_attribute_definitions"
 
     id = Column(String(36), primary_key=True)
-    org_id = Column(String(36), ForeignKey("organizations.id"), nullable=False, index=True)
+    # B-MOD1 (migracion 200): la columna se llama `organization_id` como en el resto;
+    # `org_id` queda como sinonimo para el codigo existente.
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+    org_id = synonym("organization_id")
     attribute_key = Column(String(128), nullable=False)  # e.g., "project_id", "region", "data_classification"
     attribute_type = Column(String(32), nullable=False)  # "string", "list", "enum", "integer", "date"
     description = Column(Text, nullable=True)
@@ -24,10 +27,10 @@ class AttributeDefinition(Base):
     is_active = Column(Boolean, default=True, index=True)
     created_at = Column(DateTime(timezone=True), default=utcnow)
     updated_at = Column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
-    created_by = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    created_by = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
 
     __table_args__ = (
-        Index("idx_attr_def_org_key", "org_id", "attribute_key"),
+        Index("idx_attr_def_org_key", "organization_id", "attribute_key"),
     )
 
     # Relationships
@@ -40,18 +43,21 @@ class UserAttribute(Base):
     __tablename__ = "user_attributes"
 
     id = Column(String(36), primary_key=True)
-    user_id = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
-    org_id = Column(String(36), ForeignKey("organizations.id"), nullable=False, index=True)
+    user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    # B-MOD1 (migracion 200): la columna se llama `organization_id` como en el resto;
+    # `org_id` queda como sinonimo para el codigo existente.
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+    org_id = synonym("organization_id")
     attribute_key = Column(String(128), nullable=False)  # e.g., "project_ids", "region"
     attribute_value = Column(JSON, nullable=False)  # Can be string, list, or structured data
     expires_at = Column(DateTime(timezone=True), nullable=True)  # Temporal attribute restrictions
     reason = Column(Text, nullable=True)  # Audit trail
     created_at = Column(DateTime(timezone=True), default=utcnow)
     updated_at = Column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
-    assigned_by = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    assigned_by = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
 
     __table_args__ = (
-        Index("idx_user_attr_user_org", "user_id", "org_id"),
+        Index("idx_user_attr_user_org", "user_id", "organization_id"),
         Index("idx_user_attr_key", "attribute_key"),
     )
 
@@ -66,7 +72,10 @@ class ABACPolicy(Base):
     __tablename__ = "abac_policies"
 
     id = Column(String(36), primary_key=True)
-    org_id = Column(String(36), ForeignKey("organizations.id"), nullable=False, index=True)
+    # B-MOD1 (migracion 200): la columna se llama `organization_id` como en el resto;
+    # `org_id` queda como sinonimo para el codigo existente.
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+    org_id = synonym("organization_id")
     policy_name = Column(String(256), nullable=False)  # e.g., "Project Manager: Q2 Projects"
     description = Column(Text, nullable=True)
 
@@ -103,13 +112,13 @@ class ABACPolicy(Base):
     is_active = Column(Boolean, default=True, index=True)
     created_at = Column(DateTime(timezone=True), default=utcnow)
     updated_at = Column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
-    created_by = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    created_by = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
 
     # Audit trail
     last_evaluated_at = Column(DateTime(timezone=True), nullable=True)
 
     __table_args__ = (
-        Index("idx_policy_org_active", "org_id", "is_active"),
+        Index("idx_policy_org_active", "organization_id", "is_active"),
         Index("idx_policy_priority", "priority"),
     )
 
@@ -123,9 +132,12 @@ class PolicyAudit(Base):
     __tablename__ = "policy_audit_log"
 
     id = Column(String(36), primary_key=True)
-    org_id = Column(String(36), ForeignKey("organizations.id"), nullable=False, index=True)
-    user_id = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
-    policy_id = Column(String(36), ForeignKey("abac_policies.id"), nullable=True, index=True)
+    # B-MOD1 (migracion 200): la columna se llama `organization_id` como en el resto;
+    # `org_id` queda como sinonimo para el codigo existente.
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+    org_id = synonym("organization_id")
+    user_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    policy_id = Column(String(36), ForeignKey("abac_policies.id", ondelete="SET NULL"), nullable=True, index=True)
 
     action = Column(String(64), nullable=False)  # "policy_created", "policy_updated", "policy_deleted", "access_denied", "access_allowed"
     resource_type = Column(String(128), nullable=True)
@@ -140,7 +152,7 @@ class PolicyAudit(Base):
     created_at = Column(DateTime(timezone=True), default=utcnow, index=True)
 
     __table_args__ = (
-        Index("idx_audit_org_user", "org_id", "user_id"),
+        Index("idx_audit_org_user", "organization_id", "user_id"),
         Index("idx_audit_policy", "policy_id"),
         Index("idx_audit_action", "action"),
     )

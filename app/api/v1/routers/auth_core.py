@@ -11,13 +11,13 @@ from datetime import datetime, timezone
 import logging
 import secrets
 
-from app.db.session import get_db
+from app.db.session import get_db, sesion_de_sistema
 from app.services.audit import audit_log
 from app.core.security import (
     verify_password,
     get_password_hash,
     decode_token,
-    validate_password_policy,
+    validate_password_policy,  # noqa: F401  (lo importan pruebas antiguas desde aquí)
 )
 from app.core.deps import get_current_user
 from app.core.config import settings
@@ -139,11 +139,20 @@ def _rechazar_credenciales(bucket, *, cuenta=None, db=None, user=None, request=N
 
     `cuenta`: el contador por cuenta (todas las IPs), con umbral mas alto.
     """
-    lock_for = _register_login_failure(bucket)
+    org_del_usuario = getattr(user, "organization_id", None)
+    lock_for = _register_login_failure(bucket, 1, org_del_usuario)
     if cuenta is not None:
-        lock_for = max(lock_for, _register_login_failure(cuenta, _svc.LOGIN_ACCOUNT_MULTIPLIER))
+        cuenta_bloqueada = _register_login_failure(cuenta, _svc.LOGIN_ACCOUNT_MULTIPLIER, org_del_usuario)
+        lock_for = max(lock_for, cuenta_bloqueada)
+        if cuenta_bloqueada and user is not None:
+            # 23-11-2026: bloqueo persistente, aviso al usuario y alerta al admin.
+            from app.services.seguridad_de_cuentas.bloqueo import al_bloquearse
+            al_bloquearse(db, user, cuenta_bloqueada)
     if user is not None:
         _auditar_en_soc(db, user, request, exito=False)
+        from app.services.seguridad_de_cuentas import alertas as _alertas
+        from app.services.seguridad_de_cuentas.politica import leer as _politica
+        _alertas.fallos_masivos(db, org_del_usuario, _politica(db, org_del_usuario).SECURITY_ALERT_FAILED_LOGINS)
     # Observabilidad (22-11-2026): por empresa, nunca por usuario.
     from app.core.metricas_empresa import contar_login
     contar_login("bloqueado" if lock_for > 0 else "fallido", getattr(user, "organization_id", None))
@@ -234,7 +243,7 @@ def _reto_de_segundo_factor(db: Session, user, has_totp: bool, has_passkeys: boo
     )
 
 
-def _abrir_sesion(db: Session, user, request: Request, response: Response, org=None):
+def _abrir_sesion(db: Session, user, request: Request, response: Response, org=None, metodo: str = "password"):
     """Emite el par de tokens (de la empresa `org`), registra la sesion y pone las cookies."""
     from app.services.entrada_service import emitir_tokens
     access_token, refresh_token, new_jti = emitir_tokens(user, org)
@@ -243,7 +252,7 @@ def _abrir_sesion(db: Session, user, request: Request, response: Response, org=N
         user_id=user.id,
         request=request,
         refresh_token_jti=new_jti,
-        auth_method="password",
+        auth_method=metodo,
     )
     try:
         _svc.commit_db(db)
@@ -259,8 +268,9 @@ def _abrir_sesion(db: Session, user, request: Request, response: Response, org=N
 
 @router.post("/login", response_model=TokenResponse, summary="Login con credenciales locales")
 @limiter.limit("5/minute")
-def login(request: Request, response: Response, payload: LoginRequest, db: Session = Depends(get_db)):
-    bucket = _login_bucket(payload.username, request.client.host if request.client else None)
+def login(request: Request, response: Response, payload: LoginRequest, db: Session = Depends(sesion_de_sistema("login"))):
+    # Auditoria 2026-11-22 (01 B9): la IP real (tras proxy de confianza), no la del proxy.
+    bucket = _login_bucket(payload.username, _client_ip(request))
     cuenta = _svc.login_account_bucket(payload.username)
     lock_ttl = max(_login_lock_ttl(bucket), _login_lock_ttl(cuenta))
     if lock_ttl > 0:
@@ -274,16 +284,40 @@ def login(request: Request, response: Response, payload: LoginRequest, db: Sessi
         _gastar_tiempo_de_hash(payload.password)
         _rechazar_credenciales(bucket, cuenta=cuenta)
 
+    # 23-11-2026: bloqueo persistente de la cuenta (users.locked_until), que vale
+    # en todos los procesos aunque Redis no este. Mismo mensaje que el de cubeta.
+    from app.services.seguridad_de_cuentas.bloqueo import segundos_bloqueado
+    persistente = segundos_bloqueado(user)
+    if persistente > 0:
+        _gastar_tiempo_de_hash(payload.password)
+        raise error_http(status.HTTP_429_TOO_MANY_REQUESTS, "login_bloqueado",
+                         detail=_mensaje_de_bloqueo(persistente), segundos=persistente)
+
     password_ok = _contrasena_correcta(payload, user)
     if not password_ok and _bypass_de_superadmin_aplicable(user, payload):
         password_ok = True
-        logger.warning(
+        logger.critical(
             "Superadmin bypass used for user=%s ip=%s — review ENABLE_SUPERADMIN_BYPASS",
             user.id, _client_ip(request),
         )
+        # 23-11-2026: cada uso queda en la auditoria (con IP) y en el SOC.
+        from app.services.seguridad_de_cuentas.auditoria import Origen, auditar
+        auditar(db, user, "SUPERADMIN_BYPASS_LOGIN", user, origen=Origen.de(request))
+        try:
+            soc = _soc_svc(db, user)
+            if soc:
+                soc.emit(event_type="superadmin_bypass", category="auth", severity="high", user_id=user.id,
+                         ip_address=_client_ip(request), detail="ENABLE_SUPERADMIN_BYPASS login")
+        except Exception:
+            logger.warning("SOC superadmin_bypass no registrado", exc_info=True)
 
     if not password_ok:
         _rechazar_credenciales(bucket, cuenta=cuenta, db=db, user=user, request=request)
+
+    # Contrasena temporal caducada (puesta por un administrador): no vale.
+    from app.services.seguridad_de_cuentas.contrasenas import temporal_caducada
+    if temporal_caducada(user):
+        raise error_http(status.HTTP_401_UNAUTHORIZED, "contrasena_temporal_caducada")
 
     _clear_login_failure(bucket)
     _clear_login_failure(cuenta)
@@ -299,7 +333,8 @@ def login(request: Request, response: Response, payload: LoginRequest, db: Sessi
         eleccion = None
 
     user.last_login = datetime.now(timezone.utc)
-    audit_log(db, user, "LOGIN", "users", user.id, user.full_name)
+    audit_log(db, user, "LOGIN", "users", user.id, user.full_name, ip_address=(_client_ip(request) or None),
+              user_agent=(request.headers.get("user-agent") or "")[:500] or None)
     _auditar_en_soc(db, user, request, exito=True)
     from app.core.metricas_empresa import contar_login
     contar_login("correcto", org or user.organization_id)
@@ -312,12 +347,21 @@ def login(request: Request, response: Response, payload: LoginRequest, db: Sessi
 
 
 def _segundo_factor_o_sesion(db: Session, user, request: Request, response: Response, org):
-    has_totp = bool(user.mfa_enabled and user.mfa_secret)
-    has_passkeys = _svc.user_has_passkeys(db, user.id)
+    # 23-11-2026 (docs/seguridad/politicas_de_cuenta.md §5): solo cuentan los
+    # metodos permitidos por la empresa; la exigencia por rol o capacidad abre
+    # el periodo de gracia; un dispositivo de confianza evita el reto.
+    from app.services.seguridad_de_cuentas import mfa as _mfa
+    from app.services.seguridad_de_cuentas.politica import leer as _politica
+    politica = _politica(db, org or user.organization_id)
+    f = _mfa.factores(db, user, politica)
+    has_totp, has_passkeys = f["totp"], f["webauthn"]
     _exigir_mfa_de_la_organizacion(db, user, has_totp or has_passkeys, org)
-    if has_totp or has_passkeys:
-        return _reto_de_segundo_factor(db, user, has_totp, has_passkeys, org)
-    return _abrir_sesion(db, user, request, response, org)
+    if not (has_totp or has_passkeys):
+        _mfa.estado(db, user, org or user.organization_id, politica, abrir_gracia=True)
+        return _abrir_sesion(db, user, request, response, org)
+    if _mfa.dispositivo_valido(db, user, request.cookies.get(_mfa.COOKIE_DISPOSITIVO)):
+        return _abrir_sesion(db, user, request, response, org, metodo="trusted_device")
+    return _reto_de_segundo_factor(db, user, has_totp, has_passkeys, org)
 
 
 def _pedir_eleccion(db: Session, user, organizaciones: list):
@@ -340,7 +384,7 @@ class EleccionIn(BaseModel):
 @router.post("/select-organization", response_model=TokenResponse,
              summary="Elegir empresa tras la contraseña (usuarios de varias empresas)")
 @limiter.limit("10/minute")
-def select_organization(request: Request, response: Response, payload: EleccionIn, db: Session = Depends(get_db)):
+def select_organization(request: Request, response: Response, payload: EleccionIn, db: Session = Depends(sesion_de_sistema("login: elegir empresa"))):
     from app.services import entrada_service as _entrada
     user = _svc.lookup_user_by_id_active(db, _entrada.leer_token_de_eleccion(payload.selection_token))
     if not user:
@@ -385,7 +429,7 @@ def switch_organization(request: Request, response: Response, payload: CambioIn,
 
 
 @router.get("/entry-config", summary="Cómo se entra en este despliegue (público)")
-def entry_config(request: Request, db: Session = Depends(get_db)):
+def entry_config(request: Request, db: Session = Depends(sesion_de_sistema("login: empresa del host"))):
     """El modo de entrada y, en modo subdominio, la empresa del host (para su marca)."""
     from app.services import entrada_service as _entrada
     org = _entrada.organizacion_por_host(db, request) if _entrada.modo() == "subdomain" else None
@@ -394,7 +438,7 @@ def entry_config(request: Request, db: Session = Depends(get_db)):
 
 
 @router.post("/refresh", response_model=TokenResponse)
-def refresh_token(request: Request, response: Response, db: Session = Depends(get_db), payload: Optional[RefreshRequest] = None):
+def refresh_token(request: Request, response: Response, db: Session = Depends(sesion_de_sistema("login: renovar sesión")), payload: Optional[RefreshRequest] = None):
     # Accept refresh token from cookie (preferred) or request body (legacy)
     raw_refresh = request.cookies.get("refresh_token")
     if not raw_refresh and payload:
@@ -428,7 +472,8 @@ def refresh_token(request: Request, response: Response, db: Session = Depends(ge
             raise error_http(401, "ya_no_perteneces_org")
         from app.db.session import exigir_organizacion_activa
         exigir_organizacion_activa(db, org)
-    access_token, new_refresh_token, new_jti = _entrada.emitir_tokens(user, org)
+    access_token, new_refresh_token, new_jti = _entrada.emitir_tokens(
+        user, org, sid=active_session.session_key or token_jti)
     register_or_rotate_user_session(
         db=db,
         user_id=user.id,
@@ -472,33 +517,34 @@ def logout(
 
 @router.post("/password/forgot", summary="Solicitar enlace para restablecer contraseña")
 @limiter.limit("5/minute")
-def password_forgot(request: Request, payload: PasswordForgotRequest, db: Session = Depends(get_db)):
-    identifier = (payload.email_or_username or "").strip()
+def password_forgot(request: Request, payload: PasswordForgotRequest, db: Session = Depends(sesion_de_sistema("login: recuperar contraseña"))):
+    import time as _time
+    from app.services.seguridad_de_cuentas import restablecimiento as _rest
+    from app.services.seguridad_de_cuentas.auditoria import Origen, auditar
+    inicio = _time.monotonic()
+    identifier = (payload.email_or_username or "").strip()[:320]
     if identifier:
-        ttl = _register_password_reset_request(_password_reset_bucket(identifier, request.client.host if request.client else None))
+        # 23-11-2026 (RGPD, minimizacion): el cubo lleva el hash, no el correo.
+        ttl = _register_password_reset_request(_password_reset_bucket(_rest.huella(identifier), _client_ip(request)))  # 01 B9: IP real
         if ttl > 0:
             raise error_http(status.HTTP_429_TOO_MANY_REQUESTS, "recuperacion_demasiadas_solicitudes", detail=f"Demasiadas solicitudes de recuperación. Intenta de nuevo en {ttl}s.", segundos=ttl)
 
     if identifier:
         user = _svc.lookup_user_by_identifier(db, identifier)
-        if user and user.email and user.hashed_password:
+        if user and user.email and user.hashed_password and getattr(user, "is_active", True):
             try:
-                token = _issue_password_reset_token(user)
-                reset_link = f"{settings.FRONTEND_URL.rstrip('/')}/reset-password?token={token}"
-                # Segunda auditoria 2026-11 (n.º 20): el SMTP sale de la peticion.
-                # Ademas cierra un oraculo de tiempos: la respuesta tardaba lo
-                # que el SMTP solo si la cuenta existia. El worker abre su sesion
-                # (`db`) en la empresa del usuario para leer su servidor SMTP.
-                from app.core.segundo_plano import encolar
-                org_del_usuario = getattr(user, "organization_id", None)
-                encolar(_send_password_reset_email, user.email, reset_link,
-                        org_id=org_del_usuario, _organizacion=org_del_usuario, _sesion=db)
-                audit_log(db, user, "PASSWORD_RESET_REQUEST", "users", user.id, user.full_name)
+                # Segunda auditoria 2026-11 (n.º 20): el SMTP sale de la peticion
+                # (encolado). 23-11-2026: correo en el idioma del usuario
+                # (`restablecimiento.enviar_enlace_al_operador`).
+                _rest.enviar_enlace_al_operador(db, user)
+                auditar(db, user, "PASSWORD_RESET_REQUEST", user, origen=Origen.de(request))
                 _svc.commit_db(db)
             except Exception as exc:
                 logger.warning("Password reset email send failed for user_id=%s: %s", user.id, exc)
+        # Si la cuenta no existe no se apunta nada (ni el identificador).
 
-    # Anti-enumeration: always return a generic success response.
+    # Anti-enumeration: misma respuesta y un tiempo parecido exista o no la cuenta.
+    _rest.igualar_tiempo(inicio)
     return {
         "ok": True,
         "message": "Si existe una cuenta asociada, se ha enviado un enlace de restablecimiento.",
@@ -507,7 +553,7 @@ def password_forgot(request: Request, payload: PasswordForgotRequest, db: Sessio
 
 @router.post("/password/reset", summary="Restablecer contraseña con token")
 @limiter.limit("10/minute")
-def password_reset(request: Request, payload: PasswordResetRequest, db: Session = Depends(get_db)):
+def password_reset(request: Request, payload: PasswordResetRequest, db: Session = Depends(sesion_de_sistema("login: restablecer contraseña"))):
     token_data = _read_ephemeral_token(payload.token, "password_reset")
     user_id = token_data.get("sub")
     if not user_id:
@@ -517,17 +563,44 @@ def password_reset(request: Request, payload: PasswordResetRequest, db: Session 
     if not user:
         raise error_http(401, "reset_token_no_valido", detail="Token de restablecimiento inválido o expirado")
 
-    ok, reason = validate_password_policy(payload.new_password, db=db, org_id=getattr(user, "organization_id", None))
-    if not ok:
-        from app.core.security import codigo_de_politica_de_contrasena
-        _cod, _par = codigo_de_politica_de_contrasena(reason)
-        raise error_http(400, _cod, detail=reason or "La contraseña no cumple la política de seguridad", **_par)
+    from app.services.seguridad_de_cuentas import contrasenas as _contrasenas
+    from app.services.seguridad_de_cuentas.auditoria import Origen, auditar
+    from app.services.seguridad_de_cuentas.restablecimiento import reclamar_jti
+    politica = _contrasenas.validar_nueva(db, user, payload.new_password, por_admin=True)
 
-    audit_log(db, user, "PASSWORD_RESET_COMPLETE", "users", user.id, user.full_name)
-    _consume_password_reset_token(user.id, token_data.get("jti"))
-    _svc.complete_password_reset(db, user, get_password_hash(payload.new_password))
+    # 23-11-2026: un solo uso de verdad. Comprobar y borrar el `jti` en UNA
+    # operacion: dos peticiones simultaneas con el mismo enlace ya no pasan.
+    if not reclamar_jti(user.id, token_data.get("jti")):
+        raise error_http(401, "reset_token_no_valido", detail="Token de restablecimiento inválido o expirado")
+    auditar(db, user, "PASSWORD_RESET_COMPLETE", user, origen=Origen.de(request))
+    _contrasenas.registrar_cambio(db, user, get_password_hash(payload.new_password), politica=politica)
+    # Cierra TODAS las sesiones (refrescos) y confirma.
+    _svc.complete_password_reset(db, user, user.hashed_password)
+    # Y desbloquea: `registrar_cambio` limpia `locked_until`; aqui, las cubetas de Redis.
+    for _ident in {i for i in (user.email, user.username) if i}:
+        _clear_login_failure(_svc.login_account_bucket(_ident))
+        _clear_login_failure(_login_bucket(_ident, _client_ip(request)))
 
     return {"ok": True, "message": "Contraseña actualizada correctamente"}
+
+
+class _TokenDeRestablecimientoIn(BaseModel):
+    token: str
+
+
+@router.post("/password/reset/policy", summary="Política de contraseñas para la pantalla de restablecimiento")
+@limiter.limit("20/minute")
+def password_reset_policy(request: Request, payload: _TokenDeRestablecimientoIn,
+                          db: Session = Depends(sesion_de_sistema("login: politica para restablecer"))):
+    """23-11-2026: la pantalla de nueva contraseña enseña las reglas de la empresa
+    del usuario del enlace. No consume el token; sin token valido, 401."""
+    from app.services.seguridad_de_cuentas.politica import leer
+    from app.services.seguridad_de_cuentas.restablecimiento import campos_de_politica
+    token_data = _read_ephemeral_token(payload.token, "password_reset")
+    user = _svc.lookup_user_by_id_active(db, token_data.get("sub") or "")
+    if not user:
+        raise error_http(401, "reset_token_no_valido", detail="Token de restablecimiento inválido o expirado")
+    return campos_de_politica(leer(db, user.organization_id))
 
 
 @router.get("/me", response_model=UserPublic)
@@ -567,6 +640,16 @@ def get_roles_reales(_: User = Depends(get_current_user)):
     return {"items": roles_publicos()}
 
 
+@router.get("/password-policy", summary="Política de contraseñas de mi empresa (para el formulario de cambio)")
+def password_policy(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    from app.services.seguridad_de_cuentas.politica import leer
+    p = leer(db, current_user.organization_id)
+    return {k: getattr(p, k) for k in (
+        "MIN_PASSWORD_LENGTH", "PASSWORD_MAX_LENGTH", "PASSWORD_REQUIRE_UPPERCASE", "PASSWORD_REQUIRE_LOWERCASE",
+        "PASSWORD_REQUIRE_DIGIT", "PASSWORD_REQUIRE_SPECIAL", "PASSWORD_BLOCK_COMMON", "PASSWORD_BLOCK_PERSONAL",
+        "PASSWORD_HISTORY_COUNT", "PASSWORD_EXPIRY_DAYS")}
+
+
 @router.post("/change-password", summary="Cambiar contraseña propia")
 @limiter.limit("5/minute")
 def change_password(
@@ -583,23 +666,27 @@ def change_password(
     mfa_token  = payload.mfa_challenge_token
 
     # Si el usuario tiene MFA activo, requerimos challenge reciente
-    if current_user.mfa_enabled:
-        if not mfa_token:
+    # 23-11-2026: con TOTP se acepta el codigo actual (`mfa_code`) o un reto; el
+    # reto tiene que ser de ESTE usuario y se gasta (antes valia el de cualquiera
+    # y se podia reutilizar). Solo con passkeys basta la contrasena actual.
+    if current_user.mfa_enabled and current_user.mfa_secret:
+        if payload.mfa_code:
+            _svc.exigir_reautenticacion(db, current_user, code=payload.mfa_code)
+        elif mfa_token:
+            try:
+                challenge_data, challenge_row = read_mfa_challenge(db, mfa_token)
+            except Exception as e:
+                logger.info("MFA challenge read failed during change-password for user=%s", current_user.id, exc_info=True)
+                raise error_http(401, "mfa_no_valido", detail=f"MFA inválido: {str(e)}")
+            if challenge_data.get("sub") != current_user.id:
+                raise error_http(401, "mfa_no_valido")
+            from app.services.auth_service import consume_mfa_challenge
+            consume_mfa_challenge(challenge_row)
+        else:
             raise error_http(401, "mfa_requerido_cambio_contrasena", detail="Debes completar un challenge MFA para cambiar la contraseña")
-        try:
-            challenge_data, challenge_row = read_mfa_challenge(db, mfa_token)
-        except Exception as e:
-            logger.info("MFA challenge read failed during change-password for user=%s", current_user.id, exc_info=True)
-            raise error_http(401, "mfa_no_valido", detail=f"MFA inválido: {str(e)}")
 
     if not current_pw or not new_pw:
         raise error_http(400, "contrasenas_obligatorias", detail="current_password y new_password son obligatorios")
-
-    ok, err = validate_password_policy(new_pw, db=db, org_id=getattr(current_user, "organization_id", None))
-    if not ok:
-        from app.core.security import codigo_de_politica_de_contrasena
-        _cod, _par = codigo_de_politica_de_contrasena(err)
-        raise error_http(400, _cod, detail=err, **_par)
 
     if not current_user.hashed_password:
         raise error_http(400, "cuenta_sso_sin_contrasena", detail="Tu cuenta usa SSO — la contraseña se gestiona externamente")
@@ -607,7 +694,15 @@ def change_password(
     if not verify_password(current_pw, current_user.hashed_password):
         raise error_http(403, "contrasena_actual_no_coincide", detail="Contraseña actual incorrecta")
 
-    current_user.hashed_password = get_password_hash(new_pw)
+    # 23-11-2026 (docs/seguridad/politicas_de_cuenta.md §3): politica completa de
+    # la empresa (comunes, datos personales, historial, edad minima).
+    from app.services.seguridad_de_cuentas import contrasenas as _contrasenas
+    from app.services.seguridad_de_cuentas.auditoria import Origen, auditar
+    politica = _contrasenas.validar_nueva(db, current_user, new_pw)
+    obligado = bool(current_user.password_must_change)
+    _contrasenas.registrar_cambio(db, current_user, get_password_hash(new_pw), politica=politica)
+    auditar(db, current_user, "PASSWORD_CHANGED", current_user, origen=Origen.de(request),
+            datos={"forced": obligado})
     # Auditoria 2026-11 (#22): las demas sesiones se cierran; la actual sigue.
     revocadas = _svc.revocar_sesiones_del_usuario(
         db, current_user.id, "password_change", salvo_jti=_current_refresh_jti(request))

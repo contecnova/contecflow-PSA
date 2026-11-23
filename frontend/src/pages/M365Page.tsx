@@ -21,6 +21,7 @@ import { useAppT } from '../i18n/AppLangContext'
 import { Button, Card, Input, Pulsable, Section, Table, Tabs, Textarea } from '../components/ui'
 import DsBadge from '../components/ui/StatusBadge'
 import { POLL_FREQUENT_MS } from '../constants/timings'
+import { extractErr } from '../utils/helpers'
 import './M365Page.css'
 
 /** El resultado o el error que se pinta en su lugar. */
@@ -28,13 +29,9 @@ type CalendarPullResult = Partial<CalendarioM365Leido> & { error?: string }
 type MilestonePushResult = Partial<HitosEnCalendarioM365> & { error?: string }
 type Pestana = 'calendar' | 'teams' | 'config'
 
-interface ApiErrorLike {
-  response?: { data?: { detail?: string } }
-}
-
+// 23-11-2026: el error sale por extractErr (código traducido o detalle), igual que en el resto.
 function detalleDeError(e: unknown, porDefecto: string): string {
-  const d = (e as ApiErrorLike)?.response?.data?.detail
-  return typeof d === 'string' && d ? d : porDefecto
+  return extractErr(e, porDefecto)
 }
 
 function EstadoConexion({ ok, label }: { ok?: boolean; label: string }) {
@@ -180,7 +177,7 @@ function TeamsTab() {
             <div className="ui-field">
               <label htmlFor="m365-color" className="uiinde-estiloetiqueta">{t('m365.color_hex_sin')}</label>
               <div className="u-row-center-8">
-                <input id="m365-color" value={color} onChange={e => setColor(e.target.value)} className="ds-input m365-color ds-campo-codigo" placeholder="0078D4" />
+                <Input id="m365-color" value={color} onChange={e => setColor(e.target.value)} inputClassName="m365-color ds-campo-codigo" placeholder="0078D4" />
                 {TEAMS_BRAND_PRESETS.map(c => (
                   <Pulsable key={c} onClick={() => setColor(c)}
                     aria-label={t('pagina_m365.color_de_marca_teams', { c })} title={t('pagina_m365.color_de_marca_teams', { c })}

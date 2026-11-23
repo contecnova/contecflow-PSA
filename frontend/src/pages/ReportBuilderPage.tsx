@@ -21,12 +21,12 @@ import type { ColumnaDeEntidadBi, EntidadDeInformeBi, EsquemaDeInformes, Plantil
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import {
-  BarChart2, Wrench, FolderOpen, Zap, Search, X, Play, Download, Save, Plus, GripVertical,
+  BarChart2, Wrench, FolderOpen, Zap, X, Play, Download, Save, Plus, GripVertical,
   Check, Minus, FileDown, Table2, FileStack, Trash2, Upload,
 } from 'lucide-react'
-import { localeActivo } from '../utils/helpers'
+import { localeActivo, extractErr } from '../utils/helpers'
 import { useAppT } from '../i18n/AppLangContext'
-import { Button, Card, EmptyState, Table, Tabs, Select, IconButton, Pulsable, TablaSimple, Checkbox, Input } from '../components/ui'
+import { Buscador, Button, Card, EmptyState, Table, Tabs, Select, IconButton, Pulsable, TablaSimple, Checkbox, Input } from '../components/ui'
 import { useToast } from '../context/ToastContext'
 import { STALE_DEFAULT_MS } from '../constants/timings'
 import { REPORT_BUILDER_ROW_LIMIT } from '../constants/pagination'
@@ -125,14 +125,7 @@ function ColumnPanel({ entityDef, selected, onToggle, onSelectAll, onDeselectAll
   return (
     <div className="u-stack-8">
       {/* Search box */}
-      <div className="rb-buscar">
-        <Search size={14} className="rb-buscar__icono" aria-hidden />
-        <Input aria-label={traducir('constructor_informes_ui.buscar_campos')} value={search} onChange={e => setSearch(e.target.value)} placeholder={traducir('constructor_informes_ui.buscar_campos')} inputClassName="rb-buscar__campo" />
-        {search && (
-          <IconButton className="rb-buscar__limpiar" type="button" ariaLabel={traducir('constructor_informes_ui.limpiar_busqueda')}
-            onClick={() => setSearch('')}><X size={13} aria-hidden /></IconButton>
-        )}
-      </div>
+      <Buscador aria-label={traducir('constructor_informes_ui.buscar_campos')} value={search} onChange={setSearch} placeholder={traducir('constructor_informes_ui.buscar_campos')} />
 
       {/* Select all / none */}
       <div className="rb-seleccion">
@@ -262,17 +255,18 @@ function PreviewTable({ rows, columns, entityDef }: { rows?: Record<string, unkn
 
 function BiPresetsTab() {
   const traducir = useAppT()
+  const toast = useToast()
   const [selected, setSelected] = useState('finance_revenue_by_client')
   const [previewData, setPreview] = useState<VistaPreviaDePresetBiV2 | null>(null)
   // APIListResponse: llega como lista (antes se leía `.items` y no salía ningún preset).
   const { data: items = [] } = useQuery({
     queryKey: ['rbv2-presets'],
-    queryFn: () => biReportBuilderV2Api.listPresets().then(r => r.data).catch(() => []),
+    queryFn: () => biReportBuilderV2Api.listPresets().then(r => r.data),
     staleTime: STALE_DEFAULT_MS,
   })
 
   async function runPreview() {
-    try { const res = await biReportBuilderV2Api.preview(selected, 10); setPreview(res.data) } catch (_) { /* ignore */ }
+    try { const res = await biReportBuilderV2Api.preview(selected, 10); setPreview(res.data) } catch (e) { toast.error(extractErr(e)) }
   }
   async function exportJson() {
     try {
@@ -284,7 +278,7 @@ function BiPresetsTab() {
       a.download = res.data.filename
       a.click()
       URL.revokeObjectURL(url)
-    } catch (_) { /* ignore */ }
+    } catch (e) { toast.error(extractErr(e)) }
   }
 
   return (
@@ -404,7 +398,8 @@ export default function ReportBuilderPage() {
     try {
       const res = await reportBuilderApi.preview(buildQuery())
       setPreview(res.data)
-    } catch {
+    } catch (e) {
+      toast.error(extractErr(e))
       setPreview({ rows: [], count: 0, truncated: false, error: true })
     } finally {
       setLoading(false)
@@ -605,7 +600,7 @@ export default function ReportBuilderPage() {
                 <Button variant="secondary" icon={<Download size={14} />} onClick={exportCSV} disabled={!entity}>
                   {traducir('constructor_informes_ui.exportar_csv')}
                 </Button>
-                <input className="ds-input rb-nombre-plantilla"
+                <Input inputClassName="rb-nombre-plantilla"
                   aria-label={traducir('reportbuilder.nombre_de_la_plantilla')}
                   value={tplName}
                   onChange={e => setTplName(e.target.value)}

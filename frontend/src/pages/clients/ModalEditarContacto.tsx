@@ -2,7 +2,7 @@
 // y la tarjeta «Contacto principal» de la ficha.
 import { useId, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Button, Modal, Select, useErroresDeCampo, Textarea } from '../../components/ui'
+import { Button, Input, Modal, Select, useErroresDeCampo, Textarea } from '../../components/ui'
 import { clientExtApi, type ClientContact } from '../../services/api'
 import { useToast } from '../../context/ToastContext'
 import { useAppLang } from '../../i18n/AppLangContext'
@@ -48,11 +48,10 @@ export function ModalEditarContacto({ cid, contacto, onClose }: { cid: string; c
   const campo = (clave: keyof FormContacto, etiqueta: string, tipo = 'text') => (
     <div>
       <label id={`${idCampo}-et-${clave}`} htmlFor={`${idCampo}-${clave}`} className="clpata-lbl">{etiqueta}</label>
-      <input id={`${idCampo}-${clave}`} aria-labelledby={`${idCampo}-et-${clave}`} type={tipo} value={form[clave]}
-        aria-invalid={campos.de(clave) ? true : undefined}
+      <Input id={`${idCampo}-${clave}`} aria-labelledby={`${idCampo}-et-${clave}`} type={tipo} value={form[clave]}
+        error={campos.de(clave)}
         onChange={e => { campos.limpiar(clave); setForm(f => ({ ...f, [clave]: e.target.value })) }}
-        className="clpata-inp" />
-      {campos.de(clave) && <div className="u-field-error">{campos.de(clave)}</div>}
+        inputClassName="clpata-inp" />
     </div>
   )
 

@@ -13,12 +13,12 @@ import type { CSSProperties } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
   AlertTriangle, Megaphone, Plus, Trash2, ExternalLink, FileText, Send, Briefcase, ChevronRight,
-  Wallet, Scale, Trophy, Pencil, RotateCcw,
+  Wallet, Scale, Trophy, Pencil, RotateCcw, Ban,
 } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
-import { Button, Card, EmptyState, IconButton, Input, KpiCard, Modal, Select, Spinner, useErroresDeCampo, Textarea } from '../components/ui'
+import { Button, Card, DataTable, EmptyState, IconButton, Input, KpiCard, Modal, Pulsable, Select, Spinner, useErroresDeCampo, Textarea, ViewToggle } from '../components/ui'
 import type { ErroresDeCampo } from '../components/ui'
 import { ClientSelect } from '../components/ui/EntitySelect'
 import {
@@ -32,9 +32,14 @@ import type { Oportunidad, OportunidadConvertida, Propuesta } from '../services/
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import StatusBadge from '../components/ui/StatusBadge'
 import { STALE_ALWAYS } from '../constants/timings'
+import {
+  ETAPAS_PIPELINE, ETAPAS_SIN_CONVERSION, FILTROS_ESTADO, cumpleFiltroEstado, resumirPipeline,
+} from '../constants/pipelineStages'
+import type { FiltroEstadoPipeline } from '../constants/pipelineStages'
 import './PipelinePage.css'
 
-const STAGES = ['lead', 'qualification', 'proposal', 'negotiation', 'won', 'lost', 'cancelled']
+// 23-11-2026 (auditoría 04b M9): etapas y regla de totales en constants/pipelineStages.
+const STAGES = ETAPAS_PIPELINE
 
 /** `serialize_opportunity` (app/services/pipeline_service.py). */
 type Opp = Oportunidad
@@ -356,7 +361,7 @@ function OpportunityDetailModal({ opp, onClose, stageLabels, onUpdate }: { opp: 
                   <div className="pipe-box-6">{t('pipeline.contrato_asc_606_creado_automaticamente')}</div>
                 )}
               </div>
-            ) : ['lost', 'cancelled'].includes(String(opp.stage)) ? (
+            ) : ETAPAS_SIN_CONVERSION.includes(String(opp.stage)) ? (
               // Una oportunidad perdida o cancelada no se convierte (revisión 2026-11).
               <div className="pipe-box-7">
                 {t('pipeline.no_se_convierte_perdida')}
@@ -403,6 +408,17 @@ export default function PipelinePage() {
   const toast = useToast()
   const [search, setSearch] = useState('')
   const [ownerFilter, setOwnerFilter] = useState('')
+  // Auditoría 04b M9: filtro por estado (abiertas / ganadas / perdidas / canceladas / todas).
+  const [filtroEstado, setFiltroEstado] = useState<FiltroEstadoPipeline>('all')
+  // 23-11-2026 (M9 del 04b): tablero por etapas y lista ordenable (importe, probabilidad, cierre).
+  const [vista, setVista] = useState<'kanban' | 'list'>(() => {
+    try { return localStorage.getItem('pipeline_vista') === 'list' ? 'list' : 'kanban' } catch { return 'kanban' }
+  })
+  const cambiarVista = (v: string) => {
+    const nueva = v === 'list' ? 'list' : 'kanban'
+    setVista(nueva)
+    try { localStorage.setItem('pipeline_vista', nueva) } catch { /* accesorio: preferencia de vista */ }
+  }
   const [showCreate, setShowCreate] = useState(false)
   const [form, setForm] = useState(() => emptyForm())
   const [detailOpp, setDetailOpp] = useState<Opp | null>(null)
@@ -451,26 +467,37 @@ export default function PipelinePage() {
     })
   }, [data, ownerFilter, search])
 
+  // El filtro de estado decide qué se ve (tablero y lista); los KPIs se
+  // calculan sobre búsqueda + responsable, para que no se vacíen al filtrar.
+  const visibles = useMemo(
+    () => filtered.filter((opportunity) => cumpleFiltroEstado(opportunity.stage, filtroEstado)),
+    [filtered, filtroEstado],
+  )
+  const columnas = useMemo(() => STAGES.filter((stage) => cumpleFiltroEstado(stage, filtroEstado)), [filtroEstado])
+
   const grouped = useMemo(() => {
     const buckets: Record<string, Opp[]> = Object.fromEntries(STAGES.map((stage) => [stage, [] as Opp[]]))
-    filtered.forEach((opportunity) => {
+    visibles.forEach((opportunity) => {
       const stage = opportunity.stage && STAGES.includes(opportunity.stage) ? opportunity.stage : 'lead'
       buckets[stage].push(opportunity)
     })
     return buckets
-  }, [filtered])
+  }, [visibles])
 
-  const summary = useMemo(() => {
-    const open = filtered.filter((item) => !['won', 'lost', 'cancelled'].includes(item.stage || ''))
-    const closed = filtered.filter((item) => ['won', 'lost'].includes(item.stage || ''))
-    const won = filtered.filter((item) => item.stage === 'won')
-    return {
-      totalRevenue: filtered.reduce((acc, item) => acc + (item.expected_revenue || 0), 0),
-      weightedRevenue: filtered.reduce((acc, item) => acc + (item.weighted_revenue || 0), 0),
-      openCount: open.length,
-      winRate: closed.length ? (won.length / closed.length) * 100 : 0,
+  // Auditoría 04b M9: pipeline y ponderado solo de abiertas; tasa de éxito =
+  // ganadas / (ganadas + perdidas); canceladas («sin decisión») aparte.
+  const summary = useMemo(() => resumirPipeline(filtered), [filtered])
+
+  const opcionesEstado = useMemo(() => {
+    const etiquetas: Record<FiltroEstadoPipeline, string> = {
+      all: t('pagina_pipe.estado_todas'),
+      open: t('pagina_pipe.estado_abiertas'),
+      won: t('pagina_pipe.estado_ganadas'),
+      lost: t('pagina_pipe.estado_perdidas'),
+      cancelled: t('pagina_pipe.estado_canceladas'),
     }
-  }, [filtered])
+    return FILTROS_ESTADO.map((value) => ({ value, label: etiquetas[value] }))
+  }, [t])
 
   // Keep detailOpp in sync with fresh list data
   const detailOppFresh = detailOpp
@@ -527,7 +554,7 @@ export default function PipelinePage() {
         icon={<Megaphone size={18} />}
         title={t('nav.pipeline')}
         subtitle={t('pipeline.subtitle')}
-        showListExport={filtered.length > 0}
+        showListExport={visibles.length > 0}
         exportTargetSelector='[data-export-table="pipeline-list"]'
         exportFilePrefix='pipeline'
         actions={<Button onClick={() => setShowCreate(true)} icon={<Plus size={14} />}>{t('pipeline.new_opportunity')}</Button>}
@@ -535,10 +562,15 @@ export default function PipelinePage() {
 
       <div className="u-stack-16">
       <div className="ds-grid-stats">
-        <KpiCard icon={<Wallet size={16} />} label={t('pipeline.total_pipeline')} value={fmtCurrency(summary.totalRevenue)} />
-        <KpiCard icon={<Scale size={16} />} label={t('pipeline.weighted_value')} value={fmtCurrency(summary.weightedRevenue)} />
+        <KpiCard icon={<Wallet size={16} />} label={t('pipeline.total_pipeline')} value={fmtCurrency(summary.openValue)} sub={t('pagina_pipe.valor_abierto_sub')} />
+        <KpiCard icon={<Scale size={16} />} label={t('pipeline.weighted_value')} value={fmtCurrency(summary.weightedValue)} />
         <KpiCard icon={<Briefcase size={16} />} label={t('pagina_pipe.oportunidades_abiertas')} value={summary.openCount} sub={t('pagina_pipe.totales', { length: filtered.length })} />
-        <KpiCard icon={<Trophy size={16} />} label={t('pagina_pipe.win_rate')} value={fmtPct(summary.winRate)} />
+        <div className="pipe-kpi-ayuda" title={t('pagina_pipe.win_rate_ayuda')}>
+          <KpiCard icon={<Trophy size={16} />} label={t('pagina_pipe.win_rate')} value={fmtPct(summary.winRate)}
+            sub={t('pagina_pipe.win_rate_sub', { won: summary.wonCount, lost: summary.lostCount })} />
+        </div>
+        <KpiCard icon={<Ban size={16} />} label={t('pagina_pipe.sin_decision')} value={fmtCurrency(summary.cancelledValue)}
+          sub={t('pagina_pipe.sin_decision_sub', { n: summary.cancelledCount })} />
       </div>
 
       <Card>
@@ -557,9 +589,18 @@ export default function PipelinePage() {
             options={owners}
             className="pipe-filtros__responsable"
           />
-          <Button variant="secondary" icon={<RotateCcw size={14} />} onClick={() => { setSearch(''); setOwnerFilter('') }}>
+          <Select
+            label={t('pagina_pipe.filtro_estado')}
+            value={filtroEstado}
+            onChange={(event: { target: { value: string } }) => setFiltroEstado(event.target.value as FiltroEstadoPipeline)}
+            options={opcionesEstado}
+            placeholder={false}
+            className="pipe-filtros__responsable"
+          />
+          <Button variant="secondary" icon={<RotateCcw size={14} />} onClick={() => { setSearch(''); setOwnerFilter(''); setFiltroEstado('all') }}>
             {t('pagina_pipe.limpiar')}
           </Button>
+          <ViewToggle view={vista} onChange={cambiarVista} views={['kanban', 'list']} />
         </div>
       </Card>
 
@@ -573,7 +614,7 @@ export default function PipelinePage() {
         </Card>
       ) : null}
 
-      {!isLoading && !isError && filtered.length === 0 ? (
+      {!isLoading && !isError && visibles.length === 0 ? (
         <Card>
           <EmptyState
             icon={<Megaphone size={28} />}
@@ -584,9 +625,34 @@ export default function PipelinePage() {
         </Card>
       ) : null}
 
-      {!isLoading && !isError && filtered.length > 0 ? (
+      {!isLoading && !isError && visibles.length > 0 && vista === 'list' ? (
+        <div data-export-table="pipeline-list">
+          <DataTable<Opp>
+            data={visibles}
+            columns={[
+              { key: 'name', label: t('pipeline.opportunity_name'), render: (_v, o) => (
+                <Pulsable className="pipe-lista__nombre" onClick={() => setDetailOpp(o)}>{o.name}</Pulsable>
+              ) },
+              { key: 'client_name', label: t('pagina_pipe.cliente'), render: (_v, o) => o.client_name || t('pagina_pipe.sin_cliente') },
+              { key: 'stage', label: t('pagina_pipe.etapa'), render: (_v, o) => (
+                <StatusBadge color={STAGE_COLORS[o.stage || 'lead']} caps={false}>{stageLabels[o.stage || 'lead'] || o.stage}</StatusBadge>
+              ) },
+              { key: 'expected_revenue', label: t('pagina_pipe.valor'), render: (_v, o) => fmtCurrency(o.expected_revenue) },
+              { key: 'probability', label: t('pagina_pipe.probabilidad'), render: (_v, o) => fmtPct(o.probability) },
+              { key: 'weighted_revenue', label: t('pagina_pipe.ponderado'), render: (_v, o) => fmtCurrency(o.weighted_revenue) },
+              { key: 'expected_close_date', label: t('pagina_pipe.cierre'), render: (_v, o) => fmtDate(o.expected_close_date) },
+              { key: 'owner_name', label: t('pagina_pipe.responsable'), render: (_v, o) => o.owner_name || t('pagina_pipe.sin_asignar') },
+              { key: 'acciones', label: '', sortable: false, render: (_v, o) => (
+                <IconButton ariaLabel={t('pagina_pipe.eliminar_oportunidad')} onClick={() => handleDelete(o)}><Trash2 size={14} /></IconButton>
+              ) },
+            ]}
+          />
+        </div>
+      ) : null}
+
+      {!isLoading && !isError && visibles.length > 0 && vista === 'kanban' ? (
         <div data-export-table="pipeline-list" className="pipe-tablero">
-          {STAGES.map((stage) => {
+          {columnas.map((stage) => {
             const opportunities = grouped[stage] || []
             const totalStageRevenue = opportunities.reduce((acc, item) => acc + (item.expected_revenue || 0), 0)
             return (

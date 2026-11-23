@@ -3,7 +3,8 @@ import type { CSSProperties } from 'react'
 import { openConfirmGlobal, pedirTexto } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { projectsApi, usersApi, deliverablesApi } from '../services/api'
+import { deliverablesApi } from '../services/api'
+import { useListaDeProyectos, useListaDeUsuarios } from '../hooks/useListas'
 import type { Entregable } from '../services/api/tipos-alm'
 import { Button, Modal, Spinner, EmptyState, KpiCard, IconButton, useSort, SortableTH, Tabs, Pulsable, Select, useErroresDeCampo, Input, Textarea } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
@@ -17,17 +18,6 @@ import { useAppT } from '../i18n/AppLangContext'
 import DateInput from '../components/ui/DateInput'
 import { FULL_LIST_SIZE } from '../constants/pagination'
 import './DeliverablesPage.css'
-
-interface ProjectItem {
-  id: string | number
-  code?: string
-  name?: string
-}
-
-interface UserItem {
-  id: string | number
-  full_name?: string
-}
 
 interface DeliverableFormState {
   name: string
@@ -90,8 +80,8 @@ function DeliverableFormModal({ del, projectId, onClose }: { del?: Entregable | 
   const qc = useQueryClient()
   const toast = useToast()
   const isEdit = !!del?.id
-  const { data: usersRaw = [] } = useQuery({ queryKey: ['users'], queryFn: () => usersApi.list({ page_size: FULL_LIST_SIZE }).then(r => r.data) })
-  const users = usersRaw as UserItem[]
+  // 23-11-2026 (04 A8): lista compartida; el tamaño de página entra en la clave (antes `['users']` a secas).
+  const { data: users = [] } = useListaDeUsuarios({ page_size: FULL_LIST_SIZE })
   const [form, setForm] = useState<DeliverableFormState>({
     name: del?.name || '',
     description: del?.description || '',
@@ -168,8 +158,7 @@ export default function DeliverablesPage(): JSX.Element {
   const [editing, setEditing] = useState<Entregable | null>(null)
   const [tab, setTab] = useState<'project' | 'overview'>('project')
 
-  const { data: projectsRaw = [] } = useQuery({ queryKey: ['projects'], queryFn: () => projectsApi.list({}).then(r => r.data) })
-  const projects = projectsRaw as ProjectItem[]
+  const { data: projects = [] } = useListaDeProyectos()
 
   const { data: delivData, isLoading } = useQuery({
     queryKey: ['deliverables', selectedProject],

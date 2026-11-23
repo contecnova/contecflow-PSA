@@ -13,8 +13,8 @@ Variables de entorno por proveedor:
   Google:  GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET GOOGLE_REDIRECT_URI
   M365:    MS365_CLIENT_ID MS365_CLIENT_SECRET MS365_REDIRECT_URI MS365_TENANT_ID
 
-Las llamadas reales (crear issue Jira, abrir PR GitHub, etc.) viven en
-_integrations_clients.py y son invocadas por slash commands.
+Las llamadas reales (listar calendario de Google y M365) viven en
+_integrations_clients.py.
 """
 from __future__ import annotations
 
@@ -206,6 +206,7 @@ async def handle_callback(state: str, code: str, vinculo: Optional[str] = None,
     if p.extra_token_params:
         body.update(p.extra_token_params)
     try:
+        # SSRF: host fijo de plataforma (token_url del proveedor: settings.GITHUB_WEB_BASE/GITLAB_BASE_URL/GOOGLE_TOKEN_URL/MICROSOFT_OAUTH_BASE)
         async with httpx.AsyncClient(timeout=outbound_http_timeout(default=20)) as c:
             r = await c.post(token_url, data=body, headers={"Accept": "application/json"})
             if r.status_code >= 400:

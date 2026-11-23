@@ -267,32 +267,6 @@
   color: var(--on-accent-light);
 }
 
-.glchpa-fieldstyle {
-  width: 100%;
-  box-sizing: border-box;
-  background: var(--surface-3);
-  border: 1px solid var(--surface-4);
-  border-radius: 8px;
-  padding: 8px 10px;
-  color: var(--text-1);
-  font-size: var(--text-sm);
-  outline: none;
-  font-family: inherit;
-}
-
-.glchpa-fieldstyle2 {
-  width: 100%;
-  box-sizing: border-box;
-  background: var(--surface-3);
-  border: 1px solid var(--surface-4);
-  border-radius: 8px;
-  padding: 8px 10px;
-  color: var(--text-1);
-  font-size: var(--text-sm);
-  outline: none;
-  font-family: inherit;
-  padding-left: 30px;
-}
 .glchpa-fieldstyle3 {
   box-sizing: border-box;
   background: var(--surface-3);
@@ -325,13 +299,6 @@
 /* ── Estilos estaticos extraidos de GlobalChatPanel.tsx (#17) ── */
 .globalch-sx1.globalch-sx1 {
   box-shadow: var(--shadow-fab);
-}
-.globalch-sx2 {
-  position: absolute;
-  left: 9px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--text-3);
 }
 
 /* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */

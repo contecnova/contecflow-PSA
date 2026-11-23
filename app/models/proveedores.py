@@ -17,6 +17,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
 from app.db.base import Base
+from app.models.money import Money, Rate
 
 
 def _id() -> str:
@@ -28,7 +29,7 @@ class SupplierContract(Base):
     __tablename__ = "supplier_contracts"
 
     id = Column(String(36), primary_key=True, default=_id)
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
     subcontractor_id = Column(String(36), ForeignKey("subcontractors.id", ondelete="CASCADE"), nullable=True, index=True)
     is_template = Column(Boolean, default=False, nullable=False, server_default="0")
     code = Column(String(30), nullable=True)
@@ -43,9 +44,9 @@ class SupplierContract(Base):
     currency = Column(String(3), nullable=True)
     committed_minimum = Column(Float, nullable=True)          # minimo comprometido por periodo
     minimum_period = Column(String(20), nullable=True)        # monthly|quarterly|annual
-    total_cap = Column(Float, nullable=True)                  # tope total del contrato
+    total_cap = Column(Money, nullable=True)                  # tope total del contrato
     po_number = Column(String(100), nullable=True)
-    po_amount = Column(Float, nullable=True)
+    po_amount = Column(Money, nullable=True)
     budget_id = Column(String(36), ForeignKey("budgets.id", ondelete="SET NULL"), nullable=True, index=True)
     project_id = Column(String(36), ForeignKey("projects.id", ondelete="SET NULL"), nullable=True, index=True)
     cost_center_id = Column(String(36), ForeignKey("alm_cost_centers.id", ondelete="SET NULL"), nullable=True, index=True)
@@ -69,7 +70,7 @@ class SupplierPricingLine(Base):
     __tablename__ = "supplier_pricing_lines"
 
     id = Column(String(36), primary_key=True, default=_id)
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
     contract_id = Column(String(36), ForeignKey("supplier_contracts.id", ondelete="CASCADE"), nullable=False, index=True)
     model = Column(String(20), nullable=False)       # per_resource|fixed_price|per_unit|subscription|expense|bonus
     unit = Column(String(50), nullable=True)         # clave de `custom_supplier_billing_units`
@@ -77,13 +78,13 @@ class SupplierPricingLine(Base):
     rate_id = Column(String(36), ForeignKey("subcontractor_rates.id", ondelete="SET NULL"), nullable=True, index=True)
     service_id = Column(String(36), ForeignKey("supplier_services.id", ondelete="SET NULL"), nullable=True, index=True)
     work_package_id = Column(String(36), ForeignKey("supplier_work_packages.id", ondelete="SET NULL"), nullable=True, index=True)
-    unit_price = Column(Float, nullable=True)
+    unit_price = Column(Rate, nullable=True)
     period = Column(String(20), nullable=True)       # monthly|quarterly|annual|one_time
     included_units = Column(Float, nullable=True)
-    overage_price = Column(Float, nullable=True)
+    overage_price = Column(Rate, nullable=True)
     tiers = Column(JSON, nullable=True)              # [{"from": 0, "to": 100, "price": 10}, ...]
-    min_amount = Column(Float, nullable=True)        # minimo por periodo
-    max_amount = Column(Float, nullable=True)        # tope por periodo
+    min_amount = Column(Money, nullable=True)        # minimo por periodo
+    max_amount = Column(Money, nullable=True)        # tope por periodo
     valid_from = Column(Date, nullable=True)
     valid_until = Column(Date, nullable=True)
     is_active = Column(Boolean, default=True, nullable=False, server_default="1")
@@ -98,7 +99,7 @@ class SupplierService(Base):
     __tablename__ = "supplier_services"
 
     id = Column(String(36), primary_key=True, default=_id)
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
     subcontractor_id = Column(String(36), ForeignKey("subcontractors.id", ondelete="CASCADE"), nullable=False, index=True)
     contract_id = Column(String(36), ForeignKey("supplier_contracts.id", ondelete="SET NULL"), nullable=True, index=True)
     service_type = Column(String(50), nullable=False)   # clave de `custom_supplier_service_types`
@@ -138,7 +139,7 @@ class SupplierWorkPackage(Base):
     __tablename__ = "supplier_work_packages"
 
     id = Column(String(36), primary_key=True, default=_id)
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
     subcontractor_id = Column(String(36), ForeignKey("subcontractors.id", ondelete="CASCADE"), nullable=False, index=True)
     contract_id = Column(String(36), ForeignKey("supplier_contracts.id", ondelete="SET NULL"), nullable=True, index=True)
     project_id = Column(String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
@@ -158,7 +159,7 @@ class SupplierWorkPackage(Base):
     accepted_by = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     rejection_reason = Column(Text, nullable=True)
     rejections = Column(Integer, default=0, nullable=False, server_default="0")
-    price = Column(Float, nullable=True)
+    price = Column(Money, nullable=True)
     currency = Column(String(3), nullable=True)
     progress_pct = Column(Float, nullable=True)
     last_report_at = Column(Date, nullable=True)
@@ -176,7 +177,7 @@ class SupplierReport(Base):
     __tablename__ = "supplier_reports"
 
     id = Column(String(36), primary_key=True, default=_id)
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
     subcontractor_id = Column(String(36), ForeignKey("subcontractors.id", ondelete="CASCADE"), nullable=False, index=True)
     work_package_id = Column(String(36), ForeignKey("supplier_work_packages.id", ondelete="CASCADE"), nullable=True, index=True)
     service_id = Column(String(36), ForeignKey("supplier_services.id", ondelete="CASCADE"), nullable=True, index=True)
@@ -203,7 +204,7 @@ class SupplierUsageRecord(Base):
     __tablename__ = "supplier_usage_records"
 
     id = Column(String(36), primary_key=True, default=_id)
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
     subcontractor_id = Column(String(36), ForeignKey("subcontractors.id", ondelete="CASCADE"), nullable=False, index=True)
     contract_id = Column(String(36), ForeignKey("supplier_contracts.id", ondelete="CASCADE"), nullable=True, index=True)
     pricing_line_id = Column(String(36), ForeignKey("supplier_pricing_lines.id", ondelete="SET NULL"), nullable=True, index=True)
@@ -213,7 +214,7 @@ class SupplierUsageRecord(Base):
     period_end = Column(Date, nullable=False)
     unit = Column(String(50), nullable=True)
     quantity = Column(Float, nullable=False, default=0)
-    amount = Column(Float, nullable=True)            # gastos: importe directo
+    amount = Column(Money, nullable=True)            # gastos: importe directo
     source = Column(String(20), nullable=False, default="manual")  # manual|import|cmdb|api
     description = Column(String(500), nullable=True)
     # Migracion 191: detalle del recuento (muestras, maximo, media, ultimo) y sistema de origen.
@@ -229,23 +230,23 @@ class SupplierStatement(Base):
     __tablename__ = "supplier_statements"
 
     id = Column(String(36), primary_key=True, default=_id)
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
     subcontractor_id = Column(String(36), ForeignKey("subcontractors.id", ondelete="CASCADE"), nullable=False, index=True)
     contract_id = Column(String(36), ForeignKey("supplier_contracts.id", ondelete="CASCADE"), nullable=False, index=True)
     period_start = Column(Date, nullable=False)
     period_end = Column(Date, nullable=False)
     currency = Column(String(3), nullable=True)
     lines = Column(JSON, nullable=True)              # detalle calculado
-    subtotal = Column(Float, nullable=False, default=0)
+    subtotal = Column(Money, nullable=False, default=0)
     credits = Column(Float, nullable=False, default=0)
     bonus = Column(Float, nullable=False, default=0)
     adjustments = Column(Float, nullable=False, default=0)   # minimo comprometido / tope
-    expected_amount = Column(Float, nullable=False, default=0)
+    expected_amount = Column(Money, nullable=False, default=0)
     status = Column(String(20), nullable=False, default="closed")  # closed|reconciled|pending_approval|disputed|approved
     # Migracion 191: solicitud del motor de aprobaciones (tipo `supplier_statement`).
     approval_request_id = Column(String(36), nullable=True, index=True)
     invoice_id = Column(String(36), ForeignKey("subcontractor_invoices.id", ondelete="SET NULL"), nullable=True, index=True)
-    invoice_amount = Column(Float, nullable=True)    # en moneda del contrato
+    invoice_amount = Column(Money, nullable=True)    # en moneda del contrato
     difference = Column(Float, nullable=True)
     difference_pct = Column(Float, nullable=True)
     dispute_reason = Column(Text, nullable=True)
@@ -262,14 +263,14 @@ class SupplierDocument(Base):
     __tablename__ = "supplier_documents"
 
     id = Column(String(36), primary_key=True, default=_id)
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
     subcontractor_id = Column(String(36), ForeignKey("subcontractors.id", ondelete="CASCADE"), nullable=False, index=True)
     doc_type = Column(String(40), nullable=False)
     reference = Column(String(255), nullable=True)
     issuer = Column(String(255), nullable=True)
     issued_at = Column(Date, nullable=True)
     expires_at = Column(Date, nullable=True)
-    coverage_amount = Column(Float, nullable=True)
+    coverage_amount = Column(Money, nullable=True)
     document_url = Column(String(1000), nullable=True)
     notes = Column(Text, nullable=True)
     verified_by = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
@@ -284,7 +285,7 @@ class SupplierRiskAssessment(Base):
     __tablename__ = "supplier_risk_assessments"
 
     id = Column(String(36), primary_key=True, default=_id)
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
     subcontractor_id = Column(String(36), ForeignKey("subcontractors.id", ondelete="CASCADE"), nullable=False, index=True)
     assessed_at = Column(Date, nullable=False)
     assessed_by = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
@@ -302,7 +303,7 @@ class SupplierAccessGrant(Base):
     __tablename__ = "supplier_access_grants"
 
     id = Column(String(36), primary_key=True, default=_id)
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
     subcontractor_id = Column(String(36), ForeignKey("subcontractors.id", ondelete="CASCADE"), nullable=False, index=True)
     worker_id = Column(String(36), ForeignKey("subcontractor_workers.id", ondelete="SET NULL"), nullable=True, index=True)
     system = Column(String(255), nullable=False)

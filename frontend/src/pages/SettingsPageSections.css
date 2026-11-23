@@ -211,15 +211,6 @@
 /* Usuarios */
 .set-toolbar { margin-bottom: var(--space-4); }
 .set-search { position: relative; flex: 1; min-width: 200px; }
-.set-search-icon {
-  position: absolute;
-  left: 10px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--text-3);
-  pointer-events: none;
-}
-.set-search-input { padding-left: 32px; }
 .set-org-filter { min-width: 220px; max-width: 320px; }
 .set-avatar {
   width: 34px;

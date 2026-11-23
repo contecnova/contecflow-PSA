@@ -117,6 +117,7 @@ const ABREV = {
   'contec/sin-boton-nativo': 'botón', 'contec/sin-tabla-propia': 'tabla', 'contec/sin-select-nativo': 'select',
   'contec/sin-casilla-suelta': 'casilla', 'contec/sin-fieldset-propio': 'fieldset', 'contec/sin-input-nativo': 'input',
   mayusculas: 'MAYÚS', monoespaciada: 'mono', colorLiteral: 'color', altoFijoControl: 'alto px',
+  minAltoCampo: 'min alto campo', selectorDsInput: '.ds-input',
 }
 
 function escribirPlan(lista) {

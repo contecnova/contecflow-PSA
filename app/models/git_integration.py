@@ -33,7 +33,7 @@ class GitPullRequest(Base):
     __tablename__ = "git_pull_requests"
 
     id             = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), index=True)
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
     task_id        = Column(String(36), ForeignKey("tasks.id", ondelete="SET NULL"), nullable=True, index=True)
     project_id     = Column(String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=True, index=True)
     provider       = Column(SAEnum(GitProvider), default=GitProvider.github)
@@ -58,7 +58,7 @@ class GitDeployment(Base):
     __tablename__ = "git_deployments"
 
     id             = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), index=True)
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
     task_id        = Column(String(36), ForeignKey("tasks.id", ondelete="SET NULL"), nullable=True, index=True)
     project_id     = Column(String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=True, index=True)
     pr_id          = Column(String(36), ForeignKey("git_pull_requests.id", ondelete="SET NULL"), nullable=True, index=True)

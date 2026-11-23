@@ -110,7 +110,7 @@ def metric_tasks_by_status(
 ) -> tuple[list[dict], dict]:
     """Distribución de tareas por estado."""
     try:
-        from app.models.task import Task
+        from app.models.task import Task, TaskStatus
 
         q = db.query(Task.status, func.count(Task.id).label("cnt"))
         if project_id:
@@ -139,7 +139,7 @@ def metric_tasks_by_priority(
 ) -> tuple[list[dict], dict]:
     """Distribución de tareas por prioridad."""
     try:
-        from app.models.task import Task
+        from app.models.task import Task, TaskStatus
 
         q = db.query(Task.priority, func.count(Task.id).label("cnt"))
         if project_id:
@@ -172,7 +172,7 @@ def metric_tasks_overdue_by_assignee(
 ) -> tuple[list[dict], dict]:
     """Tareas vencidas (due_date pasada, no completadas) por responsable."""
     try:
-        from app.models.task import Task
+        from app.models.task import Task, TaskStatus
         from app.models.user import User
 
         today = timeutil.today()
@@ -212,7 +212,7 @@ def metric_task_completion_trend(
 ) -> tuple[list[dict], dict]:
     """Evolución mensual de tareas completadas."""
     try:
-        from app.models.task import Task
+        from app.models.task import Task, TaskStatus
 
         # `completed_at` es DateTime(timezone=True) y guarda UTC: el
         # `extract("month", ...)` anterior agrupaba por mes UTC, asi que una tarea
@@ -220,7 +220,7 @@ def metric_task_completion_trend(
         q = db.query(Task.completed_at).filter(
             Task.completed_at >= d_from,
             Task.completed_at <= d_to,
-            Task.status == "done",
+            Task.status == TaskStatus.done,
         )
         if project_id:
             q = q.filter(Task.project_id == project_id)
@@ -247,7 +247,7 @@ def metric_tasks_by_assignee(
 ) -> tuple[list[dict], dict]:
     """Carga actual de trabajo: tareas abiertas por persona."""
     try:
-        from app.models.task import Task
+        from app.models.task import Task, TaskStatus
         from app.models.user import User
 
         q = db.query(Task.assignee_id, func.count(Task.id).label("cnt")).filter(

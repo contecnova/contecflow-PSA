@@ -253,14 +253,7 @@ export default function VisualQueryBuilderWidget() {
                   <Select suelto value={f.operator} onChange={(e) => patchFilter(i, { operator: e.target.value })} className="viqubuwi-box-13" placeholder={false}>
                     {Object.entries(operators).map(([k, op]) => <option key={k} value={k}>{op.label}</option>)}
                   </Select>
-                  <input
-                    aria-label={t('visual_query_builder.value_placeholder')}
-                    value={f.value}
-                    disabled={NULL_OPS.has(f.operator)}
-                    onChange={(e) => patchFilter(i, { value: e.target.value })}
-                    placeholder={NULL_OPS.has(f.operator) ? t('visual_query_builder.n_a') : t('visual_query_builder.value_placeholder')}
-                    className="viqubuwi-box-13"
-                  />
+                  <Input aria-label={t('visual_query_builder.value_placeholder')} value={f.value} disabled={NULL_OPS.has(f.operator)} onChange={(e) => patchFilter(i, { value: e.target.value })} placeholder={NULL_OPS.has(f.operator) ? t('visual_query_builder.n_a') : t('visual_query_builder.value_placeholder')} />
                   <IconButton onClick={() => removeFilter(i)} className="viqubuwi-del" ariaLabel={t('visual_query_builder.delete_btn')}><X size={14} /></IconButton>
                 </div>
               ))}

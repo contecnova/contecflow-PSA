@@ -56,11 +56,12 @@ def aplicar_auto_resolucion(db: Session, ticket: Ticket, current_user, force: bo
         raise error(400, "confianza_insuficiente", detail=f"Confidence too low ({analysis['confidence']*100:.1f}%). "
                    f"Use ?force=true to override.", confianza=analysis['confidence']*100)
 
-    # Apply resolution
-    ticket.status = TicketStatus.resolved
+    # Apply resolution (23-11-2026, A-SD11: por la via central, con historial,
+    # SLA, encuesta y auditoria; `analyze_ticket_for_resolution` puede haberlo
+    # resuelto ya si la empresa tiene `auto_publish`).
+    from app.services.service_desk.ticket_update_service import cambiar_estado_por_automatismo
     ticket.resolution_text = analysis["suggestion"]
-    ticket.resolution = analysis["suggestion"]
-    ticket.root_cause = analysis.get("root_cause", "")
+    ticket.root_cause = (analysis.get("root_cause", "") or "")[:255]
     ticket.auto_resolved = True
     ticket.auto_resolved_at = datetime.now(timezone.utc)
     ticket.auto_resolved_by = current_user.username
@@ -70,6 +71,10 @@ def aplicar_auto_resolucion(db: Session, ticket: Ticket, current_user, force: bo
         ticket.resolution_kb_articles = json.dumps(
             [s["number"] for s in analysis["kb_sources"]]
         )
+    cambiar_estado_por_automatismo(
+        db, ticket, TicketStatus.resolved.value, actor=current_user, origen="auto_resolucion_manual",
+        resolucion=analysis["suggestion"],
+        metadatos={"confidence": analysis["confidence"], "forzado": bool(force)})
 
     db.commit()
 
@@ -193,9 +198,9 @@ def lanzar_trabajo(db: Session, org: str | None, limit: int, run_async: bool,
             # cada servicio. Publicarla en la sesion no cambia el
             # comportamiento y anade la capa implicita detras de la explicita,
             # que es justo lo que faltaba en los otros ocho sitios.
-            if org:
-                session.info["organization_id"] = org
-                session.info["is_superadmin"] = False
+            # Auditoría 22-11-2026: sin empresa, contexto de sistema declarado.
+            from app.db.contexto_de_tenant import fijar_contexto
+            fijar_contexto(session, org, "auto-resolución: pasada de todas las empresas")
             run_started = datetime.now(timezone.utc)
             try:
                 stats = run_daily_auto_resolution_job(session, limit=limit_to_use, organization_id=org)

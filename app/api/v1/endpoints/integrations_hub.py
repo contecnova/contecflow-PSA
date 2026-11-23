@@ -13,8 +13,8 @@ from pydantic import BaseModel
 from app.core.config import settings
 from app.core.responses import APIResponse
 from app.core.secret_utils import decrypt_config_secrets
-from app.db.session import get_db
-from app.core.deps import require_any_manager, require_admin
+from app.db.session import get_db, sesion_de_sistema
+from app.core.deps import requiere_capacidad
 from app.models.user import User
 from app.core.errores import ErrorDeDominio
 from app.services.settings_service import outbound_http_timeout
@@ -63,7 +63,7 @@ class JiraIssueIn(BaseModel):
 @router.post("/slack/test", summary="Probar conexión Slack")
 def test_slack(
     payload: SlackTestIn,
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("integraciones.responsables")),
 ):
     from app.services.integrations import send_slack_message, build_slack_blocks
     blocks = build_slack_blocks(
@@ -80,7 +80,7 @@ def test_slack(
 def notify_slack(
     payload: dict = Body(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("integraciones.responsables")),
 ):
     from app.services.integrations import send_slack_message, get_active_integration
     import json
@@ -101,7 +101,7 @@ def notify_slack(
 @router.post("/teams/test", summary="Probar conexión Microsoft Teams")
 def test_teams(
     payload: TeamsTestIn,
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("integraciones.responsables")),
 ):
     from app.services.integrations import send_teams_message
     result = send_teams_message(
@@ -122,7 +122,7 @@ def test_teams(
 @router.get("/jira/config", summary="Conexión de Jira de la organización (sin token)")
 def get_jira_hub_config(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("integraciones.responsables")),
 ):
     from app.services import jira_service
     return APIResponse.ok(data=jira_service.config_del_hub(
@@ -133,7 +133,7 @@ def get_jira_hub_config(
 def put_jira_hub_config(
     payload: JiraConfigHubIn,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("integraciones.administrar")),
 ):
     from app.services import jira_service
     from app.services.audit import auditar_y_confirmar
@@ -153,7 +153,7 @@ def put_jira_hub_config(
 @router.delete("/jira/config", summary="Desactivar la conexión de Jira (borra el token)")
 def delete_jira_hub_config(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("integraciones.administrar")),
 ):
     from app.services import jira_service
     if not jira_service.desactivar_desde_hub(db, current_user.organization_id):
@@ -164,7 +164,7 @@ def delete_jira_hub_config(
 @router.post("/jira/sync", summary="Jira → tareas: trae el estado de las incidencias enlazadas")
 def sync_jira_hub(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("integraciones.administrar")),
 ):
     from app.services import jira_service
     from app.services.cab_service.integraciones import sincronizar_tareas_con_jira
@@ -181,7 +181,7 @@ def sync_jira_hub(
 def test_jira(
     payload: JiraTestIn,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("integraciones.responsables")),
 ):
     from app.services.integrations import get_jira_projects
     from app.services import jira_service
@@ -208,7 +208,7 @@ def test_jira(
 def create_jira_issue(
     payload: JiraIssueIn,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("integraciones.responsables")),
 ):
     from app.services.integrations import create_jira_issue as _create_issue, link_jira_to_task
     from app.services import jira_service
@@ -238,7 +238,7 @@ def search_jira(
     jql:            str = Query("project = NEXUS ORDER BY created DESC"),
     max_results:    int = Query(25, ge=1, le=100),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("integraciones.responsables")),
 ):
     from app.services.integrations import search_jira_issues
     from app.services import jira_service
@@ -265,7 +265,7 @@ def search_jira(
 def transition_jira(
     payload: dict = Body(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("integraciones.responsables")),
 ):
     from app.services.integrations import transition_jira_issue
     from app.services import jira_service
@@ -283,7 +283,7 @@ def transition_jira(
 def manual_event_notify(
     payload: dict = Body(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("integraciones.responsables")),
 ):
     from app.services.integrations import notify_event
     results = notify_event(
@@ -296,6 +296,17 @@ def manual_event_notify(
 
 
 # ── Inbound bot — la autenticación de cada plataforma ─────────────────────────
+def _usuario_del_comando_de_slack(db, slack_user_id: str, team_id):
+    """El usuario interno que lanza un comando de Slack, por su ID de Slack."""
+    from app.services.integrations import VinculoAmbiguo, organizacion_del_workspace_de_slack
+    from app.services.service_desk.canal_slack import usuario_de_slack
+    try:
+        org = organizacion_del_workspace_de_slack(db, team_id)
+    except VinculoAmbiguo:
+        return None
+    return usuario_de_slack(db, org, slack_user_id)
+
+
 async def _verificar_firma_de_slack(request: Request, db=None) -> bytes:
     """Comprueba la firma de Slack y devuelve el cuerpo crudo.
 
@@ -378,7 +389,6 @@ def _claves_de_bot_framework(metadata_url: str):
     configuración, y la configuración de un despliegue también puede estar mal.
     """
     import json as _json
-    import urllib.request
 
     import jwt as _jwt
 
@@ -389,7 +399,10 @@ def _claves_de_bot_framework(metadata_url: str):
         return cliente
 
     validate_https_discovery_url(metadata_url)
-    with urllib.request.urlopen(metadata_url, timeout=outbound_http_timeout(default=5)) as resp:  # noqa: S310
+    # 22-11-2026 (01 M7): `abrir` valida cada redirección y la IP conectada.
+    from app.core.outbound_url import abrir
+
+    with abrir(metadata_url, timeout=outbound_http_timeout(default=5)) as resp:
         metadatos = _json.loads(resp.read())
     jwks_uri = metadatos.get("jwks_uri")
     if not jwks_uri:
@@ -470,7 +483,7 @@ def _verificar_token_de_teams(request: Request) -> Optional[dict]:
 @router.post("/slack/commands", summary="Receptor de slash commands desde Slack", include_in_schema=False)
 async def slack_inbound_command(
     request: Request,
-    db: Session = Depends(get_db),
+    db: Session = Depends(sesion_de_sistema("slack: firma del workspace")),
 ):
     """
     Receives Slack slash command payloads (application/x-www-form-urlencoded).
@@ -490,8 +503,9 @@ async def slack_inbound_command(
     # Audit #C7: async webhook (await request.body() for HMAC). DB work via
     # threadpool — the slack_* helpers below are sync internally.
     from app.core.async_db import run_db
-    from app.services.integrations import find_user_by_slack_name
-    contecflow_user = await run_db(find_user_by_slack_name, db, params.get("user_name", ""),
+    # Auditoria 2026-11-22 (A-SD7): por el ID de Slack (`user_id`), no por el
+    # nombre (`user_name`), que elige el propio usuario.
+    contecflow_user = await run_db(_usuario_del_comando_de_slack, db, params.get("user_id", ""),
                                    params.get("team_id"))
     # Canales en tiempo real (17-11-2026): `ticket` publica su tarjeta en este
     # canal con el token del bot y ata el hilo al ticket (`canal_slack.crear`).
@@ -628,7 +642,7 @@ async def _ejecutar_comando_del_bot(texto: str, usuario, db, *, canal: str) -> d
 async def teams_inbound_command(
     request: Request,
     background: BackgroundTasks,
-    db: Session = Depends(get_db),
+    db: Session = Depends(sesion_de_sistema("teams: token firmado de Bot Framework")),
 ):
     """
     Receives Teams Bot Framework activity payloads (JSON).

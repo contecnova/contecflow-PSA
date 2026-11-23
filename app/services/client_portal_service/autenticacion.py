@@ -31,6 +31,26 @@ def verify_password(plain: str, hashed: str) -> bool:
     return bcrypt.checkpw(plain.encode(), hashed.encode())
 
 
+# ── Cambio de contrasena obligatorio (23-11-2026) ────────────────────────────
+# Con una contrasena generada por el sistema (alta o «Reenviar acceso»), el
+# cliente solo puede leer su perfil, la marca y la sesion, y cambiarla; el resto
+# de rutas del portal responden 403 `portal_cambio_de_contrasena_obligatorio`.
+
+#: Rutas del portal que se pueden usar antes de cambiar la contrasena.
+RUTAS_SIN_CAMBIO_DE_CONTRASENA = ("/portal/auth/me", "/portal/auth/session-config",
+                                  "/portal/auth/logout", "/portal/branding")
+
+
+def exigir_contrasena_cambiada(cliente, ruta: Optional[str] = None) -> None:
+    """403 con codigo si el cliente debe cambiar la contrasena y la ruta no esta exenta."""
+    if not getattr(cliente, "must_change_password", False):
+        return
+    if ruta and ruta.rstrip("/").endswith(RUTAS_SIN_CAMBIO_DE_CONTRASENA):
+        return
+    from app.core.codigos_de_error import error
+    raise error(403, "portal_cambio_de_contrasena_obligatorio")
+
+
 def create_client_token(client_id: str) -> str:
     import uuid
 
@@ -86,6 +106,11 @@ def token_de_cliente_revocado(payload: dict) -> bool:
     """Si el token (ya decodificado) se revoco al cerrar sesion."""
     import time
 
+    # 23-11-2026: restablecer o forzar el restablecimiento de la contrasena
+    # cierra TODAS las sesiones del cliente (corte por cliente, sin esquema).
+    from app.services.seguridad_de_cuentas.restablecimiento import sesion_del_portal_cortada
+    if sesion_del_portal_cortada(payload):
+        return True
     jti = (payload or {}).get("jti")
     if not jti:
         return False

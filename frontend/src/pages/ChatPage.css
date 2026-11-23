@@ -250,26 +250,6 @@
   border-bottom: 1px solid var(--surface-4);
 }
 .chat-search-box { position: relative; }
-.chat-search-box__icon {
-  position: absolute;
-  left: 10px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--text-3);
-}
-.chat-search-box__input {
-  width: 100%;
-  box-sizing: border-box;
-  background: var(--surface-3);
-  border: 1px solid var(--surface-4);
-  border-radius: 8px;
-  padding: 8px 10px 8px 32px;
-  color: var(--text-1);
-  font-size: var(--text-sm);
-  outline: none;
-  font-family: inherit;
-}
-.chat-search-box__input:focus-visible { border-color: var(--accent); }
 .chat-list__scroll {
   flex: 1;
   overflow-y: auto;

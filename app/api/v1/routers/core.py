@@ -52,6 +52,9 @@ router.include_router(advanced_config.router, prefix="/advanced-config", tags=["
 router.include_router(analytics.router,       prefix="/analytics",       tags=["Analytics"])
 router.include_router(portal_demanda.router,  prefix="/portal/demand",   tags=["Portal Cliente — demanda"])  # rev. 195
 router.include_router(client_portal.router,   prefix="/portal",          tags=["Portal Cliente"])
+# 23-11-2026: «¿Olvidaste tu contraseña?» y restablecimiento forzado del portal.
+from app.api.v1.endpoints import client_portal_password  # noqa: E402
+router.include_router(client_portal_password.router, prefix="/portal",      tags=["Portal Cliente"])
 router.include_router(demanda.router,         prefix="/demand",          tags=["Flujo de demanda"])  # rev. 195
 # Conversaciones gobernadas. El router ya lleva prefix="/conversations": montado
 # en /portal queda /portal/conversations/... (lo que usa la pantalla).

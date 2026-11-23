@@ -21,7 +21,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.core.abac_enforce import enforce_abac
-from app.core.deps import get_current_user, get_db, require_any_manager
+from app.core.deps import get_current_user, get_db, requiere_capacidad
 from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
 from app.services import baselines_service as svc
@@ -52,7 +52,7 @@ def create_baseline(
     project_id: str,
     payload: BaselineCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("proyectos.responsables")),
 ):
     baseline = svc.crear_linea_base(
         db, current_user, project_id,
@@ -68,7 +68,7 @@ def make_current_baseline(
     project_id: str,
     baseline_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("proyectos.responsables")),
 ):
     return APIResponse.ok(data=svc.serializar(svc.marcar_vigente(db, current_user, project_id, baseline_id)))
 
@@ -90,7 +90,7 @@ def delete_baseline(
     project_id: str,
     baseline_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("proyectos.responsables")),
 ):
     enforce_abac(db, current_user, "gantt_baseline", baseline_id, action="delete")
     svc.borrar_linea_base(db, current_user, project_id, baseline_id)

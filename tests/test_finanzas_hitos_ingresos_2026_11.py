@@ -64,6 +64,14 @@ def test_EL_HALLAZGO_rentabilidad_no_factura_a_mano_y_completa_por_el_flujo(clie
 
 def test_EL_HALLAZGO_el_hito_por_porcentaje_guarda_lo_facturado(client, pm_token, admin_token, db):
     pid = _proyecto(client, pm_token, "FIN3", budget_amount=20000)
+    # A-MP10 (auditoría 22-11-2026): la base de un hito por % es lo facturable
+    # (contratos del proyecto o `contract_amount`), ya no `budget_amount`, que es
+    # el presupuesto de coste. `ProjectCreate` no expone `contract_amount` (el
+    # campo del alta se ignora), así que se fija aquí, como haría la conversión
+    # desde el pipeline.
+    p = db.get(Project, pid)
+    p.contract_amount = 40000
+    db.commit()
     mid = _hito(client, pm_token, pid, billing_pct=25)
     client.post(f"/api/v1/milestones/{mid}/complete", headers=auth(pm_token))
     client.post(f"/api/v1/milestones/{mid}/request-approval", headers=auth(pm_token))
@@ -73,6 +81,7 @@ def test_EL_HALLAZGO_el_hito_por_porcentaje_guarda_lo_facturado(client, pm_token
     db.expire_all()
     hito = db.get(ProjectMilestone, mid)
     assert hito.billing_status == "invoiced" and hito.billing_amount and hito.billing_amount > 0
+    assert float(hito.billing_amount) == 10000.0  # 25 % del contrato, no del presupuesto de coste
 
 
 def _contrato(db, pid, metodo):

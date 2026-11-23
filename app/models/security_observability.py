@@ -13,7 +13,7 @@ from sqlalchemy import (
     Column, String, Integer, Float, DateTime,
     ForeignKey, JSON, Boolean, Text, Index,
 )
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import synonym, relationship
 from app.db.base import Base
 
 
@@ -69,8 +69,11 @@ class SecurityEvent(Base):
     __tablename__ = "security_events"
 
     id          = Column(String(36), primary_key=True)
-    org_id      = Column(String(36), ForeignKey("organizations.id"), nullable=False, index=True)
-    user_id     = Column(String(36), ForeignKey("users.id"),         nullable=True,  index=True)
+    # B-MOD1 (migracion 200): la columna se llama `organization_id` como en el resto;
+    # `org_id` queda como sinonimo para el codigo existente.
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+    org_id      = synonym("organization_id")
+    user_id     = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"),         nullable=True,  index=True)
 
     # Classification
     category    = Column(String(32),  nullable=False, index=True)   # EventCategory
@@ -94,19 +97,19 @@ class SecurityEvent(Base):
     indicators    = Column(JSON,        nullable=True)       # {"mitre": "T1110.001", ...}
 
     # Detection link
-    detection_id = Column(String(36), ForeignKey("security_detections.id"), nullable=True, index=True)
+    detection_id = Column(String(36), ForeignKey("security_detections.id", ondelete="SET NULL"), nullable=True, index=True)
 
     # Timestamps
     occurred_at  = Column(DateTime, default=utcnow, index=True)  # when it happened
     ingested_at  = Column(DateTime, default=utcnow)              # when we stored it
 
     __table_args__ = (
-        Index("idx_event_org_cat",      "org_id", "category"),
-        Index("idx_event_org_sev",      "org_id", "severity"),
-        Index("idx_event_org_type",     "org_id", "event_type"),
+        Index("idx_event_org_cat",      "organization_id", "category"),
+        Index("idx_event_org_sev",      "organization_id", "severity"),
+        Index("idx_event_org_type",     "organization_id", "event_type"),
         Index("idx_event_ip",           "ip_address"),
         Index("idx_event_occurred",     "occurred_at"),
-        Index("idx_event_org_occurred", "org_id", "occurred_at"),
+        Index("idx_event_org_occurred", "organization_id", "occurred_at"),
     )
 
     organization = relationship("Organization", backref="security_events")
@@ -123,7 +126,10 @@ class SecurityDetection(Base):
     __tablename__ = "security_detections"
 
     id           = Column(String(36), primary_key=True)
-    org_id       = Column(String(36), ForeignKey("organizations.id"), nullable=False, index=True)
+    # B-MOD1 (migracion 200): la columna se llama `organization_id` como en el resto;
+    # `org_id` queda como sinonimo para el codigo existente.
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+    org_id       = synonym("organization_id")
 
     # Classification
     title        = Column(String(256),  nullable=False)
@@ -135,7 +141,7 @@ class SecurityDetection(Base):
     mitre_tactic = Column(String(64),   nullable=True)                # "Credential Access"
 
     # Scope
-    user_id      = Column(String(36),  ForeignKey("users.id"), nullable=True, index=True)
+    user_id      = Column(String(36),  ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     ip_address   = Column(String(64),  nullable=True, index=True)
     country      = Column(String(64),  nullable=True)
 
@@ -151,17 +157,17 @@ class SecurityDetection(Base):
 
     # Status
     status       = Column(String(32),  default=IncidentStatus.OPEN, index=True)
-    assigned_to  = Column(String(36),  ForeignKey("users.id"), nullable=True, index=True)
+    assigned_to  = Column(String(36),  ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     resolved_at  = Column(DateTime, nullable=True, index=True)
     # MTTR = resolved_at - detected_at (seconds)
     false_positive_reason = Column(Text, nullable=True)
 
     # Incident link (if escalated)
-    incident_id  = Column(String(36), ForeignKey("security_incidents.id"), nullable=True, index=True)
+    incident_id  = Column(String(36), ForeignKey("security_incidents.id", ondelete="SET NULL"), nullable=True, index=True)
 
     __table_args__ = (
-        Index("idx_det_org_sev",     "org_id", "severity"),
-        Index("idx_det_org_status",  "org_id", "status"),
+        Index("idx_det_org_sev",     "organization_id", "severity"),
+        Index("idx_det_org_status",  "organization_id", "status"),
         Index("idx_det_mitre",       "mitre_id"),
         Index("idx_det_detected",    "detected_at"),
     )
@@ -181,7 +187,10 @@ class SecurityIncident(Base):
     __tablename__ = "security_incidents"
 
     id             = Column(String(36), primary_key=True)
-    org_id         = Column(String(36), ForeignKey("organizations.id"), nullable=False, index=True)
+    # B-MOD1 (migracion 200): la columna se llama `organization_id` como en el resto;
+    # `org_id` queda como sinonimo para el codigo existente.
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+    org_id         = synonym("organization_id")
 
     title          = Column(String(256), nullable=False)
     description    = Column(Text,        nullable=True)
@@ -199,7 +208,7 @@ class SecurityIncident(Base):
     resolved_at    = Column(DateTime, nullable=True, index=True)
 
     # Team
-    lead_analyst   = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    lead_analyst   = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     playbook_ref   = Column(String(256), nullable=True)  # link to runbook
     tags           = Column(JSON,  default=list)         # ["brute-force", "account-takeover"]
     timeline_notes = Column(JSON,  default=list)         # [{ts, author, note}]
@@ -213,8 +222,8 @@ class SecurityIncident(Base):
     updated_at  = Column(DateTime, default=utcnow, onupdate=utcnow)
 
     __table_args__ = (
-        Index("idx_inc_org_status",   "org_id", "status"),
-        Index("idx_inc_org_severity", "org_id", "severity"),
+        Index("idx_inc_org_status",   "organization_id", "status"),
+        Index("idx_inc_org_severity", "organization_id", "severity"),
         Index("idx_inc_started",      "started_at"),
     )
 
@@ -231,8 +240,11 @@ class LoginAnomaly(Base):
     __tablename__ = "login_anomalies"
 
     id           = Column(String(36), primary_key=True)
-    org_id       = Column(String(36), ForeignKey("organizations.id"), nullable=False, index=True)
-    user_id      = Column(String(36), ForeignKey("users.id"),         nullable=False, index=True)
+    # B-MOD1 (migracion 200): la columna se llama `organization_id` como en el resto;
+    # `org_id` queda como sinonimo para el codigo existente.
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+    org_id       = synonym("organization_id")
+    user_id      = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"),         nullable=False, index=True)
 
     anomaly_type = Column(String(64),  nullable=False, index=True)
     # Types: impossible_travel | new_country | new_asn | vpn_detected | tor_detected |
@@ -250,7 +262,7 @@ class LoginAnomaly(Base):
     occurred_at  = Column(DateTime, default=utcnow, index=True)
 
     __table_args__ = (
-        Index("idx_anomaly_org_type", "org_id", "anomaly_type"),
+        Index("idx_anomaly_org_type", "organization_id", "anomaly_type"),
         Index("idx_anomaly_user",     "user_id"),
         Index("idx_anomaly_occurred", "occurred_at"),
     )
@@ -269,7 +281,10 @@ class SecurityMetricSnapshot(Base):
     __tablename__ = "security_metric_snapshots"
 
     id              = Column(String(36), primary_key=True)
-    org_id          = Column(String(36), ForeignKey("organizations.id"), nullable=False, index=True)
+    # B-MOD1 (migracion 200): la columna se llama `organization_id` como en el resto;
+    # `org_id` queda como sinonimo para el codigo existente.
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+    org_id          = synonym("organization_id")
     snapshot_hour   = Column(DateTime, nullable=False, index=True)   # truncated to hour
 
     # Event volume
@@ -305,7 +320,7 @@ class SecurityMetricSnapshot(Base):
     created_at = Column(DateTime, default=utcnow)
 
     __table_args__ = (
-        Index("idx_snapshot_org_hour", "org_id", "snapshot_hour", unique=True),
+        Index("idx_snapshot_org_hour", "organization_id", "snapshot_hour", unique=True),
     )
 
     organization = relationship("Organization", backref="security_snapshots")

@@ -1,4 +1,4 @@
-import { Component, Suspense, lazy } from 'react'
+import { Component, Suspense, lazy, useState } from 'react'
 import type { ReactNode } from 'react'
 import ErrorBoundary from './components/ErrorBoundary'
 import { withRouteBoundary } from './components/RouteBoundary'
@@ -6,10 +6,11 @@ import { Routes, Route, Navigate, useLocation, useParams } from 'react-router-do
 import { useAuth } from './context/AuthContext'
 import { paginaDeInicio, puedeAbrir } from './permisos/navegacion'
 import Layout from './components/layout/Layout'
+import { GuardaDeSeguridadDeCuenta } from './components/security/EstadoDeCuenta'
 import AppShell from './components/layout/AppShell'
 import { Button, Spinner } from './components/ui'
 import TopProgressBar from './components/layout/TopProgressBar'
-import { useAppT } from './hooks/useAppT'
+import { useAppLang } from './i18n/AppLangContext'
 import useOfflineSync from './hooks/useOfflineSync'
 import OfflineIndicator from './components/OfflineIndicator'
 import {
@@ -18,6 +19,7 @@ import {
   SkeletonFinance,
 } from './components/ui/Skeletons'
 import './App.estilos.css'
+import { guardarDestinoTrasLogin, tomarDestinoTrasLogin } from './utils/destinoTrasLogin'
 
 // ── Lazy page imports (code-splitting) ────────────────────────────────────────
 const LoginPage              = lazy(() => import('./pages/LoginPage'))
@@ -47,6 +49,7 @@ const ClientPortalPage       = lazy(() => import('./pages/ClientPortalPage'))
 const CalendarPage           = lazy(() => import('./pages/CalendarPage'))
 const PortalClientePage      = lazy(() => import('./pages/PortalClientePage'))
 const PortalPublicViewPage   = lazy(() => import('./pages/PortalPublicViewPage'))
+const PortalRestablecerContrasenaPage = lazy(() => import('./pages/portal-client/RecuperarContrasena'))  // 23-11-2026
 const ServiceDeskPage        = lazy(() => import('./pages/ServiceDeskPage'))
 const InvoicesPage           = lazy(() => import('./pages/InvoicesPage'))
 const SprintsPage            = lazy(() => import('./pages/SprintsPage'))
@@ -188,8 +191,8 @@ function SmartPageLoader() {
 function PageLoader() {
   return (
     <div className="app-e1">
+      {/* 23-11-2026 (B5): `@keyframes spin` vive en index.css; ya no se inyecta un <style> en cada carga. */}
       <div className="app-e2" />
-      <style>{'@keyframes spin { to { transform: rotate(360deg) } }'}</style>
     </div>
   )
 }
@@ -198,7 +201,7 @@ function PageLoader() {
 interface PageErrorBoundaryProps {
   children?: ReactNode
   resetKey: string
-  // i18n translator — TODO type: useAppT().t signature
+  // i18n translator (`useAppLang().t`)
   t: (key: string, vars?: Record<string, unknown>) => string
 }
 interface PageErrorBoundaryState {
@@ -235,9 +238,10 @@ class PageErrorBoundary extends Component<PageErrorBoundaryProps, PageErrorBound
         </p>
         <div className="app-e6">
           <Button
-            onClick={() => { this.setState({ error: null }); window.location.href = '/login' }}
+            onClick={() => { this.setState({ error: null }); window.location.href = '/' }}
           >
-            {this.props.t('app_errors.go_login')}
+            {/* Auditoría 22-11-2026 (B4 del 04): con sesión abierta, «Ir al login» confundía. */}
+            {this.props.t('app_errors.go_home')}
           </Button>
           <Button
             variant="secondary"
@@ -256,7 +260,7 @@ class PageErrorBoundary extends Component<PageErrorBoundaryProps, PageErrorBound
 
 function RouteScopedBoundary({ children }: { children?: ReactNode }) {
   const { pathname } = useLocation()
-  const { t } = useAppT()
+  const { t } = useAppLang()
   const legacyT = (key: string, vars?: Record<string, unknown>) => String(t(key as never, vars as never))
   return <PageErrorBoundary resetKey={pathname} t={legacyT}>{children}</PageErrorBoundary>
 }
@@ -269,6 +273,12 @@ interface ProtectedRouteProps {
  * escribe aquí; sale de `permisos/navegacion.ts` (la misma declaración que
  * usa el menú). Además, el bloqueo por módulo del rol (`canOpen`).
  */
+/** Con sesión en /login: al enlace profundo guardado o a la página de inicio. */
+function VolverTrasLogin({ porDefecto }: { porDefecto: string }) {
+  const [destino] = useState(() => tomarDestinoTrasLogin() ?? porDefecto)
+  return <Navigate to={destino} replace />
+}
+
 function ProtectedRoute({ children }: ProtectedRouteProps) {
   const location = useLocation()
   const { user, loading, puede, canOpen = () => true } = useAuth()
@@ -277,11 +287,16 @@ function ProtectedRoute({ children }: ProtectedRouteProps) {
       <Spinner size={32} />
     </div>
   )
-  if (!user) return <Navigate to="/login" replace />
+  if (!user) {
+    // Auditoría 22-11-2026 (M1 del 04): se recuerda el enlace profundo para volver tras entrar.
+    guardarDestinoTrasLogin(location.pathname + location.search + location.hash)
+    return <Navigate to="/login" replace />
+  }
   if (!puedeAbrir(location.pathname, puede, true) || !canOpen(location.pathname)) {
     return <Navigate to="/403" state={{ from: location.pathname }} replace />
   }
-  return <>{children}</>
+  // 23-11-2026: cambio de contraseña obligatorio, MFA obligatorio y avisos de la cuenta.
+  return <GuardaDeSeguridadDeCuenta>{children}</GuardaDeSeguridadDeCuenta>
 }
 
 
@@ -329,7 +344,7 @@ function AppRoutes() {
     <RouteScopedBoundary>
     <Suspense fallback={<SmartPageLoader />}>
     <Routes>
-      <Route path="/login" element={user ? <Navigate to={defaultPath} replace /> : <LoginPage />} />
+      <Route path="/login" element={user ? <VolverTrasLogin porDefecto={defaultPath} /> : <LoginPage />} />
       <Route path="/reset-password" element={user ? <Navigate to={defaultPath} replace /> : <ResetPasswordPage />} />
       {/* Aprobar desde el correo: sin sesión, el enlace firmado identifica al aprobador. */}
       <Route path="/approvals/decide" element={<AprobacionPorCorreoPage />} />
@@ -520,6 +535,7 @@ function AppRoutes() {
       <Route path="/invoices" element={<ProtectedRoute><Layout><InvoicesPage /></Layout></ProtectedRoute>} />
       <Route path="/portal" element={<PortalClientePage />} />
       <Route path="/portal/view/:token" element={<PortalPublicViewPage />} />
+      <Route path="/portal/reset-password" element={<PortalRestablecerContrasenaPage />} />
 
       <Route path="/sprints" element={<ProtectedRoute><Layout><SprintsPage /></Layout></ProtectedRoute>} />
       <Route path="/expenses" element={<ProtectedRoute><Layout><ExpensesPage /></Layout></ProtectedRoute>} />
@@ -636,7 +652,7 @@ export default function App() {
 
 function OfflineBanner() {
   const { isOnline, pendingCount } = useOfflineSync()
-  const { t } = useAppT()
+  const { t } = useAppLang()
   if (isOnline) return null
   return (
     <div

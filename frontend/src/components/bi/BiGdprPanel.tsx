@@ -26,6 +26,7 @@ import { etiquetaCodigo } from '../../i18n/etiquetaCodigo'
 import useMediaQuery from '../../hooks/useMediaQuery'
 import { POLL_DEFAULT_MS } from '../../constants/timings'
 import './BiGdprPanel.css'
+import { Input } from '../ui'
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 /** Color del dato de una insignia: la clase `bi-gdpr-panel-badge` lo consume. */
@@ -98,11 +99,11 @@ function DsrTab() {
     <div>
       {/* Create form */}
       <div className={`bigdpa-grid-1 ${isNarrow ? 'bi-gdpr-panel-m3' : 'bi-gdpr-panel-m4'}`}>
-        <input aria-label={t('bigdpr.subject_id_o_email')} placeholder={t('bigdpr.subject_id_o_email')} value={form.user_id} onChange={e => setForm(f => ({ ...f, user_id: e.target.value }))} className="bi-gdpr-panel-e30" />
+        <Input aria-label={t('bigdpr.subject_id_o_email')} placeholder={t('bigdpr.subject_id_o_email')} value={form.user_id} onChange={e => setForm(f => ({ ...f, user_id: e.target.value }))} />
         <Select suelto value={form.request_type} onChange={e => setForm(f => ({ ...f, request_type: e.target.value }))} className="bi-gdpr-panel-e31" placeholder={false}>
           {['erasure', 'portability', 'rectification', 'restriction'].map(rt => <option key={rt} value={rt}>{etiquetaCodigo(t, 'bigdpr.tipo', rt)}</option>)}
         </Select>
-        <input aria-label={t('absences.notes_optional')} placeholder={t('absences.notes_optional')} value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} className="bi-gdpr-panel-e30" />
+        <Input aria-label={t('absences.notes_optional')} placeholder={t('absences.notes_optional')} value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
         <Button icon={<Plus size={14} />} onClick={() => createMut.mutate({ user_id: form.user_id, request_type: form.request_type, notes: form.notes || '' })}
           disabled={createMut.isPending || !form.user_id} loading={createMut.isPending}>
           {t('bigdpr.nueva_solicitud')}
@@ -229,7 +230,7 @@ function ConsentTab() {
       <div className="bi-gdpr-panel-e15">
         <div className="bi-gdpr-panel-e16">{t('bigdpr.registrar_consentimiento')}</div>
         <div className={`bigdpa-grid-2 ${isNarrow ? 'bi-gdpr-panel-m3' : 'bi-gdpr-panel-m17'}`}>
-          <input aria-label={t('bigdpr.user_id_o_email')} placeholder={t('bigdpr.user_id_o_email')} value={form.user_id} onChange={e => setForm(f => ({ ...f, user_id: e.target.value }))} className="bi-gdpr-panel-e30" />
+          <Input aria-label={t('bigdpr.user_id_o_email')} placeholder={t('bigdpr.user_id_o_email')} value={form.user_id} onChange={e => setForm(f => ({ ...f, user_id: e.target.value }))} />
           <Select suelto value={form.purpose} onChange={e => setForm(f => ({ ...f, purpose: e.target.value }))} className="bi-gdpr-panel-e31" placeholder={false}>
             {['analytics', 'marketing', 'profiling', 'research'].map(p => <option key={p} value={p}>{etiquetaCodigo(t, 'bigdpr.finalidad', p)}</option>)}
           </Select>
@@ -325,8 +326,8 @@ function MasksTab() {
   return (
     <div>
       <div className={`bigdpa-grid-1 ${isNarrow ? 'bi-gdpr-panel-m3' : 'bi-gdpr-panel-m22'}`}>
-        <input aria-label={t('bigdpr.entidad_ej_user')} placeholder={t('bigdpr.entidad_ej_user')} value={form.entity} onChange={e => setForm(f => ({ ...f, entity: e.target.value }))} className="bi-gdpr-panel-e30" />
-        <input aria-label={t('bigdpr.campo_ej_email')} placeholder={t('bigdpr.campo_ej_email')} value={form.field} onChange={e => setForm(f => ({ ...f, field: e.target.value }))} className="bi-gdpr-panel-e30" />
+        <Input aria-label={t('bigdpr.entidad_ej_user')} placeholder={t('bigdpr.entidad_ej_user')} value={form.entity} onChange={e => setForm(f => ({ ...f, entity: e.target.value }))} />
+        <Input aria-label={t('bigdpr.campo_ej_email')} placeholder={t('bigdpr.campo_ej_email')} value={form.field} onChange={e => setForm(f => ({ ...f, field: e.target.value }))} />
         <Select suelto value={form.mask_type} onChange={e => setForm(f => ({ ...f, mask_type: e.target.value }))} className="bi-gdpr-panel-e31" placeholder={false}>
           {['hash', 'redact', 'suppress', 'pseudonymize'].map(mt => <option key={mt} value={mt}>{etiquetaCodigo(t, 'bigdpr.mascara', mt)}</option>)}
         </Select>

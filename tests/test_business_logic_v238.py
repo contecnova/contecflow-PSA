@@ -380,13 +380,13 @@ class TestStripeV238:
         inv_id = self._make_invoice(client, admin_token)
         r = client.post(f"/api/v1/invoices/{inv_id}/payment-link",
                         headers=auth(admin_token))
-        # 501 (feature no disponible sin STRIPE_SECRET_KEY) o 200/201 (si está configurado/mockeado).
-        assert r.status_code in (200, 201, 501), r.text
+        # Sin STRIPE_SECRET_KEY el entorno de test responde 501 (funcion no disponible), de forma determinista.
+        assert r.status_code == 501, r.text
 
     def test_payment_link_nonexistent_invoice(self, client, admin_token, db):
         r = client.post("/api/v1/invoices/99999999/payment-link",
                         headers=auth(admin_token))
-        assert r.status_code in (404, 503)
+        assert r.status_code == 404, r.text
 
 
 # ─── 7. CRDT collaborative docs snapshots ──────────────────────────────────────

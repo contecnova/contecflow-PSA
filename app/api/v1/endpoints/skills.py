@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from typing import Optional
 
 from app.db.session import get_db
-from app.core.deps import get_current_user, require_internal_user, requiere_capacidad
+from app.core.deps import get_current_user, requiere_capacidad
 from app.core.abac_enforce import enforce_abac
 from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User, UserRole
@@ -129,7 +129,7 @@ def remove_user_skill(
     # el empleado podia anadir sus skills (POST de arriba) pero no quitarlas.
     # Minimo privilegio coherente: cualquier usuario interno gestiona las
     # SUYAS; las de otro, solo admin o RR. HH.
-    _rol: User = Depends(require_internal_user),
+    _rol: User = Depends(requiere_capacidad("competencias.usar")),
 ):
     if current_user.role not in [UserRole.admin, UserRole.hr] and current_user.id != user_id:
         raise error_http(403, "sin_permiso", detail="Acceso denegado")

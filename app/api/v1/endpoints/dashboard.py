@@ -4,7 +4,7 @@ from typing import Optional
 from datetime import date
 
 from app.db.session import get_db
-from app.core.deps import get_current_user, require_admin, require_any_manager
+from app.core.deps import get_current_user, requiere_capacidad
 from app.core.periodo import SIN_HORA, Periodo, periodo
 from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
@@ -35,7 +35,7 @@ def _fechas(p: Periodo):
 @router.get("/kpis", response_model=APIResponse[DashboardKPIs], summary="KPIs globales para dirección")
 def get_kpis(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("panel.administrar")),
 ):
     return APIResponse.ok(data=get_global_kpis(db, current_user))
 
@@ -44,7 +44,7 @@ def get_kpis(
 def projects_health_endpoint(
     client_kind: Optional[str] = Query(None, pattern="^(externo|interno)$"),  # rev. 193: clientes internos
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("panel.gestionar")),
 ):
     from app.services.clientes_internos.unidades import filtrar_por_proyecto
     items = filtrar_por_proyecto(db, svc_get_projects_health(db, current_user), client_kind)
@@ -56,7 +56,7 @@ def get_resource_load_endpoint(
     week_start: Optional[date] = None,
     department: Optional[str] = None,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("panel.gestionar")),
 ):
     items = get_resource_load(week_start, department, db, current_user)
     return APIListResponse.ok(items=items, total=len(items))
@@ -67,7 +67,7 @@ def get_profitability_endpoint(
     # Sin periodo: el histórico completo, como antes.
     p: Periodo = Depends(_PERIODO),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("panel.administrar")),
 ):
     date_from, date_to = _fechas(p)
     return APIResponse.ok(data=get_profitability(date_from, date_to, db, current_user))
@@ -79,7 +79,7 @@ def get_team_productivity_endpoint(
     p: Periodo = Depends(_PERIODO),
     department: Optional[str] = None,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("panel.gestionar")),
 ):
     date_from, date_to = _fechas(p)
     datos = get_team_productivity(date_from, date_to, department, db, current_user)

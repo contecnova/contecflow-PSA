@@ -21,6 +21,7 @@ import { useAppT } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
 import { extractErr } from '../../utils/helpers'
 import '../../pages/SemanticEnginePage.css'
+import { Input } from '../ui'
 
 const fs = 'ds-input sem-input'
 const ls = 'sem-label'
@@ -137,13 +138,7 @@ export default function ConfigMotorSemantico() {
             <div className="u-mb-10">
               <label id={`${idCampo}-eta463`} htmlFor={`${idCampo}-a463`} className={ls}>{traducir('semanticengine.modelo_hf')}</label>
               <div className="u-row-8">
-                <input id={`${idCampo}-a463`} aria-labelledby={`${idCampo}-eta463`}
-                  value={hfModelDraft}
-                  onChange={e => setHfModelDraft(e.target.value)}
-                  placeholder={traducir('semanticengine.modelo_hf_placeholder')}
-                  className={`${fs} sem-input--min0`}
-                  disabled={backendActual !== 'transformer' || savingConfig}
-                />
+                <Input id={`${idCampo}-a463`} aria-labelledby={`${idCampo}-eta463`} value={hfModelDraft} onChange={e => setHfModelDraft(e.target.value)} placeholder={traducir('semanticengine.modelo_hf_placeholder')} disabled={backendActual !== 'transformer' || savingConfig} className="sem-input--min0" />
                 <Button
                   variant="secondary"
                   disabled={backendActual !== 'transformer' || savingConfig || !hfModelDraft.trim()}

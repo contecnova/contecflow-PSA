@@ -3,6 +3,9 @@ la persona puede ver (mismo acotado que `GET /meeting-assistant/search`) y,
 con `meeting_id`, traer su resumen, decisiones, acciones y la transcripción
 recortada para responder preguntas sobre ella."""
 from __future__ import annotations
+import logging
+
+from app.services.ai_chat.tool_execution.textos import mensaje as _msg
 
 
 def _search_meetings(tool_input, db, user, now, is_financial_role):
@@ -13,9 +16,10 @@ def _search_meetings(tool_input, db, user, now, is_financial_role):
         try:
             m = consultas.obtener(db, user, reunion_id)
         except Exception:  # noqa: BLE001 - fuera de lo visible es «no existe»
-            return {"error": "Reunión no encontrada"}
+            logging.getLogger(__name__).debug("_search_meetings: excepcion ignorada", exc_info=True)
+            return {"error": _msg(db, user, "reunion_no_encontrada")}
         if m.consent_required and not consultas.consentimiento_completo(m):
-            return {"error": "La reunión espera consentimientos: no se puede consultar su contenido"}
+            return {"error": _msg(db, user, "reunion_consentimientos")}
         return {"meeting": {
             "id": m.id, "title": m.title, "date": m.meeting_date.isoformat() if m.meeting_date else None,
             "status": m.status, "summary": m.summary,

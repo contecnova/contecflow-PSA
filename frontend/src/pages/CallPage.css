@@ -62,3 +62,6 @@
   .call-main { flex-direction: column; }
   .call-side, .call-side--narrow { width: 100%; border-left: none; border-top: 1px solid var(--call-line); max-height: 45vh; }
 }
+
+/* 23-11-2026: no se pudieron pedir las credenciales de la sala al servidor. */
+.call-error { padding: var(--space-2) 22px; color: var(--danger); background: var(--danger-bg); border-bottom: 1px solid var(--danger-border); font-size: var(--text-sm); }

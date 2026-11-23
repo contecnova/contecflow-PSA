@@ -10,7 +10,8 @@ import { CheckCircle2 } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 import { apiPublica } from '../services/api/clienteBase'
 import './IntakeFormPage.css'
-import { Pulsable, Select, Textarea } from '../components/ui'
+import { Pulsable, Select, Textarea, Input } from '../components/ui'
+import { extractErr } from '../utils/helpers'
 
 // axios directo y no el cliente de la app: formulario público, sin sesión que
 // refrescar ni redirección a login si responde 401.
@@ -28,12 +29,6 @@ interface IntakeFields {
   submitter_name: string
   submitter_email: string
   priority: string
-}
-
-function extractSubmitError(error: unknown): string {
-  if (typeof error !== 'object' || error == null) return ''
-  const detail = (error as { response?: { data?: { detail?: unknown } } }).response?.data?.detail
-  return detail ? String(detail) : ''
 }
 
 const FS: CSSProperties = {
@@ -62,8 +57,17 @@ export default function IntakeFormPage(): JSX.Element {
     setFields((p) => ({ ...p, [k]: e.target.value }))
 
   const { mutate, isPending, isError, error: submitError } = useMutation({
-    mutationFn: (data: IntakeFields) => apiPublica.post(`/forms/public/${token}/submit`, data).then(r => r.data),
+    // 23-11-2026 (04b M3): sin claves vacías: el servidor valida `submitter_email` como Optional[EmailStr]
+    // y un '' da 422. El error se pinta en la propia página, sin toast duplicado.
+    mutationFn: (data: IntakeFields) => apiPublica.post(`/forms/public/${token}/submit`, {
+      subject: data.subject,
+      description: data.description || undefined,
+      submitter_name: data.submitter_name || undefined,
+      submitter_email: data.submitter_email || undefined,
+      priority: data.priority || undefined,
+    }).then(r => r.data),
     onSuccess: () => setSubmitted(true),
+    meta: { errorToast: false },
   })
 
   if (isLoading) return (
@@ -107,20 +111,11 @@ export default function IntakeFormPage(): JSX.Element {
 
         <div className="u-stack-16">
           <div className="u-grid2-14">
-            <div>
-              <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} style={LS}>{t('intake_form.name_label')}</label>
-              <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={fields.submitter_name} onChange={set('submitter_name')} style={FS} placeholder={t('intake_form.name_placeholder')} />
-            </div>
-            <div>
-              <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} style={LS}>{t('intake_form.email_label')}</label>
-              <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="email" value={fields.submitter_email} onChange={set('submitter_email')} style={FS} placeholder={t('intake_form.email_placeholder')} />
-            </div>
+            <Input id={`${idCampo}-1`} label={t('intake_form.name_label')} value={fields.submitter_name} onChange={set('submitter_name')} placeholder={t('intake_form.name_placeholder')} />
+            <Input id={`${idCampo}-2`} label={t('intake_form.email_label')} type="email" value={fields.submitter_email} onChange={set('submitter_email')} placeholder={t('intake_form.email_placeholder')} />
           </div>
 
-          <div>
-            <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} style={LS}>{t('intake_form.subject_label')}</label>
-            <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={fields.subject} onChange={set('subject')} style={FS} placeholder={t('intake_form.subject_placeholder')} required />
-          </div>
+          <Input id={`${idCampo}-3`} label={t('intake_form.subject_label')} value={fields.subject} onChange={set('subject')} placeholder={t('intake_form.subject_placeholder')} required />
 
           <div>
             <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={LS}>{t('intake_form.description_label')}</label>
@@ -139,7 +134,7 @@ export default function IntakeFormPage(): JSX.Element {
 
           {isError && (
             <div className="intake-card">
-              {t('intake_form.error_send_label')} {extractSubmitError(submitError) || t('intake_form.error_retry_label')}
+              {t('intake_form.error_send_label')} {extractErr(submitError, t('intake_form.error_retry_label'))}
             </div>
           )}
 

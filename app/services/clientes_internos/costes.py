@@ -6,6 +6,7 @@ project_name, quantity, unit_amount, amount, source_ref}` en la moneda de la
 empresa. Nada se guarda aquí: el cargo (`cargos.py`) congela las líneas.
 """
 from __future__ import annotations
+import logging
 
 import calendar
 import json
@@ -57,10 +58,14 @@ def _tarifas(db: Session, unidad) -> tuple[dict, Optional[float]]:
     if unidad.cost_method != "tarifa_interna" or not unidad.internal_rate_table_id:
         return {}, None
     from app.models.advanced_config import RateEntry
-    filas = db.query(RateEntry).filter(RateEntry.table_id == unidad.internal_rate_table_id).all()
+    filas = db.query(RateEntry).filter(RateEntry.table_id == unidad.internal_rate_table_id,
+                                       RateEntry.is_active.isnot(False)).all()
     por_etiqueta = {(e.label or "").strip().lower(): float(e.billing_rate) for e in filas if e.billing_rate}
-    defecto = next((float(e.billing_rate) for e in filas if e.billing_rate), None)
-    return por_etiqueta, defecto
+    # M11 (auditoría 22-11-2026): ya no hay «tarifa por defecto» = la primera
+    # fila que devuelva la base (sin orden: cambiaba entre ejecuciones). Quien
+    # no tiene perfil en la tabla se repercute a su coste real (estándar de
+    # showback: coste conocido antes que una tarifa arbitraria).
+    return por_etiqueta, None
 
 
 def _horas(db: Session, unidad, proyectos: list, desde: date, hasta: date) -> list[dict]:
@@ -82,8 +87,8 @@ def _horas(db: Session, unidad, proyectos: list, desde: date, hasta: date) -> li
         if imp.user_id not in usuarios:
             usuarios[imp.user_id] = db.get(User, imp.user_id)
         u = usuarios[imp.user_id]
-        if tarifas or defecto:
-            tarifa = tarifas.get(((u.job_title if u else "") or "").strip().lower(), defecto) or 0.0
+        tarifa = tarifas.get(((u.job_title if u else "") or "").strip().lower(), defecto) if tarifas else None
+        if tarifa:
             importe = horas * tarifa
         elif imp.cost_amount is not None:
             importe = float(imp.cost_amount)
@@ -119,9 +124,11 @@ def _precio_cerrado(db: Session, proyectos: list, desde: date, hasta: date) -> l
         if hitos:
             del_periodo = [h for h in hitos if h.approved_at is not None and ini <= _utc(h.approved_at) <= fin]
             if del_periodo:
-                parte = float(p.contract_amount) * len(del_periodo) / len(hitos)
+                # M11: cada hito por su peso (importe o % del contrato); solo si
+                # ninguno lo dice, a partes iguales (antes siempre por número).
+                parte = sum(_peso_de_hito(h, p, len(hitos)) for h in del_periodo)
                 salida.append(_linea("precio_cerrado", f"{p.code} {p.name}", parte, project=p,
-                                     quantity=len(del_periodo), unit_amount=float(p.contract_amount) / len(hitos),
+                                     quantity=len(del_periodo), unit_amount=parte / len(del_periodo),
                                      ref=p.id))
             continue
         inicio = p.start_date or desde
@@ -133,6 +140,16 @@ def _precio_cerrado(db: Session, proyectos: list, desde: date, hasta: date) -> l
         salida.append(_linea("precio_cerrado", f"{p.code} {p.name}", float(p.contract_amount) * meses / meses_total,
                              project=p, quantity=meses, unit_amount=float(p.contract_amount) / meses_total, ref=p.id))
     return salida
+
+
+def _peso_de_hito(h, p, n: int) -> float:
+    contrato = float(p.contract_amount or 0)
+    if h.billing_amount:
+        return float(h.billing_amount)
+    if h.billing_pct:
+        pct = float(h.billing_pct)
+        return contrato * (pct / 100.0 if pct > 1 else pct)
+    return contrato / n if n else 0.0
 
 
 def _utc(dt):
@@ -182,10 +199,10 @@ def _alm(db: Session, unidad, desde: date, hasta: date, miembros: set) -> tuple[
     fx: dict = {}
     agregado: dict = {}
     licencias = set()
-    try:
-        filas = alm_costes.lineas(db, desde, hasta)
-    except Exception:
-        return [], licencias
+    # A63 (auditoría 22-11-2026): un fallo del coste de ALM ya no se traga (antes
+    # el cargo interno salía y se exportaba sin licencias ni equipos y sin
+    # aviso). Se propaga: el cargo no se emite incompleto.
+    filas = alm_costes.lineas(db, desde, hasta)
     for li in filas:
         de_la_unidad = (li.client_id == unidad.id
                         or (unidad.cost_center_id and li.cost_center_id == unidad.cost_center_id)
@@ -226,12 +243,10 @@ def tco_de_aplicacion(db: Session, producto, desde: date, hasta: date, moneda: s
     licencias = 0.0
     if lic_ids:
         fx: dict = {}
-        try:
-            for li in alm_costes.lineas(db, desde, hasta):
-                if li.license_id in lic_ids:
-                    licencias += alm_costes._convertir(db, li.amount, li.currency, moneda, hasta, fx)
-        except Exception:
-            licencias = 0.0
+        # A63: sin tragar el error (antes, licencias = 0 en silencio).
+        for li in alm_costes.lineas(db, desde, hasta):
+            if li.license_id in lic_ids:
+                licencias += alm_costes._convertir(db, li.amount, li.currency, moneda, hasta, fx)
     horas = 0.0
     if producto.project_id:
         for imp in db.query(Imputation).filter(Imputation.project_id == producto.project_id,
@@ -284,6 +299,7 @@ def _cuotas_fijas(servicio) -> dict:
         d = json.loads(servicio.fixed_shares or "{}")
         return {str(k): float(v) for k, v in d.items()} if isinstance(d, dict) else {}
     except Exception:
+        logging.getLogger(__name__).debug("_cuotas_fijas: excepcion ignorada", exc_info=True)
         return {}
 
 
@@ -301,10 +317,16 @@ def reparto(db: Session, servicio, desde: date, hasta: date, usuario=None) -> di
         filas = [(u, conductor(db, servicio.criterion, u, desde, hasta)) for u in unidades]
         suma = sum(v for _, v in filas)
         pcts = [(u, v, (v / suma) if suma else 0.0) for u, v in filas]
+    shares = [{"client_id": u.id, "client_name": u.name, "driver": round(v, 2), "pct": round(p * 100, 2),
+               "amount": _r(total * p)} for u, v, p in pcts if p]
+    # M11: el resto del redondeo a la cuota mayor: la suma de cuotas es el total
+    # repartido (antes sobraban o faltaban céntimos).
+    if shares and abs(sum(p for _, _, p in pcts) - 1.0) < 1e-9:
+        mayor = max(shares, key=lambda x: x["amount"])
+        mayor["amount"] = _r(mayor["amount"] + _r(total) - _r(sum(x["amount"] for x in shares)))
     return {"id": servicio.id, "name": servicio.name, "criterion": servicio.criterion,
             "period_from": str(desde), "period_to": str(hasta), "total": _r(total), "currency": servicio.currency,
-            "shares": [{"client_id": u.id, "client_name": u.name, "driver": round(v, 2), "pct": round(p * 100, 2),
-                        "amount": _r(total * p)} for u, v, p in pcts if p]}
+            "shares": shares}
 
 
 def _reparto(db: Session, unidad, desde: date, hasta: date) -> list[dict]:
@@ -312,7 +334,13 @@ def _reparto(db: Session, unidad, desde: date, hasta: date) -> list[dict]:
     for s in db.query(InternalSharedCost).filter(InternalSharedCost.is_active.is_(True)):
         if s.organization_id and unidad.organization_id and s.organization_id != unidad.organization_id:
             continue
-        r = reparto(db, s, desde, hasta)
+        # M11: el reparto de un servicio se calcula una vez por periodo y sesión
+        # (antes, una vez por unidad: O(unidades² × servicios) consultas).
+        memo = db.info.setdefault("_repartos_internos", {})
+        clave = (s.id, desde, hasta)
+        if clave not in memo:
+            memo[clave] = reparto(db, s, desde, hasta)
+        r = memo[clave]
         mia = next((x for x in r["shares"] if x["client_id"] == unidad.id), None)
         if mia and mia["amount"]:
             salida.append(_linea("reparto", f"{s.name} ({mia['pct']} %)", mia["amount"], quantity=mia["driver"],
@@ -324,6 +352,14 @@ def _reparto(db: Session, unidad, desde: date, hasta: date) -> list[dict]:
 
 def coste(db: Session, unidad, desde: date, hasta: date) -> dict:
     """Líneas y totales por fuente de la unidad en [desde, hasta]."""
+    from app.services.currency_rates_service import TiposQueFaltan
+    with TiposQueFaltan() as faltan:
+        salida = _coste(db, unidad, desde, hasta)
+    salida["fx_warnings"] = sorted(faltan)
+    return salida
+
+
+def _coste(db: Session, unidad, desde: date, hasta: date) -> dict:
     from app.services.settings_service import por_empresa
     proyectos = proyectos_de(db, unidad)
     miembros = U.miembros_ids(db, unidad)

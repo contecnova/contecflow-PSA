@@ -58,3 +58,17 @@
 
 /* 16-11-2026 (pasada de diseño): periodo en barra de filtros (select), KPIs del kit. */
 .bipd-filtros { margin-bottom: 16px; }
+
+/* Impresión de una sección (23-11-2026, M11): solo el nodo marcado, con los
+   colores del tema de impresión (sin `document.write` ni colores fijos). */
+@media print {
+  body.bi-imprimiendo * { visibility: hidden; }
+  body.bi-imprimiendo .bi-impresion-objetivo,
+  body.bi-imprimiendo .bi-impresion-objetivo * { visibility: visible; }
+  body.bi-imprimiendo .bi-impresion-objetivo {
+    position: absolute;
+    inset: 0 auto auto 0;
+    width: 100%;
+    color: var(--text-1);
+  }
+}

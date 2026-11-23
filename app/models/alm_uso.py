@@ -31,6 +31,7 @@ from sqlalchemy import (Boolean, Column, Date, DateTime, Float, ForeignKey, Inde
 from sqlalchemy.sql import func
 
 from app.db.base import Base
+from app.models.money import Money
 
 
 def _id():
@@ -210,7 +211,7 @@ class ALMUsoRecuperacion(Base):
     politica = Column(String(255), nullable=True)
     parametros = Column(Text, nullable=True)        # JSON: el resultado «recuperar» que encajó
     dias_sin_uso = Column(Integer, nullable=True)
-    coste_anual = Column(Float, nullable=True)      # coste unitario anual (ahorro si se libera)
+    coste_anual = Column(Money, nullable=True)      # coste unitario anual (ahorro si se libera)
     iniciada_at = Column(DateTime(timezone=True), server_default=func.now())
     ultimo_paso_at = Column(DateTime(timezone=True), nullable=True)
     siguiente_paso_at = Column(DateTime(timezone=True), nullable=True)
@@ -233,7 +234,7 @@ class ALMSoftwareNoControlado(Base):
     origenes = Column(Text, nullable=True)             # JSON: {origen: apariciones}
     usuarios = Column(Integer, nullable=False, default=0)
     dispositivos = Column(Integer, nullable=False, default=0)
-    importe = Column(Float, nullable=True)             # gasto acumulado en la moneda de la empresa
+    importe = Column(Money, nullable=True)             # gasto acumulado en la moneda de la empresa
     moneda = Column(String(3), nullable=True)
     primera_vez = Column(Date, nullable=True)
     ultima_vez = Column(Date, nullable=True)

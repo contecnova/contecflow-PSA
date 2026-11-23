@@ -106,18 +106,18 @@ MODULO_GRC_DE_ENTIDAD: dict[str, str] = {
 
 
 DEFAULT_SOD_RULES = [
-    {"module_a":"invoices","action_a":"crear","module_b":"invoices","action_b":"aprobar","risk":"high","description":"Quien crea facturas no debe aprobarlas (riesgo de fraude)","roles_conflict":["pm"]},
-    {"module_a":"expenses","action_a":"crear","module_b":"expenses","action_b":"aprobar","risk":"high","description":"Quien registra gastos no debe aprobarlos","roles_conflict":[]},
-    {"module_a":"contracts","action_a":"crear","module_b":"contracts","action_b":"aprobar","risk":"high","description":"Quien crea contratos no debe aprobarlos sin supervisión","roles_conflict":["pm"]},
-    {"module_a":"resources","action_a":"editar","module_b":"timesheets","action_b":"aprobar","risk":"medium","description":"Gestión de recursos y aprobación de horas puede generar conflicto","roles_conflict":[]},
-    {"module_a":"absences","action_a":"editar","module_b":"absences","action_b":"aprobar","risk":"high","description":"Gestión de RRHH y aprobación de ausencias","roles_conflict":["hr"]},
-    {"module_a":"settings","action_a":"editar","module_b":"approvals","action_b":"aprobar","risk":"critical","description":"Quien configura el sistema no debe aprobar solicitudes críticas sin doble validación","roles_conflict":["admin"]},
-    {"module_a":"timesheets","action_a":"crear","module_b":"timesheets","action_b":"aprobar","risk":"high","description":"El empleado no debe aprobar sus propios timesheets","roles_conflict":["pm","team_lead"]},
-    {"module_a":"grc","action_a":"editar","module_b":"approvals","action_b":"aprobar","risk":"critical","description":"Quien modifica la matriz GRC no debe poder auto-aprobar sus propias solicitudes","roles_conflict":["admin"]},
+    {"module_a":"invoices","action_a":"crear","module_b":"invoices","action_b":"aprobar","risk":"high","description":"sod.invoices_crear__invoices_aprobar","roles_conflict":["pm"]},
+    {"module_a":"expenses","action_a":"crear","module_b":"expenses","action_b":"aprobar","risk":"high","description":"sod.expenses_crear__expenses_aprobar","roles_conflict":[]},
+    {"module_a":"contracts","action_a":"crear","module_b":"contracts","action_b":"aprobar","risk":"high","description":"sod.contracts_crear__contracts_aprobar","roles_conflict":["pm"]},
+    {"module_a":"resources","action_a":"editar","module_b":"timesheets","action_b":"aprobar","risk":"medium","description":"sod.resources_editar__timesheets_aprobar","roles_conflict":[]},
+    {"module_a":"absences","action_a":"editar","module_b":"absences","action_b":"aprobar","risk":"high","description":"sod.absences_editar__absences_aprobar","roles_conflict":["hr"]},
+    {"module_a":"settings","action_a":"editar","module_b":"approvals","action_b":"aprobar","risk":"critical","description":"sod.settings_editar__approvals_aprobar","roles_conflict":["admin"]},
+    {"module_a":"timesheets","action_a":"crear","module_b":"timesheets","action_b":"aprobar","risk":"high","description":"sod.timesheets_crear__timesheets_aprobar","roles_conflict":["pm","team_lead"]},
+    {"module_a":"grc","action_a":"editar","module_b":"approvals","action_b":"aprobar","risk":"critical","description":"sod.grc_editar__approvals_aprobar","roles_conflict":["admin"]},
     # Segunda auditoría 2026-11: presupuestos y Service Desk (servicios del
     # catálogo, planes de despliegue de cambios) también bloquean la autoaprobación.
-    {"module_a":"budgets","action_a":"crear","module_b":"budgets","action_b":"aprobar","risk":"high","description":"Quien crea un presupuesto no debe aprobarlo","roles_conflict":[]},
-    {"module_a":"sd","action_a":"crear","module_b":"sd","action_b":"aprobar","risk":"high","description":"Quien pide un servicio o crea un plan de cambio no debe aprobarlo","roles_conflict":[]},
+    {"module_a":"budgets","action_a":"crear","module_b":"budgets","action_b":"aprobar","risk":"high","description":"sod.budgets_crear__budgets_aprobar","roles_conflict":[]},
+    {"module_a":"sd","action_a":"crear","module_b":"sd","action_b":"aprobar","risk":"high","description":"sod.sd_crear__sd_aprobar","roles_conflict":[]},
 ]
 
 

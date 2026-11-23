@@ -87,7 +87,7 @@ def test_margen_no_admite_hora(client, admin_token, sin_duckdb):
 
 def test_margen_duckdb_misma_clave_que_python(monkeypatch):
     """La consulta OLAP agrupa con ``date_trunc`` y da la misma clave que ``Periodo.clave``."""
-    duckdb = pytest.importorskip("duckdb")
+    duckdb = pytest.importorskip("duckdb", reason="falta el paquete opcional duckdb (motor OLAP)")
     from app.services.olap import query_engine as qe
 
     conn = duckdb.connect(":memory:")
@@ -266,7 +266,7 @@ def test_excel_exportado_lleva_las_cifras_del_periodo(client, admin_token, db):
 
 
 def test_pptx_exportado_con_periodo(client, admin_token, db):
-    pytest.importorskip("pptx")
+    pytest.importorskip("pptx", reason="falta el paquete opcional python-pptx")
     _facturas_y_tickets(db)
     r = client.get("/api/v1/bi/export/pptx", headers=auth(admin_token),
                    params={"desde": "2026-01-01", "hasta": "2026-03-01", "tz": "UTC"})

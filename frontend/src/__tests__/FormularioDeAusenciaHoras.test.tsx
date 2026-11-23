@@ -81,7 +81,9 @@ describe('FormularioDeAusencia por horas', () => {
     // En días no se pide franja.
     expect(screen.queryByRole('textbox', { name: 'aus.hora_inicio' })).toBeNull()
     // Un tipo solo por días: sin selector.
-    fireEvent.click(screen.getByRole('radio', { name: /Vacaciones/ }))
+    // El tipo se elige en el SelectRico del kit (combobox + listbox), no con radios.
+    fireEvent.click(screen.getByRole('combobox', { name: 'aus.tipo' }))
+    fireEvent.click(await screen.findByRole('option', { name: /Vacaciones/ }))
     await waitFor(() => expect(screen.queryByRole('group', { name: 'aus.pedir_por' })).toBeNull())
   })
 

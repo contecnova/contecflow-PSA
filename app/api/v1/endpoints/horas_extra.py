@@ -21,7 +21,7 @@ from sqlalchemy.orm import Session
 
 from app.core import timeutil
 from app.core.codigos_de_error import error as error_con_codigo
-from app.core.deps import require_worker, requiere_capacidad
+from app.core.deps import requiere_capacidad
 from app.core.responses import APIResponse
 from app.db.session import get_db
 from app.models.user import User
@@ -48,7 +48,7 @@ def _ficha(db, usuario, p) -> dict:
 # ── Configuración y presupuestos ─────────────────────────────────────────────
 
 @router.get("/config", summary="Configuración de horas extra de la empresa")
-def leer_config(db: Session = Depends(get_db), current_user: User = Depends(require_worker)):
+def leer_config(db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("horas_extra.trabajar"))):
     return APIResponse.ok(data=config.para_pantalla(db, current_user))
 
 
@@ -61,8 +61,7 @@ def guardar_config(body: ConfigIn, db: Session = Depends(get_db), current_user: 
 def listar_presupuestos(fecha: Optional[date] = None, db: Session = Depends(get_db),
                         current_user: User = Depends(requiere_capacidad("horas_extra.gestionar"))):
     f = fecha or timeutil.today()
-    from app.models.project import Project
-    nombres = dict(db.query(Project.id, Project.name).all())
+    nombres = config.nombres_de_proyectos(db)
     return APIResponse.ok(data=[config.presupuesto_dict(p, calculo.consumo_de(db, p, f),
                                                         nombres.get(p.valor) if p.ambito == "proyecto" else None)
                                 for p in config.presupuestos(db)])
@@ -91,30 +90,30 @@ def borrar_presupuesto(presupuesto_id: str, db: Session = Depends(get_db),
 # ── Pedir ────────────────────────────────────────────────────────────────────
 
 @router.post("/preview", summary="Vista previa de una petición de horas extra (no guarda)")
-def vista_previa(body: VistaPreviaIn, db: Session = Depends(get_db), current_user: User = Depends(require_worker)):
+def vista_previa(body: VistaPreviaIn, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("horas_extra.trabajar"))):
     return APIResponse.ok(data=solicitudes.vista_previa(db, current_user, body.model_dump()))
 
 
 @router.post("", summary="Pedir horas extra (autorización previa)")
-def pedir(body: PeticionDeHorasExtraIn, db: Session = Depends(get_db), current_user: User = Depends(require_worker)):
+def pedir(body: PeticionDeHorasExtraIn, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("horas_extra.trabajar"))):
     p = solicitudes.solicitar(db, current_user, body.model_dump())
     return APIResponse.ok(data=_ficha(db, current_user, p))
 
 
 @router.get("/mine", summary="Mis horas extra (y las que pedí para otros)")
 def mias(desde: Optional[date] = None, hasta: Optional[date] = None, estado: Optional[str] = None,
-         db: Session = Depends(get_db), current_user: User = Depends(require_worker)):
+         db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("horas_extra.trabajar"))):
     return APIResponse.ok(data=consultas.mias(db, current_user, {"desde": desde, "hasta": hasta, "estado": estado}))
 
 
 @router.get("/inbox", summary="Horas extra que me toca decidir")
-def bandeja(db: Session = Depends(get_db), current_user: User = Depends(require_worker)):
+def bandeja(db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("horas_extra.trabajar"))):
     return APIResponse.ok(data=consultas.bandeja(db, current_user))
 
 
 @router.get("/check", summary="Qué pasaría al imputar esas horas ese día (control de horas extra)")
 def comprobar(fecha: date, horas: float = Query(0, ge=0, le=24), imputation_id: Optional[str] = None,
-              db: Session = Depends(get_db), current_user: User = Depends(require_worker)):
+              db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("horas_extra.trabajar"))):
     return APIResponse.ok(data=control.comprobar(db, current_user.id, fecha, horas, imputation_id))
 
 
@@ -159,7 +158,7 @@ def listar(desde: Optional[date] = None, hasta: Optional[date] = None, estado: O
 # ── Una petición ─────────────────────────────────────────────────────────────
 
 @router.get("/{peticion_id}", summary="Ciclo completo de una petición de horas extra")
-def detalle(peticion_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_worker)):
+def detalle(peticion_id: str, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("horas_extra.trabajar"))):
     p = consultas.visible(db, current_user, peticion_id)
     return APIResponse.ok(data=consultas.detalle(db, current_user, p))
 
@@ -173,21 +172,21 @@ def _propia(db, usuario, peticion_id):
 
 @router.put("/{peticion_id}", summary="Editar una petición pendiente (se vuelve a pedir)")
 def editar(peticion_id: str, body: PeticionDeHorasExtraIn, db: Session = Depends(get_db),
-           current_user: User = Depends(require_worker)):
+           current_user: User = Depends(requiere_capacidad("horas_extra.trabajar"))):
     p = solicitudes.editar(db, current_user, _propia(db, current_user, peticion_id), body.model_dump())
     return APIResponse.ok(data=_ficha(db, current_user, p))
 
 
 @router.post("/{peticion_id}/cancel", summary="Cancelar una petición de horas extra")
 def cancelar(peticion_id: str, body: NotaIn, db: Session = Depends(get_db),
-             current_user: User = Depends(require_worker)):
+             current_user: User = Depends(requiere_capacidad("horas_extra.trabajar"))):
     p = solicitudes.cancelar(db, current_user, _propia(db, current_user, peticion_id), body.nota)
     return APIResponse.ok(data=_ficha(db, current_user, p))
 
 
 @router.post("/{peticion_id}/review", summary="Aprobar o rechazar horas extra")
 def revisar(peticion_id: str, body: RevisarIn, db: Session = Depends(get_db),
-            current_user: User = Depends(require_worker)):
+            current_user: User = Depends(requiere_capacidad("horas_extra.trabajar"))):
     p = consultas.visible(db, current_user, peticion_id)
     p = solicitudes.revisar(db, current_user, p, body.aprobado, body.nota, body.horas_autorizadas)
     return APIResponse.ok(data=_ficha(db, current_user, p))

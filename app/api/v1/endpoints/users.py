@@ -5,7 +5,8 @@ from datetime import date
 
 from app.db.session import get_db
 from app.core.abac_enforce import enforce_abac
-from app.core.deps import get_current_user, require_admin, require_admin_or_hr, require_admin_or_pm, require_any_manager, require_internal_user
+from app.core.deps import get_current_user, requiere_capacidad
+from app.core.deps import requiere_capacidad
 from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User, UserRole, UserStatus
 from app.schemas import (
@@ -29,6 +30,7 @@ from app.services.user_service import (
     get_user_by_id,
     update_self_profile,
     deactivate_user_record,
+    reactivate_user_record,
     delete_user_record,
 )
 from app.core.codigos_de_error import error_http
@@ -46,7 +48,7 @@ def list_users(
     page_size: int = Query(50, ge=1, le=1000),
     response: Response = None,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_internal_user),
+    current_user: User = Depends(requiere_capacidad("personas.usar")),
 ):
     enforce_abac(db, current_user, "user", action="read")
 
@@ -68,7 +70,7 @@ def list_users(
 @router.get("/with-rates", response_model=APIListResponse[UserWithRate], summary="Listar recursos con tarifas (admin/hr)")
 def list_users_with_rates(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin_or_hr),
+    current_user: User = Depends(requiere_capacidad("personas.rrhh")),
 ):
     enforce_abac(db, current_user, "user", action="read")
     items = list_active_users_with_rates(db, current_user)
@@ -79,7 +81,7 @@ def list_users_with_rates(
 def get_load_map(
     week_start: Optional[date] = None,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("personas.gestionar")),
 ):
     enforce_abac(db, current_user, "user", action="read")
     items = get_load_map_payload(db, current_user, week_start)
@@ -173,7 +175,7 @@ def update_my_profile(
 def user_approval_chain(
     user_id: str,
     db: Session = Depends(get_db),
-    _: User = Depends(require_any_manager),  # revisión 2026-11: hr y team_lead la ven en el organigrama
+    _: User = Depends(requiere_capacidad("personas.gestionar")),  # revisión 2026-11: hr y team_lead la ven en el organigrama
 ):
     user = get_user_by_id(db, user_id)
     if not user:
@@ -216,7 +218,7 @@ def get_user(
 def create_user(
     payload: UserCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("personas.administrar")),
 ):
     enforce_abac(db, current_user, "user", action="create")
     return APIResponse.ok(data=create_user_record(payload, current_user, db))
@@ -239,7 +241,7 @@ def deactivate_user(
     confirmar_equipos: bool = Query(False, description="Desactivar aunque tenga equipo sin devolver "
                                                        "(política «confirmar» de licencias y hardware)"),
     db: Session = Depends(get_db),
-    _: User = Depends(require_admin),
+    _: User = Depends(requiere_capacidad("personas.administrar")),
 ):
     user = get_user_by_id(db, user_id)
     if not user:
@@ -250,11 +252,28 @@ def deactivate_user(
     return APIResponse.ok(data={"message": f"Usuario {user.username} desactivado", "alm_baja": baja})
 
 
+@router.post("/{user_id}/reactivate", summary="Reactivar un usuario desactivado")
+def reactivate_user(
+    user_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(requiere_capacidad("org.administrar")),
+):
+    """Auditoría 22-11-2026 (A1 del 04b): la vía para volver a activar a alguien.
+    Misma guarda que administrar la empresa; ABAC y empresa como al desactivar."""
+    user = get_user_by_id(db, user_id)
+    if not user:
+        raise error_http(404, "no_encontrado", detail="Usuario no encontrado", que="usuario")
+    _ensure_same_org_user_access(user, current_user)
+    enforce_abac(db, current_user, "user", user_id, action="update")
+    reactivate_user_record(user, db, current_user)
+    return APIResponse.ok(data={"message": f"Usuario {user.username} reactivado"})
+
+
 @router.delete("/{user_id}/permanent", summary="Eliminar usuario permanentemente")
 def delete_user_permanent(
     user_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("personas.administrar")),
 ):
     if current_user.id == user_id:
         raise error_http(400, "no_puedes_contigo", detail="No puedes eliminarte a ti mismo")
@@ -263,8 +282,13 @@ def delete_user_permanent(
         raise error_http(404, "no_encontrado", detail="Usuario no encontrado", que="usuario")
     _ensure_same_org_user_access(user, current_user)
     enforce_abac(db, current_user, "user", user_id, action="delete")
-    delete_user_record(user, db)
-    return APIResponse.ok(data={"message": f"Usuario {user.username} eliminado permanentemente"})
+    nombre = user.username
+    # Migración 196 (GRC): con historial protegido se anonimiza en vez de borrar.
+    resultado = delete_user_record(user, db, current_user)
+    if resultado["modo"] == "anonimizado":
+        return APIResponse.ok(data={"message": f"Usuario {nombre} anonimizado (tiene historial que se conserva)",
+                                    **resultado})
+    return APIResponse.ok(data={"message": f"Usuario {nombre} eliminado permanentemente", **resultado})
 
 
 @router.get("/{user_id}/productivity", summary="Estadísticas de productividad de un recurso")
@@ -284,7 +308,7 @@ def set_user_manager(
     user_id: str,
     payload: dict = Body(default={}),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("personas.administrar")),
 ):
     enforce_abac(db, current_user, "user", user_id, action="update")
     return APIResponse.ok(data=set_manager_record(user_id, payload.get("manager_id"), current_user, db,

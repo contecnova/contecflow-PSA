@@ -100,19 +100,12 @@ def _plazo() -> float:
 
 def _get_graph_token(tenant_id: str, client_id: str, client_secret: str) -> str:
     """Obtain an OAuth2 token from Microsoft Identity (client credentials flow)."""
+    # 23-11-2026 (03 A-MP3): el mismo camino que el resto de Graph (tenant
+    # validado antes de ir a la ruta del token y token cacheado por credencial).
     try:
-        import httpx
-        url = f"{settings.MICROSOFT_OAUTH_BASE}/{tenant_id}/oauth2/v2.0/token"
-        data = {
-            "grant_type": "client_credentials",
-            "client_id": client_id,
-            "client_secret": client_secret,
-            "scope": f"{settings.MICROSOFT_GRAPH_BASE}/.default",
-        }
-        with httpx.Client(timeout=_plazo()) as client:
-            resp = client.post(url, data=data)
-            resp.raise_for_status()
-            return resp.json()["access_token"]
+        from app.services.m365_service import token_de_graph_sync
+        return token_de_graph_sync({"tenant_id": tenant_id, "client_id": client_id,
+                                    "client_secret": client_secret})
     except Exception as exc:
         logger.warning("_get_graph_token failed: %s", exc)
         raise

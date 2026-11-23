@@ -10,7 +10,7 @@ import type { StatusBadgeKind } from '../components/ui/StatusBadge'
 import { AlertTriangle, CheckCircle2, Download, FileSearch, FileUp, History, Loader2, Upload, XCircle } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 import { etiquetaCodigo } from '../i18n/etiquetaCodigo'
-import { fmtDateTime } from '../utils/helpers'
+import { extractErr, fmtDateTime } from '../utils/helpers'
 import { CLOCK_TICK_MS } from '../constants/timings'
 import './ImportPage.css'
 
@@ -67,10 +67,8 @@ function ImportTab() {
       setValidation(resp.data); setStep('validate')
       setOpStage(resp.data?.valid ? 'done' : 'failed')
     } catch(e) {
-      const _raw = (e as { response?: { data?: { detail?: unknown } } }).response?.data?.detail
-      const _msg = Array.isArray(_raw)
-        ? _raw.map((d) => String((d as { msg?: unknown }).msg ?? '')).join(', ')
-        : String(_raw || t('pagina_impt.error_al_procesar_el_fichero'))
+      // 23-11-2026: extractErr traduce los códigos del servidor y los errores de validación (antes `String(detail)`).
+      const _msg = extractErr(e, t('pagina_impt.error_al_procesar_el_fichero'))
       setValidation({ valid: false, errors: [{ error: _msg }], warnings: [], preview: [], total_rows: 0 })
       setStep('validate')
       setOpStage('failed')
@@ -88,12 +86,9 @@ function ImportTab() {
       setResult(resp.data); setStep('result')
       setOpStage(resp.data?.status === 'failed' ? 'failed' : 'done')
     } catch(e) {
-      const _raw2 = (e as { response?: { data?: { detail?: unknown } } }).response?.data?.detail
       setResult({
         status: 'failed',
-        error: Array.isArray(_raw2)
-          ? _raw2.map((d) => String((d as { msg?: unknown }).msg ?? '')).join(', ')
-          : String(_raw2 || t('pagina_impt.error_en_la_importacion'))
+        error: extractErr(e, t('pagina_impt.error_en_la_importacion')),
       })
       setStep('result')
       setOpStage('failed')

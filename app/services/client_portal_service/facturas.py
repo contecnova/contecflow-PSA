@@ -124,8 +124,11 @@ def view_public_project_status(token: str, db: Session) -> dict:
     if not project:
         raise ErrorConCodigo("proyecto_no_encontrado")
     # Segunda auditoría 2026-11 (#10): organización desactivada → 403.
-    from app.db.session import exigir_organizacion_activa
-    exigir_organizacion_activa(db, getattr(project, "organization_id", None))
+    # Auditoría 22-11-2026 (M8): el enlace firmado ya dice la empresa; desde
+    # aquí la sesión filtra por ella (y corta si está desactivada).
+    from app.db.session import exigir_organizacion_activa, publicar_empresa
+    if not publicar_empresa(db, getattr(project, "organization_id", None)):
+        exigir_organizacion_activa(db, getattr(project, "organization_id", None))
     milestones = db.query(ProjectMilestone).filter(
         ProjectMilestone.project_id == project.id
     ).order_by(ProjectMilestone.sort_order).all()

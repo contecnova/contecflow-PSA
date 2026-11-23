@@ -16,6 +16,7 @@ import { useConfirm } from '../../context/ConfirmContext'
 import { pedirReautenticacion, esFalloDeReautenticacion } from './reautenticacion'
 import { Button, Pulsable } from '../ui'
 import './PasskeysSection.css'
+import { Input } from '../ui'
 
 export default function PasskeysSection() {
   const { t } = useAppLang()
@@ -69,8 +70,7 @@ export default function PasskeysSection() {
           <li key={p.id} className="passsect-row-1">
             {editando?.id === p.id ? (
               <>
-                <input aria-label={t('passkeys.name')} value={editando.name} onChange={e => setEditando({ id: p.id, name: e.target.value })}
-                  className="ds-input u-flex1" />
+                <Input aria-label={t('passkeys.name')} value={editando.name} onChange={e => setEditando({ id: p.id, name: e.target.value })} className="u-flex1" />
                 <Button variant="secondary" size="sm" onClick={() => renombrar(editando)}>{t('common.save')}</Button>
               </>
             ) : (
@@ -91,8 +91,7 @@ export default function PasskeysSection() {
       </ul>
       {soporta ? (
         <div className="u-row-8">
-          <input aria-label={t('passkeys.name')} placeholder={t('passkeys.name_ph')} value={nombre}
-            onChange={e => setNombre(e.target.value)} className="ds-input u-flex1" />
+          <Input aria-label={t('passkeys.name')} placeholder={t('passkeys.name_ph')} value={nombre} onChange={e => setNombre(e.target.value)} className="u-flex1" />
           <Pulsable onClick={() => anadir()} disabled={anadiendo}
             className="passsect-box-8">
             {anadiendo ? '…' : t('passkeys.add')}

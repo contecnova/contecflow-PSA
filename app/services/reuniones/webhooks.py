@@ -51,6 +51,7 @@ def recall(db: Session, org: str, cabeceras: dict, cuerpo: bytes) -> dict:
         try:
             bots = proveedor(db, org, exigir_activo=False)
         except Exception:  # noqa: BLE001 - sin clave de API aún se puede verificar la firma
+            logger.debug("recall: excepcion ignorada", exc_info=True)
             from app.services.reuniones.bots import RecallBots
             bots = RecallBots("", config.leer(db, org)["bots"]["region"])
         if not secreto or not bots.verificar_firma(cabeceras, cuerpo, secreto):

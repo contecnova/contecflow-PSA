@@ -10,6 +10,7 @@ import { useAppLang } from '../../i18n/AppLangContext'
 import { Button, Table, Pulsable } from '../ui'
 import { STALE_DEFAULT_MS } from '../../constants/timings'
 import './AskDataWidget.css'
+import { Input } from '../ui'
 
 /** Preguntas de ejemplo: `askdatawidget.ejemplo_<n>` en el idioma del usuario. */
 const EXAMPLE_QUESTIONS = ['ejemplo_1', 'ejemplo_2', 'ejemplo_3', 'ejemplo_4', 'ejemplo_5']
@@ -124,14 +125,7 @@ export default function AskDataWidget({ style = {} }: { style?: React.CSSPropert
       {/* Input */}
       <div className="asdawi-sp-2">
         <form onSubmit={handleSubmit} className="u-row-8">
-          <input aria-label={t('askdatawidget.que_proyectos_tienen_margen_negativo_este_ano')}
-            ref={inputRef}
-            value={question}
-            onChange={e => setQuestion(e.target.value)}
-            placeholder={t('askdatawidget.que_proyectos_tienen_margen_negativo_este_ano')}
-            disabled={mutation.isPending}
-            className="asdawi-box-3"
-          />
+          <Input aria-label={t('askdatawidget.que_proyectos_tienen_margen_negativo_este_ano')} ref={inputRef} value={question} onChange={e => setQuestion(e.target.value)} placeholder={t('askdatawidget.que_proyectos_tienen_margen_negativo_este_ano')} disabled={mutation.isPending} className="asdawi-box-3" />
           <Button type="submit" icon={<Send size={13} />} disabled={mutation.isPending || !question.trim()} loading={mutation.isPending}>
             {mutation.isPending ? t('askdatawidget.consultando') : t('askdatawidget.consultar')}
           </Button>

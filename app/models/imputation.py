@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Float, DateTime, ForeignKey, Text, Date, Boolean, Integer, Index
+from sqlalchemy import Column, String, Float, DateTime, ForeignKey, Text, Date, Boolean, Integer, Index, text
 from app.models.money import Money, Rate
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -14,7 +14,7 @@ class Imputation(Base):
     __tablename__ = "imputations"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
 
     # Who
     user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
@@ -38,7 +38,7 @@ class Imputation(Base):
 
     # Approval workflow (optional)
     is_approved = Column(Boolean, default=False)
-    approved_by = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    approved_by = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     approved_at = Column(DateTime(timezone=True), nullable=True)
 
     # Billable flag
@@ -89,7 +89,7 @@ class TimerSession(Base):
     __tablename__ = "timer_sessions"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
 
     # Who and what
     user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
@@ -111,9 +111,14 @@ class TimerSession(Base):
     project = relationship("Project", foreign_keys=[project_id])  # TODO #56: inverse en Project (project.py)
     imputation = relationship("Imputation", foreign_keys=[imputation_id])  # TODO #56: opcional 1:1 inverse
 
+    # Migración 201 (23-11-2026, M31): un solo cronómetro abierto por persona.
+    # El bloqueo de `start_timer_session` solo vale en Postgres; el índice lo
+    # garantiza en cualquier motor y el servicio traduce el choque a 409.
     __table_args__ = (
         # Index for efficient lookup of active timer (where ended_at IS NULL)
         Index('ix_timer_session_user_active', 'user_id', 'ended_at'),
+        Index("uq_timer_sessions_un_activo_por_usuario", "user_id", unique=True,
+              sqlite_where=text("ended_at IS NULL"), postgresql_where=text("ended_at IS NULL")),
     )
 
     def __repr__(self) -> str:
@@ -127,7 +132,7 @@ class ImputationAlert(Base):
     __tablename__ = "imputation_alerts"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
 
     # Alert date (which day was not fully imputed)
@@ -147,34 +152,4 @@ class ImputationAlert(Base):
 
 # ── Imputation Snapshots ───────────────────────────────────────────────────
 
-class ImputationSnapshot(Base):
-    """Daily snapshot of total hours logged."""
-    __tablename__ = "imputation_snapshots"
-
-    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
-    user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
-
-    # Date this snapshot represents
-    snapshot_date = Column(Date, nullable=False, index=True)
-
-    # Hours logged (calculated from imputations)
-    total_hours = Column(Float, default=0.0)
-    billable_hours = Column(Float, default=0.0)
-    approved_hours = Column(Float, default=0.0)
-
-    # Flag if complete (i.e., expected hours are logged)
-    is_complete = Column(Boolean, default=False)
-
-    # When this snapshot was taken
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-
-    # Relationships
-    user = relationship("User", foreign_keys=[user_id])  # TODO #56: inverse en User
-
-    __table_args__ = (
-        Index('ix_imputation_snapshot_user_date', 'user_id', 'snapshot_date'),
-    )
-
-    def __repr__(self) -> str:
-        return f"<ImputationSnapshot id={self.id!r} snapshot_date={self.snapshot_date!r}>"
+# ImputationSnapshot: retirado el 23-11-2026 (auditoria 2026-11-22, M-MOD3: sin uso fuera de app/models). La tabla `imputation_snapshots` la borra la migracion de esa fecha.

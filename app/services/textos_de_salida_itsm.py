@@ -459,6 +459,9 @@ TEXTOS_ITSM: dict[str, dict[str, str]] = {
     "autonomo.motivo.media": {"es": "Confianza media ({confianza}): el playbook ayuda sin cerrar el ticket",
                               "en": "Medium confidence ({confianza}): playbook assist without auto-close",
                               "zh": "置信度中等（{confianza}）：由剧本辅助处理，不自动关闭工单"},
+    "autonomo.motivo.seguridad": {"es": "Posible incidente de seguridad: siempre requiere revisión humana",
+                                  "en": "Possible security incident: always requires human review",
+                                  "zh": "可能的安全事件：始终需要人工审核"},
     "autonomo.motivo.baja": {"es": "Confianza demasiado baja ({confianza}) o ningún playbook encontrado",
                              "en": "Confidence too low ({confianza}) or no matching playbook",
                              "zh": "置信度过低（{confianza}）或没有匹配的剧本"},
@@ -521,4 +524,7 @@ TEXTOS_ITSM: dict[str, dict[str, str]] = {
     "historial.reabierto_tras_autorresolucion": {"es": "Reabierto después de la resolución automática",
                                                  "en": "Reopened after automatic resolution",
                                                  "zh": "自动解决后被重新打开"},
+    "historial.autorresolucion_validada": {"es": "Resolución automática validada: no se ha reabierto",
+                                           "en": "Automatic resolution validated: not reopened",
+                                           "zh": "自动解决已验证：未被重新打开"},
 }

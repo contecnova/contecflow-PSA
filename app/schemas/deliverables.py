@@ -2,6 +2,7 @@ from datetime import date
 from typing import Optional
 
 from pydantic import BaseModel, Field
+from app.schemas._enlaces import EnlaceSeguro  # auditoría 22-11-2026: solo http(s)
 
 
 class DeliverableIn(BaseModel):
@@ -29,5 +30,5 @@ class DeliverableUpdate(BaseModel):
     client_contact: Optional[str] = Field(None, description="Contacto del cliente que recibe/valida el entregable")
     acceptance_criteria: Optional[str] = Field(None, description="Criterios de aceptación que debe cumplir el entregable")
     rejection_reason: Optional[str] = Field(None, description="Motivo del rechazo si el cliente no acepta el entregable")
-    document_url: Optional[str] = Field(None, description="URL del documento asociado al entregable")
+    document_url: EnlaceSeguro = Field(None, description="URL del documento asociado al entregable")
     sort_order: Optional[int] = Field(None, description="Orden de ordenación dentro de la lista de entregables")

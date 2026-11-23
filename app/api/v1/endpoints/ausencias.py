@@ -29,11 +29,15 @@ from typing import Optional
 from fastapi import APIRouter, Depends, File, Form, Query, Request, UploadFile
 from sqlalchemy.orm import Session
 
-from app.core.deps import (get_current_user, require_admin, require_any_manager,
-                           require_internal_user, require_worker, requiere_capacidad)
+from app.core.deps import (
+    get_current_user,
+    requiere_capacidad,
+)
+from app.core.network import ip_del_cliente
 from app.core.errores import ErrorDeDominio
 from app.core.codigos_de_error import error as error_con_codigo
 from app.core.responses import APIResponse
+from app.core.uploads import UploadProfile, read_and_validate_upload_sync, safe_filename
 from app.db.session import get_db
 from app.models.user import User
 from app.schemas.absences import (AbsenceIn, AccesoEspecialIn, AmpliarIn, AsignacionDeJornadaIn, CuadranteIn,
@@ -47,14 +51,14 @@ router = APIRouter()
 
 
 def _ip(request: Request) -> Optional[str]:
-    return request.client.host if request.client else None
+    return ip_del_cliente(request)
 
 
 # ── Tipos de ausencia ────────────────────────────────────────────────────────
 
 @router.get("/types", summary="Tipos de ausencia")
 def listar_tipos(incluir_inactivos: bool = False, db: Session = Depends(get_db),
-                 current_user: User = Depends(require_worker)):
+                 current_user: User = Depends(requiere_capacidad("ausencias.trabajar"))):
     # Externos como internos (16-11-2026): el catalogo hace falta para pedir la
     # ausencia propia (POST /absences/my); no lleva datos de nadie.
     return APIResponse.ok(data=[catalogo.tipo_dict(t) for t in catalogo.tipos(db, incluir_inactivos=incluir_inactivos, usuario=current_user)])
@@ -79,7 +83,7 @@ def borrar_tipo(tipo_id: str, db: Session = Depends(get_db), current_user: User 
 
 @router.get("/document-types", summary="Tipos de documento de ausencias")
 def listar_documentos(incluir_inactivos: bool = False, db: Session = Depends(get_db),
-                      current_user: User = Depends(require_worker)):
+                      current_user: User = Depends(requiere_capacidad("ausencias.trabajar"))):
     # Externos como internos (16-11-2026): que documentos pide cada tipo, para la propia.
     return APIResponse.ok(data=[catalogo.documento_dict(d) for d in catalogo.documentos(db, incluir_inactivos=incluir_inactivos, usuario=current_user)])
 
@@ -107,12 +111,12 @@ def listar_accesos(db: Session = Depends(get_db), current_user: User = Depends(r
 
 
 @router.post("/special-access", summary="Conceder acceso a documentos de categoría especial")
-def conceder_acceso(payload: AccesoEspecialIn, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+def conceder_acceso(payload: AccesoEspecialIn, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("ausencias.administrar"))):
     return APIResponse.ok(data=catalogo.conceder_acceso(db, current_user, payload.user_id))
 
 
 @router.delete("/special-access/{user_id}", summary="Retirar acceso a documentos de categoría especial")
-def retirar_acceso(user_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+def retirar_acceso(user_id: str, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("ausencias.administrar"))):
     return APIResponse.ok(data=catalogo.retirar_acceso(db, current_user, user_id))
 
 
@@ -120,7 +124,7 @@ def retirar_acceso(user_id: str, db: Session = Depends(get_db), current_user: Us
 
 @router.get("/shifts", summary="Turnos")
 def listar_turnos(incluir_inactivos: bool = False, db: Session = Depends(get_db),
-                  current_user: User = Depends(require_internal_user)):
+                  current_user: User = Depends(requiere_capacidad("ausencias.usar"))):
     return APIResponse.ok(data=[turnos.turno_dict(t) for t in turnos.turnos(db, incluir_inactivos=incluir_inactivos)])
 
 
@@ -141,23 +145,23 @@ def borrar_turno(turno_id: str, db: Session = Depends(get_db), current_user: Use
 
 
 @router.get("/rotations", summary="Rotaciones de turnos")
-def listar_rotaciones(db: Session = Depends(get_db), current_user: User = Depends(require_any_manager)):
+def listar_rotaciones(db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("ausencias.responsables"))):
     return APIResponse.ok(data=[turnos.patron_dict(p) for p in turnos.patrones(db)])
 
 
 @router.post("/rotations", summary="Crear rotación")
-def crear_rotacion(payload: PatronIn, db: Session = Depends(get_db), current_user: User = Depends(require_any_manager)):
+def crear_rotacion(payload: PatronIn, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("ausencias.responsables"))):
     return APIResponse.ok(data=turnos.guardar_patron(db, current_user, payload.model_dump()))
 
 
 @router.put("/rotations/{patron_id}", summary="Editar rotación (ciclo y personas)")
 def editar_rotacion(patron_id: str, payload: PatronIn, db: Session = Depends(get_db),
-                    current_user: User = Depends(require_any_manager)):
+                    current_user: User = Depends(requiere_capacidad("ausencias.responsables"))):
     return APIResponse.ok(data=turnos.guardar_patron(db, current_user, payload.model_dump(), patron_id))
 
 
 @router.delete("/rotations/{patron_id}", summary="Borrar rotación")
-def borrar_rotacion(patron_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_any_manager)):
+def borrar_rotacion(patron_id: str, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("ausencias.responsables"))):
     turnos.borrar_patron(db, current_user, patron_id)
     return APIResponse.ok(data={"ok": True})
 
@@ -171,14 +175,14 @@ def _rango(desde: Optional[date], hasta: Optional[date]) -> tuple[date, date]:
 @router.get("/roster", summary="Cuadrante: turno de cada persona y día")
 def ver_cuadrante(desde: Optional[date] = None, hasta: Optional[date] = None, equipo: Optional[str] = None,
                   departamento: Optional[str] = None, db: Session = Depends(get_db),
-                  current_user: User = Depends(require_internal_user)):
+                  current_user: User = Depends(requiere_capacidad("ausencias.usar"))):
     d0, d1 = _rango(desde, hasta)
     return APIResponse.ok(data=turnos.cuadrante(db, d0, d1, equipo=equipo, departamento=departamento))
 
 
 @router.put("/roster", summary="Cambiar turnos del cuadrante (por persona y día)")
 def cambiar_cuadrante(payload: CuadranteIn, db: Session = Depends(get_db),
-                      current_user: User = Depends(require_any_manager)):
+                      current_user: User = Depends(requiere_capacidad("ausencias.responsables"))):
     n = turnos.asignar(db, current_user, [c.model_dump() for c in payload.cambios])
     return APIResponse.ok(data={"cambios": n})
 
@@ -186,7 +190,7 @@ def cambiar_cuadrante(payload: CuadranteIn, db: Session = Depends(get_db),
 @router.get("/coverage", summary="Cobertura por día y turno: requeridas, disponibles y ausentes")
 def ver_cobertura(desde: Optional[date] = None, hasta: Optional[date] = None, equipo: Optional[str] = None,
                   departamento: Optional[str] = None, db: Session = Depends(get_db),
-                  current_user: User = Depends(require_internal_user)):
+                  current_user: User = Depends(requiere_capacidad("ausencias.usar"))):
     d0, d1 = _rango(desde, hasta)
     return APIResponse.ok(data=turnos.cobertura(db, d0, d1, equipo=equipo, departamento=departamento))
 
@@ -207,7 +211,7 @@ def mis_saldos(year: Optional[int] = None, fecha: Optional[date] = None, db: Ses
 
 @router.get("/my/schedule", summary="Mi horario efectivo por día (turno o jornada, festivos, ausencias)")
 def mi_horario(desde: Optional[date] = None, hasta: Optional[date] = None, db: Session = Depends(get_db),
-               current_user: User = Depends(require_worker)):
+               current_user: User = Depends(requiere_capacidad("ausencias.trabajar"))):
     d0, d1 = _rango(desde, hasta)
     return APIResponse.ok(data=jornadas.rejilla(db, current_user, d0, d1, user_ids=[current_user.id]))
 
@@ -217,7 +221,7 @@ def mi_horario(desde: Optional[date] = None, hasta: Optional[date] = None, db: S
 @router.get("/effective-schedule", summary="Horario efectivo persona×día (turno o jornada, festivos de su sede, ausencias)")
 def horario_efectivo(desde: Optional[date] = None, hasta: Optional[date] = None, equipo: Optional[str] = None,
                      departamento: Optional[str] = None, user_ids: Optional[list[str]] = Query(None),
-                     db: Session = Depends(get_db), current_user: User = Depends(require_worker)):
+                     db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("ausencias.trabajar"))):
     d0, d1 = _rango(desde, hasta)
     ids = jornadas.personas_que_ve(db, current_user, user_ids)
     return APIResponse.ok(data=jornadas.rejilla(db, current_user, d0, d1, equipo=equipo, departamento=departamento,
@@ -226,7 +230,7 @@ def horario_efectivo(desde: Optional[date] = None, hasta: Optional[date] = None,
 
 @router.get("/work-schedules", summary="Jornadas laborales (normal, verano, reducida…) con sus asignaciones")
 def listar_jornadas(incluir_inactivas: bool = False, db: Session = Depends(get_db),
-                    current_user: User = Depends(require_any_manager)):
+                    current_user: User = Depends(requiere_capacidad("ausencias.responsables"))):
     return APIResponse.ok(data=[jornadas.jornada_dict(j) for j in jornadas.jornadas(db, incluir_inactivas=incluir_inactivas)])
 
 
@@ -281,13 +285,13 @@ def editar_ficha(user_id: str, payload: FichaLaboralIn, db: Session = Depends(ge
 @router.get("/balances", summary="Saldos por persona, en días y horas (responsables: las personas que ven)")
 def saldos_por_persona(fecha: Optional[date] = None, equipo: Optional[str] = None, departamento: Optional[str] = None,
                        user_ids: Optional[list[str]] = Query(None), db: Session = Depends(get_db),
-                       current_user: User = Depends(require_any_manager)):
+                       current_user: User = Depends(requiere_capacidad("ausencias.responsables"))):
     return APIResponse.ok(data=movimientos.saldos_de_personas(db, current_user, fecha, user_ids, equipo, departamento))
 
 
 @router.get("/balances/{user_id}/movements", summary="Ajustes y horas de bolsa de un saldo")
 def movimientos_de_saldo(user_id: str, saldo_clave: Optional[str] = None, db: Session = Depends(get_db),
-                         current_user: User = Depends(require_worker)):
+                         current_user: User = Depends(requiere_capacidad("ausencias.trabajar"))):
     rol = str(getattr(current_user.role, "value", current_user.role))
     if user_id != current_user.id and rol not in ("admin", "hr") and not getattr(current_user, "is_superadmin", False):
         raise error_con_codigo(403, "solo_persona_rrhh_o_admin")
@@ -316,12 +320,12 @@ def recalcular_bolsa(payload: RecalcularBolsaIn, db: Session = Depends(get_db),
 
 
 @router.get("/inbox", summary="Ausencias que me toca decidir, con explicación e impacto en la cobertura")
-def bandeja(db: Session = Depends(get_db), current_user: User = Depends(require_internal_user)):
+def bandeja(db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("ausencias.usar"))):
     return APIResponse.ok(data=consultas.bandeja(db, current_user))
 
 
 @router.post("/examples", summary="Cargar el ejemplo de tres turnos con cupo y lista de espera (no se aplica solo)")
-def cargar_ejemplos(db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+def cargar_ejemplos(db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("ausencias.administrar"))):
     return APIResponse.ok(data=ejemplos.cargar(db, current_user))
 
 
@@ -337,8 +341,8 @@ def subir_documento(absence_id: str, request: Request, file: UploadFile = File(.
                     sustituye_a: Optional[str] = Form(None), nota: Optional[str] = Form(None),
                     db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     a = consultas.visible(db, current_user, absence_id)
-    contenido = file.file.read()
-    return APIResponse.ok(data=documentos.subir(db, current_user, a, tipo_id=tipo_id, nombre=file.filename or "",
+    contenido = read_and_validate_upload_sync(file, UploadProfile.DOCUMENT)
+    return APIResponse.ok(data=documentos.subir(db, current_user, a, tipo_id=tipo_id, nombre=safe_filename(file.filename),
                                                 content_type=file.content_type or "", contenido=contenido,
                                                 sustituye_a=sustituye_a, nota=nota, ip=_ip(request)))
 
@@ -352,21 +356,21 @@ def abrir_documento(absence_id: str, doc_id: str, request: Request, accion: str 
 
 @router.post("/{absence_id}/document-requests", summary="Pedir otro documento (RRHH o responsable)")
 def pedir_documento(absence_id: str, payload: PedirDocumentoIn, db: Session = Depends(get_db),
-                    current_user: User = Depends(require_internal_user)):
+                    current_user: User = Depends(requiere_capacidad("ausencias.usar"))):
     a = consultas.visible(db, current_user, absence_id)
     return APIResponse.ok(data=documentos.pedir(db, current_user, a, payload.tipo_id, payload.vence, payload.nota))
 
 
 @router.post("/{absence_id}/document-requests/{requisito_id}/waive", summary="Dispensar un documento pedido")
 def dispensar_documento(absence_id: str, requisito_id: str, payload: NotaIn, db: Session = Depends(get_db),
-                        current_user: User = Depends(require_internal_user)):
+                        current_user: User = Depends(requiere_capacidad("ausencias.usar"))):
     a = consultas.visible(db, current_user, absence_id)
     return APIResponse.ok(data=documentos.dispensar(db, current_user, a, requisito_id, payload.nota))
 
 
 @router.post("/{absence_id}/extend", summary="Ampliar una ausencia aprobada (RRHH, admin o responsable)")
 def ampliar(absence_id: str, payload: AmpliarIn, db: Session = Depends(get_db),
-            current_user: User = Depends(require_internal_user)):
+            current_user: User = Depends(requiere_capacidad("ausencias.usar"))):
     a = consultas.visible(db, current_user, absence_id)
     documentos.exigir_gestion(db, current_user, a)
     a = solicitudes.ampliar(db, current_user, a, payload.end_date, payload.nota)

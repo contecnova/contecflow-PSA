@@ -9,8 +9,14 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 vi.mock('../services/collaborationApi', () => ({
   collabApi: new Proxy({}, { get: () => () => Promise.resolve([]) }),
 }))
+// La pestaña de ajustes en vivo comprueba permisos con `useAuth().puede`.
+vi.mock('../context/AuthContext', () => ({ useAuth: () => ({ user: { role: 'admin' }, puede: () => true }) }))
 vi.mock('../context/ToastContext', () => ({ useToast: () => ({ success: vi.fn(), error: vi.fn() }) }))
-vi.mock('../i18n/AppLangContext', () => ({ useAppT: () => (k: string) => k }))
+vi.mock('../i18n/AppLangContext', () => ({
+  useAppT: () => (k: string) => k,
+  // ChatAdmin usa ahora `extractErr`/confirmaciones traducidas, que leen el idioma.
+  useAppLang: () => ({ t: (k: string) => k, lang: 'es', translations: {} }),
+}))
 
 import ChatAdminPage from '../pages/ChatAdminPage'
 

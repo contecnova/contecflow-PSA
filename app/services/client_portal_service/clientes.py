@@ -64,6 +64,58 @@ def list_clients(project_id: Optional[str], client_org_id: Optional[str], db: Se
     })
 
 
+def generar_contrasena() -> str:
+    """Contraseña inicial aleatoria (16 caracteres URL-safe, ~96 bits)."""
+    import secrets
+    return secrets.token_urlsafe(12)
+
+
+# 23-11-2026: el correo de acceso sale de `textos_de_salida` (`portal.acceso.*`, 8 idiomas del portal).
+
+
+def enviar_acceso(client: ClientUser, clave: str) -> bool:
+    """Manda al cliente su acceso (23-11-2026, M10 del 04b).
+
+    La contraseña solo viaja al buzón del titular: no se devuelve a la pantalla
+    del equipo ni se registra. Devuelve si el correo salió (sin SMTP, False: el
+    equipo puede reenviar el acceso cuando el correo esté configurado).
+    """
+    from html import escape
+    from app.core.config import settings
+    from app.services.notification_service import enviar_correo
+    from app.services.formato_regional import idioma as idioma_por_defecto
+    # Sin idioma del cliente: el de la empresa (DEFAULT_LANGUAGE), no "es" en duro.
+    idioma = (getattr(client, "language", None) or idioma_por_defecto(org_id=getattr(client, "organization_id", None)))[:2]
+    from app.services.textos_de_salida import texto
+    asunto = texto("portal.acceso.asunto", idioma)
+    url = f"{settings.FRONTEND_URL.rstrip('/')}/portal"
+    html = texto("portal.acceso.cuerpo", idioma, nombre=escape(client.full_name or ""), url=escape(url),
+                 email=escape(client.email or ""), clave=escape(clave))
+    return enviar_correo(client.email, asunto, html).enviado
+
+
+def reenviar_acceso(client_id: str, db: Session) -> dict:
+    """Nueva contraseña generada y enviada al titular; la anterior deja de valer."""
+    client = db.query(ClientUser).filter(ClientUser.id == client_id).first()
+    if not client:
+        raise ErrorConCodigo("cliente_no_encontrado")
+    clave = generar_contrasena()
+    client.hashed_password = hash_password(clave)
+    client.must_change_password = True
+    db.commit()
+    return {"id": client.id, "email": client.email, "credenciales_enviadas": enviar_acceso(client, clave)}
+
+
+def reenviar_acceso_y_auditar(client_id: str, db: Session, actor) -> dict:
+    """Reenvía el acceso, deja la auditoría (sin la contraseña) y confirma."""
+    from app.services.audit import audit_log
+    resultado = reenviar_acceso(client_id, db)
+    audit_log(db, actor, "UPDATE", "client_user", client_id, resultado.get("email"),
+              metadata={"accion": "reenviar_acceso", "enviado": resultado.get("credenciales_enviadas")})
+    db.commit()
+    return resultado
+
+
 def create_client(payload, db: Session) -> dict:
 
     all_project_ids = list(dict.fromkeys([
@@ -96,6 +148,7 @@ def create_client(payload, db: Session) -> dict:
     if organizacion is None and all_project_ids:
         primero = db.query(ProjectModel).filter(ProjectModel.id == all_project_ids[0]).first()
         organizacion = primero.organization_id if primero else None
+    clave_generada = None if payload.password else generar_contrasena()
     create_data = {k: v for k, v in payload.model_dump().items()
                    if k not in ("password", "company", "project_ids", "project_id", "organization_id")}
     client = ClientUser(
@@ -103,7 +156,9 @@ def create_client(payload, db: Session) -> dict:
         organization_id=organizacion,
         project_id=payload.project_id or (all_project_ids[0] if all_project_ids else None),
         company=company,
-        hashed_password=hash_password(payload.password),
+        hashed_password=hash_password(payload.password or clave_generada),
+        # La contrasena generada solo la conoce el sistema y el buzon: se cambia al entrar.
+        must_change_password=clave_generada is not None,
         avatar_initials=payload.full_name[:2].upper(),
     )
     db.add(client)
@@ -123,7 +178,9 @@ def create_client(payload, db: Session) -> dict:
         "email": client.email,
         "project_ids": client.get_project_ids(),
         "portal_url": "/portal",
-        "message": f"Usuario creado. Puede acceder en /portal con {client.email} y la contraseña indicada."
+        # Con contraseña generada, se envía al titular y no vuelve en la respuesta.
+        "credenciales_enviadas": enviar_acceso(client, clave_generada) if clave_generada else None,
+        "message": f"Usuario creado. Puede acceder en /portal con {client.email}."
     }
 
 
@@ -210,11 +267,36 @@ def client_login(email: str, password: str, db: Session) -> dict:
             "can_request_changes": client.can_request_changes,
             "can_view_budget": client.can_view_budget,
             "can_view_team": client.can_view_team,
-            "language": client.language,
+            "language": idioma_de_la_interfaz_del_portal(db, client),
             "project_ids": project_ids,
             "projects": projects,
+            # 23-11-2026: el portal lleva a la pantalla de cambio de contrasena.
+            "must_change_password": bool(client.must_change_password),
         }
     }
+
+
+def idioma_de_la_interfaz_del_portal(db: Session, client) -> Optional[str]:
+    """Idioma con el que se abre el portal (incidencia 5 de usuarios, 23-11-2026).
+
+    Preferencia del usuario del portal > idioma del portal de su empresa
+    cliente (`ClientPortalConfig.default_language`) > idioma que eligió la
+    empresa proveedora > `None`: el portal usa entonces el del navegador si es
+    uno de los 8 y, si no, inglés (`IDIOMA_POR_DEFECTO` del portal). Antes el
+    alta guardaba el `DEFAULT_LANGUAGE` del entorno (castellano) como si fuera
+    la preferencia del usuario.
+    """
+    if getattr(client, "language", None):
+        return client.language
+    org_cliente = getattr(client, "client_org_id", None)
+    if org_cliente:
+        from app.models.clients import ClientPortalConfig
+        cfg = db.query(ClientPortalConfig.default_language).filter(
+            ClientPortalConfig.client_id == org_cliente).first()
+        if cfg and cfg[0]:
+            return cfg[0]
+    from app.services.settings_service.por_empresa import idioma_elegido_de_empresa
+    return idioma_elegido_de_empresa(db, getattr(client, "organization_id", None))
 
 
 def get_me(current_client, db: Session) -> dict:
@@ -237,7 +319,8 @@ def get_me(current_client, db: Session) -> dict:
         "can_request_changes": current_client.can_request_changes,
         "can_view_budget": current_client.can_view_budget,
         "can_view_team": current_client.can_view_team,
-        "language": current_client.language,
+        "language": idioma_de_la_interfaz_del_portal(db, current_client),
+        "must_change_password": bool(getattr(current_client, "must_change_password", False)),
     }
 
 
@@ -291,16 +374,22 @@ def update_my_profile(payload: dict, current_client, db: Session, min_password_l
         if k in BLOCKED:
             continue
         if k == "password":
-            if not allow_pwd:
+            # El cambio obligatorio (contrasena generada) se permite siempre.
+            if not allow_pwd and not current_client.must_change_password:
                 raise ErrorConCodigo("cambio_contrasena_desactivado")
             # Auditoria 2026-11: sin la actual, una sesion robada o un equipo
             # desbloqueado bastaba para quedarse la cuenta.
             actual = payload.get("current_password")
             if not actual or not verify_password(str(actual), current_client.hashed_password or ""):
                 raise ErrorConCodigo("contrasena_actual_incorrecta")
-            if len(str(v)) < min_password_length:
-                raise ErrorConCodigo("contrasena_corta", n=min_password_length)
+            # 23-11-2026: la política de contraseñas de la empresa también en el
+            # portal (docs/seguridad/politicas_de_cuenta.md §3).
+            from app.services.seguridad_de_cuentas.contrasenas import validar_del_portal
+            validar_del_portal(db, current_client, str(v), min_password_length)
+            if verify_password(str(v), current_client.hashed_password or ""):
+                raise ErrorConCodigo("portal_contrasena_igual_a_la_anterior")
             current_client.hashed_password = hash_password(str(v))
+            current_client.must_change_password = False
         elif k in SAFE_FIELDS:
             setattr(current_client, k, v)
     if any(k in payload for k in ("full_name", "phone", "job_title")):
@@ -316,5 +405,6 @@ def update_my_profile(payload: dict, current_client, db: Session, min_password_l
         "phone": current_client.phone,
         "job_title": current_client.job_title,
         "language": current_client.language,
+        "must_change_password": bool(current_client.must_change_password),
         "message": "Perfil actualizado correctamente",
     }

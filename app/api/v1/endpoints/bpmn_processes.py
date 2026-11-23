@@ -30,7 +30,7 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from app.core.deps import require_admin_or_pm, require_internal_user
+from app.core.deps import requiere_capacidad
 from app.core.abac_enforce import enforce_abac
 from app.db.session import get_db
 from app.models.bpmn_process import BPMNProcessStatus
@@ -104,7 +104,7 @@ def list_processes(
     include_inactive: bool = Query(False),
     include_xml: bool = Query(False, description="Añade `latest_xml` (XML de la última versión) a cada proceso"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_internal_user),
+    current_user: User = Depends(requiere_capacidad("bpm.usar")),
 ):
     org_id = getattr(current_user, "organization_id", None)
     procs = svc.list_processes(db, organization_id=org_id, category=category,
@@ -120,7 +120,7 @@ def list_processes(
 
 
 @router.get("/catalogue", summary="Preview the seed catalogue")
-def get_catalogue(_: User = Depends(require_internal_user)):
+def get_catalogue(_: User = Depends(requiere_capacidad("bpm.usar"))):
     items = [
         {"key": e["key"], "name": e["name"], "category": e["category"],
          "icon": e.get("icon"), "description": e.get("description"),
@@ -134,7 +134,7 @@ def get_catalogue(_: User = Depends(require_internal_user)):
 def seed_processes(
     payload: SeedIn = Body(default=SeedIn()),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin_or_pm),
+    current_user: User = Depends(requiere_capacidad("bpm.gestionar")),
 ):
     org_id = getattr(current_user, "organization_id", None)
     out = svc.seed_catalogue(db, organization_id=org_id, force=payload.force)
@@ -147,7 +147,7 @@ def seed_processes(
 def create_process(
     payload: ProcessIn,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin_or_pm),
+    current_user: User = Depends(requiere_capacidad("bpm.gestionar")),
 ):
     org_id = getattr(current_user, "organization_id", None)
     key = payload.key or _slugify(payload.name)
@@ -167,7 +167,7 @@ def create_process(
 def get_process(
     process_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_internal_user),
+    current_user: User = Depends(requiere_capacidad("bpm.usar")),
 ):
     proc = _proceso_o_404(db, process_id)
     latest = svc.get_latest_version(db, process_id)
@@ -181,7 +181,7 @@ def update_process(
     process_id: str,
     payload: ProcessUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin_or_pm),
+    current_user: User = Depends(requiere_capacidad("bpm.gestionar")),
 ):
     cambios = payload.model_dump(exclude_none=True)
     if "status" in cambios:
@@ -197,7 +197,7 @@ def update_process(
 def delete_process(
     process_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin_or_pm),
+    current_user: User = Depends(requiere_capacidad("bpm.gestionar")),
 ):
     proc = _proceso_o_404(db, process_id)
     if proc.is_seeded:
@@ -214,7 +214,7 @@ def duplicate_process(
     process_id: str,
     payload: DuplicateIn,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin_or_pm),
+    current_user: User = Depends(requiere_capacidad("bpm.gestionar")),
 ):
     proc = svc.duplicate_process(db, process_id, new_name=payload.new_name.strip(),
                                   organization_id=getattr(current_user, "organization_id", None),
@@ -232,7 +232,7 @@ def save_version(
     process_id: str,
     payload: VersionIn,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin_or_pm),
+    current_user: User = Depends(requiere_capacidad("bpm.gestionar")),
 ):
     proc = _proceso_o_404(db, process_id)
     v = svc.save_new_version(db, process_id=process_id, bpmn_xml=payload.bpmn_xml,
@@ -249,7 +249,7 @@ def save_version(
 def list_versions(
     process_id: str,
     db: Session = Depends(get_db),
-    _: User = Depends(require_internal_user),
+    _: User = Depends(requiere_capacidad("bpm.usar")),
 ):
     proc = _proceso_o_404(db, process_id)
     items = [svc.serialize_version(v, include_xml=False) for v in proc.versions]
@@ -261,7 +261,7 @@ def get_version(
     process_id: str,
     version: int,
     db: Session = Depends(get_db),
-    _: User = Depends(require_internal_user),
+    _: User = Depends(requiere_capacidad("bpm.usar")),
 ):
     v = svc.get_version(db, process_id, version)
     if not v:
@@ -274,7 +274,7 @@ def validate_version(
     process_id: str,
     version: Optional[int] = Query(None, ge=1, description="Por defecto, la que se ejecutaría (publicada o última)"),
     db: Session = Depends(get_db),
-    _: User = Depends(require_internal_user),
+    _: User = Depends(requiere_capacidad("bpm.usar")),
 ):
     proc = _proceso_o_404(db, process_id)
     v = svc.get_version(db, process_id, version) if version else motor.version_ejecutable(db, proc)
@@ -288,7 +288,7 @@ def publish_version(
     process_id: str,
     version: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin_or_pm),
+    current_user: User = Depends(requiere_capacidad("bpm.gestionar")),
 ):
     v = svc.publish_version(db, process_id, version)
     if not v:

@@ -1,0 +1,96 @@
+{
+ "codigos": {
+  "aprovisionamiento_sin_empresa": {
+   "es": "El aprovisionamiento necesita la empresa del flujo: no se ejecuta sin ella",
+   "en": "Provisioning needs the workflow's company: it does not run without one",
+   "zh": "资源配置需要流程所属公司：没有公司则不执行"
+  },
+  "aprovisionamiento_destroy_sin_aprobacion": {
+   "es": "Destruir infraestructura exige una aprobación concedida de la misma empresa (destroy_approval_id)",
+   "en": "Destroying infrastructure requires a granted approval from the same company (destroy_approval_id)",
+   "zh": "销毁基础设施需要同一公司已批准的审批（destroy_approval_id）"
+  },
+  "bi_token_limite_diario": {
+   "es": "El token de BI ha llegado a su límite diario de {limite} peticiones",
+   "en": "The BI token has reached its daily limit of {limite} requests",
+   "zh": "BI 令牌已达到每日 {limite} 次请求的上限"
+  },
+  "bi_token_sin_alcance": {
+   "es": "El token de BI no tiene el alcance necesario: {alcance}",
+   "en": "The BI token lacks the required scope: {alcance}",
+   "zh": "BI 令牌缺少所需的权限范围：{alcance}"
+  },
+  "bi_destinatario_no_permitido": {
+   "es": "Destinatarios no permitidos: {destinatarios}. Solo personas activas de la empresa o dominios autorizados",
+   "en": "Recipients not allowed: {destinatarios}. Only active company users or authorised domains",
+   "zh": "不允许的收件人：{destinatarios}。仅限公司在职用户或授权域名"
+  },
+  "justificante_de_gasto_aprobado": {
+   "es": "El gasto ya está aprobado o reembolsado: sus justificantes no se cambian ni se borran",
+   "en": "The expense is already approved or reimbursed: its receipts cannot be changed or deleted",
+   "zh": "费用已批准或已报销：其凭证不可更改或删除"
+  },
+  "leccion_autovalidacion": {
+   "es": "Quien escribió la lección no puede validarla: la valida otra persona",
+   "en": "The author of a lesson cannot validate it: someone else must",
+   "zh": "经验教训的作者不能自行验证：须由他人验证"
+  },
+  "horas_fuera_de_rango": {
+   "es": "Las horas deben ser mayores que {minimo} y no pasar de {maximo}",
+   "en": "Hours must be greater than {minimo} and no more than {maximo}",
+   "zh": "工时必须大于 {minimo} 且不超过 {maximo}"
+  },
+  "externo_sin_tarifa": {
+   "es": "La asignación no tiene tarifa vigente en esa fecha: no se puede calcular el coste del parte",
+   "en": "The assignment has no rate in force on that date: the time log cost cannot be calculated",
+   "zh": "该分配在该日期没有有效费率：无法计算工时记录成本"
+  },
+  "factura_subcontrata_transicion_no_valida": {
+   "es": "La factura no puede pasar de «{desde}» a «{hasta}»",
+   "en": "The invoice cannot go from \"{desde}\" to \"{hasta}\"",
+   "zh": "发票不能从“{desde}”变为“{hasta}”"
+  },
+  "factura_subcontrata_misma_persona": {
+   "es": "Quien registró la factura no puede aprobarla ni pagarla",
+   "en": "Whoever registered the invoice cannot approve or pay it",
+   "zh": "登记发票的人不能审批或支付该发票"
+  },
+  "horas_extra_tope_legal": {
+   "es": "Se supera el tope legal anual de horas extra ({tope} h; ya hay {acumuladas} h este año)",
+   "en": "The annual legal overtime cap is exceeded ({tope} h; {acumuladas} h already this year)",
+   "zh": "超过年度法定加班上限（{tope} 小时；今年已有 {acumuladas} 小时）"
+  },
+  "perfil_de_coste_solapado": {
+   "es": "Ya hay un perfil de coste vigente el {desde}: los periodos no pueden solaparse",
+   "en": "A cost profile is already in force on {desde}: periods cannot overlap",
+   "zh": "{desde} 已有生效的成本档案：期间不能重叠"
+  },
+  "cronometro_demasiado_largo": {
+   "es": "El cronómetro lleva más de {horas} h: indica las horas reales para pararlo",
+   "en": "The timer has run for more than {horas} h: enter the real hours to stop it",
+   "zh": "计时器已运行超过 {horas} 小时：请输入实际工时以停止"
+  },
+  "cambio_transicion_no_valida": {
+   "es": "La solicitud de cambio no puede pasar de «{desde}» a «{hasta}»",
+   "en": "The change request cannot go from \"{desde}\" to \"{hasta}\"",
+   "zh": "变更请求不能从“{desde}”变为“{hasta}”"
+  },
+  "numeracion_reset_no_permitido": {
+   "es": "La serie ya ha emitido códigos: reiniciarla los repetiría. Cambia el prefijo o el sufijo, o usa la serie anual",
+   "en": "The sequence has already issued codes: resetting it would repeat them. Change the prefix or suffix, or use a yearly sequence",
+   "zh": "该序列已生成编号：重置会导致重复。请更改前缀或后缀，或使用按年序列"
+  },
+  "sw_respuesta_truncada": {
+   "es": "La respuesta de {fuente} llegó incompleta (paginación o exportación sin terminar): no se marca nada como resuelto. Vuelve a lanzar la sincronización",
+   "en": "The {fuente} response was incomplete (pagination or export not finished): nothing is marked as resolved. Run the sync again",
+   "zh": "{fuente} 的响应不完整（分页或导出未完成）：不会将任何项标记为已解决。请重新运行同步"
+  }
+ },
+ "que": {
+  "columna": {
+   "es": "Columna",
+   "en": "Column",
+   "zh": "列"
+  }
+ }
+}

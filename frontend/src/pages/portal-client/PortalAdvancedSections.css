@@ -506,23 +506,10 @@
   color: var(--accent);
   flex-shrink: 0;
 }
-.portalad-sx8 {
-  position: absolute;
-  left: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--text-3);
-  pointer-events: none;
-}
 
 /* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
 .portal-advanced-sections-e9 {
   border: var(--portal-advanced-sections-border);
-}
-.portal-advanced-sections-e16 {
-  padding-left: 34px;
-  font-size: var(--text-md);
-  padding: 11px 12px 11px 34px;
 }
 .portal-advanced-sections-m2 {
   color: var(--danger);

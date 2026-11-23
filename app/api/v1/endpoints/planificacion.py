@@ -22,7 +22,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.core.abac_enforce import enforce_abac
-from app.core.deps import get_current_user, get_db, require_admin_or_pm, require_internal_user
+from app.core.deps import get_current_user, get_db, requiere_capacidad
 from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
 from app.services import evm_service, vistas_guardadas
@@ -44,7 +44,7 @@ def get_schedule(project_id: str, db: Session = Depends(get_db),
 
 @router.post("/projects/{project_id}/schedule/apply", summary="Replanificar: mover las tareas pendientes a sus fechas tempranas")
 def apply_schedule(project_id: str, db: Session = Depends(get_db),
-                   current_user: User = Depends(require_admin_or_pm)):
+                   current_user: User = Depends(requiere_capacidad("proyectos.dirigir"))):
     enforce_abac(db, current_user, "task", action="update")
     return APIResponse.ok(data=aplicar_plan(db, current_user, project_id))
 
@@ -57,13 +57,13 @@ class AplicarNivelacion(BaseModel):
 
 @router.get("/projects/{project_id}/leveling", summary="Propuesta de nivelación dentro de la holgura")
 def get_leveling(project_id: str, db: Session = Depends(get_db),
-                 current_user: User = Depends(require_admin_or_pm)):
+                 current_user: User = Depends(requiere_capacidad("proyectos.dirigir"))):
     return APIResponse.ok(data=nivelacion.proponer(db, current_user, project_id))
 
 
 @router.post("/projects/{project_id}/leveling/apply", summary="Aplicar la nivelación (todas o las tareas pedidas)")
 def apply_leveling(project_id: str, payload: AplicarNivelacion, db: Session = Depends(get_db),
-                   current_user: User = Depends(require_admin_or_pm)):
+                   current_user: User = Depends(requiere_capacidad("proyectos.dirigir"))):
     enforce_abac(db, current_user, "task", action="update")
     return APIResponse.ok(data=nivelacion.aplicar(db, current_user, project_id, payload.task_ids))
 
@@ -73,7 +73,7 @@ def apply_leveling(project_id: str, payload: AplicarNivelacion, db: Session = De
 @router.get("/workload", summary="Carga por persona y semana desde las tareas (calendario de cada persona)")
 def get_workload(project_id: Optional[str] = None, desde: Optional[date] = Query(None, alias="from"),
                  weeks: Optional[int] = Query(None, ge=1, le=26),
-                 db: Session = Depends(get_db), current_user: User = Depends(require_internal_user)):
+                 db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("proyectos.usar"))):
     from app.services.planificador.carga import carga_por_semana
     return APIResponse.ok(data=carga_por_semana(db, current_user, project_id, desde, weeks))
 
@@ -106,7 +106,7 @@ def get_evm_curve(project_id: str, db: Session = Depends(get_db),
 
 @router.post("/projects/{project_id}/evm/snapshot", summary="Guardar hoy un punto de la curva S")
 def post_evm_snapshot(project_id: str, db: Session = Depends(get_db),
-                      current_user: User = Depends(require_admin_or_pm)):
+                      current_user: User = Depends(requiere_capacidad("proyectos.dirigir"))):
     proyecto = proyecto_visible(db, current_user, project_id)
     evm_service.guardar_punto_de_hoy(db, proyecto)
     return APIResponse.ok(data={"saved": True})
@@ -141,18 +141,18 @@ def list_views(entity_type: str = Query("task", max_length=30), project_id: Opti
 
 @router.post("/views", summary="Guardar una vista", status_code=201)
 def create_view(payload: VistaIn, db: Session = Depends(get_db),
-                current_user: User = Depends(require_internal_user)):
+                current_user: User = Depends(requiere_capacidad("proyectos.usar"))):
     return APIResponse.ok(data=vistas_guardadas.crear(db, current_user, payload.model_dump()))
 
 
 @router.patch("/views/{view_id}", summary="Cambiar una vista guardada")
 def update_view(view_id: str, payload: VistaPatch = Body(...), db: Session = Depends(get_db),
-                current_user: User = Depends(require_internal_user)):
+                current_user: User = Depends(requiere_capacidad("proyectos.usar"))):
     return APIResponse.ok(data=vistas_guardadas.actualizar(db, current_user, view_id,
                                                           payload.model_dump(exclude_unset=True)))
 
 
 @router.delete("/views/{view_id}", summary="Borrar una vista guardada")
 def delete_view(view_id: str, db: Session = Depends(get_db),
-                current_user: User = Depends(require_internal_user)):
+                current_user: User = Depends(requiere_capacidad("proyectos.usar"))):
     return APIResponse.ok(data=vistas_guardadas.borrar(db, current_user, view_id))

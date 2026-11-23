@@ -181,6 +181,8 @@ export default function VoiceCommandModal({ open, onClose }: VoiceCommandModalPr
       voiceApi.command({
         transcript: transcribeResult?.whisper_transcript || '',
         confirm: true,
+        // Auditoría 22-11-2026 (A6): se confirma la propuesta firmada que se enseñó.
+        accion_firmada: transcribeResult?.pending_action?.token,
       }).then(r => r.data),
     onSuccess: (data) => {
       toast.success(data?.action || traducir('voicecommand.accion_ejecutada'))
@@ -192,7 +194,8 @@ export default function VoiceCommandModal({ open, onClose }: VoiceCommandModalPr
       toast.error(msg)
     },
   })
-  const dialogRef = useDialogo<HTMLDivElement>(open, onClose)
+  // Comando de voz: no es un formulario (no pregunta por cambios sin guardar).
+  const dialogRef = useDialogo<HTMLDivElement>(open, onClose, { avisarSinGuardar: false })
 
   if (!open) return null
 

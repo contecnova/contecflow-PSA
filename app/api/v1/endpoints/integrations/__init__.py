@@ -1,7 +1,8 @@
 from fastapi import APIRouter, status, Depends, Body, HTTPException
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_user, get_current_org_id, get_db, require_admin
+from app.api.deps import get_current_user, get_current_org_id, get_db
+from app.core.deps import requiere_capacidad
 from app.core.abac_enforce import enforce_abac
 from app.core.responses import APIResponse, APIListResponse
 from app.services import marketplace_service
@@ -31,7 +32,7 @@ def install_connector(
     payload: dict = Body(...),
     org_id: str = Depends(get_current_org_id),
     db: Session = Depends(get_db),
-    user=Depends(require_admin),
+    user=Depends(requiere_capacidad("integraciones.administrar")),
 ):
     slug = payload.get("connector_slug")
     if not slug:
@@ -63,7 +64,7 @@ def uninstall_integration(
     instance_id: str,
     org_id: str = Depends(get_current_org_id),
     db: Session = Depends(get_db),
-    user=Depends(require_admin),
+    user=Depends(requiere_capacidad("integraciones.administrar")),
 ):
     enforce_abac(db, user, "integration_instance", instance_id, action="delete")
     marketplace_service.uninstall_integration_connector(

@@ -126,10 +126,9 @@ def _reactivar(ticket: Ticket) -> None:
     if ticket.status != TicketStatus.pending_client:
         return
     ticket.status = TicketStatus.in_progress
-    if ticket.sla_paused_at:
-        pausa = ticket.sla_paused_at if ticket.sla_paused_at.tzinfo else ticket.sla_paused_at.replace(tzinfo=timezone.utc)
-        ticket.sla_pause_minutes = (ticket.sla_pause_minutes or 0) + int((_ahora() - pausa).total_seconds() / 60)
-        ticket.sla_paused_at = None
+    # 23-11-2026 (A-SD2): la misma reanudacion que el resto, en el calendario del SLA.
+    from app.services.service_desk.sla_del_ticket import _reanudar_sla_pausado
+    _reanudar_sla_pausado(ticket, _ahora())
 
 
 def _guardar_adjuntos(db: Session, conv: ChannelConversation, ticket: Ticket, m: ChannelMessage, adjuntos) -> str:

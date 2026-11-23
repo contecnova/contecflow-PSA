@@ -14,12 +14,13 @@ def _ingreso_de_pipeline(db: Session, d_from: date) -> float:
     Ponderar es lo que hace que esto sea un forecast y no una lista de deseos:
     una oportunidad al 20 % aporta una quinta parte de su importe.
     """
-    from app.models.pipeline import Opportunity
+    from app.models.pipeline import ETAPAS_CERRADAS, Opportunity
 
+    # Auditoria 04b M9: las canceladas tampoco son pipeline (antes sumaban).
     return sum(
         (opp.expected_revenue or 0) * (opp.probability or 0) / 100
         for opp in db.query(Opportunity).filter(
-            Opportunity.stage.notin_(["won", "lost"]),
+            Opportunity.stage.notin_(ETAPAS_CERRADAS),
             Opportunity.created_at >= d_from,
         ).all()
         if opp.created_at

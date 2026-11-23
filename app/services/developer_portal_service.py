@@ -103,9 +103,13 @@ def create_token(
     token_hash: str,
     scopes: list[str],
     expires_at: datetime,
+    organization_id: str,
 ) -> OAuthToken:
+    # Auditoría 22-11-2026 (M2): el token trabaja en la empresa de su app, no
+    # en la de la ficha del dueño (lo derivaba el sellado desde `user_id`).
     token = OAuthToken(
         id=str(uuid.uuid4()),
+        organization_id=organization_id,
         app_id=app_id,
         user_id=user_id,
         access_token_hash=token_hash,
@@ -187,3 +191,13 @@ def serialize_app(app, include_secret: str = None) -> dict:
     if include_secret:
         out["client_secret"] = include_secret
     return out
+
+
+def dueno_vigente_en_la_empresa(db: Session, owner_id: str, organization_id: str) -> bool:
+    """El dueño de la credencial sigue activo y perteneciendo a la empresa de la app."""
+    from app.db.session import contexto_de_sistema
+    from app.services.entrada_service import pertenece
+    with contexto_de_sistema(db, "oauth_client_credentials"):
+        dueno = db.get(User, owner_id)
+        return bool(dueno and dueno.is_active and (
+            dueno.organization_id == organization_id or pertenece(db, dueno, organization_id)))

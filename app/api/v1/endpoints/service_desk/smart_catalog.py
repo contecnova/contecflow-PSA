@@ -8,12 +8,13 @@ from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from app.core.deps import require_internal_user, get_current_user, require_admin
+from app.core.deps import get_current_user, requiere_capacidad
 from app.core.responses import APIResponse, APIListResponse
 from app.core.tenancy import org_scoped_or_404
 from app.db.session import get_db
 from app.models.user import User
 from app.services.service_desk import smart_catalog_service as svc
+from app.services.service_desk.scoping import empresa_activa
 from app.services.service_desk.smart_catalog_service import (
     auto_prefill_request_form,
     get_popular_services,
@@ -84,9 +85,10 @@ def suggest_service(
     current_user: User = Depends(get_current_user),
     # Mejoras de mercado 16-11-2026: lo usa quien abre una peticion (antes solo
     # un administrador, y el formulario no podia sugerir nada).
-    _rol: User = Depends(require_internal_user),
+    _rol: User = Depends(requiere_capacidad("sd.completo")),
 ):
-    return APIResponse.ok(data=suggest_service_for_query(db, query=payload.query, use_ai=payload.use_ai))
+    return APIResponse.ok(data=suggest_service_for_query(db, query=payload.query, use_ai=payload.use_ai,
+                                                            user_id=current_user.id))
 
 
 @router.post("/prefill", summary="Pre-relleno de formulario basado en descripción (ML/patrones)")
@@ -94,7 +96,7 @@ def prefill_form(
     payload: PrefillIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_internal_user),  # mejoras de mercado 16-11-2026: quien abre la peticion
+    _rol: User = Depends(requiere_capacidad("sd.completo")),  # mejoras de mercado 16-11-2026: quien abre la peticion
 ):
     return APIResponse.ok(data=auto_prefill_request_form(db, description=payload.description, service_id=payload.service_id))
 
@@ -103,9 +105,11 @@ def prefill_form(
 def get_provisioning(
     service_item_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    # Auditoria 2026-11-22 (A-SD14): la configuracion lleva credenciales de
+    # los proveedores (AD, Terraform, Ansible); antes la leia cualquier usuario.
+    current_user: User = Depends(requiere_capacidad("sd.administrar")),
 ):
-    org_id = getattr(current_user, "organization_id", None)
+    org_id = empresa_activa(current_user)  # 23-11-2026 (A-SD13)
     config = svc.configuracion_de_aprovisionamiento(db, service_item_id, org_id)
     return APIResponse.ok(data={"service_item_id": service_item_id, "config": config})
 
@@ -115,9 +119,9 @@ def put_provisioning(
     service_item_id: str,
     payload: ProvisioningConfigIn,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("sd.administrar")),
 ):
-    org_id = getattr(current_user, "organization_id", None)
+    org_id = empresa_activa(current_user)  # 23-11-2026 (A-SD13)
     svc.guardar_configuracion_de_aprovisionamiento(db, service_item_id, org_id, payload.model_dump())
     return APIResponse.ok(data={"service_item_id": service_item_id, "status": "saved"})
 
@@ -127,14 +131,14 @@ def trigger_provisioning(
     service_item_id: str,
     payload: ProvisionIn,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("sd.administrar")),
 ):
     """Execute automated provisioning steps for a service request ticket.
 
     Supports real external provisioning providers (AD/identity, Terraform,
     Ansible) plus local ticket mutations.
     """
-    org_id = getattr(current_user, "organization_id", None)
+    org_id = empresa_activa(current_user)  # 23-11-2026 (A-SD13)
     config = svc.configuracion_de_aprovisionamiento(db, service_item_id, org_id)
 
     if not config.get("enabled"):

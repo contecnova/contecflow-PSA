@@ -27,17 +27,16 @@ from app.services.client_portal_service.autenticacion import (  # noqa: F401
     create_client_token,
     revocar_token_de_cliente,
     token_de_cliente_revocado,
+    exigir_contrasena_cambiada,
     get_portal_session_config,
     create_portal_share_token,
     decode_portal_share_token,
 )
 
 from app.services.client_portal_service.serializacion import (  # noqa: F401
-    _FR_STATUS_LABELS,
-    _FR_PRIORITY_LABELS,
+    etiqueta,
     _FR_PRIORITY_COLORS,
     _FR_STATUS_COLORS,
-    _CR_STATUS_LABELS,
     _CR_STATUS_COLORS,
     _resolve_fr_cr_status,
     fr_out,
@@ -55,6 +54,7 @@ from app.services.client_portal_service.serializacion import (  # noqa: F401
 from app.services.client_portal_service.clientes import (  # noqa: F401
     list_clients,
     create_client,
+    reenviar_acceso,
     update_client,
     delete_client,
     get_active_client_by_id,

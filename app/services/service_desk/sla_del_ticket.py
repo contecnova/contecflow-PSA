@@ -4,11 +4,42 @@ Vivian en `ticket_update_service`, y `ticket_ops_service` (que este importa)
 los traia dentro de una funcion: un ciclo escondido (auditoria 2026-11, #43).
 Aqui no dependen de ninguno de los dos; `ticket_update_service` los reexporta.
 """
+import logging
 from datetime import timezone
+
+from sqlalchemy.orm import object_session
 
 from app.models.service_desk._enums import ESTADOS_DE_TICKET_CERRADOS
 from app.models.service_desk import SLAPolicy
-from app.services.sla_service import calculate_sla_due as _calculate_sla_due, norm_enum as _norm_enum
+from app.services.sla_service import (
+    calculate_sla_due as _calculate_sla_due,
+    calendario_sla,
+    horas_sla_entre,
+    norm_enum as _norm_enum,
+)
+
+logger = logging.getLogger(__name__)
+
+
+def calendario_del_ticket(db, ticket):
+    """El calendario del SLA del ticket (el de su politica, o el de los ajustes
+    de su empresa): el mismo con el que se calcularon sus vencimientos."""
+    politica = (db.query(SLAPolicy).filter(SLAPolicy.id == ticket.sla_policy_id).first()
+                if db is not None and ticket.sla_policy_id else None)
+    return calendario_sla(db, politica, ticket.organization_id)
+
+
+def pausar_sla(ticket, now) -> bool:
+    """Para el reloj del SLA. Si ya estaba parado, no hace nada y devuelve False.
+
+    Auditoria 2026-11-22 (A-SD3): pasar de una espera a otra (cliente →
+    tercero) volvia a poner `sla_paused_at = now` y se perdia el tiempo ya
+    pausado. Ahora la pausa empieza una sola vez y se cierra al reanudar.
+    """
+    if ticket.sla_paused_at:
+        return False
+    ticket.sla_paused_at = now
+    return True
 
 
 def _reanudar_sla_pausado(ticket, now) -> None:
@@ -20,13 +51,28 @@ def _reanudar_sla_pausado(ticket, now) -> None:
     corregir un error y uno donde olvidarlo.
     """
     if not ticket.sla_paused_at:
-        return
+        return 0
     paused_at = ticket.sla_paused_at
     if paused_at.tzinfo is None:
         paused_at = paused_at.replace(tzinfo=timezone.utc)
-    paused_mins = int((now - paused_at).total_seconds() / 60)
+    # Auditoria 2026-11-22 (A-SD2): minutos del CALENDARIO del SLA, no de pared.
+    # Los vencimientos se calculan en horario laboral; sumarles la pausa en
+    # reloj de pared (viernes 17:00 → lunes 9:00 = ~64 h) ocultaba
+    # incumplimientos. Los lectores suman estos minutos con el mismo calendario
+    # (`sla_service.vencimiento_efectivo`).
+    db = object_session(ticket)
+    try:
+        cal = calendario_del_ticket(db, ticket)
+        paused_mins = int(round(horas_sla_entre(paused_at, now, cal) * 60))
+    except Exception:
+        # Sin sesion o sin calendario legible: el criterio anterior (pared),
+        # mejor que perder la pausa.
+        logger.warning("pausa del SLA del ticket %s en reloj de pared: sin calendario",
+                       getattr(ticket, "id", None), exc_info=True)
+        paused_mins = int((now - paused_at).total_seconds() / 60)
     ticket.sla_pause_minutes = (ticket.sla_pause_minutes or 0) + paused_mins
     ticket.sla_paused_at = None
+    return paused_mins
 
 
 def cambiar_prioridad(db, ticket, nueva) -> bool:

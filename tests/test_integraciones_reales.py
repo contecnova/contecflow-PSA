@@ -53,6 +53,8 @@ def test_EL_HALLAZGO_github_trae_los_pull_requests_reales_y_no_inventa_commits(c
 
     def _get(url, params=None, headers=None, timeout=None):
         pedido.update(url=url, auth=headers["Authorization"])
+        # 23-11-2026: GHES/GitHub salen por `cliente_httpx` (IP conectada);
+        # la costura es `_pedir_github`, no `httpx.get` global.
         return _resp(200, [
             {"number": 7, "title": "TSK-00042 login", "html_url": "https://github.com/o/r/pull/7",
              "user": {"login": "ana"}, "head": {"ref": "feature/TSK-00042"}, "base": {"ref": "main"},
@@ -60,7 +62,8 @@ def test_EL_HALLAZGO_github_trae_los_pull_requests_reales_y_no_inventa_commits(c
             {"number": 8, "title": "otra", "html_url": "u", "user": {"login": "b"},
              "head": {"ref": "x"}, "base": {"ref": "main"}, "closed_at": None, "merged_at": None},
         ])
-    monkeypatch.setattr(httpx, "get", _get)
+    from app.services.cab_service import integraciones as cab_int
+    monkeypatch.setattr(cab_int, "_pedir_github", _get)
     iid = _integracion(client, admin_token, "github", {"repo": "o/r", "access_token": "ghp_secreto"})
     r = _sync(client, admin_token, iid)
     assert r.status_code == 200 and r.json()["data"]["synced"] == 2, r.text
@@ -133,10 +136,50 @@ def test_slack_no_tiene_sincronizacion_y_lo_dice(client, admin_token, db):
 
 
 def test_un_error_del_proveedor_no_se_anuncia_como_sincronizado(client, admin_token, db, monkeypatch):
-    monkeypatch.setattr(httpx, "get", lambda *a, **k: _resp(401, {"message": "Bad credentials"}))
+    from app.services.cab_service import integraciones as cab_int
+    monkeypatch.setattr(cab_int, "_pedir_github", lambda *a, **k: _resp(401, {"message": "Bad credentials"}))
     iid = _integracion(client, admin_token, "github", {"repo": "o/r", "access_token": "malo"})
     r = _sync(client, admin_token, iid)
     assert r.status_code == 400 and "401" in r.text
+    assert "Bad credentials" not in r.text, "no se repite la respuesta remota"
+
+
+def test_github_enterprise_sale_por_el_cliente_que_comprueba_la_ip_conectada(monkeypatch):
+    """23-11-2026 (DNS rebinding): la peticion a la API de GitHub/GHES usa
+    `cliente_httpx` (URL, redirecciones e IP real validadas), no `httpx.get`."""
+    from app.core import outbound_url
+    from app.services.cab_service import integraciones as cab_int
+    vistos = []
+
+    class _Cliente:
+        def __init__(self, **k):
+            vistos.append(("cliente", k.get("timeout")))
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+        def get(self, url, params=None, headers=None):
+            vistos.append(("get", url))
+            return _resp(200, [])
+    monkeypatch.setattr(outbound_url, "cliente_httpx", _Cliente)
+    monkeypatch.setattr(httpx, "get", lambda *a, **k: pytest.fail("httpx.get directo"))
+    cab_int._pedir_github("https://ghes.example.com/api/v3/repos/o/r/pulls", params={}, headers={}, timeout=5)
+    assert vistos == [("cliente", 5), ("get", "https://ghes.example.com/api/v3/repos/o/r/pulls")]
+
+
+def test_una_conexion_bloqueada_a_ghes_no_se_anuncia_ni_filtra_la_ip(client, admin_token, db, monkeypatch):
+    from app.core.outbound_url import ConexionBloqueada
+    from app.services.cab_service import integraciones as cab_int
+
+    def _bloqueada(*a, **k):
+        raise ConexionBloqueada("ghes.example.com resolvio a una red no permitida (10.0.0.7)")
+    monkeypatch.setattr(cab_int, "_pedir_github", _bloqueada)
+    iid = _integracion(client, admin_token, "github", {"repo": "o/r", "access_token": "t"})
+    r = _sync(client, admin_token, iid)
+    assert r.status_code == 400 and "10.0.0.7" not in r.text
 
 
 def test_EL_HALLAZGO_los_avisos_a_slack_usan_la_url_descifrada(client, admin_token, db, monkeypatch):

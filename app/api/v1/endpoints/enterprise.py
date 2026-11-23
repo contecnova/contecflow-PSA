@@ -11,7 +11,7 @@ from app.schemas.enterprise import (
 )
 
 from app.db.session import get_db
-from app.core.deps import get_current_user, require_any_manager, require_admin
+from app.core.deps import get_current_user, requiere_capacidad
 from app.core.periodo import CON_HORA, Periodo, periodo
 from app.core.abac_enforce import enforce_abac
 from app.core.responses import APIListResponse, APIResponse
@@ -33,7 +33,7 @@ def get_audit_log(
     user_id: Optional[str] = None, action: Optional[str] = None,
     date_from: Optional[date] = None, date_to: Optional[date] = None,
     page: int = Query(1, ge=1), page_size: int = Query(50, le=MAX_TAMANO_DE_PAGINA),
-    db: Session = Depends(get_db), current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("empresa.administrar")),
 ):
     return APIResponse.ok(data=_svc.get_audit_log(db, resource, resource_id, user_id, action, date_from, date_to, page, page_size))
 
@@ -42,7 +42,7 @@ def get_audit_log(
 @router.get("/audit-log/chain/verify", summary="Verifica la cadena del registro de auditoría de la empresa (admin)")
 def verify_audit_chain(
     expected_seq: Optional[int] = Query(None, ge=1), expected_hash: Optional[str] = Query(None, max_length=64),
-    db: Session = Depends(get_db), current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("empresa.administrar")),
 ):
     from app.db import cadena_auditoria
     esperada = {"seq": expected_seq, "entry_hash": expected_hash} if expected_seq and expected_hash else None
@@ -50,7 +50,7 @@ def verify_audit_chain(
 
 
 @router.get("/audit-log/chain/export", summary="Exportación firmada (Ed25519) del registro de auditoría (admin)")
-def export_audit_chain(db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+def export_audit_chain(db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("empresa.administrar"))):
     import json as _json
     from fastapi.responses import Response
     doc = _svc.exportar_cadena_de_auditoria(db, current_user)
@@ -60,7 +60,7 @@ def export_audit_chain(db: Session = Depends(get_db), current_user: User = Depen
 
 
 @router.get("/audit-log/chain/public-key", summary="Clave pública (PEM) que firma las exportaciones del registro")
-def audit_chain_public_key(current_user: User = Depends(require_admin)):
+def audit_chain_public_key(current_user: User = Depends(requiere_capacidad("empresa.administrar"))):
     from app.db import cadena_auditoria
     return APIResponse.ok(data={"public_key_pem": cadena_auditoria.clave_publica_pem(), "alg": "Ed25519"})
 
@@ -70,7 +70,7 @@ def audit_stats(
     # Periodo libre (16-11-2026): `desde`/`hasta` con hora; `days` sigue valiendo.
     p: Periodo = Depends(periodo(dias_por_defecto=30, granularidades=CON_HORA, serie=False,
                                  dias_alias_max=365)),
-    db: Session = Depends(get_db), current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("empresa.administrar")),
 ):
     data = _svc.compute_audit_stats(db, round(p.dias, 4), desde=p.desde, hasta=p.hasta)
     data["periodo"] = p.a_dict()
@@ -84,7 +84,7 @@ def audit_stats(
 @router.get("/project-permissions/{project_id}", summary="Permisos de un proyecto")
 def get_project_permissions(
     project_id: str, db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("empresa.gestionar")),
 ):
     return APIListResponse.ok(items=_svc.get_project_permissions(project_id, db))
 
@@ -92,7 +92,7 @@ def get_project_permissions(
 @router.post("/project-permissions/{project_id}", summary="Conceder acceso a proyecto")
 def grant_project_permission(
     project_id: str, payload: PermissionCreate,
-    db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
+    db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("empresa.gestionar")),
 ):
     try:
         return APIResponse.ok(data=_svc.grant_project_permission(project_id, payload, current_user, db))
@@ -103,24 +103,24 @@ def grant_project_permission(
 @router.patch("/project-permissions/{project_id}/{permission_id}", summary="Actualizar permiso")
 def update_project_permission(
     project_id: str, permission_id: str, payload: PermissionUpdate,
-    db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
+    db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("empresa.gestionar")),
 ):
     try:
         return APIResponse.ok(data=_svc.update_project_permission(project_id, permission_id, payload, db))
     except ValueError:
-        raise HTTPException(404)
+        raise error_http(404, "no_encontrado", que="permiso")
 
 
 @router.delete("/project-permissions/{project_id}/{permission_id}", summary="Revocar acceso")
 def revoke_project_permission(
     project_id: str, permission_id: str,
-    db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
+    db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("empresa.gestionar")),
 ):
     enforce_abac(db, current_user, "project_permission", permission_id, action="delete")
     try:
         return APIResponse.ok(data=_svc.revoke_project_permission(project_id, permission_id, current_user, db))
     except ValueError:
-        raise HTTPException(404)
+        raise error_http(404, "no_encontrado", que="permiso")
 
 
 # ── Webhooks ──────────────────────────────────────────────────────────────────
@@ -128,7 +128,7 @@ def revoke_project_permission(
 
 
 @router.get("/webhooks", summary="Listar webhooks")
-def list_webhooks(db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+def list_webhooks(db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("empresa.administrar"))):
     return APIListResponse.ok(items=_svc.list_webhooks(db))
 
 
@@ -141,7 +141,7 @@ def list_webhook_events(current_user: User = Depends(get_current_user)):
 def list_all_deliveries(
     webhook_id: Optional[str] = None, event: Optional[str] = None, success: Optional[bool] = None,
     page: int = Query(1, ge=1), page_size: int = Query(50, ge=1, le=MAX_TAMANO_DE_PAGINA),
-    db: Session = Depends(get_db), current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("empresa.administrar")),
 ):
     # Segunda auditoria 2026-11 (#22): una consulta en vez de una por webhook.
     r = _svc.list_all_webhook_deliveries(db, webhook_id=webhook_id, event=event, success=success,
@@ -152,7 +152,7 @@ def list_all_deliveries(
 @router.post("/webhooks", summary="Crear webhook")
 def create_webhook(
     payload: WebhookCreate, db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("empresa.administrar")),
 ):
     try:
         return APIResponse.ok(data=_svc.create_webhook(payload, current_user, db))
@@ -164,41 +164,53 @@ def create_webhook(
 @router.patch("/webhooks/{hook_id}", summary="Actualizar webhook")
 def update_webhook(
     hook_id: str, payload: WebhookUpdate,
-    db: Session = Depends(get_db), current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("empresa.administrar")),
 ):
     try:
         return APIResponse.ok(data=_svc.update_webhook(hook_id, payload, current_user, db))
     except ValueError as e:
         if str(e) == "not_found":
-            raise HTTPException(404)
+            raise error_http(404, "no_encontrado", que="webhook")
         # SSRF guard / validation failure → 400.
         raise desde_valor(400, e)
 
 
+@router.post("/webhooks/{hook_id}/reactivate", summary="Reactivar un webhook suspendido")
+def reactivate_webhook(
+    hook_id: str, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("empresa.administrar")),
+):
+    """Auditoría 22-11-2026 (A44): el cortacircuitos lo suspende; aquí se reactiva."""
+    enforce_abac(db, current_user, "webhook", hook_id, action="update")
+    try:
+        return APIResponse.ok(data=_svc.reactivar_webhook(hook_id, current_user, db))
+    except ValueError:
+        raise error_http(404, "no_encontrado", que="webhook")
+
+
 @router.delete("/webhooks/{hook_id}", summary="Eliminar webhook")
 def delete_webhook(
-    hook_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_admin),
+    hook_id: str, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("empresa.administrar")),
 ):
     enforce_abac(db, current_user, "webhook", hook_id, action="delete")
     try:
         return APIResponse.ok(data=_svc.delete_webhook(hook_id, current_user, db))
     except ValueError:
-        raise HTTPException(404)
+        raise error_http(404, "no_encontrado", que="webhook")
 
 
 @router.post("/webhooks/{hook_id}/test", summary="Enviar payload de prueba")
 def test_webhook(
-    hook_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_admin),
+    hook_id: str, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("empresa.administrar")),
 ):
     hook = _svc.get_webhook_for_test(hook_id, db)
-    if not hook: raise HTTPException(404)
+    if not hook: raise error_http(404, "no_encontrado", que="webhook")
     return APIResponse.ok(data=_svc.test_webhook_delivery(hook, current_user))
 
 
 @router.get("/webhooks/{hook_id}/deliveries", summary="Historial de entregas")
 def get_deliveries(
     hook_id: str, limit: int = Query(20, le=100),
-    db: Session = Depends(get_db), current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("empresa.administrar")),
 ):
     return APIListResponse.ok(items=_svc.get_webhook_deliveries(hook_id, limit, db))
 
@@ -208,13 +220,13 @@ def get_deliveries(
 
 
 @router.get("/sso", summary="Configuraciones SSO")
-def list_sso(db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+def list_sso(db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("empresa.administrar"))):
     return APIListResponse.ok(items=_svc.list_sso_configs(db))
 
 
 @router.post("/sso", summary="Crear configuración SSO")
 def create_sso(
-    payload: SSOCreate, db: Session = Depends(get_db), current_user: User = Depends(require_admin),
+    payload: SSOCreate, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("empresa.administrar")),
 ):
     return APIResponse.ok(data=_svc.create_sso_config(payload, current_user, db))
 
@@ -222,7 +234,7 @@ def create_sso(
 @router.patch("/sso/{config_id}", summary="Actualizar SSO")
 def update_sso(
     config_id: str, payload: SSOUpdate,
-    db: Session = Depends(get_db), current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("empresa.administrar")),
 ):
     try:
         return APIResponse.ok(data=_svc.update_sso_config(config_id, payload, current_user, db))
@@ -233,21 +245,21 @@ def update_sso(
 
 @router.delete("/sso/{config_id}", summary="Eliminar SSO")
 def delete_sso(
-    config_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_admin),
+    config_id: str, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("empresa.administrar")),
 ):
     enforce_abac(db, current_user, "sso_config", config_id, action="delete")
     try:
         return APIResponse.ok(data=_svc.delete_sso_config(config_id, db, current_user))
     except ValueError:
-        raise HTTPException(404)
+        raise error_http(404, "no_encontrado", que="configuracion_sso")
 
 
 @router.post("/sso/{config_id}/test", summary="Validar configuración SSO")
 def test_sso(
-    config_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_admin),
+    config_id: str, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("empresa.administrar")),
 ):
     config = _svc.get_sso_config_for_test(config_id, db)
-    if not config: raise HTTPException(404)
+    if not config: raise error_http(404, "no_encontrado", que="configuracion_sso")
     return APIResponse.ok(data=_svc.validate_sso_config(config))
 
 
@@ -282,7 +294,7 @@ def mark_read(
     try:
         return APIResponse.ok(data=_svc.mark_notification_read(notif_id, current_user, db))
     except ValueError:
-        raise HTTPException(404)
+        raise error_http(404, "no_encontrado", que="notificacion")
 
 
 @router.delete("/notifications/clear-old", summary="Limpiar notificaciones antiguas")
@@ -301,7 +313,7 @@ def clear_old_notifications(
 @router.get("/subcontractors", summary="Listar subcontratistas")
 def list_subcontractors(
     is_active: Optional[bool] = None,
-    db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
+    db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("empresa.gestionar")),
 ):
     return APIListResponse.ok(items=_svc.list_subcontractors(is_active, db))
 
@@ -309,7 +321,7 @@ def list_subcontractors(
 @router.post("/subcontractors", summary="Crear subcontratista")
 def create_subcontractor(
     payload: SubCreate, db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("empresa.gestionar")),
 ):
     return APIResponse.ok(data=_svc.create_subcontractor(payload, current_user, db))
 
@@ -317,17 +329,17 @@ def create_subcontractor(
 @router.patch("/subcontractors/{sub_id}", summary="Actualizar subcontratista")
 def update_subcontractor(
     sub_id: str, payload: SubUpdate,
-    db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
+    db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("empresa.gestionar")),
 ):
     try:
         return APIResponse.ok(data=_svc.update_subcontractor(sub_id, payload, db))
     except ValueError:
-        raise HTTPException(404)
+        raise error_http(404, "no_encontrado", que="subcontratista")
 
 
 @router.delete("/subcontractors/{sub_id}", summary="Eliminar subcontratista (soft delete)")
 def delete_subcontractor(
-    sub_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
+    sub_id: str, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("empresa.gestionar")),
 ):
     enforce_abac(db, current_user, "subcontractor", sub_id, action="delete")
     try:
@@ -343,18 +355,18 @@ def delete_subcontractor(
 @router.post("/subcontractors/{sub_id}/rates", summary="Añadir tarifa")
 def add_rate(
     sub_id: str, payload: RateCreate,
-    db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
+    db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("empresa.gestionar")),
 ):
     try:
         return APIResponse.ok(data=_svc.add_subcontractor_rate(sub_id, payload, db))
     except ValueError:
-        raise HTTPException(404)
+        raise error_http(404, "no_encontrado", que="subcontratista")
 
 
 @router.delete("/subcontractors/{sub_id}/rates/{rate_id}", summary="Eliminar tarifa")
 def delete_rate(
     sub_id: str, rate_id: str,
-    db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
+    db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("empresa.gestionar")),
 ):
     enforce_abac(db, current_user, "subcontractor_rate", rate_id, action="delete")
     try:
@@ -366,7 +378,7 @@ def delete_rate(
 
 @router.get("/subcontractors/{sub_id}/assignments", summary="Asignaciones del subcontratista")
 def get_assignments(
-    sub_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
+    sub_id: str, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("empresa.gestionar")),
 ):
     return APIListResponse.ok(items=_svc.get_subcontractor_assignments(sub_id, db))
 
@@ -374,18 +386,18 @@ def get_assignments(
 @router.post("/subcontractors/{sub_id}/assignments", summary="Asignar a proyecto")
 def create_assignment(
     sub_id: str, payload: AssignmentCreate,
-    db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
+    db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("empresa.gestionar")),
 ):
     try:
         return APIResponse.ok(data=_svc.create_subcontractor_assignment(sub_id, payload, current_user, db))
     except ValueError:
-        raise HTTPException(404)
+        raise error_http(404, "no_encontrado", que="asignacion")
 
 
 @router.post("/subcontractors/assignments/{assignment_id}/end", summary="Terminar asignación (deja de ser miembro)")
 def end_assignment(
     assignment_id: str, payload: AssignmentEnd = Body(default=AssignmentEnd()),
-    db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
+    db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("empresa.gestionar")),
 ):
     return APIResponse.ok(data=_svc.end_subcontractor_assignment(
         None, assignment_id, payload.end_date, current_user, db))
@@ -393,7 +405,7 @@ def end_assignment(
 
 @router.get("/subcontractors/{sub_id}/reconciliation", summary="Facturas del proveedor contra horas imputadas")
 def reconcile_invoices(
-    sub_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
+    sub_id: str, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("empresa.gestionar")),
 ):
     return APIListResponse.ok(items=_svc.reconcile_invoices(sub_id, db))
 
@@ -401,45 +413,45 @@ def reconcile_invoices(
 @router.get("/subcontractors/workers", summary="Buscar trabajadores de subcontratistas")
 def list_all_workers(
     skill_id: Optional[str] = None, is_active: Optional[bool] = None,
-    db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
+    db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("empresa.gestionar")),
 ):
     return APIListResponse.ok(items=_svc.list_all_workers(skill_id, is_active, db))
 
 
 @router.get("/subcontractors/{sub_id}/workers", summary="Trabajadores del subcontratista")
 def get_workers(
-    sub_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
+    sub_id: str, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("empresa.gestionar")),
 ):
     try:
         return APIListResponse.ok(items=_svc.get_workers_for_subcontractor(sub_id, db))
     except ValueError:
-        raise HTTPException(404)
+        raise error_http(404, "no_encontrado", que="subcontratista")
 
 
 @router.post("/subcontractors/{sub_id}/workers", summary="Añadir trabajador al subcontratista", status_code=201)
 def create_worker(
     sub_id: str, payload: WorkerCreate,
-    db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
+    db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("empresa.gestionar")),
 ):
     sub = _svc.get_subcontractor(db, sub_id)
-    if not sub: raise HTTPException(404)
+    if not sub: raise error_http(404, "no_encontrado", que="subcontratista")
     return APIResponse.ok(data=_svc.create_worker_with_user(sub, payload, current_user, db))
 
 
 @router.patch("/subcontractors/workers/{worker_id}", summary="Actualizar trabajador")
 def update_worker(
     worker_id: str, payload: WorkerUpdate,
-    db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
+    db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("empresa.gestionar")),
 ):
     try:
         return APIResponse.ok(data=_svc.update_worker(worker_id, payload, db, current_user))
     except ValueError:
-        raise HTTPException(404)
+        raise error_http(404, "no_encontrado", que="trabajador")
 
 
 @router.delete("/subcontractors/workers/{worker_id}", summary="Desactivar trabajador (soft delete)")
 def delete_worker(
-    worker_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
+    worker_id: str, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("empresa.gestionar")),
 ):
     enforce_abac(db, current_user, "subcontractor_worker", worker_id, action="delete")
     try:
@@ -452,30 +464,30 @@ def delete_worker(
 @router.post("/subcontractors/workers/{worker_id}/skills", summary="Asignar skill al trabajador", status_code=201)
 def add_worker_skill(
     worker_id: str, payload: WorkerSkillCreate,
-    db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
+    db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("empresa.gestionar")),
 ):
     try:
         return APIResponse.ok(data=_svc.add_worker_skill(worker_id, payload, db))
     except ValueError:
-        raise HTTPException(404)
+        raise error_http(404, "no_encontrado", que="trabajador")
 
 
 @router.delete("/subcontractors/workers/{worker_id}/skills/{skill_id}", summary="Eliminar skill del trabajador")
 def remove_worker_skill(
     worker_id: str, skill_id: str,
-    db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
+    db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("empresa.gestionar")),
 ):
     enforce_abac(db, current_user, "subcontractor_worker_skill", skill_id, action="delete")
     try:
         return APIResponse.ok(data=_svc.remove_worker_skill(worker_id, skill_id, db))
     except ValueError:
-        raise HTTPException(404)
+        raise error_http(404, "no_encontrado", que="trabajador")
 
 
 @router.get("/subcontractors/{sub_id}/timelogs", summary="Registros de horas del subcontratista")
 def get_timelogs(
     sub_id: str, project_id: Optional[str] = None,
-    db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
+    db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("empresa.gestionar")),
 ):
     return APIListResponse.ok(items=_svc.get_timelogs(sub_id, project_id, db))
 
@@ -483,18 +495,18 @@ def get_timelogs(
 @router.post("/subcontractors/{sub_id}/timelogs", summary="Registrar horas de subcontratista")
 def create_timelog(
     sub_id: str, payload: dict = Body(...),
-    db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
+    db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("empresa.gestionar")),
 ):
     try:
         return APIResponse.ok(data=_svc.create_timelog(sub_id, payload, db))
     except ValueError:
-        raise HTTPException(404)
+        raise error_http(404, "no_encontrado", que="trabajador")
 
 
 @router.delete("/subcontractors/{sub_id}/timelogs/{log_id}", summary="Eliminar registro de horas")
 def delete_timelog(
     sub_id: str, log_id: str,
-    db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
+    db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("empresa.gestionar")),
 ):
     enforce_abac(db, current_user, "subcontractor_timelog", log_id, action="delete")
     try:
@@ -506,7 +518,7 @@ def delete_timelog(
 
 @router.get("/subcontractors/{sub_id}/invoices", summary="Facturas recibidas del subcontratista")
 def get_sub_invoices(
-    sub_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
+    sub_id: str, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("empresa.gestionar")),
 ):
     return APIListResponse.ok(items=_svc.get_sub_invoices(sub_id, db))
 
@@ -514,28 +526,28 @@ def get_sub_invoices(
 @router.post("/subcontractors/{sub_id}/invoices", summary="Registrar factura recibida")
 def create_sub_invoice(
     sub_id: str, payload: dict = Body(...),
-    db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
+    db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("empresa.gestionar")),
 ):
     try:
         return APIResponse.ok(data=_svc.create_sub_invoice(sub_id, payload, current_user, db))
     except ValueError:
-        raise HTTPException(404)
+        raise error_http(404, "no_encontrado", que="subcontratista")
 
 
 @router.patch("/subcontractors/{sub_id}/invoices/{inv_id}", summary="Actualizar estado de factura")
 def update_sub_invoice(
     sub_id: str, inv_id: str, payload: dict = Body(...),
-    db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
+    db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("empresa.gestionar")),
 ):
     try:
-        return APIResponse.ok(data=_svc.update_sub_invoice(sub_id, inv_id, payload, db))
+        return APIResponse.ok(data=_svc.update_sub_invoice(sub_id, inv_id, payload, db, current_user))
     except ValueError:
-        raise HTTPException(404)
+        raise error_http(404, "no_encontrado", que="factura")
 
 
 @router.get("/subcontractors-dashboard", summary="Dashboard global de subcontratistas")
 def subcontractors_dashboard(
-    db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
+    db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("empresa.gestionar")),
 ):
     return APIResponse.ok(data=_svc.get_subcontractors_dashboard(db))
 
@@ -547,7 +559,7 @@ def subcontractors_dashboard(
 @router.get("/revenue-forecast/portfolio", summary="Previsión de ingresos de toda la cartera")
 def portfolio_forecast(
     year: int = Query(None),
-    db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
+    db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("empresa.gestionar")),
 ):
     return APIResponse.ok(data=_svc.get_portfolio_forecast(db, year or datetime.now(timezone.utc).year))
 
@@ -555,7 +567,7 @@ def portfolio_forecast(
 @router.get("/revenue-forecast/{project_id}", summary="Previsión de un proyecto")
 def project_forecast(
     project_id: str, year: int = Query(None),
-    db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
+    db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("empresa.gestionar")),
 ):
     return APIResponse.ok(data=_svc.get_project_forecast(project_id, year or datetime.now(timezone.utc).year, db))
 
@@ -563,7 +575,7 @@ def project_forecast(
 @router.post("/revenue-forecast/{project_id}/{year}/{month}", summary="Crear/actualizar previsión mensual")
 def upsert_forecast(
     project_id: str, year: int, month: int, payload: ForecastUpdate,
-    db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
+    db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("empresa.gestionar")),
 ):
     if not 1 <= month <= 12: raise error_http(400, "mes_no_valido", detail="Mes inválido (1-12)")
     return APIResponse.ok(data=_svc.upsert_forecast(project_id, year, month, payload, db))

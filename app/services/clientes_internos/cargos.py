@@ -14,10 +14,13 @@ Emitir un cargo que deja el consumo del año por encima del presupuesto lo deja
 lo emitió (segregación de funciones). Todo deja `audit_log`.
 """
 from __future__ import annotations
+import logging
 
 import csv
+from app.core.celdas_seguras import neutralizar_formula
 import io
 from datetime import date, datetime, timezone
+from app.core import timeutil
 from typing import Optional
 
 from sqlalchemy.orm import Session
@@ -88,10 +91,15 @@ def listar(db: Session, usuario, client_id: Optional[str] = None, period: Option
 
 
 def _numero(db: Session, org_id, modo: str, periodo: str) -> str:
+    """Auditoría 22-11-2026 (M62): secuencia bloqueada por empresa, modo y periodo
+    (antes `count()+1`: dos generaciones a la vez repetían número)."""
+    from app.services.numbering import maximo_numerico, siguiente_codigo
     base = f"{PREFIJOS[modo]}-{periodo.replace('-', '')}-"
-    n = db.query(InternalCharge).filter(InternalCharge.organization_id == org_id,
-                                        InternalCharge.number.like(base + "%")).count()
-    return f"{base}{n + 1:03d}"
+    return siguiente_codigo(db, f"internal_charge:{modo}:{periodo}"[:50], prefijo=base, relleno=3, org_id=org_id,
+                            maximo_existente=lambda: maximo_numerico(
+                                n for (n,) in db.query(InternalCharge.number).filter(
+                                    InternalCharge.organization_id == org_id,
+                                    InternalCharge.number.like(base + "%"))))
 
 
 def generar(db: Session, actor, client_id: str, periodo: str) -> dict:
@@ -168,13 +176,21 @@ def _emitir(db: Session, actor, c: InternalCharge, unidad) -> None:
 
 
 def _factura_intercompania(db: Session, actor, c: InternalCharge, unidad) -> Optional[str]:
+    from app.models.billing_reports import Invoice
     from app.schemas.billing_reports import InvoiceCreate
     from app.services.billing_reports_service.facturas import create_invoice
+    # M12 (auditoría 22-11-2026): `create_invoice` confirma por su cuenta; si
+    # algo fallaba después, el reintento creaba OTRA factura. Ahora es
+    # idempotente: si ya hay una factura intercompañía de este cargo, se reutiliza.
+    previa = db.query(Invoice.id).filter(Invoice.notes == f"Intercompañía {c.number}",
+                                         Invoice.client_name == unidad.name).first()
+    if previa is not None:
+        return previa[0]
     desde, hasta = C.periodo(c.period)
     lineas = [{"description": li.description, "quantity": 1, "unit": "ud", "unit_price": round(li.amount or 0, 2),
                "source_type": "internal_charge", "source_ids": [li.id]} for li in c.lines if li.amount]
     payload = InvoiceCreate(client_name=unidad.name, client_address=unidad.billing_address or unidad.address,
-                            client_vat=unidad.tax_id, client_email=unidad.email, issue_date=date.today(),
+                            client_vat=unidad.tax_id, client_email=unidad.email, issue_date=timeutil.today(),
                             currency=c.currency, notes=f"Intercompañía {c.number}", period_from=desde,
                             period_to=hasta, lines=lineas)
     factura = create_invoice(payload, actor, db)
@@ -194,13 +210,9 @@ def puede_aprobar(db: Session, usuario, c: InternalCharge, unidad) -> bool:
 
 
 def _segregacion(db: Session, actor, c: InternalCharge) -> None:
+    # M12: sin el `try/except: pass` inútil (llamaba a una comprobación y
+    # tragaba su resultado para lanzar después este mismo error).
     if actor.id in (c.created_by, c.issued_by):
-        from app.services.approval_engine._base import exigir_que_no_sea_suyo
-        solicitante = c.issued_by if actor.id == c.issued_by else c.created_by
-        try:
-            exigir_que_no_sea_suyo(db, solicitante, actor, TIPO_DE_APROBACION, c.id)
-        except Exception:
-            pass
         raise error(403, "interno_sod_cargo")
 
 
@@ -266,8 +278,12 @@ def cuenta_de_ti(db: Session, org_id) -> str:
     return str(ajuste_de_empresa(db, "INTERNAL_IT_ERP_ACCOUNT", org_id) or "").strip()
 
 
-def exportar(db: Session, actor, periodo: str) -> str:
+def exportar(db: Session, actor, periodo: str, reexportar: bool = False) -> str:
     """CSV de asientos de los chargebacks emitidos del mes; los marca como exportados.
+
+    M12 (auditoría 22-11-2026): con `reexportar`, también los ya exportados del
+    mes con su MISMO asiento (`erp_reference`), sin volver a marcarlos: si la
+    descarga se perdía, no había forma de volver a obtener el fichero.
 
     Dos apuntes por cargo: debe en la cuenta/centro de la unidad (`erp_account`,
     o el código de su centro de coste) y haber en la cuenta de TI de la empresa
@@ -279,26 +295,40 @@ def exportar(db: Session, actor, periodo: str) -> str:
     cuenta_ti = cuenta_de_ti(db, getattr(actor, "organization_id", None))
     if not cuenta_ti:
         raise error(409, "interno_sin_cuenta_ti")
-    filas = db.query(InternalCharge).filter(InternalCharge.period == periodo, InternalCharge.status == "emitido",
+    estados = ("emitido", "exportado") if reexportar else ("emitido",)
+    filas = db.query(InternalCharge).filter(InternalCharge.period == periodo, InternalCharge.status.in_(estados),
                                             InternalCharge.mode == "chargeback").order_by(InternalCharge.number).all()
+    usados = {c.erp_reference for c in filas if c.erp_reference}
     salida = io.StringIO()
     w = csv.writer(salida, delimiter=";")
     w.writerow(["entry", "date", "document", "unit", "cost_center", "account", "debit", "credit", "currency",
                 "description"])
-    hoy = date.today().isoformat()
-    for n, c in enumerate(filas, start=1):
+    hoy = timeutil.today().isoformat()
+    n = 0
+    for c in filas:
         unidad = db.get(Client, c.client_id)
         centro = db.get(ALMCostCenter, unidad.cost_center_id) if unidad and unidad.cost_center_id else None
         cuenta = (unidad.erp_account if unidad else None) or (centro.code if centro else "")
-        asiento = f"{periodo.replace('-', '')}-{n:04d}"
+        if c.status == "exportado" and c.erp_reference:
+            asiento = c.erp_reference
+        else:
+            n += 1
+            asiento = f"{periodo.replace('-', '')}-{n:04d}"
+            while asiento in usados:
+                n += 1
+                asiento = f"{periodo.replace('-', '')}-{n:04d}"
+            usados.add(asiento)
         texto = f"Cargo interno {c.number} {periodo}"
-        w.writerow([asiento, hoy, c.number, unidad.name if unidad else "", centro.code if centro else "", cuenta,
-                    f"{c.total:.2f}", "0.00", c.currency or "", texto])
-        w.writerow([asiento, hoy, c.number, "", "", cuenta_ti, "0.00", f"{c.total:.2f}", c.currency or "", texto])
-        c.status = "exportado"
-        c.exported_at = _ahora()
-        c.erp_reference = asiento
+        w.writerow([asiento, hoy, c.number, neutralizar_formula(unidad.name if unidad else ""),
+                    neutralizar_formula(centro.code if centro else ""), neutralizar_formula(cuenta),
+                    f"{c.total:.2f}", "0.00", neutralizar_formula(c.currency or ""), texto])
+        w.writerow([asiento, hoy, c.number, "", "", neutralizar_formula(cuenta_ti), "0.00", f"{c.total:.2f}",
+                    neutralizar_formula(c.currency or ""), texto])
+        if c.status != "exportado":
+            c.status = "exportado"
+            c.exported_at = _ahora()
+            c.erp_reference = asiento
     audit_log(db, actor, "EXPORT", "internal_charge", None, f"asientos {periodo}",
-              metadata={"period": periodo, "charges": [c.number for c in filas]})
+              metadata={"period": periodo, "charges": [c.number for c in filas], "reexport": reexportar})
     db.commit()
     return salida.getvalue()

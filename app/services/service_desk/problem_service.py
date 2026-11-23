@@ -152,7 +152,13 @@ def link_ticket_to_problem_record(db: Session, current_user: User, problem_id: s
 
 # ── RCA with AI ───────────────────────────────────────────────────────────────
 
-def suggest_rca_from_ai(db: Session, problem: Problem) -> dict:
+def _t(db: Session, clave: str, org_id=None, user_id=None, **datos) -> str:
+    """Texto de este servicio en el idioma del usuario o de la empresa."""
+    from app.services.textos_de_salida_servicios_m_z import texto_para
+    return texto_para(db, clave, user_id=user_id, org_id=org_id, **datos)
+
+
+def suggest_rca_from_ai(db: Session, problem: Problem, user_id: str | None = None) -> dict:
     """Call the configured AI provider to suggest a root cause for *problem*.
 
     Gathers the descriptions of all linked tickets and asks the AI to identify
@@ -205,21 +211,29 @@ def suggest_rca_from_ai(db: Session, problem: Problem) -> dict:
             # Segunda auditoria 2026-11 (#33): desde el worker no hay usuario;
             # sin la organizacion no aplicaban su tope de gasto ni su proveedor.
             organization_id=getattr(problem, "organization_id", None),
+            # Auditoria 2026-11-22 (4.3): con el usuario si lo hay (endpoint).
+            user_id=user_id,
         )
-        provider_used = result.get("provider", "unknown")
-        raw = (result.get("content") or "").strip()
+        # Auditoria 2026-11-22 (A-SD10): `call_ai` devuelve texto; hacer
+        # `.get(...)` sobre el lanzaba AttributeError y la RCA con IA caia
+        # siempre en «manual RCA required».
+        raw = (result if isinstance(result, str) else (result or {}).get("content", "") or "").strip()
 
         # Extract JSON from response (may be wrapped in markdown)
         start = raw.find("{")
         end = raw.rfind("}") + 1
         if start >= 0 and end > start:
             suggestion = _json.loads(raw[start:end])
+            provider_used = "ai"
         else:
-            suggestion = {"root_cause": raw, "rca_type": "unknown", "confidence": 40, "workaround": ""}
+            # Sin JSON es un aviso (sin proveedor, bloqueo de politica...): no
+            # se escribe como causa raiz del problema.
+            suggestion = {"root_cause": "", "rca_type": "unknown", "confidence": 0,
+                          "workaround": "", "ai_message": raw[:500]}
     except Exception as exc:
         logger.warning("suggest_rca_from_ai: AI call failed: %s", exc)
         suggestion = {
-            "root_cause": "Unable to determine automatically — manual RCA required.",
+            "root_cause": _t(db, "problema.rca_manual", getattr(problem, "organization_id", None), user_id),
             "rca_type": "unknown",
             "confidence": 0,
             "workaround": "",
@@ -262,12 +276,13 @@ def create_problem_from_correlation(
         raise error(400, "sin_tickets_para_correlacion", detail="No tickets found for correlation")
 
     # Use the first ticket title as a base if we have few tickets
-    base_title = tickets[0].title if tickets else "Recurring incidents"
-    title = f"[Auto-detected] {category or base_title} — {len(tickets)} linked incidents"
+    org_idioma = tickets[0].organization_id
+    base_title = tickets[0].title if tickets else _t(db, "problema.auto.base", org_idioma)
+    title = _t(db, "problema.auto.titulo", org_idioma, base=category or base_title, n=len(tickets))
 
     description = (
-        f"Problem auto-detected from {len(tickets)} correlated incidents "
-        f"in category '{category}' with priority '{priority}'.\n\n"
+        _t(db, "problema.auto.descripcion", org_idioma, n=len(tickets), categoria=category, prioridad=priority)
+        + "\n\n"
         + "\n".join(f"- [{t.number}] {t.title}" for t in tickets)
     )
 
@@ -342,14 +357,16 @@ def create_change_from_problem(
     except Exception:
         logger.debug("create_change_from_problem: fallo best-effort ignorado", exc_info=True)
 
-    title = custom_title or f"[RFC] Resolver causa raíz: {problem.title[:200]}"
-    description = custom_description or (
-        f"RFC generado automáticamente a partir del Problema {problem.number}.\n\n"
-        f"**Causa raíz:** {problem.root_cause or 'Pendiente de análisis'}\n\n"
-        f"**Workaround actual:** {problem.workaround or 'Ninguno'}\n\n"
-        f"**Incidentes relacionados:** {', '.join(t.number for t in linked_tickets) or 'Ninguno'}\n\n"
-        f"**Descripción del problema:** {problem.description or ''}"
-    )
+    def _u(clave: str, **datos) -> str:
+        return _t(db, clave, getattr(problem, "organization_id", None), current_user.id, **datos)
+
+    title = custom_title or _u("problema.rfc.titulo", titulo=problem.title[:200])
+    description = custom_description or _u(
+        "problema.rfc.descripcion", numero=problem.number,
+        causa=problem.root_cause or _u("problema.rfc.pendiente"),
+        workaround=problem.workaround or _u("problema.rfc.ninguno"),
+        incidentes=", ".join(t.number for t in linked_tickets) or _u("problema.rfc.ninguno"),
+        descripcion=problem.description or "")
 
     # Map problem priority to change risk
     _risk_map = {
@@ -358,7 +375,8 @@ def create_change_from_problem(
         "p3_medium": "medium",
         "p4_low": "low",
     }
-    risk = _risk_map.get(str(problem.priority), "medium")
+    # Auditoria 2026-11-22 (4.4): el valor del enum; `str()` daba «TicketPriority.p1_critical».
+    risk = _risk_map.get(str(getattr(problem.priority, "value", problem.priority)), "medium")
 
     payload = {
         "title": title,
@@ -366,10 +384,10 @@ def create_change_from_problem(
         "change_type": change_type,
         "risk": risk,
         "priority": getattr(problem.priority, "value", problem.priority) if problem.priority else "p3_medium",
-        "business_justification": f"Eliminar causa raíz del Problema {problem.number}",
-        "impact_description": f"CIs afectados: {', '.join(affected_cis) or 'Por determinar'}",
+        "business_justification": _u("problema.rfc.justificacion", numero=problem.number),
+        "impact_description": _u("problema.rfc.impacto", cis=", ".join(affected_cis) or _u("problema.rfc.por_determinar")),
         "related_problem_id": problem.id,
-        "rollback_plan": problem.workaround or "Ver workaround del problema asociado",
+        "rollback_plan": problem.workaround or _u("problema.rfc.vuelta_atras"),
     }
     if planned_start:
         payload["planned_start"] = planned_start

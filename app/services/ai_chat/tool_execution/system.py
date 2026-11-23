@@ -20,8 +20,9 @@ def _get_alerts(tool_input, db, user, now, is_financial_role):
     alerts = q.order_by(Alert.created_at.desc()).limit(tool_input.get("limit", 20)).all()
     proj_ids = {a.project_id for a in alerts if a.project_id}
     proj_map = {p.id: p for p in db.query(Project).filter(Project.id.in_(proj_ids)).all()}
+    from app.services.textos_guardados import pintar_campo
     return {"alerts": [{
-        "id": a.id, "title": a.title, "description": a.description,
+        "id": a.id, "title": pintar_campo(a, "title"), "description": pintar_campo(a, "description"),
         "alert_type": str(a.alert_type), "severity": str(a.severity),
         "project_name": proj_map[a.project_id].name if a.project_id and a.project_id in proj_map else None,
         "value": a.value, "threshold": a.threshold,
@@ -105,13 +106,19 @@ def _search_all(tool_input, db, user, now, is_financial_role):
 def _send_notification(tool_input, db, user, now, is_financial_role):
     from app.models.enterprise import Notification
     sent = []
+    # Auditoría 22-11-2026 (A7): el enlace lo escribe el modelo (inyección
+    # indirecta): solo rutas internas de la aplicación («/…», no «//host»).
+    enlace = tool_input.get("link")
+    if not (isinstance(enlace, str) and enlace.startswith("/") and not enlace.startswith("//")
+            and "\\" not in enlace):
+        enlace = None
     # Solo a personas que ve quien manda (`politica_de_visibilidad`).
     for name in (tool_input.get("user_names") or []):
         u = buscar_persona(db, user, name)
         if u:
             db.add(Notification(
                 user_id=u.id, title="Mensaje del Agente IA",
-                body=tool_input["message"], action_url=tool_input.get("link"),
+                body=tool_input["message"], action_url=enlace,
             ))
             sent.append(u.full_name)
     db.flush()

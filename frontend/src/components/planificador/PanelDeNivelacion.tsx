@@ -69,7 +69,7 @@ export default function PanelDeNivelacion({ projectId }: { projectId: string }) 
             <TablaSimple claseTabla="plan-tabla">
               <thead>
                 <tr>
-                  <th /><th>{t('planificador.col_tarea')}</th><th>{t('planificador.col_persona')}</th>
+                  <th><span className="u-sr-only">{t('common.col_seleccion')}</span></th><th>{t('planificador.col_tarea')}</th><th>{t('planificador.col_persona')}</th>
                   <th>{t('planificador.col_antes')}</th><th>{t('planificador.col_despues')}</th>
                   <th className="plan-num">{t('planificador.col_retraso')}</th>
                 </tr>

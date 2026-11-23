@@ -13,7 +13,7 @@
 import { useState, useId } from 'react'
 import type { ChangeEvent, CSSProperties, ReactNode } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import api, { projectsApi, usersApi } from '../services/api'
+import { raciApi, usersApi } from '../services/api'
 import type { PersonaVisible } from '../services/api'
 import { Avatar, Spinner, EmptyState, Button, Card, Modal, Pulsable, Select, TablaSimple, useErroresDeCampo, Input } from '../components/ui'
 import StatusBadge from '../components/ui/StatusBadge'
@@ -26,6 +26,7 @@ import { useAppT } from '../i18n/AppLangContext'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { alpha } from '../constants/theme'
 import { STALE_DEFAULT_MS } from '../constants/timings'
+import { useListaDeProyectos } from '../hooks/useListas'
 import './RACIPage.css'
 
 type IdType = string | number
@@ -121,7 +122,7 @@ function AddEntryModal({ projectId, users, onClose, onSaved }: { projectId: IdTy
   const msgB = (k: string) => camposB.de(k) ? <div className="u-field-error">{camposB.de(k)}</div> : null
   const { mutate: save, isPending } = useMutation({
     onMutate: () => camposB.limpiar(),
-    mutationFn: () => api.put(`/projects/${projectId}/raci`, {
+    mutationFn: () => raciApi.guardar(projectId, {
       entries: [{ item_type: form.item_type, item_label: form.item_label, user_id: form.user_id, role: form.role }]
     }),
     onSuccess: () => { onSaved(); onClose() },
@@ -180,15 +181,12 @@ export default function RACIPage({ projectId }: { projectId?: string } = {}) {
   const [selectedProject, setSelectedProject] = useState<IdType | ''>(projectId ?? '')
   const [showAdd, setShowAdd] = useState(false)
 
-  const { data: projRaw = [] } = useQuery({
-    queryKey: ['projects'],
-    queryFn: () => projectsApi.list({}).then(r => r.data ?? []),
-  })
+  const { data: projRaw = [] } = useListaDeProyectos()
   const projects = (Array.isArray(projRaw) ? projRaw : []) as ProjectItem[]
 
   const { data: raciRaw, isLoading } = useQuery({
     queryKey: ['raci', selectedProject],
-    queryFn: () => api.get(`/projects/${selectedProject}/raci`).then(r => r.data),
+    queryFn: () => raciApi.obtener<RaciResponse>(String(selectedProject)).then(r => r.data),
     enabled: !!selectedProject,
   })
   const raci = (raciRaw ?? null) as RaciResponse | null
@@ -201,7 +199,7 @@ export default function RACIPage({ projectId }: { projectId?: string } = {}) {
   })
 
   const { mutate: deleteEntry } = useMutation({
-    mutationFn: (entryId: IdType) => api.delete(`/projects/${selectedProject}/raci/${entryId}`),
+    mutationFn: (entryId: IdType) => raciApi.borrar(String(selectedProject), entryId),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['raci', selectedProject] }),
     onError: (e: unknown) => toast.error(extractErr(e, t('raci_ui.error_eliminar'))),
   })

@@ -16,11 +16,38 @@ const STORE     = 'imputations_queue';
 
 export const MAX_RETRY_ATTEMPTS = 3;
 
+/*
+ * Auditoría 22-11-2026 (H4 del 05): la cola no era por persona. Si A imputaba sin
+ * conexión, cerraba sesión y entraba B, las horas de A se subían como de B; y tras
+ * 3 fallos se borraban en silencio. Ahora:
+ *   - cada entrada lleva su dueño (`_dueno_user`, `_dueno_org`), que fija
+ *     `AuthContext` con `establecerDuenoDeLaCola` al entrar/salir;
+ *   - solo se cuenta y se sube lo del usuario y la empresa actuales (lo de otro
+ *     espera a que esa persona vuelva a entrar en este navegador);
+ *   - tras MAX_RETRY_ATTEMPTS la entrada no se borra: queda `abandonada`, no se
+ *     reintenta y se avisa (evento `offline:imputaciones-abandonadas`).
+ * Las entradas antiguas sin dueño no se suben (no se sabe de quién son).
+ */
+interface Dueno { user_id: string; org_id: string | null }
+let _dueno: Dueno | null = null;
+
+/** Quién está trabajando ahora (null al cerrar sesión). */
+export function establecerDuenoDeLaCola(dueno: Dueno | null): void {
+  _dueno = dueno;
+}
+
 interface QueueEntry extends Record<string, unknown> {
   id?: number
   queued_at: string
   synced: boolean
   retries: number
+  _dueno_user?: string
+  _dueno_org?: string | null
+  abandonada?: boolean
+}
+
+function esDelDueno(e: QueueEntry): boolean {
+  return !!_dueno && e._dueno_user === _dueno.user_id && (e._dueno_org ?? null) === _dueno.org_id;
 }
 
 interface SyncResult {
@@ -51,8 +78,9 @@ function openDB(): Promise<IDBDatabase> {
 // ── Queue an imputation for later sync ───────────────────────────────────────
 
 export async function queueImputation(payload: Record<string, unknown>): Promise<number> {
+  if (!_dueno) throw new Error('offlineQueue: sin sesión no se encola');
   const db    = await openDB();
-  const entry: QueueEntry = { ...payload, queued_at: new Date().toISOString(), synced: false, retries: 0 };
+  const entry: QueueEntry = { ...payload, queued_at: new Date().toISOString(), synced: false, retries: 0, _dueno_user: _dueno.user_id, _dueno_org: _dueno.org_id };
   return new Promise((resolve, reject) => {
     const tx   = db.transaction(STORE, 'readwrite');
     const req  = tx.objectStore(STORE).add(entry);
@@ -64,13 +92,8 @@ export async function queueImputation(payload: Record<string, unknown>): Promise
 // ── Count pending entries ─────────────────────────────────────────────────────
 
 export async function pendingCount(): Promise<number> {
-  const db = await openDB();
-  return new Promise((resolve, reject) => {
-    const tx  = db.transaction(STORE, 'readonly');
-    const req = tx.objectStore(STORE).count();
-    req.onsuccess = () => resolve(req.result);
-    req.onerror   = () => reject(req.error);
-  });
+  // Solo las del usuario actual que siguen reintentándose.
+  return (await getAllPending()).filter(e => !e.abandonada).length;
 }
 
 // ── Get all pending entries ───────────────────────────────────────────────────
@@ -80,7 +103,7 @@ export async function getAllPending(): Promise<QueueEntry[]> {
   return new Promise((resolve, reject) => {
     const tx  = db.transaction(STORE, 'readonly');
     const req = tx.objectStore(STORE).getAll();
-    req.onsuccess = () => resolve((req.result as QueueEntry[]) || []);
+    req.onsuccess = () => resolve(((req.result as QueueEntry[]) || []).filter(esDelDueno));
     req.onerror   = () => reject(req.error);
   });
 }
@@ -99,7 +122,7 @@ async function deleteEntry(id: number) {
 
 // ── Update retry count for an entry ──────────────────────────────────────────
 
-async function updateRetries(db: IDBDatabase, id: number, retries: number) {
+async function updateRetries(db: IDBDatabase, id: number, retries: number, abandonada = false) {
   return new Promise<void>((resolve, reject) => {
     const tx  = db.transaction(STORE, 'readwrite');
     const store = tx.objectStore(STORE);
@@ -107,7 +130,7 @@ async function updateRetries(db: IDBDatabase, id: number, retries: number) {
     getReq.onsuccess = () => {
       const entry = getReq.result as QueueEntry | undefined;
       if (!entry) { resolve(undefined); return; }
-      const putReq = store.put({ ...entry, retries });
+      const putReq = store.put({ ...entry, retries, abandonada });
       putReq.onsuccess = () => resolve(undefined);
       putReq.onerror   = () => reject(putReq.error);
     };
@@ -125,26 +148,24 @@ export async function syncPending(apiInstance: ApiLike): Promise<SyncResult> {
   let synced = 0, failed = 0, abandoned = 0;
 
   for (const entry of pending) {
-    const { id, queued_at: _queued_at, synced: _s, retries: _r, ...payload } = entry; // strip queue-only fields
+    if (entry.abandonada) continue;
+    const { id, queued_at: _queued_at, synced: _s, retries: _r, _dueno_user: _du, _dueno_org: _do, abandonada: _ab, ...payload } = entry; // strip queue-only fields
     const currentRetries = entry.retries ?? 0;
-
-    if (currentRetries >= MAX_RETRY_ATTEMPTS) {
-      // Exceeded max retries — remove to avoid blocking the queue indefinitely
-      await deleteEntry(Number(id));
-      abandoned++;
-      continue;
-    }
 
     try {
       await apiInstance.post('/imputations', payload as Record<string, unknown>);
       await deleteEntry(Number(id));
       synced++;
     } catch {
-      await updateRetries(db, Number(id), currentRetries + 1);
-      failed++;
+      const reintentos = currentRetries + 1;
+      await updateRetries(db, Number(id), reintentos, reintentos >= MAX_RETRY_ATTEMPTS);
+      if (reintentos >= MAX_RETRY_ATTEMPTS) abandoned++; else failed++;
     }
   }
 
+  if (abandoned > 0) {
+    try { window.dispatchEvent(new CustomEvent('offline:imputaciones-abandonadas', { detail: { count: abandoned } })); } catch { /* accesorio: sin window (tests) */ }
+  }
   return { synced, failed, abandoned };
 }
 

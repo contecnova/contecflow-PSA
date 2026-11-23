@@ -11,6 +11,7 @@ grupos ni un solo ciclo. Los cuerpos se movieron verbatim.
 """
 
 from app.core import timeutil
+from app.services.textos_de_salida_servicios_m_z import texto_para
 import json
 from datetime import date, datetime, timedelta, timezone
 from sqlalchemy.orm import Session
@@ -115,8 +116,8 @@ def compute_scenario(scenario_id: str, db: Session) -> dict:
         "project_breakdown": project_breakdown,
         "capacity_timeline": capacity_timeline[:24],
         "recommendation": (
-            "El equipo tiene capacidad suficiente para asumir todos los proyectos del escenario." if feasible
-            else f"Se detectan {len(overloaded_weeks)} semanas con sobrecarga. Considera retrasar proyectos o ampliar equipo."
+            texto_para(db, "escenarios.recomendacion_ok", org_id=org) if feasible
+            else texto_para(db, "escenarios.recomendacion_sobrecarga", org_id=org, n=len(overloaded_weeks))
         ),
     }
 
@@ -199,7 +200,7 @@ def create_scenario(payload_dict: dict, created_by: str, db: Session) -> dict:
     for p in (payload_dict.get("projects") or []):
         db.add(ScenarioProject(
             scenario_id=s.id,
-            name=p.get("name", "Proyecto hipotético"),
+            name=p.get("name") or texto_para(db, "escenarios.proyecto_hipotetico", user_id=created_by),
             project_id=p.get("project_id"),
             start_date=date.fromisoformat(p["start_date"]) if p.get("start_date") else None,
             end_date=date.fromisoformat(p["end_date"]) if p.get("end_date") else None,

@@ -106,7 +106,14 @@ def start_cab_workflow(
     from app.services.notifications import notify_user
 
     change = _cambio(db, change_id)
-    miembros = list(dict.fromkeys(cab_members or miembros_del_cab(db, change)))
+    if db.query(ChangeApproval.id).filter(ChangeApproval.change_id == change_id,
+                                          ChangeApproval.decision != "pending").first():
+        # Auditoria 2026-11-22 (A-SD19): reiniciar el CAB borraba los votos ya
+        # emitidos (tambien los en contra). Un cambio ya votado no se reinicia.
+        raise ValueError("cab_ya_votado")
+    # Segregacion de funciones (A-SD19): el solicitante no vota su cambio.
+    miembros = [m for m in dict.fromkeys(cab_members or miembros_del_cab(db, change))
+                if m != change.requester_id]
     if not miembros:
         raise ValueError("cab_sin_miembros: configura la cola del CAB (SD_CAB_GROUP_ID)")
     regla = _ss.get_runtime_str(db, "SD_CAB_APPROVAL_RULE", change.organization_id) or "majority"
@@ -153,6 +160,9 @@ def cast_cab_vote(db: Session, *, change_id: str, voter: User, approve: bool, no
                                            ChangeApproval.approver_user_id == voter.id).first()
     if voto is None:
         raise ValueError("user_not_in_cab")
+    # 2026-11-22 (A-SD19): quien pidio el cambio no lo vota (403 + registro SoD).
+    from app.services.approval_engine._base import exigir_que_no_sea_suyo
+    exigir_que_no_sea_suyo(db, change.requester_id, voter, "itsm_change", change.id)
     if not approve and not (note or "").strip():
         # El motivo es lo que queda como `rejected_reason` del cambio.
         raise ValueError("votar_en_contra_pide_motivo")

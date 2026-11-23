@@ -74,7 +74,9 @@ def create_api_key_record(payload, user_id, db) -> dict:
     )
     db.add(api_key)
     db.flush()
-    _audit(db, None, "CREATE", "api_keys", api_key.id, payload.name)
+    # M58 (auditoría 22-11-2026): la auditoría con la persona que la crea (antes
+    # `None`: el registro decía «System»).
+    _audit(db, _quien(db, user_id), "CREATE", "api_keys", api_key.id, payload.name)
     db.commit()
     return {
         "id": api_key.id,
@@ -85,10 +87,15 @@ def create_api_key_record(payload, user_id, db) -> dict:
     }
 
 
+def _quien(db, user_id):
+    from app.models.user import User
+    return db.get(User, user_id) if user_id else None
+
+
 def revoke_api_key_record(key_id: str, user_id, db) -> dict:
     key = db.query(ApiKey).filter(ApiKey.id == key_id, ApiKey.user_id == user_id).first()
     if not key: raise ErrorDeDominio(404)
     key.is_active = False
-    _audit(db, None, "REVOKE", "api_keys", key.id, key.name)
+    _audit(db, _quien(db, user_id), "REVOKE", "api_keys", key.id, key.name)   # M58
     db.commit()
     return {"ok": True}

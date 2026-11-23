@@ -6,6 +6,7 @@ por empresa + origen + `external_id`). Las pruebas cambian `_transporte` por
 un `httpx.MockTransport` (sin red).
 """
 from __future__ import annotations
+import logging
 
 from dataclasses import dataclass, field
 from typing import Optional
@@ -22,6 +23,7 @@ def _plazo() -> float:
         from app.services.settings_service import outbound_http_timeout
         return outbound_http_timeout(default=20)
     except Exception:  # noqa: BLE001
+        logging.getLogger(__name__).debug("_plazo: excepcion ignorada", exc_info=True)
         return 20.0
 
 

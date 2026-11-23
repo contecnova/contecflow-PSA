@@ -19,8 +19,16 @@ from app.models.user import UserRole
 from app.core.codigos_de_error import error
 
 def create_approval_request(payload, db: Session, current_user: User, confirmar: bool = True,
-                            politicas: Optional[dict] = None) -> dict:
+                            politicas: Optional[dict] = None, de_confianza: bool = False) -> dict:
     """
+    `de_confianza` (auditoría 22-11-2026, C1): el `context` lo ha construido el
+    SERVIDOR (un dominio al enviar su entidad, una automatización, MCP). Sin
+    él —la API pública `POST /approvals/requests`— el contexto del cliente NO
+    decide nada: flujo, auto-aprobación y condiciones de paso se evalúan con
+    los datos de la entidad real (`fuentes.contexto_de_entidad`), y lo que
+    mandó el cliente se guarda en `contexto["_cliente"]` solo para informar.
+    El flujo pedido por id tiene que ser activo, del mismo tipo y de la empresa.
+
     `politicas` (tarea #26): el resultado combinado del motor de políticas
     (`app.services.politicas.evaluar(...)["resultado"]`). Si dice
     `auto_approve`, la solicitud nace aprobada; si pide niveles o pasos, se
@@ -35,10 +43,25 @@ def create_approval_request(payload, db: Session, current_user: User, confirmar:
     su propia transacción; se hace flush y quien llama confirma.
     """
 
+    org_id = getattr(current_user, "organization_id", None)
+    contexto_cliente = payload.context if isinstance(getattr(payload, "context", None), dict) else {}
+    if de_confianza:
+        ctx_reglas = dict(contexto_cliente)
+        contexto_guardado = contexto_cliente or None
+    else:
+        from app.services.approval_engine.fuentes import contexto_de_entidad
+        servidor = contexto_de_entidad(db, payload.entity_type, payload.entity_id, org_id)
+        if servidor is None:
+            raise error(404, "no_encontrado", que="entidad")
+        ctx_reglas = dict(servidor)
+        contexto_guardado = {**servidor, "_cliente": contexto_cliente} if contexto_cliente else dict(servidor)
+    # Lo que se evalúa (auto-aprobación, condiciones de paso) es SIEMPRE ctx_reglas.
+    payload_reglas = _ContextoDeReglas(ctx_reglas)
+
     wf_id = payload.workflow_id
     if not wf_id:
         from app.services.approval_engine._base import elegir_flujo
-        contexto = dict(getattr(payload, "context", None) or {})
+        contexto = dict(ctx_reglas)
         contexto.setdefault("category", getattr(payload, "category", None))
         # El departamento de quien pide, para las condiciones por departamento.
         contexto.setdefault("department", getattr(current_user, "department", None))
@@ -49,7 +72,14 @@ def create_approval_request(payload, db: Session, current_user: User, confirmar:
             raise error(404, "sin_flujo_aprobacion", detail=f"No hay flujo de aprobación configurado para '{payload.entity_type}'", entidad=payload.entity_type)
         wf_id = wf.id if wf else None
     else:
-        wf = db.query(ApprovalWorkflow).filter(ApprovalWorkflow.id == wf_id).first()
+        q = db.query(ApprovalWorkflow).filter(ApprovalWorkflow.id == wf_id)
+        if not de_confianza:
+            # C1: el flujo lo elige el cliente; solo uno activo, de ese tipo y de su empresa.
+            q = q.filter(ApprovalWorkflow.entity_type == payload.entity_type,
+                         ApprovalWorkflow.is_active.is_(True))
+            if org_id:
+                q = q.filter(ApprovalWorkflow.organization_id == org_id)
+        wf = q.first()
         if not wf:
             raise error(404, "no_encontrado", detail="Flujo no encontrado", que="flujo")
 
@@ -57,14 +87,14 @@ def create_approval_request(payload, db: Session, current_user: User, confirmar:
         motivo = "; ".join(b.get("mensaje") or "" for b in politicas.get("bloqueos") or [])
         raise error(422, "bloqueado_por_politica", detail=motivo or "Lo impide una política", motivo=motivo)
     contexto_json = None
-    if isinstance(getattr(payload, "context", None), dict):
-        contexto_json = json.dumps(payload.context, ensure_ascii=False, default=str)
+    if contexto_guardado:
+        contexto_json = json.dumps(contexto_guardado, ensure_ascii=False, default=str)
 
     # ── Auto-aprobación: comprobar reglas antes de crear la solicitud ──────────
     # Rev. 166 (#27): si las políticas piden niveles o pasos, la auto-aprobación
     # del flujo no los salta.
     exige_mas = bool(politicas and (politicas.get("niveles") or politicas.get("pasos")))
-    auto_result = None if (wf is None or exige_mas) else _check_auto_approval(wf, payload)
+    auto_result = None if (wf is None or exige_mas) else _check_auto_approval(wf, payload_reglas)
     if not auto_result and politicas and politicas.get("decision") == "auto_approve":
         auto_result = "política de " + str(payload.entity_type)
     if auto_result:
@@ -491,7 +521,9 @@ def _condiciones_cumplidas(
         if clave not in conds:
             continue
         try:
-            if not comparar(float(ctx.get("amount", 0)), float(conds[clave])):
+            # C1 (22-11-2026): sin importe en el contexto NO se toma 0 (un
+            # `amount_lt` se cumplía siempre): no se puede evaluar.
+            if not comparar(float(ctx["amount"]), float(conds[clave])):
                 cumple = False
         except Exception:
             logger.debug(
@@ -503,6 +535,13 @@ def _condiciones_cumplidas(
         if clave in conds and ctx.get(clave) != conds[clave]:
             cumple = False
     return cumple
+
+
+class _ContextoDeReglas:
+    """Lo único que `_check_auto_approval` lee de la solicitud: su contexto (C1)."""
+
+    def __init__(self, context: dict):
+        self.context = context
 
 
 def _check_auto_approval(wf, payload) -> Optional[str]:

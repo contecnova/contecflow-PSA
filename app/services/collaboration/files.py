@@ -96,7 +96,8 @@ def escanear(datos: bytes) -> tuple[str, list, str, list, bool]:
     dlp_status, dlp_findings = scan_dlp(
         datos.decode("utf-8", errors="ignore")[:CARACTERES_ESCANEADOS_DLP]
     )
-    en_cuarentena = (av_status == "infected") or (dlp_status == "blocked")
+    # A24: «unavailable» (antivirus activado pero caído) también a cuarentena.
+    en_cuarentena = (av_status in ("infected", "unavailable")) or (dlp_status == "blocked")
     return av_status, av_details, dlp_status, dlp_findings, en_cuarentena
 
 
@@ -104,7 +105,7 @@ def _atajo_de_cuarentena(db: Session, org: str, att_id: str, *, av_status: str,
                          av_details, dlp_findings) -> None:
     db.add(CollaborationModerationCase(
         organization_id=org, attachment_id=att_id,
-        reason="av" if av_status == "infected" else "dlp",
+        reason="av" if av_status in ("infected", "unavailable") else "dlp",
         findings={"av": av_details, "dlp": dlp_findings},
         verdict="quarantined",
     ))

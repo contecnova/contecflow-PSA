@@ -158,17 +158,28 @@ def _real_mensual(db: Session, b: Budget) -> dict[str, dict[str, float]]:
     def sumar(fecha, tipo, importe):
         mes = f"{fecha.year}-{fecha.month:02d}"
         real.setdefault(mes, {})
-        real[mes][tipo] = round(real[mes].get(tipo, 0.0) + float(importe), 2)
+        # M1: se acumula sin redondear y se redondea una vez al final (antes,
+        # un redondeo por partida que se iba sumando).
+        real[mes][tipo] = real[mes].get(tipo, 0.0) + float(importe)
 
     # Personal: imputaciones.
-    q = db.query(Imputation).filter(Imputation.date >= desde, Imputation.date < hasta)
+    # M1 (auditoría 22-11-2026): solo imputaciones activas; tarifa y moneda de
+    # las personas que imputaron, en UNA consulta (antes la tabla de personas
+    # entera, dos veces); y sin el `hasattr(User, "currency")` que, si la columna
+    # cambiaba de nombre, dejaba de convertir en silencio.
+    q = db.query(Imputation).filter(Imputation.date >= desde, Imputation.date < hasta,
+                                    Imputation.is_active.is_(True))
     q = q.filter(Imputation.project_id == proyecto) if proyecto else q.filter(Imputation.user_id.in_(usuarios or [""]))
-    tarifas = dict(db.query(User.id, User.hourly_rate).all())
-    moneda_de = {uid: c for uid, c in db.query(User.id, User.currency).all()} if hasattr(User, "currency") else {}
+    imputaciones = q.all()
+    uids = {i.user_id for i in imputaciones if i.user_id}
+    personas = ({uid: (tarifa, cur) for uid, tarifa, cur in db.query(User.id, User.hourly_rate, User.currency)
+                 .filter(User.id.in_(uids)).all()} if uids else {})
+    tarifas = {uid: v[0] for uid, v in personas.items()}
+    moneda_de = {uid: v[1] for uid, v in personas.items()}
     tipos_validos = set(tipos(db, b.organization_id))
     tipo_personal = "personal" if "personal" in tipos_validos else None
     if tipo_personal:
-        for i in q.all():
+        for i in imputaciones:
             coste = (float(i.cost_amount) if i.cost_amount is not None
                      else float(i.hours or 0) * float(i.hourly_rate_snapshot or tarifas.get(i.user_id) or 0))
             sumar(i.date, tipo_personal, convertir(coste, moneda_de.get(i.user_id), i.date))
@@ -209,6 +220,7 @@ def _real_mensual(db: Session, b: Budget) -> dict[str, dict[str, float]]:
         for tipo, importe in por_tipo.items():
             real.setdefault(mes, {})
             real[mes][tipo] = round(real[mes].get(tipo, 0.0) + importe, 2)
+    real = {mes: {t: round(v, 2) for t, v in por_tipo.items()} for mes, por_tipo in real.items()}
     real.update(cierres(db, b))
     return real
 
@@ -593,6 +605,11 @@ def decidir(db: Session, u, budget_id: str, aprobado: bool, motivo: Optional[str
             desde_bandeja: bool = False) -> dict:
     from app.services.approval_engine import fuentes
     b = _cargar(db, budget_id)
+    # M1: la decisión bloquea la fila (dos aprobadores a la vez no la deciden
+    # dos veces ni sustituyen dos versiones).
+    from app.db.session import is_postgres
+    if is_postgres():
+        db.refresh(b, with_for_update=True)
     if not desde_bandeja and not puede_aprobar(db, u):
         raise error(403, "presupuestos_rol_no_aprueba", detail="Aprobar presupuestos es de los roles de BUDGET_APPROVER_ROLES")
     if b.estado != "enviado":

@@ -17,7 +17,7 @@ import re
 
 import pytest
 
-yaml = pytest.importorskip("yaml")
+yaml = pytest.importorskip("yaml", reason="falta el paquete opcional PyYAML")
 
 REPO = pathlib.Path(__file__).resolve().parents[1]
 COMPOSE = REPO / "docker-compose.yml"

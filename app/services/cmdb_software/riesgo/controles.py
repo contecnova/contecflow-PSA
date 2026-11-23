@@ -19,6 +19,7 @@ import hashlib
 import io
 import json
 from datetime import date, datetime, timedelta, timezone
+from app.core import timeutil
 from typing import Optional
 
 from sqlalchemy.orm import Session
@@ -99,7 +100,7 @@ def crear(db: Session, org, datos: dict, usuario) -> list:
         raise error(422, "swr_control_descripcion")
     maximo = int(base.leer(db, org).get("exception_max_days") or 180)
     caduca = _fecha(datos.get("expires_at"))
-    hoy = date.today()
+    hoy = timeutil.today()
     if caduca is None or not hoy < caduca <= hoy + timedelta(days=maximo):
         raise error(422, "swr_control_caducidad", max=maximo)
     reduccion = datos.get("reduction")
@@ -146,7 +147,7 @@ def revocar(db: Session, org, id_: str, motivo: Optional[str], usuario):
 def caducar(db: Session, org) -> int:
     """Trabajo diario: los controles vencidos dejan de restar. Devuelve cuántos."""
     from app.models.cmdb_riesgo import CompensatingControl
-    hoy = date.today()
+    hoy = timeutil.today()
     n = 0
     for c in _q(db, CompensatingControl, org).filter(CompensatingControl.status == "active",
                                                     CompensatingControl.expires_at < hoy):

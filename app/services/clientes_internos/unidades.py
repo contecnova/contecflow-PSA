@@ -1,5 +1,6 @@
 """Unidades internas: validación, miembros deducidos de RR. HH., papeles y alcance."""
 from __future__ import annotations
+import logging
 
 from typing import Optional
 
@@ -226,9 +227,13 @@ def unidades(db: Session, usuario=None, solo_activas: bool = True) -> list:
     q = db.query(Client).filter(Client.kind == "interno")
     if solo_activas:
         q = q.filter(Client.is_active.is_(True))
-    org = getattr(usuario, "organization_id", None)
-    if org and not getattr(usuario, "is_superadmin", False):
-        q = q.filter((Client.organization_id == org) | Client.organization_id.is_(None))
+    # M68 (auditoría 22-11-2026): solo las de la empresa (antes también las de
+    # empresa NULL, visibles para todas) y, sin empresa ni superadmin, ninguna.
+    if usuario is not None and not getattr(usuario, "is_superadmin", False):
+        org = getattr(usuario, "organization_id", None)
+        if not org:
+            return []
+        q = q.filter(Client.organization_id == org)
     return q.order_by(Client.name).all()
 
 
@@ -248,7 +253,8 @@ def unidades_de(db: Session, usuario) -> list[tuple]:
 def unidad_o_404(db: Session, cliente_id: str, usuario=None):
     c = db.query(Client).filter(Client.id == cliente_id, Client.is_active.is_(True)).first()
     org = getattr(usuario, "organization_id", None)
-    if c is None or (org and not getattr(usuario, "is_superadmin", False) and c.organization_id not in (None, org)):
+    if c is None or (usuario is not None and not getattr(usuario, "is_superadmin", False)
+                     and c.organization_id != org):   # M68: sin las de empresa NULL
         raise error(404, "no_encontrado", detail="Unidad interna no encontrada", que="unidad_interna")
     if not es_interno(c):
         raise error(422, "interno_no_es_interno")
@@ -332,6 +338,7 @@ def opciones(db: Session, usuario) -> dict:
             empresas = [{"id": o.id, "name": o.name} for o in db.query(Organization).filter(Organization.id.in_(ids))
                         .order_by(Organization.name)]
     except Exception:
+        logging.getLogger(__name__).warning("opciones: excepcion ignorada", exc_info=True)
         empresas = []
     return {
         "departments": [{"id": d.id, "name": d.name} for d in db.query(Department)

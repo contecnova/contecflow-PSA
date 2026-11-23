@@ -137,11 +137,26 @@ def estado(conexion) -> dict:
 
 # ── Contexto por transacción ────────────────────────────────────────────────
 
+#: Valor de `app.tenant` que no casa con ninguna empresa: la base no devuelve
+#: filas de empresa (auditoría 22-11-2026, fallo en cerrado también en RLS).
+NINGUNA = "-"
+
+
 def tenant_de(info: dict) -> str:
-    """Lo mismo que decide el filtro del ORM: empresa, o vacío si no filtra."""
-    if info.get("bypass_tenant_filter") or info.get("is_superadmin") is not False:
+    """Lo mismo que decide el filtro del ORM (`contexto_de_tenant.estado`).
+
+    Empresa → su id; libre (superadmin, sin filtro, contexto de sistema
+    declarado) → vacío; usuario sin empresa → NINGUNA (antes vacío: el ORM
+    cerraba y la base abría); sin contexto → NINGUNA con
+    `TENANT_SESION_SIN_CONTEXTO=cerrar`, vacío con `avisar`.
+    """
+    from app.db import contexto_de_tenant as ctx
+    estado = ctx.estado(info)
+    if estado == ctx.LIBRE:
         return ""
-    return str(info.get("organization_id") or "")
+    if estado == ctx.EMPRESA:
+        return str(info.get("organization_id") or NINGUNA)
+    return NINGUNA if ctx.modo() == ctx.MODO_CERRAR else ""
 
 
 def sincronizar(session, *, libre: bool = False) -> None:

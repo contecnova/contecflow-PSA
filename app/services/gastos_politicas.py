@@ -155,18 +155,21 @@ def tras_enviar(db: Session, e: Expense, ev: dict, usuario_id: str) -> None:
     from app.services.approval_engine import fuentes
     fila = politicas.registrar_evaluacion(db, DOMINIO, e.id, ev, usuario_id=usuario_id,
                                           organization_id=e.organization_id)
-    db.commit()
+    db.flush()
+    # M106 (auditoría 22-11-2026): el envío, la evaluación y la solicitud de
+    # aprobación se confirman JUNTOS (antes commit y luego abrir: si abrir
+    # fallaba, el gasto quedaba «enviado» sin solicitud que lo aprobara).
     fuentes.abrir(db, "expense", e.id,
                   f"Gasto {e.code or ''} · {e.description or ''} · {e.amount} {e.currency}", usuario_id,
                   {"amount": e.amount, "category": str(getattr(e.category, "value", e.category)),
                    "project_id": e.project_id, "policy_exceeded": _excede(ev)},
-                  evaluacion=ev)
+                  evaluacion=ev, propagar=True)
     req = db.query(ApprovalRequest).filter(ApprovalRequest.entity_type == "expense",
                                            ApprovalRequest.entity_id == e.id) \
         .order_by(ApprovalRequest.created_at.desc()).first()
     if req is not None and fila.solicitud_id is None:
         fila.solicitud_id = req.id
-        db.commit()
+    db.commit()
 
 
 def pendiente_con_pasos_de_politica(db: Session, expense_id: str) -> bool:

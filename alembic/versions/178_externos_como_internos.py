@@ -60,9 +60,13 @@ def nivel(valor) -> str:
 
 
 def _copiar_habilidades(con) -> None:
+    # 23-11-2026: retirado el modelo (la 196 borra la tabla), la 080/082 ya no le
+    # añaden `organization_id` en una base nueva: sin la columna, NULL.
+    cols = {c["name"] for c in sa.inspect(con).get_columns("subcontractor_worker_skills")}
+    org = "s.organization_id" if "organization_id" in cols else "NULL"
     filas = con.execute(sa.text(
         "SELECT w.user_id, s.skill_id, s.level, s.years_experience, s.certified, s.cert_name, s.notes, "
-        "s.organization_id FROM subcontractor_worker_skills s JOIN subcontractor_workers w ON w.id = s.worker_id "
+        f"{org} FROM subcontractor_worker_skills s JOIN subcontractor_workers w ON w.id = s.worker_id "
         "WHERE w.user_id IS NOT NULL AND s.is_active = :t"), {"t": True}).fetchall()
     for user_id, skill_id, lvl, anos, cert, cert_name, notas, org in filas:
         ya = con.execute(sa.text("SELECT 1 FROM user_skills WHERE user_id = :u AND skill_id = :s"),

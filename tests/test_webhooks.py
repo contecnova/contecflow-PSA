@@ -138,8 +138,8 @@ class TestWebhookDelivery:
             f"/api/v1/enterprise/webhooks/{hook['id']}/test",
             headers=auth(admin_token),
         )
-        # Will fail actual delivery (test URL) but endpoint should respond
-        assert res.status_code in (200, 202, 207, 400, 422, 500, 503)
+        # La entrega real a la URL de prueba falla, pero el endpoint responde 200 con el resultado.
+        assert res.status_code == 200, res.text
 
     def test_delivery_log_query(self, client, admin_token, db):
         hook = _create_webhook(client, admin_token)

@@ -138,9 +138,13 @@ def test_encuesta_inexistente_llega_con_codigo(client, admin_token, db):
 
 
 def test_error_sin_codigo_no_cambia_la_respuesta(client, admin_token):
+    # 22-11-2026: este 404 ya lleva código (`no_encontrado`, que=ticket; cuota de
+    # errores sin código a cero). Lo que se sigue exigiendo: el `detail` en
+    # castellano no cambia (compatibilidad) y el código va aparte, con sus params.
     r = client.get("/api/v1/sd/tickets/no-existe", headers=auth(admin_token))
     assert r.status_code == 404
-    assert "code" not in r.json()
+    assert r.json()["detail"] == "Ticket no encontrado"
+    assert (r.json()["code"], r.json()["params"]) == ("no_encontrado", {"que": "ticket"})
 
 
 # ── Comentarios automaticos ──────────────────────────────────────────────────

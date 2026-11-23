@@ -17,7 +17,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.core.abac_enforce import enforce_abac
-from app.core.deps import require_admin_or_pm, get_current_user, require_internal_user
+from app.core.deps import get_current_user, requiere_capacidad
 from app.core.ratelimit import limiter
 from app.core.responses import APIResponse
 from app.db.session import get_db
@@ -75,7 +75,7 @@ class PreviewQueryIn(BaseModel):
 @limiter.limit("60/minute")
 def get_schema(
     request: Request,
-    current_user: User = Depends(require_admin_or_pm),
+    current_user: User = Depends(requiere_capacidad("bi.gestionar")),
     db: Session = Depends(get_db),
 ):
     return APIResponse.ok(data=svc.get_schema(db, current_user.organization_id))
@@ -86,7 +86,7 @@ def get_schema(
 def list_queries(
     request: Request,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin_or_pm),
+    current_user: User = Depends(requiere_capacidad("bi.gestionar")),
 ):
     org_id = getattr(current_user, "organization_id", None)
     items = svc.list_queries(db, org_id=org_id)
@@ -100,7 +100,7 @@ def save_query(
     body: SaveQueryIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: analitica interna
+    _rol: User = Depends(requiere_capacidad("bi.usar")),  # auditoria 2026-09: dominio: analitica interna
 ):
     org_id = getattr(current_user, "organization_id", None)
     try:
@@ -135,8 +135,8 @@ def preview_query(
     request: Request,
     body: PreviewQueryIn,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin_or_pm),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
+    current_user: User = Depends(requiere_capacidad("bi.gestionar")),
+    _rol: User = Depends(requiere_capacidad("bi.usar")),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
 ):
     from app.services.bi_governance_service import registrar_acceso
     registrar_acceso(db, request, current_user, "dataset", body.dataset, "view",
@@ -172,7 +172,7 @@ def delete_query(
     query_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: analitica interna
+    _rol: User = Depends(requiere_capacidad("bi.usar")),  # auditoria 2026-09: dominio: analitica interna
 ):
     enforce_abac(db, current_user, "bi_saved_query", query_id, action="delete")
     org_id = getattr(current_user, "organization_id", None)
@@ -189,7 +189,7 @@ def execute_query(
     query_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: analitica interna
+    _rol: User = Depends(requiere_capacidad("bi.usar")),  # auditoria 2026-09: dominio: analitica interna
 ):
     org_id = getattr(current_user, "organization_id", None)
     from app.services.bi_governance_service import registrar_acceso

@@ -8,12 +8,21 @@
  * "(.env)": se dice en llano que lo configura el administrador; estados con
  * StatusBadge; fechas con fmtDateTime según idioma; vacío con icono lucide;
  * campo de instrucción con ds-input.
+ *
+ * 23-11-2026 (auditoría 22-11-2026, A7): aprobación humana. Las escrituras que
+ * el agente propone sin «permitir escritura» quedan pendientes; aquí se ven en
+ * la bandeja «Pendientes de tu aprobación» y en el resultado, con los datos que
+ * se enviarán, y se aprueban o rechazan paso a paso
+ * (`POST /ai/agent/{id}/steps/{step_id}/approve|reject`). El servidor ejecuta
+ * exactamente la herramienta y los argumentos guardados, con los permisos de
+ * quien aprueba, y lo audita.
  */
 import React, { useState, useRef, useCallback } from 'react'
 import type { ReactNode } from 'react'
 import { extractErr, fmtDateTime } from '../utils/helpers'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation } from '@tanstack/react-query'
+import { confirmar } from '../context/ConfirmContext'
 import { aiProvidersApi, nexusAgentApi, apiStream } from '../services/api'
 import type { EjecucionDelAgente, EjecucionDelAgenteResumen, PasoDelAgente } from '../services/api/tipos-analitica'
 import { Button, Card, Checkbox, EmptyState, Pulsable, Section, Spinner, Textarea } from '../components/ui'
@@ -23,8 +32,8 @@ import MarkdownText from '../components/ui/MarkdownText'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import {
-  Activity, AlarmClock, AlertTriangle, BarChart3, Bot, ChevronRight, Clock, FolderSearch, History, LayoutDashboard,
-  ListPlus, Pencil, Play, Repeat, Search, ShieldAlert, Ticket, TrendingUp, Users, Wallet, Wrench, Zap,
+  Activity, AlarmClock, AlertTriangle, BarChart3, Bot, Check, ChevronRight, Clock, FolderSearch, History, LayoutDashboard,
+  ListPlus, Pencil, Play, Repeat, Search, ShieldAlert, ShieldQuestion, Ticket, TrendingUp, Users, Wallet, Wrench, X, Zap,
 } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 import useMediaQuery from '../hooks/useMediaQuery'
@@ -36,6 +45,8 @@ const STATUS_KIND: Record<string, StatusBadgeKind> = {
   failed: 'danger',
   running: 'warning',
   pending: 'neutral',
+  queued: 'neutral',
+  awaiting_approval: 'warning',
 }
 // Tools alineados con los nombres reales del backend (AGENT_TOOLS en
 // app/services/ai_chat/tool_execution_service.py). Antes los 10 mostrados
@@ -85,15 +96,58 @@ type EventoDeAgente =
   // 19-11-2026: `code`/`params` cuando el corte tiene causa (tope de gasto de IA de la empresa).
   | { type: 'error'; message?: string; code?: string; params?: Record<string, string | number> }
 
-function StepBadge({ step }: { step: PasoDeAgente }) {
+/** Paso pendiente de aprobación humana: el servidor lo marca con `requires_approval` y `is_approved` null. */
+const estaPendiente = (p: PasoDeAgente) => !!p.id && !!p.requires_approval && p.is_approved == null
+
+function StepBadge({ step, ejecucionId, onDecidido }: { step: PasoDeAgente; ejecucionId?: string; onDecidido?: () => void }) {
   const t = useAppT()
+  const toast = useToast()
   const herramienta = TOOLS.find(x => x.name === step.tool)
+  const pendiente = estaPendiente(step) && !!ejecucionId
+  const decidir = useMutation({
+    mutationFn: (aprobar: boolean) => (aprobar ? nexusAgentApi.approveStep : nexusAgentApi.rejectStep)(ejecucionId as string, step.id as string).then(r => r.data),
+    onSuccess: d => {
+      if (d.approved) toast.success(t('nexusagent.aprobacion_aprobada'))
+      else toast.info(t('nexusagent.aprobacion_rechazada'))
+      onDecidido?.()
+    },
+    onError: e => toast.error(extractErr(e, t('nexusagent.error_agente'))),
+  })
+  const aprobar = async () => {
+    if (await confirmar({ title: t('nexusagent.aprobacion_aprobar'), message: t('nexusagent.aprobacion_confirmar') })) decidir.mutate(true)
+  }
+  if (pendiente) {
+    return (
+      <div className="nexus-paso nexus-paso--pendiente">
+        <span className="nexus-paso__num">{step.step}</span>
+        <div className="u-flex1-min0">
+          <div className="nexus-paso__herramienta">
+            <ShieldQuestion size={14} aria-hidden />
+            {t('nexusagent.aprobacion_paso')}: {herramienta ? t(herramienta.desc) : step.tool}
+          </div>
+          <div className="nexus-etiqueta">{t('nexusagent.aprobacion_argumentos')}</div>
+          <pre className="nexus-paso__datos u-mono">{JSON.stringify(step.input ?? {}, null, 2)}</pre>
+          <div className="nexus-paso__acciones">
+            <Button size="sm" icon={<Check size={14} />} loading={decidir.isPending && decidir.variables === true}
+              disabled={decidir.isPending} onClick={aprobar}>{t('nexusagent.aprobacion_aprobar')}</Button>
+            <Button size="sm" variant="secondary" icon={<X size={14} />} loading={decidir.isPending && decidir.variables === false}
+              disabled={decidir.isPending} onClick={() => decidir.mutate(false)}>{t('nexusagent.aprobacion_rechazar')}</Button>
+          </div>
+        </div>
+      </div>
+    )
+  }
   return (
     <div className="nexus-paso">
       <span className="nexus-paso__num">{step.step}</span>
       <div className="u-flex1-min0">
         <div className="nexus-paso__herramienta">
           {herramienta ? <>{herramienta.icon}{t(herramienta.desc)}</> : <><Wrench size={14} />{step.tool}</>}
+          {step.requires_approval && step.is_approved != null && (
+            <StatusBadge kind={step.is_approved ? 'success' : 'neutral'} caps={false}>
+              {t(step.is_approved ? 'nexusagent.aprobacion_estado_aprobado' : 'nexusagent.aprobacion_estado_rechazado')}
+            </StatusBadge>
+          )}
         </div>
         {step.output != null && step.output !== '' && (
           <div className="nexus-paso__salida">
@@ -172,7 +226,7 @@ export default function ContecflowAgentPage() {
     refetchInterval: POLL_JOB_STATUS_MS,
     queryFn: async () => {
       const estado = (await nexusAgentApi.status(enCola as string)).data
-      if (estado?.status === 'done' || estado?.status === 'failed') {
+      if (estado?.status === 'done' || estado?.status === 'failed' || estado?.status === 'awaiting_approval') {
         setResult((await nexusAgentApi.detail(enCola as string)).data)
         setEnCola(null)
         refetch()
@@ -195,6 +249,16 @@ export default function ContecflowAgentPage() {
       .catch(err => toast.error(extractErr(err, t('nexusagent.error_ejecutar'))))
   }
 
+  // Tras aprobar o rechazar: se recarga la ejecución abierta y el historial (la bandeja sale de él).
+  const recargarEjecucion = (id?: string) => {
+    refetch()
+    if (!id) return
+    nexusAgentApi.detail(id)
+      .then(r => setResult(r.data))
+      .catch(err => toast.error(extractErr(err, t('nexusagent.error_ejecutar'))))
+  }
+  const pendientesDeAprobar = history.filter(e => e.status === 'awaiting_approval')
+
   const runStream = useCallback(async (inst: string) => {
     if (isStreaming) return
     setIsStreaming(true)
@@ -212,8 +276,9 @@ export default function ContecflowAgentPage() {
         signal: ctrl.signal,
       })
       if (!resp.ok) {
-        const err = await resp.json().catch(() => ({ detail: t('pagina_nexus.error') }))
-        toast.error(err.detail || t('nexusagent.error_streaming'))
+        // 23-11-2026: el cuerpo del error pasa por extractErr (código traducido o detalle), no se pinta crudo.
+        const err = await resp.json().catch(() => null)
+        toast.error(extractErr({ response: { data: err } }, t('nexusagent.error_streaming')))
         setIsStreaming(false)
         return
       }
@@ -247,7 +312,7 @@ export default function ContecflowAgentPage() {
             } else if (evt.type === 'error') {
               toast.error(evt.code ? t(`err_srv.${evt.code}`, evt.params) : (evt.message || t('nexusagent.error_agente')))
             }
-          } catch { /* ignore parse errors */ }
+          } catch { /* accesorio: una línea del flujo que no es JSON válido se salta; el resto sigue llegando */ }
         }
       }
     } catch (e) {
@@ -356,9 +421,28 @@ export default function ContecflowAgentPage() {
                   {(result.steps?.length ?? 0) > 0 && (
                     <div className="nexus-pasos">
                       <div className="nexus-etiqueta">{t('nexusagent.pasos_ejecutados', { n: result.steps?.length ?? 0 })}</div>
-                      {(result.steps ?? []).map((s: PasoDeAgente, i: number) => <StepBadge key={i} step={s} />)}
+                      {(result.steps ?? []).map((s: PasoDeAgente, i: number) => (
+                        <StepBadge key={s.id ?? i} step={s} ejecucionId={result.execution_id}
+                          onDecidido={() => recargarEjecucion(result.execution_id)} />
+                      ))}
                     </div>
                   )}
+                </Section>
+              </Card>
+            )}
+
+            {/* Bandeja de aprobación humana (A7) */}
+            {pendientesDeAprobar.length > 0 && (
+              <Card>
+                <Section title={<span className="nexus-titulo"><ShieldQuestion size={16} aria-hidden />{t('nexusagent.aprobacion_titulo')}
+                  <StatusBadge kind="warning" caps={false}>{pendientesDeAprobar.length}</StatusBadge></span>}>
+                  <p className="nexus-pista">{t('nexusagent.aprobacion_ayuda')}</p>
+                  <div role="list" className="nexus-historial">
+                    {pendientesDeAprobar.map(e => (
+                      <FilaDeHistorial key={e.execution_id} ejecucion={e} seleccionada={e.execution_id === result?.execution_id}
+                        onAbrir={() => abrirEjecucion(e)} />
+                    ))}
+                  </div>
                 </Section>
               </Card>
             )}

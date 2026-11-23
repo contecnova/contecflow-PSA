@@ -35,13 +35,13 @@ class Expense(Base):
     __tablename__ = "expenses"
 
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     code        = Column(String(20), nullable=False)       # EXP-0001
 
     # Who / What
     user_id     = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
-    project_id  = Column(String(36), ForeignKey("projects.id"), nullable=True, index=True)
-    contract_id = Column(String(36), ForeignKey("contracts.id"), nullable=True, index=True)
+    project_id  = Column(String(36), ForeignKey("projects.id", ondelete="SET NULL"), nullable=True, index=True)
+    contract_id = Column(String(36), ForeignKey("contracts.id", ondelete="SET NULL"), nullable=True, index=True)
 
     # Expense details
     category    = Column(String(50), nullable=False)  # clave de `custom_expense_categories` (19-11-2026)
@@ -66,7 +66,7 @@ class Expense(Base):
     # Approval workflow
     status       = Column(Enum(ExpenseStatus), default=ExpenseStatus.draft, nullable=False, index=True)
     submitted_at = Column(DateTime(timezone=True), nullable=True)
-    reviewed_by  = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    reviewed_by  = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     reviewed_at  = Column(DateTime(timezone=True), nullable=True)
     rejection_reason = Column(String(500), nullable=True)
     reimbursed_at = Column(DateTime(timezone=True), nullable=True)

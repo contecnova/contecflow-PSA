@@ -32,9 +32,12 @@ def _get_expenses(tool_input, db, user, now, is_financial_role):
     expenses = q.limit(tool_input.get("limit", 30)).all()
     proj_ids = {e.project_id for e in expenses if e.project_id}
     proj_map = {p.id: p for p in db.query(Project).filter(Project.id.in_(proj_ids)).all()}
-    total = sum(e.amount or 0 for e in expenses)
+    # M13 (auditoría 22-11-2026): el total es de TODOS los gastos del filtro (no
+    # de la página de `limit`) y en la moneda de la empresa (antes se sumaban
+    # monedas tal cual). Los tipos que falten se dicen en `fx_warnings`.
+    total, moneda, avisos = _total_en_moneda(db, [(e.amount, e.currency, e.expense_date) for e in q.all()])
     return {
-        "total_amount": round(total, 2),
+        "total_amount": total, "currency": moneda, "fx_warnings": avisos, "count": q.count(),
         "expenses": [{
             "id": e.id, "description": e.description,
             "amount": e.amount, "category": str(e.category) if e.category else None,
@@ -43,6 +46,19 @@ def _get_expenses(tool_input, db, user, now, is_financial_role):
             "project_name": proj_map[e.project_id].name if e.project_id and e.project_id in proj_map else None,
         } for e in expenses]
     }
+
+
+def _total_en_moneda(db, partidas) -> tuple[float, str, list]:
+    """(total en la moneda de la empresa, moneda, tipos que faltaron) de [(importe, moneda, fecha)]."""
+    from app.services.currency_rates_service import TablaDeTipos, TiposQueFaltan, tipo_o_aviso
+    from app.services.settings_service.por_empresa import moneda_de_empresa
+    moneda = moneda_de_empresa(db)
+    total = 0.0
+    with TiposQueFaltan() as faltan, TablaDeTipos(db):
+        for importe, de, fecha in partidas:
+            de = (de or moneda).upper()
+            total += float(importe or 0) * (tipo_o_aviso(db, de, moneda, fecha) if de != moneda and fecha else 1.0)
+    return round(total, 2), moneda, sorted(faltan)
 
 
 def _proyecto_de_la_empresa(db, user, texto: str):
@@ -66,11 +82,15 @@ def _get_invoices(tool_input, db, user, now, is_financial_role):
     if tool_input.get("client_name"):
         q = q.filter(Invoice.client_name.ilike(f"%{tool_input['client_name']}%"))
     invoices = q.order_by(Invoice.issue_date.desc()).limit(tool_input.get("limit", 30)).all()
-    total_paid = sum(inv.total or 0 for inv in invoices if inv.status == "paid")
-    total_pending = sum(inv.total or 0 for inv in invoices if inv.status in ("sent", "overdue"))
+    # M13: totales de todo el filtro y en la moneda de la empresa.
+    todas = q.all()
+    total_paid, moneda, av1 = _total_en_moneda(
+        db, [(i.total, i.currency, i.issue_date) for i in todas if i.status == "paid"])
+    total_pending, _, av2 = _total_en_moneda(
+        db, [(i.total, i.currency, i.issue_date) for i in todas if i.status in ("sent", "overdue")])
     return {
-        "total_paid": round(total_paid, 2),
-        "total_pending": round(total_pending, 2),
+        "total_paid": total_paid,
+        "total_pending": total_pending, "currency": moneda, "fx_warnings": sorted(set(av1) | set(av2)),
         "invoices": [{
             "id": inv.id, "number": inv.number,
             "client_name": inv.client_name, "status": str(inv.status),
@@ -93,26 +113,27 @@ def _get_profitability(tool_input, db, user, now, is_financial_role):
             Project.id.in_(proyectos_visibles(db, user)),
             Project.status.in_(["active","planning","completed"]),
         ).limit(20).all()
+    # Auditoría 22-11-2026 (§7.2): el margen del asistente es el del cálculo
+    # único en bloque (`margen_de_proyectos`), el mismo de rentabilidad, panel,
+    # EVM y BI. Antes era otro más: contrato o facturado contra horas + gastos,
+    # con borradas y monedas mezcladas, y cuatro consultas por proyecto.
+    from app.services.margen_de_proyectos import margen_en_bloque
+    cifras = margen_en_bloque(db, list(projects))
+    facturado = dict(db.query(Invoice.project_id, func.sum(Invoice.total)).filter(
+        Invoice.project_id.in_([p.id for p in projects] or [""]), Invoice.status.in_(["sent", "paid"]),
+    ).group_by(Invoice.project_id).all())
     result = []
     for p in projects:
-        hours = db.query(func.sum(Imputation.hours)).filter(Imputation.project_id == p.id).scalar() or 0
-        cost = db.query(func.sum(Imputation.cost_amount)).filter(Imputation.project_id == p.id).scalar() or 0
-        from app.services.gastos_avanzados import totales_por_proyecto
-        expenses_total = totales_por_proyecto(db, [p.id]).get(p.id, 0)
-        invoiced = db.query(func.sum(Invoice.total)).filter(
-            Invoice.project_id == p.id, Invoice.status.in_(["sent","paid"])
-        ).scalar() or 0
-        revenue = p.contract_amount or invoiced or 0
-        total_cost = cost + expenses_total
-        margin = revenue - total_cost
-        margin_pct = round(margin / revenue * 100, 1) if revenue else None
+        c = cifras[p.id]
         result.append({
             "id": p.id, "code": p.code, "name": p.name, "client": p.client_name,
             "status": p.status, "contract_amount": p.contract_amount,
-            "hours_logged": round(hours, 1), "cost_labour": round(cost, 2),
-            "expenses": round(expenses_total, 2), "total_cost": round(total_cost, 2),
-            "revenue": round(revenue, 2), "invoiced": round(invoiced, 2),
-            "gross_margin": round(margin, 2), "margin_pct": margin_pct,
+            "hours_logged": round(c["hours"], 1), "cost_labour": c["internal_cost"],
+            "expenses": c["expenses_cost"], "subcontract": c["subcontract_cost"], "licenses": c["alm_cost"],
+            "total_cost": c["total_cost"], "revenue": c["revenue"],
+            "invoiced": round(float(facturado.get(p.id) or 0), 2),
+            "gross_margin": c["margin"], "margin_pct": c["margin_pct"],
+            "currency": c["currency"], "fx_warnings": c["fx_warnings"],
         })
     result.sort(key=lambda x: (x["margin_pct"] or 0))
     return {"profitability": result}

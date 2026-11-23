@@ -69,6 +69,11 @@ class AzureSTTProvider(STTProvider):
     def transcribe(self, audio_bytes, filename, content_type, language=None):
         if not self.is_available():
             raise STTError(self.name, "AZURE_SPEECH_KEY/REGION no configurados")
+        # 23-11-2026 (SSRF): la región (ajuste por empresa) entra en el HOST; con
+        # `x/#` la clave y el audio saldrían a otro sitio. Solo una etiqueta DNS.
+        import re
+        if not re.fullmatch(r"[a-z0-9][a-z0-9-]{0,62}", str(self._region).strip().lower()):
+            raise STTError(self.name, "AZURE_SPEECH_REGION no válida")
 
         url = (
             f"https://{self._region}.stt.speech.microsoft.com"

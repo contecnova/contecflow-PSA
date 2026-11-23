@@ -9,63 +9,26 @@ import { useQuery } from '@tanstack/react-query'
 import { PORTAL_TRANSLATIONS as T, PORTAL_LANGUAGES as LANGUAGES } from '../../i18n/portalTranslations'
 import { STATUS_CFG } from '../../constants/sharedStatus'
 import { useIdleTimeout } from '../../hooks/useIdleTimeout'
-import { crearClienteDeApi } from '../../services/api/clienteBase'
+import { crearClienteDeApi, desenvolverSobre } from '../../services/api/clienteBase'
 import StatusBadge from '../../components/ui/StatusBadge'
 import { useDialogo } from '../../components/ui/useDialogo'
 import { TextosDeInterfazProvider, type TraductorDeCodigos } from '../../components/ui/useTextoUi'
 import { mensajeDeError } from '../../utils/mensajeDeError'
 import { Button, Pulsable, Input } from '../../components/ui'
 import { Timer, Map as MapIcon, Headphones, FlaskConical, Receipt } from 'lucide-react'
+import { OlvideMiContrasena } from './RecuperarContrasena'  // 23-11-2026: «¿Olvidaste tu contraseña?»
 import './portalClientContext.css'
-
-type ApiListBody = {
-  items: unknown[]
-  meta: Record<string, unknown>
-}
-
-function isApiListBody(body: unknown): body is ApiListBody {
-  return Boolean(
-    body &&
-    typeof body === 'object' &&
-    !Array.isArray(body) &&
-    Array.isArray((body as ApiListBody).items) &&
-    (body as ApiListBody).meta &&
-    typeof (body as ApiListBody).meta === 'object' &&
-    Object.keys(body as Record<string, unknown>).length === 2,
-  )
-}
 
 // ── API client ────────────────────────────────────────────────────────────────
 // Instancia propia: el portal de clientes tiene su propia sesión y su propio
 // manejo de 401 (no debe disparar el refresco de la sesión de empleado).
 export const CLIENT_API = crearClienteDeApi({ withCredentials: true })  // base y límite comunes (19-11-2026)
 
-// Desenvuelve los dos sobres del servidor, como el cliente de la aplicación
-// (services/api/_core.ts). Auditoría 2026-11: solo desenvolvía las listas, y
-// desde julio el login del portal responde `{data, meta}`; `res.data.client`
-// salía vacío y el portal volvía a la pantalla de entrada sin decir nada.
-// Nadie podía entrar.
-CLIENT_API.interceptors.response.use((res: AxiosResponse<unknown>) => {
-  const body = res?.data
-  if (isApiListBody(body)) {
-    return {
-      ...res,
-      data: body.items,
-      meta: body.meta,
-    } as AxiosResponse<unknown[]> & { meta: Record<string, unknown> }
-  }
-  // Sobre de objeto (APIResponse): exactamente {data, meta}, para no tocar un
-  // payload que casualmente tenga una clave `data`.
-  if (body && typeof body === 'object' && !Array.isArray(body)) {
-    const claves = Object.keys(body)
-    if (claves.length === 2 && 'data' in body && 'meta' in body) {
-      const sobre = body as { data: unknown; meta: Record<string, unknown> }
-      return { ...res, data: sobre.data, meta: sobre.meta } as AxiosResponse<unknown> & { meta: Record<string, unknown> }
-    }
-  }
-  return res
-})
-
+// Desenvuelve los dos sobres del servidor, como el cliente de la aplicación.
+// Auditoría 2026-11: solo desenvolvía las listas, y desde julio el login del
+// portal responde `{data, meta}`; `res.data.client` salía vacío y nadie podía
+// entrar. 23-11-2026: la misma función que `_core.ts` (`desenvolverSobre`).
+CLIENT_API.interceptors.response.use((res: AxiosResponse<unknown>) => desenvolverSobre(res))
 
 // ─────────────────────────────────────────────────────────────────────────────
 // La sesion del portal de cliente
@@ -97,6 +60,9 @@ export interface ClienteDelPortal {
   can_request_changes?: boolean
   can_view_budget?: boolean
   can_view_team?: boolean
+  /** 23-11-2026: contraseña generada por el sistema (alta o «Reenviar acceso»):
+   *  el portal solo enseña la pantalla de cambio hasta cambiarla. */
+  must_change_password?: boolean
 }
 
 /** Lo que el proveedor de sesion ofrece a sus hijos. */
@@ -104,13 +70,16 @@ export interface SesionDeCliente {
   client: ClienteDelPortal | null
   login: (email: string, password: string) => Promise<unknown>
   logout: () => Promise<void>
+  /** Tras el cambio obligatorio de contraseña: quita la marca y abre el portal. */
+  contrasenaCambiada?: () => void
   /** `false` mientras se comprueba la sesion contra el servidor: distinto de
    *  «no hay sesion», y por eso es un campo aparte y no un `client === null`. */
   isReady: boolean
 }
 
 // ── Language Context ──────────────────────────────────────────────────────────
-export const LangContext = createContext('es')
+// Incidencia 5 (23-11-2026): sin proveedor, inglés (el idioma por defecto del portal).
+export const LangContext = createContext('en')
 /** Revisión 2026-11: las traducciones que personaliza el administrador llegan
  *  con la marca del portal (`/portal/branding`). Antes se leían del
  *  localStorage, que solo existía en el navegador del administrador. */
@@ -234,6 +203,7 @@ function _pickClientUiFields(client: ClienteDelPortal | null) {
     can_request_changes,
     can_view_budget,
     can_view_team,
+    must_change_password,
     phone,
     job_title,
   } = client as ClienteDelPortal & { phone?: string | null; job_title?: string | null }
@@ -252,6 +222,7 @@ function _pickClientUiFields(client: ClienteDelPortal | null) {
     can_request_changes: Boolean(can_request_changes),
     can_view_budget: Boolean(can_view_budget),
     can_view_team: Boolean(can_view_team),
+    must_change_password: Boolean(must_change_password),
     // Auditoría 2026-11: sin estos dos, el perfil se abría vacío y al guardar
     // los borraba.
     phone: phone ?? null,
@@ -259,10 +230,21 @@ function _pickClientUiFields(client: ClienteDelPortal | null) {
   }
 }
 
+// 23-11-2026: localStorage puede estar bloqueado (modo privado, política del navegador): nunca debe tumbar el portal.
+const leerAlmacen = (clave: string): string | null => {
+  try { return localStorage.getItem(clave) } catch { /* accesorio: sin almacenamiento */ return null }
+}
+const guardarAlmacen = (clave: string, valor: string) => {
+  try { localStorage.setItem(clave, valor) } catch { /* accesorio: sin almacenamiento, la sesión no se recuerda entre visitas */ }
+}
+const borrarAlmacen = (clave: string) => {
+  try { localStorage.removeItem(clave) } catch { /* accesorio: sin almacenamiento */ }
+}
+
 export function ClientAuthProvider({ children }: { children?: React.ReactNode }) {
   const traducir = useLang()
   const [client, setClient] = useState<ClienteDelPortal | null>(() => {
-    try { return JSON.parse(localStorage.getItem('client_user') || 'null') } catch { return null }
+    try { return JSON.parse(leerAlmacen('client_user') || 'null') } catch { /* accesorio: dato guardado corrupto; se pide entrar de nuevo */ return null }
   })
   const [isReady, setIsReady] = useState(false)
   const [idleEnabled, setIdleEnabled] = useState(false)
@@ -272,7 +254,7 @@ export function ClientAuthProvider({ children }: { children?: React.ReactNode })
     // Only probe /portal/auth/me when localStorage has a hint that a portal
     // session existed in this browser. First-time visitors of /portal go
     // straight to the login screen without a noisy 401 in the console.
-    const hasPortalHint = !!localStorage.getItem('client_user')
+    const hasPortalHint = !!leerAlmacen('client_user')
     if (!hasPortalHint) {
       setIsReady(true)
       return () => { mounted = false }
@@ -282,14 +264,15 @@ export function ClientAuthProvider({ children }: { children?: React.ReactNode })
         if (!mounted) return
         const me = _pickClientUiFields(res?.data)
         setClient(me)
-        if (me) localStorage.setItem('client_user', JSON.stringify(me))
-        else localStorage.removeItem('client_user')
+        if (me) guardarAlmacen('client_user', JSON.stringify(me))
+        else borrarAlmacen('client_user')
         setIsReady(true)
       })
       .catch(() => {
+        // Caso esperado: la sesión caducó (401); se vuelve a la pantalla de entrada sin avisar.
         if (!mounted) return
         setClient(null)
-        localStorage.removeItem('client_user')
+        borrarAlmacen('client_user')
         setIsReady(true)
       })
     return () => { mounted = false }
@@ -297,16 +280,24 @@ export function ClientAuthProvider({ children }: { children?: React.ReactNode })
   const login = async (email: string, password: string) => {
     const res = await CLIENT_API.post('/portal/auth/login', { email, password })
     const clientData = _pickClientUiFields(res.data.client)
-    localStorage.setItem('client_user', JSON.stringify(clientData))
+    guardarAlmacen('client_user', JSON.stringify(clientData))
     if (res.data.client?.language) {
-      localStorage.setItem('portal_lang', res.data.client.language)
+      guardarAlmacen('portal_lang', res.data.client.language)
     }
     setClient(clientData)
     return res.data.client
   }
+  const contrasenaCambiada = () => {
+    setClient((c) => {
+      if (!c) return c
+      const siguiente = { ...c, must_change_password: false }
+      guardarAlmacen('client_user', JSON.stringify(siguiente))
+      return siguiente
+    })
+  }
   const logout = async () => {
-    try { await CLIENT_API.post('/portal/auth/logout') } catch { /* noop */ }
-    localStorage.removeItem('client_user')
+    try { await CLIENT_API.post('/portal/auth/logout') } catch { /* accesorio: si el servidor no responde, la sesión local se cierra igualmente */ }
+    borrarAlmacen('client_user')
     setClient(null)
   }
 
@@ -319,7 +310,7 @@ export function ClientAuthProvider({ children }: { children?: React.ReactNode })
         setIdleMinutes(Math.max(1, parseInt(cfg.idle_timeout_minutes, 10) || 30))
       })
       .catch(() => {
-        // Keep safe defaults when config is unavailable.
+        // accesorio: sin configuración de sesión se mantienen los valores seguros por defecto.
         setIdleEnabled(false)
         setIdleMinutes(30)
       })
@@ -335,7 +326,7 @@ export function ClientAuthProvider({ children }: { children?: React.ReactNode })
   const avisoRef = useDialogo<HTMLDivElement>(showWarning, dismiss)
 
   return (
-    <ClientAuthContext.Provider value={{ client, login, logout, isReady }}>
+    <ClientAuthContext.Provider value={{ client, login, logout, contrasenaCambiada, isReady }}>
       {children}
       {showWarning && (
         <div role="presentation" className="portalcl-sx1">
@@ -411,7 +402,7 @@ export function LangSelector({ onChange, current, dark = false }: LangSelectorPr
       {LANGUAGES.map(l => (
         <Pulsable className="poclco-box-12 portalcl-sx3 portal-client-context-e3" key={l.code} onClick={() => onChange(l.code)}
           title={l.label}
-          style={{ '--portal-client-context-background': current === l.code ? (dark ? 'var(--surface-4)' : 'var(--accent-glow)') : 'transparent', '--portal-client-context-border': `1px solid ${current === l.code ? 'var(--accent-glow)' : (dark ? 'var(--surface-4)' : 'rgba(255,255,255,0.12)')}` } as CSSProperties}>
+          style={{ '--portal-client-context-background': current === l.code ? (dark ? 'var(--surface-4)' : 'var(--accent-glow)') : 'transparent', '--portal-client-context-border': `1px solid ${current === l.code ? 'var(--accent-glow)' : (dark ? 'var(--surface-4)' : 'var(--on-dark-faint-xs)')}` } as CSSProperties}>
           {l.code.toUpperCase()}
         </Pulsable>
       ))}
@@ -431,6 +422,7 @@ export function LoginScreen({ _changeLang, _currentLang }: { _changeLang?: (code
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [olvido, setOlvido] = useState(false)
 
   const handleLogin = async () => {
     setError(''); setLoading(true)
@@ -480,6 +472,7 @@ export function LoginScreen({ _changeLang, _currentLang }: { _changeLang?: (code
       {/* Form panel */}
       <div className="poclco-row-4">
         <div className="poclco-box-9">
+          {olvido ? <OlvideMiContrasena onVolver={() => setOlvido(false)} /> : (<>
           <h2 className="poclco-box-10">{traducir('portalclientcontext.acceder_al_portal')}</h2>
           <p className="poclco-box-11">
             {traducir('portalclientcontext.usa_tu_correo_corporativo_para_acceder')}
@@ -500,6 +493,8 @@ export function LoginScreen({ _changeLang, _currentLang }: { _changeLang?: (code
               {loading ? t('login_loading') : t('login_btn')}
             </Button>
           </form>
+          <Button variant="ghost" onClick={() => { setError(''); setOlvido(true) }}>{t('portal_recuperar.enlace')}</Button>
+          </>)}
         </div>
       </div>
 

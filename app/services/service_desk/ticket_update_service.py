@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 
 from sqlalchemy.orm import Session
 
@@ -9,7 +9,8 @@ from app.services.service_desk.status_compat import normalize_ticket_status
 from app.services.service_desk.dynamic_ticket_fields_service import save_ticket_dynamic_fields
 from app.services.service_desk.ticket_ops_service import save_pending_snapshot
 from app.services.service_desk.sla_del_ticket import (  # noqa: F401  (reexportados)
-    _reanudar_sla_pausado, _recalcular_vencimientos, cambiar_prioridad,
+    _reanudar_sla_pausado, _recalcular_vencimientos, calendario_del_ticket, cambiar_prioridad,
+    pausar_sla,
 )
 from app.services.sla_service import (
     PRIORITY_MATRIX,
@@ -69,15 +70,23 @@ def _marcar_primera_respuesta(ticket, now) -> None:
         )
 
 
-def _vencido(due, ticket, now) -> bool:
+def _vencido(due, ticket, now, db=None) -> bool:
     """¿Se ha incumplido un vencimiento de SLA, descontando las pausas?
 
     Los minutos en pausa se SUMAN al vencimiento: el reloj no corre mientras se
     espera al cliente, así que no contarlos marcaría como incumplido un SLA que
-    se respetó.
+    se respetó. Auditoria 2026-11-22 (A-SD2): se suman en el calendario del SLA
+    del ticket, el mismo en que se acumulan.
     """
-    efectivo = _aware(due) + timedelta(minutes=ticket.sla_pause_minutes or 0)
-    return now > efectivo
+    from app.services.sla_service import vencimiento_efectivo
+    cal = None
+    if db is not None and ticket.sla_pause_minutes:
+        try:
+            cal = calendario_del_ticket(db, ticket)
+        except Exception:
+            logger.warning("SLA del ticket %s sin calendario; pausa en reloj de pared",
+                           getattr(ticket, "id", None), exc_info=True)
+    return now > vencimiento_efectivo(due, ticket.sla_pause_minutes, cal)
 
 
 def _estado_en_progreso(db, ticket, now) -> None:
@@ -85,20 +94,23 @@ def _estado_en_progreso(db, ticket, now) -> None:
     if not ticket.first_response_at:
         _marcar_primera_respuesta(ticket, now)
         if ticket.sla_response_due:
-            ticket.sla_response_breached = _vencido(ticket.sla_response_due, ticket, now)
+            ticket.sla_response_breached = _vencido(ticket.sla_response_due, ticket, now, db)
     _reanudar_sla_pausado(ticket, now)
 
 
 def _estado_resuelto(db, ticket, now) -> None:
     """Resolución: sella los tiempos y evalúa el SLA de resolución."""
     ticket.resolved_at = now
+    # Resolver un ticket en espera cierra la pausa antes de evaluar el SLA:
+    # si no, el tiempo en espera no se descontaba.
+    _reanudar_sla_pausado(ticket, now)
     _marcar_primera_respuesta(ticket, now)
     if ticket.created_at:
         ticket.resolution_minutes = int(
             (now - _aware(ticket.created_at)).total_seconds() / 60
         )
     if ticket.sla_resolution_due:
-        ticket.sla_resolution_breached = _vencido(ticket.sla_resolution_due, ticket, now)
+        ticket.sla_resolution_breached = _vencido(ticket.sla_resolution_due, ticket, now, db)
 
 
 def _estado_cerrado(db, ticket, now) -> None:
@@ -114,8 +126,12 @@ def _estado_en_espera(db, ticket, now) -> None:
     Se guarda una instantánea antes de parar, para poder reconstruir qué estado
     tenía el ticket cuando se dejó en espera.
     """
+    # Auditoria 2026-11-22 (A-SD3): de una espera a otra el reloj sigue parado
+    # desde la primera; la instantanea es la del estado ANTERIOR a esperar.
+    if ticket.sla_paused_at:
+        return
     save_pending_snapshot(db, ticket)
-    ticket.sla_paused_at = now
+    pausar_sla(ticket, now)
 
 
 # Estado normalizado → qué hacer al entrar en él. El `else` del original —el
@@ -227,6 +243,37 @@ def apply_ticket_update(
         "reassigned": bool(payload.assigned_to_user_id and old_assigned_to and payload.assigned_to_user_id != old_assigned_to),
         "record_routing_outcome": normalized_status in ESTADOS_DE_TICKET_RESUELTOS,
     }
+
+
+def cambiar_estado_por_automatismo(db: Session, ticket: Ticket, estado: str, *, actor=None,
+                                   origen: str, resolucion: str | None = None,
+                                   metadatos: dict | None = None) -> bool:
+    """Cambio de estado hecho por un automatismo (IA, playbook, catalogo).
+
+    Auditoria 2026-11-22 (A-SD11): la auto-resolucion con LLM, la del agente
+    autonomo, la operacion «auto-resolver» y los pasos del catalogo escribian
+    `ticket.status` a mano: sin historial, sin `resolved_at`, sin evaluar el
+    SLA, sin encuesta y sin `audit_log`. Ahora pasan por `apply_ticket_update`
+    (la misma via que el PATCH) y dejan una entrada de auditoria con su
+    `origen`. Devuelve False si el ticket ya estaba en ese estado.
+    """
+    from app.schemas.service_desk import TicketUpdateIn
+    from app.services.audit import audit_log
+
+    antes = _norm_enum(ticket.status)
+    destino = normalize_ticket_status(estado)
+    if antes == destino:
+        return False
+    if resolucion is not None:
+        ticket.resolution = resolucion
+    apply_ticket_update(db, ticket, ticket.id, TicketUpdateIn(status=destino),
+                        current_user_id=getattr(actor, "id", None),
+                        old_assigned_to=ticket.assigned_to_user_id,
+                        old_support_level=ticket.support_level)
+    audit_log(db, actor, "UPDATE", "tickets", ticket.id, ticket.number,
+              old_values={"status": antes}, new_values={"status": destino},
+              metadata={"origen": origen, **(metadatos or {})})
+    return True
 
 
 def _exigir_contrato_uc(db: Session, contrato_id: str, org_id) -> None:

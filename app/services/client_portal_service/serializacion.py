@@ -7,22 +7,26 @@ from app.models.resources import ChangeRequest
 from app.core import timeutil
 
 
-_FR_STATUS_LABELS = {
-    "new": "Nueva", "reviewing": "En revisión", "estimated": "Presupuestada",
-    "approved": "Aprobada", "rejected": "Rechazada",
-    "in_development": "En desarrollo", "done": "Completada",
-}
-_FR_PRIORITY_LABELS = {"low": "Baja", "medium": "Media", "high": "Alta", "critical": "Crítica"}
+_ESTADOS_FR = ("new", "reviewing", "estimated", "approved", "rejected", "in_development", "done")
+_PRIORIDADES = ("low", "medium", "high", "critical")
+_ESTADOS_CR = ("draft", "submitted", "under_review", "approved", "rejected", "implemented")
+_CATEGORIAS_DOC = ("contract", "deliverable", "meeting_notes", "report", "other")
+
+
+def etiqueta(grupo: str, valor, idioma=None) -> str:
+    """Etiqueta del portal (`portal_etiqueta.<grupo>.<valor>`) en `idioma` (los 8 del portal).
+
+    23-11-2026: antes cuatro diccionarios en castellano fijo. Un valor desconocido sale tal cual."""
+    from app.services.textos_de_salida import TEXTOS, texto
+    clave = f"portal_etiqueta.{grupo}.{valor}"
+    return texto(clave, idioma) if clave in TEXTOS else (valor or "")
+
+
 _FR_PRIORITY_COLORS = {"low": "#00e5a0", "medium": "#00d4ff", "high": "#ffb800", "critical": "#ff4757"}
 _FR_STATUS_COLORS = {
     "new": "#7a8aaa", "reviewing": "#00d4ff", "estimated": "#ffb800",
     "approved": "#00e5a0", "rejected": "#ff4757",
     "in_development": "#7c3aed", "done": "#00e5a0",
-}
-_CR_STATUS_LABELS = {
-    "draft": "Borrador", "submitted": "Enviado",
-    "under_review": "En revisión", "approved": "Aprobado",
-    "rejected": "Rechazado", "implemented": "Implementado",
 }
 _CR_STATUS_COLORS = {
     "draft": "#7a8aaa", "submitted": "#00d4ff",
@@ -31,7 +35,7 @@ _CR_STATUS_COLORS = {
 }
 
 
-def _resolve_fr_cr_status(fr):
+def _resolve_fr_cr_status(fr, idioma=None):
     """Return (cr_status, cr_status_label, cr_status_color) for a FeatureRequest's linked CR."""
     if not getattr(fr, "change_request_id", None):
         return None, None, None
@@ -46,13 +50,13 @@ def _resolve_fr_cr_status(fr):
         return None, None, None
     return (
         cr.status,
-        _CR_STATUS_LABELS.get(cr.status, cr.status),
+        etiqueta("cr_estado", cr.status, idioma),
         _CR_STATUS_COLORS.get(cr.status, "#7a8aaa"),
     )
 
 
-def fr_out(fr) -> dict:
-    cr_status, cr_status_label, cr_status_color = _resolve_fr_cr_status(fr)
+def fr_out(fr, idioma=None) -> dict:
+    cr_status, cr_status_label, cr_status_color = _resolve_fr_cr_status(fr, idioma)
     return {
         "id": fr.id, "code": fr.code, "project_id": fr.project_id,
         "project_name": fr.project.name if fr.project else "—",
@@ -61,10 +65,10 @@ def fr_out(fr) -> dict:
         "business_justification": fr.business_justification,
         "affected_area": fr.affected_area,
         "priority": fr.priority,
-        "priority_label": _FR_PRIORITY_LABELS.get(fr.priority, fr.priority),
+        "priority_label": etiqueta("fr_prioridad", fr.priority, idioma),
         "priority_color": _FR_PRIORITY_COLORS.get(fr.priority, "#7a8aaa"),
         "status": fr.status,
-        "status_label": _FR_STATUS_LABELS.get(fr.status, fr.status),
+        "status_label": etiqueta("fr_estado", fr.status, idioma),
         "status_color": _FR_STATUS_COLORS.get(fr.status, "#7a8aaa"),
         "pm_response": fr.pm_response,
         "estimated_hours": fr.estimated_hours,
@@ -168,14 +172,10 @@ def msg_out(m) -> dict:
     }
 
 
-def doc_out(d) -> dict:
-    CAT_LABELS = {
-        "contract": "Contrato", "deliverable": "Entregable",
-        "meeting_notes": "Acta reunión", "report": "Informe", "other": "Otro",
-    }
+def doc_out(d, idioma=None) -> dict:
     return {
         "id": d.id, "title": d.title, "description": d.description,
-        "category": d.category, "category_label": CAT_LABELS.get(d.category, d.category),
+        "category": d.category, "category_label": etiqueta("doc_categoria", d.category, idioma),
         "file_url": d.file_url, "file_name": d.file_name, "file_size_kb": d.file_size_kb,
         "requires_signature": d.requires_signature, "signed_by_client": d.signed_by_client,
         "is_visible_to_client": d.is_visible_to_client,

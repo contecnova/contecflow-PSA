@@ -37,7 +37,7 @@ from sqlalchemy.orm import Session
 from datetime import datetime, timezone
 
 from app.db.session import get_db
-from app.core.deps import get_current_user, require_internal_user, requiere_capacidad
+from app.core.deps import get_current_user, requiere_capacidad
 from app.core.responses import APIResponse
 from app.core.tenancy import org_scoped_or_404
 from app.models.user import User
@@ -73,7 +73,9 @@ def _organizacion_de(user) -> str | None:
     para el esa es la lectura correcta. Lo que estaba mal era que el endpoint no
     pasara NADA teniendo delante a un administrador de un cliente concreto.
     """
-    return getattr(user, "organization_id", None)
+    # 23-11-2026 (A-SD13): la empresa ACTIVA, no la de la ficha.
+    from app.services.service_desk.scoping import empresa_activa
+    return empresa_activa(user)
 
 
 class FeedbackBody(BaseModel):
@@ -101,7 +103,7 @@ def analyze_ticket_for_ai_resolution(
     ticket_id: str,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
+    _rol: User = Depends(requiere_capacidad("sd.completo")),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
 ):
     """
     Analyze a ticket and get AI-powered resolution suggestions.
@@ -145,15 +147,13 @@ def apply_ai_auto_resolution(
     force: bool = Query(False, description="Force apply even if low confidence"),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
+    _rol: User = Depends(requiere_capacidad("sd.administrar")),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
 ):
     """
     Apply AI-recommended resolution to a ticket.
 
     Only admins or L3 support can apply auto-resolution.
     """
-    if current_user.role not in [UserRole.admin]:  # 2026-11: "support" no existe en UserRole; nunca coincidia
-        raise error_http(403, "solo_admin_o_soporte", detail="Only admins/support can apply auto-resolution")
 
     ticket = org_scoped_or_404(db, Ticket, ticket_id, current_user, detail="Ticket not found")
 
@@ -189,8 +189,6 @@ def run_auto_resolution_job(
         "failed": count,
     }
     """
-    if current_user.role != UserRole.admin:
-        raise error_http(403, "solo_admin", detail="Only admins can run this job")
 
     return APIResponse.ok(data=lanzar_trabajo(
         db, _organizacion_de(current_user), limit, run_async, background_tasks.add_task))
@@ -209,7 +207,7 @@ def validate_ticket_auto_resolution(
     ticket_id: str,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: operacion diaria del service desk
+    _rol: User = Depends(requiere_capacidad("sd.administrar")),  # auditoria 2026-09: dominio: operacion diaria del service desk
 ):
     """
     Check whether an auto-resolved ticket was subsequently reopened and record
@@ -217,8 +215,6 @@ def validate_ticket_auto_resolution(
 
     Returns: {validated, reopened, ticket_id, ticket_number}
     """
-    if current_user.role not in [UserRole.admin]:  # 2026-11: "support" no existe en UserRole; nunca coincidia
-        raise error_http(403, "sin_permiso", detail="Not authorized")
 
     ticket = org_scoped_or_404(db, Ticket, ticket_id, current_user, detail="Ticket not found")
 
@@ -240,7 +236,7 @@ def submit_auto_resolution_feedback(
     body: FeedbackBody,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: operacion diaria del service desk
+    _rol: User = Depends(requiere_capacidad("sd.administrar")),  # auditoria 2026-09: dominio: operacion diaria del service desk
 ):
     """
     Record whether the auto-resolution was successful or not.
@@ -248,8 +244,6 @@ def submit_auto_resolution_feedback(
 
     Body: {"success": true | false}
     """
-    if current_user.role not in [UserRole.admin]:  # 2026-11: "support" no existe en UserRole; nunca coincidia
-        raise error_http(403, "sin_permiso", detail="Not authorized")
 
     ticket = org_scoped_or_404(db, Ticket, ticket_id, current_user, detail="Ticket not found")
 
@@ -266,7 +260,7 @@ def submit_auto_resolution_feedback(
     },
 )
 def get_auto_resolution_statistics(
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(requiere_capacidad("sd.administrar")),
     db: Session = Depends(get_db),
 ):
     """
@@ -274,8 +268,6 @@ def get_auto_resolution_statistics(
 
     Returns: {total_auto_resolved, total_feedback, success_rate, buckets}
     """
-    if current_user.role != UserRole.admin:
-        raise error_http(403, "solo_admin", detail="Admin only")
 
     org = _organizacion_de(current_user)
     payload = get_auto_resolution_stats(db, org)
@@ -291,11 +283,9 @@ def get_auto_resolution_statistics(
     responses={403: {"description": "Admin only"}},
 )
 def get_auto_resolution_config_endpoint(
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(requiere_capacidad("sd.administrar")),
     db: Session = Depends(get_db),
 ):
-    if current_user.role != UserRole.admin:
-        raise error_http(403, "solo_admin", detail="Admin only")
     return APIResponse.ok(data=get_auto_resolution_config(db, _organizacion_de(current_user)))
 
 
@@ -311,8 +301,6 @@ def update_auto_resolution_config_endpoint(
     db: Session = Depends(get_db),
     _rol: User = Depends(requiere_capacidad("sd.administrar")),  # auditoria 2026-09: configuracion: la forma de la ruta manda sobre el fichero
 ):
-    if current_user.role != UserRole.admin:
-        raise error_http(403, "solo_admin", detail="Admin only")
 
     payload = body.model_dump(exclude_unset=True)
     org = _organizacion_de(current_user)
@@ -348,8 +336,6 @@ def run_auto_close_job_endpoint(
 
     Admin-only. Returns: {closed, validated, errors}
     """
-    if current_user.role != UserRole.admin:
-        raise error_http(403, "solo_admin", detail="Admin only")
 
     stats = cerrar_resueltos(db, _organizacion_de(current_user))
     return APIResponse.ok(data={

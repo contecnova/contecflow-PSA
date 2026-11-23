@@ -1,14 +1,10 @@
 {
-  "generatedAt": "2026-04-29T06:47:34.923Z",
-  "totalKeys": 3027,
+  "generatedAt": "2026-11-23T11:39:26.650Z",
+  "nota": "Regenerada 23-11-2026 (auditoría 05, A.2): operador es/en/zh. Las claves que getAllKeys() da como ausentes en los tres por igual son claves anidadas (objetos), no traducciones que falten; la paridad es/en/zh es total.",
+  "totalKeys": 23409,
   "perLanguage": {
-    "es": 0,
-    "en": 1414,
-    "fr": 1466,
-    "de": 1466,
-    "pt": 1466,
-    "it": 1466,
-    "pl": 2689,
-    "zh": 2687
+    "es": 1525,
+    "en": 1525,
+    "zh": 1525
   }
 }

@@ -31,6 +31,13 @@ from app.models.project import Project, ProjectStatus
 from app.models.task import Task
 from app.core import timeutil
 
+#: Un proyecto «se pasa» si su coste real supera el presupuesto por este factor
+#: (ronda 2 auditoria 2026-11-22, §6 Umbrales: era `1.10` escrito en la regla;
+#: ajuste `ML_FACTOR_DE_SOBRECOSTE`). Cambiarlo cambia las etiquetas: reentrenar.
+def factor_de_sobrecoste() -> float:
+    from app.core.config import settings
+    return float(getattr(settings, "ML_FACTOR_DE_SOBRECOSTE", 1.10) or 1.10)
+
 FEATURE_COLUMNS = [
     "cpi", "spi", "budget_used_pct", "elapsed_pct",
     "task_completion_pct", "overdue_ratio", "team_size",
@@ -146,7 +153,7 @@ def extract_training_dataset(db: Session, organization_id: Optional[str] = None)
         # con un presupuesto en euros. Ahora es el coste en euros de siempre.
         budget = proj.budget_amount or 0
         actual_cost = coste_real(db, proj.id)
-        cost_overrun = (budget > 0) and (actual_cost > budget * 1.10)
+        cost_overrun = (budget > 0) and (actual_cost > budget * factor_de_sobrecoste())
         late = (
             proj.end_date_real is not None
             and proj.end_date_planned is not None

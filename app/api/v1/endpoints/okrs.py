@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from typing import Optional
 
 from app.db.session import get_db
-from app.core.deps import get_current_user, require_any_manager, require_internal_user
+from app.core.deps import get_current_user, requiere_capacidad
 from app.core.abac_enforce import enforce_abac
 from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User, UserRole
@@ -49,14 +49,14 @@ def list_objectives(
 
 @router.post("", summary="Crear objetivo", status_code=201)
 def create_objective(payload: ObjectiveIn, db: Session = Depends(get_db),
-                     cu: User = Depends(require_any_manager)):
+                     cu: User = Depends(requiere_capacidad("okr.gestionar"))):
     obj = okr_service.create_objective(db, payload.model_dump())
     return APIResponse.ok(data={"id": obj.id, "title": obj.title})
 
 
 @router.patch("/{obj_id}", summary="Actualizar objetivo")
 def update_objective(obj_id: str, payload: ObjectiveUpdate,
-                     db: Session = Depends(get_db), cu: User = Depends(require_any_manager)):
+                     db: Session = Depends(get_db), cu: User = Depends(requiere_capacidad("okr.gestionar"))):
     obj = okr_service.get_objective(db, obj_id)
     if not obj:
         raise error_http(404, "no_encontrado", detail="Objetivo no encontrado", que="objetivo")
@@ -66,7 +66,7 @@ def update_objective(obj_id: str, payload: ObjectiveUpdate,
 
 @router.delete("/{obj_id}", summary="Eliminar objetivo (soft delete)")
 def delete_objective(obj_id: str, db: Session = Depends(get_db),
-                     cu: User = Depends(require_any_manager)):
+                     cu: User = Depends(requiere_capacidad("okr.gestionar"))):
     """Delete (soft) an OKR objective. Blocked if active Key Results exist."""
     enforce_abac(db, cu, "okr", obj_id, action="delete")
     obj = okr_service.get_objective(db, obj_id)
@@ -81,7 +81,7 @@ def delete_objective(obj_id: str, db: Session = Depends(get_db),
 # ── Key Results CRUD ──────────────────────────────────────────────────────────
 @router.post("/key-results", summary="Añadir Key Result", status_code=201)
 def create_kr(payload: KeyResultIn, db: Session = Depends(get_db),
-              cu: User = Depends(require_any_manager)):
+              cu: User = Depends(requiere_capacidad("okr.gestionar"))):
     obj = okr_service.get_objective(db, payload.objective_id)
     if not obj:
         raise error_http(404, "no_encontrado", detail="Objetivo no encontrado", que="objetivo")
@@ -91,7 +91,7 @@ def create_kr(payload: KeyResultIn, db: Session = Depends(get_db),
 
 @router.patch("/key-results/{kr_id}", summary="Actualizar Key Result")
 def update_kr(kr_id: str, payload: KeyResultUpdate,
-              db: Session = Depends(get_db), cu: User = Depends(require_any_manager)):
+              db: Session = Depends(get_db), cu: User = Depends(requiere_capacidad("okr.gestionar"))):
     kr = okr_service.get_key_result(db, kr_id)
     if not kr:
         raise error_http(404, "no_encontrado", detail="KR no encontrado", que="resultado_clave")
@@ -101,7 +101,7 @@ def update_kr(kr_id: str, payload: KeyResultUpdate,
 
 @router.delete("/key-results/{kr_id}", summary="Eliminar Key Result (soft delete)")
 def delete_kr(kr_id: str, db: Session = Depends(get_db),
-              cu: User = Depends(require_any_manager)):
+              cu: User = Depends(requiere_capacidad("okr.gestionar"))):
     """Delete (soft) a Key Result from its objective."""
     enforce_abac(db, cu, "kr", kr_id, action="delete")
     kr = okr_service.get_key_result(db, kr_id)
@@ -114,7 +114,7 @@ def delete_kr(kr_id: str, db: Session = Depends(get_db),
 # ── Check-ins ─────────────────────────────────────────────────────────────────
 @router.post("/key-results/{kr_id}/checkin", summary="Registrar progreso", status_code=201)
 def checkin_kr(kr_id: str, payload: CheckinIn,
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: excepcion revisada: avance del propio KR
+    _rol: User = Depends(requiere_capacidad("okr.usar")),  # auditoria 2026-09: excepcion revisada: avance del propio KR
                db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
     kr = okr_service.get_key_result(db, kr_id)
     if not kr:
@@ -136,6 +136,6 @@ def checkin_kr(kr_id: str, payload: CheckinIn,
 def sync_kr_from_tasks(
     kr_id: str,
     db: Session = Depends(get_db),
-    cu: User = Depends(require_any_manager),
+    cu: User = Depends(requiere_capacidad("okr.gestionar")),
 ):
     return APIResponse.ok(data=_sync_kr_from_tasks(kr_id, cu.id, db))

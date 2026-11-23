@@ -22,6 +22,7 @@ el equipo tiene libres en la ventana: capacidad del calendario de cada persona
 (festivos y ausencias) menos lo ya asignado en tareas.
 """
 from __future__ import annotations
+from app.services import numbering as _numeracion  # prefijos por defecto (§6)
 
 import json
 from datetime import date, timedelta
@@ -295,7 +296,7 @@ def convertir_en_proyecto(db: Session, user, propuesta_id: str, datos: dict) -> 
     else:
         proyecto = Project(
             organization_id=org,
-            code=next_numbered_code(db, "project", prefix="PRJ", padding=4),
+            code=next_numbered_code(db, "project", prefix=_numeracion.PREFIJO_PROYECTO, padding=4),
             name=datos.get("name") or p.title, description=p.description,
             project_type=get_runtime_str(db, "DEFAULT_PROJECT_TYPE", org),
             client_id=p.client_id, pm_id=datos.get("pm_id"),

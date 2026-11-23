@@ -43,9 +43,31 @@ CLAVES = {
 
 
 def _usuario_con_rol(db, rol):
-    from app.models.user import User
+    """El usuario del rol pedido; si el seed base no trae uno, lo crea aquí.
 
-    return db.query(User).filter(User.role == rol).first()
+    Antes los tests saltaban con «las fixtures no traen un usuario con rol X»
+    (p. ej. `team_lead`), y un test saltado no prueba nada.
+    """
+    from app.models.user import User, UserStatus
+
+    usuario = db.query(User).filter(User.role == rol).first()
+    if usuario is None:
+        usuario = User(
+            id=f"ctx-{rol.value}-id",
+            username=f"ctx_{rol.value}",
+            email=f"ctx-{rol.value}@contecflow.com",
+            full_name=f"Contexto {rol.value}",
+            role=rol,
+            status=UserStatus.active,
+            is_active=True,
+            organization_id=1,
+            weekly_capacity_hours=40.0,
+            currency="EUR",
+        )
+        db.add(usuario)
+        db.commit()
+        db.refresh(usuario)
+    return usuario
 
 
 # ── El contrato de salida ─────────────────────────────────────────────────────
@@ -67,8 +89,6 @@ def test_cada_rol_devuelve_las_36_claves(db, rol):
     ausentes en lugar de con un error, así que nadie se enteraría.
     """
     usuario = _usuario_con_rol(db, rol)
-    if usuario is None:
-        pytest.skip(f"las fixtures no traen un usuario con rol {rol.value}")
     ctx = build_tenant_context(db, usuario)
     assert set(ctx) == CLAVES, f"faltan o sobran claves para el rol {rol.value}"
 
@@ -79,8 +99,6 @@ def test_un_empleado_no_ve_datos_financieros(db):
     """`financial_data_restricted` es lo que impide que el asistente cuente el
     margen de la empresa a quien no debe verlo."""
     empleado = _usuario_con_rol(db, UserRole.employee)
-    if empleado is None:
-        pytest.skip("las fixtures no traen un empleado")
     ctx = build_tenant_context(db, empleado)
     assert ctx["financial_data_restricted"] is True
     assert ctx["capacity_data_restricted"] is True
@@ -88,8 +106,6 @@ def test_un_empleado_no_ve_datos_financieros(db):
 
 def test_un_admin_si_ve_datos_financieros(db):
     admin = _usuario_con_rol(db, UserRole.admin)
-    if admin is None:
-        pytest.skip("las fixtures no traen un admin")
     ctx = build_tenant_context(db, admin)
     assert ctx["financial_data_restricted"] is False
     assert ctx["capacity_data_restricted"] is False
@@ -98,8 +114,6 @@ def test_un_admin_si_ve_datos_financieros(db):
 def test_un_pm_ve_capacidad_pero_no_finanzas(db):
     """El caso que distingue las dos banderas: no son la misma."""
     pm = _usuario_con_rol(db, UserRole.pm)
-    if pm is None:
-        pytest.skip("las fixtures no traen un PM")
     ctx = build_tenant_context(db, pm)
     assert ctx["capacity_data_restricted"] is False
     assert ctx["financial_data_restricted"] is True
@@ -107,8 +121,6 @@ def test_un_pm_ve_capacidad_pero_no_finanzas(db):
 
 def test_el_alcance_declara_el_rol_y_si_es_superadmin(db):
     admin = _usuario_con_rol(db, UserRole.admin)
-    if admin is None:
-        pytest.skip("las fixtures no traen un admin")
     alcance = build_tenant_context(db, admin)["context_scope"]
     assert "role" in alcance
 
@@ -131,8 +143,6 @@ def test_un_superadmin_lee_de_todas_las_organizaciones(db):
 def test_un_empleado_queda_acotado_a_sus_proyectos(db):
     """`user_project_ids` acota a quien no puede ver toda la organización."""
     empleado = _usuario_con_rol(db, UserRole.employee)
-    if empleado is None:
-        pytest.skip("las fixtures no traen un empleado")
     alcance = context_service._construir_alcance(db, empleado)
     assert alcance.can_see_org_wide is False
     assert alcance.user_project_ids is not None, (
@@ -142,8 +152,6 @@ def test_un_empleado_queda_acotado_a_sus_proyectos(db):
 
 def test_un_admin_no_queda_acotado(db):
     admin = _usuario_con_rol(db, UserRole.admin)
-    if admin is None:
-        pytest.skip("las fixtures no traen un admin")
     alcance = context_service._construir_alcance(db, admin)
     assert alcance.can_see_org_wide is True
     assert alcance.user_project_ids is None

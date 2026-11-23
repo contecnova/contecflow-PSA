@@ -97,7 +97,6 @@
 }
 
 /* Resumen NPS */
-.nps-periodo.ds-input { width: auto; }
 .nps-resumen {
   display: grid;
   grid-template-columns: 180px minmax(0, 1fr);

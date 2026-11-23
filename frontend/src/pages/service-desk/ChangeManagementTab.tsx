@@ -20,7 +20,7 @@ import { changesApi, cmdbApi, sdChangePlanningApi } from '../../services/api'
 import type { CambioItsm, CambioItsmDetalle, EstadoDeCambio } from '../../services/api/tipos-cambios'
 import { CalendarioCambios, Congelaciones, PanelCab, Versiones } from './CambiosPlanificacion'
 import { useAppT } from '../../i18n/AppLangContext'
-import { Button, Spinner, EmptyState, Modal, StatusBadge, Tabs, IconButton, Pulsable, Select, TablaSimple, useSort, SortableTH, ariaSort, useErroresDeCampo, Input, Textarea } from '../../components/ui'
+import { Button, Spinner, EmptyState, Modal, StatusBadge, Tabs, IconButton, Pulsable, Select, SelectRico, TablaSimple, useSort, SortableTH, ariaSort, useErroresDeCampo, Input, Textarea } from '../../components/ui'
 import type { StatusBadgeKind } from '../../components/ui/StatusBadge'
 import { useAppLang } from '../../i18n/AppLangContext'
 import { etiquetaSd } from './sdUtils'
@@ -29,6 +29,7 @@ import { SELECTOR_LIST_SIZE } from '../../constants/pagination'
 import './ChangeManagementTab.css'
 import AnalisisDelCambio from '../../components/servicedesk/AnalisisDelCambio'
 import PanelDelCab from '../../components/servicedesk/PanelDelCab'
+import { cambiosEstandarApi } from '../../services/api/cambiosEstandar'
 
 type ChangeId = string | number
 /** El listado manda `serialize_change`; el detalle, ademas, los textos largos. */
@@ -50,6 +51,8 @@ interface ChangeFormData {
   downtime_minutes?: number
   affected_cis?: string[]
   release_id?: string | null
+  /** Modelo del catálogo de cambios estándar (A-SD19): sin él, el cambio no es estándar. */
+  standard_model_id?: string | null
 }
 
 interface StatusAction {
@@ -268,7 +271,8 @@ function NewChangeModal({ onClose, onSaved }: { onClose: () => void; onSaved: ()
   const msg = (k: string) => campos.de(k) ? <div className="u-field-error">{campos.de(k)}</div> : null
   const { mutate, isPending } = useMutation({
     onMutate: () => campos.limpiar(),
-    mutationFn: (data: ChangeFormData) => changesApi.create(data),
+    // El tipo lo fija el servidor: `standard` solo con un modelo vigente del catálogo.
+    mutationFn: (data: ChangeFormData) => changesApi.create(data.change_type === 'standard' ? data : { ...data, standard_model_id: null }),
     onSuccess: onSaved,
     onError: (e: unknown) => { if (!campos.recoger(e)) toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) },
   })
@@ -278,11 +282,36 @@ function NewChangeModal({ onClose, onSaved }: { onClose: () => void; onSaved: ()
     setForm((f) => ({ ...f, [k]: nextValue }))
   }
 
+  // Catálogo de cambios estándar (A-SD19): solo los modelos que hoy valen.
+  const { data: modelos = [] } = useQuery({
+    queryKey: ['sd-standard-changes', 'vigentes'],
+    queryFn: () => cambiosEstandarApi.listar({ solo_vigentes: true }),
+    enabled: form.change_type === 'standard',
+  })
+  const elegirModelo = (id: string) => {
+    campos.limpiar('standard_model_id')
+    const m = modelos.find(x => x.id === id)
+    setForm(f => ({
+      ...f, standard_model_id: id || null,
+      implementation_plan: f.implementation_plan || m?.procedure || '',
+      rollback_plan: f.rollback_plan || m?.rollback_plan || '',
+      test_plan: f.test_plan || m?.test_plan || '',
+    }))
+  }
+
   return (
     <Modal open title={t('changemanagement.nuevo_change_request')} onClose={onClose} size="lg">
       <div className="chgm-form">
         <div className="u-col-full"><label id={`${idPrefix}-title-et`} htmlFor={`${idPrefix}-title`} className="chgm-label">{t('changemanagement.titulo')}</label><Input id={`${idPrefix}-title`} aria-labelledby={`${idPrefix}-title-et`} value={form.title} onChange={set('title')} placeholder={t('changemanagement.titulo_del_cambio')} />{msg('title')}</div>
         <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="chgm-label">{t('changemanagement.tipo_de_cambio')}</label><Select suelto placeholder={false} id={`${idCampo}-1`} value={form.change_type} onChange={set('change_type')} className="chgm-sel">{CHANGE_TYPES.map(v => <option key={v} value={v}>{t(`changemanagement.opt_${v}`)}</option>)}</Select>{msg('change_type')}</div>
+        {form.change_type === 'standard' && (
+          <div className="u-col-full">
+            <SelectRico label={t('changemanagement.modelo_estandar')} required valor={form.standard_model_id ?? ''} onChange={elegirModelo}
+              placeholder={modelos.length ? t('changemanagement.elige_modelo_estandar') : t('changemanagement.sin_modelos_estandar')}
+              hint={t('changemanagement.modelo_estandar_ayuda')} error={campos.de('standard_model_id')}
+              opciones={modelos.map(m => ({ valor: m.id, etiqueta: m.name, descripcion: [t(`changemanagement.risk_${m.max_risk}`), m.description].filter(Boolean).join(' · ') }))} />
+          </div>
+        )}
         <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="chgm-label">{t('changemanagement.riesgo')}</label><Select suelto placeholder={false} id={`${idCampo}-2`} value={form.risk} onChange={set('risk')} className="chgm-sel">{RISKS.map(v => <option key={v} value={v}>{t(`changemanagement.risk_${v}`)}</option>)}</Select>{msg('risk')}</div>
         <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="chgm-label">{t('changemanagement.inicio_planificado')}</label><DateInput id={`${idCampo}-3`} withTime value={form.planned_start} onChange={set('planned_start')} className={IS} />{msg('planned_start')}</div>
         <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="chgm-label">{t('changemanagement.fin_planificado')}</label><DateInput id={`${idCampo}-4`} withTime value={form.planned_end} onChange={set('planned_end')} className={IS} />{msg('planned_end')}</div>
@@ -290,7 +319,7 @@ function NewChangeModal({ onClose, onSaved }: { onClose: () => void; onSaved: ()
         <div className="u-col-full"><label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} className="chgm-label">{t('changemanagement.justificacion_de_negocio')}</label><Textarea id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} value={form.business_justification} onChange={set('business_justification')} rows={2} />{msg('business_justification')}</div>
         <div><label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} className="chgm-label">{t('changemanagement.plan_de_implementacion')}</label><Textarea id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} value={form.implementation_plan} onChange={set('implementation_plan')} rows={3} />{msg('implementation_plan')}</div>
         <div><label id={`${idCampo}-et8`} htmlFor={`${idCampo}-8`} className="chgm-label">{t('changemanagement.plan_de_rollback')}</label><Textarea id={`${idCampo}-8`} aria-labelledby={`${idCampo}-et8`} value={form.rollback_plan} onChange={set('rollback_plan')} rows={3} />{msg('rollback_plan')}</div>
-        <div className="chgm-form__footer chgm-form__footer--mt"><Button variant="secondary" onClick={onClose}>{t('changemanagement.cancelar')}</Button><Button onClick={() => mutate(form)} disabled={isPending || !form.title || !form.description} loading={isPending}>{t('changemanagement.crear_change_request')}</Button></div>
+        <div className="chgm-form__footer chgm-form__footer--mt"><Button variant="secondary" onClick={onClose}>{t('changemanagement.cancelar')}</Button><Button onClick={() => mutate(form)} disabled={isPending || !form.title || !form.description || (form.change_type === 'standard' && !form.standard_model_id)} loading={isPending}>{t('changemanagement.crear_change_request')}</Button></div>
       </div>
     </Modal>
   )

@@ -46,6 +46,8 @@ class ResourceLoadItem(BaseModel):
     hours_week: float = Field(..., description="Horas asignadas en la semana")
     active_projects: int = Field(..., description="Número de proyectos activos asignados")
     efficiency: float = Field(..., description="Ratio de eficiencia del recurso")
+    # Auditoría 22-11-2026 (M8): sin horas en la semana, la carga es la media de las 4 anteriores y se dice.
+    estimated: bool = Field(False, description="La carga es la media de las 4 semanas anteriores (sin horas esta semana)")
 
 
 class ProductivityStats(BaseModel):

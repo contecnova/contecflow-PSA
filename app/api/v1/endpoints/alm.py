@@ -23,6 +23,7 @@ from fastapi import APIRouter, Body, Depends, File, Form, Query, Request, Respon
 from sqlalchemy.orm import Session
 
 from app.core.abac_enforce import enforce_abac
+from app.core.network import ip_del_cliente
 from app.core.deps import get_current_user, requiere_capacidad
 from app.core.errores import ErrorDeDominio
 from app.core.periodo import SIN_HORA, Periodo, periodo
@@ -171,7 +172,7 @@ def delete_license(lid: str, db: Session = Depends(get_db), cu=Depends(requiere_
 
 @router.get("/licenses/{lid}/key", summary="Ver la clave de la licencia (queda en el historial)")
 def get_license_key(lid: str, request: Request, db: Session = Depends(get_db), cu=Depends(requiere_capacidad("alm.gestionar"))):
-    clave = alm_asignaciones.ver_clave(db, lid, cu, ip=request.client.host if request.client else None)
+    clave = alm_asignaciones.ver_clave(db, lid, cu, ip=ip_del_cliente(request))
     return APIResponse.ok(data={"license_key": clave})
 
 @router.get("/licenses/{lid}/usage", summary="Uso de la licencia (fase 2 si está; si no, asignaciones)")
@@ -326,7 +327,7 @@ def get_act(act_id: str, db: Session = Depends(get_db), cu=Depends(get_current_u
 
 @router.post("/acts/{act_id}/sign", summary="Firmar el acta en la aplicación (solo la persona del acta)")
 def sign_act(act_id: str, request: Request, db: Session = Depends(get_db), cu=Depends(get_current_user)):
-    acta = alm_actas.firmar(db, act_id, cu, ip=request.client.host if request.client else None)
+    acta = alm_actas.firmar(db, act_id, cu, ip=ip_del_cliente(request))
     return APIResponse.ok(data=alm_actas.serializar(db, acta))
 
 @router.post("/acts/{act_id}/regenerate", summary="Volver a generar el PDF o la solicitud de firma")

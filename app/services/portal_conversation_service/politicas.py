@@ -36,6 +36,13 @@ from app.core.codigos_de_error import ErrorConCodigo
 SENSITIVE_EMAIL_RE = re.compile(r"[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}", re.IGNORECASE)
 SENSITIVE_TOKEN_RE = re.compile(r"\b[A-Z0-9]{16,}\b", re.IGNORECASE)
 SENSITIVE_DIGITS_RE = re.compile(r"\b\d{9,}\b")
+# Auditoria 2026-11-22 (03, bajos m-p): la redaccion solo veia numeros seguidos.
+# Un IBAN con espacios («ES91 2100 0418 4502 0005 1332»), un DNI/NIE
+# («12345678-Z», «X1234567L») o un telefono con espacios o guiones
+# («+34 600 12 34 56») pasaban en claro.
+SENSITIVE_IBAN_RE = re.compile(r"\b[A-Z]{2}\d{2}(?:[ -]?[A-Z0-9]{4}){2,7}(?:[ -]?[A-Z0-9]{1,3})?\b", re.IGNORECASE)
+SENSITIVE_DNI_RE = re.compile(r"\b[XYZ]?\d{7,8}[ -]?[A-Z]\b", re.IGNORECASE)
+SENSITIVE_PHONE_RE = re.compile(r"(?<![\w+])\+?\d[\d \-().]{7,}\d(?!\w)")
 
 DEFAULT_POLICY_MAP = {
     "general": {
@@ -245,6 +252,18 @@ def _apply_assignment_policy(conversation: PortalConversation, policy: PortalCon
 def _redact_sensitive(text: str, keywords: list[str]) -> tuple[str, bool, list[str]]:
     redacted = text
     notes = []
+    if SENSITIVE_IBAN_RE.search(redacted):
+        redacted = SENSITIVE_IBAN_RE.sub("[REDACTED_IBAN]", redacted)
+        notes.append("iban")
+    if SENSITIVE_DNI_RE.search(redacted):
+        redacted = SENSITIVE_DNI_RE.sub("[REDACTED_ID]", redacted)
+        notes.append("id_number")
+    telefono = SENSITIVE_PHONE_RE.sub(
+        lambda m: "[REDACTED_NUMBER]" if sum(c.isdigit() for c in m.group(0)) >= 9
+        and not re.search(r"\d{4}-\d{2}-\d{2}", m.group(0)) else m.group(0), redacted)
+    if telefono != redacted:
+        redacted = telefono
+        notes.append("number")
     if SENSITIVE_EMAIL_RE.search(redacted):
         redacted = SENSITIVE_EMAIL_RE.sub("[REDACTED_EMAIL]", redacted)
         notes.append("email")

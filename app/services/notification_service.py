@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import logging
 import smtplib
+import ssl
 from dataclasses import dataclass
 from email.message import EmailMessage
 from email.utils import make_msgid
@@ -142,6 +143,44 @@ def construir_mensaje(
     return msg
 
 
+def contexto_tls() -> ssl.SSLContext:
+    """Contexto TLS del SMTP. Auditoria 2026-11-22 (03, medios m-p): antes
+    `SMTP_SSL()`/`starttls()` sin contexto, que en Python no verifica el
+    certificado ni el nombre: un intermediario leia correo y contrasena.
+    `SMTP_TLS_VERIFY=false` solo para un relay interno autofirmado."""
+    contexto = ssl.create_default_context()
+    if not getattr(settings, "SMTP_TLS_VERIFY", True):
+        contexto.check_hostname = False
+        contexto.verify_mode = ssl.CERT_NONE
+    return contexto
+
+
+class SmtpFijado(smtplib.SMTP):
+    """`smtplib.SMTP` que conecta a la IP ya validada (`app/core/conexion_fijada.py`,
+    anti DNS rebinding, 23-11-2026); STARTTLS sigue validando el NOMBRE."""
+
+    def __init__(self, host: str = "", port: int = 0, *, ip_fijada: Optional[str] = None, **kwargs):
+        self._ip_fijada = ip_fijada
+        super().__init__(host, port, **kwargs)
+
+    def _get_socket(self, host, port, timeout):
+        from app.core.conexion_fijada import socket_fijado
+        return socket_fijado(host, self._ip_fijada, port, timeout, self.source_address)
+
+
+class SmtpSslFijado(smtplib.SMTP_SSL):
+    """`smtplib.SMTP_SSL` (465) a la IP ya validada, con SNI y certificado del nombre."""
+
+    def __init__(self, host: str = "", port: int = 0, *, ip_fijada: Optional[str] = None, **kwargs):
+        self._ip_fijada = ip_fijada
+        super().__init__(host, port, **kwargs)
+
+    def _get_socket(self, host, port, timeout):
+        from app.core.conexion_fijada import socket_fijado
+        sock = socket_fijado(host, self._ip_fijada, port, timeout, self.source_address)
+        return self.context.wrap_socket(sock, server_hostname=self._host)
+
+
 def _abrir(servidor: ServidorSmtp) -> smtplib.SMTP:
     """Conecta y deja la sesion cifrada y autenticada.
 
@@ -151,15 +190,35 @@ def _abrir(servidor: ServidorSmtp) -> smtplib.SMTP:
       * si no lo ofrece y hay credenciales (y no es el 25, el de relay
         interno), NO se mandan en claro: se lanza `SMTPNotSupportedError`.
     """
-    if servidor.port == 465:
-        conexion = smtplib.SMTP_SSL(servidor.host, servidor.port, timeout=servidor.timeout)
+    # 23-11-2026 (01 M7): un host SMTP distinto del de plataforma (`SMTP_HOST`)
+    # lo escribe el admin de empresa: guardia SSRF central (sin redes internas
+    # salvo `OUTBOUND_PRIVATE_HOSTS_ALLOWED`). Se lanza como error SMTP para que
+    # los llamadores, que ya tratan `ErrorDeCorreo`, lo registren igual.
+    # 23-11-2026 (anti DNS rebinding): se conecta a la IP YA validada, no se
+    # vuelve a resolver el nombre (`app/core/conexion_fijada.py`); TLS sigue
+    # verificando el nombre del host. El SMTP de plataforma conecta por nombre.
+    contexto = contexto_tls()
+    if (servidor.host or "").strip().lower() != (settings.SMTP_HOST or "").strip().lower():
+        from app.core import conexion_fijada
+        from app.core.errores import ErrorDeDominio
+        try:
+            ip = conexion_fijada.ip_fijada(servidor.host or "", field="SMTP host")
+        except ErrorDeDominio as exc:
+            raise smtplib.SMTPConnectError(0, str(exc.detail)) from exc
+        if servidor.port == 465:
+            conexion = SmtpSslFijado(servidor.host, servidor.port, ip_fijada=ip,
+                                     timeout=servidor.timeout, context=contexto)
+        else:
+            conexion = SmtpFijado(servidor.host, servidor.port, ip_fijada=ip, timeout=servidor.timeout)
+    elif servidor.port == 465:
+        conexion = smtplib.SMTP_SSL(servidor.host, servidor.port, timeout=servidor.timeout, context=contexto)
     else:
         conexion = smtplib.SMTP(servidor.host, servidor.port, timeout=servidor.timeout)
     try:
         conexion.ehlo()
         if servidor.port != 465:
             if conexion.has_extn("starttls"):
-                conexion.starttls()
+                conexion.starttls(context=contexto)
                 conexion.ehlo()
             elif servidor.user and servidor.password and servidor.port != 25:
                 raise smtplib.SMTPNotSupportedError(
@@ -256,7 +315,3 @@ class NotificationService:
 def send_email_notification(to: str, subject: str, body: str) -> bool:
     """Synchronous wrapper around NotificationService.send_email for automation actions."""
     return NotificationService.send_email(to=to, subject=subject, html_body=body)
-
-
-# Singleton instance
-notification_service = NotificationService()

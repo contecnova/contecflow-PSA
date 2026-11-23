@@ -8,9 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.core.deps import (
     get_current_user,
-    require_admin,
-    require_any_manager,
-    require_internal_user,
+    requiere_capacidad,
 )
 from app.db.session import get_db
 from app.models.billing_reports import InvoiceStatus
@@ -68,7 +66,7 @@ def list_exchange_rates(
 def upsert_exchange_rate(
     payload: ExchangeRateCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("divisas.administrar")),
 ):
     from_c = _validate_currency_code(payload.from_currency)
     to_c = _validate_currency_code(payload.to_currency)
@@ -185,7 +183,7 @@ def convert_currency_post(
     payload: ConvertCurrencyRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: excepcion revisada: una conversion es un calculo
+    _rol: User = Depends(requiere_capacidad("divisas.usar")),  # auditoria 2026-09: excepcion revisada: una conversion es un calculo
 ):
     return APIResponse.ok(data=_convert_currency_impl(
         amount=payload.amount,
@@ -202,17 +200,21 @@ def multicurrency_report(
     report_currency: Optional[str] = Query(default=None, description="Target currency for consolidation (default: the company's)"),
     as_of_date: Optional[date] = Query(None),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("divisas.gestionar")),
 ):
     ref_date = as_of_date or timeutil.today()
     # 18-11-2026: sin moneda pedida, la de la empresa (antes la global del entorno).
     from app.services.settings_service.por_empresa import moneda_de_empresa
     target = (report_currency or moneda_de_empresa(db)).upper()
 
+    # Auditoría 22-11-2026 (A41): sin tipo ya no es 1,0 en silencio; el par que
+    # falta sale en `missing_rates` (y el importe se cuenta 1:1, avisado).
     def _get_rate(from_c: str) -> float:
-        return currency_rates_service.resolve_rate(db, from_c, target, ref_date)
+        return currency_rates_service.tipo_o_aviso(db, from_c, target, ref_date)
 
     invoices, expenses = currency_rates_service.get_report_data(db, target, ref_date)
+    faltan_ctx = currency_rates_service.TiposQueFaltan()
+    faltan = faltan_ctx.__enter__()
 
     inv_total = sum((i.total or 0) * _get_rate(i.currency or target) for i in invoices)
     inv_paid = sum((i.total or 0) * _get_rate(i.currency or target) for i in invoices if i.status == InvoiceStatus.paid)
@@ -235,6 +237,7 @@ def multicurrency_report(
             }
         )
 
+    faltan_ctx.__exit__(None, None, None)
     return APIResponse.ok(data={
         "report_currency": target,
         "as_of_date": str(ref_date),
@@ -245,4 +248,5 @@ def multicurrency_report(
             "total_expenses": round(exp_total, 2),
         },
         "by_currency": breakdown,
+        "missing_rates": sorted(faltan),
     })

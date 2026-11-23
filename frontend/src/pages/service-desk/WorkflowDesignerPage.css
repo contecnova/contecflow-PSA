@@ -14,8 +14,6 @@ textarea.wfd-input { resize: vertical; }
 
 /* Listado */
 .wfd-search { position: relative; flex: 1 1 280px; max-width: 360px; }
-.wfd-search__icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text-3); }
-.ds-input.wfd-search__input { padding-left: 32px; }
 .ui-select--suelto.wfd-filter { min-width: 160px; }
 .ui-select--suelto.wfd-sel { width: 100%; }
 .wfd-loading-flex { display: flex; justify-content: center; padding: 60px; }

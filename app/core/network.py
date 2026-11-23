@@ -1,7 +1,5 @@
 import ipaddress
-import socket
 from typing import Optional
-from urllib.parse import urlparse
 
 from app.core.config import settings
 import logging
@@ -40,6 +38,8 @@ def _effective_proxy_config() -> tuple[bool, str]:
         from app.db.session import SessionLocal
         from app.services.settings_service import get_runtime_bool, get_runtime_str
         db = SessionLocal()
+        from app.db.contexto_de_tenant import declarar_sistema as _declarar_sistema
+        _declarar_sistema(db, "ajustes globales de red")  # auditoría 22-11-2026: TENANT_SESION_SIN_CONTEXTO=cerrar
         try:
             ui_trust = get_runtime_bool(db, "TRUST_PROXY_HEADERS")
             ui_cidrs = get_runtime_str(db, "TRUSTED_PROXY_CIDRS")
@@ -78,6 +78,17 @@ def _is_trusted_proxy(ip_raw: Optional[str]) -> bool:
         return False
     ip_obj = ipaddress.ip_address(proxy_ip)
     return any(ip_obj in network for network in _trusted_proxy_networks())
+
+
+def cabeceras_de_proxy_fiables(request) -> bool:
+    """La peticion llega de un proxy de confianza: sus cabeceras (geo, ASN...)
+    las ha puesto el proxy y no el cliente. Ronda 2 auditoria 2026-11-22:
+    `session_security` leia `cf-ipcountry`/`x-asn`/`x-isp` de cualquiera."""
+    direct_ip = _parse_ip(request.client.host if request is not None and getattr(request, "client", None) else None)
+    if not direct_ip:
+        return False
+    trust, _ = _effective_proxy_config()
+    return bool(trust) and _is_trusted_proxy(direct_ip)
 
 
 def extract_client_ip(request) -> str:
@@ -176,68 +187,36 @@ def url_publica(request) -> str:
 
 
 # ── Outbound SSRF guard ──────────────────────────────────────────────────────
-# Single policy shared by every outbound integration (Slack/Teams webhooks,
-# automations, etc.). Mirrors the OIDC discovery guard in auth_service
-# (validate_https_discovery_url) so private/internal/metadata targets such as
-# 169.254.169.254 can never be reached from a user-supplied URL.
+# 23-11-2026 (01 M7): era un cuarto validador SSRF propio (sin
+# `OUTBOUND_PRIVATE_HOSTS_ALLOWED`, sin CGN). Ahora delega en el único guardia,
+# `app.core.outbound_url`; se conservan los nombres para sus llamadores.
 
 class UnsafeURLError(ValueError):
     """Raised when a URL targets a private/internal/disallowed network."""
 
 
 def _ip_is_disallowed(ip_obj: "ipaddress._BaseAddress") -> bool:
-    return (
-        ip_obj.is_private
-        or ip_obj.is_loopback
-        or ip_obj.is_link_local
-        or ip_obj.is_multicast
-        or ip_obj.is_reserved
-        or ip_obj.is_unspecified
-    )
+    from app.core.outbound_url import es_red_prohibida
+    return es_red_prohibida(str(ip_obj))
 
 
 def assert_safe_outbound_url(url: str, *, require_https: bool = True) -> str:
-    """Validate an outbound URL against SSRF before fetching it.
+    """Valida una URL saliente (guardia central); lanza ``UnsafeURLError`` (un ValueError)."""
+    from app.core.errores import ErrorDeDominio
+    from app.core.outbound_url import validate_outbound_url
+    try:
+        return validate_outbound_url(url, field="url", require_https=require_https)
+    except ErrorDeDominio as exc:
+        raise UnsafeURLError(str(exc.detail)) from exc
 
-    Raises ``UnsafeURLError`` if the scheme is disallowed, the host is a local
-    name, or the literal/resolved IP falls in a private/reserved range. Returns
-    the URL unchanged when it is safe so callers can use it inline.
+
+def ip_del_cliente(request) -> "str | None":
+    """La IP real del cliente para guardarla (auditoría, firmas, accesos), o None.
+
+    Auditoría 22-11-2026 (01 B9): 17 endpoints guardaban `request.client.host`,
+    que tras nginx es la IP del proxy. Esto es `extract_client_ip` (cabeceras de
+    proxy solo si vienen de un proxy de confianza) con None en vez de "unknown",
+    como guardaban antes.
     """
-    parsed = urlparse(url or "")
-    scheme = parsed.scheme.lower()
-    allowed_schemes = {"https"} if require_https else {"http", "https"}
-    if scheme not in allowed_schemes or not parsed.netloc:
-        raise UnsafeURLError(
-            f"URL must use {'/'.join(sorted(allowed_schemes))} and include a host"
-        )
-
-    hostname = (parsed.hostname or "").strip().lower()
-    if not hostname:
-        raise UnsafeURLError("URL must include a hostname")
-    if hostname in {"localhost", "localhost.localdomain"} or hostname.endswith(".local"):
-        raise UnsafeURLError("URL must not point to a local host")
-
-    # Literal IP embedded in the host (e.g. http://169.254.169.254/...)
-    try:
-        literal_ip = ipaddress.ip_address(hostname)
-    except ValueError:
-        literal_ip = None
-    if literal_ip is not None and _ip_is_disallowed(literal_ip):
-        raise UnsafeURLError("URL points to a disallowed (private/internal) network")
-
-    # DNS resolution — block hostnames that resolve into private ranges
-    default_port = 443 if scheme == "https" else 80
-    try:
-        addrinfo = socket.getaddrinfo(hostname, parsed.port or default_port, proto=socket.IPPROTO_TCP)
-    except Exception:
-        logger.debug("assert_safe_outbound_url: excepcion ignorada", exc_info=True)
-        addrinfo = []
-    for entry in addrinfo:
-        try:
-            resolved = ipaddress.ip_address(entry[4][0])
-        except ValueError:
-            continue
-        if _ip_is_disallowed(resolved):
-            raise UnsafeURLError("URL resolves to a disallowed (private/internal) network")
-
-    return url
+    ip = extract_client_ip(request)
+    return None if not ip or ip == "unknown" else ip

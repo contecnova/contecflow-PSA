@@ -44,17 +44,11 @@ interface Props {
 
 export default function ContecflowAssistPanel({ open, onClose, context }: Props) {
   const { t } = useAppLang()
-  // Derive human-readable page label from path
-  const PAGE_LABELS: Record<string, string> = {
-    '/': 'Dashboard', '/projects': 'Proyectos', '/tasks': 'Tareas',
-    '/timesheets': 'Imputaciones', '/resources': 'Recursos', '/clients': 'Clientes',
-    '/pipeline': 'Pipeline', '/expenses': 'Gastos', '/documents': 'Documentos',
-    '/service-desk': 'Service Desk', '/risks': 'Riesgos', '/okrs': 'OKRs',
-    '/analytics': 'Analytics', '/reports': 'Informes', '/capacity': 'Capacidad',
-    '/settings': 'Ajustes',
-  }
+  // Auditoría 22-11-2026 (M3 del 04): el nombre de la pantalla sale del menú traducido
+  // (`nav.<clave>`), no de una lista fija en castellano.
+  const primerTramo = context?.page ? context.page.split('/')[1] || '' : ''
   const pageLabel = context?.page
-    ? (Object.entries(PAGE_LABELS).find(([k]) => context.page === k || context.page!.startsWith(k + '/'))?.[1] || context.page)
+    ? t(`nav.${primerTramo ? primerTramo.replace(/-/g, '_') : 'work_dashboard'}`)
     : null
   const qc = useQueryClient()
   const { openConfirm } = useConfirm()
@@ -238,10 +232,10 @@ export default function ContecflowAssistPanel({ open, onClose, context }: Props)
       </div>
       <div className="neaspa-box-8">
         <div className="neaspa-row-4">
-          <textarea aria-label={t('nexusassist.escribe_aqui')} value={input} onChange={e => setInput(e.target.value)}
+          <Textarea aria-label={t('nexusassist.escribe_aqui')} value={input} onChange={e => setInput(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(input) } }}
             placeholder={t('nexusassist.escribe_aqui')} rows={2}
-            className="neaspa-box-9" />
+            className="u-flex1-min0" inputClassName="neaspa-box-9" />
           <Pulsable className={`neaspa-box-14 nexusass-sx2 ${!input.trim() || loading ? 'nexus-assist-panel-m9' : 'nexus-assist-panel-m10'}`} onClick={() => sendMessage(input)} disabled={!input.trim() || loading}>↑</Pulsable>
         </div>
         <div className="neaspa-box-10">{t('nexusassist.enter_enviar_shift_enter_nueva_linea')}</div>

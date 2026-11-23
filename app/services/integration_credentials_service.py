@@ -294,6 +294,18 @@ def invalidate_cache(provider: Optional[str] = None) -> None:
         logger.debug("invalidate_cache: fallo best-effort ignorado", exc_info=True)
 
 
+#: M93 (auditoría 22-11-2026): proveedores que el propio registro declara «sin
+#: respaldo de la fila global» (cada empresa usa SOLO sus credenciales:
+#: traducción y uso de licencias). `_read_row` caía igualmente a la fila global
+#: y una empresa podía usar las claves (y el gasto) de la plataforma.
+_SIN_RESPALDO_GLOBAL = ("deepl", "azure_translator")
+_PREFIJOS_SIN_RESPALDO = ("alm_",)
+
+
+def _sin_respaldo_global(provider: str) -> bool:
+    return provider in _SIN_RESPALDO_GLOBAL or provider.startswith(_PREFIJOS_SIN_RESPALDO)
+
+
 def _read_row(db: Session, provider: str, key: str, org_id: Optional[str]) -> Optional[IntegrationCredential]:
     q = db.query(IntegrationCredential).filter(
         IntegrationCredential.provider == provider,
@@ -302,7 +314,7 @@ def _read_row(db: Session, provider: str, key: str, org_id: Optional[str]) -> Op
     if org_id is None:
         return q.filter(IntegrationCredential.organization_id.is_(None)).first()
     row = q.filter(IntegrationCredential.organization_id == org_id).first()
-    if row is not None:
+    if row is not None or _sin_respaldo_global(provider):
         return row
     return q.filter(IntegrationCredential.organization_id.is_(None)).first()
 
@@ -463,7 +475,7 @@ def _upsert_credential(
         if is_blank:
             # Blank → admin wants to reset and fall back to env.
             db.delete(row)
-            db.commit()
+            db.flush()   # M93: confirma `set_credential` con su auditoría
             return None
         if is_secret:
             row.value_encrypted = encrypt_value(value)
@@ -474,9 +486,7 @@ def _upsert_credential(
         row.is_secret = is_secret
         row.updated_by = updated_by
 
-    db.commit()
-    if row.id is not None:
-        db.refresh(row)
+    db.flush()   # M93: la confirmación la hace `set_credential` junto con su auditoría
     return row
 
 
@@ -496,6 +506,32 @@ def set_credential(
         raise ErrorConCodigo("integracion_campo_desconocido", detail=f"unknown integration field: {provider}.{key}", proveedor=provider, campo=key)
     _, type_, is_secret, _, _ = field
 
+    # Incidencia 10 de usuarios (23-11-2026): un número que no lo es se guardaba
+    # tal cual y `_coerce` reventaba después al leerlo (prueba y lectura del
+    # buzón con 500). Se valida al guardar, con código traducible.
+    if value not in (None, "") and type_ == "int":
+        try:
+            numero = int(str(value).strip())
+        except ValueError:
+            raise ErrorConCodigo("integracion_valor_no_numerico", proveedor=provider, campo=key) from None
+        if key == "port" and not 1 <= numero <= 65535:
+            raise ErrorConCodigo("integracion_puerto_no_valido", proveedor=provider, campo=key)
+        value = str(numero)
+    if provider == "sd_mailbox" and key == "protocol" and value not in (None, ""):
+        value = str(value).strip().lower()
+        if value not in ("imap", "graph"):
+            raise ErrorConCodigo("buzon_protocolo_no_valido", valor=value[:20])
+
+    # 23-11-2026 (02 M94): los campos de destino (`*url*`, `host`) se validan al
+    # guardar con el guardia SSRF central; la llamada lo vuelve a comprobar con
+    # la IP conectada. Un host interno legítimo va en OUTBOUND_PRIVATE_HOSTS_ALLOWED.
+    if value not in (None, "") and ("url" in key.lower() or key.lower() == "host"):
+        from app.core.outbound_url import validar_host_saliente, validate_outbound_url
+        if key.lower() == "host":
+            validar_host_saliente(str(value), field=f"{provider}.{key}")
+        else:
+            validate_outbound_url(str(value).strip(), field=f"{provider}.{key}")
+
     # Capture old value pre-write (raw — encrypted form for secrets).
     pre_row = _read_row(db, provider, key, org_id)
     if pre_row is not None:
@@ -504,7 +540,6 @@ def set_credential(
         old_raw = None
 
     row = _upsert_credential(db, provider, key, value, org_id, updated_by)
-    invalidate_cache(provider)
 
     # Persistent audit log. For secrets we pass the ENCRYPTED ciphertext to
     # record_change as the "raw" — the audit service hashes it (sha256), so
@@ -518,23 +553,28 @@ def set_credential(
         provider, key, org_id, updated_by, row is None, is_secret,
     )
 
-    try:
-        from app.services.settings_audit_service import record_change
-        record_change(
-            db,
-            scope="integration",
-            provider=provider,
-            key=key,
-            is_secret=is_secret,
-            old_value=old_raw,
-            new_value=new_raw,
-            actor_id=updated_by,
-            actor_ip=actor_ip,
-            actor_ua=actor_ua,
-            organization_id=org_id,
-        )
-    except Exception:
-        logger.debug("set_credential: fallo best-effort ignorado", exc_info=True)
+    # M93 (auditoría 22-11-2026): el cambio y su auditoría van en la MISMA
+    # transacción (antes la auditoría se escribía después del commit y, si
+    # fallaba, se tragaba: un cambio de credencial sin rastro).
+    from app.services.settings_audit_service import record_change
+    record_change(
+        db,
+        scope="integration",
+        provider=provider,
+        key=key,
+        is_secret=is_secret,
+        old_value=old_raw,
+        new_value=new_raw,
+        actor_id=updated_by,
+        actor_ip=actor_ip,
+        actor_ua=actor_ua,
+        organization_id=org_id,
+        en_la_transaccion=True,
+    )
+    db.commit()
+    invalidate_cache(provider)   # después del commit: nadie relee el valor viejo
+    if row is not None and row.id is not None:
+        db.refresh(row)
 
     if row is None:
         return {"provider": provider, "key": key, "configured": False, "source": "unset"}

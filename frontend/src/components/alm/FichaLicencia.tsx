@@ -105,7 +105,7 @@ export default function FichaLicencia({ licenseId, onClose }: { licenseId: strin
               </div>
             </div>
           </div>
-          <Pulsable type="button" className="alm-icon-btn" aria-label={t('common.close')} onClick={onClose}><X size={16} aria-hidden="true" /></Pulsable>
+          <Pulsable type="button" className="alm-icon-btn" aria-label={t('common.close')} onClick={onClose} data-cierra-dialogo=""><X size={16} aria-hidden="true" /></Pulsable>
         </div>
         {isLoading || !lic ? <Spinner /> : (
           <div className="almf-ficha__cuerpo">

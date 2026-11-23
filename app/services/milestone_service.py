@@ -10,6 +10,7 @@ Funciones exportadas:
   compute_billing_amount(milestone, db) -> float | None
 """
 from __future__ import annotations
+from app.services import numbering as _numeracion  # prefijos por defecto (§6)
 
 import logging
 import uuid
@@ -34,6 +35,12 @@ from app.core import timeutil
 from app.core.errores import ErrorDeDominio
 from app.core.codigos_de_error import error
 
+# Estados de facturacion del hito (`ProjectMilestone.billing_status`; ronda 2
+# auditoria 2026-11-22, §6: antes cadenas sueltas en cada funcion).
+HITO_PENDIENTE, HITO_COMPLETADO, HITO_PENDIENTE_DE_APROBAR = "pending", "completed", "pending_approval"
+HITO_APROBADO, HITO_RECHAZADO, HITO_FACTURADO = "approved", "rejected", "invoiced"
+from app.services.textos_de_salida_servicios_m_z import aviso_de, texto_para
+
 logger = logging.getLogger(__name__)
 
 
@@ -52,7 +59,7 @@ def create_milestone(db: Session, project_id: str, **kwargs):
     m = ProjectMilestone(
         id=str(uuid.uuid4()),
         project_id=project_id,
-        billing_status="pending",
+        billing_status=HITO_PENDIENTE,
         **kwargs,
     )
     db.add(m)
@@ -85,7 +92,7 @@ def get_pending_milestones_dashboard(db: Session):
         db.query(ProjectMilestone)
         .filter(
             ProjectMilestone.is_active == True,
-            ProjectMilestone.billing_status.in_(["completed", "pending_approval", "approved"]),
+            ProjectMilestone.billing_status.in_([HITO_COMPLETADO, HITO_PENDIENTE_DE_APROBAR, HITO_APROBADO]),
         )
         .order_by(ProjectMilestone.due_date)
         .all()
@@ -106,13 +113,20 @@ def compute_billing_amount(milestone, db: Session) -> Optional[float]:
     if milestone.billing_pct:
         proj = db.query(Project).filter(Project.id == milestone.project_id).first()
         if proj:
+            # Auditoria 2026-11-22 (A-MP10): la base de un hito por % es lo
+            # FACTURABLE (contratos del proyecto o su `contract_amount`), nunca
+            # `budget_amount`, que es el presupuesto de COSTE: un 30 % del coste
+            # facturaba de menos (o de mas) al cliente. Sin base facturable no
+            # hay importe (y `generate_milestone_invoice` da `hito_sin_importe`).
             total = (
                 db.query(func.sum(Contract.total_amount)).filter(
                     Contract.project_id == proj.id
                 ).scalar()
-                or getattr(proj, "budget_amount", None)
+                or getattr(proj, "contract_amount", None)
                 or 0
             )
+            if not total:
+                return None
             return round(total * milestone.billing_pct / 100, 2)
     return None
 
@@ -127,13 +141,13 @@ def complete_milestone(milestone_id: str, current_user: User, db: Session):
     ).first()
     if not m:
         raise ErrorDeDominio(404)
-    if m.billing_status not in ("pending", "rejected"):
+    if m.billing_status not in (HITO_PENDIENTE, HITO_RECHAZADO):
         raise error(400, "hito_no_completable", detail=f"No se puede completar en estado '{m.billing_status}'", estado=m.billing_status)
 
     m.is_completed = True
     m.completed_date = timeutil.today()
     m.completed_by = current_user.id
-    m.billing_status = "completed"
+    m.billing_status = HITO_COMPLETADO
     db.commit()
 
     # ASC 606: trigger revenue recognition for milestone-method contracts
@@ -154,13 +168,13 @@ def uncomplete_milestone(milestone_id: str, current_user: User, db: Session):
     ).first()
     if not m:
         raise ErrorDeDominio(404)
-    if m.billing_status in ("approved", "invoiced"):
+    if m.billing_status in (HITO_APROBADO, HITO_FACTURADO):
         raise error(400, "hito_no_revertible", detail="No se puede revertir un milestone aprobado o facturado")
 
     m.is_completed = False
     m.completed_date = None
     m.completed_by = None
-    m.billing_status = "pending"
+    m.billing_status = HITO_PENDIENTE
     db.commit()
     return m
 
@@ -180,10 +194,10 @@ def request_milestone_approval(
     ).first()
     if not m:
         raise ErrorDeDominio(404)
-    if m.billing_status != "completed":
+    if m.billing_status != HITO_COMPLETADO:
         raise error(400, "hito_no_completado", detail="El milestone debe estar completado antes de solicitar aprobación")
 
-    m.billing_status = "pending_approval"
+    m.billing_status = HITO_PENDIENTE_DE_APROBAR
     m.approval_requested_at = datetime.now(timezone.utc)
     m.approval_requested_by = current_user.id
     m.approved_at = None
@@ -211,14 +225,14 @@ def decide_milestone_approval(
     ).first()
     if not m:
         raise ErrorDeDominio(404)
-    if m.billing_status != "pending_approval":
+    if m.billing_status != HITO_PENDIENTE_DE_APROBAR:
         raise error(400, "hito_no_pendiente", detail=f"El milestone no está pendiente de aprobación (estado: {m.billing_status})", estado=m.billing_status)
     # Revisión 2026-11: quien pidió la aprobación no la decide (segregación de funciones).
     from app.services.approval_engine._base import exigir_que_no_sea_suyo
     exigir_que_no_sea_suyo(db, m.approval_requested_by, current_user, "milestone", m.id)
 
     if approved:
-        m.billing_status = "approved"
+        m.billing_status = HITO_APROBADO
         m.approved_at = datetime.now(timezone.utc)
         m.approved_by = current_user.id
         m.rejected_at = None
@@ -228,7 +242,7 @@ def decide_milestone_approval(
     else:
         if not rejection_reason:
             raise error(400, "motivo_de_rechazo_obligatorio")
-        m.billing_status = "rejected"
+        m.billing_status = HITO_RECHAZADO
         m.rejected_at = datetime.now(timezone.utc)
         m.rejected_by = current_user.id
         m.rejection_reason = rejection_reason
@@ -253,7 +267,7 @@ def generate_milestone_invoice(milestone_id: str, current_user: User, db: Sessio
     ).with_for_update().first()
     if not m:
         raise ErrorDeDominio(404)
-    if m.billing_status != "approved":
+    if m.billing_status != HITO_APROBADO:
         raise error(400, "hito_no_aprobado", detail=f"El milestone debe estar aprobado para facturar (estado: {m.billing_status})", estado=m.billing_status)
     # Re-check under the lock: if a concurrent transaction already invoiced this
     # milestone, bail out idempotently.
@@ -289,10 +303,13 @@ def generate_milestone_invoice(milestone_id: str, current_user: User, db: Sessio
             subtotal=amount,
             tax_rate=iva,
             tax_amount=round(amount * iva / 100, 2),
-            total=round(amount * (1 + iva / 100), 2),
+            # 2026-11-22: total = base + cuota ya redondeada (antes se redondeaba
+            # aparte y podia diferir un centimo de subtotal + IVA).
+            total=round(amount + round(amount * iva / 100, 2), 2),
             currency=moneda,
             status="draft",
-            notes=f"Factura por milestone: {m.name}",
+            notes=texto_para(db, "milestone.nota_factura", user_id=current_user.id, nombre=m.name),
+            notes_key="milestone.nota_factura", notes_params={"nombre": m.name},
             created_by=current_user.id,
         )
         db.add(inv)
@@ -316,7 +333,7 @@ def generate_milestone_invoice(milestone_id: str, current_user: User, db: Sessio
         m.billing_amount = amount
         m.is_billed = True
         m.billed_at = timeutil.today()
-        m.billing_status = "invoiced"
+        m.billing_status = HITO_FACTURADO
 
     return {
         "invoice_id": inv.id,
@@ -333,7 +350,7 @@ def _next_invoice_number(db: Session) -> str:
     return next_numbered_code(
         db,
         "invoice",
-        prefix="INV",
+        prefix=_numeracion.PREFIJO_FACTURA,
         padding=4,
         include_year=True,
         reset_yearly=True,
@@ -350,12 +367,10 @@ def _notify_pm_approval_requested(m, message, current_user, db: Session) -> None
                 db,
                 proj.pm_id,
                 "system",
-                f"Aprobación solicitada: {m.name}",
-                (
-                    f"{current_user.full_name} solicita aprobar el milestone '{m.name}' "
-                    f"del proyecto {proj.code}."
-                    + (f" Nota: {message}" if message else "")
-                ),
+                **aviso_de(db, proj.pm_id, "milestone.aprobacion.titulo", "milestone.aprobacion.cuerpo",
+                           nombre=m.name, quien=current_user.full_name, proyecto=proj.code,
+                           nota=(texto_para(db, "milestone.aprobacion.nota", user_id=proj.pm_id, mensaje=message)
+                                 if message else "")),
                 resource="milestones",
                 resource_id=m.id,
             )
@@ -372,9 +387,9 @@ def _notify_requester_approved(m, current_user, db: Session) -> None:
             notify_user(
                 db,
                 m.approval_requested_by,
-                "expense_approved",
-                f"Milestone aprobado: {m.name}",
-                f"{current_user.full_name} ha aprobado el milestone. Ya puedes generar la factura.",
+                "milestone_approved",
+                **aviso_de(db, m.approval_requested_by, "milestone.aprobado.titulo", "milestone.aprobado.cuerpo",
+                           nombre=m.name, quien=current_user.full_name),
                 resource="milestones",
                 resource_id=m.id,
             )
@@ -391,9 +406,9 @@ def _notify_requester_rejected(m, rejection_reason: str, current_user, db: Sessi
             notify_user(
                 db,
                 m.approval_requested_by,
-                "expense_rejected",
-                f"Milestone rechazado: {m.name}",
-                f"{current_user.full_name} rechazó el milestone. Motivo: {rejection_reason}",
+                "milestone_rejected",
+                **aviso_de(db, m.approval_requested_by, "milestone.rechazado.titulo", "milestone.rechazado.cuerpo",
+                           nombre=m.name, quien=current_user.full_name, motivo=rejection_reason),
                 resource="milestones",
                 resource_id=m.id,
             )

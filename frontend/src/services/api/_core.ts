@@ -11,10 +11,10 @@ import type { AltaMfa, AplicacionOAuth, AvisoDeTeams, CalendarioM365Leido, Cambi
 import type { Borrado, Burndown, Burnup, BusquedaNql, CambioDeFechas, CambioImplementado, CambiosDelProyecto, CasoUat, CasosUat, CheckinDeResultadoClave, DependenciaDeEpica, DependenciaDeTarea, Despliegue, EntregableDeLaCartera, EpicaDetalle, EpicaSerializada, FechasMasivas, FlujoAcumulado, FlujoInicializado, FotoDeFlujoAcumulado, InformeUat, Objetivo, ObjetivoBorrado, ObjetivoCreado, PlanDeSprint, PlanDeSprintActualizado, PlanDeSprintGenerado, PlantillaCreada, PlantillaDeProyecto, ProyectoDesdePlantilla, PullRequest, ResultadoClave, Retrospectiva, RetrospectivaGuardada, RiesgoAbiertoDeLaCartera, RiesgoSerializado, RoadmapDeEpicas, SolicitudDeCambio, SprintCerrado, SprintDelProyecto, SprintIniciado, TareaDeSprint, TareaEnlazada, TareasAnadidasAlSprint, TiposDeIncidenciaInicializados, TransicionDeCambio, TransicionDelFlujo, Velocidad, WebhooksGit } from './tipos-proyectos'
 import type { Alerta, Documento, DocumentoArchivado, DocumentoEnLista, DocumentoLiberado, EjecucionDeAlertas, EnvioDeFormulario, FormularioPublico, InstanciaBpmn, PasoDeBandejaBpmn, PermisoDeDocumento, PermisoRevocado, ProcesoBpmn, ProcesoBpmnDetalle, ReservaDeDocumento, ResumenIaDeDocumento, ValidacionBpmn, VersionDeDocumento, VersionDeProcesoBpmn } from './tipos-documentos'
 import type { AdopcionO365, AlertaDisparadaBi, AvisoDePanelBi, BorradoDeDsr, CapacidadesDeAnomaliasBi, ComparticionDePanelBi, ConectorEtl, ConectoresEtl, ConfigO365, ConsentimientoBi, ConsultaGuardadaBi, DeteccionDeAnomaliasBi, DiferenciaDeInstantaneasBi, EjecucionDeInformeProgramado, EsquemaDeInformes, EsquemaDelQueryBuilder, EstadisticasRgpd, EvaluacionDeAlertasBi, EvaluacionDeEntregaBi, ExportacionDePresetBiV2, HistorialDeConsentimientoBi, InformeO365, InformeProgramado, InformeProgramadoCreado, InstantaneaDeDatasetBi, LinajeDePlataformaBi, MascaraDeCampoBi, MetricaPersonalizadaBi, MetricasDeAlertaBi, MetricasDePrevisionBi, PlantillaDeConsultaVisual, PlantillaDeInforme, PortabilidadDeDsr, PresetAvanzadoBi, PresetBiV2, PrevisionBi, PrevisionesBi, PruebaDeConectorEtl, RegistroDeConectorEtl, ReglaDeAlertaBi, ReglaDeEntregaBi, ResultadoDeAbandonoBi, ResultadoDeConsultaBi, ResumenDeEnviosBi, SincronizacionEtl, SincronizacionO365, SolicitudDsr, VersionDePanelBi, VistaPreviaDeConsultaVisual, VistaPreviaDeInforme, VistaPreviaDePresetAvanzado, VistaPreviaDePresetBiV2 } from './tipos-bi'
-import type { AlertasDeMetricas, AnomaliasDeImputacion, DesgloseDeMargen, FiltroDeMargen, BusquedaGlobal, CargaDeRecurso, CargaOlapRealizada, Cartera, CatalogoDeMetricas, CierreAutomatico, ClusterFusionado, ClustersDeAlertas, ComandoDeVoz, ComandoDeVozTranscrito, ConfigDeAutoResolucion, ConfigDelAgenteDeVoz, ConfigDelMotorSemantico, ConfigDelMotorSemanticoGuardada, ConfirmacionAnalitica, ConsultaDeMetrica, Conversacion, ConversacionResumen, ConversacionesArchivadas, EjecucionDelAgente, EjecucionDelAgenteEnCola, EjecucionDelAgenteResumen, EjemploDeAskGuardado, EmbeddingsReconstruidos, EntrenamientoDelModelo, EscaneoDeCorrelacion, EstadisticasDeAutoResolucion, EstadisticasDeCorrelacion, EstadisticasDelMotorSemantico, EstadoDelAgente, EstadoDelAlmacenOlap, EstimacionDelBacklog, EtapaDelEmbudoOlap, HorasPorSemana, InstantaneasDeAgotamiento, KpisDelCuadroDeMando, KpisOlap, MargenMensualOlap, ModeloDePrediccion, MonitorDeAgotamiento, NarrativaEjecutiva, OpcionesDeFiltroAnalitico, PanelDeCartera, PerfilSemantico, PerfilSemanticoGuardado, PerfilesSemanticosGenerados, PlanificacionSugerida, PrediccionDeDesvio, PrediccionImposible, ProductividadDelEquipo, RegistroDePrediccion, RentabilidadDeProyecto, RespuestaDeAskTheData, RespuestaDelAsistente, Reunion, ReunionProcesada, ReunionResumen, RiesgoDeLaCartera, SaludDeProyecto, SaludDeProyectoOlap, SesionDeVoz, SesionDeVozCreada, SesionesDeVoz, SugerenciaDeAsignacionDeTicket, SugerenciasDelGantt, TareasDeReunionCreadas, TextoTransformado, TicketDeSesionDeVoz, TrabajoDeAutoResolucion, UtilizacionAvanzada, UtilizacionOlap, ValoracionDeRespuesta } from './tipos-analitica'
+import type { AlertasDeMetricas, AnomaliasDeImputacion, DesgloseDeMargen, FiltroDeMargen, BusquedaGlobal, CargaDeRecurso, CargaOlapRealizada, Cartera, CatalogoDeMetricas, CierreAutomatico, ClusterFusionado, ClustersDeAlertas, ComandoDeVoz, ComandoDeVozTranscrito, ConfigDeAutoResolucion, ConfigDelAgenteDeVoz, ConfigDelMotorSemantico, ConfigDelMotorSemanticoGuardada, ConfirmacionAnalitica, ConsultaDeMetrica, Conversacion, ConversacionResumen, ConversacionesArchivadas, DecisionDePasoDelAgente, EjecucionDelAgente, EjecucionDelAgenteEnCola, EjecucionDelAgenteResumen, EjemploDeAskGuardado, EmbeddingsReconstruidos, EntrenamientoDelModelo, EscaneoDeCorrelacion, EstadisticasDeAutoResolucion, EstadisticasDeCorrelacion, EstadisticasDelMotorSemantico, EstadoDelAgente, EstadoDelAlmacenOlap, EstimacionDelBacklog, EtapaDelEmbudoOlap, HorasPorSemana, InstantaneasDeAgotamiento, KpisDelCuadroDeMando, KpisOlap, MargenMensualOlap, ModeloDePrediccion, MonitorDeAgotamiento, NarrativaEjecutiva, OpcionesDeFiltroAnalitico, PanelDeCartera, PerfilSemantico, PerfilSemanticoGuardado, PerfilesSemanticosGenerados, PlanificacionSugerida, PrediccionDeDesvio, PrediccionImposible, ProductividadDelEquipo, RegistroDePrediccion, RentabilidadDeProyecto, RespuestaDeAskTheData, RespuestaDelAsistente, RiesgoDeLaCartera, SaludDeProyecto, SaludDeProyectoOlap, SesionDeVoz, SesionDeVozCreada, SesionesDeVoz, SugerenciaDeAsignacionDeTicket, SugerenciasDelGantt, TextoTransformado, TicketDeSesionDeVoz, TrabajoDeAutoResolucion, UtilizacionAvanzada, UtilizacionOlap, ValoracionDeRespuesta } from './tipos-analitica'
 import type { ParamsPeriodoApi } from '../../utils/periodo'
 import { API_BASE_URL } from './urls'
-import { TIMEOUT_API_MS } from './clienteBase'
+import { TIMEOUT_API_MS, desenvolverSobre } from './clienteBase'
 import { trasEscritura } from './refrescoTrasEscritura'
 import { ESCALATION_LOGS_LIMIT, GOVERNANCE_LOGS_LIMIT, INBOUND_MESSAGES_LIMIT, MONITORING_ALERTS_LIMIT } from '../../constants/pagination'
 
@@ -80,12 +80,27 @@ let _refreshPromise: Promise<unknown> | null = null
 /** Refresca la sesión (cookie httpOnly). Comparte la petición en vuelo. */
 function refrescarSesion(): Promise<unknown> {
   if (!_refreshPromise) {
+    // Auditoría 22-11-2026 (M3): axios directo no pasa por el interceptor de
+    // `api`; sin esto, con CSRF_DOUBLE_SUBMIT=1 el refresco daba 403.
+    const csrf = _readCookie('csrf_token')
     _refreshPromise = axios
-      .post(`${BASE_URL}/auth/refresh`, null, { withCredentials: true })
+      .post(`${BASE_URL}/auth/refresh`, null, {
+        withCredentials: true,
+        headers: csrf ? { 'X-CSRF-Token': csrf } : undefined,
+      })
       .then((r) => { programarRenovacionDeSesion(); return r })
       .finally(() => { _refreshPromise = null })
   }
   return _refreshPromise
+}
+
+/**
+ * Auditoría 22-11-2026 (H1 del 05): al recargar con el acceso caducado, `AuthContext`
+ * intenta un refresco antes de dar la sesión por perdida (`/auth/me` no pasa por el
+ * refresco automático del interceptor, para no entrar en bucle).
+ */
+export function refrescarSesionAlArrancar(): Promise<unknown> {
+  return refrescarSesion()
 }
 
 // ── Renovación anticipada de la sesión (19-11-2026) ─────────────────────────
@@ -136,28 +151,8 @@ if (typeof window !== 'undefined') {
 // items array, exposing the meta on `response.meta` for callers that need
 // pagination. Endpoints that return bare arrays or single objects are unchanged.
 api.interceptors.response.use((res) => {
-  const body = res?.data
-  if (body && typeof body === 'object' && !Array.isArray(body)) {
-    const keys = Object.keys(body)
-    // Envelope de LISTA (APIListResponse): { items, meta } → expone el array en res.data
-    // y la meta de paginación en res.meta.
-    if (
-      Array.isArray(body.items) &&
-      body.meta && typeof body.meta === 'object' &&
-      keys.length === 2
-    ) {
-      ;(res as { meta?: unknown }).meta = body.meta
-      res.data = body.items
-    }
-    // Envelope de OBJETO (APIResponse): exactamente { data, meta } → expone el payload en
-    // res.data (que es lo que el frontend espera de forma universal) y la meta en res.meta.
-    // Guard estricto (2 claves exactas 'data'+'meta') para no tocar payloads que casualmente
-    // tengan una clave 'data' (p.ej. {data, weeks}).
-    else if (keys.length === 2 && 'data' in body && 'meta' in body) {
-      ;(res as { meta?: unknown }).meta = (body as { meta?: unknown }).meta
-      res.data = (body as { data?: unknown }).data
-    }
-  }
+  // 23-11-2026: el desenvoltorio de sobres vive en un solo sitio (`clienteBase.desenvolverSobre`).
+  desenvolverSobre(res)
   // 18-11-2026: tras crear/editar/borrar con éxito se refrescan las pantallas
   // (ver refrescoTrasEscritura.ts); antes cada pantalla lo hacía a mano y fallaba.
   trasEscritura(res?.config?.method, res?.config?.url)
@@ -920,16 +915,16 @@ export const customFieldsApi = {
 
 // ── Wiki ──────────────────────────────────────────────────────────────────────
 export const wikiApi = {
-  spaces:       (): Promise<AxiosResponse<WikiEspacio[]>> => api.get('epics/wiki/spaces'),
-  createSpace:  (data: unknown): Promise<AxiosResponse<WikiEspacioCreado>> => api.post('epics/wiki/spaces', data),
-  pages:        (spaceId: PathId): Promise<AxiosResponse<WikiPaginaEnArbol[]>> => api.get(`epics/wiki/spaces/${spaceId}/pages`),
-  getPage:      (id: PathId): Promise<AxiosResponse<WikiPagina>> => api.get(`epics/wiki/pages/${id}`),
-  createPage:   (spaceId: PathId, data: unknown): Promise<AxiosResponse<WikiPagina>> => api.post(`epics/wiki/spaces/${spaceId}/pages`, data),
-  updatePage:   (id: PathId, data: unknown): Promise<AxiosResponse<WikiPagina>> => api.patch(`epics/wiki/pages/${id}`, data),
-  deletePage:   (id: PathId): Promise<AxiosResponse<ConfirmacionOk>> => api.delete(`epics/wiki/pages/${id}`),
-  versions:     (id: PathId): Promise<AxiosResponse<WikiVersion[]>> => api.get(`epics/wiki/pages/${id}/versions`),
-  restorePage:  (id: PathId, vn: PathId): Promise<AxiosResponse<WikiRestauracion>> => api.post(`epics/wiki/pages/${id}/restore/${vn}`),
-  search:       (q: string, spaceId?: PathId): Promise<AxiosResponse<WikiResultadoDeBusqueda[]>> => api.get(`epics/wiki/search`, { params: { q, space_id: spaceId } }),
+  spaces:       (): Promise<AxiosResponse<WikiEspacio[]>> => api.get('/epics/wiki/spaces'),
+  createSpace:  (data: unknown): Promise<AxiosResponse<WikiEspacioCreado>> => api.post('/epics/wiki/spaces', data),
+  pages:        (spaceId: PathId): Promise<AxiosResponse<WikiPaginaEnArbol[]>> => api.get(`/epics/wiki/spaces/${spaceId}/pages`),
+  getPage:      (id: PathId): Promise<AxiosResponse<WikiPagina>> => api.get(`/epics/wiki/pages/${id}`),
+  createPage:   (spaceId: PathId, data: unknown): Promise<AxiosResponse<WikiPagina>> => api.post(`/epics/wiki/spaces/${spaceId}/pages`, data),
+  updatePage:   (id: PathId, data: unknown): Promise<AxiosResponse<WikiPagina>> => api.patch(`/epics/wiki/pages/${id}`, data),
+  deletePage:   (id: PathId): Promise<AxiosResponse<ConfirmacionOk>> => api.delete(`/epics/wiki/pages/${id}`),
+  versions:     (id: PathId): Promise<AxiosResponse<WikiVersion[]>> => api.get(`/epics/wiki/pages/${id}/versions`),
+  restorePage:  (id: PathId, vn: PathId): Promise<AxiosResponse<WikiRestauracion>> => api.post(`/epics/wiki/pages/${id}/restore/${vn}`),
+  search:       (q: string, spaceId?: PathId): Promise<AxiosResponse<WikiResultadoDeBusqueda[]>> => api.get(`/epics/wiki/search`, { params: { q, space_id: spaceId } }),
   // Auditoria 2026-08: las cuatro rutas de etiquetas viven bajo `/cmdb/`.
   // Sin el prefijo, toda la gestion de etiquetas del wiki devolvia 404.
   tags:             (space: PathId): Promise<AxiosResponse<WikiEtiqueta[]>> => api.get(`/cmdb/wiki-tags/${space}`),
@@ -937,9 +932,9 @@ export const wikiApi = {
   updateTag:        (id: PathId, data: unknown): Promise<AxiosResponse<WikiEtiquetaGuardada>> => api.patch(`/cmdb/wiki-tags/${id}`, data),
   deleteTag:        (id: PathId): Promise<AxiosResponse<ConfirmacionOk>> => api.delete(`/cmdb/wiki-tags/${id}`),
   // portal-scoped wiki (different URL prefix)
-  portalSpaces:     (): Promise<AxiosResponse<WikiEspacio[]>>              => api.get('epics/wiki/spaces'),
-  portalPages:      (spaceId: PathId): Promise<AxiosResponse<WikiPaginaEnArbol[]>>       => api.get(`epics/wiki/spaces/${spaceId}/pages`),
-  portalUpdatePage: (id: PathId, data: { visibility: VisibilidadDeWiki }): Promise<AxiosResponse<WikiPaginaResumen>> => api.patch(`epics/wiki/pages/${id}/visibility`, data),
+  portalSpaces:     (): Promise<AxiosResponse<WikiEspacio[]>>              => api.get('/epics/wiki/spaces'),
+  portalPages:      (spaceId: PathId): Promise<AxiosResponse<WikiPaginaEnArbol[]>>       => api.get(`/epics/wiki/spaces/${spaceId}/pages`),
+  portalUpdatePage: (id: PathId, data: { visibility: VisibilidadDeWiki }): Promise<AxiosResponse<WikiPaginaResumen>> => api.patch(`/epics/wiki/pages/${id}/visibility`, data),
 }
 
 // ── Skills ────────────────────────────────────────────────────────────────────
@@ -1223,6 +1218,10 @@ export const portalClientsApi = {
   list:         (params?: { project_id?: string; client_org_id?: string; page?: number; page_size?: number }): Promise<AxiosResponse<PortalUsuario[]> & { meta?: MetaDeLista }>   => api.get('/portal/clients', { params }),
   create:       (data: unknown): Promise<AxiosResponse<PortalUsuarioCreado>>     => api.post('/portal/clients', data),
   update:       (id: PathId, data: unknown): Promise<AxiosResponse<PortalUsuarioActualizado>> => api.patch(`/portal/clients/${id}`, data),
+  /** 23-11-2026 (M10 del 04b): contraseña nueva generada en el servidor y enviada al titular por correo. */
+  sendAccess:   (id: PathId): Promise<AxiosResponse<{ id: string; email: string; credenciales_enviadas: boolean }>> => api.post(`/portal/clients/${id}/send-access`),
+  /** 23-11-2026: cambio obligatorio + cierre de sesiones del portal + enlace de un solo uso, con motivo (auditado). */
+  forcePasswordReset: (id: PathId, reason: string, send_link = true): Promise<AxiosResponse<{ ok: boolean; link_sent: boolean }>> => api.post(`/portal/clients/${id}/force-password-reset`, { reason, send_link }),
   translations: (): Promise<AxiosResponse<PortalTraducciones>> => api.get('/portal/translations'),
   saveTranslations: (data: unknown): Promise<AxiosResponse<ConfirmacionOk>> => api.post('/portal/translations', data),
 }
@@ -1506,6 +1505,8 @@ export const enterpriseApi = {
   ssoTest:                 (id: PathId): Promise<AxiosResponse<ValidacionSso>> => api.post(`/enterprise/sso/${id}/test`),
   // Segunda auditoría 2026-11 (#22): webhooks salientes y sus entregas en una sola llamada.
   outboundWebhooks:        (): Promise<AxiosResponse<WebhookSaliente[]>> => api.get('/enterprise/webhooks'),
+  // Auditoría 22-11-2026 (A44): reactivar un webhook suspendido por el cortacircuitos.
+  reactivateWebhook:       (id: PathId): Promise<AxiosResponse<WebhookSaliente>> => api.post(`/enterprise/webhooks/${id}/reactivate`),
   outboundWebhookEvents:   (): Promise<AxiosResponse<EventoDeWebhook[]>> => api.get('/enterprise/webhooks/events'),
   webhookDeliveries:       (params?: { webhook_id?: string; event?: string; success?: boolean; page?: number; page_size?: number }): Promise<AxiosResponse<EntregaDeWebhook[]> & { meta?: MetaDeLista }> => api.get('/enterprise/webhooks/deliveries', { params }),
 }
@@ -1554,7 +1555,7 @@ export const clientExtApi = {
   /** Lo deja como único contacto principal; la ficha del cliente lo refleja. */
   setPrimaryContact:  (cid: PathId, id: PathId): Promise<AxiosResponse<ClienteContactoCreado>> => api.post(`/clients/${cid}/contacts/${id}/primary`),
   /** Crea el usuario del portal con los datos del contacto (400 sin email o sin cupo; 409 si ya lo tiene). */
-  givePortalAccess:   (cid: PathId, id: PathId, data: { password: string; language?: string; project_ids?: string[] }): Promise<AxiosResponse<PortalUsuarioCreado>> => api.post(`/clients/${cid}/contacts/${id}/portal-access`, data),
+  givePortalAccess:   (cid: PathId, id: PathId, data: { password?: string; language?: string; project_ids?: string[] }): Promise<AxiosResponse<PortalUsuarioCreado>> => api.post(`/clients/${cid}/contacts/${id}/portal-access`, data),
   licenses:           (cid: PathId): Promise<AxiosResponse<ClienteLicencia[]>>       => api.get(`/clients/${cid}/licenses`),
   linkLicense:        (cid: PathId, data: unknown): Promise<AxiosResponse<ClienteLicenciaVinculada>> => api.post(`/clients/${cid}/licenses`, data),
   unlinkLicense:      (cid: PathId, id: PathId): Promise<AxiosResponse<ConfirmacionOk>>   => api.delete(`/clients/${cid}/licenses/${id}`),
@@ -1768,14 +1769,6 @@ export const m365Api = {
   teamsNotify:    (data: unknown): Promise<AxiosResponse<AvisoDeTeams>> => api.post('/m365/teams/notify', data),
 }
 
-// ── Meetings AI ───────────────────────────────────────────────────────────────
-export const meetingsAIApi = {
-  list:        (): Promise<AxiosResponse<ReunionResumen[]>> => api.get('/ai-modules/meetings'),
-  get:         (id: PathId): Promise<AxiosResponse<Reunion>> => api.get(`/ai-modules/meetings/${id}`),
-  process:     (data: unknown): Promise<AxiosResponse<ReunionProcesada>> => api.post('/ai-modules/meetings/process', data),
-  createTasks: (id: PathId): Promise<AxiosResponse<TareasDeReunionCreadas>> => api.post(`/ai-modules/meetings/${id}/create-tasks`, {}),
-}
-
 // ── Contracts AI (H22) ────────────────────────────────────────────────────────
 export const contractsAIApi = {
   list:       (params?: QueryParams): Promise<AxiosResponse<ContratoIa[]>> => api.get('/ai-modules/contracts-ai', { params }),
@@ -1904,6 +1897,9 @@ export const nexusAgentApi = {
   run:                  (instruction: string, autoApprove: boolean = false): Promise<AxiosResponse<EjecucionDelAgenteEnCola>> => api.post('/ai/agent', { instruction, auto_approve: autoApprove }),
   status:               (id: string): Promise<AxiosResponse<EstadoDelAgente>> => api.get(`/ai/agent/${id}/status`),
   detail:               (id: string): Promise<AxiosResponse<EjecucionDelAgente>> => api.get(`/ai/agent/${id}`),
+  // Auditoría 22-11-2026 (A7): aprobación humana de una escritura pendiente del agente.
+  approveStep:          (id: string, stepId: string): Promise<AxiosResponse<DecisionDePasoDelAgente>> => api.post(`/ai/agent/${id}/steps/${stepId}/approve`),
+  rejectStep:           (id: string, stepId: string): Promise<AxiosResponse<DecisionDePasoDelAgente>> => api.post(`/ai/agent/${id}/steps/${stepId}/reject`),
   chat:                 (data: unknown): Promise<AxiosResponse<RespuestaDelAsistente>> => api.post('/ai/chat', data),
   texto:                (mensaje: string): Promise<AxiosResponse<TextoTransformado>> => api.post('/ai/texto', { mensaje }),
   listConversations:    (): Promise<AxiosResponse<ConversacionResumen[]>> => api.get('/ai/conversations'),

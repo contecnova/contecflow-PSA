@@ -14,7 +14,7 @@ import { useState, useId, type ReactNode } from 'react'
 import { extractErr, fmtDate, localeActivo } from '../utils/helpers'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
-import { projectsApi, revenueRecognitionApi } from '../services/api'
+import { revenueRecognitionApi } from '../services/api'
 import type { CierreAsc606, ContratoAsc606, EntradaAsc606DelDiario, ObligacionAsc606, PanelAsc606 } from '../services/api/tipos-finanzas'
 import type { MetaDeLista } from '../services/api/tipos-plataforma'
 import { Button, Card, KpiCard, Modal, Spinner, EmptyState, Tabs, IconButton, Select, TablaSimple, useErroresDeCampo, Input, Textarea } from '../components/ui'
@@ -29,6 +29,7 @@ import { openConfirmGlobal } from '../context/ConfirmContext'
 import DateInput from '../components/ui/DateInput'
 import { DEFAULT_PAGE_SIZE } from '../constants/pagination'
 import { useFormatoMoneda } from '../hooks/useFormatoMoneda'
+import { useListaDeProyectos } from '../hooks/useListas'
 import './RevenuePage.css'
 
 type T = ReturnType<typeof useAppT>
@@ -143,7 +144,7 @@ function ObligationsPanel({ contractId, onClose, currency }: { contractId: strin
                     </IconButton>
                     <IconButton type="button" className="rev-icon-btn rev-icon-btn--danger"
                       ariaLabel={t('revenue_page.borrar_obligacion', { nombre: ob.name })} title={t('revenue_page.borrar')}
-                      onClick={() => del(ob.id)}>
+                      onClick={() => openConfirmGlobal({ message: t('revenue_page.confirmar_borrar_obligacion', { nombre: ob.name }), danger: true, onConfirm: () => del(ob.id) })}>
                       <Trash2 size={14} aria-hidden />
                     </IconButton>
                   </div>
@@ -229,7 +230,7 @@ export default function RevenuePage() {
   }
 
   // `projectsApi.list` recorre todas las páginas y devuelve siempre el array.
-  const { data: projects = [] } = useQuery({ queryKey: ['projects'], queryFn: () => projectsApi.list().then(r => r.data ?? []) })
+  const { data: projects = [] } = useListaDeProyectos()
 
   // ── New ASC 606 queries ────────────────────────────────────────────────────
   const { data: asc606Dashboard } = useQuery<Asc606Dashboard>({
@@ -260,7 +261,6 @@ export default function RevenuePage() {
           const meta = (r as typeof r & { meta?: MetaDeLista }).meta
           return { items: r.data, total: meta?.total ?? r.data.length }
         })
-        .catch(() => ({ items: [], total: 0 }))
     },
     enabled: tab === 'entries',
     placeholderData: keepPreviousData,

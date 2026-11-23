@@ -92,9 +92,17 @@ def test_un_estandar_de_bajo_riesgo_se_aprueba_solo_sin_inventar_usuario(client,
 
     monkeypatch.setattr(change_service, "_auto_score_change",
                         lambda db, ch: setattr(ch, "auto_risk_score", 10.0))
-    c = _cambio(client, admin_token, change_type="standard")
+    # 23-11-2026 (A-SD19): estandar solo con un modelo aprobado y vigente del catalogo.
+    from app.models.service_desk import StandardChangeModel
+    modelo = StandardChangeModel(organization_id="1", name="Parche mensual", procedure="1. Aplicar el parche",
+                                 max_risk="medium", status="approved", is_active=True,
+                                 next_review_at=datetime.now(timezone.utc) + timedelta(days=30))
+    db.add(modelo)
+    db.commit()
+    c = _cambio(client, admin_token, change_type="standard", standard_model_id=modelo.id)
     ch = db.get(ITSMChangeRequest, c["id"])
     assert ch.status.value == "approved" and ch.approved_by is None
+    assert db.get(StandardChangeModel, modelo.id).use_count == 1
 
 
 def test_no_se_programa_en_una_congelacion_salvo_emergencia(client, admin_token, pm_token, cab, db):

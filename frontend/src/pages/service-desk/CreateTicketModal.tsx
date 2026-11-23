@@ -13,19 +13,22 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAppT } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
 import { extractErr, fmtDateTime } from '../../utils/helpers'
+import { useListaDeUsuarios } from '../../hooks/useListas'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import { Sparkles } from 'lucide-react'
 import { Button, Modal, Select, useErroresDeCampo, Input, Textarea } from '../../components/ui'
 import AIInlineEditor from '../../components/AIInlineEditor'
 import DateInput from '../../components/ui/DateInput'
 import { useFormValidation } from '../../hooks/useFormValidation'
-import { sdCatalogApi, usersApi, clientsApi, ticketsApi, sdDynamicFormsApi } from '../../services/api'
+import { sdCatalogApi, clientsApi, ticketsApi, sdDynamicFormsApi } from '../../services/api'
 import type { SdCampoDinamico, SdTicket } from '../../services/api/tipos-sd'
 import { z } from 'zod'
 import { PBadge, PRIORITY_LABEL } from './sdUtils'
 import { DYNAMIC_FORM_OPTIONS_LIMIT } from '../../constants/pagination'
 import './CreateTicketModal.css'
 import CatalogoInteligente from '../../components/servicedesk/CatalogoInteligente'
+import { usePermiso } from '../../permisos/usePermiso'
+import { etiquetaDeCampoDinamico, etiquetaDeOpcionDinamica, valorDePistaDeEnrutado } from './camposDinamicosSd'
 
 type TicketType = 'incident' | 'service_request' | 'change' | 'problem' | 'question'
 type TicketPriority = 'p1_critical' | 'p2_high' | 'p3_medium' | 'p4_low'
@@ -53,7 +56,6 @@ type ModalProps = {
 
 type CatalogService = { id: string | number; name: string }
 type CatalogGroup = { name?: string; services?: CatalogService[] }
-type UserItem = { id: string | number; full_name?: string }
 type ClientItem = { id: string | number; name?: string }
 
 type DynamicField = SdCampoDinamico
@@ -114,10 +116,7 @@ export default function CreateTicketModal({ onClose, onCreated }: ModalProps) {
     queryKey: ['sd-catalog'],
     queryFn: () => sdCatalogApi.list().then(r => r.data),
   })
-  const { data: users = [] } = useQuery<UserItem[]>({
-    queryKey: ['users'],
-    queryFn: () => usersApi.list({}).then(r => r.data as UserItem[]),
-  })
+  const { data: users = [] } = useListaDeUsuarios()
   const { data: clients = [] } = useQuery<ClientItem[]>({
     queryKey: ['clients'],
     queryFn: () => clientsApi.list({}).then(r => (r.data ?? []) as ClientItem[]),
@@ -126,9 +125,15 @@ export default function CreateTicketModal({ onClose, onCreated }: ModalProps) {
     queryKey: ['sd-dynamic-forms'],
     queryFn: () => sdDynamicFormsApi.get().then(r => r.data),
   })
+  // Incidencia 1 (23-11-2026): el historial y el asistente de campos son de
+  // administración (`sd.administrar`); un operador que solo da de alta un
+  // ticket no los pide (antes salía «Acceso denegado» al abrir el alta).
+  const administraSd = usePermiso('sd.administrar')
   const { data: dynamicHistory = [] } = useQuery({
     queryKey: ['sd-dynamic-forms-history'],
     queryFn: () => sdDynamicFormsApi.history().then(r => r.data),
+    enabled: administraSd,
+    meta: { errorToast: false },
   })
   const { data: contextOptions = { clients: [], services: [], cis: [] } } = useQuery({
     queryKey: ['sd-dynamic-forms-context', form.client_id, form.service_item_id],
@@ -289,8 +294,17 @@ export default function CreateTicketModal({ onClose, onCreated }: ModalProps) {
     ticket_type: t('service_desk.ticket_type'), priority: t('service_desk.ticket_priority'),
     urgency: t('service_desk.edit_urgency'), impact: t('service_desk.edit_impact'),
     assigned_group_id: t('service_desk.assigned_group'), assigned_to_user_id: t('common.assigned_to'),
-    support_level: t('service_desk.support_level'),
+    support_level: t('service_desk.support_level'), queue: t('sd_campos_dinamicos.cola'),
   } as Record<string, string>)[k] ?? k
+
+  /** Valor legible de la pista de enrutado (incidencia 3): nunca la clave cruda. */
+  const valorDePista = (k: string, v: unknown) => valorDePistaDeEnrutado(t, k, v, {
+    priority: PRIORITY_LABEL,
+    ticket_type: {
+      incident: t('service_desk.type_incident'), service_request: t('service_desk.type_service_request'),
+      change: t('service_desk.type_change'), problem: t('service_desk.type_problem'), question: t('service_desk.type_question'),
+    },
+  })
 
   const submit = () => {
     const result = validation.validateForm(form)
@@ -330,9 +344,7 @@ export default function CreateTicketModal({ onClose, onCreated }: ModalProps) {
             }))} />
         </div>
         <div className="u-col-full">
-          <label id={`${idPrefix}-title-et`} htmlFor={`${idPrefix}-title`} className="campo-etiqueta">{t('service_desk.ticket_title')} *</label>
-          <input id={`${idPrefix}-title`} aria-labelledby={`${idPrefix}-title-et`} value={form.title} onChange={set('title')}
-            className={validation.inputClass('campo-form', 'title')} placeholder={t('service_desk.ticket_title')} />
+          <Input label={<>{t('service_desk.ticket_title')} *</>} id={`${idPrefix}-title`} value={form.title} onChange={set('title')} placeholder={t('service_desk.ticket_title')} />
           {(validation.errors.title ?? campos.de('title')) && <div className="u-field-error">{validation.errors.title ?? campos.de('title')}</div>}
         </div>
         <div className="u-col-full">
@@ -392,13 +404,13 @@ export default function CreateTicketModal({ onClose, onCreated }: ModalProps) {
 
         {routingHint && (
           <div className="crtimo-box-2">
-            {traducir('createticketmodal.hint_de_routing_aplicado')} {Object.entries(routingHint).map(([k, v]) => `${etiquetaDeCampo(k)}: ${v}`).join(' · ')}
+            {traducir('createticketmodal.hint_de_routing_aplicado')} {Object.entries(routingHint).map(([k, v]) => `${etiquetaDeCampo(k)}: ${valorDePista(k, v)}`).join(' · ')}
           </div>
         )}
 
         {visibleDynamicFields.map((f) => (
           <div key={f.id} className={`${f.type === 'textarea' ? 'create-ticket-modal-m1' : 'create-ticket-modal-m2'}`}>
-            <label id={`${idPrefix}-${f.id}-et`} htmlFor={`${idPrefix}-${f.id}`} className="campo-etiqueta">{f.label}{f.required ? ' *' : ''}</label>
+            <label id={`${idPrefix}-${f.id}-et`} htmlFor={`${idPrefix}-${f.id}`} className="campo-etiqueta">{etiquetaDeCampoDinamico(t, f)}{f.required ? ' *' : ''}</label>
             {f.type === 'select' ? (
               <Select
                 suelto
@@ -408,28 +420,14 @@ export default function CreateTicketModal({ onClose, onCreated }: ModalProps) {
                 onChange={(e) => setDynamicValues(v => ({ ...v, [f.id]: e.target.value }))}
                 className="campo-form"
               >
-                <option value="">{traducir('createticket.seleccionar')}</option>
-                {(f.options || []).map((op) => <option key={op} value={op}>{op}</option>)}
+                <option value="">{t('sd_campos_dinamicos.seleccionar')}</option>
+                {(f.options || []).map((op) => <option key={op} value={op}>{etiquetaDeOpcionDinamica(t, op)}</option>)}
               </Select>
             ) : f.type === 'textarea' ? (
-              <textarea
-                id={`${idPrefix}-${f.id}`}
-                aria-labelledby={`${idPrefix}-${f.id}-et`}
-                value={String(dynamicValues[f.id] ?? '')}
-                onChange={(e) => setDynamicValues(v => ({ ...v, [f.id]: e.target.value }))}
-                className="campo-form create-ticket-modal-notas"
-              />
+              <Textarea id={`${idPrefix}-${f.id}`} aria-labelledby={`${idPrefix}-${f.id}-et`} value={String(dynamicValues[f.id] ?? '')} onChange={(e) => setDynamicValues(v => ({ ...v, [f.id]: e.target.value }))} className="create-ticket-modal-notas" />
             ) : (f.type || '').startsWith('context_') ? (
               <>
-                <input
-                  id={`${idPrefix}-${f.id}`}
-                  aria-labelledby={`${idPrefix}-${f.id}-et`}
-                  type="text"
-                  list={`${idPrefix}-${f.id}-options`}
-                  value={String(dynamicValues[f.id] ?? '')}
-                  onChange={(e) => setDynamicValues(v => ({ ...v, [f.id]: e.target.value }))}
-                  className="campo-form"
-                />
+                <Input id={`${idPrefix}-${f.id}`} aria-labelledby={`${idPrefix}-${f.id}-et`} type="text" list={`${idPrefix}-${f.id}-options`} value={String(dynamicValues[f.id] ?? '')} onChange={(e) => setDynamicValues(v => ({ ...v, [f.id]: e.target.value }))} />
                 <datalist id={`${idPrefix}-${f.id}-options`}>
                   {contextSuggestionsForField(f).map((op, idx) => <option key={`${f.id}-${idx}`} value={op} aria-label={op} />)}
                 </datalist>
@@ -444,14 +442,7 @@ export default function CreateTicketModal({ onClose, onCreated }: ModalProps) {
                   className="campo-form"
                 />
               ) : (
-                <input
-                  id={`${idPrefix}-${f.id}`}
-                  aria-labelledby={`${idPrefix}-${f.id}-et`}
-                  type="text"
-                  value={String(dynamicValues[f.id] ?? '')}
-                  onChange={(e) => setDynamicValues(v => ({ ...v, [f.id]: e.target.value }))}
-                  className="campo-form"
-                />
+                <Input id={`${idPrefix}-${f.id}`} aria-labelledby={`${idPrefix}-${f.id}-et`} type="text" value={String(dynamicValues[f.id] ?? '')} onChange={(e) => setDynamicValues(v => ({ ...v, [f.id]: e.target.value }))} />
               )
             )}
           </div>
@@ -500,7 +491,7 @@ export default function CreateTicketModal({ onClose, onCreated }: ModalProps) {
         )}
 
         <div className="crtimo-row-2">
-          <Button variant="secondary" onClick={() => setWizardOpen(true)}>{t('createticket.wizard_campos')}</Button>
+          {administraSd && <Button variant="secondary" onClick={() => setWizardOpen(true)}>{t('createticket.wizard_campos')}</Button>}
           <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
           <Button onClick={submit} disabled={isPending} loading={isPending}>
             {t('service_desk.ticket_create_btn')}
@@ -508,7 +499,7 @@ export default function CreateTicketModal({ onClose, onCreated }: ModalProps) {
         </div>
       </div>
 
-      <Modal open={wizardOpen} onClose={() => setWizardOpen(false)} title={traducir('createticketmodal.wizard_de_campos_dinamicos')} size="lg">
+      <Modal open={administraSd && wizardOpen} onClose={() => setWizardOpen(false)} title={traducir('createticketmodal.wizard_de_campos_dinamicos')} size="lg">
         {wizardStep === 1 && (
           <div className="crtimo-grid-2">
             <div className="u-text2-sm">

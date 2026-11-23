@@ -2,7 +2,7 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 import logging
 
-from app.core.deps import get_current_user, get_db, require_any_manager
+from app.core.deps import get_current_user, get_db, requiere_capacidad
 from app.models.user import User
 import app.services.integrations as _svc
 from app.core.codigos_de_error import error_http
@@ -20,7 +20,7 @@ _build_block_kit_message = _svc.build_block_kit_message
 def send_slack_block_kit(
     payload: dict = Body(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("integraciones.responsables")),
 ):
     event_type = payload.get("event_type", "custom")
     data = payload.get("data", {})

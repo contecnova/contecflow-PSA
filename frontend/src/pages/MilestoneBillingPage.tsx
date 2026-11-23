@@ -16,8 +16,7 @@ import { extractErr, fmtDate } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation } from '@tanstack/react-query'
-import { milestonesApi, projectsApi } from '../services/api'
-import type { ProjectListItem } from '../services/api/projects'
+import { milestonesApi } from '../services/api'
 import type { EstadoDeFacturacionDeHito, HitoDeFacturacion } from '../services/api/tipos-finanzas'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -32,6 +31,7 @@ import type { StatusBadgeKind } from '../components/ui/StatusBadge'
 import DateInput from '../components/ui/DateInput'
 
 import { useFormatoMoneda } from '../hooks/useFormatoMoneda'
+import { useListaDeProyectos } from '../hooks/useListas'
 import './MilestoneBillingPage.css'
 type BillingStatus = EstadoDeFacturacionDeHito
 /** El hito de la lista del proyecto o del panel de pendientes (que añade el proyecto). */
@@ -96,15 +96,14 @@ function MilestoneCard({ m, projectName, onRefresh }: { m: MilestoneItem; projec
   const act = async (action: 'complete' | 'uncomplete' | 'request' | 'approve' | 'reject' | 'invoice', payload?: string) => {
     setLoading(action)
     try {
-      // Completar y revertir devuelven el hito sin mensaje; el resto trae `message`.
-      let mensaje: string | undefined
+      // 23-11-2026: el aviso de éxito es texto propio (el `message` del servidor no se pinta).
       if (action === 'complete')        await milestonesApi.complete(m.id)
       if (action === 'uncomplete')      await milestonesApi.uncomplete(m.id)
-      if (action === 'request')         mensaje = (await milestonesApi.requestApproval(m.id, {})).data.message
-      if (action === 'approve')         mensaje = (await milestonesApi.approve(m.id, { approved: true })).data.message
-      if (action === 'reject')          mensaje = (await milestonesApi.approve(m.id, { approved: false, rejection_reason: payload })).data.message
-      if (action === 'invoice')         mensaje = (await milestonesApi.generateInvoice(m.id)).data.message
-      toast.success(mensaje || t('pagina_mbill.accion_completada'))
+      if (action === 'request')         await milestonesApi.requestApproval(m.id, {})
+      if (action === 'approve')         await milestonesApi.approve(m.id, { approved: true })
+      if (action === 'reject')          await milestonesApi.approve(m.id, { approved: false, rejection_reason: payload })
+      if (action === 'invoice')         await milestonesApi.generateInvoice(m.id)
+      toast.success(t('pagina_mbill.accion_completada'))
       onRefresh()
     } catch (e: unknown) {
       toast.error(extractErr(e, t('pagina_mbill.error')))
@@ -254,11 +253,7 @@ export default function MilestoneBillingPage({ projectId }: { projectId?: string
   const [showNew, setShowNew]   = useState(false)
   const [tab, setTab] = useState<'project' | 'dashboard'>('project')
 
-  const { data: projects = [] } = useQuery<ProjectListItem[]>({
-    queryKey: ['projects'],
-    queryFn: () => projectsApi.list({}).then(r => r.data),
-    enabled: !projectId,
-  })
+  const { data: projects = [] } = useListaDeProyectos(undefined, { enabled: !projectId })
 
   const { data: milestones = [], refetch } = useQuery<MilestoneItem[]>({
     queryKey: ['milestones', selectedProject],

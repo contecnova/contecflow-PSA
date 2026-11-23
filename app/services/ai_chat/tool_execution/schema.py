@@ -366,7 +366,7 @@ AGENT_TOOLS = [
         "input_schema": {
             "type": "object",
             "properties": {
-                "stage": {"type": "string", "enum": ["lead","qualified","proposal","negotiation","won","lost","all"]},
+                "stage": {"type": "string", "enum": ["lead","qualification","proposal","negotiation","won","lost","cancelled","all"]},
                 "limit": {"type": "integer", "default": 20},
             }
         }

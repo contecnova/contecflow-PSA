@@ -23,7 +23,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from app.core.deps import require_admin
+from app.core.deps import requiere_capacidad
 from app.core.ratelimit import limiter
 from app.core.responses import APIResponse
 from app.db.session import get_db
@@ -62,7 +62,7 @@ def _llamar(f, *a, **kw):
 
 @router.get("/connectors", summary="Conectores ETL, su estado y la ficha de la fuente REST genérica")
 @limiter.limit("60/minute")
-def list_connectors(request: Request, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+def list_connectors(request: Request, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("bi.administrar"))):
     items = svc.listar(db, _org(current_user))
     return APIResponse.ok(data={"connectors": items, "count": len(items), "generico": _etl.ficha(_etl.TIPO_GENERICO)})
 
@@ -70,7 +70,7 @@ def list_connectors(request: Request, db: Session = Depends(get_db), current_use
 @router.get("/connectors/{connector_id}", summary="Detalle de un conector ETL")
 @limiter.limit("60/minute")
 def get_connector_detail(request: Request, connector_id: str, db: Session = Depends(get_db),
-                         current_user: User = Depends(require_admin)):
+                         current_user: User = Depends(requiere_capacidad("bi.administrar"))):
     org = _org(current_user)
     fila = _llamar(svc.uno, db, org, connector_id)
     return APIResponse.ok(data={**fila, "recent_log": svc.registro(db, org, connector_id, 10)})
@@ -79,7 +79,7 @@ def get_connector_detail(request: Request, connector_id: str, db: Session = Depe
 @router.patch("/connectors/{connector_id}", summary="Activar un conector y darle entidad y credenciales")
 @limiter.limit("30/minute")
 def configure_connector(request: Request, connector_id: str, body: ConfigIn, db: Session = Depends(get_db),
-                        current_user: User = Depends(require_admin)):
+                        current_user: User = Depends(requiere_capacidad("bi.administrar"))):
     return APIResponse.ok(data=_llamar(svc.configurar, db, _org(current_user), connector_id,
                                        enabled=body.enabled, entity=body.entity, config=body.config))
 
@@ -87,21 +87,21 @@ def configure_connector(request: Request, connector_id: str, body: ConfigIn, db:
 @router.post("/connectors/{connector_id}/test", summary="Probar un conector sin guardar nada")
 @limiter.limit("10/minute")
 def test_connector(request: Request, connector_id: str, db: Session = Depends(get_db),
-                   current_user: User = Depends(require_admin)):
+                   current_user: User = Depends(requiere_capacidad("bi.administrar"))):
     return APIResponse.ok(data=_llamar(svc.probar, db, _org(current_user), connector_id))
 
 
 @router.post("/connectors/{connector_id}/sync", summary="Sincronizar ahora")
 @limiter.limit("10/minute")
 def trigger_sync(request: Request, connector_id: str, db: Session = Depends(get_db),
-                 current_user: User = Depends(require_admin)):
+                 current_user: User = Depends(requiere_capacidad("bi.administrar"))):
     return APIResponse.ok(data=_llamar(svc.sincronizar, db, _org(current_user), connector_id))
 
 
 @router.get("/connectors/{connector_id}/log", summary="Historial de sincronizaciones")
 @limiter.limit("60/minute")
 def get_sync_log(request: Request, connector_id: str, limit: int = Query(20, ge=1, le=100),
-                 db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+                 db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("bi.administrar"))):
     entries = _llamar(svc.registro, db, _org(current_user), connector_id, limit)
     return APIResponse.ok(data={"connector_id": connector_id, "entries": entries, "count": len(entries)})
 
@@ -109,7 +109,7 @@ def get_sync_log(request: Request, connector_id: str, limit: int = Query(20, ge=
 @router.get("/data/{connector_id}", summary="Lo último que trajo un conector")
 @limiter.limit("30/minute")
 def get_synced_data(request: Request, connector_id: str, db: Session = Depends(get_db),
-                    current_user: User = Depends(require_admin)):
+                    current_user: User = Depends(requiere_capacidad("bi.administrar"))):
     return APIResponse.ok(data={"connector_id": connector_id,
                                 "data": _llamar(svc.datos, db, _org(current_user), connector_id)})
 
@@ -117,13 +117,13 @@ def get_synced_data(request: Request, connector_id: str, db: Session = Depends(g
 @router.post("/sources", summary="Dar de alta una fuente REST genérica")
 @limiter.limit("20/minute")
 def create_source(request: Request, body: FuenteIn, db: Session = Depends(get_db),
-                  current_user: User = Depends(require_admin)):
+                  current_user: User = Depends(requiere_capacidad("bi.administrar"))):
     return APIResponse.ok(data=_llamar(svc.crear_fuente, db, _org(current_user), body.nombre, body.config))
 
 
 @router.delete("/sources/{connector_id}", summary="Quitar una fuente REST")
 @limiter.limit("20/minute")
 def delete_source(request: Request, connector_id: str, db: Session = Depends(get_db),
-                  current_user: User = Depends(require_admin)):
+                  current_user: User = Depends(requiere_capacidad("bi.administrar"))):
     _llamar(svc.borrar_fuente, db, _org(current_user), connector_id)
     return APIResponse.ok(data={"deleted": connector_id})

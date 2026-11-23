@@ -15,6 +15,7 @@ from app.models.cab import EmailLog
 
 from app.services.cab_service._comun import logger
 from app.core.constantes import NOMBRE_DEL_PRODUCTO
+from app.services.textos_de_salida import texto as _texto_de_salida
 
 
 # ─── Email helpers ────────────────────────────────────────────────────────────
@@ -22,51 +23,58 @@ from app.core.constantes import NOMBRE_DEL_PRODUCTO
 #: «[Contecflow]» al principio del asunto de los correos del sistema.
 _PREFIJO_DE_ASUNTO = f"[{NOMBRE_DEL_PRODUCTO}]"
 
+#: 23-11-2026: `name` y `subject` de las plantillas de serie son claves de `textos_de_salida`
+#: (`plantilla_correo.<id>.nombre|asunto`); `plantillas_de_serie(idioma)` las devuelve ya escritas
+#: y `subject_prefijo` pone «[Producto]» delante. Antes eran castellano fijo.
 SYSTEM_EMAIL_TEMPLATES = [
     {
         "id": "tpl_task_overdue",
-        "name": "Tarea vencida",
-        "subject": _PREFIJO_DE_ASUNTO + " Tarea vencida: {{task_title}}",
+        "name": "plantilla_correo.tpl_task_overdue.nombre",
+        "subject": "plantilla_correo.tpl_task_overdue.asunto",
+        "subject_prefijo": True,
         "category": "automation",
         "variables": ["task_title", "project_name", "assignee_name", "due_date"],
         "is_system": True,
     },
     {
         "id": "tpl_budget_alert",
-        "name": "Alerta de presupuesto",
-        "subject": _PREFIJO_DE_ASUNTO + " Alerta presupuesto: {{project_name}} al {{pct_used}}%",
+        "name": "plantilla_correo.tpl_budget_alert.nombre",
+        "subject": "plantilla_correo.tpl_budget_alert.asunto",
+        "subject_prefijo": True,
         "category": "alert",
         "variables": ["project_name", "budget_total", "budget_used", "pct_used"],
         "is_system": True,
     },
     {
         "id": "tpl_invoice_sent",
-        "name": "Factura enviada al cliente",
-        "subject": "Factura {{invoice_number}} — {{client_name}}",
+        "name": "plantilla_correo.tpl_invoice_sent.nombre",
+        "subject": "plantilla_correo.tpl_invoice_sent.asunto",
         "category": "invoice",
         "variables": ["invoice_number", "client_name", "amount", "due_date"],
         "is_system": True,
     },
     {
         "id": "tpl_sla_breach",
-        "name": "SLA incumplido",
-        "subject": _PREFIJO_DE_ASUNTO + " SLA vencido: Ticket #{{ticket_number}}",
+        "name": "plantilla_correo.tpl_sla_breach.nombre",
+        "subject": "plantilla_correo.tpl_sla_breach.asunto",
+        "subject_prefijo": True,
         "category": "alert",
         "variables": ["ticket_number", "ticket_title", "assignee_name", "sla_due"],
         "is_system": True,
     },
     {
         "id": "tpl_new_ticket",
-        "name": "Nuevo ticket asignado",
-        "subject": "[Service Desk] Ticket #{{ticket_number}} asignado a ti",
+        "name": "plantilla_correo.tpl_new_ticket.nombre",
+        "subject": "plantilla_correo.tpl_new_ticket.asunto",
         "category": "automation",
         "variables": ["ticket_number", "ticket_title", "priority", "requester"],
         "is_system": True,
     },
     {
         "id": "tpl_report_ready",
-        "name": "Informe programado listo",
-        "subject": _PREFIJO_DE_ASUNTO + " Informe: {{report_name}}",
+        "name": "plantilla_correo.tpl_report_ready.nombre",
+        "subject": "plantilla_correo.tpl_report_ready.asunto",
+        "subject_prefijo": True,
         "category": "report",
         "variables": ["report_name", "generated_at", "period"],
         "is_system": True,
@@ -101,10 +109,28 @@ def send_email_smtp(to: list, subject: str, body_html: str, cc: list = None) -> 
 
 # ─── Email templates + send ───────────────────────────────────────────────────
 
+def _idioma_de_la_sesion(db: Session) -> str:
+    from app.services.formato_regional import idioma_de_salida
+    return idioma_de_salida(db, org_id=(db.info or {}).get("organization_id"))
+
+
+def plantillas_de_serie(idioma: Optional[str] = None) -> list:
+    """Las plantillas de serie con nombre y asunto en `idioma`."""
+    from app.services.textos_de_salida import texto
+    salida = []
+    for t in SYSTEM_EMAIL_TEMPLATES:
+        c = {k: v for k, v in t.items() if k != "subject_prefijo"}
+        c["name"] = texto(t["name"], idioma)
+        asunto = texto(t["subject"], idioma)
+        c["subject"] = f"{_PREFIJO_DE_ASUNTO} {asunto}" if t.get("subject_prefijo") else asunto
+        salida.append(c)
+    return salida
+
+
 def list_email_templates(db: Session) -> dict:
     custom = db.query(EmailTemplate).options(joinedload(EmailTemplate.creator)).all()
     return {
-        "system": SYSTEM_EMAIL_TEMPLATES,
+        "system": plantillas_de_serie(_idioma_de_la_sesion(db)),
         "custom": [{
             "id": t.id, "name": t.name, "subject": t.subject,
             "category": t.category,
@@ -139,7 +165,7 @@ def _resolve_email_template(db: Session, template_id: Optional[str], variables: 
         subject = render_template(custom_tpl.subject, variables or {})
         body_html = render_template(custom_tpl.body_html, variables or {})
         return subject, body_html
-    sys_tpl = next((t for t in SYSTEM_EMAIL_TEMPLATES if t["id"] == template_id), None)
+    sys_tpl = next((t for t in plantillas_de_serie(_idioma_de_la_sesion(db)) if t["id"] == template_id), None)
     if sys_tpl:
         subject = render_template(sys_tpl["subject"], variables or {})
         body_html = f"<p>{subject}</p>"
@@ -149,8 +175,9 @@ def _resolve_email_template(db: Session, template_id: Optional[str], variables: 
 def send_email_action(payload, db: Session) -> dict:
     subject, body_html = _resolve_email_template(
         db, payload.template_id, payload.variables or {},
-        payload.subject or f"Notificación {NOMBRE_DEL_PRODUCTO}",
-        payload.body_html or f"<p>Notificación de {NOMBRE_DEL_PRODUCTO}</p>",
+        payload.subject or _texto_de_salida("correo.notificacion_asunto", _idioma_de_la_sesion(db), producto=NOMBRE_DEL_PRODUCTO),
+        payload.body_html or "<p>" + _texto_de_salida("correo.notificacion_cuerpo", _idioma_de_la_sesion(db),
+                                                      producto=NOMBRE_DEL_PRODUCTO) + "</p>",
     )
     template_id_ref = payload.template_id
 

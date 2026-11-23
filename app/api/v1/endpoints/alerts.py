@@ -5,9 +5,7 @@ from typing import Optional
 from app.db.session import get_db
 from app.core.deps import (
     get_current_user,
-    require_admin,
-    require_any_manager,
-    require_internal_user,
+    requiere_capacidad,
 )
 from app.core.abac_enforce import enforce_abac
 from app.core.responses import APIListResponse, APIResponse
@@ -43,7 +41,11 @@ def list_alerts(
     # ponía € a los presupuestos, que son %, y % a los plazos, que son días).
     from app.services.alert_service import unidades_por_tipo
     unidades = unidades_por_tipo(db)
+    from app.services.textos_guardados import pintar_campo, idioma_del_lector
+    idioma = idioma_del_lector(db)   # migracion 200: titulo y descripcion en el idioma de quien mira
     salida = [{**AlertOut.model_validate(a, from_attributes=True).model_dump(),
+               "title": pintar_campo(a, "title", idioma=idioma),
+               "description": pintar_campo(a, "description", idioma=idioma),
                "unit": unidades.get(str(getattr(a.alert_type, "value", a.alert_type)))} for a in items]
     return APIListResponse.ok(items=salida, total=total, page=page, page_size=page_size)
 
@@ -52,7 +54,7 @@ def list_alerts(
 def run_alert_engine(
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
-    _: User = Depends(require_admin),
+    _: User = Depends(requiere_capacidad("alertas.administrar")),
 ):
     result = svc_run_alert_engine(db)
     return APIResponse.ok(data={"message": f"Motor de alertas ejecutado. {result['alerts_generated']} nuevas alertas generadas."})
@@ -63,7 +65,7 @@ def mark_read(
     alert_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
+    _rol: User = Depends(requiere_capacidad("alertas.usar")),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
 ):
     enforce_abac(db, current_user, "alert", alert_id, action="update")
     mark_alert_read(db, alert_id, current_user)
@@ -74,7 +76,7 @@ def mark_read(
 def resolve_alert(
     alert_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("alertas.gestionar")),
 ):
     enforce_abac(db, current_user, "alert", alert_id, action="update")
     svc_resolve_alert(db, alert_id, current_user.id, current_user)

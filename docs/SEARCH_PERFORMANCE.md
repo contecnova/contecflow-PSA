@@ -1,5 +1,7 @@
 # Search Performance Audit (LIKE / ILIKE hotspots)
 
+> **Documento histórico (sin fecha): no refleja necesariamente el código actual; fuente viva: `docs/INDEX_TUNING.md` y las migraciones de `alembic/versions/` (`083_*` crea los índices `pg_trgm`).**
+
 > Informe histórico (sin fecha); puede no reflejar el código actual: `cab_service.py` y `portal_conversation_service.py` ya no existen y los índices `pg_trgm` están en la migración `083_pg_trgm_search_indexes`.
 
 This document inventories the substring-search hotspots (`column.like("%term%")`

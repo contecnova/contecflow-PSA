@@ -10,6 +10,8 @@ acoplados, solo apilados: se comprobo por AST que no habia ni una llamada entre
 grupos ni un solo ciclo. Los cuerpos se movieron verbatim.
 """
 
+from typing import Optional
+
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from app.models.user import User
@@ -149,7 +151,9 @@ def update_organization(org_id: str, payload: dict, db: Session) -> dict:
     return {"ok": True}
 
 
-def assign_user_to_org(org_id: str, user_id: str, db: Session) -> dict:
+def assign_user_to_org(org_id: str, user_id: str, db: Session, actor: Optional[User] = None) -> dict:
+    """Auditoria 2026-11-22 (03, medios m-p): el actor del `audit_log` es
+    quien hace la asignacion (`actor`), no el usuario afectado."""
     org = db.query(Organization).filter(Organization.id == org_id).first()
     if not org:
         raise ErrorConCodigo("no_encontrado", detail="404:Organización no encontrada", que="organizacion")
@@ -169,7 +173,8 @@ def assign_user_to_org(org_id: str, user_id: str, db: Session) -> dict:
     if not user.organization_id:
         user.organization_id = org_id
     db.commit()
-    audit_log(db, user, "ORG_ASSIGN", "organizations", org.id, f"Asignado a organización {org.name}")
+    audit_log(db, actor or user, "ORG_ASSIGN", "organizations", org.id,
+              f"Asignado a organización {org.name}: {user.email or user.id}")
     db.commit()  # segunda auditoría 2026-11: el servicio ya había confirmado y la entrada se perdía
     from app.core.events import emit_event, EventType
     emit_event(db, EventType.ORG_USER_ADDED, {"org_id": org.id, "user_id": user.id, "user_name": user.full_name},
@@ -177,7 +182,7 @@ def assign_user_to_org(org_id: str, user_id: str, db: Session) -> dict:
     return {"ok": True, "user": user.full_name, "org": org.name}
 
 
-def remove_user_from_org(org_id: str, user_id: str, db: Session) -> dict:
+def remove_user_from_org(org_id: str, user_id: str, db: Session, actor: Optional[User] = None) -> dict:
     org = db.query(Organization).filter(Organization.id == org_id).first()
     if not org:
         raise ErrorConCodigo("no_encontrado", detail="404:Organización no encontrada", que="organizacion")
@@ -208,7 +213,8 @@ def remove_user_from_org(org_id: str, user_id: str, db: Session) -> dict:
         ).first()
         user.organization_id = fallback.organization_id if fallback else None
     db.commit()
-    audit_log(db, user, "ORG_REMOVE", "organizations", org.id, f"Desvinculado de organización {org.name}")
+    audit_log(db, actor or user, "ORG_REMOVE", "organizations", org.id,
+              f"Desvinculado de organización {org.name}: {user.email or user.id}")
     db.commit()  # segunda auditoría 2026-11: el servicio ya había confirmado y la entrada se perdía
     from app.core.events import emit_event, EventType
     emit_event(db, EventType.ORG_USER_REMOVED, {"org_id": org.id, "user_id": user.id, "user_name": user_name},

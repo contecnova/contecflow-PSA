@@ -20,7 +20,10 @@ def test_simbolo_y_formato_de_la_moneda(monkeypatch):
     assert fr.simbolo_de_moneda() == "$"
     assert fr.simbolo_de_moneda(moneda="eur") == "€"
     assert fr.simbolo_de_moneda(moneda="PLN") == "PLN"  # sin símbolo: el código
-    assert fr.formatear_importe(1234.6, "$") == "1,235 $"
+    assert fr.formatear_importe(1234.6, "$", idioma="en") == "1,235 $"
+    # M15 (auditoría 22-11-2026): separadores del idioma (antes siempre los de EE. UU.).
+    assert fr.formatear_importe(1234.5, "€", 2, idioma="es") == "1.234,50 €"
+    assert fr.formatear_importe(1234.5, "¥", 2, idioma="zh") == "1,234.50 ¥"
     assert fr.formatear_importe(None, "$") == "—"
 
 

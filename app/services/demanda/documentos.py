@@ -40,7 +40,7 @@ def subir(db: Session, actor: Actor, req, *, nombre: str, content_type: str, con
     validate_upload(nombre or "", content_type or "", contenido)
     av, detalle = scan_with_av(contenido)
     usuario = actor.user if actor.kind == "user" else None
-    if av == "infected":
+    if av in ("infected", "unavailable"):   # A24: antivirus caído = no se acepta
         audit_log(db, usuario, "UPLOAD_BLOCKED", "demand_request", req.id, nombre, metadata={"antivirus": detalle})
         db.commit()
         raise error(422, "antivirus_bloqueado")

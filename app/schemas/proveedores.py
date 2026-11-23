@@ -6,6 +6,8 @@ from typing import Any, List, Literal, Optional
 
 from pydantic import BaseModel, Field
 
+from app.schemas._enlaces import EnlaceSeguro  # auditoría 22-11-2026: solo http(s)
+
 Tipo = Literal["freelance", "company"]
 Modo = Literal["staff_augmentation", "outsourcing", "managed_services"]
 ModeloDeCobro = Literal["per_resource", "fixed_price", "per_unit", "subscription", "expense", "bonus"]
@@ -82,7 +84,7 @@ class ContratoIn(BaseModel):
     expenses_rebillable: Optional[bool] = None
     expenses_cap: Optional[float] = Field(None, ge=0)
     internal_owner_id: Optional[str] = None
-    document_url: Optional[str] = None
+    document_url: EnlaceSeguro = None
     notes: Optional[str] = None
 
 
@@ -263,7 +265,7 @@ class DocumentoIn(BaseModel):
     issued_at: Optional[date] = None
     expires_at: Optional[date] = None
     coverage_amount: Optional[float] = Field(None, ge=0)
-    document_url: Optional[str] = None
+    document_url: EnlaceSeguro = None
     notes: Optional[str] = None
     verified: Optional[bool] = Field(None, description="Marcar como verificado por quien lo guarda")
 

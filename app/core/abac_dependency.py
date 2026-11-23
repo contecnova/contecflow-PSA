@@ -70,7 +70,7 @@ from fastapi import Depends
 from fastapi.security import HTTPAuthorizationCredentials
 from starlette.requests import HTTPConnection
 
-from app.core.credenciales_opcionales import credenciales_opcionales, es_websocket
+from app.core.credenciales_opcionales import credenciales_opcionales, es_websocket, ruta_resuelve_usuario
 from sqlalchemy.orm import Session
 
 from app.core.abac_enforce import enforce_abac
@@ -111,6 +111,12 @@ def apply_abac_for_route(
     coverage = _resolve_coverage(request.url.path)
     if coverage is None:
         return
+    if ruta_resuelve_usuario(request):
+        # Auditoría 22-11-2026 (A2, M1): la aplica `get_current_user` con el
+        # principal completo (clave de API, token OAuth) y la empresa ACTIVA
+        # ya fijada (`aplicar_abac_a_principal`). Aquí se evaluaba con la de
+        # la ficha y sin credenciales delegadas.
+        return
 
     token = credentials.credentials if credentials else request.cookies.get("access_token")
     if not token:
@@ -118,9 +124,9 @@ def apply_abac_for_route(
 
     # Import diferido: app.core.security importa configuración pesada y esta
     # dependencia se evalúa en cada request.
-    from app.core.security import decode_token
+    from app.core.security import decode_token_de_peticion
 
-    payload = decode_token(token)
+    payload = decode_token_de_peticion(request, token)
     if not payload or payload.get("type") != "access":
         return
 
@@ -130,9 +136,29 @@ def apply_abac_for_route(
 
     from app.models.user import User
 
-    user = db.query(User).filter(User.id == user_id, User.is_active == True).first()
-    if user is None:
-        return
+    from app.db.contexto_de_tenant import contexto_de_sistema
+    with contexto_de_sistema(db, "identidad"):
+        user = db.query(User).filter(User.id == user_id, User.is_active == True).first()
+        if user is None:
+            return
+        # M1: la empresa activa del token, validada (no la de la ficha).
+        from app.services.entrada_service import fijar_organizacion_activa
+        fijar_organizacion_activa(db, user, payload.get("org"))
 
+    resource_type, action = coverage
+    enforce_abac(db, user, resource_type, resource_id=None, action=action)
+
+
+def aplicar_abac_a_principal(db: Session, user, request) -> None:
+    """ABAC del prefijo de la ruta sobre el principal ya resuelto, en la empresa activa.
+
+    Auditoría 22-11-2026 (A2, M1): la llama `get_current_user` (sesión, clave
+    de API y token OAuth) después de fijar la empresa de la petición.
+    """
+    if request is None or es_websocket(request):
+        return
+    coverage = _resolve_coverage(request.url.path)
+    if coverage is None:
+        return
     resource_type, action = coverage
     enforce_abac(db, user, resource_type, resource_id=None, action=action)

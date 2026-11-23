@@ -21,15 +21,16 @@ import type { CSSProperties } from 'react'
 import { useState, useRef, useCallback, useMemo, useEffect, type MouseEvent as ReactMouseEvent, useId } from 'react'
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import { useToast } from '../context/ToastContext'
-import api, { projectsApi, unwrapList, type ApiError, type ProjectListItem } from '../services/api'
+import { reservasApi, unwrapList, type ProjectListItem } from '../services/api'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { CalendarDays, Trash2, Users, X } from 'lucide-react'
-import { Button, Spinner, EmptyState, Tabs, useDialogo, Select, Pulsable } from '../components/ui'
+import { Button, Spinner, EmptyState, Tabs, useDialogo, Select, Pulsable, Input, confirmarDescarte, hayCambiosSinGuardar } from '../components/ui'
 import { useAppT } from '../i18n/AppLangContext'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import useMediaQuery from '../hooks/useMediaQuery'
 import { useOrgSettings } from '../hooks/useOrgSettings'
+import { useListaDeProyectos } from '../hooks/useListas'
 import { alpha } from '../constants/theme'
 import { STALE_NEAR_LIVE_MS, STALE_SHORT_MS } from '../constants/timings'
 import { FULL_LIST_SIZE } from '../constants/pagination'
@@ -209,7 +210,7 @@ function BookingPanel({ booking, position, projects, onSave, onDelete, onClose, 
       </Select>
 
       <label className="rsch-label-muted-xs" id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`}>{t('resource_scheduler.hours_per_day')}</label>
-      <input className="ds-input rsch-input-2" id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="number" min={1} max={24} value={hoursPerDay} onChange={e => setHours(Number(e.target.value))} />
+      <Input inputClassName="rsch-input-2" id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="number" min={1} max={24} value={hoursPerDay} onChange={e => setHours(Number(e.target.value))} />
 
       <span className="rsch-label-muted-xs" id={`${idCampo}-et3`}>{t('resource_scheduler.type')}</span>
       <div className="rsch-row-2" role="group" aria-labelledby={`${idCampo}-et3`}>
@@ -230,7 +231,7 @@ function BookingPanel({ booking, position, projects, onSave, onDelete, onClose, 
             title={t('agenda_recursos_ui.eliminar')} />
         )}
         <Button size="sm" variant="secondary" icon={<X size={14} />} onClick={onClose}
-          title={t('agenda_recursos_ui.cerrar')} />
+          title={t('agenda_recursos_ui.cerrar')} data-cierra-dialogo="" />
       </div>
     </div>
   )
@@ -263,17 +264,14 @@ export default function ResourceSchedulerPage() {
   // ── Data ──────────────────────────────────────────────────────────────────
   // Segunda auditoría 2026-11: los errores de estas tres queries se pintan en
   // la página (`loadError`), así que no pasan además por el aviso global.
-  const { data: projects = [], error: projectsError } = useQuery<ProjectListItem[]>({
-    queryKey: ['projects'],
-    queryFn:  () => projectsApi.list().then(r => r.data),
-    meta: { errorToast: false },
-  })
+  // 23-11-2026: lista compartida de proyectos (el error de esta consulta avisa además por el aviso global).
+  const { data: projects = [], error: projectsError } = useListaDeProyectos()
 
   const { data: forecastData, isLoading, isError: forecastFailed, error: forecastError } = useQuery<ForecastData>({
     queryKey: ['resource-forecast', weeks, department],
     queryFn:  () => {
       const params = { weeks, ...(department ? { department } : {}) }
-      return api.get('/resource-forecast/weeks', { params }).then(r => r.data)
+      return reservasApi.previsionPorSemanas<ForecastData>(params).then(r => r.data)
     },
     staleTime: STALE_SHORT_MS,
     meta: { errorToast: false },
@@ -285,7 +283,7 @@ export default function ResourceSchedulerPage() {
   const ventana = useMemo(() => ventanaVisible(today, weeks), [today, weeks])
   const { data: bookingsData = [], error: bookingsError } = useQuery<Booking[]>({
     queryKey: ['bookings', ventana.date_from, ventana.date_to],
-    queryFn:  () => api.get('/bookings', { params: { ...ventana, page_size: FULL_LIST_SIZE } }).then(r => unwrapList(r) as Booking[]),
+    queryFn:  () => reservasApi.listar<Booking[]>({ ...ventana, page_size: FULL_LIST_SIZE }).then(r => unwrapList(r) as Booking[]),
     placeholderData: keepPreviousData,
     staleTime: STALE_NEAR_LIVE_MS,
     meta: { errorToast: false },
@@ -293,21 +291,21 @@ export default function ResourceSchedulerPage() {
   const loadError = forecastError ?? projectsError ?? bookingsError
 
   const { mutate: createBooking } = useMutation({
-    mutationFn: (b: Booking) => api.post('/bookings', b),
+    mutationFn: (b: Booking) => reservasApi.crear(b),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['bookings'] }); qc.invalidateQueries({ queryKey: ['resource-forecast'] }); toast.success(t('resource_scheduler.booking_created')) },
-    onError: (e: ApiError) => toast.error(e?.response?.data?.detail || t('resource_scheduler.create_error')),
+    onError: (e: unknown) => toast.error(extractErr(e, t('resource_scheduler.create_error'))),
   })
 
   const { mutate: updateBooking } = useMutation({
-    mutationFn: ({ id, ...data }: { id: string } & Partial<Omit<Booking, 'id'>>) => api.patch(`/bookings/${id}`, data),
+    mutationFn: ({ id, ...data }: { id: string } & Partial<Omit<Booking, 'id'>>) => reservasApi.editar(id, data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['bookings'] }); qc.invalidateQueries({ queryKey: ['resource-forecast'] }); toast.success(t('resource_scheduler.booking_updated')) },
-    onError: (e: ApiError) => toast.error(e?.response?.data?.detail || t('resource_scheduler.update_error')),
+    onError: (e: unknown) => toast.error(extractErr(e, t('resource_scheduler.update_error'))),
   })
 
   const { mutate: deleteBooking } = useMutation({
-    mutationFn: (id: string) => api.delete(`/bookings/${id}`),
+    mutationFn: (id: string) => reservasApi.borrar(id),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['bookings'] }); qc.invalidateQueries({ queryKey: ['resource-forecast'] }); toast.success(t('resource_scheduler.booking_deleted')) },
-    onError: (e: ApiError) => toast.error(e?.response?.data?.detail || t('resource_scheduler.delete_error')),
+    onError: (e: unknown) => toast.error(extractErr(e, t('resource_scheduler.delete_error'))),
   })
 
   const projectColorMap = useProjectColorMap(projects)
@@ -335,7 +333,10 @@ export default function ResourceSchedulerPage() {
   // ── Keyboard ─────────────────────────────────────────────────────────────
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') { setPanel(null); setDragState(null); setSelected(null) }
+      // 23-11-2026 (04b M8): con el foco en un campo, Suprimir/Retroceso borran texto, no la reserva.
+      if ((e.target as HTMLElement | null)?.closest?.('input, textarea, select, [contenteditable]')) return
+      // Con cambios sin guardar en la reserva, Esc lo gestiona el dialogo (pregunta).
+      if (e.key === 'Escape' && !hayCambiosSinGuardar()) { setPanel(null); setDragState(null); setSelected(null) }
       if ((e.key === 'Delete' || e.key === 'Backspace') && selectedBooking) {
         setPanel(null)
         const bookingId = selectedBooking.id
@@ -352,7 +353,8 @@ export default function ResourceSchedulerPage() {
 
   // ── Drag to create booking ────────────────────────────────────────────────
   const handleCellMouseDown = useCallback((e: { preventDefault: () => void }, userId: string, colIndex: number) => {
-    if (panel) { setPanel(null); return }
+    // Clic fuera de la reserva abierta: si hay cambios sin guardar, se pregunta.
+    if (panel) { void confirmarDescarte().then(ok => { if (ok) setPanel(null) }); return }
     e.preventDefault()
     const startCol = colIndex
     setDragState({ userId, startCol, endCol: colIndex })

@@ -210,17 +210,25 @@ def _alineado(dominio_from: str, dominio: str) -> bool:
                               or dominio.endswith("." + dominio_from))
 
 
-def autenticacion_del_remitente(correo: CorreoEntrante) -> Optional[bool]:
+def autenticacion_del_remitente(correo: CorreoEntrante, authserv_id: Optional[str] = None) -> Optional[bool]:
     """True si SPF/DKIM/DMARC pasan para el dominio del `From`; False si no; None sin datos.
 
     Lee solo la `Authentication-Results` de arriba (la del servidor que lo
     recibio). DMARC `pass` basta; si no hay DMARC, vale un DKIM `pass` con
     `header.d` del dominio del `From` o un SPF `pass` con `smtp.mailfrom` de ese
     dominio. Un resultado explicito sin ninguno de esos es False.
+
+    `authserv_id` (2026-11-22, A-SD6): si se indica, la cabecera solo cuenta si
+    la escribio ese servidor (primer campo de `Authentication-Results`); una
+    cabecera de otro —que puede traer el propio remitente— es «sin datos».
     """
     crudo = (correo.autenticacion or "").strip()
     if not crudo:
         return None
+    if authserv_id:
+        emisor = crudo.split(";", 1)[0].strip().split()[0].lower() if crudo.split(";", 1)[0].strip() else ""
+        if emisor != authserv_id.strip().lower():
+            return None
     dominio_from = _dominio(correo.remitente)
     hubo_resultado = False
     for mecanismo, resultado, resto in _RESULTADO.findall(crudo):
@@ -239,6 +247,24 @@ def autenticacion_del_remitente(correo: CorreoEntrante) -> Optional[bool]:
             if m and _alineado(dominio_from, _dominio(m.group(1)) if "@" in m.group(1) else m.group(1)):
                 return True
     return False if hubo_resultado else None
+
+
+def remitente_fiable(db: Session, correo: CorreoEntrante, org_id: Optional[str]) -> bool:
+    """¿Actua el `From` como la persona que dice ser?
+
+    Auditoria 2026-11-22 (A-SD6): `autenticacion_del_remitente(...) is not
+    False`, asi que un correo SIN `Authentication-Results` se daba por fiable y
+    un `From:` falsificado de un agente comentaba y cambiaba el estado. Ahora,
+    con `SD_INBOUND_REQUIRE_SENDER_AUTH` (por defecto, si), hace falta un
+    resultado positivo (SPF/DKIM/DMARC alineados con el `From`), y con
+    `SD_INBOUND_AUTHSERV_ID` solo vale la cabecera de nuestro servidor. Sin la
+    exigencia (pasarela que no anota los resultados), el criterio anterior.
+    """
+    from app.services import settings_service as _ss
+    exigir = _ss.get_runtime_bool(db, "SD_INBOUND_REQUIRE_SENDER_AUTH", org_id)
+    resultado = autenticacion_del_remitente(
+        correo, _ss.get_runtime_str(db, "SD_INBOUND_AUTHSERV_ID", org_id) or None)
+    return resultado is True if exigir else resultado is not False
 
 
 # ── Organizacion, contacto y ticket ──────────────────────────────────────────
@@ -351,11 +377,15 @@ def _comentar(db: Session, ticket: Ticket, contacto: Contacto, texto: str, cambi
 def _guardar_adjuntos(db: Session, ticket: Ticket, correo: CorreoEntrante) -> list[str]:
     """Los adjuntos como documentos del ticket. Devuelve los que no caben."""
     from app.models.documents import Document, DocumentCategory, DocumentVersion
+    from app.core.errores import ErrorDeDominio
+    from app.core.uploads import UploadProfile, max_bytes_for, safe_filename, validate_upload
     from app.services.s3_service import file_storage
 
     if not correo.adjuntos:
         return []
-    limite = _ss.get_runtime_int(db, "SD_MAIL_MAX_ATTACHMENT_MB", ticket.organization_id) * 1024 * 1024
+    # Tope de la empresa, sin pasar nunca del tope central de los adjuntos de canal.
+    limite = min(_ss.get_runtime_int(db, "SD_MAIL_MAX_ATTACHMENT_MB", ticket.organization_id) * 1024 * 1024,
+                 max_bytes_for(UploadProfile.CHANNEL))
     # El documento necesita un usuario dueño: el agente, quien lo creo o un
     # administrador. Sin dueño de la organizacion, el acceso por documento lo
     # esconderia de los agentes.
@@ -367,6 +397,15 @@ def _guardar_adjuntos(db: Session, ticket: Ticket, correo: CorreoEntrante) -> li
     fuera = []
     for adj in correo.adjuntos:
         if dueño is None or len(adj.contenido) > limite:
+            fuera.append(adj.nombre)
+            continue
+        adj.nombre = safe_filename(adj.nombre)
+        adj.tipo = (adj.tipo or "application/octet-stream").split(";")[0].strip().lower()
+        try:
+            validate_upload(adj.nombre, adj.tipo, adj.contenido, UploadProfile.CHANNEL)
+        except ErrorDeDominio as e:
+            # Se rechaza este adjunto y el correo sigue. Sin remitente ni nombre en el log (datos personales).
+            logger.info("adjunto de correo entrante rechazado (ticket %s): %s", ticket.id, getattr(e, "code", None) or type(e).__name__)
             fuera.append(adj.nombre)
             continue
         clave, tamaño = file_storage.upload_file(
@@ -416,7 +455,7 @@ def procesar(db: Session, org_id: Optional[str], correo: CorreoEntrante) -> Resu
             contacto = contacto_de(db, correo, org_id)
             # Un `From` que no supera la autenticacion de nuestro servidor no
             # actua como nadie: es un externo y no cambia el estado.
-            fiable = autenticacion_del_remitente(correo) is not False
+            fiable = remitente_fiable(db, correo, org_id)
             if not fiable:
                 contacto = _externo(correo)
             texto = quitar_cita(correo.texto)

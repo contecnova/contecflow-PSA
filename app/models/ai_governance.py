@@ -9,7 +9,7 @@ from sqlalchemy import (
     Column, String, Integer, Boolean, DateTime, Text, JSON,
     ForeignKey, Index,
 )
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import synonym, relationship
 from app.db.base import Base
 
 
@@ -21,7 +21,10 @@ class AIGuardrailPolicyModel(Base):
     __tablename__ = "ai_guardrail_policies"
 
     id                  = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    org_id              = Column(String(36), ForeignKey("organizations.id"), nullable=False, index=True)
+    # B-MOD1 (migracion 200): la columna se llama `organization_id` como en el resto;
+    # `org_id` queda como sinonimo para el codigo existente.
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+    org_id              = synonym("organization_id")
     name                = Column(String(128), nullable=False)
     description         = Column(Text, nullable=True)
 
@@ -42,12 +45,12 @@ class AIGuardrailPolicyModel(Base):
     # Control
     is_active           = Column(Boolean, default=True, index=True)
     priority            = Column(Integer, default=0)   # higher = evaluated first
-    created_by          = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    created_by          = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at          = Column(DateTime(timezone=True), default=utcnow)
     updated_at          = Column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
 
     __table_args__ = (
-        Index("idx_guardrail_org_active", "org_id", "is_active"),
+        Index("idx_guardrail_org_active", "organization_id", "is_active"),
     )
 
     organization = relationship("Organization", backref="guardrail_policies")
@@ -63,11 +66,14 @@ class AIGuardrailAuditLog(Base):
     __tablename__ = "ai_guardrail_audit_logs"
 
     id              = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    org_id          = Column(String(36), ForeignKey("organizations.id"), nullable=False, index=True)
-    user_id         = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    # B-MOD1 (migracion 200): la columna se llama `organization_id` como en el resto;
+    # `org_id` queda como sinonimo para el codigo existente.
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+    org_id          = synonym("organization_id")
+    user_id         = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     module          = Column(String(64),  nullable=False, index=True)
     scope           = Column(String(16),  nullable=False)      # prompt | output
-    policy_id       = Column(String(36),  ForeignKey("ai_guardrail_policies.id"), nullable=True, index=True)
+    policy_id       = Column(String(36),  ForeignKey("ai_guardrail_policies.id", ondelete="SET NULL"), nullable=True, index=True)
     request_id      = Column(String(64),  nullable=True, index=True)  # correlation ID
 
     action_taken    = Column(String(16),  nullable=False)      # none | redacted | blocked | warned
@@ -80,8 +86,8 @@ class AIGuardrailAuditLog(Base):
     evaluated_at    = Column(DateTime(timezone=True), default=utcnow, index=True)
 
     __table_args__ = (
-        Index("idx_guardrail_audit_org_ts",  "org_id", "evaluated_at"),
-        Index("idx_guardrail_audit_blocked", "org_id", "was_blocked"),
+        Index("idx_guardrail_audit_org_ts",  "organization_id", "evaluated_at"),
+        Index("idx_guardrail_audit_blocked", "organization_id", "was_blocked"),
         Index("idx_guardrail_audit_user",    "user_id", "evaluated_at"),
     )
 

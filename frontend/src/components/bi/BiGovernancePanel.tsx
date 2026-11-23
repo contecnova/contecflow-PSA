@@ -17,7 +17,7 @@ import { Card, Button, Tabs, Spinner, EmptyState, SelectorDePeriodo, Checkbox, I
 import { usePeriodo } from '../../hooks/usePeriodo'
 import { CON_HORA, codigoDeErrorDePeriodo } from '../../utils/periodo'
 import { useToast } from '../../context/ToastContext'
-import { fmtDateTime } from '../../utils/helpers'
+import { extractErr, fmtDateTime } from '../../utils/helpers'
 import { etiquetaCodigo } from '../../i18n/etiquetaCodigo'
 import './BiGovernancePanel.css'
 import { chipColor } from '../../utils/estilos'
@@ -164,10 +164,6 @@ function OverviewView({ data }: { data?: OverviewData | null }) {
 /** Lo que se edita de las reglas: el PATCH acepta cualquier subconjunto. */
 type Reglas = Partial<ReglasDeGobiernoBi>
 
-interface ApiError {
-  response?: { data?: { detail?: string } }
-}
-
 export default function BiGovernancePanel() {
   const t = useAppT()
   const toast = useToast()
@@ -186,18 +182,15 @@ export default function BiGovernancePanel() {
 
   const { data: auditData, isLoading: auditLoading, refetch: refetchAudit, error: auditError } = useQuery({
     queryKey: ['bi-gov-audit', periodo.params, auditUserFilter],
-    queryFn: () => biGovernanceAuditApi.getAccessHistory({ ...periodo.params, ...(auditUserFilter ? { user_id: auditUserFilter } : {}) }).then(r => r.data).catch((e: unknown) => {
-      // Los errores de periodo se muestran traducidos; el resto, como antes, vacío.
-      if (codigoDeErrorDePeriodo(e)) throw e
-      return { items: [], count: 0 }
-    }),
+    queryFn: () => biGovernanceAuditApi.getAccessHistory({ ...periodo.params, ...(auditUserFilter ? { user_id: auditUserFilter } : {}) }).then(r => r.data),
+    // 23-11-2026: ya no se traga el error: los de periodo se pintan traducidos (auditErrorDePeriodo) y el resto avisa por el aviso global de consultas.
     enabled: tab === 'audit',
   })
   const auditErrorDePeriodo = codigoDeErrorDePeriodo(auditError)
 
   const { data: overviewData, isLoading: overviewLoading } = useQuery({
     queryKey: ['bi-gov-overview'],
-    queryFn: () => biCollaborationApi.governanceOverview().then(r => r.data).catch(() => null),
+    queryFn: () => biCollaborationApi.governanceOverview().then(r => r.data),
     enabled: tab === 'overview',
   })
 
@@ -206,7 +199,7 @@ export default function BiGovernancePanel() {
   const guardarReglas = useMutation({
     mutationFn: (r: Reglas) => biCollaborationApi.updateGovernanceRules(r).then(x => x.data),
     onSuccess: () => { toast.success(t('bigovernance.reglas_guardadas')); qc.invalidateQueries({ queryKey: ['bi-gov-policies'] }) },
-    onError: (e: unknown) => toast.error((e as ApiError)?.response?.data?.detail || t('bigovernance.error_guardar')),
+    onError: (e: unknown) => toast.error(extractErr(e, t('bigovernance.error_guardar'))),
   })
 
   const auditItems = auditData?.items ?? []

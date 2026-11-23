@@ -30,11 +30,32 @@ class ServiceBase:
         return self._org_id
 
     def _scoped(self, model_cls, extra_filters=None):
-        """Return a query scoped to current org (if not superadmin)."""
+        """Consulta acotada a la empresa del usuario; sin empresa, ninguna fila.
+
+        Auditoria 22-11-2026 (informe 02, «causa de fondo»): sin `org_id` no
+        filtraba (fallo en abierto). Ahora solo pasa sin filtro el superadmin
+        explicito o una sesion en contexto de sistema declarado
+        (`contexto_de_tenant`); cualquier otro caso sin empresa no ve nada.
+        """
         q = self.db.query(model_cls)
-        if self._org_id and hasattr(model_cls, "organization_id"):
-            q = q.filter(model_cls.organization_id == self._org_id)
+        columna = getattr(model_cls, "organization_id", None)
+        if columna is None and getattr(model_cls, "_tenant_exempt", False) is not True:
+            columna = getattr(model_cls, "org_id", None)
+        if columna is not None:
+            org = self._org_id or (self.db.info.get("organization_id") if self.current_user is None else None)
+            if org:
+                q = q.filter(columna == org)
+            elif not self._sin_restriccion():
+                from sqlalchemy import false
+                q = q.filter(false())
         if extra_filters:
             for f in extra_filters:
                 q = q.filter(f)
         return q
+
+    def _sin_restriccion(self) -> bool:
+        """Superadmin explicito o contexto libre declarado en la sesion."""
+        if self.current_user is not None:
+            return bool(getattr(self.current_user, "is_superadmin", False))
+        from app.db import contexto_de_tenant as ctx
+        return ctx.estado(getattr(self.db, "info", {}) or {}) == ctx.LIBRE

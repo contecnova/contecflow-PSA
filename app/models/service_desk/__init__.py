@@ -14,4 +14,5 @@ from app.models.service_desk.changes import *  # noqa: F403
 from app.models.service_desk.automation import *  # noqa: F403
 from app.models.service_desk.ops import *  # noqa: F403
 from app.models.service_desk.mercado import *  # noqa: F403
+from app.models.service_desk.datos_propios import *  # noqa: F403  (migracion 200)
 from app.models.service_desk.changes import ChangeRequest  # noqa: F401

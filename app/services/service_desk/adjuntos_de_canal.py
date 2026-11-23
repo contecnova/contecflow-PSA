@@ -92,7 +92,7 @@ def guardar(db: Session, ticket, *, nombre: str, tipo: Optional[str], contenido:
         logger.info("adjunto de %s rechazado (%s): %s", origen, nombre, e)
         return Resultado(nombre=nombre, motivo="type")
     estado_av, detalle = scan_with_av(contenido)
-    if estado_av == "infected":
+    if estado_av in ("infected", "unavailable"):   # A24: antivirus caído = no se acepta
         audit_log(db, None, "UPLOAD_BLOCKED", "ticket_attachment", ticket.id, nombre,
                   metadata={"channel": origen, "antivirus": detalle, "organization_id": ticket.organization_id})
         return Resultado(nombre=nombre, motivo="virus")
@@ -173,6 +173,9 @@ def descargar_acotado(cliente, url: str, *, headers: dict, tope: int, timeout: f
 
     Lanza `ErrorDeDominio(413)` si se pasa; los errores de red, tal cual.
     """
+    # Import local, como en `obtener_adjunto`: sin él, pasarse del tope daba
+    # NameError (500) en vez de 413 (auditoría 22-11-2026).
+    from app.core.codigos_de_error import error as error_con_codigo
     partes, total = [], 0
     with cliente.stream("GET", url, headers=headers, timeout=timeout) as r:
         r.raise_for_status()

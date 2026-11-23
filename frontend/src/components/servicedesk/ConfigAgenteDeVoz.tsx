@@ -153,9 +153,7 @@ function ConfigEditor({ config, onSave, saving }: { config: VoiceAgentConfig | u
         {Object.entries(draft.dtmf_menu || {}).map(([key, val]) => (
           <div key={key} className="vap-tecla">
             <span className="vap-tecla__num">{key}</span>
-            <input aria-label={t('voiceagent.etiqueta_de_tecla', { n: key })} type="text" value={val.label}
-              onChange={e => setDraft(d => ({ ...(d as VoiceAgentConfig), dtmf_menu: { ...(d as VoiceAgentConfig).dtmf_menu, [key]: { ...val, label: e.target.value } } }))}
-              className="ds-input vap-fila__campo" />
+            <Input aria-label={t('voiceagent.etiqueta_de_tecla', { n: key })} type="text" value={val.label} onChange={e => setDraft(d => ({ ...(d as VoiceAgentConfig), dtmf_menu: { ...(d as VoiceAgentConfig).dtmf_menu, [key]: { ...val, label: e.target.value } } }))} className="vap-fila__campo" />
             <Select suelto placeholder={false} aria-label={t('voiceagent.motivo_de_tecla', { n: key })} value={val.intent}
               onChange={e => setDraft(d => ({ ...(d as VoiceAgentConfig), dtmf_menu: { ...(d as VoiceAgentConfig).dtmf_menu, [key]: { ...val, intent: e.target.value } } }))}
               className="vap-select">
@@ -167,10 +165,8 @@ function ConfigEditor({ config, onSave, saving }: { config: VoiceAgentConfig | u
           </div>
         ))}
         <div className="vap-fila">
-          <input aria-label={t('voiceagent.tecla_ej_4')} type="text" placeholder={t('voiceagent.tecla_ej_4')} value={newKey}
-            onChange={e => setNewKey(e.target.value)} maxLength={2} className="ds-input vap-tecla__nueva" />
-          <input aria-label={t('voiceagent.etiqueta_visible')} type="text" placeholder={t('voiceagent.etiqueta_visible')} value={newLabel}
-            onChange={e => setNewLabel(e.target.value)} className="ds-input vap-fila__campo" />
+          <Input aria-label={t('voiceagent.tecla_ej_4')} type="text" placeholder={t('voiceagent.tecla_ej_4')} value={newKey} onChange={e => setNewKey(e.target.value)} maxLength={2} className="vap-tecla__nueva" />
+          <Input aria-label={t('voiceagent.etiqueta_visible')} type="text" placeholder={t('voiceagent.etiqueta_visible')} value={newLabel} onChange={e => setNewLabel(e.target.value)} className="vap-fila__campo" />
           <Select suelto placeholder={false} aria-label={t('voiceagent.motivo')} value={newIntent} onChange={e => setNewIntent(e.target.value)} className="vap-select">
             {opcionesIntent}
           </Select>
@@ -211,8 +207,7 @@ function ConfigEditor({ config, onSave, saving }: { config: VoiceAgentConfig | u
               </div>
               {isEditing && (
                 <div className="vap-fila">
-                  <input aria-label={t('voiceagent.nueva_keyword')} type="text" placeholder={t('voiceagent.nueva_keyword')} value={newKw}
-                    onChange={e => setNewKw(e.target.value)} onKeyDown={e => e.key === 'Enter' && addKeyword(intent)} className="ds-input vap-fila__campo" />
+                  <Input aria-label={t('voiceagent.nueva_keyword')} type="text" placeholder={t('voiceagent.nueva_keyword')} value={newKw} onChange={e => setNewKw(e.target.value)} onKeyDown={e => e.key === 'Enter' && addKeyword(intent)} className="vap-fila__campo" />
                   <Button size="sm" variant="secondary" icon={<Plus size={13} />} onClick={() => addKeyword(intent)} disabled={!newKw.trim()}>{t('voiceagent.anadir')}</Button>
                 </div>
               )}

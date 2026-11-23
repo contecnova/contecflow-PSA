@@ -23,7 +23,7 @@ class WorkflowBlueprint(Base):
     __tablename__ = "sd_workflow_blueprints"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     name = Column(String(255), nullable=False)
     description = Column(String(500), nullable=True)
     process_type = Column(String(50), nullable=False, index=True)  # ticket|change|approval
@@ -33,7 +33,7 @@ class WorkflowBlueprint(Base):
     status = Column(Enum(WorkflowBlueprintStatus), default=WorkflowBlueprintStatus.draft)
     is_active = Column(Boolean, default=True)
 
-    created_by_user_id = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    created_by_user_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
@@ -49,7 +49,7 @@ class WorkflowBlueprintVersion(Base):
     __tablename__ = "sd_workflow_blueprint_versions"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     blueprint_id = Column(String(36), ForeignKey("sd_workflow_blueprints.id", ondelete="CASCADE"),
                           nullable=False, index=True)
     version = Column(Integer, nullable=False)
@@ -57,7 +57,7 @@ class WorkflowBlueprintVersion(Base):
     rules_json = Column(Text, nullable=True)    # declarative rule set compiled from graph
     is_published = Column(Boolean, default=False)
     published_at = Column(DateTime(timezone=True), nullable=True)
-    created_by_user_id = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    created_by_user_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     blueprint = relationship("WorkflowBlueprint", back_populates="versions")
@@ -127,7 +127,7 @@ class WorkflowRunStep(Base):
     __tablename__ = "sd_workflow_run_steps"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     run_id = Column(String(36), ForeignKey("sd_workflow_runs.id", ondelete="CASCADE"),
                     nullable=False, index=True)
     node_id = Column(String(120), nullable=False)

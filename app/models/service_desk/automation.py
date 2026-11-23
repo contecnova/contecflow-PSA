@@ -12,7 +12,7 @@ class AutonomousPlaybook(Base):
     __tablename__ = "sd_autonomous_playbooks"
 
     id              = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     name            = Column(String(255), nullable=False)
     playbook_type   = Column(String(50), nullable=False, index=True)
     description     = Column(Text, nullable=True)
@@ -28,7 +28,7 @@ class AutonomousPlaybookExecution(Base):
     __tablename__ = "sd_autonomous_playbook_executions"
 
     id               = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     ticket_id        = Column(String(36), ForeignKey("sd_tickets.id", ondelete="CASCADE"), nullable=False, index=True)
     playbook_type    = Column(String(50), nullable=False)
     status           = Column(String(20), default="success")   # success|failed|skipped

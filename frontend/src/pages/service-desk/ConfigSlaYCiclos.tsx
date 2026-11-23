@@ -62,7 +62,7 @@ export function ReglasSlaYOla() {
             <TablaSimple claseTabla="u-table">
               <thead><tr>
                 <th>{t('sd_mercado.orden')}</th><th>{t('sd_mercado.nombre')}</th><th>{t('sd_mercado.condiciones')}</th>
-                <th>{t('sd_mercado.objetivos')}</th><th />
+                <th>{t('sd_mercado.objetivos')}</th><th><span className="u-sr-only">{t('common.col_acciones')}</span></th>
               </tr></thead>
               <tbody>
                 {(reglas.data ?? []).map(r => (
@@ -267,8 +267,8 @@ function EditorDeCiclo({ inicial, onCancel, onSave, guardando }: { inicial: Cicl
       <div className="sdm-steps">
         {c.states.map((s, i) => (
           <div key={i} className="u-wrap-8">
-            <input className="ds-input" aria-label={t('sd_mercado.clave')} placeholder={t('sd_mercado.clave')} value={s.key} onChange={e => setEstado(i, { key: e.target.value.toLowerCase() })} />
-            <input className="ds-input" aria-label={t('sd_mercado.nombre')} placeholder={t('sd_mercado.nombre')} value={s.label} onChange={e => setEstado(i, { label: e.target.value })} />
+            <Input aria-label={t('sd_mercado.clave')} placeholder={t('sd_mercado.clave')} value={s.key} onChange={e => setEstado(i, { key: e.target.value.toLowerCase() })} />
+            <Input aria-label={t('sd_mercado.nombre')} placeholder={t('sd_mercado.nombre')} value={s.label} onChange={e => setEstado(i, { label: e.target.value })} />
             <Select suelto placeholder={false} aria-label={t('sd_mercado.estado_base')} value={s.base_status} onChange={e => setEstado(i, { base_status: e.target.value })}>
               {ESTADOS_BASE.map(b => <option key={b} value={b}>{etiquetaCodigo(t, 'estado', b)}</option>)}
             </Select>

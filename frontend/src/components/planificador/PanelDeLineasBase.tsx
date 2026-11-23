@@ -14,6 +14,7 @@ import { useConfirm } from '../../context/ConfirmContext'
 import { useAuth } from '../../context/AuthContext'
 import { extractErr, fmtDate } from '../../utils/helpers'
 import './planificador.css'
+import { Input } from '../ui'
 
 export default function PanelDeLineasBase({ projectId }: { projectId: string }) {
   const t = useAppT()
@@ -63,8 +64,7 @@ export default function PanelDeLineasBase({ projectId }: { projectId: string }) 
     <div className="plan-stack">
       {gestiona && (
         <form className="plan-row" onSubmit={e => { e.preventDefault(); if (nombre.trim()) crear.mutate() }}>
-          <input className="plan-input" value={nombre} onChange={e => setNombre(e.target.value)} maxLength={100}
-            placeholder={t('planificador.nombre_linea_base')} aria-label={t('planificador.nombre_linea_base')} />
+          <Input value={nombre} onChange={e => setNombre(e.target.value)} maxLength={100} placeholder={t('planificador.nombre_linea_base')} aria-label={t('planificador.nombre_linea_base')} />
           <Checkbox className="plan-row plan-muted" label={t('planificador.hacer_vigente')} checked={vigente} onChange={m => setVigente(m)} />
           <Button size="sm" type="submit" icon={<Camera size={13} />} loading={crear.isPending} disabled={!nombre.trim()}>
             {t('planificador.congelar_plan')}
@@ -81,7 +81,7 @@ export default function PanelDeLineasBase({ projectId }: { projectId: string }) 
               <tr>
                 <th>{t('planificador.col_nombre')}</th><th>{t('planificador.col_fecha')}</th>
                 <th className="plan-num">{t('planificador.col_tareas')}</th><th className="plan-num">{t('planificador.col_horas')}</th>
-                <th>{t('planificador.col_estado')}</th><th />
+                <th>{t('planificador.col_estado')}</th><th><span className="u-sr-only">{t('common.col_acciones')}</span></th>
               </tr>
             </thead>
             <tbody>

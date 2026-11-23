@@ -262,7 +262,8 @@ def _ejecutar_webhook(config: dict, context: dict, step_result: dict, item) -> N
             config.get("payload") or {"event": config.get("event"), "context": context},
             context,
         )
-        with _httpx.Client(timeout=outbound_http_timeout(default=5.0)) as client:
+        from app.core.outbound_url import cliente_httpx
+        with cliente_httpx(timeout=outbound_http_timeout(default=5.0)) as client:
             resp = client.request(method, url, headers=headers, json=payload_wh)
         step_result["http_status"] = resp.status_code
         step_result["response"] = resp.text[:1000]

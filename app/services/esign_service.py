@@ -201,9 +201,37 @@ def mark_signer_signed(
     db: Session,
     signer: ESignSigner,
     envelope: ESignEnvelope,
+    actor=None,
+    evidencia: Optional[dict] = None,
 ) -> None:
+    """Marca una firma en modo manual.
+
+    M87 (auditoría 22-11-2026): queda EVIDENCIA (quién la registró, IP, agente
+    y huella SHA-256 del documento en ese momento) en `audit_log` y en
+    `provider_meta` del sobre; antes era un clic sin rastro. Un sobre anulado,
+    rechazado o completado no admite más firmas.
+    """
+    estado = getattr(envelope.status, "value", envelope.status)
+    if estado in _FINALES:
+        from app.core.codigos_de_error import error
+        raise error(409, "estado_no_valido_valor", estado=estado)
     signer.signed = True
     signer.signed_at = utcnow()
+    prueba = {"signer_id": signer.id, "signer_email": signer.email, "signed_at": signer.signed_at.isoformat(),
+              "recorded_by": getattr(actor, "id", None), **(evidencia or {})}
+    try:
+        doc = get_document(db, envelope.document_id)
+        if doc is not None:
+            import hashlib
+            contenido, _, _ = _read_document_bytes(doc, db)
+            prueba["document_sha256"] = hashlib.sha256(contenido).hexdigest()
+    except Exception:
+        _log.warning("[eSign] sin huella del documento para la evidencia manual", exc_info=True)
+    meta = dict(envelope.provider_meta or {})
+    meta.setdefault("manual_evidence", []).append(prueba)
+    envelope.provider_meta = meta
+    from app.services.audit import audit_log
+    audit_log(db, actor, "ESIGN_MANUAL_SIGN", "esign_envelopes", envelope.id, signer.email, new_values=prueba)
 
     all_signed = all(s.signed for s in get_signers_for_envelope(db, envelope.id))
     if all_signed:
@@ -220,11 +248,23 @@ def void_envelope(db: Session, envelope: ESignEnvelope) -> ESignEnvelope:
     return envelope
 
 
+#: M87: estados finales de un sobre: un webhook tardío o repetido no los cambia.
+_FINALES = {ESignStatus.completed.value, ESignStatus.declined.value, ESignStatus.voided.value}
+_ORDEN = {ESignStatus.draft.value: 0, ESignStatus.sent.value: 1, ESignStatus.delivered.value: 2}
+
+
 def update_envelope_from_webhook(
     db: Session,
     envelope: ESignEnvelope,
     new_status: str,
 ) -> None:
+    """M87 (auditoría 22-11-2026): solo transiciones hacia delante (los webhooks
+    llegan desordenados o repetidos: un «delivered» tardío ya no deshace un
+    «completed»)."""
+    actual = getattr(envelope.status, "value", envelope.status)
+    if actual in _FINALES or (new_status in _ORDEN and actual in _ORDEN and _ORDEN[new_status] < _ORDEN[actual]):
+        _log.info("[eSign] webhook %s ignorado: el sobre %s está en %s", new_status, envelope.id, actual)
+        return
     envelope.status = new_status
     if new_status == ESignStatus.completed.value and not envelope.completed_at:
         envelope.completed_at = utcnow()
@@ -404,7 +444,10 @@ def _read_document_bytes(doc: Document, db: Optional[Session]) -> tuple[bytes, s
     # cuenta: el `os.environ.get` de respaldo era una segunda fuente para el
     # mismo ajuste. Auditoria 2026-08.
     upload_root = settings.UPLOAD_DIR
-    local_path = os.path.join(upload_root, file_key.lstrip("/"))
+    local_path = os.path.realpath(os.path.join(upload_root, file_key.lstrip("/")))
+    # M87: la clave no puede salir del directorio de subidas (`..`).
+    if not local_path.startswith(os.path.realpath(upload_root) + os.sep):
+        raise ErrorConCodigo("firma_documento_sin_contenido", documento=doc.id)
     if os.path.exists(local_path):
         with open(local_path, "rb") as fh:
             return fh.read(), file_name, ext
@@ -489,7 +532,8 @@ def _enviar_a_proveedor(envelope, doc, db, *, nombre: str, config, asegurar_toke
     )
 
     if not resultado["ok"]:
-        if "401" in str(resultado.get("error", "")) and db:
+        # M87: el 401 por su código HTTP, no buscando «401» en el texto.
+        if resultado.get("status_code") == 401 and db:
             _set_db_setting(db, ajuste_a_limpiar, "")
         raise ErrorConCodigo("servicio_externo_fallo", detail=f"{nombre} envelope creation failed: {resultado.get('error')}", servicio=nombre)
 

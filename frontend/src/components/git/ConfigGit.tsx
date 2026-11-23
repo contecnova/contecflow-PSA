@@ -15,6 +15,7 @@ import { Check, Copy, Github, Gitlab, Link2 } from 'lucide-react'
 import { gitApi } from '../../services/api'
 import { Button, Card } from '../ui'
 import { useAppT } from '../../i18n/AppLangContext'
+import { useToast } from '../../context/ToastContext'
 import { UI_FEEDBACK_MS } from '../../constants/timings'
 import '../../pages/GitPage.css'
 
@@ -74,10 +75,14 @@ export default function ConfigGit(): JSX.Element {
 // (Credenciales → Inbound webhooks); antes había uno para toda la instalación.
 function ProveedorGit({ title, icon, webhook, clave, events, steps }: { title: string; icon: ReactNode; webhook?: { ruta: string; secreto: boolean }; clave: string; events: string[]; steps: string[] }) {
   const t = useAppT()
+  const toast = useToast()
   const [copied, setCopied] = useState(false)
   const url = webhook ? `${window.location.origin}${webhook.ruta}` : '…'
   const copy = () => {
-    navigator.clipboard.writeText(url).then(() => { setCopied(true); setTimeout(() => setCopied(false), UI_FEEDBACK_MS) })
+    navigator.clipboard.writeText(url).then(
+      () => { setCopied(true); setTimeout(() => setCopied(false), UI_FEEDBACK_MS) },
+      () => toast.error(t('git_integration.no_se_pudo_copiar')),
+    )
   }
   return (
     <Card>

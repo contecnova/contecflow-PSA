@@ -142,8 +142,11 @@ function AppDetail({ app, onClose, onRotated }: { app: AplicacionOAuth; onClose:
 
   const copy = (text?: string) => {
     if (!text) return
-    navigator.clipboard.writeText(text)
-    toast.success(t('developer.copied'))
+    // 23-11-2026: el aviso de éxito solo si de verdad copió (antes se avisaba aunque el navegador lo denegara).
+    navigator.clipboard.writeText(text).then(
+      () => toast.success(t('developer.copied')),
+      () => toast.error(t('developer.copy_failed')),
+    )
   }
 
   return (

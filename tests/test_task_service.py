@@ -39,8 +39,27 @@ def test_cascade_reschedule_no_task(db_session):
 
 def test_bulk_update_tasks_forbidden(db_session):
     user = db_session.query(User).filter(User.role == UserRole.employee).first()
-    task = db_session.query(Task).first()
-    if not user or not task:
-        pytest.skip("No hay datos de usuario o tarea")
+    assert user is not None, "conftest debe sembrar un empleado"
+    # El seed base no trae tareas: se crean aquí, con su proyecto.
+    from app.models.project import Project, ProjectType, ProjectStatus
+    proyecto = Project(
+        code="TSK-BULK-001",
+        name="Proyecto bulk forbidden",
+        project_type=ProjectType.development,
+        status=ProjectStatus.active,
+        organization_id=1,
+        pm_id="pm-test-id",
+    )
+    db_session.add(proyecto)
+    db_session.flush()
+    task = Task(
+        id="task-bulk-forbidden-id",
+        code="TSK-BULK-T1",
+        project_id=proyecto.id,
+        title="Tarea ajena al empleado",
+        assignee_id="pm-test-id",
+    )
+    db_session.add(task)
+    db_session.commit()
     result = bulk_update_tasks([task.id], {"status": TaskStatus.done}, user, db_session)
     assert any(x["reason"] == "forbidden" for x in result.get("skipped", []))

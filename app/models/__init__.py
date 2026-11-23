@@ -4,7 +4,7 @@ from app.models.oauth_apps import OAuthApp, OAuthToken  # noqa: F401
 from app.models.project import Project, ProjectPhase, ProjectType, ProjectStatus, ProjectRisk  # noqa: F401
 from app.models.task import Task, TaskComment, TaskStatus, TaskPriority  # noqa: F401
 from app.models.task_movement_log import TaskMovementLog  # noqa: F401
-from app.models.imputation import Imputation, TimerSession, ImputationAlert, ImputationSnapshot  # noqa: F401
+from app.models.imputation import Imputation, TimerSession, ImputationAlert  # noqa: F401
 from app.models.alert import Alert  # noqa: F401
 from app.models.settings import AppSetting, Area, CustomClientIndustry, CustomExpenseCategory, CustomProjectType, CustomProjectStatus, CustomSupplierBillingUnit, CustomSupplierServiceType, CustomTaskStatus, Department, Holiday  # noqa: F401
 from app.models.financial import Timesheet, CapacityPlan, ProjectMilestone, TimesheetStatus  # noqa: F401
@@ -31,7 +31,7 @@ from app.models.alm import (  # noqa: F401
 from app.models.enterprise import (  # noqa: F401
     AuditLog, ProjectPermission, Webhook, WebhookDelivery, SSOConfig,
     Notification, Subcontractor, SubcontractorRate, SubcontractorAssignment,
-    SubcontractorWorker, SubcontractorWorkerSkill,
+    SubcontractorWorker,
     SubcontractorInvoice, SubcontractorTimeLog, RevenueForecast,
 )
 from app.models.billing_reports import (  # noqa: F401
@@ -44,7 +44,7 @@ from app.models.billing_reports import (  # noqa: F401
 from app.models.bookings import (  # noqa: F401
     TaskDependency, ResourceBooking, ExchangeRate,
     SLASchedule, SLAHoliday, ApiKey, RecurringInvoice,
-    WorkflowQueueItem, OAuthState,
+    WorkflowQueueItem,
 )
 from app.models.mfa import (  # noqa: F401 — Organization required for User.organization relationship
     Organization, MFABackupCode, SlackConfig, SlackNotificationLog,
@@ -54,7 +54,7 @@ from app.models.mfa import (  # noqa: F401 — Organization required for User.or
 )
 from app.models.ai_chat import (  # noqa: F401
     AIConversation, AIMessage, AIAgentExecution, AIAgentStep,
-    AIPrediction, AIAnomaly, AIGovernanceConfig, AIActionLog,
+    AIPrediction, AIGovernanceConfig, AIActionLog,
     AIMeeting, AIMeetingAction, AIContract, AIContractClause,
     AIKBArticle, AIVoiceCommand, AIClientChatSession, AIClientChatMessage,
 )
@@ -68,7 +68,7 @@ from app.models.epics import (  # noqa: F401
 )
 from app.models.white_label import OrgBranding  # noqa: F401
 from app.models.marketplace import (  # noqa: F401
-    GanttBaseline, GanttBaselineTask, WhatIfTask,
+    GanttBaseline, GanttBaselineTask,
     IntegrationConnector, IntegrationInstance,
     TemplateDocument, TemplateRole,
 )
@@ -76,7 +76,7 @@ from app.models.issue_types import (  # noqa: F401
     IssueType, IssueTypeField, EpicDependencyMeta, FTSEntry,
 )
 from app.models.cmdb import (  # noqa: F401
-    WikiTag, WikiPageTag, WikiExportJob,
+    WikiTag, WikiPageTag,
     KanbanConfig, KanbanColumn, SprintPlan, SprintPlanTask,
     SLACalendar, V21SLAHoliday, CMDBChangelog,
     CMDBDiscoveryProvider, CMDBDiscoveryJob,
@@ -254,4 +254,14 @@ from app.models.clientes_internos import (  # noqa: F401,E402
 from app.models.demanda import (  # noqa: F401,E402
     DemandRequestType, DemandFlow, DemandRequest, DemandStepState, DemandTransition,
     DemandFieldVersion, DemandDocument, DemandComment,
+)
+# Políticas de cuenta (rev. 199, 23-11-2026, docs/seguridad/politicas_de_cuenta.md)
+from app.models.seguridad_de_cuentas import (  # noqa: F401,E402
+    PasswordHistory, TrustedDevice, SecurityChangeRequest, AccessReviewCampaign, AccessReviewItem,
+    AuditLogPurgePermit,
+)
+# «Mi cuaderno»: notas personales tipo OneNote (rev. 202, 23-11-2026, docs/CUADERNO.md)
+from app.models.cuaderno import (  # noqa: F401,E402
+    Notebook, NotebookSection, NotebookPage, NotebookShare, NotebookItem, NotebookLink, NotebookTag,
+    NotebookAttachment, NotebookTemplate,
 )

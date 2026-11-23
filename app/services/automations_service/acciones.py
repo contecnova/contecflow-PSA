@@ -120,39 +120,18 @@ def _accion_send_email(db: Session, atype, action: dict, params: dict, context: 
 def _motivo_de_rechazo_ssrf(url: str) -> Optional[str]:
     """Por qué esta URL no puede salir a la red, o `None` si puede.
 
-    Tres barreras: solo HTTPS; ni una IP privada escrita a mano; ni un nombre
-    que resuelva a una IP privada. Si la resolucion falla se deja pasar (un DNS
-    caido no debe bloquear todos los webhooks) y la propia peticion fallara.
+    22-11-2026 (02 M59): era un validador propio que dejaba pasar si fallaba el
+    DNS y no miraba `is_reserved` ni CGN. Ahora delega en el guardia central
+    (`app.core.outbound_url`, HTTPS obligatorio); la llamada usa `abrir()`, que
+    además comprueba la IP conectada (DNS rebinding).
     """
-    import ipaddress
-    import socket
-    from urllib.parse import urlparse
-
-    partes = urlparse(url)
-    if partes.scheme != "https":
-        return "Solo se permiten URLs HTTPS para webhooks"
-
-    host = partes.hostname or ""
-    try:
-        ip = ipaddress.ip_address(host)
-    except ValueError:
-        ip = None
-
-    if ip is not None:
-        if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved:
-            return "El webhook apunta a una dirección IP privada/interna"
-        return None
+    from app.core.errores import ErrorDeDominio
+    from app.core.outbound_url import validate_outbound_url as _validar
 
     try:
-        resueltas = socket.getaddrinfo(host, None)
-    except Exception:
-        logger.warning("Fallo resolviendo getaddrinfo para webhook host=%s en SSRF check", host)
-        return None
-
-    for entrada in resueltas:
-        resuelta = ipaddress.ip_address(entrada[4][0])
-        if resuelta.is_private or resuelta.is_loopback or resuelta.is_link_local:
-            return "El webhook resuelve a una dirección IP interna"
+        _validar(url, field="URL de webhook", require_https=True)
+    except ErrorDeDominio as exc:
+        return str(exc.detail)
     return None
 
 
@@ -348,7 +327,11 @@ def _accion_escalate_ticket(db: Session, atype, action: dict, params: dict, cont
         results.append({"action": atype, "ok": False, "error": "El evento no trae ticket"})
         return
     nivel = params["to_level"]
-    if (_v(ticket.support_level) or "l1") >= nivel:
+    # Baja (auditoría 22-11-2026): los niveles se comparan por su ORDEN (antes
+    # como texto: «l10» < «l2»).
+    orden = [s.value for s in SupportLevel]
+    actual = _v(ticket.support_level) or orden[0]
+    if nivel not in orden or orden.index(actual if actual in orden else orden[0]) >= orden.index(nivel):
         results.append({"action": atype, "ok": True, "skipped": f"ya está en {_v(ticket.support_level)}"})
         return
     antes = _v(ticket.support_level)
@@ -396,7 +379,7 @@ def _menos_cargado(db: Session, role: str, org: Optional[str], de_tickets: bool)
             .group_by(Ticket.assigned_to_user_id).all())
     else:
         carga = dict(db.query(Task.assignee_id, func.count(Task.id)).filter(
-            Task.assignee_id.in_(ids), Task.is_active.is_(True), Task.status.notin_(_TAREA_ABIERTA))
+            Task.assignee_id.in_(ids), Task.is_active.is_(True), Task.status.notin_(_TAREA_TERMINADA))
             .group_by(Task.assignee_id).all())
     return min(usuarios, key=lambda u: carga.get(u.id, 0))
 
@@ -497,7 +480,7 @@ def _accion_create_approval(db: Session, atype, action: dict, params: dict, cont
     try:
         req = create_approval_request(
             ApprovalRequestIn(entity_type=tipo, entity_id=entidad, entity_summary=str(resumen)[:500],
-                              context=contexto), db, solicitante, confirmar=False)
+                              context=contexto), db, solicitante, confirmar=False, de_confianza=True)
     except ErrorDeDominio as e:
         results.append({"action": atype, "ok": False, "error": str(e.detail)})
         return
@@ -547,4 +530,7 @@ def execute_actions(actions: list, context: dict, db: Session) -> list:
     return results
 
 
-_TAREA_ABIERTA = ESTADOS_DE_TAREA_TERMINADOS  # nombre historico: son los estados que NO cuentan como abierta
+#: Baja (auditoría 22-11-2026): el nombre dice lo que es (estados TERMINADOS);
+#: `_TAREA_ABIERTA` (invertido) queda como alias por compatibilidad.
+_TAREA_TERMINADA = ESTADOS_DE_TAREA_TERMINADOS
+_TAREA_ABIERTA = _TAREA_TERMINADA

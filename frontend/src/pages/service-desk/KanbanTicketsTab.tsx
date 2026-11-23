@@ -11,6 +11,7 @@ import type React from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAppT } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
+import { extractErr } from '../../utils/helpers'
 import { Spinner } from '../../components/ui'
 import StatusBadge from '../../components/ui/StatusBadge'
 import { ticketsApi } from '../../services/api'
@@ -84,7 +85,7 @@ export default function KanbanTicketsTab({ onSelect }: { onSelect: (ticket: Kanb
   const { mutate: moveTicket } = useMutation({
     mutationFn: ({ id, status }: { id: string | number; status: string }) => ticketsApi.update(id, { status }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['sd-tickets-kanban'] }),
-    onError: (e: unknown) => toast.error((e as { response?: { data?: { detail?: string } } })?.response?.data?.detail || t('kanbantickets.error_mover')),
+    onError: (e: unknown) => toast.error(extractErr(e, t('kanbantickets.error_mover'))),
   })
 
   const onDragStart = (e: React.DragEvent, ticket: KanbanTicket, fromCol: string) => {

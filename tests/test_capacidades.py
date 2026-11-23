@@ -6,6 +6,13 @@ rol base: quien la tiene no recibe 403 (lo que se muestra se puede usar) y,
 si la sonda es `estricta`, quien no la tiene sí lo recibe. Además: el
 superadmin las tiene todas, un rol personalizado solo quita, `/auth/me` y
 `/auth/roles` las publican y no hay roles inventados.
+
+23-11-2026 (auditoría 01, M9): toda la API se guarda ya por capacidad. Medido
+importando la app: 0 pares guardados solo por rol (antes 1 425), 1 987 con
+`requiere_capacidad`; 101 capacidades nuevas sin `modulo` (99 del bloque generado
+por `scripts/codemods/guardas_a_capacidades.py`, más `tareas.usar` y
+`clientes.dirigir`), así que `test_el_modulo_de_la_capacidad_cubre_su_ruta` no
+cambia: 0 rutas fuera. Ver `tests/test_auditoria_2026_11_22_ronda2_nucleo.py`.
 """
 from __future__ import annotations
 
@@ -77,7 +84,14 @@ def test_los_nombres_son_area_punto_accion():
 #: la ruta. Ahí la guarda cierra más que `app.core.modulos.comprobar` (un rol
 #: personalizado que cierra el módulo pierde la ruta aunque no esté bajo sus
 #: prefijos). Vacío a propósito: entra solo con la decisión escrita.
-MODULO_QUE_NO_CUBRE_LA_RUTA: dict[tuple[str, str], str] = {}
+MODULO_QUE_NO_CUBRE_LA_RUTA: dict[tuple[str, str], str] = {
+    # Auditoría 22-11-2026 (A-MP2): los exports de BI a Office llevan ingresos,
+    # costes y márgenes; antes bastaba la sesión. Se cierran con `analitica.ver`
+    # a propósito, también cuando la empresa cierra el módulo de informes: es el
+    # mismo dato que /reports, servido por otro prefijo.
+    ("GET", "/api/v1/m365/bi/export/excel"): "BI con importes: misma audiencia que /reports (A-MP2)",
+    ("GET", "/api/v1/m365/bi/export/word"): "BI con importes: misma audiencia que /reports (A-MP2)",
+}
 
 
 def _guardas_por_capacidad():

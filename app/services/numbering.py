@@ -11,7 +11,26 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-def _current_year() -> int:
+
+#: Prefijos de serie por defecto (solo al crear la secuencia de una empresa; la
+#: configurada manda). Ronda 2 auditoria 2026-11-22, §6: antes "PRJ"/"INV" en
+#: cada llamante.
+PREFIJO_PROYECTO = "PRJ"
+PREFIJO_FACTURA = "INV"
+
+def _current_year(db: Optional[Session] = None, org_id: Optional[str] = None) -> int:
+    """El año en la zona horaria de la empresa (`DEFAULT_TIMEZONE`).
+
+    Auditoria 2026-11-22 (03, bajos m-p): antes en UTC; en Madrid una factura
+    del 1 de enero a las 00:30 salia con el año anterior (y el reinicio anual
+    llegaba una hora tarde). Sin sesion, o si no se puede leer, UTC."""
+    if db is not None:
+        try:
+            from app.core.timeutil import resolve_zone
+            from app.services.settings_service.por_empresa import zona_de_empresa
+            return datetime.now(resolve_zone(zona_de_empresa(db, org_id))).year
+        except Exception:
+            logger.debug("numbering: zona de la empresa no disponible, año en UTC", exc_info=True)
     return datetime.now(timezone.utc).year
 
 
@@ -81,8 +100,8 @@ def next_numbered_code(
     reset_yearly: bool = False,
     year_separator: str = "",
 ) -> str:
-    current_year = _current_year()
     org_id = _org(db)
+    current_year = _current_year(db, org_id)
     sequence = _lock_sequence(db, entity, org_id)
 
     if not sequence:
@@ -120,3 +139,50 @@ def next_numbered_code(
     sequence.example = code
     db.flush()
     return code
+
+
+# ── Numeración segura con semilla (auditoría 22-11-2026, «numeraciones con carrera») ──
+#
+# ≥7 sitios numeraban con `max(code)+1` (texto: FR-999 > FR-1000) o `count()+1`:
+# dos altas a la vez sacaban el mismo número. `siguiente_codigo` usa la misma
+# fila bloqueada de `numbering_sequences` que `next_numbered_code`, y al crear
+# la secuencia arranca en el MAYOR número ya usado (`maximo_existente`), para no
+# repetir códigos de antes de existir la secuencia.
+
+def maximo_numerico(codigos) -> int:
+    """El mayor número final de una lista de códigos («FR-0999», «FR-1000» → 1000)."""
+    import re
+    mayor = 0
+    for c in codigos:
+        m = re.search(r"(\d+)$", str(c or ""))
+        if m:
+            mayor = max(mayor, int(m.group(1)))
+    return mayor
+
+
+def siguiente_codigo(db: Session, entidad: str, *, prefijo: str, relleno: int,
+                     maximo_existente, org_id: Optional[str] = None) -> str:
+    """`{prefijo}{n:0relleno}` con `n` de una secuencia bloqueada hasta el commit.
+
+    `maximo_existente()` solo se llama al crear la secuencia (la primera vez).
+    `org_id`: la empresa de la secuencia (por defecto, la de la sesión).
+    """
+    org = org_id if org_id is not None else _org(db)
+    secuencia = _lock_sequence(db, entidad, org)
+    if secuencia is None:
+        try:
+            with db.begin_nested():
+                db.add(NumberingSequence(organization_id=org, entity=entidad, prefix=prefijo, suffix="",
+                                         separator="", include_year=False, padding=relleno,
+                                         current_value=int(maximo_existente() or 0), reset_yearly=False))
+                db.flush()
+        except IntegrityError:
+            pass  # otra transacción la ha creado a la vez: se usa la suya
+        secuencia = _lock_sequence(db, entidad, org)
+    if secuencia is None:
+        raise RuntimeError(f"No se pudo inicializar la secuencia '{entidad}'")
+    secuencia.current_value = int(secuencia.current_value or 0) + 1
+    codigo = f"{prefijo}{str(secuencia.current_value).zfill(relleno)}"
+    secuencia.example = codigo
+    db.flush()
+    return codigo

@@ -81,17 +81,50 @@ def build_ticket_list_query(
             q = q.filter(getattr(Ticket, columna) == valores[parametro])
 
     if sla_breached:
-        # Un ticket cerrado no incumple: el SLA se mide mientras está vivo.
-        ahora = datetime.now(timezone.utc)
-        q = q.filter(
-            Ticket.status.notin_(ESTADOS_DE_TICKET_CERRADOS),
-            or_(Ticket.sla_response_due < ahora, Ticket.sla_resolution_due < ahora),
-        )
+        q = q.filter(Ticket.id.in_(_ids_con_sla_incumplido(q, db)))
 
     if search:
+        # Auditoria 2026-11-22 (4.4): `%` y `_` del texto buscado son literales.
+        patron = "%" + escapar_like(search) + "%"
         q = q.filter(or_(
-            Ticket.number.ilike(f"%{search}%"),
-            Ticket.title.ilike(f"%{search}%"),
+            Ticket.number.ilike(patron, escape="\\"),
+            Ticket.title.ilike(patron, escape="\\"),
         ))
 
     return q
+
+
+def escapar_like(texto: str) -> str:
+    """El texto con `\\`, `%` y `_` escapados para un LIKE con `escape='\\'`."""
+    return texto.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+
+def _ids_con_sla_incumplido(q, db: Session) -> list[str]:
+    """Ids de los tickets de `q` con el SLA incumplido, descontando las pausas.
+
+    Auditoria 2026-11-22 (servicios m-z, 4.3): el filtro comparaba los
+    vencimientos con la hora a pelo, sin las pausas, y contaba como incumplida
+    la respuesta de un ticket ya respondido a tiempo. La pausa solo aplaza el
+    vencimiento, asi que «vencimiento < ahora» (o la marca ya guardada) es la
+    criba en SQL y el veredicto lo da `_vencido`, el mismo de la resolucion:
+    pausa acumulada en el calendario del SLA y, si esta en espera, el reloj
+    parado desde `sla_paused_at`. Un ticket cerrado no incumple: el SLA se
+    mide mientras esta vivo.
+    """
+    from app.services.service_desk.ticket_update_service import _aware, _vencido
+    ahora = datetime.now(timezone.utc)
+    candidatos = q.filter(
+        Ticket.status.notin_(ESTADOS_DE_TICKET_CERRADOS),
+        or_(Ticket.sla_response_breached.is_(True), Ticket.sla_resolution_breached.is_(True),
+            Ticket.sla_response_due < ahora, Ticket.sla_resolution_due < ahora),
+    ).all()
+    ids = []
+    for t in candidatos:
+        reloj = _aware(t.sla_paused_at) if t.sla_paused_at else ahora
+        respuesta = bool(t.sla_response_breached) if t.first_response_at else (
+            t.sla_response_due is not None and _vencido(t.sla_response_due, t, reloj, db))
+        resolucion = bool(t.sla_resolution_breached) or (
+            t.sla_resolution_due is not None and _vencido(t.sla_resolution_due, t, reloj, db))
+        if respuesta or resolucion:
+            ids.append(t.id)
+    return ids

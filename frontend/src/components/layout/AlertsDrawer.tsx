@@ -79,7 +79,7 @@ export default function AlertsDrawer({ onClose }: Props) {
               <span className="alerdraw-box-1">{alerts.length}</span>
             )}
           </div>
-          <Pulsable onClick={onClose} aria-label={t('common.close')} className="alerdraw-row-2">
+          <Pulsable onClick={onClose} aria-label={t('common.close')} className="alerdraw-row-2" data-cierra-dialogo="">
             <X size={16} />
           </Pulsable>
         </div>

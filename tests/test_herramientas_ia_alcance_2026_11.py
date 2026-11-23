@@ -32,6 +32,13 @@ def test_toda_herramienta_tiene_politica_y_su_ruta_existe():
     assert not sin_ruta, sin_ruta
 
 
+def test_la_politica_de_cada_herramienta_es_una_capacidad_del_catalogo():
+    """23-11-2026 (M9): la herramienta pide una capacidad, como su ruta, no una lista de roles."""
+    from app.core.capacidades import CAPACIDADES
+    malas = [n for n, p in POLITICAS.items() if p.capacidad is not None and p.capacidad not in CAPACIDADES]
+    assert not malas, malas
+
+
 @pytest.fixture
 def escenario(db, dev_token, pm_token, admin_token):
     for pid, pm in (("p-ia-1", PM), ("p-ia-2", ADMIN)):

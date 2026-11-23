@@ -12,11 +12,13 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Activity, CalendarClock, Copy, Plus, Trash2, X } from 'lucide-react'
 import { useAppT } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
+import { Link } from 'react-router-dom'
 import { openConfirmGlobal } from '../../context/ConfirmContext'
+import { useListaDeUsuarios } from '../../hooks/useListas'
 import { extractErr, fmtDateTime } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import { Button, EmptyState, Modal, Select, Spinner, StatusBadge, TablaSimple, Input } from '../../components/ui'
-import { sdGroupsApi, sdMonitoringApi, sdOnCallApi, usersApi, apiUrlAbsoluta, type UserListItem } from '../../services/api'
+import { sdGroupsApi, sdMonitoringApi, sdOnCallApi, apiUrlAbsoluta, type UserListItem } from '../../services/api'
 import type { SdCalendarioDeGuardia } from '../../services/api/tipos-sd'
 import DateInput from '../../components/ui/DateInput'
 import { POLL_DEFAULT_MS } from '../../constants/timings'
@@ -42,7 +44,7 @@ export function GuardiasConfig() {
     queryKey: ['sd-oncall-now'], queryFn: () => sdOnCallApi.current().then(r => r.data), refetchInterval: POLL_DEFAULT_MS,
   })
   const { data: colas = [] } = useQuery<Cola[]>({ queryKey: ['sd-groups'], queryFn: () => sdGroupsApi.list().then(r => r.data) })
-  const { data: personas = [] } = useQuery({ queryKey: ['users'], queryFn: () => usersApi.list().then(r => r.data) })
+  const { data: personas = [] } = useListaDeUsuarios()
   const refrescar = () => { qc.invalidateQueries({ queryKey: ['sd-oncall'] }); qc.invalidateQueries({ queryKey: ['sd-oncall-now'] }) }
   const err = (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))
   const crear = useMutation({ mutationFn: (d: unknown) => sdOnCallApi.createSchedule(d), onSuccess: () => { refrescar(); setNuevo(false) }, onError: err })
@@ -80,7 +82,7 @@ export function GuardiasConfig() {
               <div key={e.id} className="coguym-row-3">
                 <span className="coguym-persona">{e.user_name}</span>
                 <span className="coguym-tramo">{fecha(e.start_dt)} – {fecha(e.end_dt)}</span>
-                <Button size="xs" variant="ghost" icon={<X size={12} />} title={t('common.delete')} onClick={() => quitar.mutate(e.id)} />
+                <Button size="xs" variant="ghost" icon={<X size={12} />} title={t('common.delete')} onClick={() => openConfirmGlobal({ message: t('sd_cfg.oc_confirmar_quitar_turno', { name: e.user_name }), confirmLabel: t('common.delete'), onConfirm: () => quitar.mutate(e.id), danger: true })} />
               </div>
             ))}
         </div>
@@ -157,12 +159,12 @@ export function MonitorizacionConfig() {
       <div className="ds-card">
         <span className="coguym-ls">{t('sd_cfg.mon_url')}</span>
         <div className="coguym-copy">
-          <input readOnly value={url} aria-label={t('sd_cfg.mon_url')} className="ds-input coguym-url ds-campo-codigo" />
-          <Button variant="secondary" icon={<Copy size={14} />} onClick={() => { navigator.clipboard.writeText(url); toast.success(t('sd_cfg.cfg_copied')) }}>{t('sd_cfg.mail_copy')}</Button>
+          <Input readOnly value={url} aria-label={t('sd_cfg.mon_url')} className="coguym-url" inputClassName="ds-campo-codigo" />
+          <Button variant="secondary" icon={<Copy size={14} />} onClick={() => { navigator.clipboard.writeText(url).then(() => toast.success(t('sd_cfg.cfg_copied')), () => toast.error(t('sd_cfg.cfg_copy_failed'))) }}>{t('sd_cfg.mail_copy')}</Button>
         </div>
         <div className="u-text2-sm">{t('sd_cfg.mon_url_help')}</div>
         <div className="u-text2-sm">
-          {t('sd_cfg.mon_token')} <a href="/settings/integrations" className="u-accent">{t('sd_cfg.mail_credentials')}</a>
+          {t('sd_cfg.mon_token')} <Link to="/settings/integrations" className="u-accent">{t('sd_cfg.mail_credentials')}</Link>
         </div>
       </div>
       <div>
@@ -181,7 +183,7 @@ export function MonitorizacionConfig() {
                     </td>
                     <td className="coguym-celda">{a.title}<span className="u-text2"> · {a.source}{a.severity ? ` · ${a.severity}` : ''}</span></td>
                     <td className="coguym-fecha">{t('sd_cfg.mon_repeats', { n: a.occurrences })}</td>
-                    <td className="coguym-celda">{a.ticket_id && <a href={`/service-desk?ticket=${a.ticket_id}`} className="coguym-enlace">{a.ticket_number}</a>}</td>
+                    <td className="coguym-celda">{a.ticket_id && <Link to={`/service-desk?ticket=${a.ticket_id}`} className="coguym-enlace">{a.ticket_number}</Link>}</td>
                   </tr>
                 ))}
               </tbody>

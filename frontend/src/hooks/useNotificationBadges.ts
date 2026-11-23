@@ -72,5 +72,5 @@ export default function useNotificationBadges(): NotificationBadges {
   return { alertCount, notifUnreadCount, approvalCount, mentionCount, inboxTotal }
 }
 
-// Named export to support `import { useNotificationBadges } from '../hooks'`
+// Export con nombre (el barril hooks/index.ts se retiró el 23-11-2026: nadie lo importaba)
 export { useNotificationBadges }

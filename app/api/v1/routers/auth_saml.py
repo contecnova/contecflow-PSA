@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.db.session import get_db
 from app.core.config import settings
-from app.core.deps import require_admin
+from app.core.deps import requiere_capacidad
 from app.models.user import User
 
 import app.services.auth_service as _svc
@@ -33,7 +33,7 @@ def saml_metadata():
 
 
 @router.get("/saml/health", summary="Health de configuración SAML")
-def saml_health(db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+def saml_health(db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("org.administrar"))):
     """Health check para configuraciones SAML activas."""
     saml_configs = _svc.get_saml_health(db)
     return {

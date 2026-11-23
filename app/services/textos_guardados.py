@@ -65,11 +65,66 @@ def pintar(clave: Optional[str], params: Optional[str], respaldo: Optional[str],
     from app.services.textos_de_salida import TEXTOS
     if clave not in TEXTOS:
         return respaldo
-    try:
-        datos = json.loads(params) if params else {}
-    except (TypeError, ValueError):
-        logger.warning("textos_guardados: datos ilegibles para %r", clave)
-        return respaldo
+    if isinstance(params, dict):
+        # Migracion 200: las columnas `*_params` nuevas son JSON (llega ya un dict).
+        datos = params
+    else:
+        try:
+            datos = json.loads(params) if params else {}
+        except (TypeError, ValueError):
+            logger.warning("textos_guardados: datos ilegibles para %r", clave)
+            return respaldo
     if not isinstance(datos, dict):
         return respaldo
-    return en_idioma(clave, idioma, **datos)
+    try:
+        return en_idioma(clave, idioma, **datos)
+    except (KeyError, IndexError, ValueError):
+        logger.warning("textos_guardados: faltan datos para %r", clave)
+        return respaldo
+
+
+def por_clave_json(clave: str, **params: Any) -> tuple[str, Optional[dict]]:
+    """(clave, datos como dict) para las columnas `*_params` de tipo JSON (migracion 200)."""
+    return clave, (json.loads(json.dumps(params, ensure_ascii=False, default=str)) if params else None)
+
+
+_CLAVE_IDIOMA_LECTOR = "_idioma_del_lector"
+
+
+def idioma_del_lector(db) -> Optional[str]:
+    """Idioma de quien hace la peticion (el `current_user` de la sesion), con cache en la sesion.
+
+    Migracion 200: los serializadores que no reciben el usuario pintan los
+    textos guardados por clave en su idioma sin cambiar sus firmas. Sin
+    usuario (trabajos de fondo), el de la empresa de la sesion.
+    """
+    if db is None:
+        return None
+    info = getattr(db, "info", None)
+    if info is None:
+        return None
+    if _CLAVE_IDIOMA_LECTOR in info:
+        return info[_CLAVE_IDIOMA_LECTOR]
+    from app.services.formato_regional import idioma_de_salida
+    usuario = info.get("current_user")
+    try:
+        idioma = idioma_de_salida(db, user_id=getattr(usuario, "id", None),
+                                  org_id=getattr(usuario, "organization_id", None) or info.get("organization_id"))
+    except Exception:
+        logger.debug("idioma_del_lector: no legible", exc_info=True)
+        idioma = None
+    info[_CLAVE_IDIOMA_LECTOR] = idioma
+    return idioma
+
+
+def pintar_campo(obj, campo: str, *, clave: Optional[str] = None, params: Optional[str] = None,
+                 idioma: Optional[str] = None) -> Optional[str]:
+    """`obj.<campo>` pintado desde `obj.<campo>_key`/`_params` (o `clave`/`params`) en el idioma del lector."""
+    from sqlalchemy.orm import object_session
+    respaldo = getattr(obj, campo, None)
+    k = getattr(obj, clave or f"{campo}_key", None)
+    if not k:
+        return respaldo
+    if idioma is None:
+        idioma = idioma_del_lector(object_session(obj))
+    return pintar(k, getattr(obj, params or f"{campo}_params", None), respaldo, idioma)

@@ -19,8 +19,7 @@
 import { Suspense, useMemo, useState } from 'react'
 import { Navigate, NavLink, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { ExternalLink, Settings } from 'lucide-react'
-import { Button, Page, Select, Spinner } from '../components/ui'
-import { SearchInput } from '../components/ui/TableControls'
+import { Buscador, Button, Page, Select, Spinner } from '../components/ui'
 import { useAppLang } from '../i18n/AppLangContext'
 import { useAuth } from '../context/AuthContext'
 import { IncrustadaEnAjustes } from '../components/layout/incrustacion'
@@ -89,18 +88,20 @@ export default function SettingsPage() {
   } else if (Componente && actual.envolver) {
     panel = (
       <SeccionDeAjustes icon={grupoActual?.icono} title={titulo(actual)} description={descripcion(actual)}>
-        <Componente subInicial={sub} />
+        <Componente key={sub ?? ''} subInicial={sub} />
       </SeccionDeAjustes>
     )
   } else if (Componente) {
-    panel = <Componente subInicial={sub} />
+    // Incidencia 8 (23-11-2026): con `key`, un enlace a otra `?sub=` de la sección
+    // en la que ya se está abre esa subpestaña (antes se quedaba en la actual).
+    panel = <Componente key={sub ?? ''} subInicial={sub} />
   }
 
   return (
     <Page icon={<Settings size={18} />} title={t('settings.title')} subtitle={t('ajustes.subtitulo')}>
       <div className="ajustes">
         <aside className="ajustes-nav" aria-label={t('ajustes.navegacion')}>
-          <SearchInput value={consulta} onChange={setConsulta} placeholder={t('ajustes.buscar')} />
+          <Buscador value={consulta} onChange={setConsulta} placeholder={t('ajustes.buscar')} />
           {/* Pantalla estrecha: un desplegable en lugar de la lista. */}
           <Select suelto className="ajustes-nav-movil" aria-label={t('ajustes.navegacion')} placeholder={false}
             value={actual.id} onChange={e => navigate(`/settings/${e.target.value}`)}>

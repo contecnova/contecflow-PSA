@@ -11,22 +11,11 @@ import { projectsApi } from '../../services/api/projects'
 import { useAppT } from '../../i18n/AppLangContext'
 import { useAuth } from '../../context/AuthContext'
 import { STALE_REFERENCE_DATA_MS } from '../../constants/timings'
-import type { MetaDeProveedores, ReferenciasDeProveedores } from '../../services/api/tipos-proveedores'
+import type { ReferenciasDeProveedores } from '../../services/api/tipos-proveedores'
 import type { Subcontratista } from '../../services/api/tipos-alm'
-import { META_POR_DEFECTO, TONO_CICLO, TONO_RIESGO, conRespaldo } from './logica'
+import { TONO_CICLO, TONO_RIESGO, conRespaldo } from './logica'
 import type { Traductor } from './logica'
 import './Proveedores.css'
-
-/** Enumeraciones de `/suppliers/meta` (con las del esquema mientras llegan). */
-export function useMetaProveedores(): MetaDeProveedores {
-  const { data } = useQuery({
-    queryKey: ['suppliers', 'meta'],
-    queryFn: () => proveedoresApi.meta().then(r => r.data),
-    staleTime: STALE_REFERENCE_DATA_MS,
-    retry: false,
-  })
-  return data ?? META_POR_DEFECTO
-}
 
 /** Proyectos activos para los selectores (contrato, paquete, consumo). */
 export function useProyectosActivos() {

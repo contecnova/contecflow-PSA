@@ -32,12 +32,18 @@ from urllib.parse import urlparse
 import httpx
 from app.services.settings_service import outbound_http_timeout
 from app.core.config import settings  # topes de tokens de IA (19-11-2026)
+from app.services.textos_de_salida_servicios_m_z import texto_para
 
 logger = logging.getLogger(__name__)
 
 _SISTEMA = ("Eres el asistente de la empresa en Microsoft Teams. Contesta en el idioma de la pregunta, en pocas "
             "líneas, usando SOLO la información de la base de conocimiento que sigue. Si no basta, dilo.")
 _token: dict = {"valor": None, "caduca": 0.0}
+# Ronda 2 auditoria 2026-11-22: el token de aplicacion se lee y renueva bajo
+# cerrojo; antes dos hilos podian ver uno a medio escribir (valor nuevo con la
+# caducidad vieja) o pedir token a la vez.
+import threading as _threading  # noqa: E402
+_TOKEN_LOCK = _threading.Lock()
 
 
 # ── 1. Respuesta con la base de conocimiento ──────────────────────────────────
@@ -48,16 +54,15 @@ def respuesta_de_la_base(db, usuario, pregunta: str) -> str:
     ctx = contexto(db, pregunta, solo_publico=False, origen="teams")
     if not ctx["prompt"]:
         db.commit()   # el hueco queda apuntado
-        return ("No encuentro nada sobre eso en la base de conocimiento. He apuntado la pregunta para que "
-                "alguien la responda.")
+        return texto_para(db, "teams.sin_respuesta", user_id=usuario.id)
     texto = call_ai(db, [{"role": "user", "content": pregunta}], system=_SISTEMA + ctx["prompt"],
                     module="knowledge_base", user_id=usuario.id, organization_id=usuario.organization_id,
                     is_superadmin=False, max_tokens=settings.AI_MEDIUM_ANSWER_MAX_TOKENS)
     db.commit()
     if es_aviso_de_ia(texto):
-        return "Ahora mismo no puedo consultar la IA. Prueba más tarde."
+        return texto_para(db, "teams.ia_no_disponible", user_id=usuario.id)
     fuentes = "\n".join(f"- [{s['number']}] {s['title']}" for s in ctx["sources"])
-    return texto.strip() + (f"\n\nFuentes:\n{fuentes}" if fuentes else "")
+    return texto.strip() + (f"\n\n{texto_para(db, 'teams.fuentes', user_id=usuario.id)}\n{fuentes}" if fuentes else "")
 
 
 # ── 2. Enviar la respuesta a Teams ────────────────────────────────────────────
@@ -81,6 +86,11 @@ def service_url_valido(actividad: dict, claims: Optional[dict]) -> Optional[str]
 
 
 def _token_de_la_aplicacion() -> str:
+    with _TOKEN_LOCK:
+        return _token_de_la_aplicacion_sin_cerrojo()
+
+
+def _token_de_la_aplicacion_sin_cerrojo() -> str:
     from app.core.config import settings
     if _token["valor"] and _token["caduca"] > time.time() + 60:
         return _token["valor"]

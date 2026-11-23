@@ -13,15 +13,17 @@
  */
 import { useEffect, useMemo, useState, useId } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { AlertOctagon, AlertTriangle, Pencil, Plus, Route, Search, Ticket, Trash2, X } from 'lucide-react'
+import { AlertOctagon, AlertTriangle, Pencil, Plus, Route, Ticket, Trash2, X } from 'lucide-react'
 import { useToast } from '../../context/ToastContext'
-import { sdRoutingApi, sdGroupsApi, sdSlaPoliciesApi, usersApi, ticketsApi } from '../../services/api'
+import { sdRoutingApi, sdGroupsApi, sdSlaPoliciesApi, ticketsApi } from '../../services/api'
 import type { SdIncidenteMayor, SdReglaDeEnrutado, SdTicket } from '../../services/api/tipos-sd'
 import type { AxiosResponse } from 'axios'
-import { Button, IconButton, Pulsable, Select, TablaSimple, Spinner, EmptyState, Modal, useSort, SortableTH, ariaSort, useErroresDeCampo, Input, Textarea } from '../../components/ui'
+import { Buscador, Button, IconButton, Pulsable, Select, TablaSimple, Spinner, EmptyState, Modal, useSort, SortableTH, ariaSort, useErroresDeCampo, Input, Textarea } from '../../components/ui'
 import StatusBadge from '../../components/ui/StatusBadge'
 import Pagination from '../../components/ui/Pagination'
 import { useAppT } from '../../i18n/AppLangContext'
+import { useListaDeUsuarios } from '../../hooks/useListas'
+import { confirmar } from '../../context/ConfirmContext'
 import { extractErr, localeActivo } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import { PBadge, PRIORITY_LABEL, SBadge, etiquetaSd, fmtDate } from './sdUtils'
@@ -135,10 +137,7 @@ export function TicketList({ queueOnly, onSelect }: { queueOnly?: boolean; onSel
   return (
     <div>
       <div className="ds-toolbar sdqr-filters">
-        <div className="sdqr-search">
-          <Search size={14} aria-hidden className="sdqr-search__icon" />
-          <Input placeholder={t('service_desk.search_tickets')} value={search} aria-label={t('service_desk.search_tickets')} onChange={e => setSearch(e.target.value)} inputClassName="sdqr-search__input" />
-        </div>
+        <Buscador className="sdqr-search" placeholder={t('service_desk.search_tickets')} value={search} aria-label={t('service_desk.search_tickets')} onChange={setSearch} />
         <Select suelto placeholder={false} aria-label={t('service_desk.filter_all_priorities')} value={filterPrio} onChange={e => setFilterPrio(e.target.value)} className="sdqr-filter">
           <option value="">{t('service_desk.filter_all_priorities')}</option>
           {['p1_critical', 'p2_high', 'p3_medium', 'p4_low'].map(p =>
@@ -364,13 +363,10 @@ export function RoutingRules() {
     queryKey: ['sd-groups'],
     queryFn: () => sdGroupsApi.list().then(r => r.data),
   })
-  const { data: users = [] } = useQuery<Array<{ id?: string; full_name?: string }>>({
-    queryKey: ['users'],
-    queryFn: () => usersApi.list().then(r => r.data),
-  })
+  const { data: users = [] } = useListaDeUsuarios()
   const { data: slaPolicies = [] } = useQuery<Array<{ id?: string; name?: string }>>({
     queryKey: ['sd-sla-policies'],
-    queryFn: () => sdSlaPoliciesApi.list().then(r => r.data).catch(() => []),
+    queryFn: () => sdSlaPoliciesApi.list().then(r => r.data),
   })
 
   const { mutate: toggleRule } = useMutation({
@@ -383,6 +379,12 @@ export function RoutingRules() {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['sd-routing-rules'] }); toast.success(t('service_desk.routing_rule_deleted')) },
     onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
+
+  // 23-11-2026 (04 M4): borrar una regla de enrutado pide confirmación.
+  const borrarRegla = async (rule: Rule) => {
+    if (!(await confirmar({ message: t('queueandrouting.confirmar_borrar_regla', { name: rule.name }), danger: true, confirmLabel: t('common.delete') }))) return
+    deleteRule(rule.id)
+  }
 
   const nombreDe = (lista: Array<{ id?: string; name?: string; full_name?: string }>, id: string) => {
     const x = lista.find(e => e.id === id)
@@ -434,7 +436,7 @@ export function RoutingRules() {
                       </StatusBadge>
                     </Pulsable>
                     <Button size="xs" variant="secondary" icon={<Pencil size={12} />} onClick={() => setEditingRule(rule)}>{t('common.edit')}</Button>
-                    <Button size="xs" variant="ghost" icon={<Trash2 size={12} />} onClick={() => deleteRule(rule.id)}>{t('common.delete')}</Button>
+                    <Button size="xs" variant="ghost" icon={<Trash2 size={12} />} onClick={() => borrarRegla(rule)}>{t('common.delete')}</Button>
                   </div>
                 </div>
                 <div className="sdqr-rule__body">
@@ -492,13 +494,10 @@ function NewRoutingRuleModal({ onClose, onSaved, rule }: { onClose: () => void; 
     queryKey: ['sd-groups'],
     queryFn: () => sdGroupsApi.list().then(r => r.data),
   })
-  const { data: users = [] } = useQuery<Array<{ id?: string; full_name?: string }>>({
-    queryKey: ['users'],
-    queryFn: () => usersApi.list().then(r => r.data),
-  })
+  const { data: users = [] } = useListaDeUsuarios()
   const { data: slaPolices = [] } = useQuery<Array<{ id?: string; name?: string }>>({
     queryKey: ['sd-sla-policies'],
-    queryFn: () => sdSlaPoliciesApi.list().then(r => r.data).catch(() => []),
+    queryFn: () => sdSlaPoliciesApi.list().then(r => r.data),
   })
 
   const camposB = useErroresDeCampo()

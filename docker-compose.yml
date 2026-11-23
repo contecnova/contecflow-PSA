@@ -64,9 +64,13 @@ x-app: &app
     # un DATABASE_URL con `localhost` (el habitual en desarrollo) haría que el
     # contenedor intentara conectarse a sí mismo.
     # Revisión 2026-11 (RLS): la aplicación conecta con el rol sin privilegios
-    # (APP_DB_USER) y las migraciones con el dueño del esquema. Sin APP_DB_USER,
-    # todo usa el dueño como antes (y Admin → Estado sistema avisa).
-    DATABASE_URL: postgresql+psycopg2://${APP_DB_USER:-${POSTGRES_USER}}:${APP_DB_PASSWORD:-${POSTGRES_PASSWORD}}@postgres:5432/${POSTGRES_DB:?define POSTGRES_DB}
+    # (APP_DB_USER) y las migraciones con el dueño del esquema.
+    # Auditoría 22-11-2026 (A1): ya NO cae al superusuario si falta: sin
+    # APP_DB_PASSWORD la API no conecta (fallo visible) en vez de saltarse RLS
+    # en silencio. `setup docker` (scripts/docker_stack.py) genera las dos y el
+    # servicio `migrate` crea el rol. No se usa `:?` para que `docker compose up`
+    # de solo infraestructura siga funcionando sin ellas.
+    DATABASE_URL: postgresql+psycopg2://${APP_DB_USER:-contecflow_app}:${APP_DB_PASSWORD:-}@postgres:5432/${POSTGRES_DB:?define POSTGRES_DB}
     DATABASE_MIGRATIONS_URL: postgresql+psycopg2://${POSTGRES_USER:?define POSTGRES_USER}:${POSTGRES_PASSWORD:?define POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:?define POSTGRES_DB}
     REDIS_URL: redis://redis:6379/0
     AWS_S3_ENDPOINT_URL: http://s3:9000
@@ -123,22 +127,29 @@ services:
     restart: unless-stopped
     # appendonly: durabilidad por operación. Perder contadores de rate limit en
     # un crash multiplicaría las cuotas durante unos segundos.
-    # maxmemory + allkeys-lru: si algo llenara Redis, evicta lo más antiguo en
-    # vez de empezar a rechazar SETs, que rompería el rate limit en silencio.
+    # Auditoría 22-11-2026 (01 M5):
+    # - `noeviction`: este Redis es el BROKER de Celery. Con `allkeys-lru`, al
+    #   llenarse expulsaba en silencio mensajes encolados (tareas perdidas). Con
+    #   `noeviction` una escritura que no cabe falla y se ve en el log; las claves
+    #   de caché, tickets y rate limit llevan TTL y se liberan solas.
+    # - `requirepass` con REDIS_PASSWORD (lo genera `setup docker`). Sin ella
+    #   (infraestructura antigua) arranca como antes, sin contraseña.
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      REDIS_MAXMEMORY: ${REDIS_MAXMEMORY:-256mb}
     command:
-      - redis-server
-      - --appendonly
-      - "yes"
-      - --maxmemory
-      - "${REDIS_MAXMEMORY:-256mb}"
-      - --maxmemory-policy
-      - "allkeys-lru"
+      - sh
+      - -c
+      - >-
+        exec redis-server --appendonly yes --maxmemory "$${REDIS_MAXMEMORY}"
+        --maxmemory-policy noeviction
+        $${REDIS_PASSWORD:+--requirepass "$$REDIS_PASSWORD"}
     volumes:
       - redis_data:/data
     ports:
       - "${REDIS_PORT:-127.0.0.1:6381}:6379"
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD-SHELL", "redis-cli $${REDIS_PASSWORD:+--no-auth-warning -a \"$$REDIS_PASSWORD\"} ping | grep -q PONG"]
       interval: 5s
       timeout: 3s
       retries: 10
@@ -381,7 +392,9 @@ services:
         --storage.tsdb.path=/prometheus
         --storage.tsdb.retention.time="$$PROMETHEUS_RETENTION"
         --storage.tsdb.retention.size="$$PROMETHEUS_RETENTION_SIZE"
-        --web.enable-lifecycle
+    # Auditoría 22-11-2026 (01 B5): sin `--web.enable-lifecycle`. Con él, cualquier
+    # proceso del equipo podía parar o recargar Prometheus (POST /-/quit, /-/reload)
+    # sin credenciales. Para recargar la configuración: `docker compose restart prometheus`.
     environment:
       METRICS_AUTH_TOKEN: ${METRICS_AUTH_TOKEN:-}
       # Retención (GRC): las series son agregadas y sin datos personales, pero no
@@ -516,6 +529,7 @@ services:
     restart: unless-stopped
     environment:
       REDIS_ADDR: redis://redis:6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
     depends_on:
       redis: {condition: service_healthy}
 

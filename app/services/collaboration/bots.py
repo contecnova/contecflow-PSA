@@ -25,6 +25,8 @@ from typing import Callable, NamedTuple, Optional
 
 from sqlalchemy.orm import Session
 
+from app.services.textos_de_salida import texto as _texto
+
 from app.models.collaboration import (
     CollaborationBotApp, CollaborationBotExecution,
     CollaborationCall, CollaborationConversation, CollaborationMessage,
@@ -134,7 +136,7 @@ def handle_slash(db: Session, user, *, conversation_id: str, command: str, args:
     success, output = True, {}
     try:
         if not handler:
-            output = {"error": f"Comando desconocido: /{command}"}
+            output = {"error": _t(db, user, "comando_desconocido", comando=command)}
             success = False
         else:
             output = handler(db, user, conversation_id, args) or {}
@@ -155,17 +157,14 @@ def _slash_ask(db: Session, user, conversation_id: str, args: str) -> dict:
     org = _org(user)
     bot = _bot_for(db, org, "nexus")
     if not bot:
-        return {"error": "Bot Nexus no disponible"}
+        return {"error": _t(db, user, "no_disponible", bot="Nexus")}
     answer, source = _nexus_answer(db, user, args)
     found = bool(answer)
     if not found:
         # Escalate to ticket — use Service Desk integration
         ticket_info = _escalate_to_ticket(db, user, conversation_id, args)
-        body = (
-            f"No he encontrado información en la base de conocimiento.\n"
-            f"He abierto un ticket de soporte: **{ticket_info.get('number', '?')}**.\n"
-            f"Auto-asignado a: **{ticket_info.get('assignee', 'soporte')}**."
-        )
+        body = _t(db, user, "ask_sin_respuesta", numero=ticket_info.get('number', '?'),
+                  asignado=ticket_info.get('assignee') or _t(db, user, "soporte"))
         meta = {"card": "escalation", "ticket": ticket_info, "source": "nexus"}
     else:
         body = f"**Respuesta:**\n{answer}\n\n_Fuente: {source}_"
@@ -188,16 +187,9 @@ def _slash_task(db: Session, user, conversation_id: str, args: str) -> dict:
     if ch:
         project_id = ch.project_id
     if not project_id:
-        # Pick the first active project of the org so the task can be created.
-        proj_q = db.query(Project)
-        if hasattr(Project, "organization_id"):
-            proj_q = proj_q.filter(Project.organization_id == org)
-        if hasattr(Project, "status"):
-            proj_q = proj_q.filter(Project.status == "active")
-        any_proj = proj_q.first()
-        if not any_proj:
-            return {"error": "No hay proyectos activos a los que asignar la tarea. Vincula este canal a un proyecto antes."}
-        project_id = any_proj.id
+        # Auditoría 22-11-2026 (A35): antes cogía «el primer proyecto activo» de la
+        # empresa y la tarea caía en un proyecto cualquiera. Sin proyecto, no se crea.
+        return {"error": _t(db, user, "canal_sin_proyecto_tareas")}
     code = f"CHAT-{_uuid.uuid4().hex[:6].upper()}"
     task = Task(
         title=title, project_id=project_id, status="todo",
@@ -211,7 +203,8 @@ def _slash_task(db: Session, user, conversation_id: str, args: str) -> dict:
     if bot:
         _post_bot_message(
             db, organization_id=org, bot=bot, conversation_id=conversation_id,
-            body=f"✅ Tarea creada: **{title}**" + (f" (proyecto vinculado: {project_id})" if project_id else ""),
+            body=(_t(db, user, "tarea_creada_en", titulo=title, proyecto=project_id) if project_id
+                  else _t(db, user, "tarea_creada", titulo=title)),
             metadata={"card": "task", "task_id": task.id, "project_id": project_id},
         )
     return {"task_id": task.id, "project_id": project_id}
@@ -224,7 +217,8 @@ def _slash_ticket(db: Session, user, conversation_id: str, args: str) -> dict:
     if bot:
         _post_bot_message(
             db, organization_id=org, bot=bot, conversation_id=conversation_id,
-            body=f"🎫 Ticket abierto: **{info.get('number', '?')}** asignado a {info.get('assignee', 'soporte')}.",
+            body=_t(db, user, "ticket_abierto", numero=info.get('number', '?'),
+                    asignado=info.get('assignee') or _t(db, user, "soporte")),
             metadata={"card": "ticket", "ticket": info},
         )
     return info
@@ -232,7 +226,7 @@ def _slash_ticket(db: Session, user, conversation_id: str, args: str) -> dict:
 
 def _slash_imputar(db: Session, user, conversation_id: str, args: str) -> dict:
     """Formato: /imputar 30m sobre tarea T-123  ó  /imputar 1h proyecto X"""
-    from app.models.imputation import Imputation
+    from app.models.project import Project
     from app.models.collaboration import CollaborationChannel
     org = _org(user)
     # naive parse
@@ -244,23 +238,31 @@ def _slash_imputar(db: Session, user, conversation_id: str, args: str) -> dict:
     if m_m:
         duration += float(m_m.group(1)) / 60
     if duration <= 0:
-        return {"error": "indica duración (ej: 30m o 1h30m)"}
+        return {"error": _t(db, user, "indica_duracion")}
     project_id = None
     ch = db.query(CollaborationChannel).filter(CollaborationChannel.conversation_id == conversation_id).first()
     if ch:
         project_id = ch.project_id
     if not project_id:
-        return {"error": "El canal no está vinculado a un proyecto"}
-    imp = Imputation(user_id=user.id, project_id=project_id, hours=duration, description=args, date=utcnow().date())
-    if hasattr(imp, "organization_id"):
-        imp.organization_id = org
-    db.add(imp)
-    db.commit()
+        return {"error": _t(db, user, "canal_sin_proyecto")}
+    # Auditoría 22-11-2026 (A35): antes `Imputation(...)` a mano, sin coste (0 €),
+    # sin topes ni cierre de periodo, y con la fecha en UTC. Ahora, la puerta común.
+    from app.core.errores import ErrorDeDominio
+    from app.core.timeutil import today_for_user
+    from app.services.imputation_service.alta import crear_imputacion_validada
+    proyecto = db.query(Project).filter(Project.id == project_id).first()
+    try:
+        imp = crear_imputacion_validada(user, db, project_id=project_id, fecha=today_for_user(user),
+                                        horas=duration, description=args,
+                                        is_billable=bool(getattr(proyecto, "is_billable", False)))
+    except ErrorDeDominio as exc:
+        db.rollback()
+        return {"error": str(exc.detail), "code": getattr(exc, "code", None)}
     bot = _bot_for(db, org, "nexus")
     if bot:
         _post_bot_message(
             db, organization_id=org, bot=bot, conversation_id=conversation_id,
-            body=f"⏱️ {duration:.2f}h imputadas al proyecto.",
+            body=_t(db, user, "horas_imputadas", horas=f"{duration:.2f}"),
             metadata={"card": "imputation", "imputation_id": imp.id, "hours": duration, "project_id": project_id},
         )
     return {"imputation_id": imp.id, "hours": duration}
@@ -270,10 +272,10 @@ def _slash_risk(db: Session, user, conversation_id: str, args: str) -> dict:
     org = _org(user)
     bot = _bot_for(db, org, "watcher")
     if not bot:
-        return {"error": "Bot Watcher no disponible"}
+        return {"error": _t(db, user, "no_disponible", bot="Watcher")}
     _post_bot_message(
         db, organization_id=org, bot=bot, conversation_id=conversation_id,
-        body=f"⚠️ Riesgo registrado: {args}",
+        body=_t(db, user, "riesgo_registrado", texto=args),
         metadata={"card": "risk", "title": args},
     )
     return {"ok": True}
@@ -283,10 +285,10 @@ def _slash_decision(db: Session, user, conversation_id: str, args: str) -> dict:
     org = _org(user)
     bot = _bot_for(db, org, "compliance")
     if not bot:
-        return {"error": "Bot Compliance no disponible"}
+        return {"error": _t(db, user, "no_disponible", bot="Compliance")}
     _post_bot_message(
         db, organization_id=org, bot=bot, conversation_id=conversation_id,
-        body=f"📜 Decisión registrada (auditada):\n{args}",
+        body=_t(db, user, "decision_registrada", texto=args),
         metadata={"card": "decision", "text": args, "actor": user.id, "ts": utcnow().isoformat()},
     )
     from app.services.collaboration import audit_log
@@ -305,7 +307,7 @@ def _slash_poll(db: Session, user, conversation_id: str, args: str) -> dict:
     bot = _bot_for(db, org, "pulse")
     parts = [p.strip() for p in args.split("|") if p.strip()]
     if len(parts) < 2:
-        return {"error": "Formato: /poll Pregunta | opción A | opción B | ..."}
+        return {"error": _t(db, user, "formato_poll")}
     question, options = parts[0], parts[1:]
     if bot:
         _post_bot_message(
@@ -320,13 +322,9 @@ def _slash_standup(db: Session, user, conversation_id: str, args: str) -> dict:
     org = _org(user)
     bot = _bot_for(db, org, "pulse")
     if not bot:
-        return {"error": "Bot Pulse no disponible"}
-    questions = [
-        "¿Qué hiciste ayer?",
-        "¿Qué harás hoy?",
-        "¿Hay algún bloqueo?",
-    ]
-    body = "🌅 **Standup diario**\n" + "\n".join(f"{i+1}. {q}" for i, q in enumerate(questions))
+        return {"error": _t(db, user, "no_disponible", bot="Pulse")}
+    questions = [_t(db, user, "standup_ayer"), _t(db, user, "standup_hoy"), _t(db, user, "standup_bloqueo")]
+    body = _t(db, user, "standup_titulo") + "\n" + "\n".join(f"{i+1}. {q}" for i, q in enumerate(questions))
     _post_bot_message(
         db, organization_id=org, bot=bot, conversation_id=conversation_id, body=body,
         metadata={"card": "standup", "questions": questions},
@@ -347,7 +345,8 @@ def _slash_findfile(db: Session, user, conversation_id: str, args: str) -> dict:
     bot = _bot_for(db, org, "bridge")
     items = [{"id": a.id, "name": a.name, "conversation_id": a.conversation_id} for a in rows]
     if bot:
-        body = "🔍 Resultados:\n" + "\n".join(f"- {a['name']}" for a in items) if items else "Sin resultados."
+        body = (_t(db, user, "resultados") + "\n" + "\n".join(f"- {a['name']}" for a in items)
+                if items else _t(db, user, "sin_resultados"))
         _post_bot_message(db, organization_id=org, bot=bot, conversation_id=conversation_id, body=body,
                           metadata={"card": "findfile", "items": items, "project_id": project_id})
     return {"results": items}
@@ -359,7 +358,7 @@ def _slash_onboard(db: Session, user, conversation_id: str, args: str) -> dict:
     if bot:
         _post_bot_message(
             db, organization_id=org, bot=bot, conversation_id=conversation_id,
-            body="👋 ¡Bienvenido al equipo! Tienes 3 pasos para empezar:\n1. Únete al canal #general\n2. Configura tu presencia\n3. Conecta tu calendario",
+            body=_t(db, user, "bienvenida"),
             metadata={"card": "onboard"},
         )
     return {"ok": True}
@@ -368,24 +367,20 @@ def _slash_onboard(db: Session, user, conversation_id: str, args: str) -> dict:
 def _slash_meet(db: Session, user, conversation_id: str, args: str) -> dict:
     """Inicia llamada inmediata."""
 
-    # Pequeño helper que vivía en endpoints/collaboration/calls.py — inlined
-    # aquí para romper la dependencia services → endpoints.
-    def _room_name(call_id: str) -> str:
-        return f"contec-{call_id}"
-
     org = _org(user)
     call = CollaborationCall(
         organization_id=org, conversation_id=conversation_id, initiated_by=user.id,
         kind="video", status="active", livekit_room="placeholder", started_at=utcnow(),
     )
     db.add(call); db.flush()
-    call.livekit_room = f"contec-{call.id}"
+    from app.services.collaboration.calls import _prefijo_de_sala  # §5: un solo nombre de sala
+    call.livekit_room = _prefijo_de_sala(call.id)
     db.commit()
     bot = _bot_for(db, org, "pulse")
     if bot:
         _post_bot_message(
             db, organization_id=org, bot=bot, conversation_id=conversation_id,
-            body="📞 Llamada iniciada — únete con un click",
+            body=_t(db, user, "llamada_iniciada"),
             metadata={"card": "call", "call_id": call.id, "room": call.livekit_room},
         )
     return {"call_id": call.id}
@@ -400,12 +395,12 @@ def _slash_recap(db: Session, user, conversation_id: str, args: str) -> dict:
     ).order_by(CollaborationMessage.sent_at.desc()).limit(40).all()
     rows.reverse()
     text = "\n".join((m.body or "")[:500] for m in rows if m.body)
-    summary = _ai_summarize(text) or "Sin contenido suficiente para resumir."
+    summary = _ai_summarize(text) or _t(db, user, "sin_contenido")
     bot = _bot_for(db, org, "nexus")
     if bot:
         _post_bot_message(
             db, organization_id=org, bot=bot, conversation_id=conversation_id,
-            body=f"📝 **Resumen ({len(rows)} mensajes recientes)**\n{summary}",
+            body=_t(db, user, "resumen_mensajes", n=len(rows), resumen=summary),
             metadata={"card": "recap", "count": len(rows)},
         )
     return {"summarized": True}
@@ -418,17 +413,24 @@ def _slash_escalate(db: Session, user, conversation_id: str, args: str) -> dict:
     if bot:
         _post_bot_message(
             db, organization_id=org, bot=bot, conversation_id=conversation_id,
-            body=f"🚨 Escalado a soporte: {info.get('number', '?')}",
+            body=_t(db, user, "escalado", numero=info.get('number', '?')),
             metadata={"card": "escalation", "ticket": info},
         )
     return info
+
+
+def _t(db, user, clave: str, **params) -> str:
+    """Texto `bot.<clave>` en el idioma de quien escribe (23-11-2026: antes castellano fijo)."""
+    from app.services.texto_para_usuario import texto_para
+    return texto_para(db, getattr(user, "id", None), f"bot.{clave}", org_id=getattr(user, "organization_id", None),
+                      **params)
 
 
 class _Comando(NamedTuple):
     """Un slash command: lo que lo ejecuta y lo que se le cuenta a la gente."""
 
     handler: Callable
-    descripcion: str
+    descripcion: str  # clave de `textos_de_salida` (`bot.ayuda.<comando>`)
 
 
 # ── Los slash commands, en UNA tabla ────────────────────────────────────────
@@ -443,19 +445,19 @@ class _Comando(NamedTuple):
 # `_slash_*` del modulo, para que implementar una y olvidarse de la tabla
 # tampoco pase en silencio.
 COMANDOS: dict[str, _Comando] = {
-    "ask": _Comando(_slash_ask, "Pregunta a Nexus IA. Si no resuelve, abre ticket auto-asignado."),
-    "task": _Comando(_slash_task, "Crea tarea PSA en el proyecto del canal."),
-    "ticket": _Comando(_slash_ticket, "Abre ticket de soporte (auto-asignado)."),
-    "imputar": _Comando(_slash_imputar, "Imputa horas al proyecto del canal. Ej: /imputar 30m"),
-    "risk": _Comando(_slash_risk, "Registra un riesgo en el proyecto."),
-    "decision": _Comando(_slash_decision, "Registra decisión gobernada con auditoría."),
-    "poll": _Comando(_slash_poll, "/poll Pregunta? | A | B | C"),
-    "standup": _Comando(_slash_standup, "Lanza standup async."),
-    "findfile": _Comando(_slash_findfile, "Busca documentos del proyecto."),
-    "onboard": _Comando(_slash_onboard, "Mensaje de bienvenida con pasos."),
-    "meet": _Comando(_slash_meet, "Inicia llamada inmediata en este canal."),
-    "recap": _Comando(_slash_recap, "Resumen IA de los últimos mensajes."),
-    "escalate": _Comando(_slash_escalate, "Escala a soporte con prioridad alta."),
+    "ask": _Comando(_slash_ask, "bot.ayuda.ask"),
+    "task": _Comando(_slash_task, "bot.ayuda.task"),
+    "ticket": _Comando(_slash_ticket, "bot.ayuda.ticket"),
+    "imputar": _Comando(_slash_imputar, "bot.ayuda.imputar"),
+    "risk": _Comando(_slash_risk, "bot.ayuda.risk"),
+    "decision": _Comando(_slash_decision, "bot.ayuda.decision"),
+    "poll": _Comando(_slash_poll, "bot.ayuda.poll"),
+    "standup": _Comando(_slash_standup, "bot.ayuda.standup"),
+    "findfile": _Comando(_slash_findfile, "bot.ayuda.findfile"),
+    "onboard": _Comando(_slash_onboard, "bot.ayuda.onboard"),
+    "meet": _Comando(_slash_meet, "bot.ayuda.meet"),
+    "recap": _Comando(_slash_recap, "bot.ayuda.recap"),
+    "escalate": _Comando(_slash_escalate, "bot.ayuda.escalate"),
 }
 
 #: La tabla de despacho, derivada. Se conserva el nombre porque es el que usa
@@ -463,14 +465,14 @@ COMANDOS: dict[str, _Comando] = {
 SLASH_HANDLERS = {nombre: c.handler for nombre, c in COMANDOS.items()}
 
 
-def slash_help() -> list[dict]:
+def slash_help(idioma: Optional[str] = None) -> list[dict]:
     """El listado de ayuda, derivado de la tabla de comandos.
 
     El orden es el de la tabla, que es el que tenia el listado escrito a mano:
     los mas usados primero, no alfabetico.
     """
     return [
-        {"name": f"/{nombre}", "desc": c.descripcion}
+        {"name": f"/{nombre}", "desc": _texto(c.descripcion, idioma)}
         for nombre, c in COMANDOS.items()
     ]
 
@@ -491,28 +493,13 @@ def _nexus_answer(db: Session, user, query: str) -> tuple[Optional[str], Optiona
             return (top.summary or top.title, f"KB: {top.title}")
     except Exception:
         logger.debug("_nexus_answer: fallo best-effort ignorado", exc_info=True)
-    # ── La via de IA del bot, que NO existe ───────────────────────────────
+    # ── La vía de IA del bot: RETIRADA (auditoría 22-11-2026, fantasma 2) ──
     #
-    # Auditoria 2026-08. El comentario decia «may not exist» y era exacto, solo
-    # que en el sentido fuerte: `quick_answer` **no esta** en
-    # `ai_chat_service`, que no expone ninguna funcion publica. Comprobado
-    # ejecutando el import. Asi que esta rama nunca ha respondido nada y el bot
-    # cae siempre al resumidor ingenuo de abajo.
-    #
-    # No se implementa aqui: que modelo responde y con que contexto es decision
-    # de producto. Lo que se arregla es que el `except Exception` no distinga
-    # «no esta escrito» de «ha fallado al responder».
-    try:
-        from app.services.ai_chat_service import quick_answer  # noqa: F401
-    except ImportError:
-        logger.debug("_nexus_answer: quick_answer no implementado")
-    else:
-        try:
-            ans = quick_answer(query)
-            if ans:
-                return ans, "Nexus IA"
-        except Exception:
-            logger.warning("_nexus_answer: quick_answer ha fallado", exc_info=True)
+    # Importaba `ai_chat_service.quick_answer`, que nunca ha existido: la rama
+    # no respondía nunca y aparentaba un bot con IA. Se retira; Nexus responde
+    # con la base de conocimiento del Service Desk y, si no encuentra nada,
+    # abre ticket (ver DOCS «Colaboración → bots»). Para IA en el chat, el
+    # asistente (`/ask` → ai_chat) es la vía con gobierno y guardarraíles.
     return None, None
 
 
@@ -531,8 +518,8 @@ def _ai_summarize(text: str) -> Optional[str]:
 def _escalate_to_ticket(db: Session, user, conversation_id: str, query: str, *, force: bool = False, priority: str = "p3_medium") -> dict:
     from app.models.service_desk import Ticket, TicketStatus, TicketType, TicketPriority
     _org(user)  # authz guard: lanza 403 si el usuario no tiene organización
-    title = (query or "Solicitud desde chat").strip()[:120]
-    description = query or "Generado desde chat"
+    title = (query or _t(db, user, "solicitud_desde_chat")).strip()[:120]
+    description = query or _t(db, user, "generado_desde_chat")
     # FIX: el modelo Ticket usa ``requester_user_id`` (no ``reporter_user_id``)
     # → pasar la clave incorrecta lanzaba TypeError en runtime al crear ticket
     # desde el bot de chat. Verificado con `Ticket(reporter_user_id=...)`.
@@ -547,13 +534,30 @@ def _escalate_to_ticket(db: Session, user, conversation_id: str, query: str, *, 
     # viene vía project_id → Project.organization_id. El bot crea tickets
     # ad-hoc sin project, así que la org se deriva del requester user.
     if hasattr(ticket, "number"):
-        ticket.number = f"SD-{int(utcnow().timestamp()) % 1_000_000:06d}"
+        # Auditoría 22-11-2026 (A35): `SD-{timestamp % 1e6}` colisionaba; la
+        # numeración común de tickets (por empresa y tipo).
+        from app.services.sla_service import next_ticket_number
+        ticket.number = next_ticket_number(ticket.ticket_type.value, db, getattr(user, "organization_id", None))
     db.add(ticket)
     db.commit()
-    return {"id": ticket.id, "number": getattr(ticket, "number", None), "assignee": "soporte"}
+    return {"id": ticket.id, "number": getattr(ticket, "number", None), "assignee": None}
 
 
 # ── Post-call summary (called from queue when a call ends) ───────────────────
+def texto_de_sistema(clave: str, org_id=None, **params) -> str:
+    """Texto sin persona delante (tarea en segundo plano): en el idioma de la empresa."""
+    from app.db.session import SessionLocal
+    from app.services.formato_regional import idioma_de_salida
+    from app.services.textos_de_salida import texto
+    s = SessionLocal()
+    from app.db.contexto_de_tenant import fijar_contexto as _fijar_contexto
+    _fijar_contexto(s, org_id, "textos de sistema sin empresa")  # auditoría 22-11-2026: TENANT_SESION_SIN_CONTEXTO=cerrar
+    try:
+        return texto(clave, idioma_de_salida(s, org_id=org_id), **params)
+    finally:
+        s.close()
+
+
 def summarize_call(call_id: str, organization_id: str) -> None:
     """Generate transcript summary + actions and post into the call conversation.
 
@@ -565,12 +569,14 @@ def summarize_call(call_id: str, organization_id: str) -> None:
     from app.services.collaboration._transcription import summarize_text
     from app.services.formato_regional import idioma
     db = SessionLocal()
+    from app.db.contexto_de_tenant import fijar_contexto as _fijar_contexto
+    _fijar_contexto(db, organization_id, "resumen de llamada sin empresa")  # auditoría 22-11-2026: TENANT_SESION_SIN_CONTEXTO=cerrar
     try:
         call = db.query(CollaborationCall).filter(CollaborationCall.id == call_id).first()
         if not call:
             return
         existing = db.query(CollaborationTranscript).filter(CollaborationTranscript.call_id == call.id).first()
-        text = existing.text if existing and existing.text else f"Reunión iniciada {call.started_at}, finalizada {call.ended_at}."
+        text = existing.text if existing and existing.text else texto_de_sistema("bot.reunion_fechas", organization_id, iniciada=call.started_at, finalizada=call.ended_at)
         summary, actions = summarize_text(text, db=db, organization_id=organization_id)
         if existing:
             existing.summary = summary
@@ -592,7 +598,7 @@ def summarize_call(call_id: str, organization_id: str) -> None:
             _post_bot_message(
                 db, organization_id=organization_id, bot=bot,
                 conversation_id=call.conversation_id,
-                body=f"📋 Resumen reunión:\n{summary}",
+                body=texto_de_sistema("bot.resumen_reunion", resumen=summary, org_id=organization_id),
                 metadata={"card": "call_summary", "call_id": call.id, "actions": actions},
             )
     finally:

@@ -5,7 +5,7 @@ Contecflow v18 — Modelos adicionales para:
   3. Permisos granulares por proyecto (ya en enterprise.py — solo helpers aquí)
 """
 import uuid
-from sqlalchemy import Column, String, Boolean, Integer, Text, DateTime, ForeignKey
+from sqlalchemy import JSON, Column, String, Boolean, Integer, Text, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.db.base import Base
@@ -20,9 +20,13 @@ class WorkflowState(Base):
     __tablename__ = "workflow_states"
 
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     project_id  = Column(String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
     name        = Column(String(100), nullable=False)       # "En revisión QA"
+    # Migracion 200: texto de serie por clave de `textos_de_salida` y sus datos;
+    # se pinta al leer en el idioma de quien mira (`textos_guardados`).
+    texto_clave  = Column(String(120), nullable=True)
+    texto_params = Column(JSON, nullable=True)
     value       = Column(String(50), nullable=False)        # "qa_review"
     color       = Column(String(20), default="#7a8aaa")     # hex color
     icon        = Column(String(10), nullable=True)         # emoji
@@ -41,11 +45,15 @@ class WorkflowTransition(Base):
     __tablename__ = "workflow_transitions"
 
     id              = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     project_id      = Column(String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
     from_state_id   = Column(String(36), ForeignKey("workflow_states.id", ondelete="CASCADE"), nullable=False, index=True)
     to_state_id     = Column(String(36), ForeignKey("workflow_states.id", ondelete="CASCADE"), nullable=False, index=True)
     label           = Column(String(100), nullable=True)           # "Enviar a QA"
+    # Migracion 200: texto de serie por clave de `textos_de_salida` y sus datos;
+    # se pinta al leer en el idioma de quien mira (`textos_guardados`).
+    texto_clave  = Column(String(120), nullable=True)
+    texto_params = Column(JSON, nullable=True)
     required_role   = Column(String(50), nullable=True)            # solo este rol puede ejecutar
     requires_comment= Column(Boolean, default=False)               # obliga a añadir comentario
     is_active       = Column(Boolean, default=True, nullable=False)                # Soft delete
@@ -64,7 +72,7 @@ class ProjectCustomField(Base):
     __tablename__ = "project_custom_fields"
 
     id            = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     project_id    = Column(String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
     name          = Column(String(100), nullable=False)
     field_key     = Column(String(50), nullable=False)
@@ -81,7 +89,7 @@ class ProjectCustomFieldValue(Base):
     __tablename__ = "project_custom_field_values"
 
     id         = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     field_id   = Column(String(36), ForeignKey("project_custom_fields.id", ondelete="CASCADE"), nullable=False, index=True)
     task_id    = Column(String(36), ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False, index=True)
     value      = Column(Text, nullable=True)

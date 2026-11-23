@@ -22,7 +22,8 @@ Ahora:
     `pv_source`).
   · **EV**: presupuesto de cada tarea × su avance real (`progress_pct`;
     terminada = 100 %).
-  · **AC**: coste real (imputaciones + gastos + subcontrata), como antes.
+  · **AC**: coste real del cálculo único (`margen_de_proyectos`, el de
+    rentabilidad): imputaciones activas convertidas + gastos + subcontrata + ALM.
 
 `indicadores()` son las fórmulas (CPI, SPI, CV, SV, EAC, ETC, VAC, TCPI) y es lo
 único que usan las otras dos pantallas. La curva S histórica sale de
@@ -91,22 +92,19 @@ class _Partida:
     avance: float          # 0-1
 
 
-def coste_real(db: Session, project_id: str) -> float:
-    """AC: personal (imputaciones) + gastos + subcontrata + licencias y equipos (ALM), en la moneda de la empresa."""
-    from app.models.imputation import Imputation
-    from app.services.costes_de_proyecto import costes_externos
+def coste_real(db: Session, project_id: str, proyecto: Optional[Project] = None) -> float:
+    """AC: personal + gastos + subcontrata + licencias y equipos (ALM), en la moneda de la empresa.
 
-    personal = db.query(func.sum(Imputation.cost_amount)).filter(
-        Imputation.project_id == project_id, Imputation.cost_amount.isnot(None)).scalar() or 0.0
-    if personal == 0:
-        filas = db.query(Imputation.hours, Imputation.hourly_rate_snapshot).filter(
-            Imputation.project_id == project_id).all()
-        personal = sum(h * r for h, r in filas if r) or 0.0
-    # 18-11-2026: en la moneda de la empresa del proyecto, no la global del entorno.
-    from app.models.project import Project
-    from app.services.settings_service.por_empresa import moneda_de_empresa
-    externos = costes_externos(db, project_id, moneda_de_empresa(db, registro=db.get(Project, project_id)))
-    return personal + externos["gastos"] + externos["subcontrata"] + externos.get("alm", 0.0)  # + ALM (fase 3)
+    Auditoría 22-11-2026 (M6, §7.2): el cálculo único (`margen_de_proyectos`):
+    solo imputaciones activas, cada una convertida a la moneda de la empresa
+    con el tipo de su fecha (y horas × tarifa congelada si no tiene coste).
+    Antes sumaba borradas y monedas mezcladas, y no coincidía con rentabilidad.
+    """
+    from app.services.margen_de_proyectos import margen_en_bloque
+    proyecto = proyecto or db.get(Project, project_id)
+    if proyecto is None:
+        return 0.0
+    return float(margen_en_bloque(db, [proyecto])[proyecto.id]["total_cost"])
 
 
 #: Avance que se supone a una tarea **sin** `progress_pct` declarado, por su
@@ -209,7 +207,7 @@ def evm_de_proyecto(db: Session, proyecto: Project, *, dia: Optional[date] = Non
     cal = calendario_de_empresa(db, proyecto.organization_id)
     pv = _pv_a(partidas, dia, cal)
     ev = sum(p.presupuesto * p.avance for p in partidas)
-    ac = coste_real(db, proyecto.id) if ac is None else ac
+    ac = coste_real(db, proyecto.id, proyecto) if ac is None else ac
     pct_complete = (ev / bac * 100) if bac else (
         sum(p.avance for p in partidas) / len(partidas) * 100 if partidas else 0.0)
     pct_planned = (pv / bac * 100) if (bac and pv is not None) else None

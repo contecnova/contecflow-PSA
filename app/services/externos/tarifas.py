@@ -38,7 +38,7 @@ def asignacion_en_fecha(db: Session, user_id: str, project_id: Optional[str], di
                     SubcontractorAssignment.project_id == project_id,
                     or_(SubcontractorAssignment.start_date.is_(None), SubcontractorAssignment.start_date <= dia),
                     or_(SubcontractorAssignment.end_date.is_(None), SubcontractorAssignment.end_date >= dia))
-            .order_by(SubcontractorAssignment.start_date.desc())
+            .order_by(SubcontractorAssignment.start_date.desc().nulls_last())   # M18: en PostgreSQL NULL iba primero
             .first())
 
 

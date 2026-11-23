@@ -17,7 +17,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_current_user, require_any_manager
+from app.core.deps import get_current_user, requiere_capacidad
 from app.core.ratelimit import limiter
 from app.core.responses import APIListResponse, APIResponse
 from app.db.session import get_db
@@ -125,7 +125,7 @@ def create_plan(
     body: CreateRolloutPlanIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_any_manager),  # auditoria 2026-09: dominio: gestion del cambio
+    _rol: User = Depends(requiere_capacidad("sd.gestionar")),  # auditoria 2026-09: dominio: gestion del cambio
 ):
     org_id = getattr(current_user, "organization_id", None)
     phases = [p.model_dump() for p in body.rollout_phases] if body.rollout_phases else list(body.phases or [])
@@ -175,7 +175,7 @@ def approve_rollout_plan(
     cr_id: Optional[str] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_any_manager),  # auditoria 2026-09: dominio: gestion del cambio
+    _rol: User = Depends(requiere_capacidad("sd.gestionar")),  # auditoria 2026-09: dominio: gestion del cambio
 ):
     org_id = getattr(current_user, "organization_id", None)
     try:
@@ -195,7 +195,7 @@ def advance_rollout_phase(
     cr_id: Optional[str] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_any_manager),  # auditoria 2026-09: dominio: gestion del cambio
+    _rol: User = Depends(requiere_capacidad("sd.gestionar")),  # auditoria 2026-09: dominio: gestion del cambio
 ):
     org_id = getattr(current_user, "organization_id", None)
     try:
@@ -214,7 +214,7 @@ def simulate_rollout_impact(
     plan_id: Optional[str] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_any_manager),  # auditoria 2026-09: dominio: gestion del cambio
+    _rol: User = Depends(requiere_capacidad("sd.gestionar")),  # auditoria 2026-09: dominio: gestion del cambio
 ):
     org_id = getattr(current_user, "organization_id", None)
     if body is None and plan_id:

@@ -36,12 +36,34 @@ logger = logging.getLogger(__name__)
 
 
 def _cfg(db: Session) -> Optional[dict]:
-    try:
-        cfg = config.actual(db)
-    except Exception:   # tabla aún sin crear en una base a medio migrar
-        logger.warning("sin configuración de horas extra", exc_info=True)
-        return None
+    """La configuración activa o None si la empresa la desactivó.
+
+    M22 (auditoría 22-11-2026): antes un error al leerla devolvía None, es decir
+    «módulo desactivado», y una empresa con «bloquear» dejaba pasar todo
+    (fail-open). Ahora el error se propaga: la imputación falla y se ve.
+    """
+    cfg = config.actual(db)
     return cfg if cfg["activo"] else None
+
+
+def _tope_legal_anual(db: Session, user_id: str) -> float:
+    """A49: tope legal de horas extra al año (`OVERTIME_LEGAL_ANNUAL_CAP_HOURS`,
+    por empresa; 80 por defecto, art. 35.2 del Estatuto de los Trabajadores;
+    0 = sin tope, para empresas de otros países con otra regla)."""
+    from app.models.user import User
+    from app.services.settings_service import get_runtime_float
+    org = db.query(User.organization_id).filter(User.id == user_id).scalar()
+    return float(get_runtime_float(db, "OVERTIME_LEGAL_ANNUAL_CAP_HOURS", org) or 0.0)
+
+
+def horas_extra_del_anio(db: Session, user_id: str, fecha: date) -> float:
+    """Horas extra aprobadas o pendientes de la persona en el año natural de `fecha`."""
+    filas = db.query(PeticionDeHorasExtra).filter(
+        PeticionDeHorasExtra.user_id == user_id,
+        PeticionDeHorasExtra.estado.in_(("aprobada", "pendiente")),
+        PeticionDeHorasExtra.fecha >= date(fecha.year, 1, 1),
+        PeticionDeHorasExtra.fecha <= date(fecha.year, 12, 31)).all()
+    return sum(calculo.horas_vivas(p) for p in filas)
 
 
 def capacidad_semanal_extra(db: Session, user_id: str, fecha: date) -> float:
@@ -82,6 +104,18 @@ def antes_de_imputar(db: Session, user_id: str, fecha: date, horas_nuevas: float
     c = comprobar(db, user_id, fecha, horas_nuevas, excluir_imputacion)
     if c["accion"] == "bloquear":
         raise error_con_codigo(422, "horas_extra_sin_autorizar", fecha=str(fecha), sin_autorizar=f"{c['sin_autorizar']:g}")
+    # A49 (auditoría 22-11-2026): el tope LEGAL anual se aplica siempre que el
+    # módulo esté activo, sea cual sea el control (avisar o regularizar dejaban
+    # la capacidad semanal en infinito y nada paraba el exceso). Decisión de
+    # estándar: un límite legal no es un aviso; la empresa puede cambiar la
+    # cifra o ponerla a 0 si su legislación es otra.
+    if c.get("activo") and (c.get("sin_autorizar") or 0) > 0:
+        tope = _tope_legal_anual(db, user_id)
+        if tope > 0:
+            pendiente_hoy = _pendiente_posterior(db, user_id, fecha)
+            ya = horas_extra_del_anio(db, user_id, fecha) - (calculo.horas_vivas(pendiente_hoy) if pendiente_hoy else 0.0)
+            if ya + float(c["sin_autorizar"]) > tope + 1e-9:
+                raise error_con_codigo(422, "horas_extra_tope_legal", tope=f"{tope:g}", acumuladas=f"{ya:g}")
 
 
 def despues_de_imputar(db: Session, user_id: str, fecha: date, actor_id: Optional[str]) -> Optional[dict]:
@@ -138,13 +172,31 @@ def _avisar_sin_autorizar(db: Session, user_id: str, fecha: date, actor_id: Opti
     e = calculo.estado_del_dia(db, user_id, fecha, cfg["tolerancia_minutos"])
     if e["sin_autorizar"] <= 0:
         return {"accion": "nada"}
+    # M27 (auditoría 22-11-2026): un aviso por persona, día y cifra. Antes cada
+    # edición del día volvía a registrar y a notificar lo mismo. Además el id
+    # del recurso era «usuario:fecha» (47 caracteres en una columna de 36).
+    import json as _json
+    from app.models.enterprise import AuditLog
+    ultimo = db.query(AuditLog.new_values).filter(
+        AuditLog.action == "OVERTIME_UNAUTHORIZED", AuditLog.resource == "overtime_day",
+        AuditLog.resource_id == user_id, AuditLog.resource_name == str(fecha),
+    ).order_by(AuditLog.created_at.desc()).first()
+    if ultimo is not None:
+        try:
+            previo = float((_json.loads(ultimo[0] or "{}") or {}).get("sin_autorizar") or 0)
+        except (TypeError, ValueError):
+            previo = None
+        if previo is not None and abs(previo - float(e["sin_autorizar"])) < 1e-6:
+            return {"accion": "ya_avisada", **e}
     actor = db.query(User).filter(User.id == actor_id).first() if actor_id else None
-    audit_log(db, actor, "OVERTIME_UNAUTHORIZED", "overtime_day", f"{user_id}:{fecha}", str(fecha),
+    audit_log(db, actor, "OVERTIME_UNAUTHORIZED", "overtime_day", user_id, str(fecha),
               new_values={"user_id": user_id, "fecha": str(fecha), **e})
-    cuerpo = f"El {fecha} hay {e['sin_autorizar']:g} h imputadas fuera de horario sin autorización"
+    from app.services.texto_para_usuario import texto_para
     for uid in {user_id, responsable_de_nivel(db, user_id, 1)} - {None}:
         try:
-            notify_user(db, uid, "system", "Horas fuera de horario sin autorizar", cuerpo, resource="overtime",
+            cuerpo = texto_para(db, uid, "horas_extra.sin_autorizar.mensaje", fecha=fecha,
+                                horas=f"{e['sin_autorizar']:g}")
+            notify_user(db, uid, "system", texto_para(db, uid, "horas_extra.sin_autorizar.titulo"), cuerpo, resource="overtime",
                         action_url="/overtime")
         except Exception:
             logger.warning("no se pudo avisar de horas sin autorizar a %s", uid, exc_info=True)

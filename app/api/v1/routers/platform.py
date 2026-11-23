@@ -22,6 +22,7 @@ from app.api.v1.endpoints import conectores
 from app.api.v1.endpoints import lecciones
 from app.api.v1.endpoints import politicas
 from app.api.v1.endpoints import errores_del_frontend
+from app.api.v1.endpoints import seguridad_de_cuentas
 
 router = APIRouter()
 
@@ -42,6 +43,8 @@ router.include_router(governance.router,           tags=["Governance"])
 router.include_router(abac.router,                 prefix="/abac",                  tags=["ABAC"])
 router.include_router(abac_admin.router,                                        tags=["ABAC Admin"])
 router.include_router(security_observability.router, prefix="/security-observability", tags=["Security Observability"])
+# 23-11-2026: políticas de cuenta (docs/seguridad/politicas_de_cuenta.md).
+router.include_router(seguridad_de_cuentas.router, prefix="/security",          tags=["Seguridad de cuentas"])
 
 # ── Public-facing & developer surfaces ────────────────────────────────────────
 router.include_router(public_forms.router,                                          tags=["Public Forms"])

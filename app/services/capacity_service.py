@@ -51,22 +51,25 @@ def get_actual_hours_by_week(
     db: Session,
     date_from: date,
     date_to: date,
+    user_ids: Optional[List] = None,
 ):
-    """Return rows of (user_id, week_label, hours) for the given date range."""
+    """Return rows of (user_id, week, hours) for the given date range.
 
-    if is_postgres():
-        week_expr = func.date_trunc("week", Imputation.date)
-    else:
-        week_expr = func.strftime("%Y-%W", Imputation.date)
-
-    return db.query(
-        Imputation.user_id,
-        week_expr.label("week"),
-        func.sum(Imputation.hours).label("hours"),
-    ).filter(
-        Imputation.date >= date_from,
-        Imputation.date <= date_to,
-    ).group_by(Imputation.user_id, week_expr).all()
+    Baja (auditoría 22-11-2026): la semana (lunes, `date`) se calcula en Python
+    a partir del día, igual en PostgreSQL y SQLite (antes `date_trunc` en uno y
+    `strftime('%Y-%W')` en el otro: semanas distintas en cada base); solo
+    imputaciones activas y, si se pasan, de esas personas (la empresa).
+    """
+    from collections import defaultdict
+    from types import SimpleNamespace
+    q = db.query(Imputation.user_id, Imputation.date, func.sum(Imputation.hours)).filter(
+        Imputation.date >= date_from, Imputation.date <= date_to, Imputation.is_active.is_(True))
+    if user_ids is not None:
+        q = q.filter(Imputation.user_id.in_(list(user_ids) or [""]))
+    por_semana: dict = defaultdict(float)
+    for uid, dia, horas in q.group_by(Imputation.user_id, Imputation.date).all():
+        por_semana[(uid, dia - timedelta(days=dia.weekday()))] += float(horas or 0)
+    return [SimpleNamespace(user_id=uid, week=lunes, hours=h) for (uid, lunes), h in por_semana.items()]
 
 
 def list_capacity_plans(
@@ -140,18 +143,8 @@ def delete_capacity_plan(db: Session, plan: CapacityPlan) -> None:
     db.commit()
 
 
-def get_plans_for_leveling(
-    db: Session,
-    week_from: date,
-    week_to: date,
-    user_ids: List,
-) -> List[CapacityPlan]:
-    return db.query(CapacityPlan).filter(
-        CapacityPlan.week_start >= week_from,
-        CapacityPlan.week_start <= week_to,
-        CapacityPlan.user_id.in_(user_ids),
-        CapacityPlan.is_active == True,
-    ).all()
+# Baja (auditoría 22-11-2026, §5): `get_plans_for_leveling` (copia literal de
+# `get_plans_for_period`, sin uso) retirada.
 
 
 # ── Date helpers ──────────────────────────────────────────────────────────────

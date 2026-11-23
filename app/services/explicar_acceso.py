@@ -58,6 +58,7 @@ def _guardas(dependant) -> dict:
     from app.core import deps
     conocidas = (deps.get_current_user, deps.get_current_active_user)
     roles: set[str] = set()
+    capacidades: set[str] = set()
     propias: set[str] = set()
     salida = {"superadmin": False, "user": False, "client": False}
     pendientes = [dependant]
@@ -67,6 +68,14 @@ def _guardas(dependant) -> dict:
         hijas = getattr(d, "dependencies", []) or []
         if isinstance(llamada, deps.RequireRole):
             roles |= {getattr(r, "value", r) for r in llamada.roles}
+        elif isinstance(llamada, deps.RequiereCapacidad):
+            # 23-11-2026: la guarda por capacidad (`requiere_capacidad`) se evalúa
+            # con la misma función que la API (`capacidades.tiene`); antes caía
+            # en «guarda propia» y el veredicto quedaba en «no se sabe».
+            capacidades.add(llamada.capacidad)
+            salida["user"] = True
+            pendientes.extend(h for h in hijas if getattr(h, "call", None) not in conocidas)
+            continue
         elif llamada is deps.require_superadmin:
             salida["superadmin"] = True
         elif llamada in conocidas:
@@ -79,13 +88,17 @@ def _guardas(dependant) -> dict:
             propias.add(getattr(llamada, "__name__", type(llamada).__name__))
         pendientes.extend(hijas)
     salida["roles"] = sorted(roles)
+    salida["capacidades"] = sorted(capacidades)
     salida["custom"] = sorted(propias)
     return salida
 
 
 #: Señales de que el cuerpo del endpoint decide por su cuenta (rol o 403 propio).
+#: 23-11-2026: también `error(403, ...)`/`error_http(403, ...)` (errores con código)
+#: y `.role != X` (el `\b` tras `!=` nunca casaba con el espacio de detrás).
 _EN_EL_CUERPO = re.compile(r"\bverify_\w+\(|\brequire_\w+\(|HTTPException\(\s*(?:status_code\s*=\s*)?403"
-                           r"|status\.HTTP_403_FORBIDDEN|\.role\s*(?:!=|==|not in|in)\b")
+                           r"|\berror(?:_http)?\(\s*(?:status_code\s*=\s*)?(?:403|status\.HTTP_403_FORBIDDEN)\b"
+                           r"|status\.HTTP_403_FORBIDDEN|\.role\s*(?:!=|==|\bnot in\b|\bin\b)")
 
 
 def _comprueba_en_el_cuerpo(endpoint) -> bool:
@@ -208,16 +221,28 @@ def explicar(db, app, usuario, metodo: str, camino: str) -> dict:
         capas.append(_capa("modules", NO_APLICA, "no_user_guard"))
         capas.append(_capa("project", NO_APLICA, "no_user_guard"))
 
-    # 6. Rol que exige la firma del endpoint.
+    # 6. Rol (o capacidad) que exige la firma del endpoint.
+    faltan = []
+    if guardas["capacidades"] and not usuario.is_superadmin:
+        from app.core import capacidades as _capacidades
+        faltan = [c for c in guardas["capacidades"] if not _capacidades.tiene(db, usuario, c)]
     if guardas["superadmin"]:
         capas.append(_capa("role", PERMITE if usuario.is_superadmin else DENIEGA, "requires_superadmin", role=rol))
     elif guardas["roles"] and not (usuario.is_superadmin or rol in guardas["roles"]):
         capas.append(_capa("role", DENIEGA, "requires_roles", required=guardas["roles"], role=rol))
+    elif faltan:
+        from app.core.capacidades import CAPACIDADES
+        capas.append(_capa("role", DENIEGA, "requires_capability", capabilities=faltan, role=rol,
+                           required=sorted({r for c in faltan for r in CAPACIDADES[c].roles})))
     elif _comprueba_en_el_cuerpo(ruta.endpoint):
         # La firma deja pasar (o no pide rol), pero el cuerpo decide por su cuenta.
         capas.append(_capa("role", NO_SE_SABE, "in_body_check", role=rol, required=guardas["roles"] or None))
-    elif guardas["roles"]:
+    elif guardas["roles"] and not guardas["custom"]:
+        # Con una guarda propia además del rol (p. ej. `editor_de_contenido`), el
+        # rol deja pasar pero decide la propia: «no se sabe» (abajo), no «permite».
         capas.append(_capa("role", PERMITE, "requires_roles", required=guardas["roles"], role=rol))
+    elif guardas["capacidades"] and not guardas["custom"]:
+        capas.append(_capa("role", PERMITE, "requires_capability", capabilities=guardas["capacidades"], role=rol))
     elif guardas["custom"]:
         capas.append(_capa("role", NO_SE_SABE, "custom_guard", guards=guardas["custom"], role=rol))
     elif guardas["user"]:

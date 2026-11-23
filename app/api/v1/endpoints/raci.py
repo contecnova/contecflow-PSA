@@ -21,7 +21,7 @@ from app.schemas.raci import RACIBatchIn, RetroNotesIn, ChangelogEntryIn, Change
 from app.core.abac_enforce import enforce_abac
 from app.core.responses import APIResponse
 from app.db.session import get_db
-from app.core.deps import get_current_user, require_any_manager
+from app.core.deps import get_current_user, requiere_capacidad
 from app.models.user import User
 import app.services.raci_service as _svc
 from app.core.codigos_de_error import desde_valor
@@ -70,7 +70,7 @@ def upsert_raci(
     project_id: str,
     payload: RACIBatchIn,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("proyectos.responsables")),
     response: Response = None,
 ):
     try:
@@ -85,7 +85,7 @@ def delete_raci_entry(
     project_id: str,
     entry_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("proyectos.responsables")),
     response: Response = None,
 ):
     enforce_abac(db, current_user, "raci_entry", entry_id, action="delete")
@@ -130,7 +130,7 @@ def save_sprint_retrospective(
     payload: RetroNotesIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_any_manager),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
+    _rol: User = Depends(requiere_capacidad("proyectos.responsables")),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
     try:
         return APIResponse.ok(data=_svc.save_sprint_retrospective(project_id, sprint_id, payload, current_user.id, db))
@@ -148,7 +148,7 @@ def get_burnout_risk(
     department: Optional[str] = Query(None),
     min_risk_level: Optional[str] = Query(None, description="green|yellow|orange|red"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("proyectos.responsables")),
 ):
     return APIResponse.ok(data=_svc.get_burnout_risk(department, min_risk_level, db))
 
@@ -159,7 +159,7 @@ def get_burnout_risk(
 def compute_and_save_burnout_snapshots(
     request: Request,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("proyectos.responsables")),
 ):
     return APIResponse.ok(data=_svc.compute_and_save_burnout_snapshots(db))
 
@@ -190,7 +190,7 @@ def create_changelog_entry(
     project_id: str,
     payload: ChangelogEntryIn,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("proyectos.responsables")),
 ):
     try:
         return APIResponse.ok(data=_svc.create_changelog_entry(project_id, payload, current_user.id, db))
@@ -206,7 +206,7 @@ def generate_changelog(
     weeks: int = Body(default=2, embed=True, ge=1, le=52),
     version_tag: Optional[str] = Body(default=None, embed=True),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("proyectos.responsables")),
 ):
     try:
         return APIResponse.ok(data=_svc.generate_changelog(project_id, weeks, version_tag, current_user.id, db))
@@ -222,7 +222,7 @@ def update_changelog_entry(
     entry_id: str,
     payload: ChangelogEntryPatch,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("proyectos.responsables")),
 ):
     try:
         return APIResponse.ok(data=_svc.update_changelog_entry(project_id, entry_id, payload, db))
@@ -237,7 +237,7 @@ def delete_changelog_entry(
     project_id: str,
     entry_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("proyectos.responsables")),
 ):
     enforce_abac(db, current_user, "project_changelog_entry", entry_id, action="delete")
     try:
@@ -273,7 +273,7 @@ def create_uat_case(
     payload: UATCaseIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_any_manager),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
+    _rol: User = Depends(requiere_capacidad("proyectos.responsables")),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
     return APIResponse.ok(data=_svc.create_uat_case(project_id, payload, db))
 
@@ -287,7 +287,7 @@ def update_uat_case(
     payload: UATCaseIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_any_manager),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
+    _rol: User = Depends(requiere_capacidad("proyectos.responsables")),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
     try:
         return APIResponse.ok(data=_svc.update_uat_case(project_id, case_id, payload, db))
@@ -302,7 +302,7 @@ def delete_uat_case(
     project_id: str,
     case_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("proyectos.responsables")),
 ):
     enforce_abac(db, current_user, "uat_case", case_id, action="delete")
     try:

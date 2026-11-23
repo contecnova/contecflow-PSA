@@ -144,10 +144,15 @@ def calculate_blast_radius(
     nodes_map = {n["id"]: n for n in graph["nodes"]}
 
     # BFS from ci_id following dependency edges (what depends ON this CI)
+    # Auditoria 2026-11-22 (A-SD20): iba al reves (de origen a destino). En
+    # `A depends_on B` el que depende es el ORIGEN: si cae B, cae A. Se recorre
+    # de destino a origen y con los mismos tipos que el analisis de impacto de
+    # `cmdb_relation_service.get_ci_impact_payload`, para que los dos digan lo mismo.
+    tipos_de_impacto = {"depends_on", "hosts", "part_of"}
     adj: dict[str, list[str]] = {}
     for e in edges:
-        # If target depends on source, then if source fails, target is impacted
-        adj.setdefault(e["source"], []).append(e["target"])
+        if e.get("type") in tipos_de_impacto:
+            adj.setdefault(e["target"], []).append(e["source"])
 
     visited: set[str] = set()
     queue = [(ci_id, 0)]

@@ -7,7 +7,7 @@
  */
 import { useState, useMemo, useCallback } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
-import { BarChartHorizontal, Columns3, LayoutGrid, List, Search, Table2 } from 'lucide-react'
+import { BarChartHorizontal, Columns3, LayoutGrid, List, Table2 } from 'lucide-react'
 import './TableControls.css'
 import { useTextoUi } from './useTextoUi'
 
@@ -196,7 +196,7 @@ export interface FilterSelectProps {
 export function FilterSelect({ value, onChange, options, placeholder, style = {} }: FilterSelectProps) {
   const active = Boolean(value)
   return (
-    <select value={value} onChange={(e) => onChange(e.target.value)}
+    <select value={value} onChange={(e) => onChange(e.target.value)} aria-label={placeholder}
       className={`table-controls-e8 ${active ? 'table-controls-m9' : 'table-controls-m10'}`} style={{ ...style, '--table-controls-border': `1px solid ${active ? 'var(--accent)' : 'var(--surface-4)'}` } as CSSProperties}>
       <option value="">{placeholder}</option>
       {options.map((o) => {
@@ -209,28 +209,6 @@ export function FilterSelect({ value, onChange, options, placeholder, style = {}
         )
       })}
     </select>
-  )
-}
-
-export interface SearchInputProps {
-  value: string
-  onChange: (value: string) => void
-  placeholder?: string
-  style?: CSSProperties
-}
-
-// ── SearchInput ───────────────────────────────────────────────────────────────
-export function SearchInput({ value, onChange, placeholder: placeholderProp, style = {} }: SearchInputProps) {
-  const t = useTextoUi()
-  const placeholder = placeholderProp ?? t('uikit.buscar')
-  return (
-    <div className="table-controls-e11" style={style}>
-      <span className="uitablcont-box-3" aria-hidden><Search size={14} /></span>
-      <input value={value} onChange={(e) => onChange(e.target.value)}
-        aria-label={placeholder}
-        placeholder={placeholder}
-        className="uitablcont-box-4" />
-    </div>
   )
 }
 

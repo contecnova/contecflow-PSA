@@ -169,6 +169,34 @@ class _Empresa:
 
 
 def _empresa(db: Session, org: Optional[str]) -> _Empresa:
+    """Lo de la empresa que necesita el horario, UNA vez por sesión y empresa.
+
+    M25 (auditoría 22-11-2026): las reglas de horas extra, la bandeja y la
+    medición del día llamaban aquí por cada persona y día y recargaban seis
+    tablas cada vez. Ahora se guarda en `db.info` (vive lo que la sesión: una
+    petición o una pasada del worker) y se descarta al confirmar o deshacer.
+    """
+    memo = db.info.setdefault("_horario_empresa", {})
+    if org not in memo:
+        memo[org] = _cargar_empresa(db, org)
+        _limpiar_al_confirmar(db)
+    return memo[org]
+
+
+def _limpiar_al_confirmar(db: Session) -> None:
+    from sqlalchemy import event
+    if db.info.get("_horario_empresa_escucha"):
+        return
+    db.info["_horario_empresa_escucha"] = True
+
+    def _limpiar(sesion, *_a):
+        sesion.info.pop("_horario_empresa", None)
+
+    event.listen(db, "after_commit", _limpiar)
+    event.listen(db, "after_rollback", _limpiar)
+
+
+def _cargar_empresa(db: Session, org: Optional[str]) -> _Empresa:
     from app.models.advanced_config import Office
     from app.models.billing_reports import ApprovalGroup
     from app.models.horario import AsignacionDeJornada, JornadaLaboral
@@ -184,16 +212,24 @@ def _empresa(db: Session, org: Optional[str]) -> _Empresa:
         inicio = tr.minutos(get_runtime_str(db, "DEFAULT_WORKDAY_START", org) or "09:00")
     except (ValueError, TypeError):
         inicio = 9 * 60
-    jornadas = {j.id: j for j in db.query(JornadaLaboral).filter(JornadaLaboral.activo.is_(True)).all()}
-    asignaciones = [a for a in db.query(AsignacionDeJornada).all() if a.jornada_id in jornadas]
+    # Auditoría 22-11-2026 (A30): de la empresa `org` (antes, bajo
+    # `sin_filtro_de_tenant`, se mezclaban las jornadas de todas y entraban en un
+    # informe firmado).
+    def _de_la_empresa(q, modelo):
+        return q.filter(modelo.organization_id == org) if org and hasattr(modelo, "organization_id") else q
+
+    jornadas = {j.id: j for j in _de_la_empresa(db.query(JornadaLaboral), JornadaLaboral)
+                .filter(JornadaLaboral.activo.is_(True)).all()}
+    asignaciones = [a for a in _de_la_empresa(db.query(AsignacionDeJornada), AsignacionDeJornada).all()
+                    if a.jornada_id in jornadas]
     grupos: dict = defaultdict(list)
-    for g in db.query(ApprovalGroup).all():
+    for g in _de_la_empresa(db.query(ApprovalGroup), ApprovalGroup).all():
         for uid in _json(getattr(g, "member_ids", None), []) or []:
             grupos[uid].append(g.id)
     return _Empresa(org=org, dias_laborables=laborables, horas_por_dia=horas, inicio=inicio,
                     turnos={t.id: t for t in turnos_srv.turnos(db, incluir_inactivos=True)},
                     jornadas=jornadas, asignaciones=asignaciones,
-                    oficinas={o.id: o for o in db.query(Office).all()}, grupos=dict(grupos))
+                    oficinas={o.id: o for o in _de_la_empresa(db.query(Office), Office).all()}, grupos=dict(grupos))
 
 
 def _vigente(a, d: date) -> bool:
@@ -363,13 +399,16 @@ def tramos_de_ausencia(a, dias_persona: dict) -> dict[date, tuple[Tramo, ...]]:
         return salida
     if (a.modo == "horas" or (getattr(a, "unit", None) == "horas" and not a.half_day_start and not a.half_day_end)) \
             and a.hours:
-        con_horario = [d for d in rango if dias_persona[d].tramos]
+        # M29 (auditoría 22-11-2026): las horas se reparten solo entre los días que
+        # se trabajan (no festivos ni fuera de contrato); antes también entre festivos.
+        con_horario = [d for d in rango if dias_persona[d].tramos
+                       and not dias_persona[d].es_festivo_no_trabajado and not dias_persona[d].fuera_de_contrato]
         if not con_horario:
             return {d: () for d in rango}
         por_dia = float(a.hours) / len(con_horario)
         for d in rango:
             t = dias_persona[d].tramos
-            salida[d] = tr.restar(t, tr.recortar_horas(t, por_dia)) if t else ()
+            salida[d] = tr.restar(t, tr.recortar_horas(t, por_dia)) if (t and d in con_horario) else ()
         return salida
     for d in rango:
         t = dias_persona[d].tramos

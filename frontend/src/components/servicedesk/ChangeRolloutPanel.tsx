@@ -27,7 +27,7 @@ import { Card, Button, Pulsable, Select, Spinner, EmptyState, StatusBadge, Input
 import type { StatusBadgeKind } from '../ui/StatusBadge'
 import { useToast } from '../../context/ToastContext'
 import { pedirTexto } from '../../context/ConfirmContext'
-import { fmtDate } from '../../utils/helpers'
+import { extractErr, fmtDate } from '../../utils/helpers'
 import { usePropuestas, type Propuestas } from '../../hooks/useOrgSettings'
 import './ChangeRolloutPanel.css'
 
@@ -44,8 +44,6 @@ interface RolloutForm {
 }
 
 type SimulateResult = SimulacionDeDespliegue
-
-type ApiError = { response?: { data?: { detail?: string } } }
 
 type T = (clave: string, params?: Record<string, unknown> | string) => string
 
@@ -166,7 +164,7 @@ export default function ChangeRolloutPanel() {
       setShowCreate(false)
       setForm({ change_request_id: '', strategy: 'canary', phases: 3, name: '' })
     },
-    onError: (e: unknown) => toast.error((e as ApiError)?.response?.data?.detail || t('changerollout.error_crear')),
+    onError: (e: unknown) => toast.error(extractErr(e, t('changerollout.error_crear'))),
   })
 
   const approveMutation = useMutation({
@@ -175,7 +173,7 @@ export default function ChangeRolloutPanel() {
       toast.success(t('changerollout.plan_aprobado'))
       qc.invalidateQueries({ queryKey: ['change-rollout-plans'] })
     },
-    onError: (e: unknown) => toast.error((e as ApiError)?.response?.data?.detail || t('changerollout.error_aprobar')),
+    onError: (e: unknown) => toast.error(extractErr(e, t('changerollout.error_aprobar'))),
   })
 
   const advanceMutation = useMutation({
@@ -185,7 +183,7 @@ export default function ChangeRolloutPanel() {
       toast.success(data.status === 'completed' ? t('changerollout.despliegue_terminado') : t('changerollout.fase_avanzada'))
       qc.invalidateQueries({ queryKey: ['change-rollout-plans'] })
     },
-    onError: (e: unknown) => toast.error((e as ApiError)?.response?.data?.detail || t('changerollout.error_avanzar')),
+    onError: (e: unknown) => toast.error(extractErr(e, t('changerollout.error_avanzar'))),
   })
 
   const rollbackMutation = useMutation({
@@ -195,7 +193,7 @@ export default function ChangeRolloutPanel() {
       toast.success(t('changerollout.rollback_ejecutado'))
       qc.invalidateQueries({ queryKey: ['change-rollout-plans'] })
     },
-    onError: (e: unknown) => toast.error((e as ApiError)?.response?.data?.detail || t('changerollout.error_vuelta')),
+    onError: (e: unknown) => toast.error(extractErr(e, t('changerollout.error_vuelta'))),
   })
 
   const handleSimulate = async (plan: RolloutPlan) => {
@@ -203,7 +201,7 @@ export default function ChangeRolloutPanel() {
       const res = await changeRolloutApi.simulatePlan(plan.change_request_id, plan.id)
       setSimulate(res.data.simulation)
     } catch (e: unknown) {
-      toast.error((e as ApiError)?.response?.data?.detail || t('changerollout.error_simular'))
+      toast.error(extractErr(e, t('changerollout.error_simular')))
     }
   }
 
@@ -242,13 +240,7 @@ export default function ChangeRolloutPanel() {
         <div className="chropa-box-8">
           <div className="chropa-fieldlabel">{t('changerollout.nuevo_plan_titulo')}</div>
           <div className="chropa-grid-1">
-            <input aria-label={t('changerollout.id_cambio')}
-              type="text"
-              placeholder={t('changerollout.id_cambio')}
-              value={form.change_request_id}
-              onChange={e => setForm(f => ({ ...f, change_request_id: e.target.value }))}
-              className="ds-input chropa-col-full"
-            />
+            <Input aria-label={t('changerollout.id_cambio')} type="text" placeholder={t('changerollout.id_cambio')} value={form.change_request_id} onChange={e => setForm(f => ({ ...f, change_request_id: e.target.value }))} className="chropa-col-full" />
             <Input aria-label={t('changerollout.nombre_del_plan_opcional')} type="text" placeholder={t('changerollout.nombre_del_plan_opcional')} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
             <Select
               suelto
@@ -262,14 +254,7 @@ export default function ChangeRolloutPanel() {
               ))}
             </Select>
             <div className="chropa-row-2">
-              <label className="u-text2-xs" htmlFor="chropa-fases">{t('changerollout.fases')}</label>
-              <input
-                id="chropa-fases"
-                type="number" min={1} max={10}
-                value={form.phases}
-                onChange={e => setForm(f => ({ ...f, phases: Number(e.target.value) }))}
-                className="ds-input chropa-fases"
-              />
+              <Input label={t('changerollout.fases')} id="chropa-fases" type="number" min={1} max={10} value={form.phases} onChange={e => setForm(f => ({ ...f, phases: Number(e.target.value) }))} className="chropa-fases" />
               <span className="u-text2-xs">{t('changerollout.vista_previa')} {vistaPrevia}</span>
             </div>
           </div>

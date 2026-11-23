@@ -45,9 +45,12 @@ def pedir_baja(db: Session, org: Organization, motivo: str, actor) -> Organizati
     ahora = datetime.now(timezone.utc)
     org.is_active = False
     org.suspension_reason = f"Baja: {motivo.strip()}"
-    org.deletion_requested_at = ahora
-    org.deletion_purge_after = ahora + timedelta(days=_dias_de_cuarentena(db))
-    org.deletion_requested_by = getattr(actor, "id", None)
+    # M57 (auditoría 22-11-2026): pedirla otra vez no reinicia la cuarentena
+    # (antes cada repetición movía la fecha de purga hacia delante).
+    if org.deletion_requested_at is None:
+        org.deletion_requested_at = ahora
+        org.deletion_purge_after = ahora + timedelta(days=_dias_de_cuarentena(db))
+        org.deletion_requested_by = getattr(actor, "id", None)
     db.commit()
     return org
 
@@ -99,14 +102,33 @@ def _usuarios_que_se_van(db: Session, org_id: str) -> tuple[set, dict]:
     return de_ficha - set(otras), otras
 
 
+#: M57: columnas con secretos que NO salen en la copia de la empresa (claves de
+#: API, tokens, contraseñas, secretos cifrados): se exportan como «[REDACTED]».
+_PARTES_SECRETAS = ("password", "secret", "token", "api_key", "_enc", "private_key", "otp")
+
+
+def _es_secreta(columna: str) -> bool:
+    c = columna.lower()
+    return any(p in c for p in _PARTES_SECRETAS)
+
+
 def _a_json(valor):
+    """M57 (auditoría 22-11-2026): `Decimal` como texto exacto (antes `float`, que
+    perdía céntimos) y binarios en base64 (antes se perdían: `None`)."""
     if isinstance(valor, (datetime, date)):
         return valor.isoformat()
     if isinstance(valor, Decimal):
-        return float(valor)
-    if isinstance(valor, bytes):
-        return None
+        return str(valor)
+    if isinstance(valor, (bytes, bytearray, memoryview)):
+        import base64
+        return {"base64": base64.b64encode(bytes(valor)).decode()}
     return valor
+
+
+def _fila(f) -> dict:
+    # Solo textos: `tokens_in` o `token_count` (números) no son secretos.
+    return {k: ("[REDACTED]" if (isinstance(v, str) and v and _es_secreta(k)) else _a_json(v))
+            for k, v in f._mapping.items()}
 
 
 def exportar(db: Session, org_id: str) -> bytes:
@@ -117,8 +139,7 @@ def exportar(db: Session, org_id: str) -> bytes:
     with sin_filtro_de_tenant(db), zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
         resumen = {}
         for t in _tablas_con_organizacion():
-            filas = [{k: _a_json(v) for k, v in f._mapping.items()}
-                     for f in db.execute(sa.select(t).where(t.c.organization_id == org_id))]
+            filas = [_fila(f) for f in db.execute(sa.select(t).where(t.c.organization_id == org_id))]
             if t.name == "users":
                 for f in filas:
                     f.pop("hashed_password", None)
@@ -130,8 +151,7 @@ def exportar(db: Session, org_id: str) -> bytes:
         # `org_id` (seguridad, ABAC, guardarrailes de IA) tambien son suyas: la
         # purga ya las borraba, pero el export no las llevaba.
         for t in _tablas_con_org_id():
-            filas = [{k: _a_json(v) for k, v in f._mapping.items()}
-                     for f in db.execute(sa.select(t).where(t.c.org_id == org_id))]
+            filas = [_fila(f) for f in db.execute(sa.select(t).where(t.c.org_id == org_id))]
             if filas:
                 zf.writestr(f"{t.name}.json", json.dumps(filas, ensure_ascii=False, indent=1, default=str))
                 resumen[t.name] = len(filas)
@@ -139,7 +159,7 @@ def exportar(db: Session, org_id: str) -> bytes:
             if not borrar or t.name in resumen:
                 continue
             cond = sa.or_(*[c.in_(borrar) for c in cols])
-            filas = [{k: _a_json(v) for k, v in f._mapping.items()} for f in db.execute(sa.select(t).where(cond))]
+            filas = [_fila(f) for f in db.execute(sa.select(t).where(cond))]
             if filas:
                 zf.writestr(f"{t.name}.json", json.dumps(filas, ensure_ascii=False, indent=1, default=str))
                 resumen[t.name] = len(filas)
@@ -193,7 +213,12 @@ def purgar(db: Session, org_id: str) -> dict:
     if activos:
         raise BloqueoLegalImpidePurga(", ".join(sorted({b.case_reference for b in activos})))
     borrados: dict = {}
+    # 23-11-2026: `audit_logs` es de solo añadir en la base (triggers de la
+    # migración 199, `app/db/auditoria_inmutable.py`). La purga es el único
+    # borrado: abre un permiso para esta empresa en esta transacción.
+    from app.db.auditoria_inmutable import abrir_permiso_de_purga, cerrar_permiso_de_purga
     with sin_filtro_de_tenant(db):
+        abrir_permiso_de_purga(db, org_id)
         borrar, se_quedan = _usuarios_que_se_van(db, org_id)
         # Los que tienen otra empresa: su ficha pasa a ella.
         for uid, otra in se_quedan.items():
@@ -226,7 +251,7 @@ def purgar(db: Session, org_id: str) -> dict:
         _soltar_referencias_externas(db, org_id, borrar, borrados)
         # Las tablas de la empresa, de hijas a madres.
         for t in reversed(_tablas_con_organizacion()):
-            if t.name == "organizations":
+            if t.name in ("organizations", "audit_log_purge_permits"):
                 continue
             cond = t.c.organization_id == org_id
             if t.name == "users":
@@ -242,6 +267,7 @@ def purgar(db: Session, org_id: str) -> dict:
                     if n:
                         borrados[t.name] = borrados.get(t.name, 0) + n
         db.execute(sa.delete(Organization.__table__).where(Organization.id == org_id))
+        cerrar_permiso_de_purga(db, org_id)
     db.commit()
     return borrados
 

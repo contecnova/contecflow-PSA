@@ -26,8 +26,12 @@ from app.core.config_groups.alm_integracion_config import ALMIntegracionSettings
 from app.core.config_groups.traduccion_config import TraduccionSettingsMixin
 from app.core.config_groups.umbrales_config import UmbralesSettingsMixin
 from app.core.config_groups.valores_de_negocio_config import ValoresDeNegocioSettingsMixin
+from app.core.config_groups.seguridad_salida_config import SeguridadSalidaSettingsMixin
+from app.core.config_groups.seguridad_de_cuentas_config import SeguridadDeCuentasSettingsMixin
 
 __all__ = [
+    "SeguridadSalidaSettingsMixin",
+    "SeguridadDeCuentasSettingsMixin",
     "ValoresDeNegocioSettingsMixin",
     "UmbralesSettingsMixin",
     "TraduccionSettingsMixin",

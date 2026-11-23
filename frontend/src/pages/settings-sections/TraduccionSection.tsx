@@ -17,9 +17,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AlertTriangle, BookA, CheckCircle2, Coins, FileClock, KeyRound, Languages, Lock, Pencil, Plus, Save, Sparkles, Trash2, Trash, XCircle, FlaskConical, Gauge } from 'lucide-react'
-import { Button, Checkbox, Confirm, DataTable, IconButton, KpiCard, Modal, Section, Select, StatusBadge, Switch, Tabs, Spinner, EmptyState, type ColumnaDeTabla, useErroresDeCampo, Textarea, Input } from '../../components/ui'
+import { Button, Checkbox, DataTable, IconButton, KpiCard, Modal, Section, Select, StatusBadge, Switch, Tabs, Spinner, EmptyState, type ColumnaDeTabla, useErroresDeCampo, Textarea, Input } from '../../components/ui'
 import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
+import { confirmar } from '../../context/ConfirmContext'
 import { useAppLang } from '../../i18n/AppLangContext'
 import { aiProvidersApi, settingsApi, type RuntimeSetting } from '../../services/api'
 import { traduccionApi, type PruebaDeTraduccion, type TerminoDeGlosario } from '../../services/api/traduccion'
@@ -283,12 +284,7 @@ function AjustesDeTraduccion() {
           <div className="trad-admin__numeros">
             {otros.map(it => (
               <div key={it.key} className="ds-field">
-                <label className="ds-field__label" htmlFor={`trad-admin-${it.key}`}>{etiqueta(it)}</label>
-                <input id={`trad-admin-${it.key}`} className="ds-input"
-                  type={it.type === 'int' || it.type === 'float' ? 'number' : 'text'}
-                  step={it.type === 'float' ? 'any' : it.type === 'int' ? '1' : undefined}
-                  min={it.type === 'int' || it.type === 'float' ? 0 : undefined}
-                  value={borrador[it.key] ?? ''} onChange={e => poner(it.key, e.target.value)} />
+                <Input label={etiqueta(it)} id={`trad-admin-${it.key}`} type={it.type === 'int' || it.type === 'float' ? 'number' : 'text'} step={it.type === 'float' ? 'any' : it.type === 'int' ? '1' : undefined} min={it.type === 'int' || it.type === 'float' ? 0 : undefined} value={borrador[it.key] ?? ''} onChange={e => poner(it.key, e.target.value)} />
                 {ayuda(it.key) && <span className="ds-field__hint">{ayuda(it.key)}</span>}
               </div>
             ))}
@@ -404,7 +400,6 @@ function Glosario() {
   const mensajeDeError = useErrorDeTraduccion()
   const { data, isLoading } = useQuery({ queryKey: ['traduccion-glosario'], queryFn: traduccionApi.glosario })
   const [editando, setEditando] = useState<TerminoDeGlosario | 'nuevo' | null>(null)
-  const [borrando, setBorrando] = useState<TerminoDeGlosario | null>(null)
 
   const refrescar = () => {
     qc.invalidateQueries({ queryKey: ['traduccion-glosario'] })
@@ -412,7 +407,7 @@ function Glosario() {
   }
   const borrar = useMutation({
     mutationFn: (id: string) => traduccionApi.borrarTermino(id),
-    onSuccess: () => { refrescar(); setBorrando(null); toast.success(t('traduccion_admin.termino_borrado')) },
+    onSuccess: () => { refrescar(); toast.success(t('traduccion_admin.termino_borrado')) },
     onError: (e: unknown) => toast.error(mensajeDeError(e)),
   })
 
@@ -441,7 +436,9 @@ function Glosario() {
       render: (_v, f) => (
         <div className="u-row-6">
           <IconButton ariaLabel={t('traduccion_admin.editar_x', { termino: f.term })} title={t('traduccion_admin.editar')} onClick={() => setEditando(f)}><Pencil size={14} aria-hidden="true" /></IconButton>
-          <IconButton ariaLabel={t('traduccion_admin.borrar_x', { termino: f.term })} title={t('traduccion_admin.borrar')} onClick={() => setBorrando(f)}><Trash2 size={14} aria-hidden="true" /></IconButton>
+          <IconButton ariaLabel={t('traduccion_admin.borrar_x', { termino: f.term })} title={t('traduccion_admin.borrar')} onClick={async () => {
+            if (await confirmar({ title: t('traduccion_admin.borrar_termino_titulo'), message: t('traduccion_admin.borrar_termino_desc', { termino: f.term ?? '' }), danger: true })) borrar.mutate(f.id)
+          }}><Trash2 size={14} aria-hidden="true" /></IconButton>
         </div>
       ),
     },
@@ -463,14 +460,6 @@ function Glosario() {
           onGuardado={() => { refrescar(); setEditando(null) }}
         />
       )}
-      <Confirm
-        open={!!borrando}
-        title={t('traduccion_admin.borrar_termino_titulo')}
-        description={t('traduccion_admin.borrar_termino_desc', { termino: borrando?.term ?? '' })}
-        onCancel={() => setBorrando(null)}
-        onConfirm={() => borrando && borrar.mutate(borrando.id)}
-        loading={borrar.isPending}
-      />
     </Section>
   )
 }

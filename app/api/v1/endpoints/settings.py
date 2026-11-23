@@ -36,10 +36,9 @@ from app.core.codigos_de_error import error_http, desde_valor
 router = APIRouter()
 
 
-def require_admin_or_pm(current_user: User = Depends(get_current_user)):
-    if current_user.role not in [UserRole.admin, UserRole.pm]:
-        raise error_http(403, "sin_permiso", detail="Acceso denegado")
-    return current_user
+# Auditoría 22-11-2026 (M9): aquí había un `require_admin_or_pm` hecho a mano
+# que tapaba el del núcleo y no dejaba pasar al superadmin. Los catálogos usan
+# ya la guarda común por capacidad (misma audiencia, admin y PM).
 
 # ── Puesta en marcha de la empresa (revisión 2026-11) ─────────────────────────
 @router.get("/setup-checklist", summary="Qué falta por configurar en la empresa (medido) (admin)")
@@ -67,6 +66,30 @@ def put_app_translations(payload: dict, db: Session = Depends(get_db), current_u
     from app.services.branding_service import guardar_traducciones_del_back_office
     return APIResponse.ok(data=guardar_traducciones_del_back_office(
         db, str(current_user.organization_id), payload.get("translations") or {}))
+
+
+# ── Menú lateral por defecto de cada rol (23-11-2026, «menú personalizable») ──
+# Ver app/services/settings_service/menu_por_defecto.py y docs/CONFIGURACION.md.
+@router.get("/menu-default/mine", summary="Menú lateral por defecto de mi rol (orden y pestañas ocultas)")
+def get_my_menu_default(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    from app.services.settings_service import menu_por_defecto as _menu
+    return APIResponse.ok(data=_menu.del_rol(db, current_user.organization_id, current_user.role))
+
+
+@router.get("/menu-default", summary="Menú lateral por defecto de cada rol de la empresa (admin)")
+def get_menu_default(db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("org.administrar"))):
+    from app.services.settings_service import menu_por_defecto as _menu
+    return APIResponse.ok(data=_menu.leer(db, current_user.organization_id))
+
+
+@router.put("/menu-default", summary="Guardar el menú lateral por defecto de cada rol (admin; auditado)")
+def put_menu_default(payload: dict, request: Request, db: Session = Depends(get_db),
+                     current_user: User = Depends(requiere_capacidad("org.administrar"))):
+    from app.core.network import extract_client_ip
+    from app.services.settings_service import menu_por_defecto as _menu
+    return APIResponse.ok(data=_menu.guardar(
+        db, current_user.organization_id, payload, current_user,
+        ip=extract_client_ip(request), agente=request.headers.get("user-agent")))
 
 
 # ── General settings ──────────────────────────────────────────────────────────
@@ -115,6 +138,11 @@ def get_runtime_group(group: str, db: Session = Depends(get_db), current_user: U
 def update_runtime_setting(group: str, key: str, payload: SettingUpdate, request: Request, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("org.administrar"))):
     # Revisión 2026-11: los de plataforma, sólo el superadmin y en la fila global.
     plataforma = key in _svc.AJUSTES_DE_PLATAFORMA
+    # 23-11-2026: la política de cuenta solo se cambia en Seguridad de cuentas
+    # (`PUT /security/policy`: validación, segundo administrador y auditoría).
+    from app.services.seguridad_de_cuentas.politica import GRUPOS as _GRUPOS_DE_SEGURIDAD
+    if group in _GRUPOS_DE_SEGURIDAD:
+        raise error_http(409, "ajuste_grupo_de_seguridad", grupo=group)
     if plataforma and not current_user.is_superadmin:
         raise error_http(403, "ajuste_solo_superadmin", detail="Es un ajuste de la plataforma: sólo lo cambia el superadmin")
     try:
@@ -227,7 +255,8 @@ def delete_project_type(item_id: str, db: Session = Depends(get_db), _: User = D
 
 # ── Sectores de cliente y categorías de gasto (19-11-2026) ────────────────────
 # Catálogos de clave editables por empresa (`settings_service.catalogos_de_clave`);
-# mismo contrato que /project-types (value, label, color, sort_order).
+# mismo contrato que /project-types (value, label, color, sort_order) y la misma
+# guarda (`proyectos.config`: admin y PM, sección Ajustes; 22-11-2026).
 
 def _rutas_de_catalogo(ruta: str, nombre: str) -> None:
     @router.get(f"/{ruta}", response_model=APIListResponse[ProjectTypeOut], name=f"listar_{nombre}")
@@ -236,7 +265,7 @@ def _rutas_de_catalogo(ruta: str, nombre: str) -> None:
         return APIListResponse.ok(items=items, total=len(items))
 
     @router.post(f"/{ruta}", response_model=APIResponse[ProjectTypeOut], name=f"crear_{nombre}")
-    def _crear(payload: ProjectTypeIn, db: Session = Depends(get_db), _: User = Depends(require_admin_or_pm)):
+    def _crear(payload: ProjectTypeIn, db: Session = Depends(get_db), _: User = Depends(requiere_capacidad("proyectos.config"))):
         try:
             return APIResponse.ok(data=_svc.catalogos_de_clave.crear(db, nombre, payload.model_dump()))
         except ValueError as e:
@@ -244,14 +273,14 @@ def _rutas_de_catalogo(ruta: str, nombre: str) -> None:
 
     @router.patch(f"/{ruta}/{{item_id}}", response_model=APIResponse[ProjectTypeOut], name=f"actualizar_{nombre}")
     def _actualizar(item_id: str, payload: ProjectTypeIn, db: Session = Depends(get_db),
-                    _: User = Depends(require_admin_or_pm)):
+                    _: User = Depends(requiere_capacidad("proyectos.config"))):
         try:
             return APIResponse.ok(data=_svc.catalogos_de_clave.actualizar(db, nombre, item_id, payload.model_dump()))
         except ValueError:
             raise error_http(404, "no_encontrado_generico")
 
     @router.delete(f"/{ruta}/{{item_id}}", name=f"borrar_{nombre}")
-    def _borrar(item_id: str, db: Session = Depends(get_db), _: User = Depends(require_admin_or_pm)):
+    def _borrar(item_id: str, db: Session = Depends(get_db), _: User = Depends(requiere_capacidad("proyectos.config"))):
         try:
             return APIResponse.ok(data=_svc.catalogos_de_clave.borrar(db, nombre, item_id))
         except ValueError:

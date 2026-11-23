@@ -12,6 +12,9 @@ from typing import Optional
 from app.services.olap.etl import DUCKDB_PATH as _DUCKDB_PATH
 from app.core import timeutil
 from app.core.codigos_de_error import ErrorConCodigo
+from app.models.pipeline import (
+    ETAPA_CANCELADA, ETAPA_GANADA, ETAPA_PERDIDA, ETAPAS_ABIERTAS, ETAPAS_CERRADAS,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +32,17 @@ def _try_olap():
     except Exception as exc:
         logger.warning("DuckDB unavailable, falling back to PostgreSQL: %s", exc)
         return None
+
+
+def _sql_etapas(etapas) -> str:
+    """Lista SQL literal de etapas (constantes del modelo, no entrada de usuario)."""
+    return ", ".join(f"'{e}'" for e in etapas)
+
+
+def _win_rate(ganadas, perdidas) -> float:
+    """Auditoria 04b M9: ganadas / (ganadas + perdidas); las canceladas fuera."""
+    decididas = int(ganadas or 0) + int(perdidas or 0)
+    return round(int(ganadas or 0) * 100.0 / decididas, 1) if decididas else 0.0
 
 
 def _rows_to_dicts(cursor) -> list[dict]:
@@ -179,7 +193,9 @@ def get_portfolio_health(org_id: Optional[str] = None) -> list[dict]:
     if conn is None:
         return _pg_portfolio_health(org_id)
     try:
-        org_f = _org_filter(org_id)
+        # Con alias: fact_projects y dim_project tienen organization_id y DuckDB
+        # daba «Ambiguous reference» (500 en /analytics/olap/portfolio-health, 22-11-2026).
+        org_f = _org_filter(org_id, "fp")
         sql = f"""
         SELECT
             fp.project_id,
@@ -223,7 +239,7 @@ def get_pipeline_funnel(org_id: Optional[str] = None) -> list[dict]:
             ROUND(AVG(probability), 1)          AS avg_probability,
             ROUND(AVG(days_in_pipeline), 0)     AS avg_days
         FROM fact_pipeline
-        WHERE NOT is_lost AND NOT is_won
+        WHERE stage IN ({_sql_etapas(ETAPAS_ABIERTAS)})
         {org_f}
         GROUP BY stage
         ORDER BY
@@ -264,16 +280,22 @@ def get_kpi_summary(org_id: Optional[str] = None) -> dict:
         cur = conn.execute(imp_sql)
         imp = (_rows_to_dicts(cur) or [{}])[0]
 
+        abiertas = _sql_etapas(ETAPAS_ABIERTAS)
         pipe_sql = f"""
         SELECT
-            COUNT(*) FILTER (WHERE NOT is_won AND NOT is_lost) AS open_opps,
-            ROUND(SUM(weighted_revenue) FILTER (WHERE NOT is_won AND NOT is_lost), 0) AS pipeline_weighted,
-            ROUND(SUM(expected_revenue) FILTER (WHERE is_won), 0) AS won_revenue
+            COUNT(*) FILTER (WHERE stage IN ({abiertas})) AS open_opps,
+            ROUND(SUM(weighted_revenue) FILTER (WHERE stage IN ({abiertas})), 0) AS pipeline_weighted,
+            ROUND(SUM(expected_revenue) FILTER (WHERE stage = '{ETAPA_GANADA}'), 0) AS won_revenue,
+            COUNT(*) FILTER (WHERE stage = '{ETAPA_GANADA}') AS won_count,
+            COUNT(*) FILTER (WHERE stage = '{ETAPA_PERDIDA}') AS lost_count,
+            COUNT(*) FILTER (WHERE stage = '{ETAPA_CANCELADA}') AS cancelled_count,
+            ROUND(COALESCE(SUM(expected_revenue) FILTER (WHERE stage = '{ETAPA_CANCELADA}'), 0), 0) AS cancelled_value
         FROM fact_pipeline
         WHERE {org_f_bare}
         """  # noqa: S608
         cur2 = conn.execute(pipe_sql)
         pipe = (_rows_to_dicts(cur2) or [{}])[0]
+        pipe["win_rate"] = _win_rate(pipe.get("won_count"), pipe.get("lost_count"))
 
         proj_sql = f"""
         SELECT
@@ -323,6 +345,8 @@ def _pg_margin_evolution(org_id: Optional[str], p, db=None) -> list[dict]:
         propia = db is None
         if propia:
             db = SessionLocal()
+            from app.db.contexto_de_tenant import fijar_contexto as _fijar_contexto
+            _fijar_contexto(db, org_id, "olap: respaldo sin empresa")  # auditoría 22-11-2026: TENANT_SESION_SIN_CONTEXTO=cerrar
         try:
             tramo = expresion_de_bucket(db, Imputation.date, p).label("clave")
             q = (
@@ -373,6 +397,8 @@ def _pg_utilization_by_user(org_id: Optional[str]) -> list[dict]:
         from app.models.user import User
 
         db = SessionLocal()
+        from app.db.contexto_de_tenant import fijar_contexto as _fijar_contexto
+        _fijar_contexto(db, org_id, "olap: respaldo sin empresa")  # auditoría 22-11-2026: TENANT_SESION_SIN_CONTEXTO=cerrar
         try:
             today = timeutil.today()
             month_start = today.replace(day=1)
@@ -436,9 +462,11 @@ def _pg_pipeline_funnel(org_id: Optional[str]) -> list[dict]:
         from sqlalchemy import func
 
         db = SessionLocal()
+        from app.db.contexto_de_tenant import fijar_contexto as _fijar_contexto
+        _fijar_contexto(db, org_id, "olap: respaldo sin empresa")  # auditoría 22-11-2026: TENANT_SESION_SIN_CONTEXTO=cerrar
         try:
             STAGE_ORDER = {"lead": 1, "qualification": 2, "proposal": 3, "negotiation": 4}
-            filters = [Opportunity.stage.notin_(["won", "lost", "cancelled"])]
+            filters = [Opportunity.stage.notin_(ETAPAS_CERRADAS)]
             if org_id:
                 filters.append(Opportunity.organization_id == org_id)
 
@@ -488,11 +516,13 @@ def _pg_portfolio_health(org_id: Optional[str]) -> list[dict]:
     try:
         from app.db.session import SessionLocal
         from app.models.project import Project
-        from app.models.task import Task
+        from app.models.task import Task, TaskStatus
         from app.models.imputation import Imputation
         from sqlalchemy import func
 
         db = SessionLocal()
+        from app.db.contexto_de_tenant import fijar_contexto as _fijar_contexto
+        _fijar_contexto(db, org_id, "olap: respaldo sin empresa")  # auditoría 22-11-2026: TENANT_SESION_SIN_CONTEXTO=cerrar
         try:
             filters = [Project.status.notin_(["cancelled", "archived"])]
             if org_id:
@@ -504,7 +534,7 @@ def _pg_portfolio_health(org_id: Optional[str]) -> list[dict]:
                 tasks_total = db.query(func.count(Task.id)).filter(Task.project_id == proj.id).scalar() or 0
                 tasks_done = (
                     db.query(func.count(Task.id))
-                    .filter(Task.project_id == proj.id, Task.status == "done")
+                    .filter(Task.project_id == proj.id, Task.status == TaskStatus.done)
                     .scalar() or 0
                 )
                 completion_pct = round(tasks_done / tasks_total * 100, 1) if tasks_total else 0.0
@@ -554,6 +584,8 @@ def _pg_kpi_summary(org_id: Optional[str]) -> dict:
         from sqlalchemy import case, false, func
 
         db = SessionLocal()
+        from app.db.contexto_de_tenant import fijar_contexto as _fijar_contexto
+        _fijar_contexto(db, org_id, "olap: respaldo sin empresa")  # auditoría 22-11-2026: TENANT_SESION_SIN_CONTEXTO=cerrar
         try:
             proj_filters = [Project.status == ProjectStatus.active]
             if org_id:
@@ -577,16 +609,17 @@ def _pg_kpi_summary(org_id: Optional[str]) -> dict:
             # salud daban otro. Ahora es el de rentabilidad, el mismo para todos.
             avg_margin_pct = 0.0
             if active_project_ids:
-                from app.services.profitability_service import calc_project_profitability
-                per_project_margins = []
-                for proyecto in db.query(Project).filter(Project.id.in_(active_project_ids)).all():
-                    pl = calc_project_profitability(proyecto, db)
-                    if (pl.get("billing_revenue") or 0) > 0:
-                        per_project_margins.append(float(pl.get("margin_pct") or 0.0))
+                # Auditoría 22-11-2026 (§7.2): el cálculo único en bloque (antes
+                # la cuenta de resultados entera proyecto a proyecto, N+1).
+                from app.services.margen_de_proyectos import margen_en_bloque
+                per_project_margins = [
+                    float(c["margin_pct"]) for c in margen_en_bloque(
+                        db, db.query(Project).filter(Project.id.in_(active_project_ids)).all()).values()
+                    if c["revenue"] > 0 and c["margin_pct"] is not None]
                 if per_project_margins:
                     avg_margin_pct = round(sum(per_project_margins) / len(per_project_margins), 1)
 
-            opp_filters = [Opportunity.stage.notin_(["won", "lost", "cancelled"])]
+            opp_filters = [Opportunity.stage.notin_(ETAPAS_CERRADAS)]
             if org_id:
                 opp_filters.append(Opportunity.organization_id == org_id)
             open_opps = db.query(func.count(Opportunity.id)).filter(*opp_filters).scalar() or 0
@@ -594,10 +627,27 @@ def _pg_kpi_summary(org_id: Optional[str]) -> dict:
             weighted_expr = Opportunity.expected_revenue * (func.coalesce(Opportunity.probability, 0.0) / 100.0)
             pipeline_weighted = db.query(_round(func.sum(weighted_expr), 0)).filter(*opp_filters).scalar() or 0
 
-            won_filters = [Opportunity.stage == "won"]
+            won_filters = [Opportunity.stage == ETAPA_GANADA]
             if org_id:
                 won_filters.append(Opportunity.organization_id == org_id)
             won_revenue = db.query(_round(func.sum(Opportunity.expected_revenue), 0)).filter(*won_filters).scalar() or 0
+
+            # Auditoria 04b M9: cerradas por etapa (win rate sin canceladas,
+            # que se informan aparte con su recuento e importe).
+            cerr_filters = [Opportunity.stage.in_(ETAPAS_CERRADAS)]
+            if org_id:
+                cerr_filters.append(Opportunity.organization_id == org_id)
+            cerradas = {
+                str(getattr(f.stage, "value", f.stage)): (int(f.n or 0), float(f.importe or 0.0))
+                for f in db.query(
+                    Opportunity.stage.label("stage"),
+                    func.count(Opportunity.id).label("n"),
+                    func.sum(Opportunity.expected_revenue).label("importe"),
+                ).filter(*cerr_filters).group_by(Opportunity.stage).all()
+            }
+            won_count = cerradas.get(ETAPA_GANADA, (0, 0.0))[0]
+            lost_count = cerradas.get(ETAPA_PERDIDA, (0, 0.0))[0]
+            cancelled_count, cancelled_value = cerradas.get(ETAPA_CANCELADA, (0, 0.0))
 
             today = timeutil.today()
             month_start = today.replace(day=1)
@@ -635,6 +685,11 @@ def _pg_kpi_summary(org_id: Optional[str]) -> dict:
                 "open_opps": int(open_opps),
                 "pipeline_weighted": float(pipeline_weighted or 0.0),
                 "won_revenue": float(won_revenue or 0.0),
+                "won_count": won_count,
+                "lost_count": lost_count,
+                "cancelled_count": cancelled_count,
+                "cancelled_value": round(cancelled_value, 0),
+                "win_rate": _win_rate(won_count, lost_count),
                 "source": "postgresql",
             }
         finally:

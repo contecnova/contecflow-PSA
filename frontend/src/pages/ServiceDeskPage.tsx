@@ -59,7 +59,7 @@ const PESTANAS_EXTERNO = new Set(['queue', 'all', 'approvals'])
 type VistaDeTodos = 'list' | 'kanban'
 const CLAVE_VISTA_TODOS = 'sd.vista_todos'
 function vistaGuardada(): VistaDeTodos {
-  try { return localStorage.getItem(CLAVE_VISTA_TODOS) === 'kanban' ? 'kanban' : 'list' } catch { return 'list' }
+  try { return localStorage.getItem(CLAVE_VISTA_TODOS) === 'kanban' ? 'kanban' : 'list' } catch { /* accesorio: sin almacenamiento se usa la vista por defecto */ return 'list' }
 }
 
 export default function ServiceDeskPage() {

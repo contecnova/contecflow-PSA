@@ -76,26 +76,26 @@ app/
 ```
 frontend/
   src/
-    pages/               ← ~100 páginas React (XxxPage.jsx)
+    pages/               ← 124 páginas React (XxxPage.tsx; medido 2026-11-23, TypeScript: ya no hay .js/.jsx)
     components/
       ui/                ← Button, Spinner, EmptyState, Modal, Badge, etc.
       layout/            ← PageHeader, Sidebar, Layout, etc.
-      charts/            ← Recharts wrappers
+    charts/              ← Recharts wrappers (src/charts, fuera de components/)
     services/
-      api.js             ← axios instance base (prefijo /api/v1)
+      api.ts             ← reexporta el cliente; api/_core.ts = instancia axios base (prefijo /api/v1) y un fichero por dominio en api/
     context/
-      AppLangContext.jsx ← i18n: useAppT(), AppLangProvider
-      ToastContext.jsx   ← useToast()
-      AuthContext.jsx    ← useAuth(), user, token
+      AppLangContext.tsx ← i18n: useAppT(), AppLangProvider
+      ToastContext.tsx   ← useToast()
+      AuthContext.tsx    ← useAuth(), user, token
     i18n/
       langs/
         es.mjs           ← FUENTE DE VERDAD de traducciones (ES)
-        en.mjs, fr.mjs, de.mjs, pt.mjs, it.mjs, pl.mjs, zh.mjs
-      appTranslations.mjs ← importa todos los langs y exporta APP_TRANSLATIONS
+        en.mjs, zh.mjs   ← los tres idiomas del operador (es/en/zh); el portal tiene más en i18n/portal/
+      appTranslations.ts ← importa todos los langs y exporta APP_TRANSLATIONS (hay también appTranslations.mjs)
       translationRuntime.mjs ← logs [i18n-missing] en dev
     utils/
-      helpers.js         ← extractErr(), formatDate(), etc.
-    router/              ← React Router v6, lazy imports de páginas
+      helpers.ts         ← extractErr(), etc. (fechas en fechas.ts)
+    App.tsx              ← React Router v6, lazy imports de páginas (no hay carpeta router/)
 ```
 
 ---
@@ -121,11 +121,8 @@ frontend/
 
 1. Crea `app/models/<entidad>.py` con la clase SQLAlchemy
 2. Importa el modelo en `app/models/__init__.py` (para que Alembic lo detecte)
-3. Genera la migración:
-   ```bash
-   alembic revision --autogenerate -m "add_<entidad>_table"
-   ```
-4. Revisa el fichero generado en `alembic/versions/`
+3. Crea la migración a mano con el formato `NNN_nombre_en_castellano` (siguiente número libre; ver `alembic/NAMING_CONVENTION.md`; una sola cabeza: `python -m alembic heads`)
+4. Revisa el fichero en `alembic/versions/`
 5. Aplica:
    ```bash
    alembic upgrade head
@@ -134,7 +131,7 @@ frontend/
 
 ### 🖼️ Añadir una página nueva al frontend
 
-1. Crea `frontend/src/pages/XxxPage.jsx`
+1. Crea `frontend/src/pages/XxxPage.tsx`
    - Usa `useAppT()` para traducciones
    - Usa `useQuery`/`useMutation` de React Query para llamadas API
    - Usa `useToast()` para notificaciones
@@ -170,9 +167,9 @@ frontend/
 
 ### 🤖 Añadir una herramienta al agente AI (NexusAgentPage / ai_chat)
 
-1. Backend: `app/services/ai_chat_service.py` o `app/services/ai_chat/` — añade el handler en `execute_tool()`
+1. Backend: `app/services/ai_chat/tool_execution/executor.py` (`execute_tool()`; `app/services/ai_chat_service.py` es la fachada) — añade el handler
    - **⚠️**: usa `tool_input` de forma consistente (no `tool.input` con punto)
-2. Frontend: `frontend/src/pages/NexusAgentPage.jsx` — añade la herramienta al array `TOOLS` y al mapa de colores `StepBadge`
+2. Frontend: `frontend/src/pages/NexusAgentPage.tsx` — añade la herramienta al array `TOOLS` y al mapa de colores `StepBadge`
 3. El endpoint vive en `/api/v1/ai/agent/run` (POST)
 
 ### 🔗 Añadir una integración externa
@@ -181,7 +178,7 @@ frontend/
 2. Crea el servicio en `app/services/<sistema>_service.py`
 3. Crea los endpoints en `app/api/v1/endpoints/<sistema>.py` o `app/api/v1/endpoints/integrations/<sistema>.py`
 4. Registra en `platform.py`
-5. Crea la página en `frontend/src/pages/<Sistema>Page.jsx`
+5. Crea la página en `frontend/src/pages/<Sistema>Page.tsx`
 
 ### 🧪 Añadir tests
 
@@ -212,8 +209,8 @@ frontend/
 
 - Endpoint canónico: `/api/v1/automation-workflows`
 - Alias de compatibilidad: `/api/v1/automations` (ambos registrados en `core.py`)
-- Servicio: `app/services/automations_service.py`
-- Página: `frontend/src/pages/AutomationsPage.jsx`
+- Servicio: paquete `app/services/automations_service/` (`reglas.py`, `disparo.py`, `acciones.py`, `catalogo.py`)
+- Página: `frontend/src/pages/AutomationsPage.tsx`
 
 ---
 

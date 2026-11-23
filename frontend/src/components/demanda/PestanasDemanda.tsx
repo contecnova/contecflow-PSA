@@ -206,7 +206,7 @@ export function DocumentosDemanda({ d }: { d: DetalleDeDemanda }) {
       )}
       {d.documents.length === 0 ? <p className="plan-muted">{t('demanda.sin_documentos')}</p> : (
         <TablaSimple claseTabla="plan-tabla">
-          <thead><tr><th>{t('demanda.col_archivo')}</th><th>{t('demanda.etiqueta')}</th><th>{t('demanda.col_fase')}</th><th>{t('demanda.col_autor')}</th><th>{t('demanda.col_fecha')}</th><th /></tr></thead>
+          <thead><tr><th>{t('demanda.col_archivo')}</th><th>{t('demanda.etiqueta')}</th><th>{t('demanda.col_fase')}</th><th>{t('demanda.col_autor')}</th><th>{t('demanda.col_fecha')}</th><th><span className="u-sr-only">{t('common.col_acciones')}</span></th></tr></thead>
           <tbody>
             {d.documents.map(x => (
               <tr key={x.id}>

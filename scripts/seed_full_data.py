@@ -632,6 +632,8 @@ UAT_TEST_STATES = ["pending", "passed", "failed", "blocked", "skipped"]
 
 def main():
     db = SessionLocal()
+    from app.db.contexto_de_tenant import declarar_sistema as _declarar_sistema
+    _declarar_sistema(db, "script: siembra completa")  # auditoría 22-11-2026: TENANT_SESION_SIN_CONTEXTO=cerrar
     try:
         print("=" * 60)
         print("  SEED FULL DATA — Contecflow-PSA 2025-2027")

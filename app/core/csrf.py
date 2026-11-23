@@ -103,9 +103,16 @@ def _is_exempt_path(path: str, exempt_prefixes: Iterable[str]) -> bool:
     return any(path.startswith(prefix) for prefix in exempt_prefixes)
 
 
+#: Cookies que autentican por sí solas (las manda el navegador sin que la página
+#: lo pida): personal, refresco y portal de clientes.
+COOKIES_DE_SESION = ("access_token", "refresh_token", "portal_access_token")
+
+
 def _uses_cookie_auth(request: Request) -> bool:
     """Cookie auth is the CSRF-vulnerable surface. Authorization header is safe."""
-    has_cookie = bool(request.cookies.get("access_token") or request.cookies.get("refresh_token"))
+    # Auditoría 22-11-2026 (M3): también la cookie del portal de clientes; sus
+    # rutas autenticadas por cookie no pasaban la comprobación de origen.
+    has_cookie = any(request.cookies.get(c) for c in COOKIES_DE_SESION)
     has_bearer = bool(request.headers.get("authorization"))
     # If the client uses Authorization header, cookies are irrelevant for the
     # auth path — CSRF is not exploitable against pure-header auth.

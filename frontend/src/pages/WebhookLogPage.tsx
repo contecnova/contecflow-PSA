@@ -9,9 +9,9 @@
  * paginación con el componente común.
  */
 import { useState } from 'react'
-import { useQuery, keepPreviousData } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import { enterpriseApi } from '../services/api'
-import type { EntregaDeWebhook, EventoDeWebhook, WebhookSaliente } from '../services/api/tipos-plataforma'
+import type { EntregaDeWebhook } from '../services/api/tipos-plataforma'
 import { Button, Card, EmptyState, KpiCard, Modal, Spinner, StatusBadge, Table, Select } from '../components/ui'
 import Pagination from '../components/ui/Pagination'
 import PageHeader from '../components/layout/PageHeader'
@@ -47,12 +47,20 @@ export default function WebhookLogPage() {
   // Webhooks salientes configurados (para el filtro y el KPI)
   const { data: webhooks = [] } = useQuery({
     queryKey: ['outbound-webhooks'],
-    queryFn: () => enterpriseApi.outboundWebhooks().then(r => r.data).catch((): WebhookSaliente[] => []),
+    queryFn: () => enterpriseApi.outboundWebhooks().then(r => r.data),
+  })
+
+  // Auditoría 22-11-2026 (A44): los suspendidos por el cortacircuitos se ven y se reactivan.
+  const qc = useQueryClient()
+  const suspendidos = webhooks.filter(w => w.suspended)
+  const { mutate: reactivar, isPending: reactivando } = useMutation({
+    mutationFn: (id: string) => enterpriseApi.reactivateWebhook(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['outbound-webhooks'] }),
   })
 
   const { data: eventos = [] } = useQuery({
     queryKey: ['outbound-webhook-events'],
-    queryFn: () => enterpriseApi.outboundWebhookEvents().then(r => r.data).catch((): EventoDeWebhook[] => []),
+    queryFn: () => enterpriseApi.outboundWebhookEvents().then(r => r.data),
     staleTime: Infinity,
   })
 
@@ -101,6 +109,18 @@ export default function WebhookLogPage() {
         <KpiCard icon={<CheckCircle2 size={16} />} label={t('webhook_log_page.kpi_exitosas')} value={fmtEntero(successCount)} />
         <KpiCard icon={<XCircle size={16} />} label={t('webhook_log_page.kpi_fallidas')} value={fmtEntero(failCount)} danger={failCount > 0} />
       </div>
+
+      {suspendidos.length > 0 && (
+        <Card>
+          <strong>{t('webhook_log_page.suspendidos')}</strong>
+          {suspendidos.map(w => (
+            <div key={w.id} className="ds-toolbar">
+              <span>{w.name || w.url} — {t('webhook_log_page.fallos_seguidos', { n: w.consecutive_failures ?? 0 })}</span>
+              <Button size="sm" disabled={reactivando} onClick={() => reactivar(w.id)}>{t('webhook_log_page.reactivar')}</Button>
+            </div>
+          ))}
+        </Card>
+      )}
 
       <div className="ds-toolbar">
         <Select suelto placeholder={false} aria-label={t('webhook_log_page.col_webhook')} value={webhookId} className="whl-select"

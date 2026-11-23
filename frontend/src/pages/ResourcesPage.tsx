@@ -14,7 +14,7 @@ import { settingsApi } from '../services/settingsApi'
  * con .ds-input; vacío de SmartMatch con
  * EmptyState; "skills" y "burnout" en castellano.
  */
-import { Avatar, LoadBar, Button, Card, KpiCard, Modal, Input, Select, Spinner, EmptyState, useSort, SortableTH, ViewToggle, Tabs, MarcaExterno, Pulsable, useErroresDeCampo } from '../components/ui'
+import { Buscador, Avatar, LoadBar, Button, Card, KpiCard, Modal, Input, Select, Spinner, EmptyState, useSort, SortableTH, ViewToggle, Tabs, MarcaExterno, Pulsable, useErroresDeCampo } from '../components/ui'
 import AltaDeExternoModal from '../components/externos/AltaDeExternoModal'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -530,8 +530,8 @@ export default function ResourcesPage() {
       {resTab === 'heatmap' ? <ResourceHeatmap /> : resTab === 'smartmatch' ? <SmartMatchTab /> : resTab === 'burnout' ? <BurnoutMonitorTab /> : (
         <>
           <div className="res-filters">
-            <input aria-label={t('resources.buscar_por_nombre_cargo_o_departamento')} value={search} onChange={e => setSearch(e.target.value)} placeholder={t('resources.buscar_por_nombre_cargo_o_departamento')}
-              className="ds-input res-input--search" />
+            <Buscador aria-label={t('resources.buscar_por_nombre_cargo_o_departamento')} value={search} onChange={setSearch} placeholder={t('resources.buscar_por_nombre_cargo_o_departamento')}
+              inputClassName="res-input--search" />
             <Select suelto placeholder={false} value={deptFilter} onChange={e => setDeptFilter(e.target.value)} aria-label={t('resources.department')} className="res-input--auto">
               <option value="">{t('resources.todos_los_departamentos')}</option>
               {departments.map(d => <option key={d} value={d}>{d}</option>)}

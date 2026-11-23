@@ -12,10 +12,11 @@ import { useState, useId } from 'react'
 import { extractErr, fmtDate } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
+import { confirmar } from '../context/ConfirmContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { organizationsApi, usersApi } from '../services/api'
+import { organizationsApi } from '../services/api'
 import type { DetalleDeOrganizacion, Organizacion } from '../services/api/tipos-plataforma'
-import { Button, Card, Checkbox, Modal, Select, Spinner, EmptyState, Confirm, Input, Textarea } from '../components/ui'
+import { Button, Card, Checkbox, Modal, Select, Spinner, EmptyState, Input, Textarea } from '../components/ui'
 import StatusBadge from '../components/ui/StatusBadge'
 import { UserSelect } from '../components/ui/EntitySelect'
 import PageHeader from '../components/layout/PageHeader'
@@ -23,6 +24,7 @@ import PageShell from '../components/layout/PageShell'
 import { Building2, Download, Info, LogIn, Pause, Pencil, Play, Plus, Trash2, Undo2, UserMinus, UserPlus, Users } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 import { useOrgSettings } from '../hooks/useOrgSettings'
+import { useListaDeUsuarios } from '../hooks/useListas'
 import { z } from 'zod'
 import { useFormValidation } from '../hooks/useFormValidation'
 import './OrganizationsPage.css'
@@ -84,27 +86,25 @@ type OrgUpdateForm = z.infer<typeof organizationUpdateSchema>
 export default function OrganizationsPage() {
   // ...existing code...
   const idCampo = useId()
-  const [removingUserId, setRemovingUserId] = useState<string | number | null>(null)
     // Mutación para eliminar usuario de la organización
-    const { mutate: removeUser, isPending: isRemoving } = useMutation({
+    const { mutate: removeUser } = useMutation({
       mutationFn: ({ orgId, userId }: { orgId: string | number; userId: string | number }) => organizationsApi.removeUser(orgId, userId),
       onSuccess: () => {
         qc.invalidateQueries({ queryKey: ['org-detail', selected] });
-        setRemovingUserId(null)
         toast.success(t('pagina_orgs.usuario_eliminado'))
       },
       onError: e => {
-        const msg = extractErr(e, t('pagina_orgs.error_al_eliminar_usuario'))
-        const normalized = String(msg).toLowerCase()
-        if (normalized.includes('ultima organizacion') || normalized.includes('última organización')) {
+        // 23-11-2026 (04 M9): el mensaje sale del código estable del error, no de buscar texto.
+        const codigo = (e as { response?: { data?: { code?: unknown } } } | null | undefined)?.response?.data?.code
+        if (codigo === 'usuario_ultima_empresa') {
           toast.error(t('pagina_orgs.no_se_puede_quitar_su_ultima_org'))
           return
         }
-        if (normalized.includes('ultimo usuario') || normalized.includes('último usuario')) {
+        if (codigo === 'empresa_ultimo_usuario') {
           toast.error(t('pagina_orgs.no_se_puede_quitar_ultimo_usuario'))
           return
         }
-        toast.error(msg)
+        toast.error(extractErr(e, t('pagina_orgs.error_al_eliminar_usuario')))
       },
     })
   // Estado para asignar usuario
@@ -134,9 +134,8 @@ export default function OrganizationsPage() {
   // `selected!` respaldado por el `enabled`: react-query no ejecuta `queryFn`
   // mientras `enabled` sea falso, asi que aqui nunca es null.
   const { data: detail } = useQuery<DetalleDeOrganizacion>({ queryKey:['org-detail', selected], queryFn:() => organizationsApi.get(selected!).then(r=>r.data), enabled:!!selected })
-  const removingUser = detail?.users?.find(u => u.id === removingUserId) || null
   // Todos los usuarios activos
-  const { data: allUsers = [] } = useQuery({ queryKey:['users'], queryFn:() => usersApi.list({}).then(r=>r.data) })
+  const { data: allUsers = [] } = useListaDeUsuarios()
   // Mutación para asignar usuario
   const { mutate: assignUser, isPending: isAssigning } = useMutation({
     mutationFn: ({ orgId, userId }: { orgId: string | number; userId: string | number }) => organizationsApi.assignUser(orgId, { user_id: userId }),
@@ -349,22 +348,18 @@ export default function OrganizationsPage() {
                       icon={<UserMinus size={12} />}
                       disabled={isLast}
                       title={isLast ? t('pagina_orgs.no_puedes_quitar_el_ultimo_usuario') : t('pagina_orgs.quitar_usuario')}
-                      onClick={() => setRemovingUserId(u.id)}
+                      onClick={async () => {
+                        // 23-11-2026: confirmación única (ConfirmContext); antes `ui/Confirm`.
+                        if (!detail) return
+                        if (await confirmar({ title: t('organizations.quitar_usuario_de_la_organizacion'), danger: true,
+                          message: t('pagina_orgs.vas_a_quitar_de_el_usuario', { v1: u.full_name || t('pagina_orgs.este_usuario'), name: detail.name }) }))
+                          removeUser({ orgId: detail.id, userId: u.id })
+                      }}
                     >{t('pagina_orgs.quitar')}</Button>
                   </li>
                 )
               })}
             </ul>
-            {removingUserId && detail && (
-              <Confirm
-                open
-                title={t('organizations.quitar_usuario_de_la_organizacion')}
-                description={t('pagina_orgs.vas_a_quitar_de_el_usuario', { v1: removingUser?.full_name || t('pagina_orgs.este_usuario'), name: detail.name })}
-                onCancel={() => setRemovingUserId(null)}
-                onConfirm={() => removeUser({ orgId: detail.id, userId: removingUserId })}
-                loading={isRemoving}
-              />
-            )}
             {showAssignUser && detail && (
               <Modal open title={t('pagina_orgs.asignar_usuario')} onClose={() => setShowAssignUser(false)} size="sm">
                 <div className="orgs-stack">
@@ -408,12 +403,12 @@ export default function OrganizationsPage() {
             <div className="u-grid2-12">
               <div>
                 <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="ds-field__label">{t('pagina_orgs.nombre')}</label>
-                <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.name} onChange={e=>{ setForm(f=>({...f,name:e.target.value})); createValidation.clearFieldError('name') }} className={createValidation.inputClass('campo-form', 'name')} />
+                <Input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.name} onChange={e=>{ setForm(f=>({...f,name:e.target.value})); createValidation.clearFieldError('name') }} inputClassName={createValidation.inputClass('campo-form', 'name')} />
                 {createValidation.errors.name && <div className="u-field-error">{errorDeCampo(createValidation.errors.name)}</div>}
               </div>
               <div>
                 <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="ds-field__label">{t('organizations.slug_identificador_unico')}</label>
-                <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.slug} onChange={e=>{ setForm(f=>({...f,slug:e.target.value.toLowerCase().replace(/\s+/g,'-')})); createValidation.clearFieldError('slug') }} className={createValidation.inputClass('campo-form', 'slug')} />
+                <Input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.slug} onChange={e=>{ setForm(f=>({...f,slug:e.target.value.toLowerCase().replace(/\s+/g,'-')})); createValidation.clearFieldError('slug') }} inputClassName={createValidation.inputClass('campo-form', 'slug')} />
                 {createValidation.errors.slug && <div className="u-field-error">{errorDeCampo(createValidation.errors.slug)}</div>}
               </div>
             </div>
@@ -425,19 +420,19 @@ export default function OrganizationsPage() {
               </div>
               <div>
                 <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="ds-field__label">{t('organizations.max_usuarios')}</label>
-                <input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} type="number" value={form.max_users} onChange={e=>{ setForm(f=>({...f,max_users:+e.target.value})); createValidation.clearFieldError('max_users') }} className={createValidation.inputClass('campo-form', 'max_users')} />
+                <Input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} type="number" value={form.max_users} onChange={e=>{ setForm(f=>({...f,max_users:+e.target.value})); createValidation.clearFieldError('max_users') }} inputClassName={createValidation.inputClass('campo-form', 'max_users')} />
                 {createValidation.errors.max_users && <div className="u-field-error">{errorDeCampo(createValidation.errors.max_users)}</div>}
               </div>
               <div>
                 <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="ds-field__label">{t('organizations.max_proyectos')}</label>
-                <input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} type="number" value={form.max_projects} onChange={e=>{ setForm(f=>({...f,max_projects:+e.target.value})); createValidation.clearFieldError('max_projects') }} className={createValidation.inputClass('campo-form', 'max_projects')} />
+                <Input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} type="number" value={form.max_projects} onChange={e=>{ setForm(f=>({...f,max_projects:+e.target.value})); createValidation.clearFieldError('max_projects') }} inputClassName={createValidation.inputClass('campo-form', 'max_projects')} />
                 {createValidation.errors.max_projects && <div className="u-field-error">{errorDeCampo(createValidation.errors.max_projects)}</div>}
               </div>
             </div>
             <div className="u-grid2-12">
               <div>
                 <label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} className="ds-field__label">{t('organizations.email_del_admin')}</label>
-                <input id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} value={form.admin_email} onChange={e=>{ setForm(f=>({...f,admin_email:e.target.value})); createValidation.clearFieldError('admin_email') }} className={createValidation.inputClass('campo-form', 'admin_email')} />
+                <Input id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} value={form.admin_email} onChange={e=>{ setForm(f=>({...f,admin_email:e.target.value})); createValidation.clearFieldError('admin_email') }} inputClassName={createValidation.inputClass('campo-form', 'admin_email')} />
                 {createValidation.errors.admin_email && <div className="u-field-error">{errorDeCampo(createValidation.errors.admin_email)}</div>}
               </div>
               <div>
@@ -450,7 +445,7 @@ export default function OrganizationsPage() {
             </div>
             <div>
               <label id={`${idCampo}-et8`} htmlFor={`${idCampo}-8`} className="ds-field__label">{t('pagina_orgs.dominio_propio_opcional')}</label>
-              <input id={`${idCampo}-8`} aria-labelledby={`${idCampo}-et8`} value={form.domain} placeholder="app.cliente.com" onChange={e=>{ setForm(f=>({...f,domain:e.target.value})); createValidation.clearFieldError('domain') }} className={createValidation.inputClass('campo-form', 'domain')} />
+              <Input id={`${idCampo}-8`} aria-labelledby={`${idCampo}-et8`} value={form.domain} placeholder="app.cliente.com" onChange={e=>{ setForm(f=>({...f,domain:e.target.value})); createValidation.clearFieldError('domain') }} inputClassName={createValidation.inputClass('campo-form', 'domain')} />
               {createValidation.errors.domain && <div className="u-field-error">{errorDeCampo(createValidation.errors.domain)}</div>}
             </div>
             <div className="u-actions-10">
@@ -467,7 +462,7 @@ export default function OrganizationsPage() {
             <div className="u-grid2-12">
               <div>
                 <label id={`${idCampo}-et9`} htmlFor={`${idCampo}-9`} className="ds-field__label">{t('pagina_orgs.nombre')}</label>
-                <input id={`${idCampo}-9`} aria-labelledby={`${idCampo}-et9`} value={editForm?.name ?? ''} onChange={e=>{ setEditForm(f => f && ({...f,name:e.target.value})); editValidation.clearFieldError('name') }} className={editValidation.inputClass('campo-form', 'name')} />
+                <Input id={`${idCampo}-9`} aria-labelledby={`${idCampo}-et9`} value={editForm?.name ?? ''} onChange={e=>{ setEditForm(f => f && ({...f,name:e.target.value})); editValidation.clearFieldError('name') }} inputClassName={editValidation.inputClass('campo-form', 'name')} />
                 {editValidation.errors.name && <div className="u-field-error">{errorDeCampo(editValidation.errors.name)}</div>}
               </div>
               {/* El slug no se puede editar */}
@@ -481,18 +476,18 @@ export default function OrganizationsPage() {
               </div>
               <div>
                 <label id={`${idCampo}-et12`} htmlFor={`${idCampo}-12`} className="ds-field__label">{t('organizations.max_usuarios')}</label>
-                <input id={`${idCampo}-12`} aria-labelledby={`${idCampo}-et12`} type="number" value={editForm?.max_users ?? ''} onChange={e=>{ setEditForm(f => f && ({...f,max_users:+e.target.value})); editValidation.clearFieldError('max_users') }} className={editValidation.inputClass('campo-form', 'max_users')} />
+                <Input id={`${idCampo}-12`} aria-labelledby={`${idCampo}-et12`} type="number" value={editForm?.max_users ?? ''} onChange={e=>{ setEditForm(f => f && ({...f,max_users:+e.target.value})); editValidation.clearFieldError('max_users') }} inputClassName={editValidation.inputClass('campo-form', 'max_users')} />
                 {editValidation.errors.max_users && <div className="u-field-error">{errorDeCampo(editValidation.errors.max_users)}</div>}
               </div>
               <div>
                 <label id={`${idCampo}-et13`} htmlFor={`${idCampo}-13`} className="ds-field__label">{t('organizations.max_proyectos')}</label>
-                <input id={`${idCampo}-13`} aria-labelledby={`${idCampo}-et13`} type="number" value={editForm?.max_projects ?? ''} onChange={e=>{ setEditForm(f => f && ({...f,max_projects:+e.target.value})); editValidation.clearFieldError('max_projects') }} className={editValidation.inputClass('campo-form', 'max_projects')} />
+                <Input id={`${idCampo}-13`} aria-labelledby={`${idCampo}-et13`} type="number" value={editForm?.max_projects ?? ''} onChange={e=>{ setEditForm(f => f && ({...f,max_projects:+e.target.value})); editValidation.clearFieldError('max_projects') }} inputClassName={editValidation.inputClass('campo-form', 'max_projects')} />
                 {editValidation.errors.max_projects && <div className="u-field-error">{errorDeCampo(editValidation.errors.max_projects)}</div>}
               </div>
             </div>
             <div>
               <label id={`${idCampo}-et14`} htmlFor={`${idCampo}-14`} className="ds-field__label">{t('pagina_orgs.dominio_propio_opcional')}</label>
-              <input id={`${idCampo}-14`} aria-labelledby={`${idCampo}-et14`} value={editForm?.domain ?? ''} placeholder="app.cliente.com" onChange={e=>{ setEditForm(f => f && ({...f,domain:e.target.value})); editValidation.clearFieldError('domain') }} className={editValidation.inputClass('campo-form', 'domain')} />
+              <Input id={`${idCampo}-14`} aria-labelledby={`${idCampo}-et14`} value={editForm?.domain ?? ''} placeholder="app.cliente.com" onChange={e=>{ setEditForm(f => f && ({...f,domain:e.target.value})); editValidation.clearFieldError('domain') }} inputClassName={editValidation.inputClass('campo-form', 'domain')} />
               {editValidation.errors.domain && <div className="u-field-error">{errorDeCampo(editValidation.errors.domain)}</div>}
             </div>
             {/* Revisión 2026-11: la MFA obligatoria sólo se podía activar por API. */}
@@ -500,7 +495,7 @@ export default function OrganizationsPage() {
               label={<strong>{t('organizations.exigir_mfa')}</strong>} ayuda={t('organizations.exigir_mfa_ayuda')} />
             <div>
               <label id={`${idCampo}-et15`} htmlFor={`${idCampo}-15`} className="ds-field__label">{t('organizations.email_del_admin')}</label>
-              <input id={`${idCampo}-15`} aria-labelledby={`${idCampo}-et15`} value={editForm?.admin_email ?? ''} onChange={e=>{ setEditForm(f => f && ({...f,admin_email:e.target.value})); editValidation.clearFieldError('admin_email') }} className={editValidation.inputClass('campo-form', 'admin_email')} />
+              <Input id={`${idCampo}-15`} aria-labelledby={`${idCampo}-et15`} value={editForm?.admin_email ?? ''} onChange={e=>{ setEditForm(f => f && ({...f,admin_email:e.target.value})); editValidation.clearFieldError('admin_email') }} inputClassName={editValidation.inputClass('campo-form', 'admin_email')} />
               {editValidation.errors.admin_email && <div className="u-field-error">{errorDeCampo(editValidation.errors.admin_email)}</div>}
             </div>
             <div className="u-actions-10">

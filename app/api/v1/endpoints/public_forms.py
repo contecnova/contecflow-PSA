@@ -20,6 +20,7 @@ from typing import Optional
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, EmailStr
 from sqlalchemy.orm import Session
+from app.db.session import publicar_empresa, sesion_de_sistema
 
 from app.core.deps import get_current_user, get_db, requiere_capacidad
 from app.core.abac_enforce import enforce_abac
@@ -96,7 +97,9 @@ def create_form(
     _rol: User = Depends(requiere_capacidad("portal.formularios")),  # auditoria 2026-09: excepcion revisada: un formulario publico abre una puerta sin autenticar, pero la audiencia prevista es PM segun test_public_forms
 ):
     try:
-        public_forms_service.validar_destino(payload.form_type, payload.target_project_id)
+        public_forms_service.validar_destino(
+            payload.form_type, payload.target_project_id, db=db, target_group_id=payload.target_group_id,
+            org_id=db.info.get("organization_id") or current_user.organization_id)
     except ValueError as exc:
         raise desde_valor(400, exc)
     form = public_forms_service.create_form(
@@ -139,7 +142,10 @@ def update_form(
         raise error_http(403, "sin_permiso", detail="Acceso denegado")
     cambios = payload.model_dump(exclude_none=True)
     try:
-        public_forms_service.validar_destino(form.form_type, cambios.get("target_project_id", form.target_project_id))
+        public_forms_service.validar_destino(
+            form.form_type, cambios.get("target_project_id", form.target_project_id), db=db,
+            target_group_id=cambios.get("target_group_id", form.target_group_id),
+            org_id=form.organization_id or db.info.get("organization_id"))
     except ValueError as exc:
         raise desde_valor(400, exc)
     form = public_forms_service.update_form(db, form, cambios)
@@ -199,11 +205,12 @@ def _idioma(db: Session, form) -> str:
 
 
 @router.get("/public/{token}", summary="Obtener metadatos de formulario público")
-def get_public_form(token: str, response: Response, db: Session = Depends(get_db)):
+def get_public_form(token: str, response: Response, db: Session = Depends(sesion_de_sistema("formulario público: token del formulario"))):
     _abierto(response)
     form = public_forms_service.get_active_form_by_token(db, token)
     if not form:
         raise error_http(404, "no_encontrado", detail="Formulario no encontrado o inactivo", que="formulario")
+    publicar_empresa(db, getattr(form, "organization_id", None))   # M8: el token dice la empresa
     idioma = _idioma(db, form)
     return {
         "idioma": idioma,
@@ -225,12 +232,14 @@ def submit_public_form(
     request: Request,
     response: Response,
     tareas: BackgroundTasks,
-    db: Session = Depends(get_db),
+    db: Session = Depends(sesion_de_sistema("formulario público: token del formulario")),
 ):
     _abierto(response)
     form = public_forms_service.get_active_form_by_token(db, token)
     if not form:
         raise error_http(404, "no_encontrado", detail="Formulario no encontrado o inactivo", que="formulario")
+    # Auditoría 22-11-2026 (M8): el token dice la empresa; desde aquí filtra y sella.
+    publicar_empresa(db, getattr(form, "organization_id", None))
 
     priority = payload.priority or form.default_priority
     category = payload.category or form.default_category

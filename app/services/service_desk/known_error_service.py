@@ -88,8 +88,9 @@ def tickets_de_un_error_conocido(db, current_user, known_error_id: str) -> list[
             "id": t.id,
             "number": t.number,
             "title": t.title,
-            "status": str(getattr(t, "status", "") or ""),
-            "priority": str(getattr(t, "priority", "") or ""),
+            # Auditoria 2026-11-22 (4.4): el valor del enum, no «TicketStatus.x».
+            "status": str(getattr(t.status, "value", t.status) or ""),
+            "priority": str(getattr(t.priority, "value", t.priority) or ""),
             "created_at": str(t.created_at)[:19] if t.created_at else None,
         }
         for t in tickets
@@ -257,20 +258,10 @@ def promote_to_known_error(
 def _create_kb_article_from_problem(db: Session, problem: Problem) -> Optional[KBArticle]:
     """Auto-generate a KB article from a Problem's workaround and RCA."""
     try:
-        # Generate sequential KB number
-        last = (
-            db.query(KBArticle)
-            .order_by(KBArticle.number.desc())
-            .first()
-        )
-        if last and last.number and last.number.startswith("KB"):
-            try:
-                seq = int(last.number[2:]) + 1
-            except ValueError:
-                seq = 1
-        else:
-            seq = 1
-        number = f"KB{seq:05d}"
+        # 23-11-2026: numeracion de la empresa con bloqueo (`next_kb_number`);
+        # antes `max(number)` global, sin bloqueo y entre empresas.
+        from app.services.sla_service import next_kb_number
+        number = next_kb_number(db, problem.organization_id)
 
         body_parts = []
         if problem.root_cause:
@@ -279,8 +270,8 @@ def _create_kb_article_from_problem(db: Session, problem: Problem) -> Optional[K
             body_parts.append(f"## Solución / Workaround\n\n{problem.workaround}")
         if problem.fix_description:
             body_parts.append(f"## Corrección Permanente\n\n{problem.fix_description}")
-        if problem.rca_evidence:
-            body_parts.append(f"## Evidencia\n\n{problem.rca_evidence}")
+        # Auditoria 2026-11-22 (A-SD16): sin la evidencia de la RCA, que es
+        # interna (logs, nombres, datos de clientes).
 
         body = "\n\n".join(body_parts) or problem.description
 
@@ -290,8 +281,11 @@ def _create_kb_article_from_problem(db: Session, problem: Problem) -> Optional[K
             title=f"[Known Error] {problem.title}",
             body=body,
             summary=f"Workaround para: {problem.title[:200]}",
-            status=KBStatus.published,
-            is_public=True,
+            # Auditoria 2026-11-22 (A-SD16): se publicaba en el portal sin
+            # revision. Nace en revision e interno; lo publica un revisor.
+            organization_id=problem.organization_id,
+            status=KBStatus.in_review,
+            is_public=False,
             created_from_ticket_id=None,
         )
         db.add(article)

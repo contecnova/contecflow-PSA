@@ -129,7 +129,7 @@ def reconcile_cis(
             new_ci = ConfigurationItem(
                 id=str(uuid4()),
                 organization_id=org_id,
-                code=next_ci_number(db),
+                code=next_ci_number(db, org_id),
                 name=ci_data.get("name", ext_id),
                 ci_type=_tipo(ci_data.get("ci_type", "server")),
                 status=_estado(ci_data.get("status")),

@@ -17,12 +17,12 @@ from urllib.parse import quote
 from sqlalchemy.orm import Session
 
 from app.core.codigos_de_error import ErrorConCodigo
+from app.core.config import settings
 from app.services.reuniones import config
 from app.services.reuniones.conectores import Importable, exigir_activo, http
 
 PLATAFORMA = "Google Meet"
 API = "https://meet.googleapis.com/v2"
-TOKEN_URL = "https://oauth2.googleapis.com/token"
 AMBITO = "https://www.googleapis.com/auth/meetings.space.readonly"
 
 
@@ -43,9 +43,9 @@ def token(db: Session, org: Optional[str], correo: str) -> str:
     clave = _clave(db, org)
     ahora = int(time.time())
     afirmacion = jwt.encode({"iss": clave.get("client_email") or cfg["meet"].get("service_account_email"),
-                             "sub": correo, "scope": AMBITO, "aud": TOKEN_URL, "iat": ahora, "exp": ahora + 3600},
+                             "sub": correo, "scope": AMBITO, "aud": settings.GOOGLE_TOKEN_URL, "iat": ahora, "exp": ahora + 3600},
                             clave.get("private_key", ""), algorithm="RS256")
-    r = http("POST", TOKEN_URL, plataforma=PLATAFORMA,
+    r = http("POST", settings.GOOGLE_TOKEN_URL, plataforma=PLATAFORMA,
              data={"grant_type": "urn:ietf:params:oauth:grant-type:jwt-bearer", "assertion": afirmacion})
     return r.json()["access_token"]
 

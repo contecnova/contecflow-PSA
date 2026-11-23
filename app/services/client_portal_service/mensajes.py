@@ -39,9 +39,12 @@ def get_client_messages(thread_id: Optional[str], current_client, db: Session) -
     result = []
     for m in msgs:
         d = msg_out(m)
+        # Auditoría 22-11-2026 (A16): las respuestas internas del equipo no se
+        # enseñan al cliente (antes solo se filtraban los mensajes raíz).
         replies = db.query(ClientMessage).options(
             joinedload(ClientMessage.sender_client), joinedload(ClientMessage.sender_user)
-        ).filter(ClientMessage.parent_id == m.id).order_by(ClientMessage.created_at).all()
+        ).filter(ClientMessage.parent_id == m.id, ClientMessage.is_internal == False  # noqa: E712
+                 ).order_by(ClientMessage.created_at).all()
         d["replies"] = [msg_out(r) for r in replies]
         result.append(d)
     return result
@@ -83,15 +86,36 @@ def send_client_message(payload, current_client, db: Session) -> dict:
         payload.project_id if (hasattr(payload, "project_id") and payload.project_id)
         else accessible[0]
     )
-    if accessible and msg_project_id and msg_project_id not in accessible:
+    if msg_project_id not in accessible:
         raise ErrorConCodigo("sin_acceso_proyecto")
+    # A16: lista blanca de lo que manda el cliente. `is_internal` no lo decide
+    # él (antes podía mandarlo) y el padre/hilo tienen que ser de SU proyecto
+    # y visibles para él (antes se podía colgar un mensaje en un hilo ajeno).
     msg_data = payload.model_dump(exclude_unset=True)
-    msg_data.pop("project_id", None)
+    msg_data = {k: v for k, v in msg_data.items()
+                if k in ("subject", "body", "feature_request_id", "uat_session_id", "thread_id", "parent_id")}
+    if msg_data.get("parent_id"):
+        padre = db.query(ClientMessage).filter(
+            ClientMessage.id == msg_data["parent_id"],
+            ClientMessage.project_id == msg_project_id,
+            ClientMessage.is_internal == False,  # noqa: E712
+        ).first()
+        if not padre:
+            raise ErrorConCodigo("sin_acceso_proyecto")
+        msg_data["thread_id"] = padre.thread_id
+    elif msg_data.get("thread_id"):
+        ajeno = db.query(ClientMessage.id).filter(
+            ClientMessage.thread_id == msg_data["thread_id"],
+            ClientMessage.project_id != msg_project_id,
+        ).first()
+        if ajeno:
+            raise ErrorConCodigo("sin_acceso_proyecto")
     msg = ClientMessage(
         project_id=msg_project_id,
         sender_client_id=current_client.id,
         is_read_by_team=False,
         is_read_by_client=True,
+        is_internal=False,
         **msg_data,
     )
     if not msg.thread_id:

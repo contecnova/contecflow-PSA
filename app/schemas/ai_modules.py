@@ -22,7 +22,10 @@ class VoiceCommandPayload(BaseModel):
     # Si False (default), el comando se interpreta pero NO se ejecuta —
     # devuelve `pending_action` para que el cliente muestre confirmación
     # humana antes de hacer write. Si True, ejecuta directamente.
-    confirm: bool = Field(False, description="Si es True ejecuta directamente, si no devuelve acción pendiente de confirmación")
+    confirm: bool = Field(False, description="Si es True ejecuta la propuesta firmada (`accion_firmada`); si no, devuelve la propuesta")
+    # Auditoría 22-11-2026 (A6): confirmar ejecuta EXACTAMENTE la propuesta que
+    # se enseñó (`pending_action.token`), sin volver a llamar al LLM.
+    accion_firmada: Optional[str] = Field(None, description="`pending_action.token` de la propuesta que se confirma")
 
 class SmartScheduleRequest(BaseModel):
     project_id: Optional[str] = Field(None, description="ID del proyecto a planificar")

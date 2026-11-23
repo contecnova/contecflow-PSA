@@ -1,0 +1,45 @@
+{
+ "codigos": {},
+ "que": {
+  "webhook": {
+   "es": "Webhook",
+   "en": "Webhook",
+   "zh": "Webhook"
+  },
+  "marcador": {
+   "es": "Marcador",
+   "en": "Bookmark",
+   "zh": "书签"
+  },
+  "trabajador": {
+   "es": "Trabajador",
+   "en": "Worker",
+   "zh": "工作人员"
+  },
+  "escenario": {
+   "es": "Escenario",
+   "en": "Scenario",
+   "zh": "场景"
+  },
+  "prediccion": {
+   "es": "Predicción",
+   "en": "Prediction",
+   "zh": "预测"
+  },
+  "reunion": {
+   "es": "Reunión",
+   "en": "Meeting",
+   "zh": "会议"
+  },
+  "token": {
+   "es": "Token",
+   "en": "Token",
+   "zh": "令牌"
+  },
+  "configuracion": {
+   "es": "Configuración",
+   "en": "Configuration",
+   "zh": "配置"
+  }
+ }
+}

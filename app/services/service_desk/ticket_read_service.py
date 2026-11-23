@@ -13,7 +13,7 @@ from app.models.user import User
 from app.services.service_desk.scoping import (
     get_scoped_ticket_or_404, scope_ticket_query,
 )
-from app.services.service_desk.status_compat import normalize_ticket_status, sanitize_legacy_ticket_statuses
+from app.services.service_desk.status_compat import normalize_ticket_status
 from app.services.service_desk.ticket_query_service import build_ticket_list_query
 from app.services.service_desk.dynamic_ticket_fields_service import (
     get_ticket_dynamic_fields, get_tickets_dynamic_fields,
@@ -58,7 +58,6 @@ def list_tickets_payload(
     page: int = 1,
     page_size: int = 25,
 ) -> dict:
-    sanitize_legacy_ticket_statuses(db)
     query = build_ticket_list_query(
         db=db,
         current_user=current_user,
@@ -91,7 +90,6 @@ def list_tickets_payload(
 
 
 def my_queue_payload(db: Session, current_user: User, ticket_out) -> list[dict]:
-    sanitize_legacy_ticket_statuses(db)
     tickets = (
         db.query(Ticket)
         .options(
@@ -147,7 +145,6 @@ def _business_value_score(ticket: Ticket) -> float:
 
 
 def my_queue_prioritized_payload(db: Session, current_user: User, ticket_out) -> list[dict]:
-    sanitize_legacy_ticket_statuses(db)
     tickets = (
         db.query(Ticket)
         .options(
@@ -183,7 +180,6 @@ def my_queue_prioritized_payload(db: Session, current_user: User, ticket_out) ->
 
 
 def client_my_tickets_payload(db: Session, client_id: str, ticket_out, status: Optional[str] = None) -> list[dict]:
-    sanitize_legacy_ticket_statuses(db)
     query = (
         db.query(Ticket)
         .options(
@@ -200,7 +196,6 @@ def client_my_tickets_payload(db: Session, client_id: str, ticket_out, status: O
 
 
 def client_ticket_detail_payload(db: Session, client_id: str, ticket_id: str, ticket_out) -> dict:
-    sanitize_legacy_ticket_statuses(db)
     ticket = (
         db.query(Ticket)
         .options(
@@ -231,7 +226,6 @@ def client_ticket_detail_payload(db: Session, client_id: str, ticket_id: str, ti
 
 
 def ticket_detail_payload(db: Session, current_user: User, ticket_id: str, ticket_out) -> dict:
-    sanitize_legacy_ticket_statuses(db)
     query = db.query(Ticket).options(
         joinedload(Ticket.requester_user),
         joinedload(Ticket.requester_client),

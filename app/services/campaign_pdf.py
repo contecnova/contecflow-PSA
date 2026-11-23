@@ -69,6 +69,20 @@ _GRUPOS_360 = (
 )
 
 
+# M70 (auditoría 22-11-2026): las fuentes del idioma (las de la factura:
+# DejaVu Sans, y STSong-Light para chino; antes Helvetica, sin chino) y todo
+# texto que viene de personas escapado (`_e`): un «<» o un «<img src=…>» en un
+# comentario rompía el PDF o metía marcado de ReportLab.
+import contextvars as _cv  # noqa: E402
+from xml.sax.saxutils import escape as _escape  # noqa: E402
+
+_FUENTES: _cv.ContextVar = _cv.ContextVar("fuentes_campana", default=("Helvetica", "Helvetica-Bold"))
+
+
+def _e(valor) -> str:
+    return _escape(str(valor if valor is not None else ""))
+
+
 def _estilo_de_tabla(HEADER_BG, ROW_ALT, TEXT_GREY, tamano: int) -> TableStyle:
     """El estilo compartido de las tablas del informe.
 
@@ -78,7 +92,8 @@ def _estilo_de_tabla(HEADER_BG, ROW_ALT, TEXT_GREY, tamano: int) -> TableStyle:
     return TableStyle([
         ("BACKGROUND", (0, 0), (-1, 0), HEADER_BG),
         ("TEXTCOLOR",  (0, 0), (-1, 0), colors.white),
-        ("FONTNAME",   (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("FONTNAME",   (0, 0), (-1, 0), _FUENTES.get()[1]),
+        ("FONTNAME",   (0, 1), (-1, -1), _FUENTES.get()[0]),
         ("FONTSIZE",   (0, 0), (-1, -1), tamano),
         ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, ROW_ALT]),
         ("GRID",       (0, 0), (-1, -1), 0.25, TEXT_GREY),
@@ -135,7 +150,7 @@ def _tabla_de_comparativa(rating_qs, comparacion: dict, style_body, colores_, id
         propia = c.get("self")
         ajenas = [c.get("manager"), c.get("peers"), c.get("upward")]
         filas.append([
-            Paragraph(q["label"], style_body),
+            Paragraph(_e(q["label"]), style_body),
             f"{propia:.1f}" if propia is not None else "—",
             *[f"{v:.1f}" if v is not None else "—" for v in ajenas],
             _lectura_de_la_brecha(propia, [v for v in ajenas if v is not None], idioma),
@@ -157,7 +172,7 @@ def _bloque_de_comentarios(text_qs, groups: dict, threshold: int,
     """
     elementos = [PageBreak(), Paragraph(texto("camp.comentarios", idioma), style_h2)]
     for q in text_qs:
-        elementos.append(Paragraph(f"<b>{q['label']}</b>", style_body))
+        elementos.append(Paragraph(f"<b>{_e(q['label'])}</b>", style_body))
         elementos.append(Spacer(1, 4))
         for clave, clave_etiqueta in _GRUPOS_360:
             etiqueta = texto(clave_etiqueta, idioma)
@@ -174,7 +189,7 @@ def _bloque_de_comentarios(text_qs, groups: dict, threshold: int,
                 continue
             elementos.append(Paragraph(f"<b>{etiqueta}:</b>", style_meta))
             elementos += [
-                Paragraph(f"• {it.get('text', '')}", style_quote) for it in textos
+                Paragraph(f"• {_e(it.get('text', ''))}", style_quote) for it in textos
             ]
         elementos.append(Spacer(1, 8))
     return elementos
@@ -200,18 +215,21 @@ def generate_campaign_pdf(dashboard: dict, paleta=None, idioma=None, generado_el
         title=texto("camp.titulo", idioma, persona=camp.get('subject_name', '')),
     )
 
+    from app.services.invoice_pdf import _fuentes
+    normal, negrita = _fuentes(idioma)
+    _FUENTES.set((normal, negrita))
     styles = getSampleStyleSheet()
     style_title = ParagraphStyle("T", parent=styles["Title"], fontSize=22,
-                                 fontName="Helvetica-Bold", textColor=TEXT_MAIN,
+                                 fontName=negrita, textColor=TEXT_MAIN,
                                  spaceAfter=4, leading=28)
     style_h2 = ParagraphStyle("H2", parent=styles["Heading2"], fontSize=13,
-                              fontName="Helvetica-Bold", textColor=ACCENT,
+                              fontName=negrita, textColor=ACCENT,
                               spaceBefore=12, spaceAfter=6)
-    style_meta = ParagraphStyle("M", parent=styles["Normal"], fontSize=9,
+    style_meta = ParagraphStyle("M", parent=styles["Normal"], fontSize=9, fontName=normal,
                                 textColor=TEXT_GREY, spaceAfter=2)
-    style_body = ParagraphStyle("B", parent=styles["Normal"], fontSize=10,
+    style_body = ParagraphStyle("B", parent=styles["Normal"], fontSize=10, fontName=normal,
                                 textColor=TEXT_MAIN, leading=14)
-    style_quote = ParagraphStyle("Q", parent=styles["Normal"], fontSize=9,
+    style_quote = ParagraphStyle("Q", parent=styles["Normal"], fontSize=9, fontName=normal,
                                  textColor=TEXT_MAIN, leading=12,
                                  leftIndent=14, spaceAfter=4)
 
@@ -220,10 +238,10 @@ def generate_campaign_pdf(dashboard: dict, paleta=None, idioma=None, generado_el
     threshold = dashboard.get("anonymity_threshold", 3)
 
     elements = [
-        Paragraph(texto("camp.titulo", idioma, persona=camp.get('subject_name', '')), style_title),
+        Paragraph(texto("camp.titulo", idioma, persona=_e(camp.get('subject_name', ''))), style_title),
         Paragraph(
             f"{texto('pdf.generado_el', idioma, cuando=generado_el)}<br/>"
-            f"{texto('informe.col.estado', idioma)}: <b>{camp.get('status')}</b> · "
+            f"{texto('informe.col.estado', idioma)}: <b>{_e(camp.get('status'))}</b> · "
             f"{texto('camp.respuestas', idioma)}: "
             f"<b>{dashboard['total_submitted']}/{dashboard['total_assigned']}</b> · "
             f"{texto('camp.umbral', idioma)}: <b>{threshold}</b>",

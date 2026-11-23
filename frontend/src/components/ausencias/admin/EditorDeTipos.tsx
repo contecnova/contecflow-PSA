@@ -210,9 +210,7 @@ function FormularioDeTipo({ id, inicial, deSistema, onCerrar }: {
                 {d.saldo === 'propio' && (
                   <label className="ausadm-fila">
                     <span className="ausadm-ayuda">{ta('cupo_anual', { unidad: ta(`unidad_${d.unidad}`) })}</span>
-                    <input aria-label={ta('cupo_anual', { unidad: ta(`unidad_${d.unidad}`) })} type="number" min={0} step="0.5" className="ausadm-campo ausadm-campo--corto"
-                      required={!d.derecho_tabla_id}
-                      value={d.cupo_anual ?? ''} onChange={e => cambiar({ cupo_anual: numOpcional(e.target.value) })} />
+                    <Input aria-label={ta('cupo_anual', { unidad: ta(`unidad_${d.unidad}`) })} type="number" min={0} step="0.5" required={!d.derecho_tabla_id} value={d.cupo_anual ?? ''} onChange={e => cambiar({ cupo_anual: numOpcional(e.target.value) })} className="ausadm-campo--corto" />
                     <ErrorDeCampo texto={campos.de('cupo_anual')} />
                   </label>
                 )}
@@ -363,8 +361,7 @@ function Requisitos({ valor, documentos, onChange }: {
           </div>
           <div className="ausadm-fila">
             <span className="ausadm-ayuda">{ta('plazo')}</span>
-            <input type="number" min={0} className="ausadm-campo ausadm-campo--corto" aria-label={ta('plazo_dias')}
-              value={r.plazo_dias} onChange={e => cambiar(i, { plazo_dias: Number(e.target.value) || 0 })} />
+            <Input type="number" min={0} aria-label={ta('plazo_dias')} value={r.plazo_dias} onChange={e => cambiar(i, { plazo_dias: Number(e.target.value) || 0 })} className="ausadm-campo--corto" />
             <span className="ausadm-ayuda">{ta('dias_desde')}</span>
             <Select suelto className="ausadm-campo" aria-label={ta('plazo_desde')} value={r.plazo_desde}
               onChange={e => cambiar(i, { plazo_desde: e.target.value as PlazoDesde })} placeholder={false}>
@@ -376,13 +373,11 @@ function Requisitos({ valor, documentos, onChange }: {
               onChange={v => cambiar(i, { repetir_cada_dias: v ? 7 : null })} />
             {r.repetir_cada_dias != null && (
               <label className="ausadm-fila"><span className="ausadm-ayuda">{ta('cada_n_dias')}</span>
-                <input type="number" min={1} className="ausadm-campo ausadm-campo--corto" aria-label={ta('cada_n_dias')}
-                  value={r.repetir_cada_dias} onChange={e => cambiar(i, { repetir_cada_dias: Math.max(1, Number(e.target.value) || 1) })} />
+                <Input type="number" min={1} aria-label={ta('cada_n_dias')} value={r.repetir_cada_dias} onChange={e => cambiar(i, { repetir_cada_dias: Math.max(1, Number(e.target.value) || 1) })} className="ausadm-campo--corto" />
               </label>
             )}
             <label className="ausadm-fila"><span className="ausadm-ayuda">{ta('recordar_antes')}</span>
-              <input type="number" min={0} className="ausadm-campo ausadm-campo--corto" aria-label={ta('recordar_antes')}
-                value={r.recordar_dias_antes} onChange={e => cambiar(i, { recordar_dias_antes: Number(e.target.value) || 0 })} />
+              <Input type="number" min={0} aria-label={ta('recordar_antes')} value={r.recordar_dias_antes} onChange={e => cambiar(i, { recordar_dias_antes: Number(e.target.value) || 0 })} className="ausadm-campo--corto" />
             </label>
           </div>
           <div className="ausadm-fila">
@@ -391,8 +386,7 @@ function Requisitos({ valor, documentos, onChange }: {
             {r.escalar_dias_despues != null && (
               <>
                 <label className="ausadm-fila"><span className="ausadm-ayuda">{ta('escalar_tras')}</span>
-                  <input type="number" min={0} className="ausadm-campo ausadm-campo--corto" aria-label={ta('escalar_tras')}
-                    value={r.escalar_dias_despues} onChange={e => cambiar(i, { escalar_dias_despues: Number(e.target.value) || 0 })} />
+                  <Input type="number" min={0} aria-label={ta('escalar_tras')} value={r.escalar_dias_despues} onChange={e => cambiar(i, { escalar_dias_despues: Number(e.target.value) || 0 })} className="ausadm-campo--corto" />
                 </label>
                 <Destinatarios valor={r.escalar_a} onChange={escalar_a => cambiar(i, { escalar_a })} />
               </>

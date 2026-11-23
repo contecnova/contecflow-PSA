@@ -11,7 +11,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Download, Eye, FilePlus2, Lock, RefreshCw } from 'lucide-react'
 import { ausenciasApi } from '../../services/api/ausencias'
 import type { DetalleDeAusencia as Detalle, DocumentoDeAusencia } from '../../services/api/tipos-ausencias'
-import { Button, Drawer, Spinner, Select } from '../ui'
+import { Button, Drawer, Spinner, Select, cambiosGuardados } from '../ui'
 import DateInput from '../ui/DateInput'
 import { AvisoDeError } from './admin/comun'
 import { EstadoDeAusenciaChip, TipoChip, cantidad, fecha, useTa, useTiposDeDocumento } from './comun'
@@ -24,7 +24,7 @@ export default function DetalleDeAusencia({ id, onCerrar }: { id: string | null;
       <div className="aus-drawer">
       <header className="aus-fila aus-drawer-cabecera">
         <h2 className="aus-titulo">{ta('detalle')}</h2>
-        <Button size="xs" variant="ghost" onClick={onCerrar}>{ta('cerrar')}</Button>
+        <Button size="xs" variant="ghost" onClick={onCerrar} data-cierra-dialogo="">{ta('cerrar')}</Button>
       </header>
       {q.isLoading && <Spinner label={ta('cargando')} />}
       {q.isError && <AvisoDeError error={q.error} defecto={ta('error_cargar')} />}
@@ -102,7 +102,7 @@ function Documentos({ d }: { d: Detalle }) {
   const [sustituye, setSustituye] = useState<DocumentoDeAusencia | null>(null)
   const subir = useMutation({
     mutationFn: (f: File) => ausenciasApi.subirDocumento(d.ausencia.id, sustituye?.tipo_id ?? tipoId, f, sustituye?.id),
-    onSuccess: () => { setSustituye(null); qc.invalidateQueries({ queryKey: ['ausencias'] }) },
+    onSuccess: () => { setSustituye(null); cambiosGuardados(); qc.invalidateQueries({ queryKey: ['ausencias'] }) },
   })
   const abrir = useMutation({
     mutationFn: ({ doc, accion }: { doc: DocumentoDeAusencia; accion: 'view' | 'download' }) => ausenciasApi.abrirDocumento(d.ausencia.id, doc.id, accion),
@@ -177,7 +177,8 @@ function Gestion({ d }: { d: Detalle }) {
   const [tipoId, setTipoId] = useState('')
   const [vence, setVence] = useState('')
   const [fin, setFin] = useState('')
-  const listo = () => qc.invalidateQueries({ queryKey: ['ausencias'] })
+  // Se guarda sin cerrar el panel: ya no hay cambios que avisar (kit, 23-11-2026).
+  const listo = () => { cambiosGuardados(); return qc.invalidateQueries({ queryKey: ['ausencias'] }) }
   const pedir = useMutation({ mutationFn: () => ausenciasApi.pedirDocumento(d.ausencia.id, tipoId, vence), onSuccess: () => { setTipoId(''); setVence(''); listo() } })
   const ampliar = useMutation({ mutationFn: () => ausenciasApi.ampliar(d.ausencia.id, fin), onSuccess: () => { setFin(''); listo() } })
   const plaza = useMutation({ mutationFn: () => ausenciasApi.darPlaza(d.ausencia.id), onSuccess: listo })

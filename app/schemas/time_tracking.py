@@ -36,6 +36,8 @@ class TimerStopPayload(BaseModel):
     is_billable: bool = Field(True, description="Indica si las horas serán facturables")
     task_id: Optional[str] = Field(None, description="ID de la tarea final a la que imputar el tiempo")
     force_duplicate: bool = Field(False, description="Fuerza la creación aunque ya exista una imputación similar")
+    # M31 (auditoría 22-11-2026): un cronómetro olvidado se para indicando las horas reales.
+    hours: Optional[float] = Field(None, gt=0, le=24, description="Horas reales a imputar (como mucho, las medidas)")
 
 
 # ── Imputation Alert Schemas ───────────────────────────────────────────────

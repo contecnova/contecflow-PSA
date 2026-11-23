@@ -11,7 +11,6 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { dashboardApi, analyticsApi, risksApi } from '../services/api'
-import type { RiesgoAbiertoDeLaCartera } from '../services/api/tipos-proyectos'
 import { useAllProjects } from '../hooks/useProjects'
 import { EmptyState, KpiCard, SelectorDePeriodo, Spinner } from '../components/ui'
 import StatusBadge from '../components/ui/StatusBadge'
@@ -51,7 +50,7 @@ export default function ProjectsDashboardPage() {
   const [tipoCliente, setTipoCliente] = useState<TipoDeCliente>('')
   const { data: health = [], isLoading: lh } = useQuery<SaludDeProyecto[]>({
     queryKey: ['proj-dash-health', tipoCliente],
-    queryFn: () => dashboardApi.projectsHealth(paramsDeTipo(tipoCliente)).then(r => r.data).catch(() => []),
+    queryFn: () => dashboardApi.projectsHealth(paramsDeTipo(tipoCliente)).then(r => r.data),
     staleTime: STALE_DEFAULT_MS,
   })
 
@@ -59,9 +58,8 @@ export default function ProjectsDashboardPage() {
 
   const { data: byTypeRaw, isLoading: lt, error: errorTipo } = useQuery<FilaDeMetrica[]>({
     queryKey: ['proj-dash-type', params],
-    // Un periodo no válido (422 `periodo.*`) se explica; el resto, vacío como antes.
-    queryFn: () => analyticsApi.query('projects_by_type', { ...params }).then(r => r.data.rows)
-      .catch((e: unknown) => { if (codigoDeErrorDePeriodo(e)) throw e; return [] }),
+    // Un periodo no válido (422 `periodo.*`) se explica en la página; el resto avisa por el toast global (23-11-2026).
+    queryFn: () => analyticsApi.query('projects_by_type', { ...params }).then(r => r.data.rows),
     retry: false,
     staleTime: STALE_DEFAULT_MS,
   })
@@ -69,13 +67,13 @@ export default function ProjectsDashboardPage() {
 
   const { data: kpis } = useQuery<KpisDelCuadroDeMando | null>({
     queryKey: ['proj-dash-kpis'],
-    queryFn: () => dashboardApi.kpis().then(r => r.data).catch(() => null),
+    queryFn: () => dashboardApi.kpis().then(r => r.data),
     staleTime: STALE_DEFAULT_MS,
   })
 
   const { data: risks = [] } = useQuery({
     queryKey: ['proj-dash-risks'],
-    queryFn: () => risksApi.portfolioAll().then(r => r.data).catch((): RiesgoAbiertoDeLaCartera[] => []),
+    queryFn: () => risksApi.portfolioAll().then(r => r.data),
     staleTime: STALE_DEFAULT_MS,
   })
 

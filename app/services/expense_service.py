@@ -12,13 +12,13 @@ import logging
 from datetime import datetime, timezone
 from typing import Optional
 
-from sqlalchemy import case, func
+from sqlalchemy import case, func, false
 from sqlalchemy.orm import Session
 
 from app.services.settings_service import por_empresa as _pe
 from app.models.user import User
 from app.models.expenses import Expense, ExpenseStatus
-from app.services.gastos_avanzados import CATEGORY_LABELS, del_proyecto
+from app.services.gastos_avanzados import CATEGORY_LABELS, del_proyecto, etiqueta_de_categoria
 from app.models.project import Project
 from app.models.project import ProjectStatus
 from app.models.user import User as UserModel
@@ -50,25 +50,15 @@ from sqlalchemy.orm import joinedload
 
 logger = logging.getLogger(__name__)
 
-_CATEGORY_LABELS = {
-    "travel": "Viaje",
-    "accommodation": "Alojamiento",
-    "meals": "Comidas",
-    "software": "Software",
-    "hardware": "Hardware",
-    "training": "Formación",
-    "marketing": "Marketing",
-    "office": "Oficina",
-    "other": "Otro",
-}
+# 23-11-2026: las etiquetas de categoria y estado salen de `textos_de_salida`
+# (`gastos_avanzados.etiqueta_de_categoria`, `gastos.estado.*`), no de aqui.
 
-_STATUS_LABELS = {
-    "draft": "Borrador",
-    "submitted": "Enviado",
-    "approved": "Aprobado",
-    "rejected": "Rechazado",
-    "reimbursed": "Reembolsado",
-}
+
+def _tx_aprob(clave: str, db, usuario, **params) -> str:
+    """Texto del historial de la bandeja de aprobaciones, en el idioma de quien actua."""
+    from app.services.formato_regional import idioma_de_salida
+    from app.services.textos_de_salida import texto
+    return texto(clave, idioma_de_salida(db, user_id=getattr(usuario, "id", None)), **params)
 
 
 # ── Review (approve / reject) ──────────────────────────────────────────────────
@@ -82,11 +72,19 @@ def review_expense(
 ) -> dict:
     """Approve or reject a submitted expense. Sends notification and writes audit log."""
 
-    expense = db.query(Expense).filter(Expense.id == expense_id).first()
+    # M88 (auditoría 22-11-2026): la fila se bloquea (dos revisores a la vez no
+    # deciden dos veces) y nadie aprueba su propio gasto (segregación de funciones).
+    q = db.query(Expense).filter(Expense.id == expense_id)
+    from app.db.session import is_postgres
+    if is_postgres():
+        q = q.with_for_update()
+    expense = q.first()
     if not expense:
         raise ErrorDeDominio(404)
     if expense.status != ExpenseStatus.submitted:
         raise error(400, "gasto_no_pendiente")
+    from app.services.approval_engine._base import exigir_que_no_sea_suyo
+    exigir_que_no_sea_suyo(db, expense.user_id, current_user, "expense", expense.id)
     # Rev. 166 (#27): los niveles que pidió una política se deciden en la bandeja
     # de aprobaciones; revisar aquí los saltaría.
     from app.services.gastos_politicas import pendiente_con_pasos_de_politica
@@ -104,25 +102,33 @@ def review_expense(
     if approved:
         expense.status = ExpenseStatus.approved
         expense.rejection_reason = None
+        from app.services.formato_regional import idioma_de_salida as _ids
+        from app.services.textos_de_salida import texto as _tx
+        _id = _ids(db, user_id=expense.user_id)
         notify_user(
             db, expense.user_id, "expense_approved",
-            f"Gasto aprobado: {expense.description[:50]}",
-            f"{current_user.full_name} aprobó tu gasto de {expense.amount} {expense.currency}",
+            _tx("gasto.aprobado.titulo", _id, descripcion=expense.description[:50]),
+            _tx("gasto.aprobado.mensaje", _id, nombre=current_user.full_name,
+                importe=expense.amount, moneda=expense.currency),
             resource="expenses", resource_id=expense.id, action_url="/expenses",
         )
     else:
         expense.status = ExpenseStatus.rejected
         expense.rejection_reason = rejection_reason
+        from app.services.formato_regional import idioma_de_salida as _ids
+        from app.services.textos_de_salida import texto as _tx
+        _id = _ids(db, user_id=expense.user_id)
         notify_user(
             db, expense.user_id, "expense_rejected",
-            f"Gasto rechazado: {expense.description[:50]}",
-            f"Motivo: {rejection_reason or 'Sin motivo especificado'}",
+            _tx("gasto.rechazado.titulo", _id, descripcion=expense.description[:50]),
+            _tx("gasto.rechazado.mensaje", _id,
+                motivo=rejection_reason or _tx("gasto.rechazado.sin_motivo", _id)),
             resource="expenses", resource_id=expense.id, action_url="/expenses",
         )
 
     from app.services.approval_engine import fuentes
     fuentes.cerrar(db, "expense", expense.id, "approved" if approved else "rejected",
-                   f"Decidido en Gastos por {current_user.full_name}")
+                   _tx_aprob("gasto.decidido", db, current_user, nombre=current_user.full_name))
     audit_log(
         db, current_user,
         "APPROVE" if approved else "REJECT",
@@ -141,32 +147,47 @@ def export_expenses_excel(
     status: Optional[str],
     category: Optional[str],
     db: Session,
+    current_user=None,
 ):
     """
     El Excel de los gastos filtrados, como `Descarga` (el endpoint la sirve).
+
+    Auditoría 22-11-2026 (A40): el filtro de categoría estaba dentro del
+    `if status:` (sin estado se ignoraba; con estado y sin categoría filtraba
+    `category IS NULL` y salía vacío). Y (A25) se acota con el mismo criterio
+    que la lista del equipo (`query_team_expenses`): la empresa de quien
+    exporta, no solo el filtro de sesión.
     """
     import io
 
-    q = db.query(Expense).join(
-        UserModel, Expense.user_id == UserModel.id, isouter=True
-    ).filter(Expense.is_active == True)  # audit #36 soft-delete
-    if date_from:
-        q = q.filter(Expense.expense_date >= date_from)
-    if date_to:
-        q = q.filter(Expense.expense_date <= date_to)
-    if status:
-        q = q.filter(Expense.status == _normalize_status(status))
+    if current_user is not None:
+        q = query_team_expenses(db, current_user, status=status, date_from=date_from, date_to=date_to)
+    else:
+        q = db.query(Expense).filter(Expense.is_active == True)  # audit #36 soft-delete
+        if date_from:
+            q = q.filter(Expense.expense_date >= date_from)
+        if date_to:
+            q = q.filter(Expense.expense_date <= date_to)
+        if status:
+            q = q.filter(Expense.status == _normalize_status(status))
+    if category:
         q = q.filter(Expense.category == category)
-    expenses = q.order_by(Expense.expense_date.desc()).all()
+    expenses = q.order_by(None).order_by(Expense.expense_date.desc()).all()
+
+    # Auditoría 22-11-2026 (hardcode): cabeceras, estados y «Sí/No» en el idioma
+    # de quien exporta (antes, castellano fijo); `textos_de_salida` por clave.
+    from app.services.formato_regional import idioma_de_salida
+    from app.services.textos_de_salida import texto as _tx
+    idioma = idioma_de_salida(db, user_id=getattr(current_user, "id", None),
+                              org_id=getattr(current_user, "organization_id", None))
 
     wb = Workbook()
     ws = wb.active
-    ws.title = "Gastos"
+    ws.title = _tx("gastos.excel.hoja", idioma)
 
-    headers = [
-        "Fecha", "Empleado", "Categoría", "Descripción", "Importe",
-        "Moneda", "Proyecto", "Estado", "Facturable", "Notas", "URL Justificante",
-    ]
+    headers = [_tx(f"gastos.excel.{k}", idioma) for k in (
+        "fecha", "empleado", "categoria", "descripcion", "importe",
+        "moneda", "proyecto", "estado", "facturable", "notas", "justificante")]
     header_fill = PatternFill("solid", fgColor="0D1B3E")
     header_font = Font(bold=True, color="FFFFFF", size=11)
     for col, h in enumerate(headers, 1):
@@ -182,18 +203,21 @@ def export_expenses_excel(
         row_data = [
             str(e.expense_date) if e.expense_date else "",
             e.user.full_name if e.user else "",
-            _etiquetas_cat.get(e.category, _CATEGORY_LABELS.get(e.category, e.category or "")),
+            _etiquetas_cat.get(e.category, etiqueta_de_categoria(e.category, idioma)),
             e.description or "",
             e.amount or 0,
             e.currency or _pe.moneda_de_empresa(db, registro=e),
             e.project.name if hasattr(e, "project") and e.project else "",
-            _STATUS_LABELS.get(str(e.status).replace("ExpenseStatus.", ""), str(e.status)),
-            "Sí" if e.is_billable else "No",
+            _tx(f"gastos.estado.{getattr(e.status, 'value', e.status)}", idioma),
+            _tx("gastos.excel.si" if e.is_billable else "gastos.excel.no", idioma),
             e.notes or "",
             e.receipt_url or "",
         ]
+        # 22-11-2026 (02 A39): descripción, notas o proyecto con `=...` eran
+        # fórmulas al abrir el Excel; se neutralizan (comilla delante).
+        from app.core.celdas_seguras import neutralizar_formula
         for col, val in enumerate(row_data, 1):
-            ws.cell(row=row, column=col, value=val)
+            ws.cell(row=row, column=col, value=neutralizar_formula(val))
 
     for col, w in enumerate([12, 20, 14, 35, 10, 8, 20, 12, 10, 25, 35], 1):
         ws.column_dimensions[ws.cell(row=1, column=col).column_letter].width = w
@@ -383,6 +407,9 @@ def list_all_expenses(
     from app.services.gastos_avanzados import es_gestor
     if not (getattr(current_user, "is_superadmin", False) or es_gestor(db, current_user)):
         q = q.filter(Expense.user_id == current_user.id)
+    elif not current_user.is_superadmin and not current_user.organization_id:
+        # A25: un gestor sin empresa no ve los gastos de todas (antes, sin filtro).
+        q = q.filter(Expense.user_id == current_user.id)
     elif not current_user.is_superadmin and current_user.organization_id:
         org_user_ids = db.query(UserModel.id).filter(
             UserModel.organization_id == current_user.organization_id
@@ -413,7 +440,10 @@ def query_team_expenses(
     q = db.query(Expense).options(
         joinedload(Expense.user), joinedload(Expense.project), joinedload(Expense.reviewer)
     ).filter(Expense.is_active == True)  # audit #36 soft-delete
-    if not current_user.is_superadmin and current_user.organization_id:
+    if not current_user.is_superadmin and not current_user.organization_id:
+        # A25: sin empresa, ninguna fila (antes, las de todas las empresas).
+        q = q.filter(false())
+    elif not current_user.is_superadmin and current_user.organization_id:
         org_user_ids = db.query(UserModel.id).filter(
             UserModel.organization_id == current_user.organization_id
         ).scalar_subquery()
@@ -552,12 +582,13 @@ def submit_expense_record(db: Session, expense_id: str, user_id: str) -> dict:
     expense.status = ExpenseStatus.submitted
     expense.submitted_at = datetime.now(timezone.utc)
     expense.rejection_reason = None
-    db.commit()
+    # M106: envío + evaluación + solicitud de aprobación en una sola transacción
+    # (`tras_enviar` confirma); el evento sale después.
+    gastos_politicas.tras_enviar(db, expense, ev, user_id)
     from app.core.events import emit, EventType
     emit(db, EventType.EXPENSE_SUBMITTED,
          {"amount": expense.amount, "category": expense.category, "project_id": expense.project_id},
          resource_type="expense", resource_id=expense_id, project_id=expense.project_id)
-    gastos_politicas.tras_enviar(db, expense, ev, user_id)
     return {"ok": True, "decision": ev["decision"]}
 
 
@@ -573,20 +604,31 @@ def recall_expense_record(db: Session, expense_id: str, user_id: str) -> dict:
     expense.status = ExpenseStatus.draft
     expense.submitted_at = None
     from app.services.approval_engine import fuentes
-    fuentes.cerrar(db, "expense", expense.id, "cancelled", "Retirado por quien lo envió")
+    fuentes.cerrar(db, "expense", expense.id, "cancelled", _tx_aprob("gasto.retirado", db, current_user))
     db.commit()
     return {"ok": True}
 
 
-def reimburse_expense_record(db: Session, expense_id: str) -> dict:
-
-    expense = db.query(Expense).filter(Expense.id == expense_id).first()
+def reimburse_expense_record(db: Session, expense_id: str, current_user: Optional[User] = None) -> dict:
+    # M88 (auditoría 22-11-2026): bloqueo de fila (no se reembolsa dos veces),
+    # nadie se reembolsa su propio gasto y el reembolso queda en `audit_log`.
+    q = db.query(Expense).filter(Expense.id == expense_id)
+    from app.db.session import is_postgres
+    if is_postgres():
+        q = q.with_for_update()
+    expense = q.first()
     if not expense:
         raise ErrorDeDominio(404)
     if expense.status != ExpenseStatus.approved:
         raise error(400, "gasto_no_aprobado")
+    if current_user is not None:
+        from app.services.approval_engine._base import exigir_que_no_sea_suyo
+        exigir_que_no_sea_suyo(db, expense.user_id, current_user, "expense", expense.id)
     expense.status = ExpenseStatus.reimbursed
     expense.reimbursed_at = datetime.now(timezone.utc)
+    audit_log(db, current_user, "REIMBURSE", "expenses", expense.id, expense.code,
+              old_values={"status": "approved"}, new_values={"status": "reimbursed", "amount": expense.amount,
+                                                             "currency": expense.currency})
     db.commit()
     from app.core.events import emit, EventType
     emit(db, EventType.EXPENSE_APPROVED,

@@ -129,6 +129,14 @@ def con_rutas_cerradas(db: Session, user):
     from app.core.capacidades import capacidades_de
     user.blocked_routes = rutas_cerradas(db, user)
     user.capacidades = capacidades_de(db, user)
+    # 23-11-2026: cambio de contraseña obligatorio, caducidad y MFA pendiente
+    # (docs/seguridad/politicas_de_cuenta.md); la pantalla lo pide o avisa.
+    try:
+        from app.services.seguridad_de_cuentas.guardas import marcas
+        user.account_security = marcas(db, user)
+    except Exception:
+        __import__("logging").getLogger(__name__).warning("account_security no calculado", exc_info=True)
+        user.account_security = None
     return user
 
 

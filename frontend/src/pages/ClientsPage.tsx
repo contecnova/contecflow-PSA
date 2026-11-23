@@ -5,7 +5,7 @@ import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import { clientsApi, unwrapList, type ClientContact } from '../services/api'
 import type { MetaDeLista } from '../services/api/tipos-plataforma'
-import { Button, Spinner, EmptyState, Modal, Tabs, useSort, SortableTH, Pulsable, Select, useErroresDeCampo, Textarea } from '../components/ui'
+import { Buscador, FiltrosDeLista, Button, Spinner, EmptyState, Modal, Tabs, useSort, SortableTH, Pulsable, Select, useErroresDeCampo, Textarea, Input, Segmentado, SelectRico } from '../components/ui'
 import Pagination from '../components/ui/Pagination'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -149,11 +149,9 @@ function CamposEmpresa({ idBase, t, form, onCampo, errorDe, opcionesSector, opci
     return (
       <div className={opciones.ancho ? 'u-col-full' : undefined}>
         <label id={`${id}-et`} htmlFor={id} className="cli-label">{etiqueta}</label>
-        <input id={id} aria-labelledby={`${id}-et`} type={opciones.tipo ?? 'text'} value={form[clave] ?? ''}
-          placeholder={opciones.placeholder} className="cli-input"
-          aria-invalid={err ? true : undefined} aria-describedby={err ? `${id}-err` : undefined}
+        <Input id={id} aria-labelledby={`${id}-et`} type={opciones.tipo ?? 'text'} value={form[clave] ?? ''}
+          placeholder={opciones.placeholder} inputClassName="cli-input" error={err}
           onChange={e => onCampo(clave, e.target.value)} />
-        {err && <div id={`${id}-err`} className="u-field-error">{err}</div>}
       </div>
     )
   }
@@ -346,30 +344,34 @@ export default function ClientsPage(): JSX.Element {
       <div className="cli-layout">
       {/* Lista de clientes */}
       <div className="cli-list">
-        <input value={search} onChange={e => { setSearch(e.target.value); setPage(1) }}
-          placeholder={t('clients.buscar_cliente_por_nombre_o_codigo')} aria-label={t('clients.buscar_cliente_por_nombre_o_codigo')}
-          className="cli-input cli-input--mb" />
-        <div className="cli-filters">
-          <Select suelto placeholder={false} value={statusF} onChange={e => { setStatusF(e.target.value); setPage(1) }}
-            aria-label={t('clientspage.filtrar_estado')} className="cli-input u-flex1">
-            <option value="">{t('clients.todos_los_estados')}</option>
-            {statusOptions}
-          </Select>
-          <Select suelto placeholder={false} value={kindF} onChange={e => { setKindF(e.target.value); setPage(1) }}
-            aria-label={t('internos.filtrar_tipo')} className="cli-input cli-input--auto"
-            options={[
-              { value: '', label: t('internos.filtro_todos') },
-              { value: 'externo', label: t('internos.filtro_externos') },
-              { value: 'interno', label: t('internos.filtro_internos') },
+        {/* 23-11-2026: la columna de la lista es estrecha (~370 px). Patrón
+            `FiltrosDeLista`: buscador a todo el ancho, tipo (3 opciones cortas)
+            como segmentado de botones iguales, y estado y orden en dos columnas
+            iguales con SelectRico (lista con el tema). */}
+        <FiltrosDeLista
+          buscador={<Buscador value={search} onChange={v => { setSearch(v); setPage(1) }}
+            placeholder={t('clients.buscar_cliente_por_nombre_o_codigo')} />}
+          segmentado={<Segmentado aria-label={t('internos.filtrar_tipo')} valor={kindF}
+            onChange={v => { setKindF(v); setPage(1) }}
+            opciones={[
+              { valor: '', etiqueta: t('internos.filtro_todos') },
+              { valor: 'externo', etiqueta: t('internos.filtro_externos') },
+              { valor: 'interno', etiqueta: t('internos.filtro_internos') },
+            ]} />}>
+          <SelectRico aria-label={t('clientspage.filtrar_estado')} valor={statusF}
+            onChange={v => { setStatusF(v); setPage(1) }}
+            opciones={[
+              { valor: '', etiqueta: t('clients.todos_los_estados') },
+              ...STATUS_KEYS.map(k => ({ valor: k, etiqueta: statusLabel(k) })),
             ]} />
-          <Select suelto placeholder={false} value={sortBy} onChange={e => setSortBy(e.target.value)}
-            aria-label={t('clientspage.ordenar_por')} className="cli-input cli-input--auto">
-            <option value="name">{t('clientspage.orden_az')}</option>
-            <option value="projects_count">{t('clientspage.orden_proyectos')}</option>
-            <option value="tickets_count">{t('clientspage.orden_tickets')}</option>
-            <option value="status">{t('clientspage.orden_estado')}</option>
-          </Select>
-        </div>
+          <SelectRico aria-label={t('clientspage.ordenar_por')} valor={sortBy} onChange={setSortBy}
+            opciones={[
+              { valor: 'name', etiqueta: t('clientspage.orden_az') },
+              { valor: 'projects_count', etiqueta: t('clientspage.orden_proyectos') },
+              { valor: 'tickets_count', etiqueta: t('clientspage.orden_tickets') },
+              { valor: 'status', etiqueta: t('clientspage.orden_estado') },
+            ]} />
+        </FiltrosDeLista>
         {isLoading ? <Spinner /> : clients.length === 0
           ? <EmptyState icon={<Building2 size={28} />} title={t('clients.no_clients')} description={t('clientspage.crea_primer_cliente')} action={newClientButton} />
           : clientView === 'grid' ? (sortedClients as Client[]).map(c => (

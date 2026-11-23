@@ -1,5 +1,5 @@
 from app.core.config import settings
-from app.core.deps import require_admin
+from app.core.deps import requiere_capacidad
 from app.main import app
 from app.models.mfa import Organization
 from app.models.user import User, UserRole
@@ -96,7 +96,8 @@ def test_scim_user_provisioning(client, db):
 
 def test_governance_ai_read_endpoints_allow_admin_without_org(client, admin_token, db):
     # users.organization_id is NOT NULL at the DB layer (audit #37), so we cannot
-    # persist an org-less admin. Override require_admin with a transient admin whose
+    # persist an org-less admin. Override the route guard (23-11-2026, M9:
+    # `requiere_capacidad("gobierno.administrar")`, antes `require_admin`) with a transient admin whose
     # organization_id is None to exercise the production strict=False read path.
     orgless_admin = User(
         id="orgless-admin",
@@ -108,7 +109,7 @@ def test_governance_ai_read_endpoints_allow_admin_without_org(client, admin_toke
         hashed_password="x",
     )
     orgless_admin.organization_id = None
-    app.dependency_overrides[require_admin] = lambda: orgless_admin
+    app.dependency_overrides[requiere_capacidad("gobierno.administrar")] = lambda: orgless_admin
     try:
         config_res = client.get("/api/v1/governance/config", headers=auth(admin_token))
         assert config_res.status_code == 200
@@ -128,4 +129,4 @@ def test_governance_ai_read_endpoints_allow_admin_without_org(client, admin_toke
         assert logs_res.status_code == 200
         assert isinstance(logs_res.json()["items"], list)
     finally:
-        app.dependency_overrides.pop(require_admin, None)
+        app.dependency_overrides.pop(requiere_capacidad("gobierno.administrar"), None)

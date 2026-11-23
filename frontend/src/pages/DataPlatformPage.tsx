@@ -8,16 +8,20 @@ import { useQuery } from '@tanstack/react-query'
 import PageShell from '../components/layout/PageShell'
 import PageHeader from '../components/layout/PageHeader'
 import { Database, Eye, GitCompare, Radio, RefreshCw, Save } from 'lucide-react'
-import { Button, Select, Input } from '../components/ui'
+import { Button, Select, Input, EstadoDeError } from '../components/ui'
+import { useToast } from '../context/ToastContext'
 import { useAppLang } from '../i18n/AppLangContext'
 import { biIntelligenceApi, biPlatformApi, wsApi, apiWsUrl } from '../services/api'
 import type { DiferenciaDeInstantaneasBi } from '../services/api/tipos-bi'
 import BiEtlPanel from '../components/bi/BiEtlPanel'
 import BiO365Panel from '../components/bi/BiO365Panel'
-import { formateadorDeFecha } from '../utils/helpers'
+import { extractErr, formateadorDeFecha } from '../utils/helpers'
 import { STALE_DEFAULT_MS, STALE_PREVIEW_MS, WS_STREAM_RECONNECT_MS } from '../constants/timings'
 import { DATA_PREVIEW_ROWS } from '../constants/pagination'
 import './DataPlatformPage.css'
+
+/** Conjunto de datos con el que arranca el campo de linaje y versiones (editable por quien opera; 04 M10, 23-11-2026). */
+const DATASET_POR_DEFECTO = 'olap.fact_projects'
 
 interface StreamFrame {
   type?: string
@@ -28,38 +32,44 @@ interface StreamFrame {
 export default function DataPlatformPage(): JSX.Element {
   const { t } = useAppLang()
 
-  const [presetId, setPresetId] = useState('ops_delivery_mix')
+  const toast = useToast()
+  // 23-11-2026 (04 M10): sin preset fijo ('ops_delivery_mix'); se usa el elegido o, si no, el primero recibido.
+  const [presetId, setPresetId] = useState('')
   const [streamLive, setStreamLive] = useState(false)
   const [streamSnapshot, setStreamSnapshot] = useState<StreamFrame | null>(null)
 
   const [phase3Tick, setPhase3Tick] = useState(0)
-  const [datasetKey, setDatasetKey] = useState('olap.fact_projects')
+  const [datasetKey, setDatasetKey] = useState(DATASET_POR_DEFECTO)
   const [snapshotDiff, setSnapshotDiff] = useState<DiferenciaDeInstantaneasBi | null>(null)
 
-  const { data: reportPresets = [] } = useQuery({
+  // 23-11-2026 (04 M6): las consultas ya no se tragan el error con `.catch`; avisa el onError global
+  // y la pantalla pinta el estado de error de la que alimenta cada tarjeta.
+  const { data: reportPresets = [], isError: presetsError, error: presetsErr, refetch: refetchPresets } = useQuery({
     queryKey: ['data-platform-report-presets'],
     // El interceptor ya deja la lista en `r.data` (envelope APIListResponse).
-    queryFn: () => biIntelligenceApi.reportPresets().then(r => r.data).catch(() => []),
+    queryFn: () => biIntelligenceApi.reportPresets().then(r => r.data),
     staleTime: STALE_DEFAULT_MS,
   })
+  const presetEfectivo = presetId || reportPresets[0]?.id || ''
   const { data: previewData, refetch: refetchPreview } = useQuery({
-    queryKey: ['data-platform-preview', presetId],
-    queryFn: () => biIntelligenceApi.previewPreset({ preset_id: presetId, limit: DATA_PREVIEW_ROWS }).then(r => r.data).catch(() => null),
+    queryKey: ['data-platform-preview', presetEfectivo],
+    queryFn: () => biIntelligenceApi.previewPreset({ preset_id: presetEfectivo, limit: DATA_PREVIEW_ROWS }).then(r => r.data),
+    enabled: !!presetEfectivo,
     staleTime: STALE_PREVIEW_MS,
   })
   const { data: deliveryOverview } = useQuery({
     queryKey: ['data-platform-delivery'],
-    queryFn: () => biIntelligenceApi.deliveryOverview().then(r => r.data).catch(() => null),
+    queryFn: () => biIntelligenceApi.deliveryOverview().then(r => r.data),
     staleTime: STALE_PREVIEW_MS,
   })
-    const { data: phase3Lineage, refetch: refetchPhase3Lineage } = useQuery({
+  const { data: phase3Lineage, refetch: refetchPhase3Lineage, isError: lineageError, error: lineageErr } = useQuery({
     queryKey: ['data-platform-lineage', phase3Tick],
-    queryFn: () => biPlatformApi.lineage().then(r => r.data).catch(() => ({ edges: [], audit: [] })),
+    queryFn: () => biPlatformApi.lineage().then(r => r.data),
     staleTime: STALE_PREVIEW_MS,
   })
   const { data: phase3SnapshotItems = [], refetch: refetchPhase3Snapshots } = useQuery({
     queryKey: ['data-platform-snapshots', datasetKey, phase3Tick],
-    queryFn: () => biPlatformApi.listSnapshots(datasetKey).then(r => r.data).catch(() => []),
+    queryFn: () => biPlatformApi.listSnapshots(datasetKey).then(r => r.data),
     staleTime: STALE_PREVIEW_MS,
   })
   
@@ -79,13 +89,17 @@ export default function DataPlatformPage(): JSX.Element {
           try {
             const data = JSON.parse(ev.data) as StreamFrame
             if (data?.type === 'bi_intelligence_snapshot') setStreamSnapshot(data)
-          } catch (_e) { /* ignore malformed frames */ }
+          } catch (_e) { /* accesorio: un fotograma mal formado del flujo en vivo se descarta; el siguiente llega solo */ }
         }
         ws.onclose = () => { if (!closed && streamLive) setTimeout(connect, WS_STREAM_RECONNECT_MS) }
-      } catch (_e) { /* keep UI responsive */ }
+      } catch (e) {
+        // 23-11-2026: si no se consigue ni el ticket, se avisa y se apaga el flujo en vez de quedarse mudo.
+        if (!closed) { toast.error(extractErr(e, t('dataplatform.error_streaming'))); setStreamLive(false) }
+      }
     }
     connect()
     return () => { closed = true; if (ws) ws.close() }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- toast y t son estables en la práctica; reconectar por ellos reabriría el flujo
   }, [streamLive])
 
   const phase3LineageEdges = phase3Lineage?.edges ?? []
@@ -96,7 +110,8 @@ export default function DataPlatformPage(): JSX.Element {
         payload: { captured_at: new Date().toISOString(), source: 'data_platform_manual' },
       })
       setPhase3Tick(x => x + 1); await refetchPhase3Snapshots()
-    } catch (_) { /* ignore */ }
+      toast.success(t('dataplatform.version_creada'))
+    } catch (e) { toast.error(extractErr(e, t('dataplatform.error_crear_version'))) }
   }
   async function handleDiffLastSnapshots() {
     const items = phase3SnapshotItems
@@ -104,7 +119,7 @@ export default function DataPlatformPage(): JSX.Element {
     const fromId = items[items.length - 2]?.id
     const toId = items[items.length - 1]?.id
     if (!fromId || !toId) return
-    try { const res = await biPlatformApi.diffSnapshots(datasetKey, fromId, toId); setSnapshotDiff(res?.data || null) } catch (_) { /* ignore */ }
+    try { const res = await biPlatformApi.diffSnapshots(datasetKey, fromId, toId); setSnapshotDiff(res?.data || null) } catch (e) { toast.error(extractErr(e, t('dataplatform.error_comparar_versiones'))) }
   }
 
   return (
@@ -124,7 +139,8 @@ export default function DataPlatformPage(): JSX.Element {
           <div className="dpl-card">
             <div className="dpl-card-head"><div className="dpl-section-title">{t('dataplatform.presets')}</div></div>
             <div className="dpl-card-body">
-              <Select suelto placeholder={false} aria-label={t('dataplatform.presets')} value={presetId} onChange={e => setPresetId(e.target.value)} className="dpl-input">
+              {presetsError && <EstadoDeError error={presetsErr} onReintentar={() => { void refetchPresets() }} />}
+              <Select suelto placeholder={false} aria-label={t('dataplatform.presets')} value={presetEfectivo} onChange={e => setPresetId(e.target.value)} className="dpl-input">
                 {reportPresets.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
               </Select>
               <div><Button size="sm" variant="secondary" icon={<Eye size={14} />} onClick={() => refetchPreview()}>{t('dataplatform.previsualizar')}</Button></div>
@@ -155,6 +171,7 @@ export default function DataPlatformPage(): JSX.Element {
               <div className="u-text2-sm">
                 {t('dataplatform.aristas_y_versiones', { aristas: phase3LineageEdges.length, versiones: phase3SnapshotItems.length })}
               </div>
+              {lineageError && <EstadoDeError error={lineageErr} onReintentar={() => { void refetchPhase3Lineage() }} />}
               <Input aria-label={t('dataplatform.dataset')} value={datasetKey} onChange={e => setDatasetKey(e.target.value)} placeholder={t('dataplatform.dataset')} inputClassName="dpl-input" />
               <div className="u-wrap-8">
                 <Button size="sm" icon={<Save size={14} />} onClick={handleCreateSnapshot}>{t('dataplatform.crear_version')}</Button>

@@ -10,6 +10,7 @@ import type {
 } from '../../services/api/tipos-politicas'
 import { Button, Select, Checkbox } from '../ui'
 import { EntradaDeValor, useOpciones, useTextos } from './comun'
+import { Input } from '../ui'
 
 const MAX_PROFUNDIDAD = 8
 /** Operadores con dos valores: «entre» y, en un periodo, «solapa con» / «no solapa con» (rev. 167). */
@@ -100,8 +101,7 @@ function Condicion({ dominio, condicion, onChange, onQuitar }: {
       </Select>
       {condicion.operador === 'pct_over' ? (
         <>
-          <input type="number" min={0} step="1" className="pol-campo pol-campo--corto" aria-label={t('pol.porcentaje')}
-            value={(condicion.valor as number) ?? 0} onChange={e => onChange({ ...condicion, valor: Number(e.target.value) })} />
+          <Input type="number" min={0} step="1" aria-label={t('pol.porcentaje')} value={(condicion.valor as number) ?? 0} onChange={e => onChange({ ...condicion, valor: Number(e.target.value) })} className="pol-campo--corto" />
           <span className="pol-ayuda">{t('pol.pct_sobre')}</span>
           <SelectorDeReferencia dominio={dominio} campo={campo} valor={condicion.referencia}
             onChange={r => onChange({ ...condicion, referencia: r })} />

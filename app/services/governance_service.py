@@ -198,10 +198,14 @@ def upsert_ai_module_config(
 
 
 def get_ai_usage_stats(db: Session, organization_id: str) -> dict:
-    total_calls = db.query(func.count(AIActionLog.id)).scalar() or 0
-    total_tokens = db.query(func.sum(AIActionLog.tokens_used)).scalar() or 0
+    # Auditoría 22-11-2026 (A29): filtro explícito por empresa (antes, agregado de
+    # todas para superadmin y trabajos de fondo).
+    de_la_empresa = [AIActionLog.organization_id == organization_id] if organization_id else []
+    total_calls = db.query(func.count(AIActionLog.id)).filter(*de_la_empresa).scalar() or 0
+    total_tokens = db.query(func.sum(AIActionLog.tokens_used)).filter(*de_la_empresa).scalar() or 0
     rows = (
         db.query(AIActionLog.module, func.count(AIActionLog.id), func.sum(AIActionLog.tokens_used))
+        .filter(*de_la_empresa)
         .group_by(AIActionLog.module)
         .all()
     )
@@ -216,6 +220,8 @@ def list_ai_governance_logs(
     module: Optional[str] = None,
 ) -> list[dict]:
     q = db.query(AIActionLog)
+    if organization_id:   # A29
+        q = q.filter(AIActionLog.organization_id == organization_id)
     if module:
         q = q.filter(AIActionLog.module == module)
     rows = q.order_by(AIActionLog.created_at.desc()).limit(limit).all()

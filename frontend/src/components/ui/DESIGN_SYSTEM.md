@@ -20,7 +20,7 @@ Lo que todas las pantallas cumplen (referencia: /projects, /absences, /cmdb, /m3
 - **Vacíos**: `EmptyState` con icono lucide (`icon={<Folder size={28} />}`) o una clave (`folder`, `tasks`, `search`, `users`, `docs`, `chart`, `inbox`). Un emoji u otro texto **ya no se pinta**: sale el icono neutro (`inbox`) y en desarrollo avisa por consola. El `ctaLabel` sale como `Button` primario con `Plus`. `DataTable.emptyIcon` por defecto es `inbox`.
 - **Botones**: `Button` con `primary | secondary | ghost | danger` (danger solo para destruir). `subtle` se pinta como `secondary`. Red de seguridad: un texto que empieza por «+ » pasa a icono `Plus` y los emojis del texto se quitan. Reenvía `aria-label`, `aria-expanded`, `aria-pressed`, `aria-controls` y `data-*`. Mismo alto que `Input`/`Select` en cada tamaño (`md` = 38 px).
 - **Formularios**: `Input` acepta `maxLength`, `autoFocus`, `inputMode`, `disabled`, `min/max/step`. `Select` acepta `disabled`, `required`, `aria-label` y `placeholder` (`false` quita la opción vacía inicial). `FormField` marca el error con el icono `AlertTriangle`.
-- **Iconos**: lucide siempre; nunca emojis (código ni diccionarios). `ViewToggle`, `SearchInput` y `IconFR`/`IconCR` ya usan lucide.
+- **Iconos**: lucide siempre; nunca emojis (código ni diccionarios). `ViewToggle`, `Buscador` y `IconFR`/`IconCR` ya usan lucide.
 - **Colores**: solo tokens de `index.css`; activo/seleccionado = `--accent` / `--accent-muted`; nada de `--surface-*` como color de texto.
 - **Fechas**: `fmtDate`, `fmtDateTime`, `fmtMonth`, `formateadorDeFecha` (utils/helpers). Para editarlas, `CampoFecha`/`DateInput` (nunca el input nativo); para el periodo de un informe, `SelectorDePeriodo` + `usePeriodo`. El campo de fecha mide lo mismo que `Input`/`Select`/`Button md` (38 px) con cualquier clase; en una tabla densa se baja con `--uifecha-alto`.
 - **Personas × días/semanas**: siempre `RejillaPersonaDia` + `NavegadorDeMes` (ver abajo).
@@ -102,12 +102,45 @@ Un solo desplegable: `<select>` nativo con el estilo del kit, 38 px como `Input`
 
 ```jsx
 <BarraDeFiltros acciones={<Button variant="link" onClick={limpiar}>{t('uikit.limpiar_todo')}</Button>}>
-  <SearchInput value={q} onChange={setQ} />
+  <Buscador value={q} onChange={setQ} />
   <Select suelto aria-label="Estado" … />
   <Chip activo={soloMias} onClick={() => setSoloMias(v => !v)} cuenta={n}>Mías</Chip>
   <Segmentado aria-label="Vista" valor={vista} onChange={setVista} opciones={[{ valor: 'lista', etiqueta: 'Lista', icon: <List size={14} /> }, …]} />
 </BarraDeFiltros>
 ```
+
+### Alturas, campos con icono y filas de filtros (23-11-2026)
+
+**Alturas.** Un solo alto por tamaño, en tokens de `index.css`: `--alto-control` (38 px), `--alto-control-sm` (32), `--alto-control-xs` (26), `--alto-control-lg` (44). `Input` y `Select` de una línea tienen alto **fijo** (no mínimo), igual que `SelectRico`, `CampoFecha`, `Segmentado`, `EntitySelect`, `FilterSelect` y `Button md`: en una fila miden lo mismo aunque la página les cambie el relleno. Las pantallas no fijan `height`/`min-height` de un campo (lo vigila `kitCssSinRestos`: `altoFijoControl`, `minAltoCampo`). Una tabla densa baja el alto con `tamano="sm"` o `--uifecha-alto`.
+
+**Iconos dentro de un campo.** Nunca un icono absoluto a mano junto a un `Input` (al migrar a `Input`, el `<input>` dejó de llevar `ds-input` y las reglas `.x .ds-input { padding-left }` dejaron la lupa encima del texto). El kit lo hace:
+
+```jsx
+<Buscador value={q} onChange={setQ} placeholder={t('x.buscar')} />   // lupa + X para vaciar; onChange recibe el texto
+<Buscador value={q} onChange={setQ} retardo={300} />                   // consulta al servidor: avisa al dejar de escribir
+<Input icono={<Mail />} … />   <Input iconoFinal="%" … />   <Input onLimpiar={() => set('')} … />
+```
+
+El icono va centrado, a `--campo-icono` (14 px), `aria-hidden`, y el texto empieza en `--campo-pad-icono`. La X es un botón con nombre («Borrar la búsqueda») que devuelve el foco al campo. Excepción: la cabecera de una paleta (búsqueda global, buscar mensajes en el chat) lleva el icono junto a un campo sin caja.
+
+**Selectores CSS.** El `Input`/`Textarea`/`Select` del kit no llevan `ds-input`: una regla `.ds-input.x` o `.zona .ds-input` no se aplica. El estilo propio de un campo va en la clase de `inputClassName` (el `<input>`) o de `className` (el contenedor `ui-field`: anchos y `flex`). `kitCssSinRestos` marca cualquier selector nuevo con `.ds-input` (`selectorDsInput`).
+
+**Iconos de botón.** El tamaño lo pone el botón: xs 12 px, sm y md 14 px, lg 16 px, venga el `size` que venga en el icono.
+
+**Filas de filtros anchas** (`BarraDeFiltros` / `ds-toolbar`, bajo la cabecera): el `Buscador` crece (240–480 px); cada desplegable mide lo que su opción más larga y no crece ni se encoge por debajo; la fila salta de línea antes que recortar. Si algún campo de la fila lleva etiqueta encima, toda la fila se alinea por abajo (las cajas quedan en la misma línea).
+
+**Filtros en una columna o panel estrecho:** `FiltrosDeLista`. Buscador a todo el ancho; un filtro de 2–4 opciones cortas como `Segmentado` a todo el ancho con botones iguales; el resto, `SelectRico` en una rejilla de 2 columnas iguales. Nunca 3 o más desplegables en una fila que no tenga ancho para su texto más largo (referencia: Clientes).
+
+```jsx
+<FiltrosDeLista
+  buscador={<Buscador value={q} onChange={setQ} placeholder={t('clients.buscar…')} />}
+  segmentado={<Segmentado aria-label={t('x.tipo')} valor={tipo} onChange={setTipo} opciones={[…]} />}>
+  <SelectRico aria-label={t('x.estado')} valor={estado} onChange={setEstado} opciones={[…]} />
+  <SelectRico aria-label={t('x.orden')} valor={orden} onChange={setOrden} opciones={[…]} />
+</FiltrosDeLista>
+```
+
+**Lista de un `<select>` nativo.** Sigue el tema: `color-scheme` (oscuro en `:root` y en los temas oscuros, claro en `light`) y las `option` con `--surface-2`/`--text-1`. Antes `:root` no declaraba `color-scheme` y el tema por defecto (oscuro) abría la lista blanca y azul del sistema. Para una lista con iconos, marcas o descripción, `SelectRico`.
 
 ### Hojas de estilo de las pantallas
 
@@ -116,7 +149,8 @@ Fuera de `components/ui` e `index.css` (lo comprueba `src/__tests__/kitCssSinRes
 - Sin `text-transform: uppercase` ni `capitalize`: el texto va como se escribe. Un rótulo pequeño es `ds-eyebrow` (del kit).
 - Sin letra monoespaciada en el CSS de las pantallas: cifras alineadas con `font-variant-numeric: tabular-nums`. El código que el usuario lee o copia (rutas de API, variables, comandos) usa la clase del kit `ds-codigo` (`ds-codigo--bloque` para bloques), la única con monoespaciada.
 - Sin colores literales (`#hex`, `rgb()/rgba()/hsl()` con números): `var(--token)`; mezclas con `color-mix(in srgb, var(--x) 20%, transparent)`.
-- Sin `height: NNpx` en botones, campos y selects: los controles del kit ya miden 38/32 px; si hace falta, `min-height`.
+- Sin `height: NNpx` en botones, campos y selects, ni `min-height: NNpx` en campos: los controles del kit ya miden `--alto-control` (38) / `--alto-control-sm` (32).
+- Sin selectores con `.ds-input` (los controles del kit no la llevan): la clase propia del campo.
 
 ### Excepciones temporales
 
@@ -206,6 +240,22 @@ Kinds: `neutral` (def), `success`, `warning`, `danger`, `info`, `accent`, `purpl
 
 Cierra con Esc + click-outside.  Soporta `width`, `subtitle`, header/footer.
 
+### Modal / Drawer / PortalModal — cambios sin guardar (23-11-2026)
+
+Incidencia de usuario: «al editar, si haces clic fuera del formulario, se cierra sin preguntar y se pierden los cambios». **Estándar:** si el usuario ha tocado algo, cerrar con **clic fuera, Escape o la X** pregunta «Tienes cambios sin guardar. ¿Descartarlos?» (**Descartar** / **Seguir editando**, diálogo único de `ConfirmContext`); sin cambios, cierra al momento. **Navegar fuera** (enlace interno) y **cerrar o recargar la pestaña** (`beforeunload`) también preguntan.
+
+- **Automático, sin tocar pantallas.** `Modal`, `Drawer`, `PortalModal` y todo diálogo con `useDialogo`/`useDialogoEditable` vigilan su contenido (`useCambiosSinGuardar`): eventos `input`/`change` en captura; el valor de cada campo se apunta al enfocarlo y, si vuelve a su valor, deja de contar. `SelectRico` y `CampoFecha` (no nativos) avisan con `avisarCambio()` (evento `ui:cambio`). Cada apertura empieza limpia.
+- **No cuentan:** `type="search"`, `role="searchbox"`, lo marcado con `data-sin-guardar="ignorar"` (filtro de `DataTable`, ajustes que se aplican al momento) y lo escrito en un diálogo anidado (solo cuenta el de arriba).
+- **Cierre programático no pregunta:** guardar y llamar al `onClose` de la pantalla, o poner `open={false}`. Solo preguntan los gestos de cierre que pasan por el kit. El botón **Cancelar** del pie es descarte explícito y no pregunta.
+- **Props:** `avisarSinGuardar={false}` en modales de solo lectura o de confirmación (el propio `ConfirmContext` lo lleva); `cambiosSinGuardar={bool}` cuando la pantalla sabe mejor si hay cambios (selecciones sin `<input>`, archivo arrastrado…): manda sobre la detección.
+- **Drawer:** la X la pone quien lo usa → añadir `data-cierra-dialogo=""` a ese botón (sirve en cualquier diálogo con `useDialogo`).
+- **Diálogo propio:** `const { ref, pedirCierre } = useDialogoEditable(abierto, cerrar, opciones)`; el fondo y la X llaman a `pedirCierre`, nunca a `onClose`. No duplicar Esc con `onKeyDown` (lo hace el hook y pregunta).
+- **Guardar sin cerrar** (paneles por secciones): `cambiosGuardados()` en el `onSuccess`, o `useSinGuardarDelDialogo().reiniciar()` desde el contenido. Cierres a mano de una pantalla (clic fuera de un popover propio): `await confirmarDescarte()`.
+- **Navegación:** la app usa `BrowserRouter` (sin data router) y `useBlocker` no está disponible. Se interceptan en captura los clics en `<a href>` internos (`Link`, `NavLink`) mientras haya un diálogo sucio; si se descarta, se repite el clic. **Limitación:** no se intercepta `navigate()` programático ni atrás/adelante del navegador (`popstate`); el diálogo se desmonta con la ruta.
+- **Textos:** `sin_guardar.*` en `i18n/langs/{es,en,zh}.mjs` y en `i18n/portal/*.ts` (8 idiomas; en el portal llegan por `TextosDeInterfazProvider`).
+- **GRC:** solo interfaz; no guarda nada ni cambia permisos, así que no hay auditoría de servidor ni efecto RGPD/retención.
+- Tests: `src/__tests__/CambiosSinGuardar.test.tsx`.
+
 ### `<DataTable>` — tabla con sort/empty/loading (es `Tabla` + filtro y paginación en cliente)
 
 ```jsx
@@ -268,6 +318,12 @@ La única forma de pintar «personas (u otras filas) × días o semanas». La us
 ```
 
 Fuera de la rejilla quedan, a propósito, el planificador visual (`ResourceSchedulerPage`: reservas que abarcan varias semanas y se arrastran, es una línea de tiempo), la imputación semanal (proyectos × días de una persona, con edición) y los calendarios de mes (`CalendarPage`, vista Calendario de Tareas).
+
+### Menú lateral: categoría con panel y editor del menú (23-11-2026)
+
+- **Categoría con panel** (`PANEL_DE_CATEGORIA` en `components/layout/menuLateral.tsx`): dos controles en la misma fila, el nombre (`NavLink` al panel, `.nav-cat__enlace`) y la flecha (`IconButton` con `aria-expanded`/`aria-controls`, `.nav-cat__flecha`). Sin panel, la cabecera entera despliega, como siempre. Menú contraído: un icono por categoría (`.nav-cat-plegada__icono`) con `aria-haspopup`; el desplegable (portal) sale con el ratón **y con el foco**, y se recorre con flechas.
+- **Reordenar una lista** (`EditorDeMenu`): arrastre HTML5 para el ratón **y siempre** botones `IconButton` subir/bajar (teclado y táctil), con el anuncio en una región `aria-live` (`.u-sr-only`) y el foco que sigue al elemento movido. Ocultar = `Checkbox` del kit. Nunca solo arrastre.
+- Solo tokens (`--surface-*`, `--text-*`, `--accent`): vale en todos los temas. En móvil (≤ 640 px) los botones crecen a 40 px de alto y se quita la cuenta «n de m visibles».
 
 ## Utility classes `.ds-*`
 
@@ -395,7 +451,7 @@ sólo con teclado. No hay que quitarlo con `outline: none`.
 <Page icon={...} title="..." subtitle="...">
   {/* Toolbar (search + filters + actions) */}
   <BarraDeFiltros acciones={<Button>Nuevo</Button>}>
-    <SearchInput value={q} onChange={setQ} />
+    <Buscador value={q} onChange={setQ} />
     <Select suelto aria-label="Estado" value={estado} onChange={…} options={…} />
   </BarraDeFiltros>
 

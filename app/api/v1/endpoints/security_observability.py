@@ -34,8 +34,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_current_user, get_db, require_admin
-from app.core.security import verify_admin_or_governance_role
+from app.core.deps import get_current_user, get_db, requiere_capacidad
 from app.models.user import User
 from app.models.security_observability import (
     IncidentStatus,
@@ -265,7 +264,7 @@ def update_detection_status(
     body: DetectionStatusUpdate,
     db: Session  = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: telemetria de seguridad
+    _rol: User = Depends(requiere_capacidad("soc.administrar")),  # auditoria 2026-09: sensible: telemetria de seguridad
 ):
     allowed = {IncidentStatus.OPEN, IncidentStatus.INVESTIGATING,
                IncidentStatus.CONTAINED, IncidentStatus.RESOLVED, IncidentStatus.FALSE_POS}
@@ -297,7 +296,7 @@ def create_incident(
     body: CreateIncidentRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: telemetria de seguridad
+    _rol: User = Depends(requiere_capacidad("soc.administrar")),  # auditoria 2026-09: sensible: telemetria de seguridad
 ):
     svc = SecurityEventService(db=db, org_id=_org(current_user))
     inc = svc.create_incident(
@@ -350,7 +349,7 @@ def resolve_incident(
     body: ResolveIncidentRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: telemetria de seguridad
+    _rol: User = Depends(requiere_capacidad("soc.administrar")),  # auditoria 2026-09: sensible: telemetria de seguridad
 ):
     svc = SecurityEventService(db=db, org_id=_org(current_user))
     try:
@@ -399,7 +398,7 @@ def resolve_anomaly(
     anomaly_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: telemetria de seguridad
+    _rol: User = Depends(requiere_capacidad("soc.administrar")),  # auditoria 2026-09: sensible: telemetria de seguridad
 ):
     svc = SecurityEventService(db=db, org_id=_org(current_user))
     anomaly = svc.resolve_anomaly(anomaly_id)
@@ -495,9 +494,8 @@ def ingest_event(
     body: ManualEventRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: telemetria de seguridad
+    _rol: User = Depends(requiere_capacidad("soc.administrar")),  # auditoria 2026-09: sensible: telemetria de seguridad
 ):
-    verify_admin_or_governance_role(current_user)
     svc = SecurityEventService(db=db, org_id=_org(current_user))
     ev = svc.emit(
         event_type    = body.event_type,

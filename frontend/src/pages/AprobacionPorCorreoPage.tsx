@@ -6,18 +6,14 @@
  */
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import api from '../services/api'
+import { aprobacionPorCorreoApi } from '../services/api'
 import { useAppT } from '../i18n/AppLangContext'
-import { Button } from '../components/ui'
+import { Button, Textarea } from '../components/ui'
+import { extractErr } from '../utils/helpers'
 import { Check, X } from 'lucide-react'
 import './AprobacionPorCorreoPage.css'
 
 interface Resumen { request_id: string; entity_type: string; summary?: string | null; step: number; approver: string }
-
-function mensajeDe(e: unknown, porDefecto: string): string {
-  const d = (e as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail
-  return typeof d === 'string' ? d : porDefecto
-}
 
 export default function AprobacionPorCorreoPage() {
   const t = useAppT()
@@ -31,18 +27,18 @@ export default function AprobacionPorCorreoPage() {
 
   useEffect(() => {
     if (!token) { setError(t('aprob_correo.sin_token')); return }
-    api.get('/approvals/email-decision', { params: { token } })
-      .then(r => setResumen(r.data as Resumen))
-      .catch(e => setError(mensajeDe(e, t('aprob_correo.error'))))
+    aprobacionPorCorreoApi.leer<Resumen>(token)
+      .then(r => setResumen(r.data))
+      .catch(e => setError(extractErr(e, t('aprob_correo.error')))) // 23-11-2026: extractErr (texto del servidor traducido)
   }, [token, t])
 
   async function decidir(decision: 'approved' | 'rejected') {
     if (decision === 'rejected' && !nota.trim()) { setError(t('aprob_correo.falta_motivo')); return }
     setEnviando(true); setError('')
     try {
-      await api.post('/approvals/email-decision', { token, decision, note: nota.trim() || null })
+      await aprobacionPorCorreoApi.decidir({ token, decision, note: nota.trim() || null })
       setHecho(decision === 'approved' ? t('aprob_correo.aprobada') : t('aprob_correo.rechazada'))
-    } catch (e) { setError(mensajeDe(e, t('aprob_correo.error'))) } finally { setEnviando(false) }
+    } catch (e) { setError(extractErr(e, t('aprob_correo.error'))) } finally { setEnviando(false) }
   }
 
   return (
@@ -55,8 +51,8 @@ export default function AprobacionPorCorreoPage() {
             {t('aprob_correo.paso', { step: resumen.step, approver: resumen.approver })}
           </p>
           <label htmlFor="nota" id="nota-etiqueta" className="u-text2-sm">{t('aprob_correo.nota')}</label>
-          <textarea id="nota" aria-labelledby="nota-etiqueta" rows={3} value={nota} onChange={e => setNota(e.target.value)}
-            className="apc-note" />
+          <Textarea id="nota" aria-labelledby="nota-etiqueta" rows={3} value={nota} onChange={e => setNota(e.target.value)}
+            inputClassName="apc-note" />
           <div className="u-row-10">
             <Button icon={<Check size={14} />} disabled={enviando} onClick={() => { void decidir('approved') }}>{t('aprob_correo.aprobar')}</Button>
             <Button variant="secondary" icon={<X size={14} />} disabled={enviando} onClick={() => { void decidir('rejected') }}>{t('aprob_correo.rechazar')}</Button>

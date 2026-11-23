@@ -15,9 +15,9 @@
 import type { ReactNode } from 'react'
 import { useId, useMemo, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { userCostsApi, usersApi, apiErrorMsg } from '../services/api'
+import { userCostsApi, usersApi } from '../services/api'
 import type { PerfilDeCoste, PresetDePais, ResumenDeCostes } from '../services/api/tipos-finanzas'
-import { Button, Card, KpiCard, Modal, Spinner, EmptyState, Input, Section, Select, TablaSimple } from '../components/ui'
+import { Buscador, Button, Card, KpiCard, Modal, Spinner, EmptyState, Input, Section, Select, TablaSimple } from '../components/ui'
 import PageShell from '../components/layout/PageShell'
 import PageHeader from '../components/layout/PageHeader'
 import { useToast } from '../context/ToastContext'
@@ -27,7 +27,7 @@ import { useAppLang } from '../i18n/AppLangContext'
 import StatusBadge from '../components/ui/StatusBadge'
 
 import { useFormatoMoneda } from '../hooks/useFormatoMoneda'
-import { fmtDate, localeActivo } from '../utils/helpers'
+import { fmtDate, localeActivo, extractErr } from '../utils/helpers'
 import './UserCostsPage.css'
 
 /** Un preset (serialize_country) o uno nuevo a medio rellenar. */
@@ -72,7 +72,7 @@ export default function UserCostsPage() {
       toast.success(t('usercosts.paises_cargados', { creados: r.data.created, actualizados: r.data.updated }))
       qc.invalidateQueries({ queryKey: ['user-costs-countries'] })
     },
-    onError: (e) => toast.error(apiErrorMsg(e, t('usercosts.error_cargar_paises'))),
+    onError: (e) => toast.error(extractErr(e, t('usercosts.error_cargar_paises'))),
   })
 
   const userById = useMemo(
@@ -155,8 +155,8 @@ export default function UserCostsPage() {
         title={<span className="uc-section-title"><Users size={16} aria-hidden="true" />{t('usercosts.personas_y_coste_hora')}</span>}
         actions={
           <div className="uc-search">
-            <Input placeholder={t('usercosts.buscar_placeholder')} aria-label={t('usercosts.buscar_placeholder')} value={search}
-                   onChange={(e: { target: { value: string } }) => setSearch(e.target.value)} />
+            <Buscador placeholder={t('usercosts.buscar_placeholder')} aria-label={t('usercosts.buscar_placeholder')} value={search}
+                   onChange={setSearch} />
           </div>
         }
       >
@@ -351,7 +351,7 @@ function ProfileWizard({ user, countries, existing, onClose, onSaved }: { user: 
       toast.success(t('usercosts.perfil_guardado'))
       onSaved()
     } catch (e) {
-      toast.error(apiErrorMsg(e, t('usercosts.error_guardar')))
+      toast.error(extractErr(e, t('usercosts.error_guardar')))
     }
   }
 
@@ -461,7 +461,7 @@ function CountryEditor({ preset, onClose, onSaved }: { preset: CountryRow; onClo
       toast.success(t('usercosts.pais_guardado'))
       onSaved()
     } catch (e) {
-      toast.error(apiErrorMsg(e, t('usercosts.error_guardar_pais')))
+      toast.error(extractErr(e, t('usercosts.error_guardar_pais')))
     }
   }
 
@@ -478,7 +478,7 @@ function CountryEditor({ preset, onClose, onSaved }: { preset: CountryRow; onClo
       await userCostsApi.deleteCountry(preset.id)
       onSaved()
     } catch (e) {
-      toast.error(apiErrorMsg(e, t('usercosts.error_eliminar')))
+      toast.error(extractErr(e, t('usercosts.error_eliminar')))
     }
   }
 

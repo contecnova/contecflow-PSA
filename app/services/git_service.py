@@ -56,6 +56,80 @@ def find_task_by_ref(db: Session, ref_text: str) -> Optional[str]:
     return None
 
 
+def _ambito_de_tarea(db: Session, task_id: Optional[str]) -> tuple[Optional[str], Optional[str]]:
+    """(project_id, organization_id) de la tarea enlazada.
+
+    A51 (auditoría 22-11-2026): los PR y despliegues se guardaban sin proyecto y
+    la visibilidad (`politica_de_visibilidad.acotar_a_proyectos_visibles`) va por
+    proyecto, así que empleados y externos no los veían nunca.
+    """
+    if not task_id:
+        return None, db.info.get("organization_id")
+    fila = db.query(Task.project_id, Task.organization_id).filter(Task.id == task_id).first()
+    if fila is None:
+        return None, db.info.get("organization_id")
+    return fila[0], fila[1] or db.info.get("organization_id")
+
+
+def _cerrar_tarea_por_merge(db: Session, task_id: Optional[str], pr_number) -> None:
+    """Pasa la tarea a `done` por las reglas de transición (GitHub y, M103, también GitLab)."""
+    if not task_id:
+        return
+    linked_task = db.query(Task).filter(Task.id == task_id).first()
+    if linked_task and linked_task.status not in ESTADOS_DE_TAREA_TERMINADOS:
+        # Revisión 2026-11: por las reglas de transición, como desde la pantalla (antes la pasaba a
+        # done desde cualquier estado, también backlog o bloqueada, y sin fecha de cierre).
+        from app.models.task import TaskStatus
+        from app.services.tasks.core import apply_status_side_effects, validate_task_transition
+        try:
+            validate_task_transition(TaskStatus(getattr(linked_task.status, "value", linked_task.status)), TaskStatus.done)
+            linked_task.status = TaskStatus.done
+            apply_status_side_effects(linked_task, TaskStatus.done)
+            _logger.info("[Git] Auto-closed task %s on merged PR #%s", task_id, pr_number)
+        except ErrorDeDominio:
+            _logger.info("[Git] PR #%s fusionado: la tarea %s sigue en %s (no puede pasar a done)",
+                         pr_number, task_id, linked_task.status)
+
+
+def _pr_existente(db: Session, proveedor, repo_full_name: str, pr_number):
+    q = db.query(GitPullRequest).filter(
+        GitPullRequest.repo_full_name == repo_full_name,
+        GitPullRequest.pr_number == pr_number,
+        GitPullRequest.provider == proveedor,
+    )
+    org = db.info.get("organization_id")
+    if org:   # M103/A51: el mismo repo y número en dos empresas son dos PR
+        q = q.filter(GitPullRequest.organization_id == org)
+    return q.first()
+
+
+def _guardar_despliegue(db: Session, proveedor, repo_full_name: str, sha: str, environment: str,
+                        deploy_url: str, status, task_id: Optional[str], deployed_at) -> None:
+    """M103 (auditoría 22-11-2026): idempotente. Un despliegue es (proveedor, repo,
+    sha, entorno): los eventos repetidos o los cambios de estado (pending →
+    running → success) actualizan la misma fila; antes cada reintento del
+    proveedor creaba otra."""
+    project_id, org = _ambito_de_tarea(db, task_id)
+    q = db.query(GitDeployment).filter(
+        GitDeployment.provider == proveedor, GitDeployment.repo_full_name == repo_full_name,
+        GitDeployment.sha == sha, GitDeployment.environment == environment)
+    if org:
+        q = q.filter(GitDeployment.organization_id == org)
+    fila = q.first()
+    if fila is None:
+        db.add(GitDeployment(
+            provider=proveedor, repo_full_name=repo_full_name, sha=sha, environment=environment,
+            deploy_url=deploy_url, status=status, task_id=task_id, deployed_at=deployed_at,
+            project_id=project_id, organization_id=org,
+        ))
+        return
+    fila.status = status
+    fila.deploy_url = deploy_url or fila.deploy_url
+    fila.deployed_at = deployed_at or fila.deployed_at
+    if task_id and not fila.task_id:
+        fila.task_id, fila.project_id = task_id, project_id
+
+
 def verify_github_signature(body: bytes, sig_header: str, secret: Optional[str] = None) -> bool:
     """HMAC-SHA256 verification for GitHub webhooks (el secreto de la empresa, o el global)."""
     secret = secret if secret is not None else settings.GITHUB_WEBHOOK_SECRET
@@ -104,6 +178,9 @@ def handle_github_pr(db: Session, payload: dict) -> None:
         "closed": PRStatus.merged if pr_data.get("merged") else PRStatus.closed,
     }
     status   = status_map.get(action, PRStatus.open)
+    # M103: un PR abierto como borrador es `draft` (antes se ignoraba `draft`).
+    if status == PRStatus.open and pr_data.get("draft"):
+        status = PRStatus.draft
     ref_text = f"{source_branch} {pr_title}"
     task_id  = find_task_by_ref(db, ref_text)
 
@@ -120,11 +197,8 @@ def handle_github_pr(db: Session, payload: dict) -> None:
         except Exception:
             _logger.warning("Could not parse closed_at: %s", pr_data.get("closed_at"))
 
-    existing = db.query(GitPullRequest).filter(
-        GitPullRequest.repo_full_name == repo_full_name,
-        GitPullRequest.pr_number      == pr_number,
-        GitPullRequest.provider       == GitProvider.github,
-    ).first()
+    existing = _pr_existente(db, GitProvider.github, repo_full_name, pr_number)
+    project_id, org = _ambito_de_tarea(db, task_id)
 
     if existing:
         existing.status    = status
@@ -132,7 +206,7 @@ def handle_github_pr(db: Session, payload: dict) -> None:
         existing.merged_at = merged_at
         existing.closed_at = closed_at
         if task_id and not existing.task_id:
-            existing.task_id = task_id
+            existing.task_id, existing.project_id = task_id, project_id
         existing.updated_at = utcnow()
     else:
         pr = GitPullRequest(
@@ -140,27 +214,14 @@ def handle_github_pr(db: Session, payload: dict) -> None:
             pr_number=pr_number, pr_title=pr_title, pr_url=pr_url,
             author_login=author_login, source_branch=source_branch,
             target_branch=target_branch, status=status, task_id=task_id,
-            merged_at=merged_at, closed_at=closed_at,
+            merged_at=merged_at, closed_at=closed_at, project_id=project_id, organization_id=org,
         )
         db.add(pr)
 
     # Auto-close linked task when PR is merged
     effective_task_id = task_id or (existing.task_id if existing else None)
-    if action == "closed" and pr_data.get("merged") and effective_task_id:
-        linked_task = db.query(Task).filter(Task.id == effective_task_id).first()
-        if linked_task and linked_task.status not in ESTADOS_DE_TAREA_TERMINADOS:
-            # Revisión 2026-11: por las reglas de transición, como desde la pantalla (antes la pasaba a
-            # done desde cualquier estado, también backlog o bloqueada, y sin fecha de cierre).
-            from app.models.task import TaskStatus
-            from app.services.tasks.core import apply_status_side_effects, validate_task_transition
-            try:
-                validate_task_transition(TaskStatus(getattr(linked_task.status, "value", linked_task.status)), TaskStatus.done)
-                linked_task.status = TaskStatus.done
-                apply_status_side_effects(linked_task, TaskStatus.done)
-                _logger.info("[Git] Auto-closed task %s on merged PR #%s", effective_task_id, pr_number)
-            except ErrorDeDominio:
-                _logger.info("[Git] PR #%s fusionado: la tarea %s sigue en %s (no puede pasar a done)",
-                             pr_number, effective_task_id, linked_task.status)
+    if action == "closed" and pr_data.get("merged"):
+        _cerrar_tarea_por_merge(db, effective_task_id, pr_number)
 
     _logger.info("[Git] GitHub PR #%s %s → %s", pr_number, action, repo_full_name)
 
@@ -187,11 +248,8 @@ def handle_github_deployment(db: Session, payload: dict) -> None:
     task_id        = find_task_by_ref(db, deployment.get("ref", ""))
     deployed_at    = utcnow() if status == DeployStatus.success else None
 
-    db.add(GitDeployment(
-        provider=GitProvider.github, repo_full_name=repo_full_name,
-        sha=sha, environment=environment, deploy_url=deploy_url,
-        status=status, task_id=task_id, deployed_at=deployed_at,
-    ))
+    _guardar_despliegue(db, GitProvider.github, repo_full_name, sha, environment, deploy_url,
+                        status, task_id, deployed_at)
     _logger.info("[Git] GitHub deployment %s → %s (%s)", sha[:8], environment, status)
 
 
@@ -211,20 +269,20 @@ def handle_gitlab_mr(db: Session, payload: dict) -> None:
     state_map = {"opened": PRStatus.open, "merged": PRStatus.merged,
                  "closed": PRStatus.closed, "locked": PRStatus.closed}
     status   = state_map.get(state, PRStatus.open)
+    # M103: borrador en GitLab (`draft`, antes `work_in_progress`).
+    if status == PRStatus.open and (obj_attrs.get("draft") or obj_attrs.get("work_in_progress")):
+        status = PRStatus.draft
     ref_text = f"{source_branch} {pr_title}"
     task_id  = find_task_by_ref(db, ref_text)
 
-    existing = db.query(GitPullRequest).filter(
-        GitPullRequest.repo_full_name == repo_full_name,
-        GitPullRequest.pr_number      == pr_number,
-        GitPullRequest.provider       == GitProvider.gitlab,
-    ).first()
+    existing = _pr_existente(db, GitProvider.gitlab, repo_full_name, pr_number)
+    project_id, org = _ambito_de_tarea(db, task_id)
 
     if existing:
         existing.status   = status
         existing.pr_title = pr_title
         if task_id and not existing.task_id:
-            existing.task_id = task_id
+            existing.task_id, existing.project_id = task_id, project_id
         existing.updated_at = utcnow()
     else:
         db.add(GitPullRequest(
@@ -232,7 +290,11 @@ def handle_gitlab_mr(db: Session, payload: dict) -> None:
             pr_number=pr_number, pr_title=pr_title, pr_url=pr_url,
             author_login=author_login, source_branch=source_branch,
             target_branch=target_branch, status=status, task_id=task_id,
+            project_id=project_id, organization_id=org,
         ))
+    # M103: GitLab también cierra la tarea al fusionar (antes solo GitHub).
+    if status == PRStatus.merged:
+        _cerrar_tarea_por_merge(db, task_id or (existing.task_id if existing else None), pr_number)
 
 
 def handle_gitlab_deployment(db: Session, payload: dict) -> None:
@@ -261,11 +323,8 @@ def handle_gitlab_deployment(db: Session, payload: dict) -> None:
             _logger.debug("handle_gitlab_deployment: excepcion ignorada", exc_info=True)
             deployed_at = utcnow()
 
-    db.add(GitDeployment(
-        provider=GitProvider.gitlab, repo_full_name=repo_full_name,
-        sha=sha, environment=environment, deploy_url=deploy_url,
-        status=status, task_id=task_id, deployed_at=deployed_at,
-    ))
+    _guardar_despliegue(db, GitProvider.gitlab, repo_full_name, sha, environment, deploy_url,
+                        status, task_id, deployed_at)
 
 
 def process_github_webhook(db: Session, event: str, payload: dict, org_id: Optional[str] = None) -> None:

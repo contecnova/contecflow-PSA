@@ -7,11 +7,12 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useToast } from '../context/ToastContext'
+import { confirmar } from '../context/ConfirmContext'
 import { extractErr, fmtDateTime, localeActivo } from '../utils/helpers'
 import PageShell from '../components/layout/PageShell'
 import PageHeader from '../components/layout/PageHeader'
 import { ArrowRight, Bookmark, Check, Eye, GitBranch, History, MessageSquare, Plus, RefreshCw, Search, Shield, ShieldCheck, Tags, X } from 'lucide-react'
-import { Button, EmptyState, IconButton, KpiCard, SelectorDePeriodo, Select, Checkbox, Input, Textarea } from '../components/ui'
+import { Buscador, Button, EmptyState, EstadoDeError, IconButton, KpiCard, SelectorDePeriodo, Select, Checkbox, Input, Textarea } from '../components/ui'
 import { usePeriodo } from '../hooks/usePeriodo'
 import { CON_HORA, codigoDeErrorDePeriodo } from '../utils/periodo'
 import { etiquetaCodigo } from '../i18n/etiquetaCodigo'
@@ -33,6 +34,9 @@ import { AUDIT_LOG_PAGE_SIZE } from '../constants/pagination'
 import './DataGovernancePage.css'
 
 type SharedViewsSort = 'date_desc' | 'date_asc' | 'author_asc' | 'name_asc'
+
+/** Panel de BI al que se atan los comentarios y las vistas compartidas de esta pantalla (04 M10, 23-11-2026: antes la cadena suelta 'executive'). */
+const PANEL_BI_COMPARTIDO = 'executive'
 
 const NIVELES: readonly NivelDeSensibilidadBi[] = ['public', 'internal', 'confidential', 'restricted']
 
@@ -75,58 +79,56 @@ export default function DataGovernancePage(): JSX.Element {
   // Collaboration queries
   const { data: commentsData, refetch: refetchComments } = useQuery<ComentarioBi[]>({
     queryKey: ['data-gov-comments', commentWidget],
-    queryFn: () => biCollaborationApi.listComments({ dashboard_key: 'executive', widget_id: commentWidget }).then(r => r.data).catch(() => []),
+    // 23-11-2026 (04 M6): sin `.catch` que escondía el fallo como lista vacía; avisa el onError global.
+    queryFn: () => biCollaborationApi.listComments({ dashboard_key: PANEL_BI_COMPARTIDO, widget_id: commentWidget }).then(r => r.data),
     staleTime: STALE_NEAR_LIVE_MS,
   })
   const { data: sharedViewsData, refetch: refetchSharedViews } = useQuery<VistaCompartidaBi[]>({
     queryKey: ['data-gov-shared-views', sharedViewsTick, showInactiveSharedViews],
-    queryFn: () => biCollaborationApi.listSharedViews({ include_inactive: showInactiveSharedViews }).then(r => r.data).catch(() => []),
+    queryFn: () => biCollaborationApi.listSharedViews({ include_inactive: showInactiveSharedViews }).then(r => r.data),
     staleTime: STALE_NEAR_LIVE_MS,
   })
   const { data: governance } = useQuery<ResumenDeGobiernoBi | null>({
     queryKey: ['data-gov-overview'],
-    queryFn: () => biCollaborationApi.governanceOverview().then(r => r.data).catch(() => null),
+    queryFn: () => biCollaborationApi.governanceOverview().then(r => r.data),
     staleTime: STALE_SHORT_MS,
   })
   const { refetch: refetchRules } = useQuery<ReglasDeGobiernoBi | null>({
     queryKey: ['data-gov-rules'],
-    queryFn: () => biCollaborationApi.governanceRules().then(r => r.data).catch(() => null),
+    queryFn: () => biCollaborationApi.governanceRules().then(r => r.data),
     staleTime: STALE_SHORT_MS,
   })
   const { data: governanceRun, refetch: refetchGovRun } = useQuery<EjecucionDeGobiernoBi | null>({
     queryKey: ['data-gov-run', govRunTick],
-    queryFn: () => biCollaborationApi.lastGovernanceRun().then(r => r.data?.result ?? null).catch(() => null),
+    queryFn: () => biCollaborationApi.lastGovernanceRun().then(r => r.data?.result ?? null),
     staleTime: STALE_LIVE_MS,
   })
 
   // Governance audit queries
   // Periodo libre (16-11-2026): antes 30 días fijos (el defecto de la API).
   const periodoAuditoria = usePeriodo({ defecto: '30d', granularidades: CON_HORA, prefijo: 'dgaud' })
-  const { data: govAuditData, error: govAuditError } = useQuery<ListaConCuenta<AccesoBi>>({
+  const { data: govAuditData, error: govAuditError, refetch: refetchGovAudit } = useQuery<ListaConCuenta<AccesoBi>>({
     queryKey: ['data-gov-audit', govAuditTick, govAuditUserFilter, periodoAuditoria.params],
     queryFn: () => biGovernanceAuditApi.getAccessHistory(
       govAuditUserFilter.trim()
         ? { ...periodoAuditoria.params, user_id: govAuditUserFilter.trim(), limit: AUDIT_LOG_PAGE_SIZE }
         : { ...periodoAuditoria.params, limit: AUDIT_LOG_PAGE_SIZE }
-    ).then(r => r.data).catch((e: unknown) => {
-      if (codigoDeErrorDePeriodo(e)) throw e
-      return { items: [], count: 0 }
-    }),
+    ).then(r => r.data), // el error de periodo se pinta abajo; cualquier otro, con EstadoDeError
     staleTime: STALE_NEAR_LIVE_MS,
   })
   const { data: govLineageData, refetch: refetchGovLineage } = useQuery<ListaConCuenta<LinajeBi>>({
     queryKey: ['data-gov-lineage', govAuditTick],
-    queryFn: () => biGovernanceAuditApi.listLineage().then(r => r.data).catch(() => ({ items: [], count: 0 })),
+    queryFn: () => biGovernanceAuditApi.listLineage().then(r => r.data),
     staleTime: STALE_NEAR_LIVE_MS,
   })
   const { data: govFieldData, refetch: refetchGovFields } = useQuery<ListaConCuenta<SensibilidadDeCampoBi>>({
     queryKey: ['data-gov-fields', govAuditTick],
-    queryFn: () => biGovernanceAuditApi.listFieldSensitivity().then(r => r.data).catch(() => ({ items: [], count: 0 })),
+    queryFn: () => biGovernanceAuditApi.listFieldSensitivity().then(r => r.data),
     staleTime: STALE_NEAR_LIVE_MS,
   })
   const { data: bookmarks } = useQuery<ListaConCuenta<MarcadorBi>>({
     queryKey: ['data-gov-bookmarks', bookmarksTick],
-    queryFn: () => biBookmarksApi.list().then(r => r.data).catch(() => ({ items: [], count: 0 })),
+    queryFn: () => biBookmarksApi.list().then(r => r.data),
     staleTime: STALE_SHORT_MS,
   })
 
@@ -157,7 +159,7 @@ export default function DataGovernancePage(): JSX.Element {
     const trimmed = (commentText || '').trim()
     if (!trimmed) return
     try {
-      await biCollaborationApi.createComment({ dashboard_key: 'executive', widget_id: commentWidget, message: trimmed })
+      await biCollaborationApi.createComment({ dashboard_key: PANEL_BI_COMPARTIDO, widget_id: commentWidget, message: trimmed })
       setCommentText('')
       await refetchComments()
     } catch (e) { toast.error(extractErr(e, t('datagovernance.error_guardar'))) }
@@ -169,7 +171,7 @@ export default function DataGovernancePage(): JSX.Element {
     const name = (sharedViewName || '').trim()
     if (!name) return
     try {
-      await biCollaborationApi.createSharedView({ name, dashboard_key: 'executive', filters: { days, widget_id: commentWidget } })
+      await biCollaborationApi.createSharedView({ name, dashboard_key: PANEL_BI_COMPARTIDO, filters: { days, widget_id: commentWidget } })
       setSharedViewName('')
       setSharedViewsTick(x => x + 1)
       await refetchSharedViews()
@@ -225,8 +227,8 @@ export default function DataGovernancePage(): JSX.Element {
               <div className="dg-card__head">
                 <h3 className="dg-card__title">{t('datagovernance.auditoria_de_accesos')}</h3>
                 <div className="u-row-center-6">
-                  <input aria-label={t('datagovernance.filtrar_por_user_id')} value={govAuditUserFilter} onChange={e => setGovAuditUserFilter(e.target.value)} placeholder={t('datagovernance.filtrar_por_user_id')}
-                    className="dg-input dg-input--filter" />
+                  <Buscador aria-label={t('datagovernance.filtrar_por_user_id')} value={govAuditUserFilter} onChange={setGovAuditUserFilter} placeholder={t('datagovernance.filtrar_por_user_id')}
+                    inputClassName="dg-input dg-input--filter" />
                   <Button size="sm" variant="secondary" icon={<Search size={14} />} onClick={() => setGovAuditTick(x => x + 1)}>{t('datagovernance.filtrar')}</Button>
                 </div>
               </div>
@@ -234,6 +236,8 @@ export default function DataGovernancePage(): JSX.Element {
                 <SelectorDePeriodo {...periodoAuditoria.selector} sinGranularidad />
                 {govAuditErrorDePeriodo
                   ? <EmptyState icon={<History size={28} />} title={t(`periodo_err.${govAuditErrorDePeriodo.motivo}`, govAuditErrorDePeriodo.params)} />
+                  : govAuditError
+                  ? <EstadoDeError error={govAuditError} onReintentar={() => { void refetchGovAudit() }} />
                   : govAuditItems.length === 0
                   ? <EmptyState icon={<History size={28} />} title={t('datagovernance.sin_eventos_de_auditoria')} />
                   : <div className="dg-list">
@@ -259,9 +263,9 @@ export default function DataGovernancePage(): JSX.Element {
               </div>
               <div className="dg-card__body">
                 <div className="dg-form-row">
-                  <input aria-label={t('datagovernance.tabla_origen')} value={newLineageSource} onChange={e => setNewLineageSource(e.target.value)} placeholder={t('datagovernance.tabla_origen')} className="dg-input dg-input--xs dg-input--grow" />
+                  <Input aria-label={t('datagovernance.tabla_origen')} value={newLineageSource} onChange={e => setNewLineageSource(e.target.value)} placeholder={t('datagovernance.tabla_origen')} className="dg-input--grow" inputClassName="dg-input dg-input--xs" />
                   <ArrowRight size={14} className="u-text3" aria-hidden="true" />
-                  <input aria-label={t('datagovernance.tabla_destino')} value={newLineageTarget} onChange={e => setNewLineageTarget(e.target.value)} placeholder={t('datagovernance.tabla_destino')} className="dg-input dg-input--xs dg-input--grow" />
+                  <Input aria-label={t('datagovernance.tabla_destino')} value={newLineageTarget} onChange={e => setNewLineageTarget(e.target.value)} placeholder={t('datagovernance.tabla_destino')} className="dg-input--grow" inputClassName="dg-input dg-input--xs" />
                   <Button size="sm" variant="secondary" icon={<Plus size={14} />} onClick={handleAddLineageEdge}>{t('datagovernance.anadir')}</Button>
                 </div>
                 {govLineageItems.length === 0
@@ -329,13 +333,13 @@ export default function DataGovernancePage(): JSX.Element {
             </div>
             <div className="dg-card__body dg-card__body--gap10">
               <div className="u-row-8">
-                <input aria-label={t('datagovernance.nombre_de_la_vista')} value={sharedViewName} onChange={e => setSharedViewName(e.target.value)} placeholder={t('datagovernance.nombre_de_la_vista')}
-                  className="dg-input dg-input--fill" />
+                <Input aria-label={t('datagovernance.nombre_de_la_vista')} value={sharedViewName} onChange={e => setSharedViewName(e.target.value)} placeholder={t('datagovernance.nombre_de_la_vista')}
+                  className="dg-input--fill" inputClassName="dg-input" />
                 <Button size="sm" icon={<Plus size={14} />} onClick={handleCreateSharedView}>{t('datagovernance.guardar_vista')}</Button>
               </div>
               <div className="u-wrap-center-8">
-                <input aria-label={t('datagovernance.buscar_vista')} value={sharedViewsSearch} onChange={e => setSharedViewsSearch(e.target.value)} placeholder={t('datagovernance.buscar_vista')}
-                  className="dg-input dg-input--search" />
+                <Buscador aria-label={t('datagovernance.buscar_vista')} value={sharedViewsSearch} onChange={setSharedViewsSearch} placeholder={t('datagovernance.buscar_vista')}
+                  className="dg-input--search" inputClassName="dg-input" />
                 <Select suelto placeholder={false} aria-label={t('datagovernance.ordenar_vistas')} value={sharedViewsSort} onChange={e => setSharedViewsSort(e.target.value as SharedViewsSort)} className="dg-input dg-input--auto">
                   <option value="date_desc">{t('datagovernance.mas_recientes')}</option>
                   <option value="date_asc">{t('datagovernance.mas_antiguas')}</option>
@@ -411,12 +415,12 @@ export default function DataGovernancePage(): JSX.Element {
           <div className="dg-card__head dg-card__head--gap8">
             <h3 className="dg-card__title">{t('datagovernance.bookmarks_de_dashboard')}</h3>
             <div className="u-row-center-8">
-              <input aria-label={t('datagovernance.nombre_del_bookmark')} value={newBookmarkName} onChange={e => setNewBookmarkName(e.target.value)} placeholder={t('datagovernance.nombre_del_bookmark')}
-                className="dg-input dg-input--bookmark" />
+              <Input aria-label={t('datagovernance.nombre_del_bookmark')} value={newBookmarkName} onChange={e => setNewBookmarkName(e.target.value)} placeholder={t('datagovernance.nombre_del_bookmark')}
+                inputClassName="dg-input dg-input--bookmark" />
               <Button size="sm" icon={<Bookmark size={14} />} onClick={async () => {
                 if (!newBookmarkName.trim()) return
                 try {
-                  await biBookmarksApi.create({ name: newBookmarkName, period_days: days, active_tab: 'executive', shared: false })
+                  await biBookmarksApi.create({ name: newBookmarkName, period_days: days, active_tab: PANEL_BI_COMPARTIDO, shared: false })
                   setNewBookmarkName('')
                   setBookmarksTick(x => x + 1)
                 } catch (e) { toast.error(extractErr(e, t('datagovernance.error_guardar'))) }
@@ -432,6 +436,8 @@ export default function DataGovernancePage(): JSX.Element {
                       <div className="u-row-between">
                         <span className="dg-bm__name"><Bookmark size={13} aria-hidden="true" />{bm.name}</span>
                         <IconButton ariaLabel={t('datagovernance.eliminar_bookmark', { name: bm.name })} onClick={async () => {
+                          // 23-11-2026 (04 M4): borrar un marcador guardado pide confirmación.
+                          if (!(await confirmar({ title: t('datagovernance.confirmar_borrar_marcador_titulo'), message: t('datagovernance.confirmar_borrar_marcador', { name: bm.name }), danger: true, confirmLabel: t('datagovernance.eliminar') }))) return
                           try { await biBookmarksApi.delete(bm.id); setBookmarksTick(x => x + 1) } catch (e) { toast.error(extractErr(e, t('datagovernance.error_guardar'))) }
                         }}
                           className="dg-del"><X size={14} /></IconButton>

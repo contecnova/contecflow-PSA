@@ -10,9 +10,9 @@ from fastapi import APIRouter, Depends, Request
 from sqlalchemy.orm import Session
 
 from app.core.abac_enforce import enforce_abac
-from app.core.deps import get_current_user, require_admin, require_internal_user
+from app.core.deps import get_current_user, requiere_capacidad
 from app.core.responses import APIListResponse, APIResponse
-from app.db.session import get_db
+from app.db.session import get_db, sesion_de_sistema
 from app.models.user import User
 from app.schemas.collaboration import (
     BotMessageIn, BotOut,
@@ -47,27 +47,16 @@ def _integration_out(r) -> IntegrationOut:
     )
 
 
-def _puede_ver_secretos(user) -> bool:
-    return bool(getattr(user, "is_superadmin", False)) or getattr(
-        getattr(user, "role", None), "value", getattr(user, "role", None)) == "admin"
-
-
-def _secreto_visible(secreto: str, user) -> str:
-    """El secreto entero para administradores; para el resto, enmascarado.
-
-    Auditoria 2026-11 (#24): `GET /webhooks` lo devolvia a cualquier usuario,
-    y el secreto de un webhook entrante es la credencial para publicar en el
-    canal en nombre de la integracion.
-    """
-    if _puede_ver_secretos(user):
-        return secreto
-    return "••••" + (secreto or "")[-4:] if secreto and len(secreto) > 8 else "••••"
-
-
-def _webhook_out(w, user=None) -> WebhookOut:
+def _webhook_out(w, secreto_recien_creado: str | None = None) -> WebhookOut:
+    """Auditoria 2026-11 (#24) y 23-11-2026: el secreto de un webhook entrante es
+    la credencial para publicar en el canal. Solo sale entero en la respuesta del
+    alta (`secreto_recien_creado`); en el listado, para todos (también
+    administradores), la máscara guardada (`••••` + 4 últimos)."""
+    guardado = w.secret_token or ""
+    secreto = secreto_recien_creado or (guardado if guardado.startswith("••••") else svc.enmascarar_secreto(guardado))
     return WebhookOut(
         id=w.id, direction=w.direction, name=w.name, url=w.url,
-        secret_token=_secreto_visible(w.secret_token, user), target_channel_id=w.target_channel_id,
+        secret_token=secreto, target_channel_id=w.target_channel_id,
         events=w.events or [], is_active=w.is_active,
         last_called_at=w.last_called_at, failure_count=w.failure_count,
     )
@@ -127,7 +116,7 @@ def list_integrations(current_user: User = Depends(get_current_user), db: Sessio
 
 @router.post("/integrations", response_model=APIResponse[IntegrationOut], summary="Crear integración")
 def create_integration(payload: IntegrationCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: trabajo interno diario; lo que hay que excluir es al subcontratado
+    _rol: User = Depends(requiere_capacidad("colaboracion.usar")),  # auditoria 2026-09: dominio: trabajo interno diario; lo que hay que excluir es al subcontratado
 ):
     row = svc.create_integration(
         db, current_user,
@@ -138,7 +127,7 @@ def create_integration(payload: IntegrationCreate, current_user: User = Depends(
 
 @router.delete("/integrations/{integration_id}", summary="Eliminar integración")
 def delete_integration(integration_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: trabajo interno diario; lo que hay que excluir es al subcontratado
+    _rol: User = Depends(requiere_capacidad("colaboracion.usar")),  # auditoria 2026-09: dominio: trabajo interno diario; lo que hay que excluir es al subcontratado
 ):
     enforce_abac(db, current_user, "collaboration_integration", integration_id, action="delete")
     svc.delete_integration(db, current_user, integration_id)
@@ -156,24 +145,25 @@ def integration_rotation_status(current_user: User = Depends(get_current_user), 
 # ── Webhooks ────────────────────────────────────────────────────────────────
 @router.get("/webhooks", response_model=APIListResponse[WebhookOut], summary="Listar webhooks")
 def list_webhooks(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    items = [_webhook_out(w, current_user) for w in svc.list_webhooks(db, current_user)]
+    items = [_webhook_out(w) for w in svc.list_webhooks(db, current_user)]
     return APIListResponse.ok(items=items, total=len(items))
 
 
 @router.post("/webhooks", response_model=APIResponse[WebhookOut], summary="Crear webhook")
 def create_webhook(payload: WebhookCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db),
-    _rol: User = Depends(require_admin),  # auditoria 2026-09: configuracion: la forma de la ruta manda sobre el fichero
+    _rol: User = Depends(requiere_capacidad("colaboracion.administrar")),  # auditoria 2026-09: configuracion: la forma de la ruta manda sobre el fichero
 ):
-    row = svc.create_webhook(
+    row, secreto = svc.create_webhook(
         db, current_user,
         direction=payload.direction, name=payload.name, url=payload.url,
         target_channel_id=payload.target_channel_id, events=payload.events,
     )
-    return APIResponse.ok(data=_webhook_out(row, current_user))
+    # 23-11-2026: única vez que el secreto sale entero (no se guarda en claro).
+    return APIResponse.ok(data=_webhook_out(row, secreto))
 
 
 @router.post("/webhooks/incoming/{token}", summary="Hook entrante (push externo a canal)")
-async def incoming_webhook(token: str, request: Request, db: Session = Depends(get_db)):
+async def incoming_webhook(token: str, request: Request, db: Session = Depends(sesion_de_sistema("colaboración: token del webhook entrante"))):
     """External services post here to deliver a message into a channel.
 
     Auditoria #C7: el cuerpo es `async` porque hace falta para `await

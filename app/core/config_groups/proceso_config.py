@@ -33,6 +33,17 @@ class ProcesoSettingsMixin:
     ENABLE_SUPERADMIN_BYPASS: bool = Field(default=False, description="Dev-only login bypass (development + SQLite only).")
     TENANT_AUTO_FILTER_GLOBAL: bool = Field(default=True, description="Global ORM tenant filter (read at import).")
     TENANT_AUTO_STAMP_ON_INSERT: bool = Field(default=True, description="Stamp organization_id on new rows (read at import).")
+    # Auditoría 22-11-2026: una sesión sin empresa, sin superadmin y sin contexto
+    # de sistema declarado ya no pasa en silencio (app/db/contexto_de_tenant.py).
+    # 23-11-2026 (M8): por defecto `cerrar`, una vez declaradas las rutas anónimas
+    # (docs/seguridad/rutas_anonimas.md) y las `SessionLocal()` a mano de app/.
+    TENANT_SESION_SIN_CONTEXTO: str = Field(
+        default="cerrar",
+
+        description="Session with no tenant, no superadmin and no declared system context: "
+                    "`cerrar` (TenantIsolationError + RLS returns no rows) | `avisar` (no filter, one WARNING per call site).")
+    RLS_REQUIRED: Optional[bool] = Field(
+        default=None, description="Abort boot if Postgres RLS is not armed (app role without BYPASSRLS); unset = on in staging/production.")
 
     # ── Internals and batch caps ─────────────────────────────────────────────
     REDIS_RECONNECT_BACKOFF_SECONDS: float = Field(default=30.0, description="Wait before retrying Redis after a failure.")
@@ -111,8 +122,12 @@ class ProcesoSettingsMixin:
     WHISPER_LOCAL_LANGUAGE: str = Field(default="es", description="STT provider default language.")
 
     # ── Geo-IP of sign-ins (hallazgo 30) ─────────────────────────────────────
+    # Auditoría 22-11-2026 (01 M6, RGPD): apagado por defecto. Encenderlo manda la
+    # IP de cada inicio de sesión a un tercero (ipapi.co, fuera del EEE): hace
+    # falta base legal, registro de tratamientos y contrato de encargo
+    # (docs/seguridad/entrada_y_salida.md).
     GEOIP_LOOKUP_ENABLED: bool = Field(
-        default=True, description="Send the public IP of each sign-in/refresh to GEOIP_LOOKUP_URL (on by product decision 2026-11-14; set false to keep IPs in-house).")
+        default=False, description="Send the public IP of each sign-in/refresh to GEOIP_LOOKUP_URL (third party; off by default since 2026-11-23 for GDPR: needs legal basis, record of processing and a processor agreement).")
     GEOIP_LOOKUP_URL: str = Field(default="https://ipapi.co/{ip}/json/", description="Geo-IP service; `{ip}` is replaced.")
     GEOIP_CACHE_TTL_SECONDS: int = Field(default=86400, description="Per-IP cache of geo-IP answers (s).")
 
@@ -121,7 +136,7 @@ class ProcesoSettingsMixin:
 #: en lugar de tumbar el arranque, como pasaba con `os.getenv(...) == "1"`.
 INTERRUPTORES_DE_PROCESO: tuple[str, ...] = (
     "ENABLE_APSCHEDULER", "ENABLE_CELERY_BEAT", "CELERY_BEAT", "FAIL_ON_DUAL_SCHEDULER",
-    "FAIL_ON_SCHEMA_DRIFT", "EXPOSE_API_DOCS", "CSRF_DOUBLE_SUBMIT", "DISABLE_CSRF_MIDDLEWARE",
+    "FAIL_ON_SCHEMA_DRIFT", "RLS_REQUIRED", "EXPOSE_API_DOCS", "CSRF_DOUBLE_SUBMIT", "DISABLE_CSRF_MIDDLEWARE",
     "ENABLE_SUPERADMIN_BYPASS", "TENANT_AUTO_FILTER_GLOBAL", "TENANT_AUTO_STAMP_ON_INSERT",
     "CLAMAV_ENABLED", "WHISPER_LOCAL", "GEOIP_LOOKUP_ENABLED",
 )

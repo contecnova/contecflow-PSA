@@ -9,6 +9,13 @@ Este script cuenta, por fichero de `app/`, lo que todavia sale sin codigo:
 - `http`: `HTTPException(..., detail=<texto>)` (no admite codigo; usar
   `error(...)` de `app/core/codigos_de_error.py`). No cuenta los que no llevan
   `detail` ni los que llevan un dict (ya estructurado).
+- `http_crudo` (23-11-2026): en `app/api` y `app/core`, cualquier `HTTPException(...)`
+  construido a mano (sin detail, con dict o con texto): la capa API lanza
+  `error_http(status, codigo, **params)`. Solo se salva un `detail` que sea un
+  codigo del catalogo `MENSAJES`/`MENSAJES_DEL_OPERADOR` o lleve un prefijo
+  que la interfaz ya traduce (`alm_`, `almint_`, `trad_`). No cuenta
+  `except HTTPException: raise` (no es una construccion) ni `codigos_de_error.py`.
+  Sustituye a `http` en esas carpetas.
 - `valor`: `raise ValueError(<texto>)` en `app/services` y `app/api` (acaban de
   `detail` via `except ValueError` + `str(e)`); usar `ErrorConCodigo(...)`.
 
@@ -37,6 +44,10 @@ CUOTA = RAIZ / "scripts" / "errores-sin-codigo.json"
 #: Donde un `raise ValueError(texto)` acaba como `detail` de la respuesta.
 _CON_VALOR = ("app/services/", "app/api/")
 #: El propio catalogo (su `desde_valor` reenvia el texto de un `ValueError` ajeno).
+#: Donde un `HTTPException(...)` directo ya es un fallo (categoria `http_crudo`).
+_CON_HTTP_CRUDO = ("app/api/", "app/core/")
+#: Prefijos de codigo que la interfaz traduce aunque no esten en `MENSAJES`.
+_PREFIJOS_TRADUCIDOS = ("alm_", "almint_", "trad_")
 _FUERA = {"app/core/codigos_de_error.py", "app/core/errores.py"}
 
 
@@ -51,6 +62,39 @@ def _nombre(func: ast.expr) -> str:
 #: `detail` que ya es un codigo estable que traduce la interfaz (`alm_*`,
 #: `trad_*`...): `"alm_licencia_vencida"` o `f"alm_fecha_invalida:{campo}"`.
 _CODIGO = re.compile(r"[a-z]+(?:_[a-z0-9]+)+")
+
+
+_CATALOGO = RAIZ / "app" / "core" / "codigos_de_error.py"
+_codigos_cache: set[str] | None = None
+
+
+def _codigos_del_catalogo() -> set[str]:
+    """Claves de `MENSAJES` y `MENSAJES_DEL_OPERADOR` (leidas del fuente, sin importar `app`)."""
+    global _codigos_cache
+    if _codigos_cache is None:
+        codigos: set[str] = set()
+        try:
+            for n in ast.parse(_CATALOGO.read_text(encoding="utf-8")).body:
+                if (isinstance(n, ast.AnnAssign) and isinstance(n.target, ast.Name)
+                        and n.target.id in ("MENSAJES", "MENSAJES_DEL_OPERADOR")
+                        and isinstance(n.value, ast.Dict)):
+                    codigos |= {k.value for k in n.value.keys
+                                if isinstance(k, ast.Constant) and isinstance(k.value, str)}
+        except (OSError, SyntaxError):
+            pass
+        _codigos_cache = codigos
+    return _codigos_cache
+
+
+def _detail_con_codigo(n: ast.expr | None) -> bool:
+    """`detail` que es un codigo del catalogo o lleva un prefijo traducido por la interfaz."""
+    if isinstance(n, ast.JoinedStr) and n.values and isinstance(n.values[0], ast.Constant):
+        cabeza = str(n.values[0].value).split(":", 1)[0]
+    elif isinstance(n, ast.Constant) and isinstance(n.value, str):
+        cabeza = n.value.split(":", 1)[0]
+    else:
+        return False
+    return cabeza in _codigos_del_catalogo() or cabeza.startswith(_PREFIJOS_TRADUCIDOS)
 
 
 def _es_texto(n: ast.expr | None) -> bool:
@@ -84,6 +128,7 @@ def hallazgos(ruta: Path) -> list[tuple[int, str]]:
         return []
     rel = ruta.relative_to(RAIZ).as_posix()
     con_valor = rel.startswith(_CON_VALOR)
+    crudo = rel.startswith(_CON_HTTP_CRUDO)
     fuera: list[tuple[int, str]] = []
     for n in ast.walk(arbol):
         if isinstance(n, ast.Call):
@@ -91,8 +136,11 @@ def hallazgos(ruta: Path) -> list[tuple[int, str]]:
             if nombre == "ErrorDeDominio":
                 if not any(kw.arg == "code" for kw in n.keywords) and _es_texto(_detail(n, 1)):
                     fuera.append((n.lineno, "dominio"))
-            elif nombre == "HTTPException":
-                if _es_texto(_detail(n, 1)):
+            elif nombre in ("HTTPException", "FastAPIHTTPException"):
+                if crudo:
+                    if not _detail_con_codigo(_detail(n, 1)):
+                        fuera.append((n.lineno, "http_crudo"))
+                elif _es_texto(_detail(n, 1)):
                     fuera.append((n.lineno, "http"))
         elif con_valor and isinstance(n, ast.Raise) and isinstance(n.exc, ast.Call):
             if _nombre(n.exc.func) == "ValueError" and n.exc.args and _es_texto(n.exc.args[0]):
@@ -138,7 +186,8 @@ def main(argv: list[str]) -> int:
     medido = medir()
     por_cat = Counter(c for h in medido.values() for _, c in h)
     print(f"Ficheros con errores sin codigo: {len(medido)} · total {sum(por_cat.values())} "
-          f"(dominio {por_cat['dominio']}, http {por_cat['http']}, valor {por_cat['valor']})")
+          f"(dominio {por_cat['dominio']}, http {por_cat['http']}, "
+          f"http_crudo {por_cat['http_crudo']}, valor {por_cat['valor']})")
     for f, n in sorted(totales(medido).items(), key=lambda x: -x[1])[:25]:
         print(f"  {n:4d}  {f}")
     if "--detalle" in argv:

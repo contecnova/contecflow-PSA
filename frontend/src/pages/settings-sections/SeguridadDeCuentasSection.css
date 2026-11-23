@@ -1,0 +1,86 @@
+/* Seguridad de cuentas y recertificación (23-11-2026). Solo tokens de index.css. */
+.segc-panel {
+  margin-top: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+.segc-politica {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+.segc-campos {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--space-3) var(--space-4);
+  margin-bottom: var(--space-3);
+}
+.segc-campo {
+  min-width: 0;
+}
+.segc-guardar {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+.segc-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+.segc-barra {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: var(--space-3);
+}
+.segc-tenue {
+  color: var(--text-3);
+  font-size: var(--text-sm);
+}
+.segc-aviso {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--warning-border);
+  background: var(--warning-bg);
+  border-radius: var(--radius-md);
+  color: var(--text-1);
+}
+.segc-aviso--peligro {
+  border-color: var(--danger-border);
+  background: var(--danger-bg);
+}
+/* Aviso fijo de la cuenta (gracia de MFA, caducidad de la contraseña). */
+.segc-banda {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-4);
+  background: var(--warning-bg);
+  border-bottom: 1px solid var(--warning-border);
+  color: var(--text-1);
+  font-size: var(--text-sm);
+}
+/* Pantalla de cambio obligatorio / MFA obligatorio. */
+.segc-obligatorio {
+  min-height: 100vh;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: var(--space-6) var(--space-4);
+}
+.segc-obligatorio__caja {
+  width: 100%;
+  max-width: 720px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.segc-reglas {
+  margin: 0;
+  padding-left: var(--space-4);
+  color: var(--text-2);
+  font-size: var(--text-sm);
+}

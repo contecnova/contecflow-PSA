@@ -13,7 +13,7 @@ import { useState, useId } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { projectsApi, usersApi, risksApi } from '../services/api'
+import { projectsApi, risksApi } from '../services/api'
 import type { RiesgosDelProyecto } from '../services/api/tipos'
 import type { RiesgoSerializado } from '../services/api/tipos-proyectos'
 import { Button, KpiCard, Modal, Spinner, EmptyState, useSort, ViewToggle, Tabs, Select, IconButton, TablaSimple, useErroresDeCampo, Input, Textarea } from '../components/ui'
@@ -24,6 +24,7 @@ import { extractErr } from '../utils/helpers'
 import { useAppT } from '../i18n/AppLangContext'
 import DateInput from '../components/ui/DateInput'
 import { useFormatoMoneda } from '../hooks/useFormatoMoneda'
+import { useListaDeUsuarios } from '../hooks/useListas'
 import './RisksPage.css'
 
 type RiskStatus = RiesgoSerializado['status']
@@ -127,7 +128,8 @@ function RiskFormModal({ risk, projectId, onClose }: { risk?: RiskItem | null; p
   const qc = useQueryClient()
   const toast = useToast()
   const isEdit = !!risk?.id
-  const { data: users = [] } = useQuery<UserItem[]>({ queryKey: ['users'], queryFn: () => usersApi.list({}).then(r => r.data as UserItem[]) })
+  const { data: usersRaw = [] } = useListaDeUsuarios()
+  const users = usersRaw as unknown as UserItem[]
   const [form, setForm] = useState<RiskFormState>({
     title: risk?.title || '',
     description: risk?.description || '',

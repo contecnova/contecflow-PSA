@@ -16,7 +16,7 @@ from app.models.project import Project
 from app.models.task import Task
 from app.models.epics import WikiSpace, WikiPage
 from app.models.cmdb import (
-    WikiTag, WikiPageTag, WikiExportJob,
+    WikiTag, WikiPageTag,
     KanbanConfig, KanbanColumn,
     SprintPlan, SprintPlanTask,
     SLACalendar, V21SLAHoliday,
@@ -27,17 +27,18 @@ from app.core.codigos_de_error import error
 
 logger = logging.getLogger(__name__)
 
-_CI_SPECIFIC = [
-    'os', 'cpu_cores', 'ram_gb', 'serial_number', 'location', 'url', 'tech_stack',
-    'repo_url', 'owner_team', 'sla_tier', 'db_engine', 'port', 'size_gb',
-    'backup_schedule', 'vendor', 'cluster', 'namespace', 'replicas', 'cloud_provider',
-    'region', 'resource_id', 'instance_type', 'monthly_cost', 'image', 'assigned_to',
-    'warranty_date', 'protocol', 'capacity_tb', 'used_tb', 'model', 'dependencies',
-]
+# §5 (auditoría 22-11-2026): `_CI_SPECIFIC` (lista sin uso) retirada.
+
+
+#: Baja (auditoría 22-11-2026): la entidad del 404 es la que falta (antes
+#: siempre «tipo de incidencia»: «Etiqueta no encontrada» salía como «tipo de
+#: incidencia no encontrado»).
+_QUE = {"Espacio": "espacio", "Etiqueta": "etiqueta", "Proyecto": "proyecto", "Plan": "plan",
+        "Columna": "columna"}
 
 
 def _404(m):
-    raise error(404, "no_encontrado", detail=f"{m} no encontrado", que="tipo_de_incidencia")
+    raise error(404, "no_encontrado", detail=f"{m} no encontrado", que=_QUE.get(m, "elemento"))
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -198,16 +199,7 @@ def get_agent_dashboard(agent_id: str, p, db: Session) -> dict:
 # WIKI EXPORT
 # ──────────────────────────────────────────────────────────────────────────────
 
-def create_wiki_export_job(page_id: str, user_id: str, db: Session) -> dict:
-    page = db.query(WikiPage).filter(WikiPage.id == page_id).first()
-    if not page: _404("Página wiki")
-    job = WikiExportJob(page_id=page_id, status="pending", file_path=None, created_by=user_id)
-    db.add(job); db.commit(); db.refresh(job)
-    return {
-        "job_id": job.id, "status": "pending",
-        "page_title": page.title,
-        "message": "Trabajo de exportación creado. Procesando en segundo plano.",
-    }
+# Auditoría 22-11-2026 (M108): `create_wiki_export_job` retirada (filas que nadie procesaba).
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -380,39 +372,40 @@ def generate_sprint_plan(
         key=lambda t: (PRIORITY_ORDER.get(t.priority or "low", 3), puntos[t.id])
     )
 
+    from app.services.formato_regional import idioma_de_salida
+    from app.services.textos_de_salida import texto as _tx
+    _id = idioma_de_salida(db, user_id=user_id)
     selected = []; total = 0; reasoning_parts = []
     must_include = {tid for tid in (priorities or [])}
 
     for t in backlog:
         if t.id in must_include:
             selected.append(t); total += puntos[t.id]
-            est_note = " (sin estimar — asignado 1p por defecto)" if t.id in unestimated_ids else ""
-            reasoning_parts.append(f"• '{t.title}' incluida por prioridad manual ({puntos[t.id]}p){est_note}")
+            est_note = _tx("plan_sprint.sin_estimar_incluida", _id) if t.id in unestimated_ids else ""
+            reasoning_parts.append(_tx("plan_sprint.manual", _id, titulo=t.title, pts=puntos[t.id], nota=est_note))
 
     for t in backlog:
         if t.id in {s.id for s in selected}:
             continue
         pts = puntos[t.id]
-        est_note = " [~1p sin estimación]" if t.id in unestimated_ids else ""
+        est_note = _tx("plan_sprint.sin_estimar", _id) if t.id in unestimated_ids else ""
         if total + pts <= team_capacity:
             selected.append(t); total += pts
-            reasoning_parts.append(
-                f"• '{t.title}' — {pts}p, prioridad {t.priority or 'normal'}{est_note}")
+            reasoning_parts.append(_tx("plan_sprint.incluida", _id, titulo=t.title, pts=pts,
+                                       prioridad=t.priority or _tx("plan_sprint.prioridad_normal", _id), nota=est_note))
         else:
-            reason = "capacidad alcanzada" if total >= team_capacity * 0.7 else \
-                     f"añadir {pts}p superaría la capacidad de {team_capacity}p"
-            reasoning_parts.append(f"  ✗ '{t.title}' ({pts}p) excluida — {reason}")
+            reason = _tx("plan_sprint.capacidad_alcanzada", _id) if total >= team_capacity * 0.7 else \
+                     _tx("plan_sprint.superaria", _id, pts=pts, capacidad=team_capacity)
+            reasoning_parts.append(_tx("plan_sprint.excluida", _id, titulo=t.title, pts=pts, motivo=reason))
 
     unestimated_count = len([t for t in selected if t.id in unestimated_ids])
     unestimated_note = (
-        f"\n⚠ {unestimated_count} tarea(s) sin story points estimados — asignado 1p por defecto. "
-        "Se recomienda estimar el backlog antes de planificar."
+        "\n" + _tx("plan_sprint.aviso_sin_estimar", _id, n=unestimated_count)
         if unestimated_count else ""
     )
     reasoning = (
-        f"Plan generado para capacidad de {team_capacity} story points.\n"
-        f"Tareas seleccionadas: {len(selected)} ({total}p de {team_capacity}p disponibles)."
-        f"{unestimated_note}\n\n" + "\n".join(reasoning_parts)
+        _tx("plan_sprint.cabecera", _id, capacidad=team_capacity, n=len(selected), total=total)
+        + f"{unestimated_note}\n\n" + "\n".join(reasoning_parts)
     )
 
     plan = SprintPlan(
@@ -423,7 +416,7 @@ def generate_sprint_plan(
     db.add(plan); db.flush()
     for i, t in enumerate(selected):
         db.add(SprintPlanTask(plan_id=plan.id, task_id=t.id, priority=i,
-                              ai_note=f"{puntos[t.id]}p · {t.priority or 'normal'}"))
+                              ai_note=f"{puntos[t.id]}p · {t.priority or _tx('plan_sprint.prioridad_normal', _id)}"))
     db.commit(); db.refresh(plan)
     db.expire_all()
 
@@ -433,6 +426,10 @@ def generate_sprint_plan(
         "utilization_pct": round(total / team_capacity * 100) if team_capacity else 0,
         "task_count": len(selected),
         "ai_reasoning": reasoning,
+        # Baja (auditoría 22-11-2026): el plan es un reparto voraz por prioridad
+        # (no un modelo de IA); se dice explícitamente para que la pantalla no
+        # lo presente como «IA». Las columnas `ai_*` las renombraría una migración.
+        "method": "greedy_by_priority",
         "unestimated_count": unestimated_count,
         "tasks": [{"task_id": t.id, "title": t.title,
                    "story_points": puntos[t.id], "priority": t.priority,

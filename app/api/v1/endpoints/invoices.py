@@ -5,9 +5,10 @@ from pydantic import BaseModel, Field
 
 from fastapi import APIRouter, Body, HTTPException, Query, Request, Response, status, Depends
 from sqlalchemy.orm import Session
+from app.db.session import sesion_de_sistema
 
 from app.core.config import settings
-from app.core.deps import get_current_user, get_db, require_any_manager
+from app.core.deps import get_current_user, get_db, requiere_capacidad
 from app.models.user import User, UserRole
 from app.schemas.billing_reports import InvoiceCreate, InvoiceOut, InvoiceSummaryOut
 from app.services import billing_reports_service
@@ -23,7 +24,7 @@ def invoice_from_timesheets(
     payload: dict = Body(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_any_manager),  # auditoria 2026-09: dominio: facturacion
+    _rol: User = Depends(requiere_capacidad("facturacion.gestionar")),  # auditoria 2026-09: dominio: facturacion
 ):
     return APIResponse.ok(data=build_invoice_preview_from_timesheets_flow(
         db=db,
@@ -39,7 +40,7 @@ def create_invoice(
     payload: InvoiceCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_any_manager),  # auditoria 2026-09: dominio: facturacion
+    _rol: User = Depends(requiere_capacidad("facturacion.gestionar")),  # auditoria 2026-09: dominio: facturacion
 ):
     return APIResponse.ok(data=billing_reports_service.create_invoice(payload, current_user, db))
 
@@ -52,7 +53,7 @@ def list_invoices(
     limit: int = Query(100, ge=1, le=500),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_any_manager),  # revisión 2026-11: un empleado listaba todas las facturas
+    _rol: User = Depends(requiere_capacidad("facturacion.gestionar")),  # revisión 2026-11: un empleado listaba todas las facturas
 ):
     q, total = billing_reports_service.query_invoices(db, project_id=project_id, status=status)
     invoices = q.offset(skip).limit(limit).all()
@@ -64,7 +65,7 @@ def list_invoices(
 def invoice_summary(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_any_manager),  # revisión 2026-11: un empleado veía los totales de la empresa
+    _rol: User = Depends(requiere_capacidad("facturacion.gestionar")),  # revisión 2026-11: un empleado veía los totales de la empresa
 ):
     return APIResponse.ok(data=billing_reports_service.get_invoice_summary(db))
 
@@ -100,13 +101,13 @@ class EdicionDeFacturaIn(BaseModel):
 
 @router.get("/{invoice_id}", response_model=APIResponse[InvoiceOut], summary="Ficha de una factura con sus líneas")
 def get_invoice(invoice_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
-                _rol: User = Depends(require_any_manager)):
+                _rol: User = Depends(requiere_capacidad("facturacion.gestionar"))):
     return APIResponse.ok(data=billing_reports_service.obtener_factura(db, invoice_id))
 
 
 @router.patch("/{invoice_id}", response_model=APIResponse[InvoiceOut], summary="Editar un borrador (cabecera y líneas)")
 def edit_invoice(invoice_id: str, payload: EdicionDeFacturaIn, db: Session = Depends(get_db),
-                 current_user: User = Depends(get_current_user), _rol: User = Depends(require_any_manager)):
+                 current_user: User = Depends(get_current_user), _rol: User = Depends(requiere_capacidad("facturacion.gestionar"))):
     datos = payload.model_dump(exclude_unset=True)
     if "lines" in datos:
         datos["lines"] = [dict(l) for l in datos["lines"] or []]
@@ -115,12 +116,12 @@ def edit_invoice(invoice_id: str, payload: EdicionDeFacturaIn, db: Session = Dep
 
 @router.delete("/{invoice_id}", summary="Borrar un borrador")
 def delete_invoice(invoice_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
-                   _rol: User = Depends(require_any_manager)):
+                   _rol: User = Depends(requiere_capacidad("facturacion.gestionar"))):
     billing_reports_service.borrar_factura(db, current_user, invoice_id)
     return APIResponse.ok(data={"deleted": invoice_id})
 
 @router.post("/stripe/webhook", summary="Webhook de Stripe (cobro de facturas)")
-async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
+async def stripe_webhook(request: Request, db: Session = Depends(sesion_de_sistema("stripe: firma Stripe-Signature"))):
     # Sin usuario: lo autentica la firma `Stripe-Signature` (payments_service).
     from app.core.async_db import run_db
     from app.services import payments_service
@@ -133,7 +134,7 @@ def create_payment_link(
     invoice_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_any_manager),  # auditoria 2026-09: dominio: facturacion
+    _rol: User = Depends(requiere_capacidad("facturacion.gestionar")),  # auditoria 2026-09: dominio: facturacion
 ):
     return APIResponse.ok(data=billing_reports_service.crear_enlace_de_pago(db, invoice_id))
 

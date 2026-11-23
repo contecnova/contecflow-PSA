@@ -60,6 +60,7 @@ from sqlalchemy.orm import relationship, synonym
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.sql import func
 from app.db.base import Base
+from app.models.money import Money
 from app.core.config import settings
 
 
@@ -173,13 +174,13 @@ class ALMCostCenter(Base):
     __tablename__ = "alm_cost_centers"
 
     id             = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     code           = Column(String(20), nullable=False)  # CC-001 (unique per-tenant — ver __table_args__)
     name           = Column(String(200), nullable=False)
     description    = Column(Text, nullable=True)
     department_id  = Column(String(36), ForeignKey("departments.id", ondelete="SET NULL"), nullable=True, index=True)
     manager_id     = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
-    budget_annual  = Column(Float, nullable=True)   # € presupuesto anual
+    budget_annual  = Column(Money, nullable=True)   # € presupuesto anual
     currency       = Column(String(3), default=settings.DEFAULT_CURRENCY)
     is_active      = Column(Boolean, default=True)
     created_at     = Column(DateTime(timezone=True), server_default=func.now())
@@ -199,7 +200,7 @@ class ALMVendor(Base):
     __tablename__ = "alm_vendors"
 
     id               = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     name             = Column(String(200), nullable=False)
     category         = Column(Enum(VendorCategory), default=VendorCategory.software)
     website          = Column(String(500), nullable=True)
@@ -226,7 +227,7 @@ class ALMContract(Base):
     __tablename__ = "alm_contracts"
 
     id               = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     vendor_id        = Column(String(36), ForeignKey("alm_vendors.id", ondelete="SET NULL"), nullable=True, index=True)
     title            = Column(String(300), nullable=False)
     reference        = Column(String(100), nullable=True)   # Nº contrato interno
@@ -246,8 +247,8 @@ class ALMContract(Base):
     notice_days      = Column(Integer, default=30)
 
     # Económico
-    total_value      = Column(Float, nullable=True)    # Valor total del contrato €
-    annual_value     = Column(Float, nullable=True)    # Coste anual €
+    total_value      = Column(Money, nullable=True)    # Valor total del contrato €
+    annual_value     = Column(Money, nullable=True)    # Coste anual €
     billing_cycle    = Column(Enum(BillingCycle), default=BillingCycle.annual)
     currency         = Column(String(3), default=settings.DEFAULT_CURRENCY)
     payment_method   = Column(String(50), nullable=True)  # tarjeta, transferencia...
@@ -272,7 +273,7 @@ class ALMContract(Base):
     response_hours = Column(Float, nullable=True)
     created_at       = Column(DateTime(timezone=True), server_default=func.now())
     updated_at       = Column(DateTime(timezone=True), onupdate=func.now())
-    created_by       = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    created_by       = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
 
     vendor      = relationship("ALMVendor",     back_populates="contracts")
     cost_center = relationship("ALMCostCenter", back_populates="contracts")
@@ -285,7 +286,7 @@ class ALMLicense(Base):
     __tablename__ = "alm_licenses"
 
     id                   = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     contract_id          = Column(String(36), ForeignKey("alm_contracts.id", ondelete="SET NULL"), nullable=True, index=True)
     vendor_id            = Column(String(36), ForeignKey("alm_vendors.id",   ondelete="SET NULL"), nullable=True, index=True)
 
@@ -323,8 +324,8 @@ class ALMLicense(Base):
     license_key_hint     = Column(String(8), nullable=True)
     purchase_date        = Column(Date, nullable=True)
     expiry_date          = Column(Date, nullable=True)
-    purchase_price       = Column(Float, nullable=True)
-    annual_cost          = Column(Float, nullable=True)
+    purchase_price       = Column(Money, nullable=True)
+    annual_cost          = Column(Money, nullable=True)
 
     # Responsabilidad
     cost_center_id       = Column(String(36), ForeignKey("alm_cost_centers.id", ondelete="SET NULL"), nullable=True, index=True)
@@ -396,7 +397,7 @@ class ALMAsignacion(Base):
     )
 
     id                    = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id       = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)
+    organization_id       = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
     resource_type         = Column(String(10), nullable=False)            # license | asset
     license_id            = Column(String(36), ForeignKey("alm_licenses.id", ondelete="CASCADE"), nullable=True, index=True)
     asset_id              = Column(String(36), ForeignKey("alm_assets.id", ondelete="CASCADE"), nullable=True, index=True)
@@ -487,7 +488,7 @@ class ALMEvento(Base):
     )
 
     id              = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
     resource_type   = Column(String(10), nullable=False)
     license_id      = Column(String(36), ForeignKey("alm_licenses.id", ondelete="SET NULL"), nullable=True, index=True)
     asset_id        = Column(String(36), ForeignKey("alm_assets.id", ondelete="SET NULL"), nullable=True, index=True)
@@ -515,7 +516,7 @@ class ALMAsset(Base):
     __table_args__ = (Index("uq_alm_assets_org_serial_number", "organization_id", "serial_number", unique=True), Index("uq_alm_assets_org_asset_tag", "organization_id", "asset_tag", unique=True),)
 
     id                  = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     name                = Column(String(200), nullable=False)
     type                = Column(Enum(AssetType, name='alm_assettype'), nullable=False)
     brand               = Column(String(100), nullable=True)
@@ -538,15 +539,15 @@ class ALMAsset(Base):
     # Financiero
     vendor_id           = Column(String(36), ForeignKey("alm_vendors.id", ondelete="SET NULL"), nullable=True, index=True)
     purchase_date       = Column(Date, nullable=True)
-    purchase_price      = Column(Float, nullable=True)
+    purchase_price      = Column(Money, nullable=True)
     currency            = Column(String(3), default=settings.DEFAULT_CURRENCY)
     warranty_expiry     = Column(Date, nullable=True)
     depreciation_years  = Column(Integer, default=3)
     cost_center_id      = Column(String(36), ForeignKey("alm_cost_centers.id", ondelete="SET NULL"), nullable=True, index=True)
     # Fase 3: amortización lineal de (precio − residual) en `depreciation_years`,
     # o la cuota de un renting/leasing.
-    residual_value      = Column(Float, nullable=True)
-    lease_monthly_cost  = Column(Float, nullable=True)
+    residual_value      = Column(Money, nullable=True)
+    lease_monthly_cost  = Column(Money, nullable=True)
     rebillable          = Column(Boolean, nullable=False, default=False, server_default="0")
 
     # IP / red (para servidores/VMs)
@@ -570,7 +571,7 @@ class ALMAsset(Base):
     disposal_date       = Column(Date, nullable=True)
     disposal_reason     = Column(String(30), nullable=True)   # obsolete | broken | lost | stolen | sold | other
     disposal_method     = Column(String(30), nullable=True)   # recycle | donate | sell | destroy
-    disposal_value      = Column(Float, nullable=True)
+    disposal_value      = Column(Money, nullable=True)
 
     notes               = Column(Text, nullable=True)
     created_at          = Column(DateTime(timezone=True), server_default=func.now())
@@ -592,12 +593,12 @@ class ALMAssetHistory(Base):
     __tablename__ = "alm_asset_history"
 
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
     asset_id    = Column(String(36), ForeignKey("alm_assets.id", ondelete="CASCADE"), nullable=False, index=True)
     field_name  = Column(String(100), nullable=False)
     old_value   = Column(String(500), nullable=True)
     new_value   = Column(String(500), nullable=True)
-    changed_by  = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    changed_by  = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     note        = Column(String(255), nullable=True)
     changed_at  = Column(DateTime(timezone=True), server_default=func.now())
 
@@ -610,11 +611,11 @@ class ALMSoftwareInstall(Base):
     __tablename__ = "alm_software_installs"
 
     id           = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     license_id   = Column(String(36), ForeignKey("alm_licenses.id", ondelete="CASCADE"), nullable=False, index=True)
     asset_id     = Column(String(36), ForeignKey("alm_assets.id",   ondelete="CASCADE"), nullable=False, index=True)
     installed_at = Column(DateTime(timezone=True), server_default=func.now())
-    installed_by = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    installed_by = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     version      = Column(String(50), nullable=True)
     is_active    = Column(Boolean, default=True, nullable=False)
     notes        = Column(String(500), nullable=True)
@@ -638,7 +639,7 @@ class ALMRenewalAlert(Base):
     )
 
     id           = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     entity_type  = Column(String(20), nullable=False)   # contract | license | loan
     entity_id    = Column(String(36), nullable=False)
     # notice (se acerca el preaviso) | deadline (vence el preaviso) | expired |
@@ -649,7 +650,7 @@ class ALMRenewalAlert(Base):
     days_before  = Column(Integer, nullable=False)       # días que faltaban (negativo: ya pasada)
     is_sent      = Column(Boolean, default=False)
     sent_at      = Column(DateTime(timezone=True), nullable=True)
-    recipient_id = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    recipient_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at   = Column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -660,7 +661,7 @@ class ALMActa(Base):
     __tablename__ = "alm_actas"
 
     id                = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id   = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)
+    organization_id   = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
     kind              = Column(String(10), nullable=False)          # delivery | return
     assignment_id     = Column(String(36), ForeignKey("alm_license_assignments.id", ondelete="CASCADE"), nullable=False, index=True)
     asset_id          = Column(String(36), ForeignKey("alm_assets.id", ondelete="CASCADE"), nullable=False, index=True)
@@ -686,7 +687,7 @@ class ALMAdjunto(Base):
     __tablename__ = "alm_adjuntos"
 
     id              = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
     asset_id        = Column(String(36), ForeignKey("alm_assets.id", ondelete="CASCADE"), nullable=True, index=True)
     act_id          = Column(String(36), ForeignKey("alm_actas.id", ondelete="CASCADE"), nullable=True, index=True)
     invoice_id      = Column(String(36), ForeignKey("alm_facturas_proveedor.id", ondelete="CASCADE"), nullable=True, index=True)
@@ -703,7 +704,7 @@ class ALMPicoConcurrencia(Base):
     __tablename__ = "alm_picos_concurrencia"
 
     id              = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
     license_id      = Column(String(36), ForeignKey("alm_licenses.id", ondelete="CASCADE"), nullable=False, index=True)
     measured_at     = Column(DateTime(timezone=True), nullable=False, index=True)
     peak            = Column(Integer, nullable=False)
@@ -718,14 +719,14 @@ class ALMRenovacion(Base):
     __tablename__ = "alm_renovaciones"
 
     id              = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
     entity_type     = Column(String(10), nullable=False)        # contract | license
     contract_id     = Column(String(36), ForeignKey("alm_contracts.id", ondelete="CASCADE"), nullable=True, index=True)
     license_id      = Column(String(36), ForeignKey("alm_licenses.id", ondelete="CASCADE"), nullable=True, index=True)
     term_date       = Column(Date, nullable=False)              # la renovación a la que se refiere
     decision        = Column(String(10), nullable=False)        # renew | reduce | cancel
     new_seats       = Column(Integer, nullable=True)
-    new_annual_cost = Column(Float, nullable=True)
+    new_annual_cost = Column(Money, nullable=True)
     reason          = Column(Text, nullable=True)
     usage_snapshot  = Column(Text, nullable=True)               # JSON: el uso que se vio al decidir
     status          = Column(String(12), nullable=False, default="pending")   # pending | applied | superseded
@@ -744,7 +745,7 @@ class ALMFacturaProveedor(Base):
     )
 
     id              = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
     vendor_id       = Column(String(36), ForeignKey("alm_vendors.id", ondelete="SET NULL"), nullable=True, index=True)
     contract_id     = Column(String(36), ForeignKey("alm_contracts.id", ondelete="SET NULL"), nullable=True, index=True)
     license_id      = Column(String(36), ForeignKey("alm_licenses.id", ondelete="SET NULL"), nullable=True, index=True)
@@ -752,13 +753,13 @@ class ALMFacturaProveedor(Base):
     issue_date      = Column(Date, nullable=False)
     period_from     = Column(Date, nullable=True)
     period_to       = Column(Date, nullable=True)
-    amount          = Column(Float, nullable=False)              # base imponible
-    tax_amount      = Column(Float, nullable=True)
+    amount          = Column(Money, nullable=False)              # base imponible
+    tax_amount      = Column(Money, nullable=True)
     currency        = Column(String(3), default=settings.DEFAULT_CURRENCY)
     expense_id      = Column(String(36), ForeignKey("expenses.id", ondelete="SET NULL"), nullable=True, index=True)
     # pending | matched | discrepancy | accepted (discrepancia aceptada con nota)
     status          = Column(String(12), nullable=False, default="pending", index=True)
-    expected_amount = Column(Float, nullable=True)
+    expected_amount = Column(Money, nullable=True)
     difference      = Column(Float, nullable=True)
     issues          = Column(Text, nullable=True)                # JSON: códigos de discrepancia
     notes           = Column(Text, nullable=True)

@@ -14,6 +14,7 @@ import { useAuth } from '../../context/AuthContext'
 import { extractErr } from '../../utils/helpers'
 import { SCHEDULE_TASKS_LIST_SIZE } from '../../constants/pagination'
 import './planificador.css'
+import { confirmar } from '../../context/ConfirmContext'
 
 const TIPOS = ['FS', 'SS', 'FF', 'SF'] as const
 const VINCULOS = ['schedule', 'relates_to', 'duplicates', 'cloned_from'] as const
@@ -79,8 +80,7 @@ export default function EditorDeDependencias({ projectId }: { projectId: string 
                 onChange={e => setNueva(n => ({ ...n, dependency_type: e.target.value }))} placeholder={false}>
                 {TIPOS.map(x => <option key={x} value={x}>{t(`planificador.tipo_${x}`)}</option>)}
               </Select>
-              <input type="number" className="plan-input plan-input--num" aria-label={t('planificador.col_desfase')}
-                value={nueva.lag_days} onChange={e => setNueva(n => ({ ...n, lag_days: Number(e.target.value) }))} />
+              <Input type="number" aria-label={t('planificador.col_desfase')} value={nueva.lag_days} onChange={e => setNueva(n => ({ ...n, lag_days: Number(e.target.value) }))} className="plan-input--num" />
             </>
           )}
           <Select suelto className="plan-select" aria-label={t('planificador.sucesora')} value={nueva.successor_id}
@@ -100,7 +100,7 @@ export default function EditorDeDependencias({ projectId }: { projectId: string 
               <tr>
                 <th>{t('planificador.predecesora')}</th><th>{t('planificador.col_vinculo')}</th>
                 <th>{t('planificador.col_tipo')}</th><th className="plan-num">{t('planificador.col_desfase')}</th>
-                <th>{t('planificador.sucesora')}</th><th />
+                <th>{t('planificador.sucesora')}</th><th><span className="u-sr-only">{t('common.col_acciones')}</span></th>
               </tr>
             </thead>
             <tbody>
@@ -125,7 +125,7 @@ export default function EditorDeDependencias({ projectId }: { projectId: string 
                   <td>{nombre[d.successor_id] ?? d.successor_id}</td>
                   <td>
                     {puedeEditar && (
-                      <Button size="xs" variant="ghost" icon={<Trash2 size={12} />} onClick={() => borrar.mutate(d.id)}>
+                      <Button size="xs" variant="ghost" icon={<Trash2 size={12} />} onClick={async () => { if (await confirmar({ message: t('planificador.confirmar_borrar_dependencia'), danger: true, confirmLabel: t('planificador.borrar') })) borrar.mutate(d.id) }}>
                         {t('planificador.borrar')}
                       </Button>
                     )}

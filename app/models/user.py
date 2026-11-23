@@ -4,6 +4,7 @@ from sqlalchemy.sql import func
 import enum
 import uuid
 from app.db.base import Base
+from app.models.money import Rate
 from app.core.config import settings
 
 
@@ -79,7 +80,7 @@ class User(Base):
 
     # Capacity and cost (confidential — visible only to admin/hr)
     weekly_capacity_hours = Column(Float, default=settings.DEFAULT_WEEKLY_CAPACITY_HOURS)   # Standard working hours/week
-    hourly_rate = Column(Float, nullable=True)             # Internal cost €/hour
+    hourly_rate = Column(Rate, nullable=True)             # Internal cost €/hour
     currency = Column(String(3), default=settings.DEFAULT_CURRENCY)
 
     # LDAP info
@@ -113,6 +114,12 @@ class User(Base):
     mfa_secret   = Column(String(512), nullable=True)  # Fernet-encrypted TOTP secret
     mfa_last_timestep = Column(BigInteger, nullable=True)  # ultimo paso TOTP aceptado: impide reusar el codigo (rev. 157)
     mfa_verified_at = Column(DateTime(timezone=True), nullable=True)  # cuando se verifico el TOTP actual (rev. 160)
+    # Politicas de cuenta (rev. 199, docs/seguridad/politicas_de_cuenta.md).
+    password_changed_at = Column(DateTime(timezone=True), nullable=True)      # caducidad y edad minima
+    password_must_change = Column(Boolean, default=False, nullable=False, server_default="0")  # cambio forzado al entrar
+    password_temporary_until = Column(DateTime(timezone=True), nullable=True)  # contrasena temporal: caduca
+    locked_until = Column(DateTime(timezone=True), nullable=True)             # bloqueo persistente por intentos
+    mfa_grace_started_at = Column(DateTime(timezone=True), nullable=True)     # inicio del periodo de gracia MFA
     scim_external_id = Column(String(255), nullable=True, index=True)
     scim_last_synced_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -192,7 +199,7 @@ class UserPreference(Base):
     __tablename__ = "user_preferences"
 
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     user_id     = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"),
                          nullable=False, unique=True, index=True)
     # Dashboard configurable
@@ -201,8 +208,11 @@ class UserPreference(Base):
     accent_color       = Column(String(20), nullable=True)  # CSS hex; vacio = el del tema
     theme_mode         = Column(String(20), default="freight")  # uno de user_service.TEMAS
     sidebar_collapsed  = Column(Boolean, default=False)
-    # Idioma
-    language           = Column(String(10), default=settings.DEFAULT_LANGUAGE)
+    # Idioma. Incidencia 5 (23-11-2026): vacío = el usuario no ha elegido (se
+    # usa el de la empresa, el del navegador o el inglés). Antes llevaba de
+    # default `settings.DEFAULT_LANGUAGE` y el alta de la fila (al cambiar el
+    # tema, por ejemplo) congelaba el castellano como si fuera su elección.
+    language           = Column(String(10), nullable=True)
     # Densidad UI
     ui_density         = Column(String(20), default="normal")   # uno de user_service.DENSIDADES
     # Otros

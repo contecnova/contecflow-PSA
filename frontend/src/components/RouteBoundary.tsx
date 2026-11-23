@@ -70,10 +70,10 @@ export default class RouteBoundary extends Component<RouteBoundaryProps, RouteBo
           body: JSON.stringify(payload),
           credentials: 'include',
           keepalive: true,
-        }).catch(() => {})
+        }).catch(() => { /* accesorio: informe de errores best-effort; nunca debe fallar dentro del boundary */ })
       }
     } catch {
-      // Reporting must never throw out of the boundary.
+      /* accesorio: Reporting must never throw out of the boundary. */
     }
   }
 

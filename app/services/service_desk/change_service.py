@@ -75,6 +75,24 @@ def scope_change_query(q, db: Session, current_user: User):
     )
 
 
+def _a_utc(valor) -> datetime:
+    """Fecha ISO de la API en UTC sin perder su zona.
+
+    Auditoria 2026-11-22 (servicios m-z, 4.3): `.replace(tzinfo=utc)` pisaba
+    el desfase de una fecha con zona («10:00+01:00» quedaba 10:00 UTC, una hora
+    tarde). Con zona se convierte; sin ella se sigue tomando como UTC. Una
+    fecha ilegible es un 422, no un 500.
+    """
+    if isinstance(valor, datetime):
+        fecha = valor
+    else:
+        try:
+            fecha = datetime.fromisoformat(str(valor).replace("Z", "+00:00"))
+        except ValueError:
+            raise error(422, "fecha_no_valida")
+    return fecha.replace(tzinfo=tz.utc) if fecha.tzinfo is None else fecha.astimezone(tz.utc)
+
+
 def build_change_list_query(
     db: Session,
     current_user: User,
@@ -93,9 +111,9 @@ def build_change_list_query(
     if change_type:
         q = q.filter(ITSMChangeRequest.change_type == change_type)
     if date_from:
-        q = q.filter(ITSMChangeRequest.created_at >= datetime.fromisoformat(date_from).replace(tzinfo=tz.utc))
+        q = q.filter(ITSMChangeRequest.created_at >= _a_utc(date_from))
     if date_to:
-        q = q.filter(ITSMChangeRequest.created_at <= datetime.fromisoformat(date_to).replace(tzinfo=tz.utc))
+        q = q.filter(ITSMChangeRequest.created_at <= _a_utc(date_to))
     return q
 
 
@@ -138,6 +156,8 @@ def serialize_change(change: ITSMChangeRequest, full: bool = False) -> dict:
         "number": change.number,
         "title": change.title,
         "change_type": change.change_type.value if change.change_type else None,
+        "standard_model_id": change.standard_model_id,
+        "standard_model_name": getattr(change.standard_model, "name", None),
         "status": change.status.value if change.status else None,
         "risk": change.risk.value if change.risk else None,
         "priority": change.priority.value if change.priority else None,
@@ -245,7 +265,9 @@ def build_change_request(payload: dict, requester_id: str, number: str) -> ITSMC
         number=number,
         title=payload["title"],
         description=payload["description"],
-        change_type=payload.get("change_type", "normal"),
+        # El tipo lo fija el servidor (A-SD19): `standard` solo con un modelo
+        # del catalogo que encaje (`cambios_estandar_service.aplicar_tipo_pedido`).
+        change_type="normal",
         risk=payload.get("risk", "medium"),
         priority=payload.get("priority", "p3_medium"),
         implementation_plan=payload.get("implementation_plan"),
@@ -260,9 +282,9 @@ def build_change_request(payload: dict, requester_id: str, number: str) -> ITSMC
         related_problem_id=payload.get("related_problem_id"),
     )
     if payload.get("planned_start"):
-        change.planned_start = datetime.fromisoformat(payload["planned_start"]).replace(tzinfo=tz.utc)
+        change.planned_start = _a_utc(payload["planned_start"])
     if payload.get("planned_end"):
-        change.planned_end = datetime.fromisoformat(payload["planned_end"]).replace(tzinfo=tz.utc)
+        change.planned_end = _a_utc(payload["planned_end"])
     return change
 
 
@@ -270,7 +292,6 @@ def apply_change_update(change: ITSMChangeRequest, payload: dict, current_user_i
     for field in (
         "title",
         "description",
-        "change_type",
         "risk",
         "priority",
         "implementation_plan",
@@ -292,11 +313,15 @@ def apply_change_update(change: ITSMChangeRequest, payload: dict, current_user_i
 
     for dt_field in ("planned_start", "planned_end", "actual_start", "actual_end", "pir_date"):
         if dt_field in payload and payload[dt_field]:
-            setattr(change, dt_field, datetime.fromisoformat(payload[dt_field]).replace(tzinfo=tz.utc))
+            setattr(change, dt_field, _a_utc(payload[dt_field]))
 
 
 # Estados a los que no se llega con un PATCH: los decide el CAB.
 _SOLO_POR_EL_CAB = {"approved"}
+#: El tipo (y el modelo estandar) solo se cambia antes de la revision.
+_TIPO_EDITABLE_EN = {ChangeStatus.draft.value, ChangeStatus.submitted.value}
+#: Cierres que cuentan para la tasa de fallo del modelo estandar.
+_CIERRES = {ChangeStatus.closed_success.value: True, ChangeStatus.closed_failed.value: False}
 _A_REVISION = {"submitted", "cab_review"}
 
 
@@ -314,16 +339,33 @@ def _pasar_a_revision(db: Session, change: ITSMChangeRequest, current_user: User
         raise error(409, "cab_no_configurado", detail="No hay comité de cambios configurado (Service Desk → ajustes, SD_CAB_GROUP_ID): un cambio normal o de emergencia necesita su aprobación") from exc
 
 
+def exigir_transicion_de_cambio(actual, nuevo: str) -> None:
+    """409 si la maquina de estados no admite `actual → nuevo`.
+
+    Auditoria 2026-11-22 (C-SD3): solo se impedia `approved`; cualquier otro
+    salto valia (`draft → in_progress → closed_success`), asi que el CAB se
+    evitaba con dos PATCH. La tabla es `TRANSICIONES_DE_CAMBIO`.
+    """
+    from app.models.service_desk._enums import TRANSICIONES_DE_CAMBIO
+    actual = getattr(actual, "value", actual)
+    if nuevo not in TRANSICIONES_DE_CAMBIO:
+        raise error(422, "estado_no_valido", estado=nuevo)
+    if nuevo not in TRANSICIONES_DE_CAMBIO.get(actual, frozenset()):
+        raise error(409, "cambio_transicion_no_permitida", desde=actual, hasta=nuevo)
+
+
 def _aplicar_estado(db: Session, change: ITSMChangeRequest, nuevo: str, current_user: User) -> None:
     """Las transiciones con reglas: aprobar es del CAB y programar mira el calendario.
 
     Auditoria 2026-11: cualquiera con acceso al cambio lo ponia en `approved`
-    con un PATCH, sin pasar por el comite.
+    con un PATCH, sin pasar por el comite. 2026-11-22: ademas, cualquier otro
+    salto pasa por `exigir_transicion_de_cambio`.
     """
     from app.services.service_desk.change_calendar_service import exigir_ventana_libre
 
     if nuevo in _SOLO_POR_EL_CAB:
         raise error(409, "cambio_aprobar_por_cab")
+    exigir_transicion_de_cambio(change.status, nuevo)
     if nuevo in _A_REVISION:
         _pasar_a_revision(db, change, current_user)
         return
@@ -333,6 +375,9 @@ def _aplicar_estado(db: Session, change: ITSMChangeRequest, nuevo: str, current_
             raise error(409, "cambio_solo_aprobado_programable")
         exigir_ventana_libre(db, change)
     change.status = nuevo
+    if nuevo in _CIERRES:
+        from app.services.service_desk.cambios_estandar_service import anotar_cierre
+        anotar_cierre(db, change, _CIERRES[nuevo], current_user)
 
 
 def approve_change_request(change: ITSMChangeRequest, approved: bool, approver_id: str, reason: Optional[str]) -> None:
@@ -377,6 +422,11 @@ def _maybe_auto_approve(
 
     if change_type_val != "standard":
         return False
+    # A-SD19: solo con un modelo aprobado, vigente y que cubra el cambio; si no,
+    # el servidor lo pasa a `normal` y va al CAB.
+    from app.services.service_desk import cambios_estandar_service as _ce
+    if not _ce.puede_aprobarse_como_estandar(db, change):
+        return False
     score = change.auto_risk_score
     from app.services import settings_service as _ss
     maximo = _ss.get_runtime_int(db, "SD_CHANGE_AUTO_APPROVE_MAX_RISK", change.organization_id)
@@ -388,12 +438,20 @@ def _maybe_auto_approve(
     # Lo aprueba la regla, no una persona: `approved_by` es una clave a usuarios
     # y antes recibia el texto "system-auto-approve".
     change.approved_by = system_user_id
+    _ce.anotar_uso(change)
     return True
 
 
 def create_change_record(db: Session, current_user: User, payload: dict) -> ITSMChangeRequest:
     number = next_change_number(db)
     change = build_change_request(payload, current_user.id, number)
+    if payload.get("affected_cis") is not None:
+        cis = payload["affected_cis"]
+        change.affected_cis = json.dumps(list(cis)) if isinstance(cis, (list, tuple)) else cis
+    if change.organization_id is None and not current_user.is_superadmin:
+        change.organization_id = current_user.organization_id
+    from app.services.service_desk.cambios_estandar_service import aplicar_tipo_pedido
+    aplicar_tipo_pedido(db, current_user, change, payload)
     enforce_change_org_constraints(db, current_user, change)
     db.add(change)
     db.flush()  # assign id before scoring
@@ -408,7 +466,16 @@ def update_change_record(db: Session, current_user: User, change_id: str, payloa
         raise ErrorDeDominio(404)
 
     prev_status = change.status.value if hasattr(change.status, "value") else change.status
+    # El formulario de edicion manda el tipo siempre: solo cuenta si cambia.
+    tipo_actual = getattr(change.change_type, "value", change.change_type)
+    cambia_tipo = (payload.get("change_type", tipo_actual) != tipo_actual
+                   or payload.get("standard_model_id", change.standard_model_id) != change.standard_model_id)
+    if cambia_tipo and prev_status not in _TIPO_EDITABLE_EN:
+        raise error(409, "cambio_tipo_no_editable", estado=prev_status)
     apply_change_update(change, payload, current_user.id)
+    if cambia_tipo:
+        from app.services.service_desk.cambios_estandar_service import aplicar_tipo_pedido
+        aplicar_tipo_pedido(db, current_user, change, payload)
     enforce_change_org_constraints(db, current_user, change)
     nuevo = payload.get("status")
     if nuevo and nuevo != prev_status:

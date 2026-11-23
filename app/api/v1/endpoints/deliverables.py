@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from typing import Any, Dict, Optional
 
 from app.db.session import get_db
-from app.core.deps import get_current_user, require_any_manager
+from app.core.deps import get_current_user, requiere_capacidad
 from app.core.abac_enforce import enforce_abac
 from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User, UserRole
@@ -20,7 +20,7 @@ def get_all_deliverables(
     page: int = Query(1, ge=1),
     page_size: int = Query(100, ge=1, le=500),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("proyectos.responsables")),
 ):
     deliverables = deliverable_service.list_all_deliverables(
         db, limit=page_size, offset=(page - 1) * page_size
@@ -64,10 +64,8 @@ def create_deliverable(
     payload: DeliverableIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_any_manager),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
+    _rol: User = Depends(requiere_capacidad("proyectos.dirigir")),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
-    if current_user.role not in [UserRole.admin, UserRole.pm]:
-        raise error_http(403, "sin_permiso", detail="Acceso denegado")
     d = deliverable_service.create_deliverable(db, project_id, **payload.model_dump())
     return APIResponse.ok(data=_del_out(d))
 
@@ -79,10 +77,8 @@ def update_deliverable(
     payload: DeliverableUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_any_manager),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
+    _rol: User = Depends(requiere_capacidad("proyectos.dirigir")),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
-    if current_user.role not in [UserRole.admin, UserRole.pm]:
-        raise error_http(403, "solo_admin_o_pm", detail="Solo administradores y PMs pueden actualizar entreables")
     d = deliverable_service.get_deliverable(db, del_id, project_id)
     if not d:
         raise error_http(404, "no_encontrado", detail="Entregable no encontrado", que="entregable")
@@ -104,7 +100,7 @@ def deliver(
     document_url: Optional[str] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_any_manager),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
+    _rol: User = Depends(requiere_capacidad("proyectos.responsables")),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
     d = deliverable_service.get_deliverable(db, del_id, project_id)
     if not d:
@@ -119,7 +115,7 @@ def accept(
     project_id: str,
     del_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("proyectos.responsables")),
 ):
     d = deliverable_service.get_deliverable(db, del_id, project_id)
     if not d:
@@ -137,7 +133,7 @@ def reject(
     del_id: str,
     reason: str = Query(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("proyectos.responsables")),
 ):
     d = deliverable_service.get_deliverable(db, del_id, project_id)
     if not d:
@@ -154,7 +150,7 @@ def delete_deliverable(
     project_id: str,
     del_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("proyectos.responsables")),
 ):
     d = deliverable_service.get_deliverable(db, del_id, project_id)
     if not d:

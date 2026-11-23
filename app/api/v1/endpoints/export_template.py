@@ -10,7 +10,7 @@ from typing import Optional
 from fastapi import APIRouter, Body, Depends
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_current_user, get_db, require_admin_or_pm
+from app.core.deps import get_current_user, get_db, requiere_capacidad
 from app.core.responses import APIResponse
 from app.models.user import User
 from app.services.plantillas_de_proyecto import crear_desde_proyecto
@@ -25,6 +25,6 @@ def export_project_template(
     description: Optional[str] = Body(None, embed=True),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_admin_or_pm),  # auditoria 2026-09: dominio: estructura de proyecto
+    _rol: User = Depends(requiere_capacidad("exportar.gestionar")),  # auditoria 2026-09: dominio: estructura de proyecto
 ):
     return APIResponse.ok(data={"ok": True, **crear_desde_proyecto(db, current_user, project_id, name, description)})

@@ -11,8 +11,8 @@ import { openConfirmGlobal } from '../context/ConfirmContext'
 import { extractErr, fmtDateTime } from '../utils/helpers'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { projectsApi, sprintsApi, tasksApi, semanticApi, sprintPlansApi } from '../services/api'
-import type { EstadoDePlanDeSprint, PlanDeSprint, PlanDeSprintGenerado } from '../services/api/tipos-proyectos'
+import { sprintsApi, tasksApi, semanticApi, sprintPlansApi } from '../services/api'
+import type { EstadoDePlanDeSprint, PlanDeSprintGenerado } from '../services/api/tipos-proyectos'
 import type { EstimacionDelBacklog } from '../services/api/tipos-analitica'
 import { Button, Card, EmptyState, IconButton, Modal, Spinner, Select, Input } from '../components/ui'
 import StatusBadge from '../components/ui/StatusBadge'
@@ -24,6 +24,7 @@ import { useAppT } from '../i18n/AppLangContext'
 import type { CSSProperties } from 'react'
 import './SprintPlanningPage.css'
 import { LARGE_PAGE_SIZE } from '../constants/pagination'
+import { useListaDeProyectos } from '../hooks/useListas'
 
 interface ProjectItem {
   id: string | number
@@ -73,8 +74,7 @@ function GenerateModal({ projectId, onClose }: { projectId: string; onClose: () 
       const unest = tasks.filter(tk => !tk.story_points).length
       if (unest > 0) toast.info(`${unest} ${t('sprint_planning.unestimated_toast_suffix')}`)
     } catch (e: unknown) {
-      const message = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail || t('sprint_planning.error_estimate')
-      toast.error(message)
+      toast.error(extractErr(e, t('sprint_planning.error_estimate')))
     }
     finally { setEstimating(false) }
   }
@@ -85,7 +85,7 @@ function GenerateModal({ projectId, onClose }: { projectId: string; onClose: () 
       const d = r.data
       if (Array.isArray(d)) return d
       return []
-    }).catch(()=>[]),
+    }),
     enabled: !!projectId,
   })
 
@@ -213,14 +213,11 @@ export default function SprintPlanningPage() {
   const [showGenerate, setShowGenerate] = useState(false)
   const [expandPlan, setExpandPlan] = useState<string | null>(null)
 
-  const { data: projectsRaw = [] } = useQuery({
-    queryKey: ['projects'],
-    queryFn: () => projectsApi.list({}).then(r => Array.isArray(r.data)?r.data:[]).catch(()=>[]),
-  })
-  const projects = projectsRaw as ProjectItem[]
+  const { data: projectsRaw = [] } = useListaDeProyectos()
+  const projects = projectsRaw as unknown as ProjectItem[]
   const { data: plans = [], isLoading } = useQuery({
     queryKey: ['sprint-plans', project],
-    queryFn: () => sprintPlansApi.get(project).then(r => r.data).catch((): PlanDeSprint[] => []),
+    queryFn: () => sprintPlansApi.get(project).then(r => r.data),
     enabled: !!project,
   })
 

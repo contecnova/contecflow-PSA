@@ -130,44 +130,39 @@ def get_ci_impact_payload(
         db.query(ConfigurationItem.id), db, current_user
     ).scalar_subquery()
 
-    visited: set = set()
-    # Queue items: (ci_id, depth)
-    queue: deque = deque([(ci_id, 0)])
+    # Auditoria 2026-11-22 (servicios m-z, 4.3): BFS por niveles, con una
+    # consulta de relaciones y otra de CIs por nivel (antes dos por nodo: unas
+    # 4.000 con el tope de 2.000). Cada CI sale una sola vez, en su nivel mas
+    # cercano.
+    visited: set = {ci_id}
+    frontera: list = [ci_id]
     impacted: list = []
     truncated = False
+    depth = 0
 
-    while queue:
-        if len(impacted) >= limit:
-            truncated = True
-            break
-
-        current, depth = queue.popleft()
-        if current in visited:
-            continue
-        visited.add(current)
-
-        if depth >= max_depth:
-            continue
-
+    while frontera and depth < max_depth and not truncated:
         dependents = db.query(CIRelation).filter(
-            CIRelation.target_ci_id == current,
+            CIRelation.target_ci_id.in_(frontera),
             CIRelation.relation_type.in_(["depends_on", "hosts", "part_of"]),
             CIRelation.source_ci_id.in_(visible_ci_ids),
             CIRelation.target_ci_id.in_(visible_ci_ids),
         ).all()
-
+        nuevos = []
         for dep in dependents:
-            if dep.source_ci_id in visited:
-                continue
+            if dep.source_ci_id not in visited:
+                visited.add(dep.source_ci_id)
+                nuevos.append(dep)
+        cis = {c.id: c for c in _scope_ci_query(
+            db.query(ConfigurationItem).filter(ConfigurationItem.id.in_([d.source_ci_id for d in nuevos])),
+            db,
+            current_user,
+        ).all()} if nuevos else {}
+        siguiente = []
+        for dep in nuevos:
             if len(impacted) >= limit:
                 truncated = True
                 break
-
-            ci = _scope_ci_query(
-                db.query(ConfigurationItem).filter(ConfigurationItem.id == dep.source_ci_id),
-                db,
-                current_user,
-            ).first()
+            ci = cis.get(dep.source_ci_id)
             if ci:
                 impacted.append(
                     {
@@ -179,7 +174,9 @@ def get_ci_impact_payload(
                         "depth": depth + 1,
                     }
                 )
-            queue.append((dep.source_ci_id, depth + 1))
+            siguiente.append(dep.source_ci_id)
+        frontera = siguiente
+        depth += 1
 
     return {
         "ci_id": ci_id,

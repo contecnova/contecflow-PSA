@@ -63,7 +63,7 @@ export default function EditorDeFlujo({ flujoId, onVolver }: { flujoId: string |
       // El servidor devuelve la lista de errores de la definición en el 422.
       const cuerpo = (e as { response?: { data?: { errors?: ErrorDeDefinicion[]; params?: { errors?: unknown }; detail?: { params?: { errors?: unknown } } } } } | null)?.response?.data
       let lista: unknown = cuerpo?.errors ?? cuerpo?.params?.errors ?? cuerpo?.detail?.params?.errors
-      if (typeof lista === 'string') { try { lista = JSON.parse(lista) } catch { lista = null } }
+      if (typeof lista === 'string') { try { lista = JSON.parse(lista) } catch { /* accesorio: lista de errores no legible; el aviso general sale igualmente */ lista = null } }
       if (Array.isArray(lista)) setErrores(lista as ErrorDeDefinicion[])
       onError(e)
     },

@@ -11,9 +11,11 @@ import { resolveLoginResponse } from '../utils/loginFlow'
 import type { OrganizacionElegible } from '../utils/loginFlow'
 import { startAuthentication, webauthnSupported } from '../lib/webauthn'
 import { paginaDeInicio } from '../permisos/navegacion'
+import { tomarDestinoTrasLogin } from '../utils/destinoTrasLogin'
 import { tieneCapacidad } from '../permisos/capacidades'
+import { extractErr } from '../utils/helpers'
 import './LoginPage.css'
-import { Pulsable, Input } from '../components/ui'
+import { Pulsable, Input, Checkbox } from '../components/ui'
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -199,6 +201,7 @@ export default function LoginPage(): JSX.Element {
   const [mfaChallengeToken, setMfaChallengeToken] = useState<string | null>(null)
   const [mfaMethods, setMfaMethods] = useState<string[]>([])
   const [mfaCode, setMfaCode] = useState('')
+  const [recordarDispositivo, setRecordarDispositivo] = useState(false)
 
   // Empresa (revisión multitenant 2026-11): modo de entrada del despliegue,
   // código de empresa (modo org_field) y selector si pertenece a varias.
@@ -236,7 +239,7 @@ export default function LoginPage(): JSX.Element {
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    authApi.entryConfig().then(({ data }) => setEntrada(data)).catch(() => undefined)
+    authApi.entryConfig().then(({ data }) => setEntrada(data)).catch(() => { /* accesorio: sin la configuración de entrada se muestra el login estándar */ })
   }, [])
 
   // Segunda auditoría 2026-11 (#11): en modo email_selector los botones SSO
@@ -247,7 +250,7 @@ export default function LoginPage(): JSX.Element {
     const temporizador = setTimeout(() => {
       authApi.listSsoProviders(dominioDelCorreo ? `@${dominioDelCorreo}` : undefined)
         .then(({ data }) => { if (mounted) setSsoProviders(Array.isArray(data) ? data : []) })
-        .catch(() => undefined)
+        .catch(() => { /* accesorio: sin proveedores SSO se muestra solo usuario y contraseña */ })
     }, dominioDelCorreo ? 300 : 0)
     return () => { mounted = false; clearTimeout(temporizador) }
   }, [dominioDelCorreo])
@@ -255,7 +258,8 @@ export default function LoginPage(): JSX.Element {
   // ── navigation helper ──────────────────────────────────────────────────────
   function navAfterLogin(user: User) {
     // 19-11-2026: la misma página de inicio que la raíz (`paginaDeInicio`, por capacidades).
-    navigate(paginaDeInicio(c => tieneCapacidad(user.capacidades, c)), { replace: true })
+    // Auditoría 22-11-2026 (M1 del 04): primero el enlace profundo que trajo hasta aquí.
+    navigate(tomarDestinoTrasLogin() ?? paginaDeInicio(c => tieneCapacidad(user.capacidades, c)), { replace: true })
   }
 
   /** Una respuesta de login (contraseña, SSO, passkey o empresa elegida): sesión, segundo factor o selector. */
@@ -324,6 +328,7 @@ export default function LoginPage(): JSX.Element {
       const { data } = await authApi.validateMfa({
         mfa_challenge_token: mfaChallengeToken,
         code: mfaCode.trim(),
+        remember_device: recordarDispositivo,
       })
       const user = extractUser(data)
       acceptSession(user)
@@ -404,23 +409,16 @@ export default function LoginPage(): JSX.Element {
     if (!forgotInput.trim()) { setError(t('login.forgot_fill_field')); return }
     setForgotLoading(true); setError(''); setMessage('')
     try {
-      const { data } = await authApi.forgotPassword({
+      await authApi.forgotPassword({
         email_or_username: forgotInput.trim(),
       } as import('../services/api').ForgotPasswordPayload)
-      setMessage((data as { message?: string }).message ?? t('login.forgot_email_sent'))
+      // 23-11-2026: el aviso en el idioma del operador (el servidor responde en castellano).
+      setMessage(t('login.forgot_email_sent'))
     } catch (e) {
-      setError(extractErrorMsg(e, t('login.forgot_error')))
+      setError(extractErr(e, t('login.forgot_error')))
     } finally {
       setForgotLoading(false)
     }
-  }
-
-  // ── input focus helpers ───────────────────────────────────────────────────
-  function focusIn(e: React.FocusEvent<HTMLInputElement>) {
-    e.target.style.borderColor = 'var(--accent)'
-  }
-  function focusOut(e: React.FocusEvent<HTMLInputElement>) {
-    e.target.style.borderColor = 'var(--surface-4)'
   }
 
   // ── render ────────────────────────────────────────────────────────────────
@@ -433,7 +431,7 @@ export default function LoginPage(): JSX.Element {
         <div style={st.logo}>
           <div style={st.logoIcon}>
             <svg viewBox="0 0 32 32" width="22" height="22" fill="none">
-              <circle cx="16" cy="16" r="14" fill="rgba(255,255,255,0.12)" />
+              <circle cx="16" cy="16" r="14" fill="var(--on-dark-faint-xs)" />
               <path d="M8 16C8 11.58 11.58 8 16 8C20.42 8 24 11.58 24 16C24 20.42 20.42 24 16 24C11.58 24 8 20.42 8 16Z" fill="white" />
               <path d="M16 12V20M12 16H20" stroke="var(--accent)" strokeWidth="2.2" strokeLinecap="round" />
             </svg>
@@ -487,7 +485,7 @@ export default function LoginPage(): JSX.Element {
               <label id="mfa_code-et" style={st.label} htmlFor="mfa_code">
                 {t('login.mfa_code_placeholder')}
               </label>
-              <input
+              <Input
                 id="mfa_code" aria-labelledby="mfa_code-et"
                 type="text"
                 inputMode="numeric"
@@ -495,13 +493,13 @@ export default function LoginPage(): JSX.Element {
                 autoFocus
                 value={mfaCode}
                 onChange={e => setMfaCode(e.target.value.replace(/[^0-9a-fA-F]/g, '').toUpperCase().slice(0, 8))}
-                style={st.inputTracked as CSSProperties}
-                onFocus={focusIn}
-                onBlur={focusOut}
+                inputClassName="login-page-mfa"
               />
               <p className="lgn-text-2">
                 {t('login.mfa_backup_hint')}
               </p>
+              {/* 23-11-2026: solo surte efecto si la empresa lo permite (MFA_REMEMBER_DEVICE_DAYS). */}
+              <Checkbox checked={recordarDispositivo} onChange={setRecordarDispositivo} label={t('login.mfa_remember_device')} />
             </div>
             {mfaMethods.includes('webauthn') && (
               <Pulsable type="button" onClick={() => { void handleMfaPasskey() }} disabled={passkeyLoading}
@@ -538,7 +536,7 @@ export default function LoginPage(): JSX.Element {
               <label id="forgot_input-et" style={st.label} htmlFor="forgot_input">
                 {t('login.username_label')}
               </label>
-              <input
+              <Input
                 id="forgot_input" aria-labelledby="forgot_input-et"
                 type="text"
                 autoFocus
@@ -546,9 +544,6 @@ export default function LoginPage(): JSX.Element {
                 value={forgotInput}
                 onChange={e => setForgotInput(e.target.value)}
                 placeholder={t('login.username_placeholder')}
-                style={st.input as CSSProperties}
-                onFocus={focusIn}
-                onBlur={focusOut}
               />
             </div>
             {error && (
@@ -615,16 +610,13 @@ export default function LoginPage(): JSX.Element {
               {entrada?.mode === 'org_field' && (
                 <div>
                   <label id="login_org-et" style={st.label} htmlFor="login_org">{t('login.org_label')}</label>
-                  <input
+                  <Input
                     id="login_org" aria-labelledby="login_org-et"
                     type="text"
                     autoComplete="organization"
                     value={orgCode}
                     onChange={e => setOrgCode(e.target.value)}
                     placeholder={t('login.org_placeholder')}
-                    style={st.input as CSSProperties}
-                    onFocus={focusIn}
-                    onBlur={focusOut}
                   />
                 </div>
               )}
@@ -634,7 +626,7 @@ export default function LoginPage(): JSX.Element {
                 <label id="login_username-et" style={st.label} htmlFor="login_username">
                   {t('login.username_label')}
                 </label>
-                <input
+                <Input
                   id="login_username" aria-labelledby="login_username-et"
                   type="text"
                   autoFocus
@@ -642,9 +634,6 @@ export default function LoginPage(): JSX.Element {
                   value={username}
                   onChange={e => setUsername(e.target.value)}
                   placeholder={t('login.username_placeholder')}
-                  style={st.input as CSSProperties}
-                  onFocus={focusIn}
-                  onBlur={focusOut}
                 />
               </div>
 
@@ -663,16 +652,14 @@ export default function LoginPage(): JSX.Element {
                   </Pulsable>
                 </div>
                 <div className="lgn-box-3">
-                  <input
+                  <Input
                     id="login_password" aria-labelledby="login_password-et"
                     type={showPassword ? 'text' : 'password'}
                     autoComplete="current-password"
                     value={password}
                     onChange={e => setPassword(e.target.value)}
                     placeholder={t('login.password_placeholder')}
-                    className="login-page-e9"
-                    onFocus={focusIn}
-                    onBlur={focusOut}
+                    inputClassName="login-page-pw"
                   />
                   <Pulsable
                     type="button"

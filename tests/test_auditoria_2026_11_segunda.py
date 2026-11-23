@@ -48,12 +48,16 @@ def test_4_webhooks_sin_organizacion_no_se_entregan(db):
     assert fire_webhook(db, "task.created", {"x": 1}) == 0
 
 
-def test_5_valor_global_del_catalogo_no_se_edita_desde_una_empresa(client, pm_token):
+def test_5_valor_global_del_catalogo_no_se_edita_desde_una_empresa(client, pm_token, db):
+    from app.models.settings import CustomTaskStatus
+    # Valor de catalogo GLOBAL (organization_id NULL) sembrado aqui: la base de
+    # test no trae ninguno y sin el la prueba no comprobaba nada.
+    db.add(CustomTaskStatus(organization_id=None, value="global_test", label="Global", color="#123456"))
+    db.commit()
     filas = client.get("/api/v1/settings/task-statuses", headers=auth(pm_token)).json()
     filas = (filas.get("items") or filas.get("data") or []) if isinstance(filas, dict) else filas
     globales = [f for f in filas if not f.get("organization_id")]
-    if not globales:
-        pytest.skip("sin filas globales en la base de test")
+    assert globales, "el valor global sembrado no aparece en el catalogo"
     r = client.patch(f"/api/v1/settings/task-statuses/{globales[0]['id']}", headers=auth(pm_token),
                      json={"value": globales[0]["value"], "label": "pirateado", "color": "#000000"})
     assert r.status_code == 403, r.text

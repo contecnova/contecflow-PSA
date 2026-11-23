@@ -57,9 +57,28 @@ def _set_json(db: Session, key: str, data: dict) -> None:
     db.commit()
 
 
-def _embed_secret(org_id: str) -> str:
-    """Derive a stable per-org embed signing secret from the app secret key."""
-    return f"{settings.SECRET_KEY}:embed:{org_id}"
+def _bloquear(db: Session, key: str) -> None:
+    """M60: bloquea la fila del blob en PostgreSQL hasta el commit (dos altas a
+    la vez ya no se pisan la lista de tokens)."""
+    from app.db.session import is_postgres
+    if is_postgres():
+        from app.models.settings import AppSetting
+        db.query(AppSetting.id).filter(AppSetting.key == key).with_for_update().first()
+
+
+def _embed_secret(org_id: str, secreto: str | None = None) -> str:
+    """Clave HS256 de embebido de la empresa, derivada por HMAC de la clave del servidor.
+
+    M60 (auditoría 22-11-2026): antes era la concatenación `SECRET_KEY:embed:org`
+    (la clave del servidor dentro del material de firma) y quedaba fuera de la
+    rotación: al cambiar SECRET_KEY todos los enlaces embebidos dejaban de valer
+    de golpe. Ahora HMAC-SHA256(clave, «embed:<org>») y se validan también con
+    las claves anteriores (`SECRET_KEY_PREVIOUS`), como el resto del cifrado.
+    """
+    import hashlib
+    import hmac
+    clave = secreto if secreto is not None else settings.SECRET_KEY
+    return hmac.new(str(clave).encode(), f"embed:{org_id}".encode(), hashlib.sha256).hexdigest()
 
 
 # ── Embed token generation / validation ───────────────────────────────────────
@@ -98,6 +117,7 @@ def create_embed_token(
 
     # Store token metadata for revocation support
     meta_key = f"bi.embed.tokens.{org_id}"
+    _bloquear(db, meta_key)   # M60: leer-modificar-escribir del blob sin perder escrituras
     meta = _get_json(db, meta_key)
     tokens: list = meta.get("tokens", [])
     # Prune expired tokens to avoid unbounded growth
@@ -111,11 +131,19 @@ def create_embed_token(
 
 def validate_embed_token(db: Session, org_id: str, token: str) -> dict:
     """Validate an embed token.  Returns decoded claims or raises 401."""
-    try:
-        claims = jwt.decode(token, _embed_secret(org_id), algorithms=[_EMBED_ALGO])
-    # intentional: chained re-raise preserves context
-    except jwt.PyJWTError as exc:
-        raise error(401, "token_no_valido", detail=f"Token de embed inválido: {exc}") from exc
+    from app.core.encryption import claves_secretas
+    claims = None
+    ultimo = None
+    for secreto in claves_secretas():
+        try:
+            claims = jwt.decode(token, _embed_secret(org_id, secreto), algorithms=[_EMBED_ALGO])
+            break
+        except jwt.ExpiredSignatureError as exc:
+            raise error(401, "token_no_valido", detail="Token de embed caducado") from exc
+        except jwt.PyJWTError as exc:
+            ultimo = exc
+    if claims is None:
+        raise error(401, "token_no_valido", detail=f"Token de embed inválido: {ultimo}") from ultimo
 
     if claims.get("type") != "embed":
         raise error(401, "token_no_valido", detail="Token no es de tipo embed")

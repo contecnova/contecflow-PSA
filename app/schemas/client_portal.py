@@ -8,7 +8,6 @@ from typing import List, Optional
 
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
-from app.core.config import settings
 
 
 class ClientCreateIn(BaseModel):
@@ -20,12 +19,16 @@ class ClientCreateIn(BaseModel):
     job_title: Optional[str] = Field(None, max_length=80)
     company: Optional[str] = Field(None, max_length=120)
     phone: Optional[str] = Field(None, max_length=30)
-    password: str = Field(..., min_length=8, max_length=128)
+    # 23-11-2026 (M10 del 04b): opcional. Sin ella, el servidor genera una y se la manda
+    # al cliente por correo; nadie del equipo la ve ni la copia.
+    password: Optional[str] = Field(None, min_length=8, max_length=128)
     can_approve_deliverables: bool = True
     can_request_changes: bool = True
     can_view_budget: bool = True
     can_view_team: bool = False
-    language: str = Field(settings.DEFAULT_LANGUAGE, min_length=2, max_length=10)
+    # Incidencia 5 (23-11-2026): sin idioma, el usuario no tiene preferencia
+    # (el portal resuelve: su empresa, el navegador o inglés).
+    language: Optional[str] = Field(None, min_length=2, max_length=10)
 
     @field_validator('full_name')
     @classmethod

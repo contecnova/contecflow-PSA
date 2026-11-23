@@ -168,15 +168,27 @@ def guardar_traducciones_del_back_office(db: Session, org_id: str, cambios: dict
     return actuales
 
 
+#: M70 (auditoría 22-11-2026): una variable CSS es un nombre `--[a-z0-9-]` y un
+#: valor sin lo que permite salir de la declaración o cargar recursos ajenos.
+_NOMBRE_CSS = __import__("re").compile(r"^--[A-Za-z0-9_-]+$")
+_PROHIBIDO_EN_CSS = ("url(", "expression", "import", "javascript:", ";", "{", "}", "<", ">", "\\")
+
+
 def _variables_css_seguras(valores: dict) -> dict:
-    """Sólo variables CSS de verdad, con nombre y valor acotados."""
+    """Sólo variables CSS de verdad, con nombre y valor acotados y sin escapes."""
     return {
         clave: valor
         for clave, valor in (valores or {}).items()
-        if clave.startswith("--")
+        if isinstance(clave, str) and _NOMBRE_CSS.match(clave)
         and len(clave) < MAX_LONGITUD_NOMBRE_CSS
         and len(str(valor)) < MAX_LONGITUD_VALOR_CSS
+        and not any(p in str(valor).lower() for p in _PROHIBIDO_EN_CSS)
     }
+
+
+#: M70: lo que se puede cambiar de la marca (antes `setattr` de cualquier clave,
+#: también `organization_id` o `created_by`).
+_NO_EDITABLES = {"id", "organization_id", "created_by", "created_at", "updated_at"}
 
 
 def guardar_marca(db: Session, user, org_id: str, cambios: dict):
@@ -197,7 +209,10 @@ def guardar_marca(db: Session, user, org_id: str, cambios: dict):
         fila = OrgBranding(organization_id=org_id, created_by=user.id)
         db.add(fila)
 
+    columnas = {c.key for c in OrgBranding.__table__.columns} - _NO_EDITABLES
     for campo, valor in cambios.items():
+        if campo not in columnas:
+            continue
         if campo == "custom_css_vars":
             setattr(fila, campo, json.dumps(_variables_css_seguras(valor)))
         else:

@@ -73,7 +73,7 @@
   overflow-wrap: anywhere;
 }
 
-.mfa-codigo.ds-input {
+input.mfa-codigo {
   max-width: 260px;
   font-size: var(--text-lg);
   letter-spacing: 4px;

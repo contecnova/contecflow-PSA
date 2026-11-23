@@ -32,6 +32,7 @@ class ChangePasswordIn(_Base):
     current_password: Optional[str] = Field(None, description="Contraseña actual del usuario")
     new_password: Optional[str] = Field(None, description="Nueva contraseña a establecer")
     mfa_challenge_token: Optional[str] = Field(None, description="Token de reto MFA si el flujo lo requiere")
+    mfa_code: Optional[str] = Field(None, max_length=12, description="Código TOTP actual (alternativa al reto MFA)")
 
 
 # ── auth_mfa ──────────────────────────────────────────────────────────────────
@@ -54,6 +55,7 @@ class MfaCodeIn(_Base):
 class MfaValidateIn(_Base):
     code: Optional[str] = Field(default=None, max_length=12, description="Código TOTP a validar")
     mfa_challenge_token: Optional[str] = Field(None, description="Token de reto MFA emitido en el login")
+    remember_device: bool = Field(default=False, description="Recordar este dispositivo (si la empresa lo permite: MFA_REMEMBER_DEVICE_DAYS)")
 
 
 class WebAuthnRegisterFinishIn(_Base):

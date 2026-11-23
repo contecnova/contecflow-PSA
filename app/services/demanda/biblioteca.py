@@ -7,7 +7,8 @@ cualquier otro. Exportar/importar usa el mismo formato
 (`contecflow-demand-flow/v1`).
 
 Plantillas:
-- `piloto_digital`: Nueva funcionalidad con CAB y comité (la de la empresa piloto).
+- `nueva_funcionalidad`: Nueva funcionalidad con CAB y comité (antes `piloto_digital`, que sigue valiendo
+  como alias). Es OPCIONAL: no se instala sola en ninguna empresa (23-11-2026).
 - `cambio_itil`: petición de cambio ITIL estándar / normal / urgente (fases condicionales).
 - `alta_proveedor`: alta de proveedor (compras, compliance y aprobación por importe).
 - `compra_por_importe`: petición de compra con aprobación escalonada por importe.
@@ -241,7 +242,7 @@ def _rrhh() -> tuple[dict, list]:
 
 #: clave → (nombre, descripción, constructor). El piloto se instala con sus grupos.
 PLANTILLAS: dict[str, tuple[dict, dict, Optional[Callable]]] = {
-    "piloto_digital": (_t("Nueva funcionalidad con CAB y comité", "New feature with CAB and committee",
+    "nueva_funcionalidad": (_t("Nueva funcionalidad con CAB y comité", "New feature with CAB and committee",
                           "带 CAB 和委员会的新功能"),
                        _t("Triaje, estudio, CAB, Legal y Compliance en paralelo, gobernanza y comité",
                           "Triage, study, CAB, parallel Legal and Compliance, governance and committee",
@@ -279,10 +280,11 @@ def instalar(db: Session, usuario, clave: str) -> dict:
     """Crea en la empresa el flujo de la plantilla y sus tipos (si no existen). Commitea."""
     from app.models.demanda import DemandFlow, DemandRequestType
     from app.services.audit import audit_log
+    clave = "nueva_funcionalidad" if clave == "piloto_digital" else clave  # alias de la clave antigua
     if clave not in PLANTILLAS:
         raise error(404, "dem_plantilla_no_encontrada", plantilla=clave)
     org = getattr(usuario, "organization_id", None)
-    if clave == "piloto_digital":
+    if clave == "nueva_funcionalidad":
         from app.services.demanda.plantillas import sembrar_plantilla_piloto
         res = sembrar_plantilla_piloto(db, org, usuario.id)
         audit_log(db, usuario, "INSTALL_TEMPLATE", "demand_flow", res["flow_id"], clave)

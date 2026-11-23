@@ -45,9 +45,11 @@ function FormularioDeServicio({ item, onClose }: { item: ServicioCompartido | nu
   const toast = useToast()
   const qc = useQueryClient()
   const unidades = useUnidadesInternas()
+  // 23-11-2026: la moneda por defecto es la de la empresa (antes 'EUR' fijo).
+  const monedaEmpresa = useFormatoMoneda().moneda
   const [f, setF] = useState({
     name: item?.name || '', description: item?.description || '', monthly_amount: item ? String(item.monthly_amount) : '',
-    currency: item?.currency || 'EUR', criterion: (item?.criterion || 'usuarios') as CriterioDeReparto, is_active: item?.is_active ?? true,
+    currency: item?.currency || monedaEmpresa, criterion: (item?.criterion || 'usuarios') as CriterioDeReparto, is_active: item?.is_active ?? true,
   })
   const [cuotas, setCuotas] = useState<Record<string, string>>(
     Object.fromEntries(Object.entries(item?.fixed_shares || {}).map(([k, v]) => [k, String(v)])),
@@ -59,7 +61,7 @@ function FormularioDeServicio({ item, onClose }: { item: ServicioCompartido | nu
       const fijas = Object.fromEntries(Object.entries(cuotas).map(([k, v]) => [k, numeroONull(v)]).filter(([, v]) => v != null && (v as number) > 0)) as Record<string, number>
       const d: ServicioCompartidoIn = {
         name: f.name.trim(), description: textoONull(f.description), monthly_amount: numeroONull(f.monthly_amount) ?? 0,
-        currency: f.currency.trim().toUpperCase() || 'EUR', criterion: f.criterion, fixed_shares: f.criterion === 'fijo' ? fijas : null, is_active: f.is_active,
+        currency: f.currency.trim().toUpperCase() || monedaEmpresa, criterion: f.criterion, fixed_shares: f.criterion === 'fijo' ? fijas : null, is_active: f.is_active,
       }
       return item ? clientesInternosApi.editarServicioCompartido(item.id, d) : clientesInternosApi.crearServicioCompartido(d)
     },

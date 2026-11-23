@@ -85,13 +85,17 @@ def lanzar_flujos_del_evento(db: Session, ev: TicketEvent, ticket: Ticket, data:
 
     if data.get("origin") == ORIGEN_FLUJO or ev.kind not in DISPARADORES:
         return 0
+    # Auditoria 2026-11-22 (A-SD18): un evento sin empresa arrancaba los flujos
+    # de TODAS. Sin empresa (ni en el evento ni en el ticket) no se lanza nada.
+    org = ev.organization_id or getattr(ticket, "organization_id", None)
+    if not org:
+        return 0
     q = db.query(WorkflowBlueprint).filter(
         WorkflowBlueprint.is_active == True,  # noqa: E712
         WorkflowBlueprint.status == WorkflowBlueprintStatus.published,
         WorkflowBlueprint.process_type == "ticket",
+        WorkflowBlueprint.organization_id == org,
     )
-    if ev.organization_id:
-        q = q.filter(WorkflowBlueprint.organization_id == ev.organization_id)
     lanzados = 0
     for bp in q.all():
         version = _get_published_version(db, bp.id)

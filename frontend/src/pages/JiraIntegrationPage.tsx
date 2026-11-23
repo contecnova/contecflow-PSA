@@ -246,13 +246,16 @@ export default function JiraIntegrationPage(): JSX.Element {
                 <div>
                   <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="jira-integration-page-e6">{t('jira_integration.token_label')}</label>
                   <div className="jira-box-4">
-                    <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`}
+                    {/* 23-11-2026 (04b B3): es un token de API, no la contraseña de la cuenta: `off` para que el
+                        gestor de contraseñas del navegador no lo guarde ni lo rellene como tal. */}
+                    <Input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`}
                       type={showToken ? 'text' : 'password'}
-                      autoComplete="current-password"
+                      autoComplete="off"
                       placeholder={config?.jira_api_token_hint || t('jira_integration.token_placeholder')}
                       value={form.jira_api_token}
                       onChange={e => setForm(p => ({ ...p, jira_api_token: e.target.value }))}
-                      className="jira-integration-page-e1"
+                      className="u-flex1-min0"
+                      inputClassName="jira-integration-page-e1"
                     />
                     <IconButton
                       onClick={() => setShowToken(v => !v)}

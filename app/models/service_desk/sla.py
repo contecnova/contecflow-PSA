@@ -1,6 +1,6 @@
 """service_desk.sla models — split from the former 1385-LOC god-file."""
 
-from sqlalchemy import Column, String, Float, DateTime, ForeignKey, Text, Boolean, Integer, Enum
+from sqlalchemy import JSON, Column, String, Float, DateTime, ForeignKey, Text, Boolean, Integer, Enum
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import uuid
@@ -14,13 +14,16 @@ class SLAEvent(Base):
     __tablename__ = "sd_sla_events"
 
     id         = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     ticket_id  = Column(String(36), ForeignKey("sd_tickets.id", ondelete="CASCADE"), nullable=False, index=True)
     event_type = Column(Enum(SLAEventType), nullable=False)
     sla_type   = Column(String(20), default="resolution")  # response | resolution
     note       = Column(String(255), nullable=True)
+    # Migracion 200: la nota del sistema por clave (se pinta en el idioma de quien lee).
+    note_key    = Column(String(120), nullable=True)
+    note_params = Column(JSON, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    created_by = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    created_by = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
 
 # `SDSLAHoliday` (`sd_sla_holidays`) ya no existe (migracion 174): sus filas
 # pasaron a los calendarios SLA (`sla_calendar_holidays`).
@@ -30,7 +33,7 @@ class EscalationRule(Base):
     __tablename__ = "sd_escalation_rules"
 
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     name        = Column(String(255), nullable=False)
     is_active   = Column(Boolean, default=True)
     sort_order  = Column(Integer, default=100)
@@ -39,11 +42,11 @@ class EscalationRule(Base):
     trigger         = Column(Enum(EscalationTrigger), nullable=False)
     applies_to_priority = Column(String(100), nullable=True)   # JSON list of priorities, null = all
     idle_hours_threshold = Column(Float, nullable=True)        # for idle_hours trigger
-    group_id        = Column(String(36), ForeignKey("sd_agent_groups.id"), nullable=True, index=True)  # solo esta cola
+    group_id        = Column(String(36), ForeignKey("sd_agent_groups.id", ondelete="SET NULL"), nullable=True, index=True)  # solo esta cola
 
     # Acción
     action          = Column(Enum(EscalationAction), nullable=False)
-    target_group_id = Column(String(36), ForeignKey("sd_agent_groups.id"), nullable=True, index=True)
+    target_group_id = Column(String(36), ForeignKey("sd_agent_groups.id", ondelete="SET NULL"), nullable=True, index=True)
     notify_user_ids = Column(Text, nullable=True)              # JSON: [user_id, ...]
     target_priority = Column(String(30), nullable=True)        # for elevate_priority
 
@@ -58,8 +61,8 @@ class EscalationLog(Base):
     __tablename__ = "sd_escalation_logs"
 
     id         = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
-    rule_id    = Column(String(36), ForeignKey("sd_escalation_rules.id"), nullable=False, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
+    rule_id    = Column(String(36), ForeignKey("sd_escalation_rules.id", ondelete="RESTRICT"), nullable=False, index=True)
     ticket_id  = Column(String(36), ForeignKey("sd_tickets.id", ondelete="CASCADE"), nullable=False, index=True)
     action_taken = Column(String(255), nullable=True)
     triggered_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -72,7 +75,7 @@ class OnCallSchedule(Base):
     __tablename__ = "sd_oncall_schedules"
 
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     name        = Column(String(255), nullable=False)
     group_id    = Column(String(36), ForeignKey("sd_agent_groups.id", ondelete="CASCADE"), nullable=False, index=True)
     rotation    = Column(Enum(OnCallRotationType), default=OnCallRotationType.weekly)
@@ -90,7 +93,7 @@ class OnCallEntry(Base):
     __tablename__ = "sd_oncall_entries"
 
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     schedule_id = Column(String(36), ForeignKey("sd_oncall_schedules.id", ondelete="CASCADE"), nullable=False, index=True)
     user_id     = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     start_dt    = Column(DateTime(timezone=True), nullable=False)

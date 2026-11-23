@@ -4,6 +4,7 @@ Coste de TI por unidad y por fuente, presupuesto frente a real con el semáforo
 de `umbrales` y cartera (proyectos activos, peticiones abiertas) por unidad.
 """
 from __future__ import annotations
+import logging
 
 from datetime import date
 from typing import Optional
@@ -22,13 +23,11 @@ def _peticiones_abiertas(db: Session, unidad) -> int:
     from app.models.portfolio import PortfolioProposal
     n = db.query(PortfolioProposal).filter(PortfolioProposal.client_id == unidad.id,
                                            PortfolioProposal.status.notin_(CERRADAS)).count()
-    try:
-        from app.models.demanda import DemandRequest  # flujo de demanda (migración 195), si ya está
-        if hasattr(DemandRequest, "client_id"):
-            n += db.query(DemandRequest).filter(DemandRequest.client_id == unidad.id,
-                                                DemandRequest.status.notin_(CERRADAS)).count()
-    except Exception:
-        pass
+    # Baja (auditoría 22-11-2026): sin `try/hasattr` (el flujo de demanda existe
+    # desde la migración 195); un error ya no se esconde contando de menos.
+    from app.models.demanda import DemandRequest
+    n += db.query(DemandRequest).filter(DemandRequest.client_id == unidad.id,
+                                        DemandRequest.status.notin_(CERRADAS)).count()
     return n
 
 

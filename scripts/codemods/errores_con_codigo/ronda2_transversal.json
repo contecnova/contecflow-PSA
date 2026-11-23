@@ -1,0 +1,14 @@
+{
+ "codigos": {
+  "m365_id_no_valido": {
+   "es": "Identificador de Microsoft 365 no válido en «{campo}»",
+   "en": "Invalid Microsoft 365 identifier in '{campo}'",
+   "zh": "“{campo}”中的 Microsoft 365 标识符无效"
+  },
+  "host_no_resuelve": {
+   "es": "El servidor de «{campo}» no se encuentra (el nombre no resuelve)",
+   "en": "The server in '{campo}' cannot be found (the name does not resolve)",
+   "zh": "找不到“{campo}”中的服务器（名称无法解析）"
+  }
+ }
+}

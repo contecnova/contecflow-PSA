@@ -16,7 +16,7 @@ import { useAuth } from '../../../context/AuthContext'
 import { confirmar } from '../../../context/ConfirmContext'
 import { fmtDate, fmtDateTime } from '../../../utils/helpers'
 import { FULL_LIST_SIZE } from '../../../constants/pagination'
-import { cmdbApi, licensesApi, usersApi } from '../../../services/api'
+import { cmdbApi, licensesApi } from '../../../services/api'
 import { cmdbSoftwareApi } from '../../../services/api/cmdbSoftware'
 import type { SdCi } from '../../../services/api/tipos-sd'
 import type { InstanciaSw, LineaBase, NodoDeArbol, ProductoSw, ProductoSwIn, ReglaDeLineaBase, VersionSw } from '../../../services/api/cmdbSoftware'
@@ -27,6 +27,7 @@ import { TablaHallazgos, TablaInstancias } from './tablas'
 import DetalleDeHallazgo from './DetalleDeHallazgo'
 import '../../servicedesk/sdMercado.css'
 import './software.css'
+import { useListaDeUsuarios } from '../../../hooks/useListas'
 
 const CMDBTopologyGraph = lazy(() => import('../CMDBTopologyGraph'))
 
@@ -133,7 +134,7 @@ export function EditarProductoModal({ producto, onClose, onSaved }: { producto: 
   const t = useAppT()
   const err = useErr()
   const meta = useMetaSw()
-  const usuarios = useQuery({ queryKey: ['users'], queryFn: () => usersApi.list().then(r => r.data) })
+  const usuarios = useListaDeUsuarios()
   const [d, setD] = useState({
     name: producto?.name ?? '', vendor_name: producto?.vendor_name ?? '', category: producto?.category ?? 'application',
     origin: producto?.origin ?? 'purchased', distribution: producto?.distribution ?? '', criticality: producto?.criticality ?? 'medium',
@@ -384,7 +385,7 @@ function Nodo({ n, nivel, onQuitar }: { n: NodoDeArbol; nivel: number; onQuitar?
   const [abierto, setAbierto] = useState(nivel < 1)
   const hijos = n.children.length > 0
   return (
-    <li role="treeitem" aria-expanded={hijos ? abierto : undefined} className="sw-nodo">
+    <li role="treeitem" aria-selected={false} aria-expanded={hijos ? abierto : undefined} className="sw-nodo">
       <div className="sw-nodo__fila">
         {hijos
           ? <IconButton ariaLabel={t(abierto ? 'sw.plegar' : 'sw.desplegar')} onClick={() => setAbierto(!abierto)}>{abierto ? <ChevronDown size={14} /> : <ChevronRight size={14} />}</IconButton>

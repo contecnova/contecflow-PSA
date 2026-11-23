@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { MessageSquare, Search, Send, X, ExternalLink, Plus, User, Minus, Volume2, VolumeX, Hash, Users } from 'lucide-react'
-import { Checkbox, EmptyState, IconButton, Pulsable, Select, Input } from '../ui'
+import { MessageSquare, Send, X, ExternalLink, Plus, User, Minus, Volume2, VolumeX, Hash, Users } from 'lucide-react'
+import { Buscador, Checkbox, EmptyState, IconButton, Pulsable, Select, Textarea } from '../ui'
 import { collabApi } from '../../services/collaborationApi'
 import { useToast } from '../../context/ToastContext'
 import { useAuth } from '../../context/AuthContext'
@@ -508,10 +508,7 @@ export default function GlobalChatPanel({ open, unread = 0, onClose, onOpenFull 
         </div>
 
         <div className="glchpa-row-5">
-          <div className="glchpa-box-2">
-            <Search size={13} className="globalch-sx2" aria-hidden="true" />
-            <Input aria-label={t('globalchat.buscar_conversacion')} value={filter} onChange={(e) => setFilter(e.target.value)} placeholder={t('globalchat.buscar_conversacion')} inputClassName="glchpa-fieldstyle2" />
-          </div>
+          <Buscador className="glchpa-box-2" aria-label={t('globalchat.buscar_conversacion')} value={filter} onChange={setFilter} placeholder={t('globalchat.buscar_conversacion')} />
           <IconButton ariaLabel={t('globalchat.nuevo_chat_directo')}
             onClick={() => setNewDirectOpen(v => !v)}
             aria-expanded={newDirectOpen}
@@ -537,7 +534,7 @@ export default function GlobalChatPanel({ open, unread = 0, onClose, onOpenFull 
 
         {newDirectOpen && (
           <div className="glchpa-box-3">
-            <Input aria-label={t('globalchat.buscar_persona')} value={userSearch} onChange={(e) => setUserSearch(e.target.value)} placeholder={t('globalchat.buscar_persona')} inputClassName="glchpa-fieldstyle" />
+            <Buscador aria-label={t('globalchat.buscar_persona')} value={userSearch} onChange={setUserSearch} placeholder={t('globalchat.buscar_persona')} />
             <div className="glchpa-stack-1">
               {(suggestions.users || []).slice(0, 8).map(u => (
                 <Pulsable
@@ -626,7 +623,8 @@ export default function GlobalChatPanel({ open, unread = 0, onClose, onOpenFull 
                   {typingLabel}
                 </div>
               )}
-              <textarea
+              <Textarea
+                className="u-flex1-min0"
                 ref={composerRef}
                 aria-label={activeConvId ? t('globalchat.escribe_mensaje') : t('globalchat.selecciona_una_conversacion')}
                 value={draft}
@@ -640,7 +638,7 @@ export default function GlobalChatPanel({ open, unread = 0, onClose, onOpenFull 
                 placeholder={activeConvId ? t('globalchat.escribe_mensaje') : t('globalchat.selecciona_una_conversacion')}
                 disabled={!activeConvId}
                 rows={2}
-                className="glchpa-fieldstyle4"
+                inputClassName="glchpa-fieldstyle4"
               />
               <IconButton className={`glchpa-box-16 ${!activeConvId || !draft.trim() || send.isPending ? 'global-chat-panel-m17' : 'global-chat-panel-m18'}`}
                 ariaLabel={t('chat.send')}

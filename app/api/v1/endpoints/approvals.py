@@ -12,9 +12,9 @@ import logging
 
 from app.core.periodo import CON_HORA, Periodo, periodo
 from app.core.abac_enforce import enforce_abac
-from app.db.session import get_db
+from app.db.session import get_db, sesion_de_sistema
 from app.core.ratelimit import limiter
-from app.core.deps import get_current_user, require_admin, require_any_manager
+from app.core.deps import get_current_user, requiere_capacidad
 from app.models.user import User, UserRole
 from app.services.approval_engine import (
     create_approval_request,
@@ -85,7 +85,7 @@ def list_workflows_endpoint(
 def create_workflow_endpoint(
     payload: WorkflowIn,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("aprobaciones.administrar")),
 ):
     w = create_workflow(db, payload.model_dump())
     return APIResponse.ok(data=_workflow_out(w, include_steps=True))
@@ -103,7 +103,7 @@ def list_workflow_templates_endpoint(
 def create_workflow_from_template_endpoint(
     payload: dict = Body(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("aprobaciones.administrar")),
 ):
     template_id = payload.get("template_id")
     name = payload.get("name")
@@ -121,7 +121,7 @@ def get_workflow_endpoint(
 ):
     w = get_workflow(db, workflow_id)
     if not w:
-        raise HTTPException(404)
+        raise error_http(404, "no_encontrado", que="flujo")
     return APIResponse.ok(data=_workflow_out(w, include_steps=True))
 
 
@@ -129,7 +129,7 @@ def get_workflow_endpoint(
 def get_workflow_diagram(
     workflow_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("aprobaciones.administrar")),
 ):
     from app.services.approval_engine import diagrama
     return APIResponse.ok(data=diagrama.diagrama_de(db, workflow_id))
@@ -140,7 +140,7 @@ def check_workflow_diagram(
     workflow_id: str,
     payload: dict = Body(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("aprobaciones.administrar")),
 ):
     from app.services.approval_engine import diagrama
     return APIResponse.ok(data=diagrama.comprobar(db, workflow_id, payload))
@@ -151,7 +151,7 @@ def save_workflow_diagram(
     workflow_id: str,
     payload: dict = Body(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("aprobaciones.administrar")),
 ):
     from app.services.approval_engine import diagrama
     return APIResponse.ok(data=diagrama.guardar(db, current_user, workflow_id, payload))
@@ -162,11 +162,11 @@ def update_workflow_endpoint(
     workflow_id: str,
     payload: dict = Body(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("aprobaciones.administrar")),
 ):
     w = update_workflow(db, workflow_id, payload)
     if not w:
-        raise HTTPException(404)
+        raise error_http(404, "no_encontrado", que="flujo")
     return APIResponse.ok(data=_workflow_out(w, include_steps=True))
 
 
@@ -183,7 +183,7 @@ def validate_workflow_endpoint(
 def publish_workflow_endpoint(
     workflow_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("aprobaciones.administrar")),
 ):
     w = publish_workflow(db, workflow_id)
     return APIResponse.ok(data=_workflow_out(w, include_steps=True))
@@ -194,7 +194,7 @@ def clone_workflow_version_endpoint(
     workflow_id: str,
     payload: dict = Body(default={}),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("aprobaciones.administrar")),
 ):
     suffix = payload.get("suffix")
     w = clone_workflow_as_version(db, workflow_id, suffix=suffix)
@@ -206,7 +206,7 @@ def simulate_workflow_endpoint(
     payload: dict = Body(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_admin),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
+    _rol: User = Depends(requiere_capacidad("aprobaciones.administrar")),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
     entity_type = payload.get("entity_type")
     context = payload.get("context") or {}
@@ -219,11 +219,11 @@ def simulate_workflow_endpoint(
 def delete_workflow_endpoint(
     workflow_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("aprobaciones.administrar")),
 ):
     enforce_abac(db, current_user, "approval_workflow", workflow_id, action="delete")
     if not delete_workflow(db, workflow_id):
-        raise HTTPException(404)
+        raise error_http(404, "no_encontrado", que="flujo")
     return APIResponse.ok(data={"ok": True})
 
 
@@ -233,11 +233,11 @@ def add_step(
     workflow_id: str,
     payload: StepIn,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("aprobaciones.administrar")),
 ):
     s = add_workflow_step(db, workflow_id, payload.model_dump())
     if not s:
-        raise HTTPException(404)
+        raise error_http(404, "no_encontrado", que="flujo")
     return APIResponse.ok(data=_step_out(s))
 
 
@@ -246,11 +246,11 @@ def update_step(
     workflow_id: str, step_id: str,
     payload: dict = Body(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("aprobaciones.administrar")),
 ):
     s = update_workflow_step(db, workflow_id, step_id, payload)
     if not s:
-        raise HTTPException(404)
+        raise error_http(404, "no_encontrado", que="paso_de_aprobacion")
     return APIResponse.ok(data=_step_out(s))
 
 
@@ -258,11 +258,11 @@ def update_step(
 def delete_step(
     workflow_id: str, step_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("aprobaciones.administrar")),
 ):
     enforce_abac(db, current_user, "approval_workflow_step", step_id, action="delete")
     if not delete_workflow_step(db, workflow_id, step_id):
-        raise HTTPException(404)
+        raise error_http(404, "no_encontrado", que="paso_de_aprobacion")
     return APIResponse.ok(data={"ok": True})
 
 
@@ -345,7 +345,7 @@ def cancel_request(
 def get_financial_audit_log(
     request_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("aprobaciones.gestionar")),
 ):
     req, entries = get_financial_audit_entries(db, request_id, current_user)
     if not req:
@@ -382,7 +382,7 @@ def get_financial_audit_log(
 )
 def run_approval_timeouts(
     db: Session = Depends(get_db),
-    _: User = Depends(require_admin),
+    _: User = Depends(requiere_capacidad("aprobaciones.administrar")),
 ):
     """
     Evalúa todas las solicitudes pendientes y aplica la acción configurada
@@ -397,7 +397,7 @@ def run_approval_timeouts(
 @router.get("/stats", summary="Estadísticas de aprobaciones")
 def approval_stats(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("aprobaciones.gestionar")),
 ):
     return APIResponse.ok(data=get_approval_stats(db, current_user))
 
@@ -415,7 +415,7 @@ def approval_bottlenecks(
     workflow_id: Optional[str] = Query(None),
     p: Periodo = Depends(_PERIODO_APROBACIONES_SERIE),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("aprobaciones.gestionar")),
 ):
     return APIResponse.ok(data=get_workflow_bottlenecks(db, current_user, p, workflow_id=workflow_id))
 
@@ -424,7 +424,7 @@ def approval_bottlenecks(
 def approver_load_endpoint(
     p: Periodo = Depends(_PERIODO_APROBACIONES),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("aprobaciones.gestionar")),
 ):
     return APIResponse.ok(data=get_approver_load(db, current_user, p))
 
@@ -443,7 +443,7 @@ def list_groups(
 def create_group(
     payload: dict = Body(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("aprobaciones.administrar")),
 ):
     g = create_approval_group(
         db,
@@ -463,7 +463,7 @@ def get_group(
 ):
     g = get_approval_group(db, group_id)
     if not g:
-        raise HTTPException(404)
+        raise error_http(404, "no_encontrado", que="grupo")
     return APIResponse.ok(data=_group_out(g))
 
 
@@ -472,7 +472,7 @@ def update_group(
     group_id: str,
     payload: dict = Body(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("aprobaciones.administrar")),
 ):
     g = update_approval_group(
         db, group_id,
@@ -481,7 +481,7 @@ def update_group(
         member_ids=payload.get("member_ids"),
     )
     if not g:
-        raise HTTPException(404)
+        raise error_http(404, "no_encontrado", que="grupo")
     return APIResponse.ok(data=_group_out(g))
 
 
@@ -489,11 +489,11 @@ def update_group(
 def delete_group(
     group_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("aprobaciones.administrar")),
 ):
     enforce_abac(db, current_user, "approval_group", group_id, action="delete")
     if not delete_approval_group(db, group_id):
-        raise HTTPException(404)
+        raise error_http(404, "no_encontrado", que="grupo")
     return APIResponse.ok(data={"ok": True})
 
 
@@ -507,14 +507,14 @@ class DecisionPorCorreoIn(BaseModel):
 
 
 @router.get("/email-decision", summary="Resumen de la solicitud del enlace del correo (público)")
-def email_decision_summary(token: str, db: Session = Depends(get_db)):
+def email_decision_summary(token: str, db: Session = Depends(sesion_de_sistema("aprobación por correo: token firmado"))):
     from app.services.approval_engine import por_correo
     return APIResponse.ok(data=por_correo.resumen(db, token))
 
 
 @router.post("/email-decision", summary="Aprobar o rechazar con el enlace del correo (público)")
 @limiter.limit("20/minute")
-def email_decision(request: Request, payload: DecisionPorCorreoIn, db: Session = Depends(get_db)):
+def email_decision(request: Request, payload: DecisionPorCorreoIn, db: Session = Depends(sesion_de_sistema("aprobación por correo: token firmado"))):
     from app.services.approval_engine import por_correo
     return APIResponse.ok(data=por_correo.decidir(db, payload.token, payload.decision, payload.note))
 

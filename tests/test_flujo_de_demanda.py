@@ -75,12 +75,12 @@ def _miembros(db, nombre, ids):
 def piloto(db):
     plantillas.sembrar_plantilla_piloto(db, ORG, "admin-test-id")
     db.commit()
-    _miembros(db, "Triaje Digital", ["pm-test-id"])
-    _miembros(db, "Equipo Digital", ["pm-test-id"])
-    _miembros(db, "CAB Digital", ["pm-test-id", "admin-test-id", "hr-test-id"])
+    _miembros(db, "Triaje de solicitudes", ["pm-test-id"])
+    _miembros(db, "Equipo de análisis", ["pm-test-id"])
+    _miembros(db, "CAB", ["pm-test-id", "admin-test-id", "hr-test-id"])
     _miembros(db, "Legal", ["admin-test-id"])
     _miembros(db, "Compliance", ["hr-test-id"])
-    _miembros(db, "Comité de Digitalización", ["admin-test-id"])
+    _miembros(db, "Comité de dirección", ["admin-test-id"])
     return db
 
 

@@ -140,7 +140,9 @@ def opciones_dinamicas(db) -> dict:
 
 def ejemplos(db, usuario) -> dict:
     from app.services.horas_extra import ejemplos as ej
-    return {"tablas": [], "politicas": ej.politicas()}
+    from app.services.formato_regional import idioma_de_salida
+    return {"tablas": [], "politicas": ej.politicas(idioma_de_salida(
+        db, user_id=getattr(usuario, "id", None), org_id=getattr(usuario, "organization_id", None)))}
 
 
 registrar(Dominio(

@@ -55,10 +55,48 @@ def ruta_de(funcion: Callable) -> str:
     return f"{funcion.__module__}:{funcion.__qualname__}"
 
 
+#: Auditoría 22-11-2026 (01 M5): lo ÚNICO que el worker acepta ejecutar por
+#: `ejecutar_en_segundo_plano`. Antes valía cualquier `app.*` con argumentos
+#: arbitrarios, así que quien pudiera escribir en Redis podía pedir
+#: `app.db.rls:main` o un borrado masivo. Añadir una función aquí es una decisión
+#: de revisión: que sea idempotente o tolerante a repetirse y que reciba solo ids
+#: y valores JSON. `encolar` con algo que no está aquí lo ejecuta en línea (no se
+#: pierde) y lo avisa en el log. Medido el 23-11-2026: 18 funciones encoladas.
+FUNCIONES_ENCOLABLES: frozenset[str] = frozenset({
+    "app.services.alm_uso.sincronizacion:ejecutar",
+    "app.services.auth_service.tokens_y_cookies:send_password_reset_email",
+    "app.services.bi_intelligence_service:run_scheduled_delivery_now",
+    "app.services.bi_report_delivery_service:send_schedule_now",
+    "app.services.bookings_service.cola_de_flujos:process_workflow_queue_record",
+    "app.services.cmdb.discovery:run_all_active_discoveries",
+    "app.services.cmdb.discovery:run_due_discoveries",
+    "app.services.collaboration._email_digest:run",
+    "app.services.exchange_rate_service:sync_ecb_rates",
+    "app.services.jira_service:empujar_tareas_a_jira",
+    "app.services.notification_service:NotificationService.send_email",
+    "app.services.notification_service:send_email_notification",
+    "app.services.salesforce_service:sincronizar_oportunidades",
+    "app.services.scheduled_reports:execute_report_now",
+    "app.services.seguridad_de_cuentas.restablecimiento:enviar_correo_de_restablecimiento",
+    "app.services.service_desk.alert_correlation_service:run_correlation_scan_job",
+    "app.services.service_desk.canal_slack:procesar_evento",
+    "app.services.service_desk.jira_sync_service:run_incremental_sync",
+    "app.services.service_desk.kb_calidad:pasada",
+})
+
+_ENVOLTORIO = "app.core.segundo_plano:_ejecutar_con_contexto"
+
+
+def es_encolable(ruta: str) -> bool:
+    return ruta in FUNCIONES_ENCOLABLES
+
+
 def resolver(ruta: str) -> Callable:
     modulo, _, nombre = ruta.partition(":")
-    # Solo codigo propio: un mensaje de la cola no puede pedir `os:system`.
-    if not modulo.startswith("app.") or not nombre:
+    # Solo la lista blanca (y el envoltorio que la aplica): un mensaje de la
+    # cola no puede pedir `os:system` ni cualquier función de `app.*`.
+    if not modulo.startswith("app.") or not nombre or (ruta != _ENVOLTORIO and ruta not in FUNCIONES_ENCOLABLES):
+        logger.error("segundo plano: ruta no permitida %r (no está en FUNCIONES_ENCOLABLES)", ruta)
         raise ValueError(f"encolar: ruta no permitida {ruta!r}")
     objeto: Any = importlib.import_module(modulo)
     for parte in nombre.split("."):
@@ -143,9 +181,10 @@ def _parametro_db(funcion: Callable) -> Optional[str]:
 
 
 def _publicar(sesion, organizacion: Optional[str]) -> None:
-    if organizacion:
-        sesion.info["organization_id"] = organizacion
-        sesion.info["is_superadmin"] = False
+    # Auditoría 22-11-2026 (M8, `TENANT_SESION_SIN_CONTEXTO=cerrar`): sin empresa,
+    # trabajo de sistema declarado (el que encola sin empresa trabaja por id).
+    from app.db.contexto_de_tenant import fijar_contexto
+    fijar_contexto(sesion, organizacion, "trabajo en segundo plano sin empresa")
 
 
 def _llamar(funcion: Callable, organizacion: Optional[str], args: list, kwargs: dict,
@@ -154,7 +193,13 @@ def _llamar(funcion: Callable, organizacion: Optional[str], args: list, kwargs: 
     try:
         donde = _parametro_db(funcion) if "db" not in kwargs else None
         if donde is None:
-            return funcion(*args, **kwargs)
+            # Auditoría 22-11-2026 (M8): la función abre sus propias sesiones
+            # (en línea, sin Celery, no hay `TareaDeSistema` que lo declare). Con
+            # empresa, cada una la publica (`como_organizacion`); lo que quede sin
+            # contexto es este trabajo de fondo, con su nombre.
+            from app.db.contexto_de_tenant import trabajo_de_sistema
+            with trabajo_de_sistema(f"segundo plano: {getattr(funcion, '__qualname__', funcion)}"):
+                return funcion(*args, **kwargs)
         if sesion is not None:  # en linea: la sesion de la peticion sigue viva
             return _con_sesion(funcion, donde, sesion, args, kwargs)
         from app.db.session import worker_db_session
@@ -190,7 +235,11 @@ def encolar(funcion: Callable, *args: Any, _organizacion: Optional[str] = None,
     if organizacion is None and _sesion is not None:
         organizacion = getattr(_sesion, "info", {}).get("organization_id")
     # Una closure no se puede mandar a la cola; en linea si se puede ejecutar.
-    if _hay_cola() and "<locals>" not in getattr(funcion, "__qualname__", "<locals>"):
+    # Fuera de la lista blanca tampoco: el worker la rechazaría (01 M5).
+    encolable = "<locals>" not in getattr(funcion, "__qualname__", "<locals>") and es_encolable(ruta_de(funcion))
+    if _hay_cola() and not encolable:
+        logger.warning("encolar: %s no está en FUNCIONES_ENCOLABLES; se ejecuta en la petición", ruta_de(funcion))
+    if _hay_cola() and encolable:
         try:
             enviar_tarea(
                 "app.worker.ejecutar_en_segundo_plano",

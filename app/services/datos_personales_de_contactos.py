@@ -100,6 +100,11 @@ def anonimizar(db: Session, email: str, org: Optional[str]) -> dict:
     """Supresión de sus fichas de contacto y su cuenta del portal. No hace commit.
     Bajo bloqueo legal lanza 409 sin tocar nada."""
     from app.services.client_service import _reflejar_en_cliente
+    # M81 (auditoría 22-11-2026): sin empresa no se suprime (antes, con `org=None`,
+    # se anonimizaban las fichas con ese correo en TODAS las empresas).
+    if not org:
+        from app.core.codigos_de_error import error
+        raise error(422, "campo_obligatorio", campo="organization_id")
     exigir_sin_bloqueo_legal(db, email, org)
     contactos = contactos_de(db, email, org)
     usuarios = usuarios_del_portal_de(db, email, org)
@@ -122,7 +127,10 @@ def anonimizar(db: Session, email: str, org: Optional[str]) -> dict:
         u.full_name = BORRADO
         u.email = f"{_seudonimo(u.id)}@erased.invalid"
         u.phone = u.job_title = None
+        u.company = None   # M81: la empresa también identifica (antes quedaba)
         u.hashed_password = None
+        # M81: sus sesiones del portal dejan de valer: `is_active=False` lo
+        # comprueba cada petición del portal, y sin contraseña no puede volver.
         u.avatar_initials = None
         u.is_active = False
     db.flush()

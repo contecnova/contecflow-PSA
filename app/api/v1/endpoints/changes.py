@@ -4,7 +4,7 @@ from typing import Optional, Any
 from pydantic import BaseModel
 
 from app.db.session import get_db
-from app.core.deps import get_current_user, require_any_manager
+from app.core.deps import get_current_user, requiere_capacidad
 from app.core.abac_enforce import enforce_abac
 from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
@@ -101,7 +101,7 @@ def get_all_pending(
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=MAX_TAMANO_DE_PAGINA),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("cambios.responsables")),
 ):
     crs = change_service.get_all_pending(db)
     result = [
@@ -142,7 +142,7 @@ def create_change_request(
     payload: CRIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_any_manager),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
+    _rol: User = Depends(requiere_capacidad("cambios.responsables")),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
     cr = change_service.create_change_request(
         db,
@@ -160,7 +160,7 @@ def update_change_request(
     payload: CRIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_any_manager),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
+    _rol: User = Depends(requiere_capacidad("cambios.responsables")),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
     cr = change_service.get_by_id(db, cr_id, project_id=project_id)
     if not cr:
@@ -177,7 +177,7 @@ def submit_cr(
     cr_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_any_manager),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
+    _rol: User = Depends(requiere_capacidad("cambios.responsables")),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
     cr = change_service.get_by_id(db, cr_id)
     if not cr:
@@ -194,7 +194,7 @@ def review_cr(
     cr_id: str,
     payload: CRReview,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("cambios.responsables")),
 ):
     cr = change_service.get_by_id(db, cr_id)
     if not cr:
@@ -217,7 +217,7 @@ def implement_cr(
     project_id: str,
     cr_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("cambios.responsables")),
 ):
     cr = change_service.get_by_id(db, cr_id)
     if not cr:
@@ -233,7 +233,7 @@ def delete_cr(
     project_id: str,
     cr_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("cambios.responsables")),
 ):
     cr = change_service.get_by_id(db, cr_id)
     if not cr:

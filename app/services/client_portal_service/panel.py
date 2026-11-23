@@ -70,6 +70,7 @@ def _resolve_dashboard_project(project_id: Optional[str], current_client, db: Se
     Returns a tuple (early_response, project). When early_response is not None,
     the dashboard endpoint must short-circuit and return it directly.
     """
+    from app.services.textos_de_salida import texto
     accessible_ids = current_client.get_project_ids()
     if len(accessible_ids) > 1 and not project_id:
         projs = db.query(ProjectModel).filter(ProjectModel.id.in_(accessible_ids)).all()
@@ -78,15 +79,16 @@ def _resolve_dashboard_project(project_id: Optional[str], current_client, db: Se
             "projects": [{"id": p.id, "name": p.name, "code": p.code, "status": p.status} for p in projs],
         }, None
     effective_id = project_id or (accessible_ids[0] if accessible_ids else None)
-    if effective_id and accessible_ids and effective_id not in accessible_ids:
+    # A15: sin proyectos asignados, ninguno (antes, cualquiera de la empresa).
+    if effective_id and effective_id not in accessible_ids:
         raise ErrorConCodigo("sin_acceso_proyecto")
     if not effective_id:
         return {"project": None, "no_project": True,
-                "message": "Este usuario del portal no tiene ningún proyecto asignado."}, None
+                "message": texto("portal.panel.sin_proyecto", getattr(current_client, "language", None))}, None
     project = db.query(ProjectModel).filter(ProjectModel.id == effective_id).first()
     if not project:
         return {"project": None, "no_project": True,
-                "message": "El proyecto asignado no existe."}, None
+                "message": texto("portal.panel.proyecto_inexistente", getattr(current_client, "language", None))}, None
     return None, project
 
 
@@ -280,7 +282,7 @@ def get_project_info(project_id: Optional[str], current_client, db: Session) -> 
     if not accessible:
         raise ErrorConCodigo("sin_proyectos")
     effective_id = project_id or accessible[0]
-    if accessible and effective_id and effective_id not in accessible:
+    if effective_id and effective_id not in accessible:   # A15
         raise ErrorConCodigo("sin_acceso_proyecto")
     project = db.query(ProjectModel).filter(ProjectModel.id == effective_id).first()
     if not project:

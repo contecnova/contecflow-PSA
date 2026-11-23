@@ -18,11 +18,11 @@ from sqlalchemy.orm import Session
 from typing import Optional, List
 from pydantic import BaseModel
 from app.db.session import get_db
-from app.core.deps import require_any_manager, require_admin
+from app.core.deps import requiere_capacidad
 from app.models.user import User
 from app.core.responses import APIListResponse, APIResponse
 import app.services.slack_service as _slack
-from app.core.codigos_de_error import desde_valor
+from app.core.codigos_de_error import desde_valor, error_http
 from app.schemas.auth_payloads import (
     SlackTestIn, SlackNotifyIn,
 )
@@ -33,7 +33,7 @@ router = APIRouter()
 @router.get("/slack/config", summary="Configuración Slack/Teams")
 def get_slack_config(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("integraciones.administrar")),
 ):
     return APIListResponse.ok(items=_slack.get_slack_config(db))
 
@@ -51,10 +51,11 @@ class SlackConfigCreate(BaseModel):
 def create_slack_config(
     payload: SlackConfigCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("integraciones.administrar")),
 ):
     return APIResponse.ok(data=_slack.create_or_update_slack_config(
-        payload.model_dump(), db, organization_id=getattr(current_user, "organization_id", None),
+        # exclude_unset: sin `bot_token` en el formulario se conserva el guardado (cifrado).
+        payload.model_dump(exclude_unset=True), db, organization_id=getattr(current_user, "organization_id", None),
     ))
 
 
@@ -62,7 +63,7 @@ def create_slack_config(
 def test_slack(
     payload: SlackTestIn = Body(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("integraciones.administrar")),
 ):
     try:
         config_id = payload.config_id
@@ -70,14 +71,14 @@ def test_slack(
         channel = payload.channel or "#contecflow-alerts"
         return APIResponse.ok(data=_slack.test_slack_config(config_id, message, channel, db))
     except ValueError:
-        raise HTTPException(404)
+        raise error_http(404, "no_encontrado", que="configuracion")
 
 
 @router.post("/slack/notify", summary="Enviar notificación de evento Slack")
 def slack_notify(
     payload: SlackNotifyIn = Body(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("integraciones.responsables")),
 ):
     try:
         return APIResponse.ok(data=_slack.notify_slack(

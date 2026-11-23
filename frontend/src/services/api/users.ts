@@ -8,6 +8,12 @@ import { todasLasPaginas } from './todasLasPaginas'
 /** `UserStatus` (app/schemas/common_enums.py). */
 export type UserStatus = 'active' | 'inactive' | 'vacation' | 'leave'
 
+/** Preferencias de usuario (`GET /users/me/preferences`): `extra` es un objeto libre. */
+export interface PreferenciasDeUsuario {
+  extra?: Record<string, unknown>
+  [clave: string]: unknown
+}
+
 /** `UserOrganizationOut` (app/schemas/users.py). */
 export interface UserOrganization {
   id: string
@@ -207,6 +213,10 @@ export const usersApi = {
   deactivate: (id: string, confirmarEquipos = false): Promise<AxiosResponse<{ ok: boolean }>> =>
     api.delete(`/users/${id}`, confirmarEquipos ? { params: { confirmar_equipos: true } } : undefined),
 
+  /** Reactivar a una persona desactivada (auditoría 22-11-2026; no devuelve licencias ni equipos). */
+  reactivate: (id: string): Promise<AxiosResponse<{ message: string }>> =>
+    api.post(`/users/${id}/reactivate`),
+
   deletePermanent: (id: string): Promise<AxiosResponse<{ ok: boolean }>> =>
     api.delete(`/users/${id}/permanent`),
 
@@ -224,4 +234,11 @@ export const usersApi = {
 
   myApprovalChain: (): Promise<AxiosResponse<ApprovalChain>> =>
     api.get('/users/me/approval-chain'),
+
+  /** Preferencias del usuario en servidor (`extra` libre: informes guardados, etc.). */
+  preferencias: <T = PreferenciasDeUsuario>(): Promise<AxiosResponse<T>> =>
+    api.get('/users/me/preferences'),
+
+  guardarPreferenciasExtra: (extra: Record<string, unknown>): Promise<AxiosResponse<PreferenciasDeUsuario>> =>
+    api.patch('/users/me/preferences', { extra }),
 } as const

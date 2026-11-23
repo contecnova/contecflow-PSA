@@ -6,6 +6,7 @@ import uuid
 from typing import Optional
 from sqlalchemy.orm import Session
 from app.models.billing_reports import ApprovalGroup
+from app.services.textos_guardados import pintar_campo
 
 
 def list_approval_groups(db: Session) -> list:
@@ -32,6 +33,8 @@ def update_approval_group(db: Session, group_id: str, name: Optional[str], descr
     if not g:
         return None
     if name is not None:
+        if name not in (g.name, pintar_campo(g, "name", clave="texto_clave", params="texto_params")):
+            g.texto_clave = g.texto_params = None   # migracion 200: nombre escrito a mano, se respeta
         g.name = name
     if description is not None:
         g.description = description
@@ -52,7 +55,7 @@ def delete_approval_group(db: Session, group_id: str) -> bool:
 def serialize_approval_group(g) -> dict:
     return {
         "id": g.id,
-        "name": g.name,
+        "name": pintar_campo(g, "name", clave="texto_clave", params="texto_params"),
         "description": g.description,
         "member_ids": json.loads(g.member_ids or "[]"),
         "created_by": g.created_by,

@@ -61,8 +61,14 @@ def test_34_las_dos_rutas_de_prueba_usan_la_misma_funcion(client, admin_token, d
         a = client.get("/api/v1/jira/test", headers=auth(admin_token)).json()["data"]
         b = client.post(f"/api/v1/integrations/jira/configs/{cid}/test", headers=auth(admin_token)).json()["data"]
     assert a["ok"] and a["display_name"] == "Ana" and a["account_id"] == "acc-1"
-    assert b == {"ok": True, "jira_account_id": "acc-1", "display_name": "Ana"}
-    assert [c.args[2] for c in llamada.call_args_list] == ["/rest/api/3/myself"] * 2
+    assert {k: b[k] for k in ("ok", "jira_account_id", "display_name")} ==         {"ok": True, "jira_account_id": "acc-1", "display_name": "Ana"}
+    rutas = [c.args[2] for c in llamada.call_args_list]
+    assert rutas.count("/rest/api/3/myself") == 2
+    # 23-11-2026: la prueba real comprueba ademas proyecto, busqueda y estados
+    # (solo lectura); con el doble de `/myself` la busqueda y los estados no valen.
+    assert set(rutas) <= {"/rest/api/3/myself", "/rest/api/3/project/TST", "/rest/api/3/search/jql",
+                          "/rest/api/3/status"}
+    assert a["comprobaciones"] == b["comprobaciones"] == {"proyecto": True, "busqueda": False, "estados": False}
 
 
 def test_34_la_prueba_de_una_configuracion_no_repite_la_respuesta_remota(client, admin_token, db):

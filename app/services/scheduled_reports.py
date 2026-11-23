@@ -41,19 +41,38 @@ from app.models.billing_reports import ScheduledReport
 
 logger = logging.getLogger("contecflow.scheduled_reports")
 
+#: Hora local de envio si el informe no fija `send_hour` (antes un 8 escrito en
+#: `_get_next_run` e interpretado en UTC; ronda 2 auditoria 2026-11-22).
+HORA_DE_ENVIO_POR_DEFECTO = 8
+
+
+class EnvioParcial(RuntimeError):
+    """El correo salio para unos destinatarios y no para otros. No se reintenta
+    entero: se reenviaria a quien ya lo recibio (ronda 2 auditoria 2026-11-22)."""
+
 
 # ── Scheduling helpers ────────────────────────────────────────────────────────
 
 def _get_next_run(frequency: str, from_dt: Optional[datetime] = None, *, send_hour: Optional[int] = None,
-                  day_of_week: Optional[int] = None, day_of_month: Optional[int] = None) -> datetime:
-    """La próxima vez que toca, a la hora (UTC) y el día configurados.
+                  day_of_week: Optional[int] = None, day_of_month: Optional[int] = None,
+                  zona=None) -> datetime:
+    """La próxima vez que toca, a la hora y el día configurados.
 
     Revisión 2026-11: ignoraba `send_hour`, `day_of_week` y `day_of_month` y
-    sumaba un día o una semana a la última ejecución.
+    sumaba un día o una semana a la última ejecución. Ronda 2 auditoría
+    2026-11-22: la hora es la LOCAL de la empresa (`zona`); antes era UTC y un
+    informe «a las 8» llegaba a las 9 o a las 10 en Madrid. Devuelve UTC.
     """
+    if zona is not None:
+        base_utc = from_dt or datetime.now(timezone.utc)
+        if base_utc.tzinfo is None:
+            base_utc = base_utc.replace(tzinfo=timezone.utc)
+        local = _get_next_run(frequency, base_utc.astimezone(zona).replace(tzinfo=None),
+                              send_hour=send_hour, day_of_week=day_of_week, day_of_month=day_of_month)
+        return local.replace(tzinfo=zona).astimezone(timezone.utc)
     import calendar
     base = from_dt or datetime.now(timezone.utc)
-    hora = 8 if send_hour is None else int(send_hour)
+    hora = HORA_DE_ENVIO_POR_DEFECTO if send_hour is None else int(send_hour)
     cand = base.replace(hour=hora, minute=0, second=0, microsecond=0)
     if frequency == "daily":
         return cand if cand > base else cand + timedelta(days=1)
@@ -73,10 +92,30 @@ def _get_next_run(frequency: str, from_dt: Optional[datetime] = None, *, send_ho
     return c if c > base else c + timedelta(weeks=1)
 
 
-def proxima_ejecucion(report, desde: Optional[datetime] = None) -> datetime:
+def proxima_ejecucion(report, desde: Optional[datetime] = None, zona=None) -> datetime:
+    """Próxima ejecución en UTC, a la hora local de la empresa del informe.
+
+    Sin `zona`, la de la empresa si el informe ya está en una sesión (los
+    altos y ediciones de `billing_reports_service` y `cmdb_software` llaman sin
+    zona); si no, UTC."""
+    if zona is None:
+        from sqlalchemy.orm import object_session
+        sesion = object_session(report)
+        if sesion is not None:
+            zona = _zona_del_informe(report, sesion)
     return _get_next_run(report.frequency, desde, send_hour=getattr(report, "send_hour", None),
                          day_of_week=getattr(report, "day_of_week", None),
-                         day_of_month=getattr(report, "day_of_month", None))
+                         day_of_month=getattr(report, "day_of_month", None), zona=zona)
+
+
+def _zona_del_informe(report, db):
+    """Zona horaria de la empresa del informe (UTC si no se sabe)."""
+    try:
+        from app.services.formato_regional import zona_horaria
+        return zona_horaria(db, _organizacion_del_informe(report, db))
+    except Exception:
+        logger.debug("_zona_del_informe: sin zona, UTC", exc_info=True)
+        return None
 
 
 # ── Email sender ──────────────────────────────────────────────────────────────
@@ -94,6 +133,8 @@ def _send_email(recipients: list[str], subject: str, html_body: str, pdf_bytes: 
         recipients, subject, html_body,
         adjunto=(filename, pdf_bytes, "application/pdf") if pdf_bytes else None,
     )
+    if fallidos and len(fallidos) < len(recipients):
+        raise EnvioParcial(f"El informe no se pudo enviar a {len(fallidos)} de {len(recipients)} destinatarios")
     if fallidos:
         raise RuntimeError(f"El informe no se pudo enviar a {len(fallidos)} de {len(recipients)} destinatarios")
     logger.info("Email sent: %s → %d destinatarios", subject, len(recipients))
@@ -151,10 +192,15 @@ def _build_html_body(report_name: str, report_type: str, frequency: str, next_ru
                      idioma: Optional[str] = None, marca: Optional[str] = None,
                      cuando: Optional[str] = None, zona=None) -> str:
     """Cuerpo del correo en `idioma`, firmado por `marca`, con la hora `cuando` (zona de la empresa)."""
+    from html import escape
     from app.core.constantes import NOMBRE_DEL_PRODUCTO
     from app.services.formato_regional import formatear_fecha, sello_de_hora
     from app.services.textos_de_salida import TEXTOS, texto
     marca = marca or NOMBRE_DEL_PRODUCTO
+    # Ronda 2 auditoría 2026-11-22: el nombre del informe y la marca los escribe
+    # un usuario; sin escapar, metían HTML en el correo de todos los destinatarios.
+    report_name = escape(str(report_name or ""))
+    marca = escape(str(marca))
     cuando = cuando or sello_de_hora(codigo_idioma=idioma)
     clave_tipo = f"informe.tipo.{report_type}"
     type_label = texto(clave_tipo, idioma) if clave_tipo in TEXTOS else report_type
@@ -286,7 +332,7 @@ def _execute_report(report: ScheduledReport, db) -> None:
                       fecha=formatear_fecha(ahora.date(), idioma)),
                 _build_html_body(
                     report.name, report_type, report.frequency,
-                    proxima_ejecucion(report), idioma=idioma, marca=marca, cuando=cuando, zona=zona,
+                    proxima_ejecucion(report, zona=zona), idioma=idioma, marca=marca, cuando=cuando, zona=zona,
                 ),
                 pdf,
                 f"{marca_fichero}_{nombre}_{ahora.strftime('%Y%m%d')}.pdf",
@@ -323,12 +369,21 @@ def ejecutar_informes_vencidos(db, now: datetime | None = None) -> dict:
         try:
             _execute_report(report, db)
             report.last_run_at = now
-            report.next_run_at = proxima_ejecucion(report, now)
+            report.next_run_at = proxima_ejecucion(report, now, zona=_zona_del_informe(report, db))
             report.last_status = "success"
             report.last_error = None
             db.commit()
             enviados += 1
             logger.info("Report '%s' (%s) sent OK", report.name, getattr(report, "report_type", "custom"))
+        except EnvioParcial as exc:
+            # Unos lo recibieron: se pasa a la próxima ejecución (no se reenvía).
+            fallidos += 1
+            logger.error("Report '%s' partially failed: %s", report.name, exc)
+            report.last_run_at = now
+            report.next_run_at = proxima_ejecucion(report, now, zona=_zona_del_informe(report, db))
+            report.last_status = "error"
+            report.last_error = str(exc)[:500]
+            db.commit()
         except Exception as exc:
             fallidos += 1
             logger.error("Report '%s' failed: %s", report.name, exc, exc_info=True)

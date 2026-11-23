@@ -425,7 +425,10 @@ def adobe_sign_upload_document(
     boundary = "----ContecFlowBoundary7a8b9c"
     lines = [
         f"--{boundary}",
-        f'Content-Disposition: form-data; name="File"; filename="{doc_name}"',
+        # M87 (auditoría 22-11-2026): nombre sin comillas ni saltos de línea
+        # (cerraban la cabecera del multipart).
+        'Content-Disposition: form-data; name="File"; filename="'
+        + "".join(c for c in str(doc_name or "document") if c not in '"\r\n\\')[:200] + '"',
         f"Content-Type: {mime_type}",
         "",
     ]

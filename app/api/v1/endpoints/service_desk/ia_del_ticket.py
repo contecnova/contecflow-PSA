@@ -8,7 +8,7 @@ puntuados y explicados. El resto del panel usa rutas que ya existian
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
-from app.core.deps import require_internal_user
+from app.core.deps import requiere_capacidad
 from app.core.responses import APIResponse
 from app.db.session import get_db
 from app.models.user import User
@@ -20,13 +20,13 @@ router = APIRouter(tags=["Service Desk - IA del ticket"])
 @router.get("/tickets/{ticket_id}/duplicate-candidates",
             summary="Tickets parecidos de la empresa, puntuados y con el motivo")
 def duplicate_candidates(ticket_id: str, db: Session = Depends(get_db),
-                         current_user: User = Depends(require_internal_user)):
+                         current_user: User = Depends(requiere_capacidad("sd.completo"))):
     return APIResponse.ok(data=candidatos_a_duplicado(db, current_user, ticket_id))
 
 
 @router.get("/tickets/{ticket_id}/customer-context",
             summary="Contexto 360 del solicitante (tickets, cliente, contrato y equipos y licencias de ALM)")
 def customer_context(ticket_id: str, db: Session = Depends(get_db),
-                     current_user: User = Depends(require_internal_user)):
+                     current_user: User = Depends(requiere_capacidad("sd.completo"))):
     from app.services.service_desk.customer_context_service import contexto_del_ticket
     return APIResponse.ok(data=contexto_del_ticket(db, current_user, ticket_id))

@@ -11,6 +11,14 @@ from app.services.settings_service import outbound_http_timeout
 from app.core.codigos_de_error import error
 
 
+
+def _version_de_api() -> str:
+    """Version de la API REST de Salesforce (`SALESFORCE_API_VERSION`; ronda 2
+    auditoria 2026-11-22, §6: antes `v57.0` escrito en la URL)."""
+    from app.core.config import settings
+    v = str(getattr(settings, "SALESFORCE_API_VERSION", "") or "v57.0").strip()
+    return v if v.startswith("v") else f"v{v}"
+
 def get_salesforce_instance(db: Session, instance_id: str, org_id: Optional[str]):
     """Return enabled IntegrationInstance for Salesforce, scoped to org."""
 
@@ -129,12 +137,47 @@ def preparar_sincronizacion(db: Session, instance_id: str, org_id: Optional[str]
     return inst, sf_base, access_token
 
 
+def probar_conexion(db: Session, instance_id: str, org_id: Optional[str]) -> dict:
+    """Prueba real contra Salesforce (23-11-2026, «sin probar contra el servicio
+    real»), solo lectura:
+
+    - `credencial`: `GET /services/data/{version}/limits` (token válido y versión
+      de API admitida por esa instancia).
+    - `oportunidades`: `SELECT Id FROM Opportunity LIMIT 1` (el permiso de
+      lectura que usa la sincronización de entrada).
+
+    La sincronización de SALIDA no está implementada (`salida: no_implementada`).
+    Nunca devuelve el texto de la respuesta remota."""
+    from app.core.outbound_url import cliente_httpx, validate_outbound_url
+
+    _, sf_base, access_token = preparar_sincronizacion(db, instance_id, org_id)
+    validate_outbound_url(sf_base, field="instance_url", require_https=True)
+    base = f"{sf_base.rstrip('/')}/services/data/{_version_de_api()}"
+    cabeceras = {"Authorization": f"Bearer {access_token}"}
+    resultado = {"ok": False, "verificado": "nada", "credencial": False, "oportunidades": False,
+                 "salida": "no_implementada", "api_version": _version_de_api()}
+    try:
+        with cliente_httpx(timeout=outbound_http_timeout(db, default=15.0)) as client:
+            r = client.get(f"{base}/limits", headers=cabeceras)
+            if r.status_code != 200:
+                return {**resultado, "status": r.status_code}
+            resultado.update(credencial=True, verificado="credencial")
+            q = client.get(f"{base}/query", params={"q": "SELECT Id FROM Opportunity LIMIT 1"}, headers=cabeceras)
+            if q.status_code == 200:
+                resultado.update(oportunidades=True, verificado="credencial_y_uso", ok=True)
+            else:
+                resultado["status"] = q.status_code
+    except Exception as exc:  # noqa: BLE001 - se informa la clase, no el texto
+        import logging
+        logging.getLogger(__name__).info("prueba de Salesforce fallida", exc_info=True)
+        resultado["error"] = type(exc).__name__
+    return resultado
+
+
 def sincronizar_oportunidades(db: Session, *, instance_id: str, direction: str,
                               org_id: Optional[str]) -> dict:
     """Trae las oportunidades abiertas de Salesforce al pipeline."""
     import logging
-
-    import httpx
 
     inst, sf_base, access_token = preparar_sincronizacion(db, instance_id, org_id)
     synced_in = 0
@@ -143,9 +186,13 @@ def sincronizar_oportunidades(db: Session, *, instance_id: str, direction: str,
 
     if direction in ("inbound", "bidirectional"):
         try:
-            with httpx.Client(timeout=outbound_http_timeout(db, default=20.0)) as client:
+            # 22-11-2026 (03 A-RZ4): `instance_url` es configuración de empresa y
+            # recibe el Bearer: HTTPS y guardia SSRF central (IP conectada).
+            from app.core.outbound_url import cliente_httpx, validate_outbound_url
+            validate_outbound_url(sf_base, field="instance_url", require_https=True)
+            with cliente_httpx(timeout=outbound_http_timeout(db, default=20.0)) as client:
                 resp = client.get(
-                    f"{sf_base}/services/data/v57.0/query",
+                    f"{sf_base}/services/data/{_version_de_api()}/query",
                     params={
                         "q": "SELECT Id,Name,Amount,StageName,CloseDate,AccountId FROM Opportunity WHERE IsClosed=false LIMIT 200"
                     },
@@ -155,7 +202,7 @@ def sincronizar_oportunidades(db: Session, *, instance_id: str, direction: str,
                 sf_opps = resp.json().get("records", [])
         except Exception as exc:
             logging.getLogger(__name__).warning("sync_salesforce_opportunities: excepcion ignorada", exc_info=True)
-            errors.append(f"Salesforce API error: {exc}")
+            errors.append(f"Salesforce API error: {getattr(exc, 'detail', None) or type(exc).__name__}")
             sf_opps = []
 
         for sf_opp in sf_opps:

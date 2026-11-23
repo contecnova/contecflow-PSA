@@ -92,7 +92,7 @@ function TiposDeSolicitud() {
       <p className="plan-muted">{t('demanda.cfg_tipos_ayuda')}</p>
       {isLoading ? <Spinner /> : tipos.length === 0 ? <p className="plan-muted">{t('demanda.cfg_sin_tipos')}</p> : (
         <TablaSimple claseTabla="plan-tabla">
-          <thead><tr><th>{t('demanda.cfg_clave')}</th><th>{t('demanda.cfg_nombre')}</th><th>{t('demanda.cfg_canales')}</th><th>{t('demanda.proyecto')}</th><th>{t('demanda.cfg_flujo')}</th><th>{t('demanda.cfg_activo')}</th><th /></tr></thead>
+          <thead><tr><th>{t('demanda.cfg_clave')}</th><th>{t('demanda.cfg_nombre')}</th><th>{t('demanda.cfg_canales')}</th><th>{t('demanda.proyecto')}</th><th>{t('demanda.cfg_flujo')}</th><th>{t('demanda.cfg_activo')}</th><th><span className="u-sr-only">{t('common.col_acciones')}</span></th></tr></thead>
           <tbody>
             {tipos.map(x => (
               <tr key={x.id}>
@@ -142,7 +142,7 @@ function ListaDeFlujos({ onEditar }: { onEditar: (id: string | null) => void }) 
         <p className="plan-muted">{t('demanda.cfg_biblioteca_ayuda')}</p>
         {plantillas.length === 0 ? <p className="plan-muted">{t('demanda.cfg_sin_plantillas')}</p> : (
           <TablaSimple claseTabla="plan-tabla">
-            <thead><tr><th>{t('demanda.cfg_nombre')}</th><th>{t('demanda.cfg_descripcion')}</th><th /></tr></thead>
+            <thead><tr><th>{t('demanda.cfg_nombre')}</th><th>{t('demanda.cfg_descripcion')}</th><th><span className="u-sr-only">{t('common.col_acciones')}</span></th></tr></thead>
             <tbody>
               {plantillas.map(x => (
                 <tr key={x.key}>
@@ -167,7 +167,7 @@ function ListaDeFlujos({ onEditar }: { onEditar: (id: string | null) => void }) 
       <p className="plan-muted">{t('demanda.cfg_piloto_ayuda')}</p>
       {isLoading ? <Spinner /> : flujos.length === 0 ? <p className="plan-muted">{t('demanda.cfg_sin_flujos')}</p> : (
         <TablaSimple claseTabla="plan-tabla">
-          <thead><tr><th>{t('demanda.cfg_nombre')}</th><th className="plan-num">{t('demanda.cfg_version_corta')}</th><th>{t('demanda.cfg_activo')}</th><th /></tr></thead>
+          <thead><tr><th>{t('demanda.cfg_nombre')}</th><th className="plan-num">{t('demanda.cfg_version_corta')}</th><th>{t('demanda.cfg_activo')}</th><th><span className="u-sr-only">{t('common.col_acciones')}</span></th></tr></thead>
           <tbody>
             {flujos.map(f => (
               <tr key={f.id}>

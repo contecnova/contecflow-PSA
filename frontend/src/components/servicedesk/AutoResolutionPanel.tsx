@@ -33,17 +33,15 @@ import type { StatusBadgeKind } from '../ui/StatusBadge'
 import { useToast } from '../../context/ToastContext'
 import { useAppT } from '../../i18n/AppLangContext'
 import { etiquetaCodigo } from '../../i18n/etiquetaCodigo'
-import { fmtDateTime } from '../../utils/helpers'
+import { extractErr, fmtDateTime } from '../../utils/helpers'
 import { POLL_FREQUENT_MS } from '../../constants/timings'
 import './AutoResolutionPanel.css'
 
 type AutoResolutionConfig = Partial<ConfigDeAutoResolucion>
 type AutoResolutionStats = EstadisticasDeAutoResolucion
 
-const errMsg = (e: unknown, fallback: string): string => {
-  const detail = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
-  return detail || fallback
-}
+// 23-11-2026: el texto del error pasa por extractErr (traduce los códigos y las validaciones del servidor).
+const errMsg = (e: unknown, fallback: string): string => extractErr(e, fallback)
 
 /** Título de tarjeta con icono, como en el resto de pantallas. */
 const Titulo = ({ icon, children }: { icon: ReactNode; children: ReactNode }) => (

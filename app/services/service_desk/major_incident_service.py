@@ -68,7 +68,8 @@ def declare_major_incident_record(db: Session, payload: dict, fallback_commander
         fallback_commander_id=fallback_commander_id,
     )
     db.add(major_incident)
-    escalate_linked_tickets_to_major_incident(db, payload.get("ticket_ids", []))
+    db.flush()
+    escalate_linked_tickets_to_major_incident(db, payload.get("ticket_ids", []), major_incident)
     return major_incident
 
 
@@ -105,10 +106,22 @@ def update_major_incident_record(db: Session, mi_id: str, payload: dict) -> Majo
     return major_incident
 
 
-def escalate_linked_tickets_to_major_incident(db: Session, ticket_ids: list[str]) -> None:
+def escalate_linked_tickets_to_major_incident(db: Session, ticket_ids: list[str],
+                                              major_incident: Optional[MajorIncident] = None) -> None:
+    """Sube los tickets a P1/L3 y los agrupa en el incidente mayor.
+
+    Auditoria 2026-11-22 (A-SD17): nada escribia `Ticket.major_incident_id`,
+    asi que el incidente mayor nunca tenia tickets. Solo se agrupan tickets
+    de la empresa del incidente.
+    """
+    from app.models.service_desk._enums import SupportLevel, TicketPriority
+    from app.services.service_desk.ticket_update_service import cambiar_prioridad
+    org = getattr(major_incident, "organization_id", None) or db.info.get("organization_id")
     for tid in ticket_ids:
         ticket = db.query(Ticket).filter(Ticket.id == tid).first()
-        if ticket:
-            from app.services.service_desk.ticket_update_service import cambiar_prioridad
-            cambiar_prioridad(db, ticket, "p1_critical")
-            ticket.support_level = "l3"
+        if not ticket or (org and ticket.organization_id != org):
+            continue
+        cambiar_prioridad(db, ticket, TicketPriority.p1_critical.value)
+        ticket.support_level = SupportLevel.l3.value
+        if major_incident is not None:
+            ticket.major_incident_id = major_incident.id

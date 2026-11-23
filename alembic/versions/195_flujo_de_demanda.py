@@ -180,7 +180,8 @@ def _indices(tabla: str) -> set:
 
 
 def _sembrar_demo() -> None:
-    """Plantilla piloto en la empresa de demostración, si existe y no tiene flujos."""
+    """Ya no siembra nada (23-11-2026): la plantilla es opcional y se instala desde la biblioteca de Demanda."""
+    return
     bind = op.get_bind()
     org = bind.execute(sa.text("SELECT id FROM organizations WHERE slug = 'contecflow-demo'")).scalar()
     if not org:

@@ -25,26 +25,57 @@ Segunda auditoría 2026-11:
   reescribirlo rompería la cadena de la empresa). Es una decisión, no un olvido.
 - Bloqueo legal: si hay un bloqueo legal activo sobre la persona (un
   `LegalHold` de alguna de sus empresas cuyo valor es su id, su correo o su
-  usuario), la supresión se rechaza con 409 y la lista de casos, ANTES de
+  `usuario), la supresión se rechaza con 409 y la lista de casos, ANTES de
   reescribir nada (`exigir_sin_bloqueo_legal`).
+
+Auditoría 2026-11-22 (A-RZ1), corregido el 23-11-2026:
+
+- **Ámbito obligatorio.** Solo se tocan filas de las empresas de la persona:
+  tablas con `organization_id` u `org_id` y, en ellas, solo las de sus
+  empresas. Antes se incluían las filas con empresa NULL, las tablas `org_id`
+  se reescribían en toda la base y, si la persona no tenía empresa, el ámbito
+  era la base entera. Sin empresas, no se reescribe ninguna copia.
+- **Lista blanca de columnas de identidad.** El correo se busca en cualquier
+  columna de texto (es inequívoco); el nombre y el usuario, solo en columnas
+  de identidad (`_COLUMNAS_DE_IDENTIDAD`: nombre, autor, solicitante...). Antes
+  un «Juan García» homónimo o una etiqueta igual al nombre se borraban.
+- **Seudónimo con clave.** HMAC-SHA256 con `SECRET_KEY` en vez de
+  `sha256(correo)[:16]`, que se revertía con un diccionario de correos.
 """
 from __future__ import annotations
 
 import hashlib
+import hmac
 import logging
 import re
 
-from sqlalchemy import String, Text, delete, or_, update
+from sqlalchemy import String, Text, delete, update
 from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
 
 BORRADO = "[ERASED]"
-_CREDENCIALES = re.compile(r"mfa|passkey|webauthn|oauth_token|api_key|user_session|push_subscription|refresh_token")
+# 23-11-2026: también el historial de contraseñas y los dispositivos de confianza.
+_CREDENCIALES = re.compile(r"mfa|passkey|webauthn|oauth_token|api_key|user_session|push_subscription|refresh_token"
+                           r"|password_history|trusted_device")
+
+#: Columnas donde una copia del NOMBRE o del USUARIO es la persona y no un
+#: texto que coincide por casualidad (23-11-2026, A-RZ1).
+_COLUMNAS_DE_IDENTIDAD = re.compile(
+    r"(^|_)(name|nombre|full_name|username|user_name|author|autor|owner|requester|solicitante|"
+    r"assignee|asignado|reporter|creator|created_by|updated_by|approver|aprobador|reviewer|"
+    r"contact|contacto|employee|empleado|participant|participante|speaker|attendee|signer|"
+    r"firmante|sender|remitente|recipient|destinatario|actor|by)($|_)", re.I)
+
+#: Columnas de empresa por las que se acota (las 11 tablas `org_id` incluidas).
+_COLUMNAS_DE_EMPRESA = ("organization_id", "org_id")
 
 
 def _seudonimo(valor: str) -> str:
-    return hashlib.sha256((valor or "").encode()).hexdigest()[:16]
+    """Seudónimo estable y NO reversible sin la clave del despliegue."""
+    from app.core.config import settings
+    clave = (getattr(settings, "SECRET_KEY", "") or "").encode()
+    return hmac.new(clave, (valor or "").encode(), hashlib.sha256).hexdigest()[:16]
 
 
 def _empresas_de(db: Session, user) -> set:
@@ -89,15 +120,25 @@ def suprimir_persona(db: Session, user) -> dict:
     # que es lo que identifica su participación.
     from app.services.reuniones import rgpd as rgpd_reuniones
     reuniones = rgpd_reuniones.suprimir(db, None, user_id=user.id, email=user.email)
+    # Migracion 200: sus llamadas al agente de voz (por la huella de su telefono),
+    # antes de borrar el telefono de la ficha. El bloqueo legal ya se comprobo.
+    from app.services.service_desk.voice_agent_service import suprimir_rgpd as suprimir_voz
+    voz = 0
+    for org in sorted(_empresas_de(db, user)):
+        voz += suprimir_voz(db, getattr(user, "phone", None), org)
     originales = {}
     if user.email:
         originales[user.email] = _seudonimo(user.email) + "@erased.invalid"
+    #: Valores que solo se buscan en columnas de identidad (nombre y usuario).
+    de_identidad = set()
     for v in (user.full_name, user.username):
-        if v and len(v.strip()) >= 3:
-            originales.setdefault(v, BORRADO)
+        if v and len(v.strip()) >= 3 and v not in originales:
+            originales[v] = BORRADO
+            de_identidad.add(v)
     empresas = _empresas_de(db, user)
 
-    informe: dict = {"user_id": user.id, "tablas": {}, "credenciales": {}, "almacen": None, "reuniones": reuniones}
+    informe: dict = {"user_id": user.id, "tablas": {}, "credenciales": {}, "almacen": None, "reuniones": reuniones,
+                     "sesiones_de_voz": voz}
     # 1. La ficha.
     user.email = originales.get(user.email) or f"{_seudonimo(user.id)}@erased.invalid"
     user.username = f"deleted_{_seudonimo(user.id)}"
@@ -129,20 +170,26 @@ def suprimir_persona(db: Session, user) -> dict:
                 if n:
                     informe["credenciales"][nombre] = n
                 continue
-            # 2. Copias exactas de su correo, nombre o usuario.
+            # 2. Copias exactas de su correo, nombre o usuario, SOLO en filas
+            #    de sus empresas (ámbito obligatorio).
             textos = [c for c in cols if isinstance(c.type, (String, Text)) and not c.primary_key and not c.foreign_keys]
-            if not textos or not originales:
+            if not textos or not originales or not empresas:
                 continue
-            ambito = None
-            if "organization_id" in cols and empresas:
-                ambito = or_(cols["organization_id"].in_(empresas), cols["organization_id"].is_(None))
+            columna_empresa = next((cols[n] for n in _COLUMNAS_DE_EMPRESA if n in cols), None)
+            if columna_empresa is None:
+                continue   # sin columna de empresa no hay ámbito: no se toca
+            ambito = columna_empresa.in_(sorted(empresas))
             for c in textos:
+                if c.name in _COLUMNAS_DE_EMPRESA:
+                    continue
                 largo = getattr(c.type, "length", None)
                 for original, nuevo in originales.items():
+                    if original in de_identidad and not _COLUMNAS_DE_IDENTIDAD.search(c.name):
+                        continue
                     if largo and len(original) > largo:
                         continue
                     valor = nuevo if not largo or len(nuevo) <= largo else BORRADO[:largo]
-                    cond = c == original if ambito is None else (c == original) & ambito
+                    cond = (c == original) & ambito
                     n = db.execute(update(tabla).where(cond).values({c.name: valor})).rowcount
                     if n:
                         informe["tablas"][f"{nombre}.{c.name}"] = informe["tablas"].get(f"{nombre}.{c.name}", 0) + n

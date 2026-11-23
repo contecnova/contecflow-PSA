@@ -19,6 +19,36 @@ def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
     db: Session = Depends(get_db),
 ) -> User:
+    """El usuario de la petición, con su empresa activa publicada en la sesión.
+
+    Auditoría 22-11-2026: resolver la identidad (buscar el usuario, la clave
+    de API o el token) se hace ANTES de saber la empresa, así que corre en un
+    contexto de sistema declarado («identidad»); al publicar la empresa la
+    sesión pasa a filtrar. Sin esa declaración, la sesión sin contexto avisaría
+    o cerraría (`TENANT_SESION_SIN_CONTEXTO`).
+    """
+    from app.db.contexto_de_tenant import contexto_de_sistema
+    with contexto_de_sistema(db, "identidad"):
+        return _resolver_usuario(request, credentials, db)
+
+
+def _aplicar_politicas(db: Session, user: User, request: Request) -> None:
+    """Módulos del rol, permisos por proyecto, matriz GRC y ABAC del prefijo.
+
+    Auditoría 22-11-2026 (A2, M1): GRC y ABAC se aplicaban solo en las guardas
+    globales, que no veían claves de API ni tokens OAuth y evaluaban la empresa
+    de la ficha. Aquí van con el principal resuelto y la empresa activa.
+    """
+    from app.core import modulos as _modulos, permisos_de_proyecto as _permisos
+    from app.core.abac_dependency import aplicar_abac_a_principal
+    from app.core.grc_enforce import aplicar_a_principal
+    _modulos.comprobar(db, user, request)
+    _permisos.comprobar(db, user, request)
+    aplicar_a_principal(db, user, request)
+    aplicar_abac_a_principal(db, user, request)
+
+
+def _resolver_usuario(request: Request, credentials, db: Session) -> User:
     # Accept token from Authorization header or httpOnly cookie
     token = None
     if credentials:
@@ -35,7 +65,8 @@ def get_current_user(
     if not token:
         raise error_http(status.HTTP_401_UNAUTHORIZED, "no_autenticado", {"WWW-Authenticate": "Bearer"},
                          detail="No autenticado")
-    payload = decode_token(token)
+    from app.core.security import decode_token_de_peticion
+    payload = decode_token_de_peticion(request, token)  # 01 B11: una vez por petición
 
     if not payload or payload.get("type") != "access":
         raise error_http(status.HTTP_401_UNAUTHORIZED, "token_no_valido", {"WWW-Authenticate": "Bearer"},
@@ -90,10 +121,14 @@ def get_current_user(
     db.info["current_user"] = user
 
     # Auditoria 2026-11: el acceso por modulo del rol y los permisos por
-    # proyecto se aplican.
-    from app.core import modulos as _modulos, permisos_de_proyecto as _permisos
-    _modulos.comprobar(db, user, request)
-    _permisos.comprobar(db, user, request)
+    # proyecto se aplican; 22-11-2026: también GRC y ABAC (`_aplicar_politicas`).
+    _aplicar_politicas(db, user, request)
+
+    # Políticas de cuenta (23-11-2026, docs/seguridad/politicas_de_cuenta.md):
+    # sesión viva (`sid`), inactividad y tope, IP/horario/país de la empresa y
+    # modo restringido (contraseña caducada o MFA obligatorio sin configurar).
+    from app.services.seguridad_de_cuentas.guardas import comprobar_peticion
+    comprobar_peticion(db, user, payload, request)
 
     # Observabilidad (22-11-2026): la empresa de la petición, para las métricas
     # HTTP por empresa (etiqueta acotada; nunca el usuario).
@@ -131,9 +166,9 @@ def _usuario_de_credencial_delegada(db: Session, request: Request, user_id: str,
         exigir_organizacion_activa(db, db.info["organization_id"])
     db.info["current_user"] = user
     request.state.credencial_delegada = {"tipo": tipo, "alcances": alcances}
-    from app.core import modulos as _modulos, permisos_de_proyecto as _permisos
-    _modulos.comprobar(db, user, request)
-    _permisos.comprobar(db, user, request)
+    # Auditoría 22-11-2026 (A2): la clave de API y el token OAuth pasan por la
+    # matriz GRC y la ABAC igual que la sesión.
+    _aplicar_politicas(db, user, request)
     return user
 
 
@@ -272,13 +307,18 @@ def get_current_client(
     if not token:
         raise error_http(401, "token_requerido", detail="Token de cliente requerido")
     from app.core.security import verify_client_token
-    client = verify_client_token(token, db)
+    from app.db.contexto_de_tenant import contexto_de_sistema
+    with contexto_de_sistema(db, "identidad"):
+        client = verify_client_token(token, db)
     if not client:
         raise error_http(401, "sesion_invalida", detail="Token de cliente inválido")
     # Revision 2026-11: no publicaba el tenant, y `TenantSession` sin contexto
     # no filtra (las rutas de colaboracion y conversaciones del portal).
     from app.db.session import publicar_contexto_de_tenant
     publicar_contexto_de_tenant(db, client, es_cliente=True)
+    # 23-11-2026: contrasena generada sin cambiar -> 403 con codigo.
+    from app.services.client_portal_service.autenticacion import exigir_contrasena_cambiada
+    exigir_contrasena_cambiada(client, request.scope.get("path"))
     return client
 
 
@@ -310,8 +350,12 @@ def get_current_portal_client(
     """
     from app.db.session import publicar_contexto_de_tenant
     from app.services.service_desk.portal_auth_service import require_portal_client
-    cliente = require_portal_client(authorization, portal_access_token, db)
+    from app.db.contexto_de_tenant import contexto_de_sistema
+    with contexto_de_sistema(db, "identidad"):
+        cliente = require_portal_client(authorization, portal_access_token, db)
     publicar_contexto_de_tenant(db, cliente, es_cliente=True)
+    from app.services.client_portal_service.autenticacion import exigir_contrasena_cambiada
+    exigir_contrasena_cambiada(cliente)
     return cliente
 
 
@@ -331,9 +375,13 @@ def get_portal_client_or_user(
     from app.db.session import publicar_contexto_de_tenant
     from app.services.service_desk.portal_auth_service import Lector, resolve_portal_client
 
-    cliente = resolve_portal_client(authorization, portal_access_token, db)
+    from app.db.contexto_de_tenant import contexto_de_sistema
+    with contexto_de_sistema(db, "identidad"):
+        cliente = resolve_portal_client(authorization, portal_access_token, db)
     if cliente is not None:
         publicar_contexto_de_tenant(db, cliente, es_cliente=True)
+        from app.services.client_portal_service.autenticacion import exigir_contrasena_cambiada
+        exigir_contrasena_cambiada(cliente, request.scope.get("path"))
         return Lector(cliente=cliente)
     credenciales = None
     if authorization and authorization.lower().startswith("bearer "):

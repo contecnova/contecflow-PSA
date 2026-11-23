@@ -17,8 +17,10 @@ from fastapi import APIRouter, Depends, File, Query, Request, UploadFile
 from sqlalchemy.orm import Session
 
 from app.core.abac_enforce import enforce_abac
+from app.core.network import ip_del_cliente
 from app.core.deps import requiere_capacidad
 from app.core.responses import APIListResponse, APIResponse
+from app.core.uploads import UploadProfile, read_and_validate_upload_sync, safe_filename
 from app.db.session import get_db
 from app.models.user import User
 from app.schemas.proveedores import InformeIn
@@ -33,7 +35,7 @@ def _periodo(desde: Optional[date], hasta: Optional[date]) -> tuple[date, date]:
 
 
 def _ip(request: Request) -> Optional[str]:
-    return request.client.host if request.client else None
+    return ip_del_cliente(request)
 
 
 @router.get("/me", summary="¿Soy contacto del portal? De qué proveedor y qué puedo hacer")
@@ -77,8 +79,9 @@ def crear_informe(payload: InformeIn, db: Session = Depends(get_db), u: User = D
 def adjuntar(rid: str, request: Request, file: UploadFile = File(...), db: Session = Depends(get_db),
              u: User = Depends(requiere_capacidad("proveedores.portal"))):
     enforce_abac(db, u, "supplier_portal", rid, action="update")
-    return APIResponse.ok(data=portal.subir_adjunto(db, u, rid, file.filename or "", file.content_type or "",
-                                                    file.file.read(), _ip(request)))
+    contenido = read_and_validate_upload_sync(file, UploadProfile.DOCUMENT)
+    return APIResponse.ok(data=portal.subir_adjunto(db, u, rid, safe_filename(file.filename), file.content_type or "",
+                                                    contenido, _ip(request)))
 
 
 @router.get("/reports/{rid}/attachments/{doc_id}/open", summary="Enlace firmado de un adjunto propio (auditado)")

@@ -14,9 +14,10 @@
 import { useId, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AlertTriangle, CheckCircle2, Eye, Languages, RefreshCw, Trash2, Undo2 } from 'lucide-react'
-import { Button, Confirm, FormField, IconButton, Input, Modal, Spinner, StatusBadge, Checkbox, Textarea } from '../ui'
+import { Button, FormField, IconButton, Input, Modal, Spinner, StatusBadge, Checkbox, Textarea } from '../ui'
 import type { StatusBadgeKind } from '../ui/StatusBadge'
 import { useToast } from '../../context/ToastContext'
+import { confirmar } from '../../context/ConfirmContext'
 import { useAppLang } from '../../i18n/AppLangContext'
 import type { EstadoDeVersionKb } from '../../services/api/traduccion'
 import { errorDeTraduccion, motivoDeTraduccion, nombreDeIdioma } from '../../hooks/useTraduccion'
@@ -94,7 +95,6 @@ export default function VersionesPanel({ adaptador }: { adaptador: AdaptadorDeVe
   const [elegidos, setElegidos] = useState<string[]>([])
   const [fallos, setFallos] = useState<{ language: string; reason: string }[]>([])
   const [abierta, setAbierta] = useState<VersionGenerica | null>(null)
-  const [borrando, setBorrando] = useState<VersionGenerica | null>(null)
 
   const refrescar = () => { qc.invalidateQueries({ queryKey: adaptador.clave }); adaptador.alCambiar?.() }
   const generar = useMutation({
@@ -109,7 +109,7 @@ export default function VersionesPanel({ adaptador }: { adaptador: AdaptadorDeVe
   })
   const borrar = useMutation({
     mutationFn: (language: string) => adaptador.borrar(language),
-    onSuccess: () => { setBorrando(null); refrescar(); toast.success(t('traduccion_admin.kb_borrada')) },
+    onSuccess: () => { refrescar(); toast.success(t('traduccion_admin.kb_borrada')) },
     onError: (e: unknown) => toast.error(mensajeDeError(e)),
   })
 
@@ -193,7 +193,9 @@ export default function VersionesPanel({ adaptador }: { adaptador: AdaptadorDeVe
                 <IconButton ariaLabel={t('traduccion_admin.kb_abrir_x', { idioma: nombreDeIdioma(v.language, lang) })} title={t('traduccion_admin.kb_abrir')} onClick={() => setAbierta(v)}>
                   <Eye size={14} aria-hidden="true" />
                 </IconButton>
-                <IconButton ariaLabel={t('traduccion_admin.kb_borrar_x', { idioma: nombreDeIdioma(v.language, lang) })} title={t('traduccion_admin.borrar')} onClick={() => setBorrando(v)}>
+                <IconButton ariaLabel={t('traduccion_admin.kb_borrar_x', { idioma: nombreDeIdioma(v.language, lang) })} title={t('traduccion_admin.borrar')} onClick={async () => {
+                  if (await confirmar({ title: t('traduccion_admin.kb_borrar_titulo'), message: t('traduccion_admin.kb_borrar_desc', { idioma: nombreDeIdioma(v.language, lang) }), danger: true })) borrar.mutate(v.language)
+                }}>
                   <Trash2 size={14} aria-hidden="true" />
                 </IconButton>
               </div>
@@ -213,14 +215,6 @@ export default function VersionesPanel({ adaptador }: { adaptador: AdaptadorDeVe
           onCambio={() => { refrescar(); setAbierta(null) }}
         />
       )}
-      <Confirm
-        open={!!borrando}
-        title={t('traduccion_admin.kb_borrar_titulo')}
-        description={t('traduccion_admin.kb_borrar_desc', { idioma: nombreDeIdioma(borrando?.language, lang) })}
-        onCancel={() => setBorrando(null)}
-        onConfirm={() => borrando && borrar.mutate(borrando.language)}
-        loading={borrar.isPending}
-      />
     </section>
   )
 }

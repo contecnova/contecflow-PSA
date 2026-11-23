@@ -21,7 +21,7 @@ class Sprint(Base):
     __tablename__ = "sprints"
 
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     project_id  = Column(String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
     number      = Column(Integer, nullable=False)          # Sprint 1, Sprint 2…
     name        = Column(String(255), nullable=False)      # "Sprint 1 — Auth module"
@@ -41,7 +41,7 @@ class Sprint(Base):
     to_improve        = Column(Text, nullable=True)
     action_items      = Column(Text, nullable=True)
 
-    created_by  = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    created_by  = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at  = Column(DateTime(timezone=True), server_default=func.now())
     updated_at  = Column(DateTime(timezone=True), onupdate=func.now())
     closed_at   = Column(DateTime(timezone=True), nullable=True)
@@ -64,7 +64,7 @@ class SprintTask(Base):
     __tablename__ = "sprint_tasks"
 
     id           = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     sprint_id    = Column(String(36), ForeignKey("sprints.id", ondelete="CASCADE"), nullable=False, index=True)
     task_id      = Column(String(36), ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False, index=True)
     is_active    = Column(Boolean, default=True)

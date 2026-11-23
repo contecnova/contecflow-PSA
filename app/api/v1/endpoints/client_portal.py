@@ -18,12 +18,13 @@ from pydantic import BaseModel
 import jwt
 import logging
 from app.core.codigos_de_error import error_http
+from app.core.network import ip_del_cliente
 
 logger = logging.getLogger("contecflow.client_portal")
 
-from app.db.session import get_db, publicar_contexto_de_tenant
+from app.db.session import get_db, publicar_contexto_de_tenant, sesion_de_sistema
 from app.core.config import settings
-from app.core.deps import require_any_manager
+from app.core.deps import requiere_capacidad
 from app.core.ratelimit import limiter
 from app.core.codigos_de_error import desde_valor, error
 from app.core.paginacion import Paginacion, lista_paginada, paginacion
@@ -49,6 +50,7 @@ def get_current_client(
     authorization: Optional[str] = Header(None),
     portal_access_token: Optional[str] = Cookie(None),
     db: Session = Depends(get_db),
+    request: Request = None,
 ) -> ClientUser:
     credentials_exception = error(401, "sesion_invalida")
     token = None
@@ -67,7 +69,15 @@ def get_current_client(
         raise credentials_exception
     if _svc.token_de_cliente_revocado(payload):  # auditoria 2026-11 #23: cerro sesion
         raise credentials_exception
-    client = _svc.get_active_client_by_id(db, client_id)
+    # Incidencia 7 de usuarios (23-11-2026): «no se puede entrar en el portal».
+    # Con `TENANT_SESION_SIN_CONTEXTO=cerrar` (por defecto desde el 23-11) esta
+    # búsqueda por id corría en una sesión sin empresa ni contexto de sistema y
+    # lanzaba `TenantIsolationError`: el login daba la cookie, pero `/portal/auth/me`
+    # y las 41 rutas que cuelgan de aquí respondían 500. Se declara el contexto de
+    # sistema solo para identificar al cliente, como `deps.get_current_client`.
+    from app.db.contexto_de_tenant import contexto_de_sistema
+    with contexto_de_sistema(db, "portal: identidad del cliente"):
+        client = _svc.get_active_client_by_id(db, client_id)
     if not client:
         raise credentials_exception
 
@@ -85,6 +95,9 @@ def get_current_client(
     # busca por id sin saber todavia de que organizacion es, asi que esa
     # consulta tiene que correr sin filtrar.
     publicar_contexto_de_tenant(db, client, es_cliente=True)
+    # 23-11-2026: con la contrasena generada por el sistema, solo el perfil, la
+    # marca y la sesion hasta cambiarla (403 `portal_cambio_de_contrasena_obligatorio`).
+    _svc.exigir_contrasena_cambiada(client, request.scope.get("path") if request is not None else None)
     return client
 
 
@@ -92,6 +105,7 @@ def get_current_client(
 
 
 from pydantic import Field, EmailStr, field_validator
+from app.schemas._enlaces import EnlaceSeguro  # auditoría 22-11-2026: solo http(s)
 
 class ClientLoginIn(BaseModel):
     email: EmailStr = Field(..., max_length=120)
@@ -136,9 +150,9 @@ class UATSessionIn(BaseModel):
     title: str = Field(..., min_length=4, max_length=120)
     description: Optional[str] = Field(None, max_length=2000)
     deliverable_id: Optional[str] = None
-    test_environment: Optional[str] = Field(None, max_length=200)
+    test_environment: EnlaceSeguro = Field(None, max_length=200)
     test_credentials: Optional[str] = Field(None, max_length=200)
-    test_guide_url: Optional[str] = Field(None, max_length=200)
+    test_guide_url: EnlaceSeguro = Field(None, max_length=200)
     available_from: Optional[date] = None
     deadline: Optional[date] = None
 
@@ -182,7 +196,7 @@ class DocumentIn(BaseModel):
     title: str = Field(..., min_length=4, max_length=120)
     description: Optional[str] = Field(None, max_length=2000)
     category: str = Field("general", max_length=40)
-    file_url: Optional[str] = Field(None, max_length=500)
+    file_url: EnlaceSeguro = Field(None, max_length=500)
     file_name: Optional[str] = Field(None, max_length=200)
     file_size_kb: Optional[int] = Field(None, ge=0, le=100000)
     requires_signature: bool = False
@@ -197,7 +211,7 @@ def list_clients(
     client_org_id: Optional[str] = None,
     pagina: Paginacion = Depends(paginacion),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("clientes.gestionar")),
 ):
     """``page``/``page_size`` con el mecanismo comun (total en ``X-Total-Count`` y
     ``meta.total``). Sin ellos, la misma lista entera de antes (hasta LIST_MAX_ROWS)."""
@@ -208,7 +222,7 @@ def list_clients(
 def create_client(
     payload: ClientCreateIn,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("clientes.gestionar")),
 ):
     try:
         return APIResponse.ok(data=_svc.create_client(payload, db))
@@ -216,12 +230,28 @@ def create_client(
         raise desde_valor(400, e)
 
 
+@router.post("/clients/{client_id}/send-access", summary="Generar y enviar una contraseña nueva al cliente")
+def send_client_access(
+    client_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(requiere_capacidad("clientes.gestionar")),
+):
+    """23-11-2026 (M10 del 04b): el equipo no fija ni ve la contraseña del cliente.
+    Se genera, se envía a su correo y queda en auditoría (sin la contraseña)."""
+    from app.services.client_portal_service.clientes import reenviar_acceso_y_auditar
+    try:
+        resultado = reenviar_acceso_y_auditar(client_id, db, current_user)
+    except ValueError as e:
+        raise desde_valor(404, e)
+    return APIResponse.ok(data=resultado)
+
+
 @router.patch("/clients/{client_id}", summary="Actualizar cliente")
 def update_client(
     client_id: str,
     payload: dict = Body(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("clientes.gestionar")),
 ):
     try:
         return APIResponse.ok(data=_svc.update_client(client_id, payload, db))
@@ -233,7 +263,7 @@ def update_client(
 def delete_client(
     client_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("clientes.gestionar")),
 ):
     enforce_abac(db, current_user, "client_portal_client", client_id, action="delete")
     try:
@@ -246,18 +276,19 @@ def delete_client(
 
 @router.post("/auth/login", summary="Login cliente portal")
 @limiter.limit("5/minute")
-def client_login(request: Request, response: Response, payload: ClientLoginIn, db: Session = Depends(get_db)):
+def client_login(request: Request, response: Response, payload: ClientLoginIn, db: Session = Depends(sesion_de_sistema("portal: login de cliente"))):
     try:
         result = _svc.client_login(payload.email, payload.password, db)
     except ValueError as e:
         raise desde_valor(401, e)
     token = result["token"]
-    response.set_cookie(
-        "portal_access_token", token,
-        httponly=True, samesite="lax",
-        secure=settings.ENVIRONMENT == "production",
-        max_age=CLIENT_TOKEN_EXPIRE_HOURS * 3600,
-    )
+    # Auditoría 22-11-2026 (M3): la misma política de cookie que la sesión del
+    # personal (`COOKIE_OPTS`: Secure también en staging, no solo en producción)
+    # y su testigo CSRF para el doble envío.
+    from app.core.csrf import issue_csrf_cookie
+    from app.services.auth_service.tokens_y_cookies import COOKIE_OPTS
+    response.set_cookie("portal_access_token", token, max_age=CLIENT_TOKEN_EXPIRE_HOURS * 3600, **COOKIE_OPTS)
+    issue_csrf_cookie(response)
     return APIResponse.ok(data={"ok": True, "client": result["client"]})
 
 
@@ -271,13 +302,8 @@ def client_logout(
     # 72 h): una copia seguia entrando. Ahora se revoca su `jti`.
     token = authorization.split(" ", 1)[1] if authorization and authorization.startswith("Bearer ") else None
     _svc.revocar_token_de_cliente(token or portal_access_token)
-    response.delete_cookie(
-        "portal_access_token",
-        httponly=True,
-        samesite="lax",
-        secure=settings.ENVIRONMENT == "production",
-        path="/",
-    )
+    from app.services.auth_service.tokens_y_cookies import COOKIE_OPTS
+    response.delete_cookie("portal_access_token", path="/", **COOKIE_OPTS)
     return APIResponse.ok(data={"detail": "Sesión cerrada correctamente"})
 
 
@@ -332,7 +358,7 @@ def approve_client_invoice(
 def create_public_share_link(
     project_id: str,
     db: Session = Depends(get_db),
-    _: User = Depends(require_any_manager),
+    _: User = Depends(requiere_capacidad("clientes.gestionar")),
 ):
     try:
         return APIResponse.ok(data=_svc.create_public_share_link(project_id, db))
@@ -343,7 +369,7 @@ def create_public_share_link(
 @router.get("/view/{token}", summary="Vista pública de estado de proyecto por token")
 def view_public_project_status(
     token: str,
-    db: Session = Depends(get_db),
+    db: Session = Depends(sesion_de_sistema("portal: enlace de estado firmado")),
 ):
     try:
         return APIResponse.ok(data=_svc.view_public_project_status(token, db))
@@ -397,7 +423,7 @@ def list_all_feature_requests(
     client_org_id: Optional[str] = None,
     status: Optional[str] = None,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("clientes.gestionar")),
 ):
     return APIListResponse.ok(items=_svc.list_all_feature_requests(project_id, client_id, client_org_id, status, current_user, db))
 
@@ -457,7 +483,7 @@ def respond_to_fr(
     fr_id: str,
     payload: FeatureResponseIn,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("clientes.gestionar")),
 ):
     try:
         return APIResponse.ok(data=_svc.respond_to_fr(fr_id, payload, current_user, db))
@@ -495,7 +521,7 @@ def list_uat_client(
 def list_uat_team(
     project_id: Optional[str] = None,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("clientes.gestionar")),
 ):
     return APIListResponse.ok(items=_svc.list_uat_team(project_id, db))
 
@@ -504,7 +530,7 @@ def list_uat_team(
 def create_uat(
     payload: UATSessionIn,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("clientes.gestionar")),
 ):
     raise error_http(400, "usar_post_uat")
 
@@ -514,7 +540,7 @@ def create_uat_for_project(
     project_id: str,
     payload: UATSessionIn,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("clientes.gestionar")),
 ):
     return APIResponse.ok(data=_svc.create_uat_for_project(project_id, payload, db))
 
@@ -524,7 +550,7 @@ def add_test_case(
     uat_id: str,
     payload: UATTestCaseIn,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("clientes.gestionar")),
 ):
     return APIResponse.ok(data=_svc.add_test_case(uat_id, payload, db))
 
@@ -560,7 +586,7 @@ def update_issue(
     issue_id: str,
     status: str = Query(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("clientes.gestionar")),
 ):
     try:
         return APIResponse.ok(data=_svc.update_uat_issue(issue_id, status, current_user, db))
@@ -583,7 +609,7 @@ def get_client_messages(
 def get_team_messages(
     project_id: str = Query(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("clientes.gestionar")),
 ):
     return APIListResponse.ok(items=_svc.get_team_messages(project_id, db))
 
@@ -604,7 +630,7 @@ def send_client_message(
 def send_team_message(
     payload: MessageIn,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("clientes.gestionar")),
 ):
     return APIResponse.ok(data=_svc.send_team_message(payload, current_user, db))
 
@@ -642,7 +668,7 @@ def get_client_documents(
 def get_all_documents(
     project_id: str = Query(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("clientes.gestionar")),
 ):
     return APIListResponse.ok(items=_svc.get_all_documents(project_id, db))
 
@@ -652,7 +678,7 @@ def upload_document(
     payload: DocumentIn,
     project_id: str = Query(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("clientes.gestionar")),
 ):
     return APIResponse.ok(data=_svc.upload_document(payload, project_id, current_user, db))
 
@@ -669,12 +695,7 @@ def sign_document(
     current_client: ClientUser = Depends(get_current_client),
     db: Session = Depends(get_db),
 ):
-    ip = ""
-    if request:
-        try:
-            ip = request.client.host or ""
-        except Exception as e:
-            logging.getLogger(__name__).warning(f"No se pudo obtener IP del cliente: {e}")
+    ip = (ip_del_cliente(request) or "") if request else ""  # 01 B9: IP real tras el proxy
     try:
         return APIResponse.ok(data=_svc.sign_document(
             doc_id,
@@ -763,7 +784,7 @@ def create_survey(
     client_id: str = Query(...),
     title: str = Query(default="Encuesta de satisfacción"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("clientes.gestionar")),
 ):
     return APIResponse.ok(data=_svc.create_survey(project_id, client_id, title, db))
 
@@ -788,7 +809,7 @@ def respond_survey(
 def get_portal_stats(
     project_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("clientes.gestionar")),
 ):
     return APIResponse.ok(data=_svc.get_portal_stats(project_id, db))
 
@@ -817,7 +838,7 @@ def _org_key(current_user: User) -> str:
 @router.get("/translations", summary="Obtener traducciones personalizadas del portal")
 def get_portal_translations(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("clientes.gestionar")),
 ):
     return APIResponse.ok(data=traducciones_del_portal(
         db, _org_key(current_user)))
@@ -827,7 +848,7 @@ def get_portal_translations(
 def save_portal_translations(
     data: dict,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("clientes.gestionar")),
 ):
     guardar_traducciones_del_portal(
         db, current_user, _org_key(current_user), data)

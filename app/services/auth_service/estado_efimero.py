@@ -237,37 +237,43 @@ def _redis_circuit_break(reason: str) -> None:
 
 
 _POLITICA_CACHE: dict = {"hasta": 0.0, "valor": None}
+#: 23-11-2026: la politica es por empresa (docs/seguridad/politicas_de_cuenta.md).
+_POLITICA_POR_EMPRESA: dict = {}
 
 
-def _politica_de_bloqueo() -> tuple[int, int, int]:
+def _politica_de_bloqueo(org_id: Optional[str] = None) -> tuple[int, int, int]:
     """(intentos, ventana, bloqueo) del ajuste en caliente, con `.env` de respaldo.
 
     Auditoria 2026-11: se leia el valor estatico de Settings, asi que cambiar
     estos ajustes en Ajustes > Seguridad no tenia ningun efecto. Cache de 60 s
-    para no abrir una sesion en cada fallo.
+    para no abrir una sesion en cada fallo. 23-11-2026: con `org_id`, la de esa
+    empresa (el cubo de la cuenta, cuando ya se sabe de quien es).
     """
     ahora = time.time()
     valor = (settings.LOGIN_MAX_ATTEMPTS, settings.LOGIN_ATTEMPT_WINDOW_SECONDS, settings.LOGIN_LOCKOUT_SECONDS)
     # La cache se invalida tambien si cambian los valores de respaldo (.env).
-    if _POLITICA_CACHE["valor"] is not None and _POLITICA_CACHE["hasta"] > ahora             and _POLITICA_CACHE.get("base") == valor:
-        return _POLITICA_CACHE["valor"]
+    cache = _POLITICA_CACHE if not org_id else _POLITICA_POR_EMPRESA.setdefault(org_id, {"hasta": 0.0, "valor": None})
+    if cache["valor"] is not None and cache["hasta"] > ahora and cache.get("base") == valor:
+        return cache["valor"]
     base = valor
     try:
         from app.db.session import SessionLocal
         from app.services.settings_service import get_runtime_int
         db = SessionLocal()
+        from app.db.contexto_de_tenant import fijar_contexto as _fijar_contexto
+        _fijar_contexto(db, org_id, "política de login global")  # auditoría 22-11-2026: TENANT_SESION_SIN_CONTEXTO=cerrar
         try:
-            valor = tuple(max(1, get_runtime_int(db, k, default=v) or v) for k, v in zip(
+            valor = tuple(max(1, get_runtime_int(db, k, org_id) or v) for k, v in zip(
                 ("LOGIN_MAX_ATTEMPTS", "LOGIN_ATTEMPT_WINDOW_SECONDS", "LOGIN_LOCKOUT_SECONDS"), valor))
         finally:
             db.close()
     except Exception:
         logging.getLogger(__name__).warning("politica de bloqueo: se usan los valores de .env", exc_info=True)
-    _POLITICA_CACHE.update(hasta=ahora + 60, valor=valor, base=base)
+    cache.update(hasta=ahora + 60, valor=valor, base=base)
     return valor
 
 
-def register_login_failure(bucket: str, multiplicador: int = 1) -> int:
+def register_login_failure(bucket: str, multiplicador: int = 1, org_id: Optional[str] = None) -> int:
     """Register failed login and return lockout seconds if account got locked.
 
     `multiplicador`: el umbral es `multiplicador` veces el de la politica
@@ -275,7 +281,7 @@ def register_login_failure(bucket: str, multiplicador: int = 1) -> int:
     """
     if settings.ENVIRONMENT == "development" and not en_pruebas():
         return 0
-    max_intentos, ventana, bloqueo = _politica_de_bloqueo()
+    max_intentos, ventana, bloqueo = _politica_de_bloqueo(org_id)
     max_intentos = max_intentos * max(1, int(multiplicador))
     r = get_sso_redis()
     fail_key = f"{LOGIN_FAIL_PREFIX}{bucket}"
@@ -335,8 +341,26 @@ def password_reset_bucket(identifier: str, ip: Optional[str]) -> str:
 
 
 def register_password_reset_request(bucket: str) -> int:
-    """Register password reset request and return lockout seconds if throttled."""
+    """Register password reset request and return lockout seconds if throttled.
+
+    M53 (auditoría 22-11-2026): con Redis el contador es compartido entre
+    procesos (`INCR` + caducidad de la ventana); antes era un dict por proceso y
+    con N workers se podían pedir N veces más reseteos. Sin Redis, el de memoria.
+    """
     now = time.time()
+    r = get_sso_redis()
+    if r is not None:
+        try:
+            clave = f"pwreset:req:{bucket}"
+            n = int(r.incr(clave))
+            if n == 1:
+                r.expire(clave, PASSWORD_RESET_REQUEST_WINDOW_SECONDS)
+            if n > PASSWORD_RESET_REQUEST_MAX_PER_WINDOW:
+                ttl = int(r.ttl(clave) or 0)
+                return max(ttl, 1)
+            return 0
+        except Exception as exc:
+            logger.warning("Redis rate limit for password reset failed: %s", exc)
     with _sso_states_lock:
         st = _password_reset_req_fallback.get(bucket)
         if not st or st.get("window_until", 0) < now:
@@ -394,9 +418,10 @@ def consume_password_reset_token(user_id: str, jti: Optional[str]) -> None:
     if r is not None:
         try:
             if jti:
-                stored = r.get(key)
-                if stored and stored == jti:
-                    r.delete(key)
+                # M53: comprobar y borrar en UNA operación (script Lua): antes un
+                # GET y un DELETE separados dejaban usar el mismo enlace dos veces.
+                r.eval("if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) "
+                       "else return 0 end", 1, key, jti)
             else:
                 r.delete(key)
             return

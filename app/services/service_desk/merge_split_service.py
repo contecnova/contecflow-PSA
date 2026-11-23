@@ -22,6 +22,19 @@ def ensure_distinct_tickets(primary: Ticket, duplicate: Ticket) -> None:
         raise error(400, "ticket_fusionar_consigo_mismo")
 
 
+def ensure_same_customer(primary: Ticket, duplicate: Ticket) -> None:
+    """Solo se fusionan tickets de la misma empresa y del mismo cliente.
+
+    Auditoria 2026-11-22 (A-SD15): la fusion movia los comentarios (tambien
+    los publicos) del duplicado al primario sin mirar de quien era cada uno:
+    un cliente veia en su portal la conversacion de otro cliente.
+    """
+    if primary.organization_id != duplicate.organization_id:
+        raise error(409, "ticket_fusionar_otra_empresa")
+    if (primary.client_id or None) != (duplicate.client_id or None):
+        raise error(409, "ticket_fusionar_otro_cliente")
+
+
 def apply_duplicate_closure(primary: Ticket, duplicate: Ticket) -> None:
     duplicate.status = TicketStatus.closed
     duplicate.resolution = f"Ticket duplicado. Fusionado en {primary.number}."
@@ -47,6 +60,7 @@ def merge_ticket_record(db: Session, ticket_id: str, merged_ticket_id: str, reas
     primary = get_ticket_or_404(db, ticket_id, "Ticket primario no encontrado")
     duplicate = get_ticket_or_404(db, merged_ticket_id, "Ticket a fusionar no encontrado")
     ensure_distinct_tickets(primary, duplicate)
+    ensure_same_customer(primary, duplicate)
 
     apply_duplicate_closure(primary, duplicate)
     transfer_ticket_comments(db, duplicate.id, primary.id)

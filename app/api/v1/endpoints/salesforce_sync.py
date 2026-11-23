@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_db, require_any_manager
+from app.core.deps import get_db, requiere_capacidad
 from app.core.responses import APIResponse
 from app.models.user import User
 from app.services import salesforce_service
@@ -13,6 +13,22 @@ STAGE_MAP = salesforce_service.STAGE_MAP
 
 
 @router.post(
+    "/integrations/salesforce/test",
+    summary="Probar la conexión con Salesforce (solo lectura)",
+)
+def test_salesforce_connection(
+    instance_id: str = Query(..., description="IntegrationInstance ID for Salesforce"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(requiere_capacidad("integraciones.responsables")),
+):
+    """23-11-2026: credencial (`/limits`) y lectura de oportunidades contra la
+    instancia real; dice qué ha verificado (`verificado`) y que la salida no
+    existe. docs/integraciones/pruebas_de_conexion.md."""
+    org_id = getattr(current_user, "organization_id", None)
+    return APIResponse.ok(data=salesforce_service.probar_conexion(db, instance_id, org_id))
+
+
+@router.post(
     "/integrations/salesforce/sync-opportunities",
     summary="Sync Salesforce opportunities -> Pipeline",
 )
@@ -20,7 +36,7 @@ def sync_salesforce_opportunities(
     instance_id: str = Query(..., description="IntegrationInstance ID for Salesforce"),
     direction: str = Query(default="inbound", description="inbound|outbound|bidirectional"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("integraciones.responsables")),
 ):
     org_id = getattr(current_user, "organization_id", None)
     # Las comprobaciones (instancia, conector, credenciales) siguen en la

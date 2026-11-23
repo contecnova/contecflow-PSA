@@ -35,15 +35,19 @@ def send_slack_message(config: SlackConfig, text: str, channel: str = None) -> t
     from app.services.entrega_saliente import enviar_a_webhook
     from app.services.textos_de_salida import nombre_de_marca
 
-    ch = channel or config.default_channel or "#general"
+    ch = channel or config.default_channel or settings.SLACK_CANAL_POR_DEFECTO
 
-    if config.platform == "slack" and config.bot_token:
+    # 23-11-2026 (03 A-RZ2): el token se guarda cifrado; `decrypt_value` devuelve
+    # tal cual los valores antiguos en claro hasta que se re-guarden o migren.
+    from app.core.encryption import decrypt_value
+    token = decrypt_value(config.bot_token) if config.bot_token else None
+    if config.platform == "slack" and token:
         r = enviar_a_webhook(
             f"{settings.SLACK_API_BASE}/chat.postMessage",
             # 18-11-2026: firma con el nombre de la empresa (o el del producto), no «Contecflow» fijo.
             {"channel": ch, "text": text, "username": nombre_de_marca(None, getattr(config, "organization_id", None)),
              "icon_emoji": ":rocket:"},
-            headers={"Authorization": f"Bearer {config.bot_token}"},
+            headers={"Authorization": f"Bearer {token}"},
             timeout=5, campo="SLACK_API_BASE",
         )
         if r.ok:
@@ -51,6 +55,8 @@ def send_slack_message(config: SlackConfig, text: str, channel: str = None) -> t
                 return True, None
             return False, (r.datos or {}).get("error", "Slack API error")
         _logger.warning("Fallo enviando mensaje vía Slack bot token: %s", r.error)
+        if not config.webhook_url:
+            return False, r.error or "slack_error"
 
     if config.webhook_url:
         body = {"text": text} if config.platform == "teams" else {"text": text, "channel": ch}
@@ -59,8 +65,10 @@ def send_slack_message(config: SlackConfig, text: str, channel: str = None) -> t
             _logger.warning("Webhook delivery failed for platform=%s: %s", config.platform, r.error)
         return r.ok, r.error
 
-    _logger.info("[SLACK SIMULATED] %s → %s: %s", config.platform, ch, text)
-    return True, None
+    # Ronda 2 auditoría 2026-11-22: sin token ni webhook NO se ha enviado nada.
+    # Antes devolvía éxito («SIMULATED») y la prueba de conexión salía verde.
+    _logger.info("Slack/Teams sin token ni webhook (%s → %s): no se envía", config.platform, ch)
+    return False, "slack_sin_configurar"
 
 
 def get_slack_config(db: Session) -> list:
@@ -74,6 +82,19 @@ def get_slack_config(db: Session) -> list:
         "subscriptions": json.loads(c.subscriptions or "[]"),
         "last_ping_at": str(c.last_ping_at)[:16] if c.last_ping_at else None,
     } for c in configs]
+
+
+def _token_cifrado(payload_dict: dict, actual=None):
+    """El `bot_token` a guardar: cifrado (03 A-RZ2). Sin la clave en el
+    formulario se conserva el guardado (la pantalla nunca lo recibe de vuelta);
+    cadena vacía lo borra."""
+    if "bot_token" not in payload_dict:
+        return actual
+    nuevo = (payload_dict.get("bot_token") or "").strip()
+    if not nuevo:
+        return None
+    from app.core.encryption import encrypt_value
+    return encrypt_value(nuevo)
 
 
 def create_or_update_slack_config(payload_dict: dict, db: Session, organization_id=None) -> dict:
@@ -100,9 +121,9 @@ def create_or_update_slack_config(payload_dict: dict, db: Session, organization_
     existing = q.first()
     if existing:
         existing.workspace_name = payload_dict.get("workspace_name")
-        existing.bot_token = payload_dict.get("bot_token")
+        existing.bot_token = _token_cifrado(payload_dict, existing.bot_token)
         existing.webhook_url = payload_dict.get("webhook_url")
-        existing.default_channel = payload_dict.get("default_channel", "#contecflow-alerts")
+        existing.default_channel = payload_dict.get("default_channel") or settings.SLACK_CANAL_POR_DEFECTO
         existing.subscriptions = subs
         existing.is_active = True
         db.commit()
@@ -111,9 +132,9 @@ def create_or_update_slack_config(payload_dict: dict, db: Session, organization_
         platform=platform,
         organization_id=organization_id,
         workspace_name=payload_dict.get("workspace_name"),
-        bot_token=payload_dict.get("bot_token"),
+        bot_token=_token_cifrado(payload_dict),
         webhook_url=payload_dict.get("webhook_url"),
-        default_channel=payload_dict.get("default_channel", "#contecflow-alerts"),
+        default_channel=payload_dict.get("default_channel") or settings.SLACK_CANAL_POR_DEFECTO,
         subscriptions=subs,
     )
     db.add(config); db.commit()

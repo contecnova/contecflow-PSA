@@ -2,7 +2,7 @@
 
 Referencia de las tareas de fondo. Fuente de verdad: `app/worker.py`
 (`celery_app`, `beat_schedule` y las tareas `@celery_app.task`). Revisado contra
-el código el 2026-11-16; si algo de aquí no coincide con `app/worker.py`, manda
+el código el 2026-11-23 (53 entradas de `beat_schedule`, 57 tareas); si algo de aquí no coincide con `app/worker.py`, manda
 el código.
 
 ## Cómo se ejecutan
@@ -32,6 +32,18 @@ el código.
   - *por fila* (`TAREAS_POR_FILA`): el servicio publica la organización de cada
     fila que procesa;
   - *global* (`TAREAS_GLOBALES`): mantenimiento de plataforma.
+
+  Auditoría 22-11-2026: toda tarea corre como **trabajo de sistema declarado**
+  (`app.worker.TareaDeSistema` → `trabajo_de_sistema("tarea:<nombre>")`, también
+  cuando APScheduler la llama directamente), así que una sesión del worker sin
+  empresa ya no pasa en silencio por el filtro (`app/db/contexto_de_tenant.py`).
+  Para trabajar en una empresa, `con_empresa(db, org)` por iteración (lo usa
+  `en_cada_organizacion`; no admite `None`). Fuera de una tarea (scripts), una
+  sesión sin contexto falla (`TENANT_SESION_SIN_CONTEXTO=cerrar`, defecto desde
+  el 23-11-2026): decláralo con `declarar_sistema(db, "motivo")` o
+  `fijar_contexto(db, org, "motivo")`. `segundo_plano.encolar` sin Celery corre
+  la función dentro de `trabajo_de_sistema("segundo plano: <función>")`.
+
 - **Errores**: un fallo se registra con traza y se relanza (Celery lo marca
   FAILURE); no se devuelve `{"error": ...}`.
 - **Métricas**: con APScheduler, `attach_apscheduler_metrics` mide cada trabajo
@@ -96,6 +108,16 @@ Horas en `DEFAULT_TIMEZONE`. Día de la semana en notación Celery (0 = domingo)
 | `kedb-effectiveness-scan` | `kedb_effectiveness_scan` | diaria 07:00 | organización | Efectividad de cada error conocido |
 | `alert-correlation-scan` | `alert_correlation_scan` | cada 30 min | organización | Agrupa alertas abiertas y crea Problems |
 | `bi-connector-sync` | `sincronizar_conectores_etl` | cada hora :01 | global | Encola `sync_connector_data` por cada conector ETL activo |
+| `evm-curva-s-diaria` | `guardar_puntos_de_curva_s` | diaria 02:25 | organización | Un punto diario de la curva S (PV, EV, AC) de cada proyecto activo (migración 173) |
+| `externos-caducidad` | `externos_caducidad` | diaria 06:30 | organización | Externos: aviso de fin de acceso, accesos caducados y asignaciones vencidas (migración 178) |
+| `seguridad-de-cuentas-diario` | `seguridad_de_cuentas_diario` | diaria 06:40 | organización | Políticas de cuenta (migración 199): desactiva cuentas inactivas, avisa de la caducidad de contraseñas y caduca dispositivos de confianza |
+| `alm-altas-y-bajas` | `alm_altas_y_bajas` | diaria 06:50 | organización | Licencias y hardware, fase 4: bajas programadas y fines de contrato, licencias tras la baja y devoluciones |
+| `alm-daily` | `alm_daily` | diaria 07:10 | organización | Licencias y hardware: asignaciones vencidas, renovaciones (`auto_renew`, decisiones), preavisos y préstamos |
+| `alm-uso-sincronizar` | `alm_uso_sincronizar` | cada hora :35 | organización | Licencias, fase 2: lee cada fuente de uso activa cuyo intervalo (`ALM_USAGE_SYNC_INTERVAL_HOURS`) venció |
+| `alm-uso-pasada-diaria` | `alm_uso_pasada_diaria` | diaria 07:40 | organización | Licencias, fase 2: software no controlado en gastos y recuperación de licencias sin uso |
+| `reuniones-sondeo` | `reuniones_sondeo` | cada 15 min | organización | Asistente de reuniones: recoge Teams/Meet terminadas, manda bots de calendario y renueva la suscripción de Graph |
+| `reuniones-retencion` | `reuniones_retencion` | diaria 03:40 | organización | Asistente de reuniones: borra audio y transcripciones caducados (respeta el bloqueo legal) |
+| `demanda-plazos` | `demanda_plazos` | cada hora :10 | organización | Flujo de demanda: avisa al acercarse y al vencer el plazo de cada fase (migración 195) |
 
 ## Límites y reintentos
 

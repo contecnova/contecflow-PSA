@@ -70,30 +70,40 @@ def process_due_recurring_records(db, current_user) -> dict:
     generated = []
     for r in due:
         try:
-            generate_recurring_now_record(r.id, db, current_user)
+            generate_recurring_now_record(r.id, db, current_user, solo_si_toca=True)
             generated.append(r.id)
         except Exception as e:
+            # M17 (auditoría 22-11-2026): sin rollback, un fallo dejaba la sesión
+            # abortada y las siguientes plantillas fallaban todas.
+            db.rollback()
             logger.warning(f"Failed to generate recurring item {r.id}: {e}", exc_info=True)
     return {"processed": len(due), "generated": len(generated)}
 
 
-def generate_recurring_now_record(rec_id: str, db, current_user) -> dict:
-    import re as _re
+def generate_recurring_now_record(rec_id: str, db, current_user, solo_si_toca: bool = False) -> dict:
     import calendar as _cal
-    r = db.query(RecurringInvoice).options(joinedload(RecurringInvoice.project)).filter(RecurringInvoice.id == rec_id).first()
+    from decimal import ROUND_HALF_UP, Decimal
+    from app.db.session import is_postgres
+    q = db.query(RecurringInvoice).options(joinedload(RecurringInvoice.project)).filter(RecurringInvoice.id == rec_id)
+    # M17: la plantilla se bloquea mientras se genera: dos clics o dos workers no
+    # sacan dos facturas del mismo periodo (el segundo ve la `next_date` ya movida).
+    if is_postgres():
+        q = q.with_for_update(of=RecurringInvoice)
+    r = q.first()
     if not r: raise ErrorDeDominio(404)
     if not r.is_active: raise error(400, "factura_recurrente_inactiva")
-    year = datetime.now(timezone.utc).year
-    max_inv = db.query(func.max(Invoice.number)).filter(Invoice.number.like(f"INV-{year}-%")).scalar()
-    if max_inv:
-        _m = _re.search(r"(\d+)$", max_inv)
-        next_inv_num = (int(_m.group(1)) + 1) if _m else 1
-    else:
-        next_inv_num = 1
-    inv_number = f"INV-{year}-{next_inv_num:04d}"
-    subtotal   = r.amount
-    tax_amount = round(subtotal * r.tax_rate / 100, 2)
-    total      = round(subtotal + tax_amount, 2)
+    if solo_si_toca and r.next_date and r.next_date > timeutil.today():
+        return {"ok": True, "skipped": True, "next_date": str(r.next_date)}
+    # Auditoría 22-11-2026 (M17): la secuencia de facturas (`next_invoice_number`,
+    # bloqueada); antes `max(INV-año)+1` ignoraba la secuencia y dos clics daban
+    # el mismo número.
+    from app.services.billing_reports_service.facturas import next_invoice_number
+    inv_number = next_invoice_number(db)
+    # M17: importes en céntimos exactos (Decimal, redondeo comercial), no float.
+    _c = Decimal("0.01")
+    sub_d      = Decimal(str(r.amount or 0)).quantize(_c, rounding=ROUND_HALF_UP)
+    tax_d      = (sub_d * Decimal(str(r.tax_rate or 0)) / 100).quantize(_c, rounding=ROUND_HALF_UP)
+    subtotal, tax_amount, total = float(sub_d), float(tax_d), float(sub_d + tax_d)
     inv = Invoice(
         number=inv_number, project_id=r.project_id, contract_id=r.contract_id,
         client_name=r.client_name or (r.project.client_name if r.project else None),

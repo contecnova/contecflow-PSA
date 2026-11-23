@@ -1,5 +1,5 @@
 from pydantic_settings import BaseSettings
-from pydantic import AliasChoices, Field, ValidationInfo, field_validator
+from pydantic import AliasChoices, Field, ValidationInfo, field_validator, model_validator
 from typing import ClassVar, List, Optional
 
 from app.core.config_groups import (
@@ -20,6 +20,8 @@ from app.core.config_groups import (
     TraduccionSettingsMixin,
     UmbralesSettingsMixin,
     ValoresDeNegocioSettingsMixin,
+    SeguridadSalidaSettingsMixin,
+    SeguridadDeCuentasSettingsMixin,
 )
 
 
@@ -40,6 +42,8 @@ class Settings(
     TraduccionSettingsMixin,
     UmbralesSettingsMixin,
     ValoresDeNegocioSettingsMixin,
+    SeguridadSalidaSettingsMixin,
+    SeguridadDeCuentasSettingsMixin,
     BaseSettings,
 ):
     """
@@ -143,7 +147,14 @@ class Settings(
     # Revisión 2026-11: umbrales del informe de cumplimiento (app/services/informe_de_cumplimiento.py).
     COMPLIANCE_STALE_ACCOUNT_DAYS: int = Field(default=90, env="COMPLIANCE_STALE_ACCOUNT_DAYS")
     COMPLIANCE_GDPR_MAX_DAYS: int = Field(default=30, env="COMPLIANCE_GDPR_MAX_DAYS")
+    # Auditoría 22-11-2026 (A64): días que se guarda (cifrada) la copia de datos de
+    # una solicitud RGPD de acceso/portabilidad tras completarse; luego se borra.
+    COMPLIANCE_GDPR_EXPORT_TTL_DAYS: int = Field(default=30, env="COMPLIANCE_GDPR_EXPORT_TTL_DAYS")
     COMPLIANCE_MFA_MIN_COVERAGE_PCT: float = Field(default=100.0, env="COMPLIANCE_MFA_MIN_COVERAGE_PCT")
+    # Auditoría 22-11-2026 (01 B7): NO es una segunda política de contraseñas. La
+    # política es `MIN_PASSWORD_LENGTH` (por empresa en Ajustes); esto es el umbral
+    # con el que el informe de cumplimiento la juzga (`informe_de_cumplimiento`): con
+    # el 8 por defecto el informe marca la política como insuficiente, a propósito.
     COMPLIANCE_MIN_PASSWORD_LENGTH: int = Field(default=12, env="COMPLIANCE_MIN_PASSWORD_LENGTH")
     # Revisión 2026-11: ninguna política de retención puede guardar menos días que esto.
     RETENTION_MIN_DAYS: int = Field(default=30, env="RETENTION_MIN_DAYS")
@@ -347,9 +358,16 @@ class Settings(
     # 18-11-2026: nombre del impuesto en las facturas (IVA, VAT, GST, TVA...).
     # Vacío = el nombre habitual en el idioma de la factura (IVA, VAT, TVA, MwSt...).
     TAX_NAME: str = Field(default="", env="TAX_NAME")
+    # Auditoría 22-11-2026 (A54): datos fiscales del emisor en la factura PDF
+    # (razón social, NIF, domicilio, IBAN); por empresa en Config. dinámica → locale.
+    INVOICE_ISSUER_NAME: str = Field(default="", env="INVOICE_ISSUER_NAME")
+    INVOICE_ISSUER_TAX_ID: str = Field(default="", env="INVOICE_ISSUER_TAX_ID")
+    INVOICE_ISSUER_ADDRESS: str = Field(default="", env="INVOICE_ISSUER_ADDRESS")
+    INVOICE_ISSUER_IBAN: str = Field(default="", env="INVOICE_ISSUER_IBAN")
     # 18-11-2026: sector de la empresa para las narrativas de IA del BI
     # (vacío = no se presupone ninguno; antes, «consultoría IT» fijo).
     COMPANY_SECTOR: str = Field(default="", env="COMPANY_SECTOR")
+    # La única política de longitud (ver COMPLIANCE_MIN_PASSWORD_LENGTH, que solo la juzga).
     MIN_PASSWORD_LENGTH: int = Field(default=8, env="MIN_PASSWORD_LENGTH")
     # bcrypt cost factor: 12 = default razonable en dev; 14+ recomendado en prod.
     # Cada incremento duplica el coste de hashing.
@@ -651,6 +669,22 @@ class Settings(
     BI_ETL_LOG_MAX_ENTRIES: int = Field(default=100, env="BI_ETL_LOG_MAX_ENTRIES")
     # Filas que el Explorador de datos lee para agrupar y totalizar (revisión 2026-11).
     BI_EXPLORER_MAX_ROWS: int = Field(default=100000, env="BI_EXPLORER_MAX_ROWS")
+    # Auditoría 22-11-2026 (informe 02, ronda 2). A14: peticiones al día de un
+    # token BI (0 = sin límite). A36: dominios externos a los que se pueden
+    # enviar informes programados (CSV; vacío = solo personas de la empresa) y
+    # filas por informe entregado (antes 5.000 fijas en el código). A49: tope
+    # legal anual de horas extra (80 h, art. 35.2 ET; 0 = sin tope).
+    BI_TOKEN_DAILY_REQUEST_LIMIT: int = Field(default=10000, env="BI_TOKEN_DAILY_REQUEST_LIMIT")
+    # Auditoría 22-11-2026 (informe 02, ronda 2, fase 2): topes antes fijos en el código.
+    BI_BOOKMARK_SHARE_DAYS: int = Field(default=30, env="BI_BOOKMARK_SHARE_DAYS")
+    RECURRING_TASKS_MAX_CATCHUP: int = Field(default=10, env="RECURRING_TASKS_MAX_CATCHUP")
+    COLLAB_TUS_TTL_HOURS: int = Field(default=24, env="COLLAB_TUS_TTL_HOURS")
+    DOC_COLLAB_HISTORY_MAX: int = Field(default=200, env="DOC_COLLAB_HISTORY_MAX")
+    AI_CONTRACT_MAX_PAGES: int = Field(default=200, env="AI_CONTRACT_MAX_PAGES")
+    QB_MINOR_VERSION: int = Field(default=65, env="QB_MINOR_VERSION")
+    BI_DELIVERY_ALLOWED_DOMAINS: str = Field(default="", env="BI_DELIVERY_ALLOWED_DOMAINS")
+    BI_DELIVERY_MAX_ROWS: int = Field(default=5000, env="BI_DELIVERY_MAX_ROWS")
+    OVERTIME_LEGAL_ANNUAL_CAP_HOURS: float = Field(default=80.0, env="OVERTIME_LEGAL_ANNUAL_CAP_HOURS")
     # Filas máximas de una exportación CSV del constructor de informes (revisión 2026-11).
     REPORT_EXPORT_MAX_ROWS: int = Field(default=100000, env="REPORT_EXPORT_MAX_ROWS")
 
@@ -712,6 +746,15 @@ class Settings(
         if isinstance(v, str) and not v.strip():
             return cls.model_fields[info.field_name].default
         return v
+
+    @model_validator(mode="after")
+    def _redis_con_contrasena(self):
+        """Auditoría 22-11-2026 (01 M5): con `REDIS_PASSWORD`, la URL de Redis que no
+        lleve credenciales la recibe (broker y backend de Celery, rate limit, WS)."""
+        if self.REDIS_PASSWORD and self.REDIS_URL:
+            from app.core.redis_url import con_contrasena
+            object.__setattr__(self, "REDIS_URL", con_contrasena(self.REDIS_URL, self.REDIS_PASSWORD))
+        return self
 
     @field_validator("JWT_ALGORITHM")
     @classmethod

@@ -309,3 +309,49 @@ def test_no_se_puede_crear_una_politica_por_encima_del_tope(db):
             "retention_months": 99, "apply_to": "messages",
         })
     assert e.value.status_code == 422
+
+
+# ── Auditoría 22-11-2026 (C3): la retención respeta el ámbito de la política ──
+
+def _otra_conversacion_con_mensaje_viejo(db, entorno):
+    from app.models.collaboration import CollaborationConversation, CollaborationMessage
+    ws_id = entorno["conv"].workspace_id
+    conv = CollaborationConversation(organization_id=entorno["org_id"], workspace_id=ws_id, kind="direct")
+    db.add(conv)
+    db.flush()
+    m = CollaborationMessage(organization_id=entorno["org_id"], conversation_id=conv.id, user_id="u-x",
+                             body="fuera del canal", sent_at=utcnow() - timedelta(days=400),
+                             status="visible", type="text")
+    db.add(m)
+    db.commit()
+    return m
+
+
+def _politica(db, entorno, scope, meses, target_id=None):
+    from app.models.collaboration import CollaborationRetentionPolicy
+    db.add(CollaborationRetentionPolicy(organization_id=entorno["org_id"], workspace_id=entorno["conv"].workspace_id,
+                                        name=f"{scope}-{meses}", scope=scope, target_id=target_id,
+                                        retention_months=meses, apply_to="all", is_active=True))
+    db.commit()
+
+
+def test_C3_una_politica_de_canal_solo_purga_ese_canal(db, entorno):
+    fuera = _otra_conversacion_con_mensaje_viejo(db, entorno)
+    _politica(db, entorno, "channel", 1, entorno["canal"].id)
+    svc.run_retention(db, _usuario_admin(db))
+    db.refresh(fuera)
+    assert fuera.status == "visible", "una política de canal ha purgado otra conversación"
+    db.refresh(entorno["mensajes"]["de_otro"])
+    assert entorno["mensajes"]["de_otro"].status == "deleted"
+
+
+def test_C3_manda_la_politica_mas_especifica(db, entorno):
+    fuera = _otra_conversacion_con_mensaje_viejo(db, entorno)
+    _politica(db, entorno, "workspace", 1)
+    _politica(db, entorno, "channel", 60, entorno["canal"].id)
+    svc.run_retention(db, _usuario_admin(db))
+    db.refresh(fuera)
+    assert fuera.status == "deleted"
+    for m in entorno["mensajes"].values():
+        db.refresh(m)
+        assert m.status == "visible", "el canal con 60 meses lo ha purgado la política del espacio"

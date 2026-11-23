@@ -16,6 +16,7 @@ from __future__ import annotations
 
 from datetime import date
 from typing import Optional
+from app.core import timeutil as _timeutil
 
 from app.services.politicas.registro import Campo, Dominio, Opcion, registrar
 
@@ -61,7 +62,7 @@ def contexto(db, req) -> dict:
             "coste": numero("coste"), "esfuerzo": numero("esfuerzo"), "roi": numero("roi"),
             "impacto": valor("impacto"), "transversal": transversal in (True, "true", "1", 1),
             "proyecto": req.project_id, "persona": req.requester_user_id,
-            "_sujeto": {"user_id": req.requester_user_id}, "_fecha": date.today()}
+            "_sujeto": {"user_id": req.requester_user_id}, "_fecha": _timeutil.today()}  # zona del contexto (ronda 2 auditoría 2026-11-22)
 
 
 def cargar(db, entidad_id: str):

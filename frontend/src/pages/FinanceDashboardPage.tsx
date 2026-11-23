@@ -1,6 +1,6 @@
 import { type CSSProperties, useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import api, { currencyApi, invoicesApi, profitabilityApi, userCostsApi, unwrapList } from '../services/api'
+import { currencyApi, pipelineApi, invoicesApi, profitabilityApi, userCostsApi, unwrapList } from '../services/api'
 import type { Factura } from '../services/api/tipos-finanzas'
 import { todasLasPaginas } from '../services/api/todasLasPaginas'
 import { useAuth } from '../context/AuthContext'
@@ -77,7 +77,7 @@ export default function FinanceDashboardPage(): JSX.Element {
 
   const { data: pipelineRaw = [], isError: e2 } = useQuery({
     queryKey: ['fin-dash-pipeline'],
-    queryFn: () => api.get('/pipeline').then(unwrapList),
+    queryFn: () => pipelineApi.list().then(unwrapList),
     staleTime: STALE_DEFAULT_MS,
   })
   const pipeline = pipelineRaw as PipelineItem[]

@@ -3,14 +3,14 @@ Comprehensive tests for Time Tracking enhancements (Timer, Lockout, Alerts).
 """
 import pytest
 from sqlalchemy.orm import Session
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 
 from app.models.imputation import ImputationAlert
 from app.models.imputation import Imputation
 from app.models.user import User
 from app.models.user import UserRole
 from app.models.project import Project
-from app.models.project import ProjectType, ProjectStatus
+from app.models.project import ProjectType, ProjectStatus, ProjectMember
 from app.models.task import Task
 from app.models.enterprise import Notification
 
@@ -29,10 +29,14 @@ def _make_project_for_timer(db: Session, code="TMR-TEST-001", name="Timer Test P
         name=name,
         project_type=ProjectType.development,
         status=ProjectStatus.active,
-        organization_id=dev.organization_id if dev else None,
+        organization_id=dev.organization_id if dev else 1,
         pm_id="pm-test-id",
     )
     db.add(project)
+    db.flush()
+    # El usuario del cronómetro (dev_test) es miembro activo: sin eso
+    # /timer/start devuelve 403 (`imputar_proyecto_no_asignado`).
+    db.add(ProjectMember(project_id=project.id, user_id="dev-test-id", is_active=True))
     db.commit()
     db.refresh(project)
     return project
@@ -40,12 +44,6 @@ def _make_project_for_timer(db: Session, code="TMR-TEST-001", name="Timer Test P
 
 # ── Timer Tests ────────────────────────────────────────────────────────────
 
-@pytest.mark.skip(
-    reason="audit #90: refactor parcial. _make_project_for_timer crea proyecto "
-    "pero el user `timer_client` no es miembro, así que /timer/start devuelve "
-    "403. Refactor completo requiere asignar ProjectMember + Task aprobada; "
-    "queda para una iteración de seed-data dedicado."
-)
 def test_start_timer(db: Session, timer_client):
     """Test starting a timer."""
     client, token = timer_client
@@ -71,15 +69,12 @@ def test_start_timer(db: Session, timer_client):
     assert data["started_at"] is not None
 
 
-@pytest.mark.skip(reason="audit #90: depends on seeded Project. Refactor pending — see test_start_timer for the local-creation pattern.")
 def test_start_timer_duplicate(db: Session, timer_client):
     """Test that only one timer can be active per user."""
     client, token = timer_client
     headers = {"Authorization": f"Bearer {token}"}
 
-    project = db.query(Project).first()
-    if not project:
-        pytest.skip("No project found")
+    project = _make_project_for_timer(db)
 
     payload = {"project_id": project.id}
 
@@ -93,15 +88,12 @@ def test_start_timer_duplicate(db: Session, timer_client):
     assert "already has an active timer" in response2.json()["detail"]
 
 
-@pytest.mark.skip(reason="audit #90: depends on seeded Project. Refactor pending — see test_start_timer for the local-creation pattern.")
 def test_pause_resume_timer(db: Session, timer_client):
     """Test pausing and resuming a timer."""
     client, token = timer_client
     headers = {"Authorization": f"Bearer {token}"}
 
-    project = db.query(Project).first()
-    if not project:
-        pytest.skip("No project found")
+    project = _make_project_for_timer(db)
 
     # Start timer
     payload = {"project_id": project.id}
@@ -118,20 +110,17 @@ def test_pause_resume_timer(db: Session, timer_client):
     assert response.json()["data"]["paused_at"] is None
 
 
-@pytest.mark.skip(reason="audit #90: depends on seeded Project. Refactor pending — see test_start_timer for the local-creation pattern.")
 def test_stop_timer_creates_imputation(db: Session, timer_client):
     """Test that stopping timer creates an imputation."""
     client, token = timer_client
     headers = {"Authorization": f"Bearer {token}"}
 
-    project = db.query(Project).first()
-    if not project:
-        pytest.skip("No project found")
+    project = _make_project_for_timer(db)
 
     # Start timer
     payload = {"project_id": project.id}
     start_response = client.post("/api/v1/imputations/timer/start", json=payload, headers=headers)
-    datetime.fromisoformat(start_response.json()["started_at"].replace("Z", "+00:00"))
+    datetime.fromisoformat(start_response.json()["data"]["started_at"].replace("Z", "+00:00"))
 
     # Wait a bit (simulating work)
     import time
@@ -148,18 +137,16 @@ def test_stop_timer_creates_imputation(db: Session, timer_client):
     assert data["description"] == "Worked on task"
 
 
-@pytest.mark.skip(reason="audit #90: depends on seeded Project. Refactor pending — see test_start_timer for the local-creation pattern.")
 def test_get_current_timer(db: Session, timer_client):
     """Test getting the current active timer."""
     client, token = timer_client
     headers = {"Authorization": f"Bearer {token}"}
 
-    project = db.query(Project).first()
-    if not project:
-        pytest.skip("No project found")
+    project = _make_project_for_timer(db)
 
     task = Task(
         id="timer-task-test-id",
+        code="TMR-T-001",
         project_id=project.id,
         title="Implementar vista legible del cronómetro",
         assignee_id="dev-test-id",
@@ -170,7 +157,7 @@ def test_get_current_timer(db: Session, timer_client):
     # No timer yet
     response = client.get("/api/v1/imputations/timer/current", headers=headers)
     assert response.status_code == 200
-    assert response.json() is None
+    assert response.json()["data"] is None
 
     # Start timer
     payload = {"project_id": project.id, "task_id": task.id}
@@ -186,24 +173,24 @@ def test_get_current_timer(db: Session, timer_client):
     assert data["task_name"] == task.title
 
 
-@pytest.mark.skip(reason="audit #90: depends on seeded Project. Refactor pending — see test_start_timer for the local-creation pattern.")
 def test_stop_timer_allows_switching_task_on_duplicate(db: Session, timer_client):
     client, token = timer_client
     headers = {"Authorization": f"Bearer {token}"}
 
-    project = db.query(Project).first()
+    project = _make_project_for_timer(db)
     user = db.query(User).filter(User.username == "dev_test").first()
-    if not project or not user:
-        pytest.skip("Missing project or user")
+    assert user is not None, "conftest must seed dev_test user"
 
     task_primary = Task(
         id="timer-stop-primary-task",
+        code="TMR-T-002",
         project_id=project.id,
         title="Tarea principal timer",
         assignee_id=user.id,
     )
     task_alternative = Task(
         id="timer-stop-alt-task",
+        code="TMR-T-003",
         project_id=project.id,
         title="Tarea alternativa timer",
         assignee_id=user.id,
@@ -236,18 +223,16 @@ def test_stop_timer_allows_switching_task_on_duplicate(db: Session, timer_client
         headers=headers,
     )
     assert response.status_code == 200
-    assert response.json()["task"]["id"] == task_alternative.id
+    assert response.json()["data"]["task"]["id"] == task_alternative.id
 
 
-@pytest.mark.skip(reason="audit #90: depends on seeded Project. Refactor pending — see test_start_timer for the local-creation pattern.")
 def test_stop_timer_force_duplicate_notifies_manager(db: Session, timer_client):
     client, token = timer_client
     headers = {"Authorization": f"Bearer {token}"}
 
-    project = db.query(Project).first()
+    project = _make_project_for_timer(db)
     user = db.query(User).filter(User.username == "dev_test").first()
-    if not project or not user:
-        pytest.skip("Missing project or user")
+    assert user is not None, "conftest must seed dev_test user"
 
     manager = User(
         id="timer-force-manager-id",
@@ -265,6 +250,7 @@ def test_stop_timer_force_duplicate_notifies_manager(db: Session, timer_client):
 
     task = Task(
         id="timer-force-task-id",
+        code="TMR-T-004",
         project_id=project.id,
         title="Tarea con duplicado permitido",
         assignee_id=user.id,
@@ -323,23 +309,20 @@ def test_stop_timer_force_duplicate_notifies_manager(db: Session, timer_client):
     assert week.json()["data"]["total_hours"] >= 1.25
 
 
-@pytest.mark.skip(reason="audit #90: depends on seeded Project. Refactor pending — see test_start_timer for the local-creation pattern.")
 def test_cancel_timer_discards_active_session(db: Session, timer_client):
     client, token = timer_client
     headers = {"Authorization": f"Bearer {token}"}
 
-    project = db.query(Project).first()
-    if not project:
-        pytest.skip("No project found")
+    project = _make_project_for_timer(db)
 
     client.post("/api/v1/imputations/timer/start", json={"project_id": project.id}, headers=headers)
     response = client.post("/api/v1/imputations/timer/cancel", headers=headers)
     assert response.status_code == 200
-    assert response.json()["message"] == "Cronómetro cancelado"
+    assert response.json()["data"]["message"] == "Cronómetro cancelado"
 
     current = client.get("/api/v1/imputations/timer/current", headers=headers)
     assert current.status_code == 200
-    assert current.json() is None
+    assert current.json()["data"] is None
 
 
 def test_manager_approval_of_forced_duplicate_keeps_sum(client, db: Session, dev_token, pm_token):
@@ -473,98 +456,82 @@ def test_dismiss_alert(db: Session, timer_client):
     assert alert.dismissed_at is not None
 
 
-@pytest.mark.skip(reason="audit #90: depends on seeded Project. Refactor pending — see test_start_timer for the local-creation pattern.")
-def test_imputation_cost_calculation_with_none_rate(db: Session, timer_client):
-    """Test that cost is calculated correctly even if hourly_rate is None."""
+def test_timer_requires_hourly_rate(db: Session, timer_client):
+    """Sin tarifa horaria no se puede arrancar el cronómetro (400), y no se
+    llega a crear ninguna imputación con coste nulo."""
     client, token = timer_client
     headers = {"Authorization": f"Bearer {token}"}
 
-    from app.models.project import Project
-
-    # Get current user
-    user = db.query(User).filter(User.is_active == True).first()
-    if not user:
-        pytest.skip("No active user found")
-
-    # Temporarily set hourly_rate to None
-    original_rate = user.hourly_rate
+    user = db.query(User).filter(User.username == "dev_test").first()
+    assert user is not None, "conftest must seed dev_test user"
     user.hourly_rate = None
     db.commit()
 
-    try:
-        project = db.query(Project).first()
-        if not project:
-            pytest.skip("No project found")
+    project = _make_project_for_timer(db)
+    response = client.post(
+        "/api/v1/imputations/timer/start", json={"project_id": project.id}, headers=headers
+    )
+    assert response.status_code == 400
+    assert "tarifa horaria" in response.text
 
-        # Start timer
-        payload = {"project_id": project.id}
-        client.post("/api/v1/imputations/timer/start", json=payload, headers=headers)
-
-        # Stop timer - should handle None hourly_rate gracefully
-        import time
-        time.sleep(1)
-        stop_payload = {"description": "Test with no rate", "is_billable": False}
-        response = client.post("/api/v1/imputations/timer/stop", json=stop_payload, headers=headers)
-
-        # Should succeed and cost should be 0
-        assert response.status_code == 200
-        data = response.json()["data"]
-        assert data["cost_amount"] == 0.0  # Cost should be 0, not None
-
-    finally:
-        # Restore original rate
-        user.hourly_rate = original_rate
-        db.commit()
+    current = client.get("/api/v1/imputations/timer/current", headers=headers)
+    assert current.json()["data"] is None
 
 
-@pytest.mark.skip(reason="audit #90: depends on seeded Project. Refactor pending — see test_start_timer for the local-creation pattern.")
 def test_weekly_capacity_validation(db: Session, timer_client):
-    """Test that weekly capacity validation prevents excessive hours."""
+    """Si la semana ya supera la capacidad, una imputación nueva se rechaza (400)."""
     client, token = timer_client
     headers = {"Authorization": f"Bearer {token}"}
 
-    from app.models.project import Project
+    user = db.query(User).filter(User.username == "dev_test").first()
+    assert user is not None, "conftest must seed dev_test user"
+    project = _make_project_for_timer(db)
 
-    user = db.query(User).filter(User.is_active == True).first()
-    if not user:
-        pytest.skip("No active user found")
+    # Por defecto el control de horas extra es «avisar», que no pone tope semanal;
+    # con «ninguno» manda la capacidad semanal de la persona.
+    from app.models.horas_extra import ConfigDeHorasExtra
+    db.add(ConfigDeHorasExtra(activo=True, control_imputacion="ninguno"))
+    db.flush()
 
-    # Ensure user has hourly_rate
-    if not user.hourly_rate:
-        user.hourly_rate = 50.0
-        db.commit()
-
-    project = db.query(Project).first()
-    if not project:
-        pytest.skip("No project found")
-
-    # Try to impute 70 hours (exceeds default 40h capacity * 1.5 = 60h)
+    # Hay dos topes: 24 h por día y la capacidad semanal. Para llegar al segundo
+    # sin tocar el primero, la semana se llena directamente en base con 24 h en
+    # cuatro días distintos de hoy (96 h) y se imputa en hoy.
     today = date.today()
+    lunes = today - timedelta(days=today.weekday())
+    dias = [lunes + timedelta(days=i) for i in range(7) if lunes + timedelta(days=i) != today][:4]
+    for dia in dias:
+        db.add(Imputation(
+            user_id=user.id,
+            project_id=project.id,
+            date=dia,
+            hours=24.0,
+            description="Semana ya llena",
+            is_billable=True,
+            hourly_rate_snapshot=user.hourly_rate,
+            cost_amount=0.0,
+        ))
+    db.commit()
+
     payload = {
         "project_id": project.id,
         "date": today.isoformat(),
-        "hours": 70.0,
+        "hours": 8.0,
         "description": "Over capacity",
         "is_billable": True,
     }
-
     response = client.post("/api/v1/imputations", json=payload, headers=headers)
 
-    # Should be rejected due to weekly capacity validation
-    assert response.status_code == 400
-    assert "Excederías la capacidad semanal" in response.json()["detail"]
+    assert response.status_code == 400, response.text
+    assert "Excederías la capacidad semanal" in response.text
 
 
-@pytest.mark.skip(reason="audit #90: depends on seeded Project. Refactor pending — see test_start_timer for the local-creation pattern.")
 def test_timer_with_multiple_pauses(db: Session, timer_client):
     """Test that timer correctly accumulates pause durations."""
     client, token = timer_client
     headers = {"Authorization": f"Bearer {token}"}
 
     from app.models.project import Project
-    project = db.query(Project).first()
-    if not project:
-        pytest.skip("No project found")
+    project = _make_project_for_timer(db)
 
     # Start timer
     payload = {"project_id": project.id}
@@ -600,7 +567,7 @@ def test_timer_with_multiple_pauses(db: Session, timer_client):
     assert stop_response.status_code == 200
 
     # Hours should be calculated correctly (pause times subtracted from elapsed)
-    data = stop_response.json()
+    data = stop_response.json()["data"]
     assert data["hours"] > 0
     assert data["hours"] < 1  # Should be less than 1 hour for this test
 

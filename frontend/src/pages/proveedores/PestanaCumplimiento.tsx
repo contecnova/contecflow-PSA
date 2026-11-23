@@ -24,6 +24,7 @@ import type { AccesoIn, CriterioDeRiesgo, DocumentoDeProveedor, DocumentoIn, Niv
 import type { Subcontratista } from '../../services/api/tipos-alm'
 import { useFormatoMoneda } from '../../hooks/useFormatoMoneda'
 import { extractErr, fmtDate, fmtNumber } from '../../utils/helpers'
+import { sanitizeUrl } from '../../utils/security'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import { CRITERIOS, NIVELES_DE_ACCESO, TIPOS_DE_DOCUMENTO, TONO_CUMPLIMIENTO, TONO_DOCUMENTO, TONO_RIESGO, numeroONull, texto, textoONull } from './logica'
 import { etiquetaDe, usePermisosDeProveedores, useT } from './comunes'
@@ -262,7 +263,7 @@ export default function PestanaCumplimiento({ sub, onCambio }: { sub: Subcontrat
                     <td className="sub-td sub-td--strong">{etiquetaDe(t, 'doc_', d.doc_type)}
                       {d.coverage_amount != null && <div className="u-text3-xs">{t('proveedores.cobertura_n', { importe: fmtMoneda(d.coverage_amount) })}</div>}
                     </td>
-                    <td className="sub-td">{d.document_url ? <a href={d.document_url} target="_blank" rel="noreferrer">{d.reference || d.document_url}</a> : (d.reference || '—')}</td>
+                    <td className="sub-td">{d.document_url ? <a href={sanitizeUrl(d.document_url)} target="_blank" rel="noreferrer">{d.reference || d.document_url}</a> : (d.reference || '—')}</td>
                     <td className="sub-td sub-td--muted">{d.issuer || '—'}</td>
                     <td className="sub-td sub-td--muted">{d.expires_at ? fmtDate(d.expires_at) : t('proveedores.sin_caducidad')}</td>
                     <td className="sub-td">

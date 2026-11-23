@@ -13,10 +13,11 @@ numero 1 de la auditoria.
 **Los paths no han cambiado.** ABAC y GRC derivan el modulo de la ruta, asi que
 tocarlos alteraria los permisos en silencio.
 """
-from fastapi import APIRouter, Depends, HTTPException, Body
+from fastapi import APIRouter, Depends, HTTPException, Body
+from app.core.codigos_de_error import error_http
 from sqlalchemy.orm import Session
 from app.db.session import get_db
-from app.core.deps import get_current_user, require_any_manager, require_internal_user
+from app.core.deps import get_current_user, requiere_capacidad
 from app.models.user import User
 from app.core.responses import APIResponse
 # Auditoría 2026-08 (hallazgo 22). Antes esto era un único
@@ -36,12 +37,12 @@ def estimate_task_hours(
     task_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
+    _rol: User = Depends(requiere_capacidad("ia.usar")),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
 ):
     try:
         return APIResponse.ok(data=_ai_plan.estimate_task_hours(task_id, db))
     except ValueError:
-        raise HTTPException(404)
+        raise error_http(404, "no_encontrado", que="tarea")
 
 
 @router.post("/ai-planning/estimate/{task_id}/accept", summary="Aceptar o rechazar estimación IA")
@@ -50,12 +51,12 @@ def accept_estimate(
     payload: AcceptFlagIn = Body(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
+    _rol: User = Depends(requiere_capacidad("ia.usar")),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
 ):
     try:
-        return APIResponse.ok(data=_ai_plan.accept_task_estimate(task_id, payload.accepted, db))
+        return APIResponse.ok(data=_ai_plan.accept_task_estimate(task_id, payload.accepted, db, current_user))
     except ValueError:
-        raise HTTPException(404)
+        raise error_http(404, "no_encontrado", que="tarea")
 
 
 @router.post("/ai-planning/triage/{ticket_id}", summary="Triaje automático de ticket con IA")
@@ -63,7 +64,7 @@ def ai_triage_ticket(
     ticket_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
+    _rol: User = Depends(requiere_capacidad("ia.usar")),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
 ):
     # Mejoras de mercado 16-11-2026: el ticket se acota a la empresa de quien
     # pide el triaje (antes valia cualquier id de la instalacion).
@@ -73,7 +74,7 @@ def ai_triage_ticket(
     try:
         return APIResponse.ok(data=_ai_plan.triage_ticket(ticket_id, db))
     except ValueError:
-        raise HTTPException(404)
+        raise error_http(404, "no_encontrado", que="ticket")
 
 
 @router.post("/ai-planning/triage/{ticket_id}/accept", summary="Aplicar triaje IA al ticket")
@@ -81,7 +82,7 @@ def accept_triage(
     ticket_id: str,
     payload: AcceptFlagIn = Body(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("ia.gestionar")),
 ):
     from app.core.tenancy import org_scoped_or_404
     from app.models.service_desk import Ticket
@@ -89,4 +90,4 @@ def accept_triage(
     try:
         return APIResponse.ok(data=_ai_plan.accept_ticket_triage(ticket_id, payload.accepted, current_user.id, db))
     except ValueError:
-        raise HTTPException(404)
+        raise error_http(404, "no_encontrado", que="ticket")

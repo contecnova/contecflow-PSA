@@ -29,11 +29,13 @@ El riesgo aceptado (hallazgos con excepción aprobada) es el factor
 `vulnerabilities` de esos hallazgos, aparte del índice.
 """
 from __future__ import annotations
+import logging
 
 import json
 import math
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta, timezone
+from app.core import timeutil
 from typing import Optional
 
 from sqlalchemy.orm import Session
@@ -128,7 +130,7 @@ def riesgo_de_hallazgo(conf: dict, vuln, f, criticidad: str, exposicion: str, re
 def reducciones_activas(db: Session, org) -> dict[str, float]:
     """finding_id → reducción combinada de sus controles activos (1 − Π(1 − r), tope 0,9)."""
     from app.models.cmdb_riesgo import CompensatingControl
-    hoy = date.today()
+    hoy = timeutil.today()
     salida: dict[str, float] = {}
     filas = _q(db, CompensatingControl, org).filter(CompensatingControl.status == "active",
                                                     CompensatingControl.expires_at >= hoy).all()
@@ -402,6 +404,7 @@ def nivel(db, org, score: float) -> Optional[str]:
     try:
         return nivel_de_riesgo(score, db=db, org_id=org)
     except Exception:  # noqa: BLE001 - el nivel es informativo
+        logging.getLogger(__name__).debug("nivel: excepcion ignorada", exc_info=True)
         return "critical" if score >= 75 else "high" if score >= 50 else "medium" if score >= 25 else "low"
 
 
@@ -411,7 +414,7 @@ def indice_de_ambito(db: Session, org, tipo: Optional[str], id_: Optional[str],
     ctx = ctx or contexto(db, org)
     r = indice(filtrar(ctx, tipo, id_), ctx.conf)
     foto = _ultima_foto(db, org, tipo, id_)
-    hace7 = _ultima_foto(db, org, tipo, id_, date.today() - timedelta(days=7))
+    hace7 = _ultima_foto(db, org, tipo, id_, timeutil.today() - timedelta(days=7))
     return {"scope_type": tipo, "scope_id": id_ or None, "scope_name": _nombre(db, org, tipo, id_), **r,
             "level": nivel(db, org, r["score"]), "target": ctx.conf["target"],
             "evaluated_at": foto.computed_at.isoformat() if foto is not None and foto.computed_at else None,
@@ -473,7 +476,7 @@ def comparar(db: Session, org, tipo: str, internos: Optional[bool] = None, limit
 def historico(db: Session, org, tipo: Optional[str], id_: Optional[str], dias: int = 90) -> list[dict]:
     from app.models.cmdb_riesgo import RiskSnapshot
     tipo, id_ = comprobar_ambito(tipo, id_)
-    desde = date.today() - timedelta(days=max(1, min(int(dias or 90), 3650)))
+    desde = timeutil.today() - timedelta(days=max(1, min(int(dias or 90), 3650)))
     filas = (_q(db, RiskSnapshot, org).filter(RiskSnapshot.scope_type == tipo, RiskSnapshot.scope_id == id_,
                                               RiskSnapshot.day >= desde).order_by(RiskSnapshot.day.asc()).all())
     return [{"day": f.day.isoformat(), "score": f.score, "accepted_score": f.accepted_score} for f in filas]

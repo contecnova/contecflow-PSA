@@ -266,7 +266,8 @@ def _enviar(db: Session, org_id: str, cuerpo: dict) -> Optional[str]:
             r.raise_for_status()
             return ((r.json().get("messages") or [{}])[0]).get("id")
     except (httpx.HTTPError, ValueError, PermissionError):
-        logger.warning("WhatsApp: no se pudo enviar a %s", cuerpo.get("to"), exc_info=True)
+        from app.services.service_desk.sms_service import telefono_enmascarado
+        logger.warning("WhatsApp: no se pudo enviar a %s", telefono_enmascarado(cuerpo.get("to")), exc_info=True)
         return None
 
 

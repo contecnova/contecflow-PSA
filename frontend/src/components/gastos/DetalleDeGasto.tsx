@@ -9,7 +9,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { FileText, Plus, ShieldAlert, ShieldCheck, Trash2, Upload } from 'lucide-react'
-import { gastosApi, politicasApi, projectsApi } from '../../services/api'
+import { gastosApi, politicasApi } from '../../services/api'
 import type { Gasto } from '../../services/api/tipos-finanzas'
 import ExplicacionDeEntidad from '../politicas/ExplicacionDeEntidad'
 import './gastos-politicas.css'
@@ -20,6 +20,8 @@ import { extractErr, localeActivo } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 
 import { useFormatoMoneda } from '../../hooks/useFormatoMoneda'
+import { useListaDeProyectos } from '../../hooks/useListas'
+import { confirmar } from '../../context/ConfirmContext'
 /** Lo que la ficha lee del gasto (serialize_expense). */
 type GastoMin = Pick<Gasto, 'id' | 'code' | 'description' | 'amount' | 'currency' | 'status' | 'km'>
 
@@ -40,7 +42,7 @@ export default function DetalleDeGasto({ gasto, editable, onClose }: { gasto: Ga
   const tipos = useQuery({ queryKey: ['politicas', 'tipos-de-documento'], queryFn: politicasApi.tiposDeDocumento })
   const [tipoNuevo, setTipoNuevo] = useState('')
   const doc = (d: string) => t(`pol.doc_${d}`, d)
-  const proyectos = useQuery({ queryKey: ['projects'], queryFn: () => projectsApi.list().then(r => r.data) })
+  const proyectos = useListaDeProyectos()
   useEffect(() => {
     if (rep.data) setPartes(rep.data.items.map(p => ({ project_id: p.project_id, percentage: String(p.percentage) })))
   }, [rep.data])
@@ -58,7 +60,8 @@ export default function DetalleDeGasto({ gasto, editable, onClose }: { gasto: Ga
     try { const { url } = await gastosApi.urlJustificante(aid); window.open(url, '_blank', 'noopener') } catch (e) { fallo(e) }
   }
   const tipar = async (aid: string, tipo: string) => { try { await gastosApi.tipar(aid, tipo || null); refrescar() } catch (e) { fallo(e) } }
-  const quitar = async (aid: string) => { try { await gastosApi.quitarJustificante(aid); refrescar() } catch (e) { fallo(e) } }
+  // 23-11-2026: quitar un justificante pide confirmación.
+  const quitar = async (aid: string) => { if (!(await confirmar({ message: t('gas.confirmar_quitar_justificante'), danger: true, confirmLabel: t('gas.quitar') }))) return; try { await gastosApi.quitarJustificante(aid); refrescar() } catch (e) { fallo(e) } }
   const suma = partes.reduce((s, p) => s + (Number(p.percentage) || 0), 0)
   const guardarReparto = async () => {
     setGuardando(true)

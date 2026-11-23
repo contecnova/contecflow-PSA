@@ -14,6 +14,8 @@ Solo lectura; los resultados se recortan para el contexto del modelo.
 """
 from __future__ import annotations
 
+from app.services.ai_chat.tool_execution.textos import mensaje as _msg
+
 
 def _search_software_inventory(tool_input, db, user, now, is_financial_role):
     from app.services.cmdb_software import analisis, gestion
@@ -26,7 +28,7 @@ def _search_software_inventory(tool_input, db, user, now, is_financial_role):
         return {"summary": analisis.cuadro_de_mando(db, org)}
     if modo == "where_used":
         if not consulta:
-            return {"error": "Indica qué software buscar (p. ej. «nginx» o «php < 8.2»)"}
+            return {"error": _msg(db, user, "software_indica")}
         r = analisis.donde_se_usa(db, org, consulta)
         return {"products": r["products"][:10], "summary": r["summary"], "versions": r["versions"],
                 "instances": [{k: i.get(k) for k in ("product_name", "version", "ci_name", "ci_hostname", "ci_ip",
@@ -41,7 +43,7 @@ def _search_software_inventory(tool_input, db, user, now, is_financial_role):
         if tool_input.get("machine"):
             ci = buscar_ci(db, org, tool_input["machine"])
             if ci is None:
-                return {"error": f"Máquina no encontrada: {tool_input['machine']}"}
+                return {"error": _msg(db, user, "maquina_no_encontrada", nombre=tool_input['machine'])}
             ci_id = ci.id
         r = gestion.listar(db, org, "live", tool_input.get("severity"), None, ci_id, tool_input.get("kev"),
                            tool_input.get("out_of_sla"), consulta or None, None, 1, limite)
@@ -58,7 +60,7 @@ def _search_software_inventory(tool_input, db, user, now, is_financial_role):
     if modo == "machine":
         ci = buscar_ci(db, org, consulta or tool_input.get("machine"))
         if ci is None:
-            return {"error": f"Máquina no encontrada: {consulta}"}
+            return {"error": _msg(db, user, "maquina_no_encontrada", nombre=consulta)}
         r = analisis.maquina(db, org, ci.id)
         return {"ci": r["ci"], "findings_by_severity": r["findings_by_severity"], "assets": r["assets"],
                 "licenses": r["licenses"], "open_tickets": r["open_tickets"],
@@ -71,13 +73,13 @@ def _search_software_inventory(tool_input, db, user, now, is_financial_role):
         v = db.query(Vulnerability).filter(Vulnerability.organization_id == org, or_(
             Vulnerability.vuln_id == consulta, Vulnerability.aliases.ilike(f'%"{consulta}"%'))).first()
         if v is None:
-            return {"error": f"Aviso no registrado: {consulta}. Sincroniza las fuentes o impórtalo."}
+            return {"error": _msg(db, user, "aviso_no_registrado", nombre=consulta)}
         r = analisis.impacto(db, org, vulnerability_id=v.id)
         return {"vulnerability": {"id": v.vuln_id, "severity": v.severity, "cvss": v.cvss_score, "kev": v.kev,
                                   "title": v.title}, "summary": r["summary"],
                 "software": r["software"][:limite], "machines": r["machines"][:limite],
                 "services": r["services"][:limite], "clients": r["clients"][:limite], "owners": r["owners"]}
-    return {"error": f"Modo desconocido: {modo}"}
+    return {"error": _msg(db, user, "modo_desconocido", modo=modo)}
 
 
 HANDLERS = {"search_software_inventory": _search_software_inventory}

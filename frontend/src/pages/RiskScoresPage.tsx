@@ -13,7 +13,7 @@ import { extractErr, fmtDate, fmtDateTime, formateadorDeFecha } from '../utils/h
 import { useTono } from '../hooks/useOrgSettings'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import api, { predictionsApi } from '../services/api'
+import { predictionsApi, puntuacionesDeRiesgoApi } from '../services/api'
 import type { ModeloDePrediccion, RegistroDePrediccion, RiesgoDeLaCartera } from '../services/api/tipos-analitica'
 import { Spinner, EmptyState, Button, KpiCard, Tabs, Select, Pulsable, IconButton } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
@@ -113,11 +113,11 @@ function MLPredictionsTab() {
   })
   const { data: models = [], isLoading: lModels } = useQuery<MlModel[]>({
     queryKey: ['ml-models'],
-    queryFn: () => predictionsApi.models().then(r => r.data).catch(() => []),
+    queryFn: () => predictionsApi.models().then(r => r.data),
   })
   const { data: logs = [], isLoading: lLogs } = useQuery<MlPredictionLog[]>({
     queryKey: ['ml-logs'],
-    queryFn: () => predictionsApi.logs({ limit: PREDICTION_LOGS_LIMIT }).then(r => r.data).catch(() => []),
+    queryFn: () => predictionsApi.logs({ limit: PREDICTION_LOGS_LIMIT }).then(r => r.data),
   })
   const { mutate: train, isPending: training } = useMutation({
     mutationFn: () => predictionsApi.train(),
@@ -272,15 +272,15 @@ export default function RiskScoresPage() {
 
   const { data: response, isLoading, isFetching } = useQuery<RiskScoresResponse>({
     queryKey: ['risk-scores'],
-    queryFn: () => api.get('/risk-scores').then(r => r.data as RiskScoresResponse),
+    queryFn: () => puntuacionesDeRiesgoApi.listar<RiskScoresResponse>().then(r => r.data),
   })
   const { data: detail } = useQuery<RiskDetail>({
     queryKey: ['risk-detail', selected],
-    queryFn: () => api.get(`/risk-scores/${selected}`).then(r => r.data as RiskDetail),
+    queryFn: () => puntuacionesDeRiesgoApi.detalle<RiskDetail>(String(selected)).then(r => r.data),
     enabled: !!selected,
   })
   const { mutate: refresh, isPending:refreshing } = useMutation({
-    mutationFn: () => api.get('/risk-scores?refresh=true').then(r=>r.data),
+    mutationFn: () => puntuacionesDeRiesgoApi.listar<RiskScoresResponse>({ refresh: true }).then(r => r.data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['risk-scores'] }),
     onError: e => toast.error(extractErr(e, t('risk_scores_page.error_generico'))),
   })

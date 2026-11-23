@@ -8,6 +8,7 @@ from __future__ import annotations
 import json
 from datetime import datetime, timedelta, timezone
 from typing import Optional
+from urllib.parse import quote
 from sqlalchemy.orm import Session, joinedload
 from app.core.secret_utils import decrypt_config_secrets
 from app.models.cab import CalendarEvent
@@ -78,6 +79,20 @@ def _espera(db: Session) -> float:
     return outbound_http_timeout(db)
 
 
+def _pedir_github(url: str, *, params: dict, headers: dict, timeout: float):
+    """GET a la API de GitHub o de un GitHub Enterprise Server (`api_base` que
+    escribe el admin de la empresa).
+
+    23-11-2026 (auditoría 01 M7, DNS rebinding): antes `httpx.get` tras
+    `validate_outbound_url`: el nombre se resolvía dos veces y la segunda podía
+    dar una IP interna. Ahora `cliente_httpx` valida la URL, cada redirección y
+    la IP a la que se conecta de verdad. Es la costura que sustituyen los tests
+    (`tests/test_integraciones_reales.py`)."""
+    from app.core.outbound_url import cliente_httpx
+    with cliente_httpx(timeout=timeout) as cliente:
+        return cliente.get(url, params=params, headers=headers)
+
+
 def sync_git_commits(db: Session, config, payload: dict):
     """GitHub: trae los pull requests del repositorio y los procesa como el webhook."""
     import httpx
@@ -90,14 +105,19 @@ def sync_git_commits(db: Session, config, payload: dict):
         return 0, ["Faltan el repositorio (owner/repo) o el token."]
     try:
         from app.core.comprobacion_de_produccion import github_api_base
-        r = httpx.get(f"{github_api_base(cfg)}/repos/{repo}/pulls",  # GHES (19-11-2026)
-                      params={"state": "all", "per_page": 50},
-                      headers={"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json"},
-                      timeout=_espera(db))
-    except httpx.HTTPError as exc:
-        return 0, [f"GitHub: {exc}"[:200]]
+        from app.core.outbound_url import validate_outbound_url
+        # SSRF: api_base de la integración (GHES): URL validada aquí (error claro)
+        # y, al conectar, IP comprobada por `cliente_httpx` (`_pedir_github`).
+        validate_outbound_url(github_api_base(cfg), field="api_base")
+        r = _pedir_github(f"{github_api_base(cfg)}/repos/{quote(repo, safe='/')}/pulls",  # GHES (19-11-2026)
+                          params={"state": "all", "per_page": 50},
+                          headers={"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json"},
+                          timeout=_espera(db))
+    except (httpx.HTTPError, PermissionError, RuntimeError) as exc:
+        # La clase, no el texto: el de una conexión bloqueada lleva la IP interna.
+        return 0, [f"GitHub: {type(exc).__name__}"]
     if r.status_code != 200:
-        return 0, [f"GitHub {r.status_code}: {r.text[:150]}"]
+        return 0, [f"GitHub HTTP {r.status_code}"]
     synced = 0
     for pr in r.json():
         pr = dict(pr, merged=bool(pr.get("merged_at")))
@@ -121,6 +141,7 @@ def sync_calendar(db: Session, config, payload: dict):
     calendario, token = (cfg.get("calendar_id") or "primary").strip(), cfg.get("access_token")
     if not token:
         return 0, ["Falta el token de acceso de Google."]
+    # SSRF: host fijo de plataforma (www.googleapis.com)
     base = f"https://www.googleapis.com/calendar/v3/calendars/{calendario}/events"
     cabeceras = {"Authorization": f"Bearer {token}"}
     sprints = db.query(Sprint).filter(Sprint.start_date != None, Sprint.end_date != None).all()

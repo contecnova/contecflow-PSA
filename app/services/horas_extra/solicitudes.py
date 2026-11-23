@@ -315,6 +315,7 @@ def vista_previa(db: Session, usuario, datos: dict) -> dict:
         coherencia(db, p)
         solapada(db, p)
     except Exception as e:  # noqa: BLE001 — se enseñan, no se lanzan
+        logger.debug("vista_previa: excepcion ignorada", exc_info=True)
         errores.append(getattr(e, "detail", None) or str(e))
     if p.clase_dia is None:
         p.clase_dia = reglas.medir_cache(db, p)["clase"]
@@ -485,9 +486,14 @@ def revisar(db: Session, usuario, p: PeticionDeHorasExtra, aprobado: bool, nota:
                                            ApprovalRequest.status == "pending").first()
     if req is not None:
         if horas_autorizadas is not None and aprobado:
-            # Lo que el último paso apruebe queda limitado a lo que decide este aprobador.
-            evento(db, p, "horas_ajustadas", usuario.id, horas_autorizadas=float(horas_autorizadas))
-            p.horas_autorizadas = round(float(horas_autorizadas), 4)
+            # M26 (auditoría 22-11-2026): cada voto solo puede RECORTAR lo ya
+            # autorizado (el mínimo de los votos), no fijarlo el primero y que
+            # otro lo suba: lo aprobado es lo que acepta el más restrictivo.
+            nuevas = round(float(horas_autorizadas), 4)
+            if p.horas_autorizadas is not None:
+                nuevas = min(nuevas, float(p.horas_autorizadas))
+            evento(db, p, "horas_ajustadas", usuario.id, horas_autorizadas=nuevas)
+            p.horas_autorizadas = nuevas
             db.commit()
         decide_approval_request(req.id, "approved" if aprobado else "rejected", nota, None, db, usuario)
         db.refresh(p)
@@ -618,6 +624,11 @@ def compensar(db: Session, p: PeticionDeHorasExtra, actor_id: Optional[str]) -> 
 
 
 def liquidar(db: Session, usuario, p: PeticionDeHorasExtra, referencia: str) -> PeticionDeHorasExtra:
+    # M26: la fila se bloquea antes de comprobar (dos liquidaciones a la vez no
+    # la pagan dos veces: la segunda ve `liquidada_en`).
+    from app.db.session import is_postgres
+    if is_postgres():
+        db.refresh(p, with_for_update=True)
     if p.estado != "aprobada" or p.compensacion != "pago":
         raise error_con_codigo(409, "horas_extra_no_liquidable")
     if p.liquidada_en is not None:

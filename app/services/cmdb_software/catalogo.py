@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import json
 from datetime import date, datetime, timezone
+from app.core import timeutil
 from typing import Any, Optional
 
 from sqlalchemy.orm import Session
@@ -352,7 +353,7 @@ def fusionar_productos(db: Session, org, origen: SoftwareProduct, destino: Softw
 # ── Versiones ────────────────────────────────────────────────────────────────
 
 def serializar_version(v: SoftwareVersion, extra: Optional[dict] = None) -> dict:
-    hoy = date.today()
+    hoy = timeutil.today()
     return {"id": v.id, "product_id": v.product_id, "version": v.version, "cycle": v.cycle,
             "release_date": v.release_date.isoformat() if v.release_date else None,
             "support_end": v.support_end.isoformat() if v.support_end else None,
@@ -773,6 +774,18 @@ def guardar_linea_base(db: Session, org, p: SoftwareProduct, datos: dict, usuari
     audit_log(db, usuario, "UPDATE" if antes else "CREATE", "sw_baseline", b.id, b.name, old_values=antes,
               new_values=serializar_linea_base(b))
     return b
+
+
+def borrar_linea_base(db: Session, b: SoftwareBaseline, usuario) -> None:
+    """Audita y borra la línea base. No confirma."""
+    audit_log(db, usuario, "DELETE", "sw_baseline", b.id, b.name, old_values=serializar_linea_base(b))
+    db.delete(b)
+
+
+def producto_y_ci_de(db: Session, i: SoftwareInstance):
+    """Producto y CI de una instancia (CI `None` si no tiene)."""
+    return (db.get(SoftwareProduct, i.product_id),
+            db.get(ConfigurationItem, i.ci_id) if i.ci_id else None)
 
 
 def aprobar_linea_base(db: Session, b: SoftwareBaseline, usuario) -> None:

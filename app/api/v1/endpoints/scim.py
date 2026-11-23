@@ -37,7 +37,13 @@ def _require_scim_token(
 ) -> None:
     # Per-org token auth: resolves the org by the presented bearer token and
     # asserts it matches the path {org_id} (403 on cross-tenant attempts).
-    require_scim_token(db, authorization, org_id)
+    # Auditoría 22-11-2026 (M8): el token se busca entre empresas (contexto
+    # declarado); verificado, la sesión —la misma de todo el grafo— filtra por
+    # la empresa del token.
+    from app.db.session import contexto_de_sistema, publicar_empresa
+    with contexto_de_sistema(db, "scim: token de la empresa"):
+        require_scim_token(db, authorization, org_id)
+    publicar_empresa(db, org_id)
 
 
 @router.get("/ServiceProviderConfig")

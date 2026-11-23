@@ -6,17 +6,17 @@ from __future__ import annotations
 
 from typing import Any, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_current_user, require_internal_user
+from app.core.deps import get_current_user, requiere_capacidad
 from app.core.responses import APIResponse
-from app.db.session import get_db
+from app.db.session import get_db, sesion_de_sistema
 from app.models.user import User
 from app.core.abac_enforce import enforce_abac
 from app.services import bi_bookmarks_service as svc
-from app.core.codigos_de_error import desde_valor
+from app.core.codigos_de_error import desde_valor, error_http
 
 router = APIRouter()
 
@@ -58,7 +58,7 @@ def create_bookmark(
     body: BookmarkCreateIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: analitica interna
+    _rol: User = Depends(requiere_capacidad("bi.usar")),  # auditoria 2026-09: dominio: analitica interna
 ):
     org_id = getattr(current_user, "organization_id", None)
     try:
@@ -133,7 +133,7 @@ def delete_bookmark(
     except ValueError as exc:
         raise desde_valor(403, exc) from exc
     if not deleted:
-        raise HTTPException(status_code=404, detail="bookmark_not_found")
+        raise error_http(404, "no_encontrado", que="marcador")
 
 
 # ── Shareable URL endpoints ────────────────────────────────────────────────────
@@ -159,10 +159,26 @@ def generate_share_url(
     return APIResponse.ok(data=result)
 
 
+@router.delete("/bi/bookmarks/{bookmark_id}/share", summary="Dejar de compartir un bookmark (revoca su URL)")
+def revoke_share_url(
+    bookmark_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Auditoría 22-11-2026 (M56): el enlace público se puede revocar."""
+    try:
+        result = svc.revoke_share_token(db, organization_id=getattr(current_user, "organization_id", None),
+                                        bookmark_id=bookmark_id, current_user=current_user)
+    except ValueError as exc:
+        code = 404 if "not_found" in str(exc) else 403
+        raise desde_valor(code, exc) from exc
+    return APIResponse.ok(data=result)
+
+
 @router.get("/bi/bookmarks/shared/{share_token}", summary="Cargar bookmark por URL compartida (sin auth)")
 def get_shared_bookmark(
     share_token: str,
-    db: Session = Depends(get_db),
+    db: Session = Depends(sesion_de_sistema("bi: enlace compartido de marcador")),
 ):
     """Endpoint público — no requiere autenticación.
     Retorna el estado del bookmark asociado al share_token.

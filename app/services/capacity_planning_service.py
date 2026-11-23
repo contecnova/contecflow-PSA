@@ -54,17 +54,21 @@ def get_booking_conflicts(
 
     for uid, user_bks in user_bookings.items():
         capacity_per_day = jornada_de_empresa(db, registro=user_bks[0])
+        capacidad = _capacidad_por_dia(db, uid, user_bks, capacity_per_day)
         daily: dict = defaultdict(float)
         for b in user_bks:
             d = b.start_date
             while d <= b.end_date:
-                daily[d] += (b.hours_per_day or capacity_per_day)
+                # M35 (auditoría 22-11-2026): solo días que la persona trabaja
+                # (su horario: sin fines de semana, festivos ni ausencias).
+                if capacidad.get(d, 0) > 0:
+                    daily[d] += (b.hours_per_day or capacidad[d])
                 d += timedelta(days=1)
 
         overloaded_days = [
-            {"date": str(d), "hours": round(h, 1), "utilization_pct": round(h / capacity_per_day * 100, 1)}
+            {"date": str(d), "hours": round(h, 1), "utilization_pct": round(h / capacidad[d] * 100, 1)}
             for d, h in daily.items()
-            if h / capacity_per_day * 100 > threshold_pct
+            if capacidad.get(d) and h / capacidad[d] * 100 > threshold_pct
         ]
         if overloaded_days:
             user_obj = db.query(User).filter(User.id == uid).first()
@@ -83,6 +87,23 @@ def get_booking_conflicts(
     }
 
 
+def _capacidad_por_dia(db: Session, uid, reservas, defecto: float) -> dict:
+    """{día: horas disponibles} de la persona en el rango de sus reservas, por su
+    horario efectivo (horario, festivos de empresa y sede, contrato, ausencias).
+    M35: antes contaban sábados, domingos y festivos y se dividía por la jornada."""
+    from app.services.horario import efectivo as hor
+    desde = min(r.start_date for r in reservas)
+    hasta = max(r.end_date for r in reservas)
+    dias = (hor.horarios(db, [uid], desde, hasta) or {}).get(uid, {})
+    if not dias:   # sin horario calculable: lunes a viernes con la jornada de la empresa
+        salida, d = {}, desde
+        while d <= hasta:
+            salida[d] = defecto if d.weekday() < 5 else 0.0
+            d += timedelta(days=1)
+        return salida
+    return {d: float(x.horas or 0) for d, x in dias.items()}
+
+
 def _dias_de(reserva) -> set:
     """Los días que ocupa una reserva, los dos extremos incluidos."""
     dias = set()
@@ -93,18 +114,19 @@ def _dias_de(reserva) -> set:
     return dias
 
 
-def _dias_sobrecargados(reservas, capacidad: float) -> set:
+def _dias_sobrecargados(reservas, capacidad, por_dia_cap: dict | None = None) -> set:
     """Días en los que la suma de horas reservadas supera la capacidad diaria.
 
     Se suma **por día y por persona**: dos reservas de media jornada no
     sobrecargan, dos de jornada completa sí.
     """
     por_dia: dict = defaultdict(float)
+    cap = (lambda d: por_dia_cap.get(d, 0.0)) if por_dia_cap is not None else (lambda d: capacidad)
     for reserva in reservas:
-        horas = reserva.hours_per_day or capacidad
         for dia in _dias_de(reserva):
-            por_dia[dia] += horas
-    return {dia for dia, horas in por_dia.items() if horas > capacidad}
+            if cap(dia) > 0:
+                por_dia[dia] += reserva.hours_per_day or cap(dia)
+    return {dia for dia, horas in por_dia.items() if horas > cap(dia)}
 
 
 def _propuestas_para(reservas, sobrecargados: set, uid, nombre: str) -> list[dict]:
@@ -121,6 +143,15 @@ def _propuestas_para(reservas, sobrecargados: set, uid, nombre: str) -> list[dic
             continue
         nuevo_inicio = max(conflictos) + timedelta(days=1)
         duracion = (reserva.end_date - reserva.start_date).days
+        # M35: el hueco propuesto no puede pisar OTRAS reservas de la persona (antes
+        # la propuesta podía crear otra sobrecarga): se avanza hasta un tramo libre.
+        otras = [r for r in reservas if r is not reserva]
+        for _ in range(366):
+            fin = nuevo_inicio + timedelta(days=duracion)
+            pisa = [r for r in otras if r.start_date <= fin and r.end_date >= nuevo_inicio]
+            if not pisa:
+                break
+            nuevo_inicio = max(r.end_date for r in pisa) + timedelta(days=1)
         propuestas.append({
             "booking_id": reserva.id,
             "user_id": uid,
@@ -164,7 +195,8 @@ def get_gantt_leveling(
     for uid, reservas in por_usuario.items():
         reservas = sorted(reservas, key=lambda r: r.start_date)
         capacidad = jornada_de_empresa(db, registro=reservas[0])
-        sobrecargados = _dias_sobrecargados(reservas, capacidad)
+        sobrecargados = _dias_sobrecargados(reservas, capacidad,
+                                            _capacidad_por_dia(db, uid, reservas, capacidad))
         if not sobrecargados:
             continue
         usuario = db.query(User).filter(User.id == uid).first()

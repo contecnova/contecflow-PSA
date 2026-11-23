@@ -557,8 +557,9 @@ ensure_compose_required_env() {
     export "$key=$actual"
   done
 
-  # Secretas: se generan una vez y se persisten.
-  for key in POSTGRES_PASSWORD MINIO_ROOT_PASSWORD; do
+  # Secretas: se generan una vez y se persisten. REDIS_PASSWORD (auditoría
+  # 22-11-2026, M5): requirepass de Redis; no depende de ningún volumen.
+  for key in POSTGRES_PASSWORD MINIO_ROOT_PASSWORD REDIS_PASSWORD; do
     actual="$(env_read "$key")"
     if [ -z "$actual" ]; then
       if [ "$key" = "POSTGRES_PASSWORD" ] && docker volume inspect contecflow_postgres_data >/dev/null 2>&1; then
@@ -641,7 +642,7 @@ setup_docker_infra() {
   echo -n "  Esperando Redis"
   for i in $(seq 1 15); do
     if docker_compose_cmd exec -T redis \
-        redis-cli ping > /dev/null 2>&1; then
+        sh -c 'redis-cli ${REDIS_PASSWORD:+--no-auth-warning -a "$REDIS_PASSWORD"} ping' 2>/dev/null | grep -q PONG; then
       echo " ✓"
       break
     fi
@@ -866,40 +867,8 @@ PY
   preparar_rol_de_aplicacion() {
     [ "${CONTECFLOW_DB_APP_ROLE:-1}" = "0" ] && { warn "Rol de aplicación omitido (CONTECFLOW_DB_APP_ROLE=0): RLS no actúa"; return 0; }
     local salida
-    salida=$("$PY_BIN" - <<'PY'
-import os, re, secrets, subprocess, sys
-from pathlib import Path
-env = Path('.env'); lines = env.read_text(encoding='utf-8').splitlines()
-def get(n):
-    for l in lines:
-        if l.startswith(n + '='): return l.split('=', 1)[1]
-    return ''
-def put(n, v):
-    for i, l in enumerate(lines):
-        if l.startswith(n + '='): lines[i] = f'{n}={v}'; return
-    lines.append(f'{n}={v}')
-url = get('DATABASE_URL')
-if not url.startswith('postgresql'):
-    print('SKIP no es Postgres'); sys.exit(0)
-owner = get('DATABASE_MIGRATIONS_URL') or url
-m = re.match(r'(postgresql[^:]*://)([^:@]+):([^@]*)@(.+)$', owner)
-if not m:
-    print('SKIP URL no reconocida'); sys.exit(0)
-usuario = get('APP_DB_USER') or 'contecflow_app'
-clave = get('APP_DB_PASSWORD') or secrets.token_urlsafe(24)
-if m.group(2) == usuario:
-    print('SKIP DATABASE_MIGRATIONS_URL debe ser el dueño del esquema'); sys.exit(0)
-entorno = dict(os.environ, DATABASE_URL=owner, DATABASE_MIGRATIONS_URL=owner, APP_DB_USER=usuario, APP_DB_PASSWORD=clave)
-r = subprocess.run([sys.executable, '-m', 'app.db.rls'], env=entorno, capture_output=True, text=True)
-if r.returncode != 0:
-    print('FAIL ' + (r.stderr or r.stdout).strip().splitlines()[-1][:200]); sys.exit(0)
-put('APP_DB_USER', usuario); put('APP_DB_PASSWORD', clave)
-put('DATABASE_MIGRATIONS_URL', owner)
-put('DATABASE_URL', f'{m.group(1)}{usuario}:{clave}@{m.group(4)}')
-env.write_text('\n'.join(lines) + '\n', encoding='utf-8')
-print('OK ' + r.stdout.strip().replace('\n', ' · '))
-PY
-)
+    # 22-11-2026: la lógica vive en scripts/rol_de_aplicacion.py, la misma que usa setup.bat.
+    salida=$("$PY_BIN" scripts/rol_de_aplicacion.py)
     case "$salida" in
       OK*)   log "RLS: ${salida#OK }" ;;
       SKIP*) log "RLS: omitido (${salida#SKIP })" ;;
@@ -943,10 +912,10 @@ PY
   # ── Comprobación / seed inicial ──────────────────────────────────────────────────────
   # Check if DB has valid users with passwords
   DB_OK=$("$PY_BIN" -c "
-from app.db.session import SessionLocal
+from app.db.session import SessionLocal, declarar_sistema
 from app.models.user import User
 try:
-    db = SessionLocal()
+    db = declarar_sistema(SessionLocal(), 'setup: comprobar usuarios')
     count = db.query(User).filter(User.hashed_password != None).count()
     db.close()
     print('ok' if count > 0 else 'empty')
@@ -1052,12 +1021,13 @@ sync_demo_passwords() {
   log "Sincronizando contraseñas demo con DEFAULT_USER_PASSWORD..."
   SYNC_RESULT=$(DEMO_PWD="$DEMO_PWD" "$PY_BIN" -c "
 import os, sys
-from app.db.session import SessionLocal
+from app.db.session import SessionLocal, declarar_sistema
 from app.models.user import User
 from app.core.security import get_password_hash
 
 pwd = os.environ['DEMO_PWD']
-db = SessionLocal()
+db = declarar_sistema(SessionLocal(), 'setup: contraseñas demo')
+
 updated = 0
 for username in ['admin', 'ana.torres', 'luis.vega', 'rrhh']:
     user = db.query(User).filter(User.username == username).first()
@@ -1174,8 +1144,10 @@ start_services() {
   log "Arrancando backend en puerto $BACKEND_PORT..."
   # Las tareas programadas las corre Celery beat (abajo), no la API: con los
   # dos activos cada tarea se ejecutaria dos veces y la API se niega a arrancar.
+  # Auditoría 22-11-2026 (01 B2): solo en este equipo (127.0.0.1); para abrirlo a la
+  # red local, BACKEND_HOST=0.0.0.0 ./setup.sh start. Docker no pasa por aquí.
   ENABLE_APSCHEDULER=0 ENABLE_CELERY_BEAT=1 "$PY_BIN" -m uvicorn app.main:app \
-    --host 0.0.0.0 \
+    --host "${BACKEND_HOST:-127.0.0.1}" \
     --port $BACKEND_PORT \
     --log-level info \
     --workers 1 \
@@ -1439,10 +1411,15 @@ case "${1:-}" in
       error "docker-clean borra los volúmenes y ENVIRONMENT=$(get_environment). Sólo en desarrollo o pruebas."
       exit 2
     fi
-    log "Parando infraestructura Docker y borrando volúmenes..."
+    # Auditoría 22-11-2026 (01 B3): con todos los perfiles (si no, `down` no toca los
+    # servicios de app/observabilidad) y diciendo la verdad: los volúmenes externos
+    # (PostgreSQL y S3) están protegidos de `down -v` a propósito y se conservan.
+    log "Parando Docker (todos los perfiles) y borrando los volúmenes regenerables..."
     if detect_docker && [ -f "$SCRIPT_DIR/docker-compose.yml" ]; then
-      docker_compose_cmd down -v
-      log "Docker detenido y volúmenes eliminados"
+      docker_compose_cmd --profile app --profile s3 --profile observability --profile host-metrics down -v --remove-orphans
+      log "Docker detenido; borrados Redis, Prometheus, Alertmanager y Grafana."
+      warn "Se CONSERVAN los datos de PostgreSQL y S3 (volúmenes externos contecflow_postgres_data y contecflow_s3_data)."
+      warn "Para borrarlos de verdad: docker volume rm contecflow_postgres_data contecflow_s3_data"
     else
       warn "Docker no disponible o docker-compose.yml no encontrado"
     fi
@@ -1463,7 +1440,7 @@ case "${1:-}" in
     echo "  ./setup.sh docker [demo|clean] → TODO en Docker (app, Grafana, Prometheus...)"
     echo "  ./setup.sh docker-status → estado de los contenedores y URLs"
     echo "  ./setup.sh docker-stop   → para todos los contenedores (conserva datos)"
-    echo "  ./setup.sh docker-clean  → para Docker y borra todos los datos"
+    echo "  ./setup.sh docker-clean  → para Docker y borra los volúmenes regenerables (conserva PostgreSQL y S3)"
     exit 1
     ;;
 esac

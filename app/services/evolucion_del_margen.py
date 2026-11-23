@@ -11,13 +11,10 @@ tarifas, de los hitos facturados y del cambio de moneda. Las reglas son las de
 la cuenta de resultados de un proyecto (``profitability_service``), repartidas
 por fecha, así que la suma de los tramos es la rentabilidad del periodo:
 
-- **Coste** = personal (imputaciones activas, convertidas a la moneda de la
-  empresa: ``coste_de_imputacion_en_moneda``) + gastos y subcontrata
-  (``costes_de_proyecto.partidas_externas``, en su fecha) + licencias y equipos
-  (``alm_costes.lineas`` de cada tramo).
-- **Ingreso** = ``profitability_service.partidas_de_ingreso`` (tarifas →
-  ``billing_rate`` → hitos facturados en ``billed_at``), decidido por proyecto
-  con lo del periodo, como ``_ingreso_facturable``.
+- **Coste e ingreso**: los del cálculo único (``margen_de_proyectos``,
+  auditoría 22-11-2026 §7.2), repartidos por tramo: personal convertido a la
+  moneda de la empresa, gastos y subcontrata en su fecha, licencias y equipos
+  (ALM) de cada tramo; ingreso por tarifas → ``billing_rate`` → hitos.
 - **Margen** = ingreso − coste; ``margin_pct`` es ``None`` sin ingreso (un
   margen sin ingreso no es 0 %, es que no hay dato).
 - **Proyectos activos** = proyectos con alguna imputación en el tramo (lo que
@@ -76,83 +73,24 @@ def _tramos(p: Periodo) -> list[tuple[str, object, object]]:
 
 
 def _por_proyecto_y_tramo(db: Session, p: Periodo, proyectos: list) -> tuple[dict, dict]:
-    """``({project_id: {clave: {revenue, total_cost, hours}}}, {clave: {project_id con imputación}})``."""
-    from app.models.financial import ProjectMilestone
-    from app.models.imputation import Imputation
-    from app.models.user import User
-    from app.services import alm_costes
-    from app.services.costes_de_proyecto import partidas_externas
-    from app.services.profitability_service import (
-        _hay_tarifas, coste_de_imputacion_en_moneda, partidas_de_ingreso,
-    )
+    """``({project_id: {clave: {revenue, total_cost, hours}}}, {clave: {project_id con imputación}})``.
 
-    # 18-11-2026: moneda de la empresa (sesión o, para el superadmin, la de los proyectos).
-    from app.services.settings_service.por_empresa import moneda_de_empresa
-    moneda = moneda_de_empresa(db, registro=proyectos[0] if proyectos else None)
+    Auditoría 22-11-2026 (§7.2): sale del cálculo único y en bloque
+    (``margen_de_proyectos.cifras_por_tramo``), el mismo de rentabilidad, el
+    panel, el EVM y el BI, repartido por tramo. Antes era una copia propia.
+    """
+    from app.services.margen_de_proyectos import COSTES, cifras_por_tramo
+    crudo, activos, _ = cifras_por_tramo(
+        db, proyectos, p.fecha_desde, p.fecha_hasta,
+        clave=lambda f: p.clave(f) if p.contiene(f) else None, tramos=_tramos(p))
     datos: dict = defaultdict(lambda: defaultdict(lambda: dict.fromkeys(_CAMPOS, 0.0)))
-    activos: dict = defaultdict(set)
-    if not proyectos:
-        return datos, activos
-    por_id = {pr.id: pr for pr in proyectos}
-    ids = list(por_id)
-    desde, hasta = p.fecha_desde, p.fecha_hasta
-
-    imps = db.query(Imputation).filter(Imputation.project_id.in_(ids), Imputation.is_active.is_(True),
-                                       Imputation.date >= desde, Imputation.date <= hasta).all()
-    usuarios = {u.id: u for u in db.query(User).filter(User.id.in_({i.user_id for i in imps if i.user_id})).all()} \
-        if imps else {}
-    hitos: dict = defaultdict(list)
-    for m in db.query(ProjectMilestone).filter(
-            ProjectMilestone.project_id.in_(ids), ProjectMilestone.is_active.is_(True),
-            ProjectMilestone.is_billed.is_(True), ProjectMilestone.billed_at >= desde,
-            ProjectMilestone.billed_at <= hasta).all():
-        hitos[m.project_id].append(m)
-
-    fx: dict = {}
-    imps_de: dict = defaultdict(list)
-    for i in imps:
-        pr = por_id[i.project_id]
-        k = p.clave(i.date)
-        u = usuarios.get(i.user_id)
-        d = datos[i.project_id][k]
-        d["hours"] += float(i.hours or 0)
-        d["total_cost"] += coste_de_imputacion_en_moneda(
-            db, i.cost_amount, getattr(u, "currency", None), getattr(pr, "currency", None) or moneda, moneda,
-            i.date, fx)
-        activos[k].add(i.project_id)
-        imps_de[i.project_id].append(i)
-
-    # Ingreso: la regla del proyecto con lo del periodo; la persona para la tarifa.
-    hay_tarifas: dict = {}
-    for pid, pr in por_id.items():
-        lista = imps_de.get(pid, [])
-        org = pr.organization_id
-        if org not in hay_tarifas:
-            hay_tarifas[org] = _hay_tarifas(db, pr)
-        for fecha, importe in partidas_de_ingreso(db, pr, [_ConPersona(i, usuarios.get(i.user_id)) for i in lista],
-                                                  hitos.get(pid, []), hay_tarifas[org]):
-            if fecha is not None and p.contiene(fecha):
-                datos[pid][p.clave(fecha)]["revenue"] += float(importe or 0)
-
-    for pid, fecha, _tipo, importe in partidas_externas(db, ids, moneda, desde, hasta):
-        if fecha is not None and p.contiene(fecha):
-            datos[pid][p.clave(fecha)]["total_cost"] += float(importe or 0)
-
-    # Licencias y equipos: el coste diario de ALM de cada tramo, por proyecto.
-    for k, ini, fin in _tramos(p):
-        for li in alm_costes.lineas(db, ini, fin):
-            if li.project_id in por_id and li.amount:
-                datos[li.project_id][k]["total_cost"] += alm_costes._convertir(db, li.amount, li.currency, moneda, fin, fx)
-    return datos, activos
-
-
-class _ConPersona:
-    """Imputación con su persona (``user``) ya cargada, sin tocar la relación del ORM."""
-
-    __slots__ = ("date", "hours", "is_billable", "user")
-
-    def __init__(self, imp, usuario) -> None:
-        self.date, self.hours, self.is_billable, self.user = imp.date, imp.hours, imp.is_billable, usuario
+    for pid, tramos in crudo.items():
+        for k, d in tramos.items():
+            if k is None:
+                continue
+            datos[pid][k] = {"revenue": d["revenue"], "hours": d["hours"],
+                             "total_cost": sum(d[c] for c in COSTES)}
+    return datos, {k: v for k, v in activos.items() if k is not None}
 
 
 def _cerrar(d: dict) -> dict:

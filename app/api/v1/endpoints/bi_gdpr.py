@@ -19,7 +19,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_current_user, require_admin
+from app.core.deps import get_current_user, requiere_capacidad
+from app.core.network import ip_del_cliente
 from app.core.ratelimit import limiter
 from app.core.responses import APIListResponse, APIResponse
 from app.db.session import get_db
@@ -77,11 +78,11 @@ def record_consent(
     body: ConsentIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: solicitudes RGPD: datos personales
+    _rol: User = Depends(requiere_capacidad("bi.administrar")),  # auditoria 2026-09: sensible: solicitudes RGPD: datos personales
 ):
     org_id = getattr(current_user, "organization_id", None)
     consented = body.consented if body.consented is not None else bool(body.granted)
-    ip = request.client.host if request.client else None
+    ip = ip_del_cliente(request)
     return APIResponse.ok(data=svc.record_consent(
         db,
         user_id=body.user_id,
@@ -99,7 +100,7 @@ def get_consent(
     request: Request,
     user_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("bi.administrar")),
 ):
     org_id = getattr(current_user, "organization_id", None)
     result = svc.get_consent(db, user_id=user_id, org_id=org_id)
@@ -114,7 +115,7 @@ def get_consent_history(
     request: Request,
     user_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("bi.administrar")),
 ):
     org_id = getattr(current_user, "organization_id", None)
     history = svc.get_consent_history(db, user_id=user_id, org_id=org_id)
@@ -127,7 +128,7 @@ def get_consent_compat(
     request: Request,
     user_id: Optional[str] = Query(None),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("bi.administrar")),
 ):
     org_id = getattr(current_user, "organization_id", None)
     if user_id:
@@ -144,7 +145,7 @@ def get_consent_compat(
 def list_consents(
     request: Request,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("bi.administrar")),
 ):
     org_id = getattr(current_user, "organization_id", None)
     items = svc.list_consents(db, org_id=org_id)
@@ -156,7 +157,7 @@ def list_consents(
 def gdpr_stats(
     request: Request,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("bi.administrar")),
 ):
     org_id = getattr(current_user, "organization_id", None)
     return APIResponse.ok(data=svc.get_dsr_stats(db, org_id=org_id))
@@ -168,7 +169,7 @@ def get_dsr(
     request: Request,
     dsr_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("bi.administrar")),
 ):
     org_id = getattr(current_user, "organization_id", None)
     dsr = svc.get_dsr(db, dsr_id=dsr_id, org_id=org_id)
@@ -184,20 +185,23 @@ def create_dsr(
     body: DSRIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: solicitudes RGPD: datos personales
+    _rol: User = Depends(requiere_capacidad("bi.administrar")),  # auditoria 2026-09: sensible: solicitudes RGPD: datos personales
 ):
     org_id = getattr(current_user, "organization_id", None)
     subject_id = body.subject_id or body.user_id
     if not subject_id:
-        raise HTTPException(status_code=422, detail="subject_id_required")
-    return APIResponse.ok(data=svc.create_dsr(
-        db,
-        subject_id=subject_id,
-        request_type=body.request_type,
-        org_id=org_id,
-        requester_user_id=current_user.id,
-        notes=body.notes,
-    ))
+        raise error_http(422, "campo_obligatorio", campo="subject_id")
+    try:
+        return APIResponse.ok(data=svc.create_dsr(
+            db,
+            subject_id=subject_id,
+            request_type=body.request_type,
+            org_id=org_id,
+            requester_user_id=current_user.id,
+            notes=body.notes,
+        ))
+    except ValueError as exc:   # 22-11-2026: `restriction` no tiene circuito → 422
+        raise desde_valor(422, exc)
 
 
 @router.patch("/bi/gdpr/dsr/{dsr_id}/resolve", summary="Resolver una DSR")
@@ -208,11 +212,12 @@ def resolve_dsr(
     body: DSRResolveIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: solicitudes RGPD: datos personales
+    _rol: User = Depends(requiere_capacidad("bi.administrar")),  # auditoria 2026-09: sensible: solicitudes RGPD: datos personales
 ):
     org_id = getattr(current_user, "organization_id", None)
     try:
-        return APIResponse.ok(data=svc.resolve_dsr(db, dsr_id=dsr_id, org_id=org_id, resolution_notes=body.resolution_notes))
+        return APIResponse.ok(data=svc.resolve_dsr(db, dsr_id=dsr_id, org_id=org_id, resolution_notes=body.resolution_notes,
+                                                   actor=current_user))
     except ValueError as exc:
         raise desde_valor(404, exc)
 
@@ -225,7 +230,7 @@ def resolve_dsr_compat(
     body: DSRResolveIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: solicitudes RGPD: datos personales
+    _rol: User = Depends(requiere_capacidad("bi.administrar")),  # auditoria 2026-09: sensible: solicitudes RGPD: datos personales
 ):
     # Completing a DSR here triggers the same irreversible erasure pipeline as
     # the dedicated /erasure-execute endpoint, so it must carry the same admin
@@ -240,6 +245,7 @@ def resolve_dsr_compat(
             org_id=org_id,
             resolution_notes=body.resolution_notes,
             execute_erasure_pipeline=(body.status == "completed"),
+            actor=current_user,
         ))
     except ValueError as exc:
         raise desde_valor(404, exc)
@@ -252,7 +258,7 @@ def execute_erasure(
     dsr_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: solicitudes RGPD: datos personales
+    _rol: User = Depends(requiere_capacidad("bi.administrar")),  # auditoria 2026-09: sensible: solicitudes RGPD: datos personales
 ):
     """
     Physically anonymise all personal data for the subject referenced in a DSR.
@@ -278,7 +284,7 @@ def execute_erasure(
         resuelta = svc.resolve_dsr(
             db, dsr_id=dsr_id, org_id=org_id,
             resolution_notes="Erasure pipeline executed automatically",
-            execute_erasure_pipeline=True)
+            execute_erasure_pipeline=True, actor=current_user)
         return APIResponse.ok(data={"ok": True, "dsr_id": dsr_id, "erasure_report": resuelta["erasure_report"]})
     # intentional: chained re-raise preserves context
     except (HTTPException, ErrorDeDominio):
@@ -295,7 +301,7 @@ def portability_export(
     dsr_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: solicitudes RGPD: datos personales
+    _rol: User = Depends(requiere_capacidad("bi.administrar")),  # auditoria 2026-09: sensible: solicitudes RGPD: datos personales
 ):
     """
     Generate a full data export (JSON) for the subject referenced in a portability DSR.
@@ -313,11 +319,16 @@ def portability_export(
     if not is_admin and not is_subject:
         raise error_http(403, "sin_permiso", detail="Access denied")
     export = svc.execute_portability(db, subject_id=dsr["subject_id"], org_id=org_id)
+    if dsr.get("registro") == "gdpr_requests":
+        # Auditoría 22-11-2026 (05·H5): registro único; la copia queda en la
+        # solicitud, cifrada y con caducidad, y la solicitud se completa.
+        svc.completar_con_copia(db, dsr_id=dsr_id, org_id=org_id, actor=current_user, copia=export)
+        return APIResponse.ok(data={"ok": True, "dsr_id": dsr_id, "export": export})
     # Store export reference in DSR and auto-resolve
     svc.resolve_dsr(
         db, dsr_id=dsr_id, org_id=org_id,
         resolution_notes="Portability export generated automatically",
-        execute_erasure_pipeline=False,
+        execute_erasure_pipeline=False, actor=current_user,
     )
     return APIResponse.ok(data={"ok": True, "dsr_id": dsr_id, "export": export})
 
@@ -328,7 +339,7 @@ def list_dsrs(
     request: Request,
     status: Optional[str] = Query(None, description="pending | completed"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("bi.administrar")),
 ):
     org_id = getattr(current_user, "organization_id", None)
     if status == "resolved":
@@ -344,12 +355,12 @@ def set_field_mask(
     body: FieldMaskIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: solicitudes RGPD: datos personales
+    _rol: User = Depends(requiere_capacidad("bi.administrar")),  # auditoria 2026-09: sensible: solicitudes RGPD: datos personales
 ):
     org_id = getattr(current_user, "organization_id", None)
     dataset = body.dataset or body.entity
     if not dataset:
-        raise HTTPException(status_code=422, detail="dataset_required")
+        raise error_http(422, "campo_obligatorio", campo="dataset")
     return APIResponse.ok(data=svc.set_field_mask(db, dataset=dataset, field=body.field, mask_type=body.mask_type, org_id=org_id))
 
 
@@ -358,7 +369,7 @@ def set_field_mask(
 def list_field_masks(
     request: Request,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("bi.administrar")),
 ):
     org_id = getattr(current_user, "organization_id", None)
     items = svc.list_field_masks(db, org_id=org_id)

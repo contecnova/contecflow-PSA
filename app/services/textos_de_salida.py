@@ -30,6 +30,26 @@ IDIOMA_DE_RESPALDO = "es"
 
 #: clave -> idioma -> plantilla (`str.format` con los datos).
 TEXTOS: dict[str, dict[str, str]] = {
+    # ── Excel de gastos (auditoría 22-11-2026, textos fijos de expense_service) ──
+    "gastos.excel.hoja": {"es": "Gastos", "en": "Expenses", "zh": "费用"},
+    "gastos.excel.fecha": {"es": "Fecha", "en": "Date", "zh": "日期"},
+    "gastos.excel.empleado": {"es": "Empleado", "en": "Employee", "zh": "员工"},
+    "gastos.excel.categoria": {"es": "Categoría", "en": "Category", "zh": "类别"},
+    "gastos.excel.descripcion": {"es": "Descripción", "en": "Description", "zh": "描述"},
+    "gastos.excel.importe": {"es": "Importe", "en": "Amount", "zh": "金额"},
+    "gastos.excel.moneda": {"es": "Moneda", "en": "Currency", "zh": "货币"},
+    "gastos.excel.proyecto": {"es": "Proyecto", "en": "Project", "zh": "项目"},
+    "gastos.excel.estado": {"es": "Estado", "en": "Status", "zh": "状态"},
+    "gastos.excel.facturable": {"es": "Facturable", "en": "Billable", "zh": "可计费"},
+    "gastos.excel.notas": {"es": "Notas", "en": "Notes", "zh": "备注"},
+    "gastos.excel.justificante": {"es": "URL Justificante", "en": "Receipt URL", "zh": "凭证链接"},
+    "gastos.excel.si": {"es": "Sí", "en": "Yes", "zh": "是"},
+    "gastos.excel.no": {"es": "No", "en": "No", "zh": "否"},
+    "gastos.estado.draft": {"es": "Borrador", "en": "Draft", "zh": "草稿"},
+    "gastos.estado.submitted": {"es": "Enviado", "en": "Submitted", "zh": "已提交"},
+    "gastos.estado.approved": {"es": "Aprobado", "en": "Approved", "zh": "已批准"},
+    "gastos.estado.rejected": {"es": "Rechazado", "en": "Rejected", "zh": "已驳回"},
+    "gastos.estado.reimbursed": {"es": "Reembolsado", "en": "Reimbursed", "zh": "已报销"},
     # ── Catálogo interno de equipos y licencias (19-11-2026, alm_integracion) ──
     "alm.categoria": {"es": "Equipos y licencias", "en": "Equipment and licences", "zh": "设备与许可证"},
     "alm.item.equipo": {"es": "Pedir equipo", "en": "Request equipment", "zh": "申请设备"},
@@ -406,6 +426,16 @@ from app.services.textos_de_salida_itsm import TEXTOS_ITSM as _TEXTOS_ITSM  # no
 
 TEXTOS.update(_TEXTOS_ITSM)
 
+# 23-11-2026: lo que los servicios a-l escribian en castellano fijo (bloque propio, mismo formato).
+from app.services.textos_de_salida_servicios_a_l import TEXTOS_SERVICIOS_A_L as _TEXTOS_A_L  # noqa: E402
+
+TEXTOS.update(_TEXTOS_A_L)
+
+# 23-11-2026: textos de los servicios m-z (bloque propio en otro fichero).
+from app.services.textos_de_salida_servicios_m_z import TEXTOS_SERVICIOS_M_Z as _TEXTOS_M_Z  # noqa: E402
+
+TEXTOS.update(_TEXTOS_M_Z)
+
 
 def texto(clave: str, idioma: Optional[str] = None, **params) -> str:
     """El texto `clave` en `idioma` (castellano si no lo hay) con sus datos.
@@ -442,6 +472,8 @@ def nombre_de_marca(db=None, org_id: Optional[str] = None) -> str:
         if db is None:
             from app.db.session import SessionLocal
             propia = db = SessionLocal()
+            from app.db.contexto_de_tenant import fijar_contexto as _fijar_contexto
+            _fijar_contexto(db, org_id, "marca de la empresa")  # auditoría 22-11-2026: TENANT_SESION_SIN_CONTEXTO=cerrar
         return marca_de_organizacion(db, org_id, nombre_por_defecto=NOMBRE_DEL_PRODUCTO).nombre \
             or NOMBRE_DEL_PRODUCTO
     except Exception:

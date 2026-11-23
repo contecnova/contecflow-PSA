@@ -7,14 +7,14 @@ v12 models:
   - ReportDefinition / ScheduledReport: saved + scheduled reports
   - ResourceMatch : SmartMatch recommendations cache
 """
-from sqlalchemy import Index
+from sqlalchemy import JSON, Index
 from sqlalchemy import (
     Column, String, Float, DateTime, ForeignKey, Text,
     Boolean, Integer, Enum, Date
 )
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
-from app.models.money import Money
+from app.models.money import Money, Rate
 import enum
 import uuid
 from app.db.base import Base
@@ -28,14 +28,14 @@ class SLABreachLog(Base):
     __tablename__ = "sla_breach_logs"
 
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     ticket_id   = Column(String(36), ForeignKey("sd_tickets.id", ondelete="CASCADE"), nullable=False, index=True)
     breach_type = Column(String(20), nullable=False)  # response | resolution
     sla_due_at  = Column(DateTime(timezone=True), nullable=False)
     breached_at = Column(DateTime(timezone=True), server_default=func.now())
     breach_minutes = Column(Integer, nullable=True)   # How late
-    agent_id    = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
-    group_id    = Column(String(36), ForeignKey("sd_agent_groups.id"), nullable=True, index=True)
+    agent_id    = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    group_id    = Column(String(36), ForeignKey("sd_agent_groups.id", ondelete="SET NULL"), nullable=True, index=True)
     priority    = Column(String(20), nullable=True)
     category    = Column(String(100), nullable=True)
 
@@ -65,10 +65,10 @@ class AutomationWorkflow(Base):
     __tablename__ = "automation_workflows"
 
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     name        = Column(String(255), nullable=False)
     description = Column(String(500), nullable=True)
-    project_id  = Column(String(36), ForeignKey("projects.id"), nullable=True, index=True)
+    project_id  = Column(String(36), ForeignKey("projects.id", ondelete="SET NULL"), nullable=True, index=True)
     is_global   = Column(Boolean, default=False)
     status      = Column(Enum(WorkflowStatus), default=WorkflowStatus.draft, index=True)
 
@@ -82,7 +82,7 @@ class AutomationWorkflow(Base):
     error_count   = Column(Integer, default=0)
     last_run_at   = Column(DateTime(timezone=True), nullable=True)
 
-    created_by  = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    created_by  = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at  = Column(DateTime(timezone=True), server_default=func.now())
     updated_at  = Column(DateTime(timezone=True), onupdate=func.now())
 
@@ -101,7 +101,7 @@ class WorkflowStep(Base):
     __tablename__ = "workflow_steps"
 
     id           = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     workflow_id  = Column(String(36), ForeignKey("automation_workflows.id", ondelete="CASCADE"), nullable=False, index=True)
     order        = Column(Integer, nullable=False, default=0)
     step_type    = Column(Enum(StepType), nullable=False)
@@ -119,7 +119,7 @@ class WorkflowExecution(Base):
     __tablename__ = "workflow_executions"
 
     id           = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     workflow_id  = Column(String(36), ForeignKey("automation_workflows.id", ondelete="CASCADE"), nullable=False, index=True)
     trigger_context = Column(Text, nullable=True)  # JSON
     status       = Column(String(20), default="running")   # running | completed | failed | waiting
@@ -148,7 +148,7 @@ class ImportJob(Base):
     __tablename__ = "import_jobs"
 
     id           = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     entity_type  = Column(String(50), nullable=False, index=True)  # projects|tasks|users|imputations|expenses
     filename     = Column(String(255), nullable=True)
     status       = Column(Enum(ImportStatus), default=ImportStatus.pending, index=True)
@@ -159,7 +159,7 @@ class ImportJob(Base):
     errors       = Column(Text, nullable=True)    # JSON array of {row, field, error}
     warnings     = Column(Text, nullable=True)    # JSON array
     result_data  = Column(Text, nullable=True)    # JSON: created IDs
-    created_by   = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    created_by   = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     started_at   = Column(DateTime(timezone=True), server_default=func.now())
     completed_at = Column(DateTime(timezone=True), nullable=True)
 
@@ -184,11 +184,11 @@ class Invoice(Base):
     __table_args__ = (Index("uq_invoices_org_number", "organization_id", "number", unique=True),)
 
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     number      = Column(String(30), nullable=False)   # INV-2025-001
-    project_id  = Column(String(36), ForeignKey("projects.id"), nullable=True, index=True)
+    project_id  = Column(String(36), ForeignKey("projects.id", ondelete="SET NULL"), nullable=True, index=True)
     client_id   = Column(String(36), ForeignKey("clients.id", ondelete="SET NULL"), nullable=True, index=True)
-    contract_id = Column(String(36), ForeignKey("contracts.id"), nullable=True, index=True)
+    contract_id = Column(String(36), ForeignKey("contracts.id", ondelete="SET NULL"), nullable=True, index=True)
 
     # Client info (snapshot)
     client_name    = Column(String(255), nullable=True)
@@ -198,7 +198,7 @@ class Invoice(Base):
 
     # Amounts
     subtotal    = Column(Money, default=0)
-    tax_rate    = Column(Float, default=settings.DEFAULT_TAX_RATE)    # % IVA (ratio, not money)
+    tax_rate    = Column(Rate, default=settings.DEFAULT_TAX_RATE)     # % IVA; migracion 200: Numeric (A-MOD2)
     tax_amount  = Column(Money, default=0)
     total       = Column(Money, default=0)
     currency    = Column(String(3), default=settings.DEFAULT_CURRENCY)
@@ -210,6 +210,9 @@ class Invoice(Base):
 
     status      = Column(Enum(InvoiceStatus), default=InvoiceStatus.draft, index=True)
     notes       = Column(Text, nullable=True)
+    # Migracion 200: nota escrita por el sistema, por clave (se pinta en el idioma de quien lee).
+    notes_key    = Column(String(120), nullable=True)
+    notes_params = Column(JSON, nullable=True)
     internal_notes = Column(Text, nullable=True)
     # Decision del cliente en el portal: None, approved o rejected (auditoria 2026-11).
     client_approval_status = Column(String(20), nullable=True)
@@ -219,7 +222,7 @@ class Invoice(Base):
     period_from = Column(Date, nullable=True)
     period_to   = Column(Date, nullable=True)
 
-    created_by  = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    created_by  = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at  = Column(DateTime(timezone=True), server_default=func.now())
     updated_at  = Column(DateTime(timezone=True), onupdate=func.now())
     # Stripe payment gateway fields (v23.8)
@@ -241,7 +244,7 @@ class InvoiceLine(Base):
     __tablename__ = "invoice_lines"
 
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     invoice_id  = Column(String(36), ForeignKey("invoices.id", ondelete="CASCADE"), nullable=False, index=True)
     order       = Column(Integer, default=0)
     description = Column(String(500), nullable=False)
@@ -265,7 +268,7 @@ class ReportDefinition(Base):
     __tablename__ = "report_definitions"
 
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     name        = Column(String(255), nullable=False)
     description = Column(String(500), nullable=True)
     category    = Column(String(50), nullable=True)    # financial | utilization | delivery | itsm
@@ -288,7 +291,7 @@ class ReportDefinition(Base):
     schedule_cron   = Column(String(50), nullable=True)    # cron expression
     schedule_emails = Column(Text, nullable=True)          # JSON array of emails
 
-    created_by  = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    created_by  = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at  = Column(DateTime(timezone=True), server_default=func.now())
     updated_at  = Column(DateTime(timezone=True), onupdate=func.now())
 
@@ -299,7 +302,7 @@ class ReportDefinition(Base):
 class ScheduledReport(Base):
     __tablename__ = "scheduled_reports"
     id            = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     name          = Column(String(255), nullable=False)
     metric        = Column(String(100))           # métrca de analytics (hours_by_month, etc.)
     frequency     = Column(String(20), default="weekly")  # daily | weekly | monthly
@@ -330,10 +333,15 @@ class ApprovalGroup(Base):
     __tablename__ = "approval_groups"
 
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     name        = Column(String(200), nullable=False)
     description = Column(Text, nullable=True)
     member_ids  = Column(Text, nullable=False, default="[]")  # JSON list of user IDs
+    # Migracion 200: texto de serie por clave de `textos_de_salida` y sus datos;
+    # se pinta al leer en el idioma de quien mira (`textos_guardados`).
+    # El par es del nombre (`name`).
+    texto_clave  = Column(String(120), nullable=True)
+    texto_params = Column(JSON, nullable=True)
     created_by  = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at  = Column(DateTime(timezone=True), server_default=func.now())
 
@@ -345,7 +353,7 @@ class ApprovalWorkflow(Base):
     __tablename__ = "approval_workflows"
 
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     name        = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
     entity_type = Column(String(50), nullable=False)
@@ -354,7 +362,7 @@ class ApprovalWorkflow(Base):
     # Condiciones de activación (JSON): {"amount_gt": 1000, "department": "IT"}
     trigger_conditions = Column(Text, default="{}")
     # Encadenamiento: lanzar otro flujo al aprobar
-    chain_on_approval_workflow_id = Column(String(36), ForeignKey("approval_workflows.id"), nullable=True, index=True)
+    chain_on_approval_workflow_id = Column(String(36), ForeignKey("approval_workflows.id", ondelete="SET NULL"), nullable=True, index=True)
     # Bloqueo duro al superar SLA
     sla_block_on_breach = Column(Boolean, default=False)
     # Reglas de auto-aprobación (JSON): [{"conditions": {...}, "action": "auto_approve"}]
@@ -374,26 +382,26 @@ class ApprovalStep(Base):
     __tablename__ = "approval_steps"
 
     id           = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     workflow_id  = Column(String(36), ForeignKey("approval_workflows.id", ondelete="CASCADE"), nullable=False, index=True)
     step_order   = Column(Integer, nullable=False)     # 1, 2, 3...
     name         = Column(String(100), nullable=False)  # "Manager directo", "Director", "CFO"
     approver_type = Column(String(30), nullable=False)  # role | user | manager | any_in_department
     approver_role = Column(String(50), nullable=True)   # si approver_type = role
-    approver_user_id = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    approver_user_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     approver_department = Column(String(100), nullable=True)
     # Comportamiento
     is_optional     = Column(Boolean, default=False)
     timeout_hours   = Column(Integer, default=72)
     on_timeout      = Column(String(20), default="escalate")  # escalate | auto_approve | reject
-    escalate_to_user_id = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    escalate_to_user_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     # Enterprise v2
     parallel_quorum    = Column(Boolean, default=False)   # múltiples aprobadores en paralelo
     required_approvals = Column(Integer, default=1)        # quórum: cuántos votos positivos se necesitan
     step_condition     = Column(Text, nullable=True)       # JSON: condición para activar el paso
     requires_attachment = Column(Boolean, default=False)   # la decisión debe incluir adjunto
     reminder_hours     = Column(Integer, nullable=True)    # recordatorio tras N horas
-    approver_group_id  = Column(String(36), ForeignKey("approval_groups.id"), nullable=True, index=True)
+    approver_group_id  = Column(String(36), ForeignKey("approval_groups.id", ondelete="SET NULL"), nullable=True, index=True)
     # Rev. 165: `approve` decide; `inform` solo avisa y el flujo sigue. Varios
     # pasos con el mismo `step_order` forman una etapa en paralelo.
     kind               = Column(String(10), nullable=False, default="approve", server_default="approve")
@@ -411,12 +419,12 @@ class ApprovalRequest(Base):
     __tablename__ = "approval_requests"
 
     id           = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
-    workflow_id  = Column(String(36), ForeignKey("approval_workflows.id"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
+    workflow_id  = Column(String(36), ForeignKey("approval_workflows.id", ondelete="SET NULL"), nullable=True, index=True)
     entity_type  = Column(String(50), nullable=False)   # timesheet | expense | milestone...
     entity_id    = Column(String(36), nullable=False)   # ID del objeto a aprobar
     entity_summary = Column(String(500), nullable=True) # Descripción legible
-    requested_by = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
+    requested_by = Column(String(36), ForeignKey("users.id", ondelete="RESTRICT"), nullable=False, index=True)
     current_step = Column(Integer, default=1)
     status       = Column(String(30), default="pending")  # pending | approved | rejected | cancelled
     # Timeout tracking: set when a step becomes active, reset on step advance
@@ -443,13 +451,13 @@ class ApprovalDecision(Base):
     __tablename__ = "approval_decisions"
 
     id           = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     request_id   = Column(String(36), ForeignKey("approval_requests.id", ondelete="CASCADE"), nullable=False, index=True)
     step_order   = Column(Integer, nullable=False)
-    approver_id  = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
+    approver_id  = Column(String(36), ForeignKey("users.id", ondelete="RESTRICT"), nullable=False, index=True)
     decision     = Column(String(20), nullable=False)   # approved | rejected | delegated
     # En una delegacion: a quien se pasa el paso (ese usuario puede decidirlo).
-    delegate_to  = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    delegate_to  = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     note           = Column(Text, nullable=True)
     attachment_url = Column(Text, nullable=True)
     # Rev. 165: el paso (id) de la etapa que decide; en una etapa en paralelo
@@ -501,7 +509,7 @@ class FinancialApprovalAuditLog(Base):
     __tablename__ = "financial_approval_audit_logs"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     request_id = Column(String(36), ForeignKey("approval_requests.id", ondelete="CASCADE"), nullable=False, index=True)
     entity_type = Column(String(50), nullable=False, index=True)
     entity_id = Column(String(36), nullable=False, index=True)
@@ -530,13 +538,13 @@ class RolePermission(Base):
     _tenant_filter_include_global = True
 
     id      = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     role    = Column(String(50),  nullable=False)   # admin | pm | team_lead | employee | hr | client
     module  = Column(String(80),  nullable=False)   # projects | tasks | timesheets | invoices...
     action  = Column(String(30),  nullable=False)   # ver | crear | editar | eliminar | aprobar | exportar
     allowed = Column(Boolean, default=True)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
-    updated_by = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    updated_by = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
 
     editor = relationship("User", foreign_keys=[updated_by])
 
@@ -549,20 +557,25 @@ class SodRule(Base):
     __tablename__ = "grc_sod_rules"
 
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     module_a    = Column(String(80),  nullable=False)
     action_a    = Column(String(30),  nullable=False)
     module_b    = Column(String(80),  nullable=False)
     action_b    = Column(String(30),  nullable=False)
     risk        = Column(String(20),  default="high")   # critical | high | medium | low
     description = Column(Text,        nullable=True)
+    # Migracion 200: texto de serie por clave de `textos_de_salida` y sus datos;
+    # se pinta al leer en el idioma de quien mira (`textos_guardados`).
+    # Una regla SoD no tiene nombre: un solo par, el de la descripcion.
+    texto_clave  = Column(String(120), nullable=True)
+    texto_params = Column(JSON, nullable=True)
     is_active   = Column(Boolean,     default=True)
     # JSON list of role ids with known conflict: ["pm", "hr"]
     roles_conflict = Column(Text, default="[]")
     # Mitigation: link to a required approval workflow
-    mitigated_by_workflow_id = Column(String(36), ForeignKey("approval_workflows.id"), nullable=True, index=True)
+    mitigated_by_workflow_id = Column(String(36), ForeignKey("approval_workflows.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at  = Column(DateTime(timezone=True), server_default=func.now())
-    created_by  = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    created_by  = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
 
     mitigating_workflow = relationship("ApprovalWorkflow", foreign_keys=[mitigated_by_workflow_id])
     creator = relationship("User", foreign_keys=[created_by])
@@ -576,9 +589,9 @@ class GrcAuditLog(Base):
     __tablename__ = "grc_audit_log"
 
     id            = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     timestamp     = Column(DateTime(timezone=True), server_default=func.now(), index=True)
-    user_id       = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    user_id       = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     action_type   = Column(String(80),  nullable=False)   # permission_changed | sod_violation | approval_override | ...
     resource_type = Column(String(80),  nullable=True)    # role_permission | sod_rule | approval | ...
     resource_id   = Column(String(36),  nullable=True)
@@ -597,9 +610,9 @@ class SodViolation(Base):
     __tablename__ = "grc_sod_violations"
 
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
-    rule_id     = Column(String(36), ForeignKey("grc_sod_rules.id"), nullable=False, index=True)
-    user_id     = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
+    rule_id     = Column(String(36), ForeignKey("grc_sod_rules.id", ondelete="RESTRICT"), nullable=False, index=True)
+    user_id     = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     role        = Column(String(50),  nullable=True)
     # Context: what triggered the violation check
     context_type = Column(String(80),  nullable=True)   # approval_request | task_assignment | ...

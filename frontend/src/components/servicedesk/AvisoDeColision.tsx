@@ -11,7 +11,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Users } from 'lucide-react'
 import { useAppT } from '../../i18n/AppLangContext'
 import { useAuth } from '../../context/AuthContext'
-import api from '../../services/api/_core'
+import { wsApi } from '../../services/api/_core'
 import { apiWsUrl } from '../../services/api/urls'
 import './sdMercado.css'
 
@@ -39,9 +39,9 @@ export default function AvisoDeColision({ ticketId, escribiendo }: { ticketId: s
       enviar(modoRef.current)
       temporizador = setTimeout(latir, latidoRef.current)
     }
-    api.get('/ws/ticket').then(r => {
+    wsApi.ticket().then(r => {
       if (cerrado) return
-      const ticket = (r.data as { ticket?: string })?.ticket
+      const ticket = r.data?.ticket
       if (!ticket) return
       const ws = new WebSocket(apiWsUrl(`/ws/notifications?ticket=${ticket}`))
       wsRef.current = ws

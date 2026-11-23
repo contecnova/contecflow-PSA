@@ -16,6 +16,7 @@ import DateInput from '../ui/DateInput'
 import type { FichaPresupuesto, Partida } from '../../services/api'
 import { useAppT } from '../../i18n/AppLangContext'
 import './FormularioDePartida.css'
+import { Input } from '../ui'
 
 /** Clase de los campos de presupuestos (FormularioDePartida.css); la usan también Ficha, Seguir y Campañas. */
 export const CLASE_CAMPO = 'fodepa-campo'
@@ -90,8 +91,7 @@ export default function FormularioDePartida({ p, inicial, onGuardar, onCancelar,
     <label key={k} style={ancho ? { gridColumn: '1 / -1' } : undefined}><span className="fodepa-etiqueta">{label}</span>
       {tipo === 'date'
         ? <DateInput aria-label={label} value={f[k] as string} onChange={set(k)} className="fodepa-campo" placeholder={ayuda} />
-        : <input aria-label={label} type={tipo} min={tipo === 'number' ? 0 : undefined} step={tipo === 'number' ? 'any' : undefined}
-          value={f[k] as string} onChange={set(k)} className="fodepa-campo" placeholder={ayuda} />}</label>
+        : <Input aria-label={label} type={tipo} min={tipo === 'number' ? 0 : undefined} step={tipo === 'number' ? 'any' : undefined} value={f[k] as string} onChange={set(k)} placeholder={ayuda} />}</label>
   )
 
   return (

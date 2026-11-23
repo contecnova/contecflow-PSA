@@ -182,8 +182,18 @@ def test_EL_HALLAZGO_la_aprobacion_aprobada_dispara(client, admin_token, pm_toke
     wf = create_workflow(client, admin_token)
     add_step(client, admin_token, wf["id"], approver_type="role", approver_role="admin")
     _regla(db, "approval_approved", AVISO)
+    # Auditoría 22-11-2026 (C1): la API pública ya no abre solicitudes sobre una
+    # entidad que no existe (el contexto se lee de la fila real; antes valía el
+    # id ficticio «e-9»). Se crea un gasto real del solicitante, enviado.
+    from app.models.expenses import Expense, ExpenseStatus
+    gasto = Expense(organization_id="1", code="EXP-AUT9", user_id="pm-test-id", category="travel",
+                    description="Gasto", amount=90, currency="EUR", expense_date=timeutil.today(),
+                    status=ExpenseStatus.submitted)
+    db.add(gasto)
+    db.commit()
     r = client.post("/api/v1/approvals/requests", headers=auth(pm_token), json={
-        "entity_type": "expense", "entity_id": "e-9", "entity_summary": "Gasto", "context": {}})
+        "entity_type": "expense", "entity_id": gasto.id, "entity_summary": "Gasto", "context": {}})
+    assert r.status_code == 200, r.text
     rid = r.json()["data"]["id"]
     automation_events.procesar_pendientes(db)
     client.post(f"/api/v1/approvals/requests/{rid}/decide", headers=auth(admin_token), json={"decision": "approved"})

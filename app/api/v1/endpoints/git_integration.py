@@ -23,8 +23,9 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
+from app.db.session import sesion_de_sistema
 
-from app.core.deps import get_current_user, get_db, require_admin, require_admin_or_pm
+from app.core.deps import get_current_user, get_db, requiere_capacidad
 from app.core.async_db import run_db
 from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
@@ -114,29 +115,29 @@ async def _gitlab(request: Request, token: str, db: Session, slug: Optional[str]
 
 @router.post("/webhooks/github/{slug}", summary="Eventos de GitHub de una empresa (PR / despliegue)")
 async def github_webhook_empresa(slug: str, request: Request, x_github_event: str = Header(default=""),
-                                 x_hub_signature_256: str = Header(default=""), db: Session = Depends(get_db)):
+                                 x_hub_signature_256: str = Header(default=""), db: Session = Depends(sesion_de_sistema("git: firma del webhook de GitHub"))):
     return await _github(request, x_github_event, x_hub_signature_256, db, slug)
 
 
 @router.post("/webhooks/github", summary="Eventos de GitHub (sólo instalaciones de una empresa)")
 async def github_webhook(request: Request, x_github_event: str = Header(default=""),
-                         x_hub_signature_256: str = Header(default=""), db: Session = Depends(get_db)):
+                         x_hub_signature_256: str = Header(default=""), db: Session = Depends(sesion_de_sistema("git: firma del webhook de GitHub"))):
     return await _github(request, x_github_event, x_hub_signature_256, db, None)
 
 
 @router.post("/webhooks/gitlab/{slug}", summary="Eventos de GitLab de una empresa (MR / despliegue)")
 async def gitlab_webhook_empresa(slug: str, request: Request, x_gitlab_token: str = Header(default=""),
-                                 db: Session = Depends(get_db)):
+                                 db: Session = Depends(sesion_de_sistema("git: token del webhook de GitLab"))):
     return await _gitlab(request, x_gitlab_token, db, slug)
 
 
 @router.post("/webhooks/gitlab", summary="Eventos de GitLab (sólo instalaciones de una empresa)")
-async def gitlab_webhook(request: Request, x_gitlab_token: str = Header(default=""), db: Session = Depends(get_db)):
+async def gitlab_webhook(request: Request, x_gitlab_token: str = Header(default=""), db: Session = Depends(sesion_de_sistema("git: token del webhook de GitLab"))):
     return await _gitlab(request, x_gitlab_token, db, None)
 
 
 @router.get("/webhooks", summary="Direcciones de webhook de mi empresa y si tienen secreto")
-def mis_webhooks(db: Session = Depends(get_db), current_user: User = Depends(require_admin_or_pm)):
+def mis_webhooks(db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("integraciones.gestionar"))):
     from app.services.git_service import direcciones_de_la_empresa
     return APIResponse.ok(data=direcciones_de_la_empresa(db, current_user.organization_id))
 
@@ -231,7 +232,7 @@ def suggest_branch(
     task_id: str,
     db:      Session = Depends(get_db),
     _:       User    = Depends(get_current_user),
-    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: integracion con el repositorio
+    _rol: User = Depends(requiere_capacidad("integraciones.administrar")),  # auditoria 2026-09: sensible: integracion con el repositorio
 ):
     task = get_task(db, task_id)
     if not task:

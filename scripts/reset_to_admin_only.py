@@ -137,6 +137,8 @@ def main() -> int:
     from app.core.entorno import exigir_entorno_no_productivo
     exigir_entorno_no_productivo("Dejar la base sólo con el administrador")
     db = SessionLocal()
+    from app.db.contexto_de_tenant import declarar_sistema as _declarar_sistema
+    _declarar_sistema(db, "script: reset a solo admin")  # auditoría 22-11-2026: TENANT_SESION_SIN_CONTEXTO=cerrar
     try:
         _wipe_all_data(db)
         _ensure_admin_user(db)

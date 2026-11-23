@@ -53,7 +53,7 @@ TIPOS = ("expense", "timesheet", "leave", "change_request", "invoice", "budget",
 
 def abrir(db: Session, tipo: str, entidad_id: str, resumen: str, solicitante_id: str,
           contexto: Optional[dict] = None, evaluacion: Optional[dict] = None,
-          workflow_id: Optional[str] = None) -> None:
+          workflow_id: Optional[str] = None, propagar: bool = False) -> None:
     """Abre la solicitud si hay flujo por defecto para el tipo; si no, nada.
 
     `workflow_id` (tarea #25): el flujo concreto que pide la entidad (el flujo
@@ -98,8 +98,13 @@ def abrir(db: Session, tipo: str, entidad_id: str, resumen: str, solicitante_id:
         create_approval_request(
             ApprovalRequestIn(entity_type=tipo, entity_id=entidad_id, entity_summary=resumen[:500],
                               context=contexto or {}, workflow_id=workflow_id),
-            db, solicitante, politicas=(evaluacion or {}).get("resultado"))
+            db, solicitante, politicas=(evaluacion or {}).get("resultado"), de_confianza=True)
     except Exception:
+        # M106 (auditoría 22-11-2026): con `propagar`, el fallo sube y quien llama
+        # deshace TODO el envío (misma transacción): no queda una entidad
+        # «enviada» sin solicitud de aprobación.
+        if propagar:
+            raise
         # El envio ya esta guardado; su pantalla de revision sigue valiendo.
         db.rollback()
         logger.exception("no se pudo abrir la aprobacion de %s %s", tipo, entidad_id)
@@ -243,3 +248,97 @@ def estado(db: Session, tipo: str, entidad_id: str) -> Optional[str]:
         ApprovalRequest.entity_type == tipo, ApprovalRequest.entity_id == entidad_id,
     ).order_by(ApprovalRequest.created_at.desc()).first()
     return req.status if req else None
+
+
+# ── Contexto de confianza (auditoría 22-11-2026, C1) ─────────────────────────
+#
+# `POST /approvals/requests` aceptaba `context` del cliente y con él decidía la
+# auto-aprobación, el flujo y las condiciones de los pasos: `{"amount": 1}` en
+# un gasto de 50.000 lo dejaba aprobado. Ahora el contexto que deciden las
+# reglas sale de la ENTIDAD REAL (por entity_type/entity_id, de la empresa de
+# quien pide); lo que manda el cliente se guarda aparte (`_cliente`), solo
+# como dato informativo para quien aprueba.
+
+def _num(v) -> Optional[float]:
+    try:
+        return None if v is None else float(v)
+    except (TypeError, ValueError):
+        return None
+
+
+def _val(v):
+    return getattr(v, "value", v)
+
+
+def _cargar(db: Session, modulo: str, clase: str, entidad_id: str, org_id: Optional[str]):
+    import importlib
+    modelo = getattr(importlib.import_module(modulo), clase)
+    q = db.query(modelo).filter(modelo.id == entidad_id)
+    if org_id and hasattr(modelo, "organization_id"):
+        q = q.filter(modelo.organization_id == org_id)
+    return q.first()
+
+
+#: entity_type -> (módulo, clase, cómo sacar el contexto de la fila). Las claves
+#: son las MISMAS que ponen los dominios al abrir su solicitud (`abrir(...)`),
+#: para que una regla o una condición de paso signifique lo mismo venga de
+#: donde venga la solicitud.
+_ENTIDADES = {
+    "expense": ("app.models.expenses", "Expense",
+                lambda e: {"amount": _num(e.amount), "currency": e.currency,
+                           "category": str(_val(e.category)) if e.category is not None else None,
+                           "project_id": e.project_id, "_solicitante": e.user_id}),
+    "invoice": ("app.models.billing_reports", "Invoice",
+                lambda i: {"amount": _num(i.total), "currency": i.currency, "project_id": i.project_id}),
+    "budget": ("app.models.mfa", "Budget",
+               lambda b: {"amount": _num(b.total_amount), "currency": b.currency, "category": b.ambito,
+                          "project_id": b.project_id, "_solicitante": b.created_by}),
+    "budget_transfer": ("app.models.mfa", "BudgetTransfer",
+                        lambda t: {"amount": _num(t.importe)}),
+    "change_request": ("app.models.resources", "ChangeRequest",
+                       lambda c: {"cost_impact": _num(c.cost_impact) or 0.0,
+                                  "schedule_impact_days": getattr(c, "schedule_impact_days", None) or 0,
+                                  "impact": _val(getattr(c, "impact", None)), "project_id": c.project_id,
+                                  "_solicitante": c.requested_by}),
+    "timesheet": ("app.models.financial", "Timesheet",
+                  lambda t: {"hours": _num(t.total_hours), "billable_hours": _num(t.billable_hours),
+                             "_solicitante": t.user_id}),
+    "leave": ("app.models.resources", "Absence",
+              lambda a: {"days": _num(getattr(a, "working_days", None)), "type": _val(getattr(a, "type", None)),
+                         "_solicitante": a.user_id}),
+    "overtime": ("app.models.horas_extra", "PeticionDeHorasExtra",
+                 lambda p: {"type": p.tipo, "amount": _num(p.horas), "hours": _num(p.horas),
+                            "origin": getattr(p, "origen", None), "_solicitante": p.user_id}),
+    "internal_charge": ("app.models.clientes_internos", "InternalCharge",
+                        lambda c: {"amount": _num(c.total), "currency": c.currency, "category": "internal_charge",
+                                   "_solicitante": c.created_by}),
+    "supplier_statement": ("app.models.proveedores", "SupplierStatement",
+                           lambda s: {"amount": _num(s.invoice_amount if s.invoice_amount is not None
+                                                     else s.expected_amount), "currency": s.currency}),
+}
+
+
+def contexto_de_entidad(db: Session, entity_type: str, entity_id: str, org_id: Optional[str]) -> Optional[dict]:
+    """El contexto de reglas de una entidad, leído de la base de datos.
+
+    - dict con los datos de la fila (importe, moneda, categoría…) si el tipo
+      es conocido y la entidad existe en la empresa `org_id`;
+    - `{}` si el tipo no tiene entidad conocida aquí (las reglas con importe o
+      categoría no se cumplen: lo dudoso pide firma humana);
+    - None si el tipo es conocido y la entidad no existe o es de otra empresa.
+    """
+    spec = _ENTIDADES.get(entity_type)
+    if spec is None:
+        return {}
+    modulo, clase, extraer = spec
+    fila = _cargar(db, modulo, clase, entity_id, org_id)
+    if fila is None:
+        return None
+    ctx = {k: v for k, v in extraer(fila).items() if v is not None}
+    solicitante = ctx.pop("_solicitante", None)
+    if solicitante:
+        from app.models.user import User
+        dep = db.query(User.department).filter(User.id == solicitante).scalar()
+        if dep:
+            ctx["department"] = dep
+    return ctx

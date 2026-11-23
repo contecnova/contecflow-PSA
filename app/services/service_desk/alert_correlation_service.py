@@ -24,13 +24,10 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.core.escalas import accion_por_correlacion
-from app.models.project import Project
 from app.models.service_desk import Ticket, TicketStatus, TicketPriority
-from app.models.user import User
 from app.core.codigos_de_error import ErrorConCodigo
 
 logger = logging.getLogger(__name__)
@@ -44,24 +41,17 @@ DBSCAN_MIN_SAMPLES = 2            # DBSCAN min neighbours to form core point
 
 
 def _apply_org_scope(q, db: Session, organization_id: Optional[str]):
-    """Scope ticket query to an organization without relying on Ticket.organization_id.
+    """Tickets de la empresa, por `Ticket.organization_id`.
 
-    Service Desk tickets are scoped indirectly through related users/projects.
+    Auditoria 2026-11-22 (servicios m-z, 4.3): se acotaba por personas y
+    proyectos de la empresa (solicitante, asignado, creador o proyecto), asi
+    que un ticket de otra empresa asignado a alguien de esta entraba en sus
+    grupos, y uno del portal o del correo sin agente quedaba fuera. El ticket
+    ya lleva su empresa.
     """
     if not organization_id:
         return q
-
-    org_user_ids = db.query(User.id).filter(User.organization_id == organization_id).scalar_subquery()
-    org_project_ids = db.query(Project.id).filter(Project.organization_id == organization_id).scalar_subquery()
-
-    return q.filter(
-        or_(
-            Ticket.requester_user_id.in_(org_user_ids),
-            Ticket.assigned_to_user_id.in_(org_user_ids),
-            Ticket.created_by_user_id.in_(org_user_ids),
-            Ticket.project_id.in_(org_project_ids),
-        )
-    )
+    return q.filter(Ticket.organization_id == organization_id)
 
 
 # ── Data structures ───────────────────────────────────────────────────────────
@@ -282,7 +272,7 @@ def cluster_open_alerts(
         correlation_score = round((same_ci * 0.6 + same_cat * 0.4), 3)
 
         priorities = [t.priority for t in members if t.priority]
-        top_priority = priorities[0] if priorities else "p3_medium"
+        top_priority = priorities[0] if priorities else TicketPriority.p3_medium
         for p in priorities:
             if _PRIORITY_NUM.get(p, 0) > _PRIORITY_NUM.get(top_priority, 0):
                 top_priority = p
@@ -304,7 +294,8 @@ def cluster_open_alerts(
             ticket_numbers=[t.number for t in members],
             ci_id=dominant_ci,
             category=dominant_cat,
-            priority=str(top_priority),
+            # Auditoria 2026-11-22 (4.4/§6): el valor, no «TicketPriority.x».
+            priority=str(getattr(top_priority, "value", top_priority)),
             earliest_at=earliest,
             latest_at=latest,
             size=len(members),
@@ -341,10 +332,13 @@ def merge_cluster_to_problem(
     category = max(set(categories), key=categories.count) if categories else "general"
 
     priorities = [t.priority for t in tickets if t.priority]
-    priority = str(priorities[0]) if priorities else "p3_medium"
+    # Auditoria 2026-11-22 (4.4/§6): se comparaba «TicketPriority.x» (texto de
+    # `str()`) contra las claves del enum y siempre ganaba la primera.
+    prioridad = priorities[0] if priorities else TicketPriority.p3_medium
     for p in priorities:
-        if _PRIORITY_NUM.get(p, 0) > _PRIORITY_NUM.get(priority, 0):
-            priority = str(p)
+        if _PRIORITY_NUM.get(p, 0) > _PRIORITY_NUM.get(prioridad, 0):
+            prioridad = p
+    priority = str(getattr(prioridad, "value", prioridad))
 
     problem = create_problem_from_correlation(
         db,

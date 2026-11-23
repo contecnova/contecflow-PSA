@@ -10,44 +10,21 @@ from sqlalchemy.orm import Session
 
 from app.models.task import ESTADOS_DE_TAREA_TERMINADOS
 from app.models.project import Project
-from app.models.task import Task
+from app.models.task import Task, TaskStatus
 from app.models.resources import Deliverable
 from ._registro import register_metric
 from app.core import timeutil
 
 
-STATUS_TASK_LABELS = {
-    "todo": "Por hacer",
-    "in_progress": "En curso",
-    "in_review": "En revisión",
-    "done": "Hecho",
-    "blocked": "Bloqueado"
-}
-
-STATUS_PROJECT_LABELS = {
-    "planning": "Planificación",
-    "active": "Activo",
-    "paused": "Pausado",
-    "closed": "Cerrado",
-    "cancelled": "Cancelado"
-}
-
-TYPE_PROJECT_LABELS = {
-    "development": "Desarrollo",
-    "maintenance": "Mantenimiento",
-    "rd": "I+D",
-    "internal": "Interno",
-    "consulting": "Consultoría",
-}
-
-STATUS_DELIVERABLE_LABELS = {
-    "planned": "Planificado",
-    "in_progress": "En curso",
-    "in_review": "En revisión",
-    "delivered": "Entregado",
-    "accepted": "Aceptado",
-    "rejected": "Rechazado"
-}
+def _etiqueta(db, org_id, grupo: str, valor, defecto=None) -> str:
+    """Etiqueta de `valor` en el idioma de la empresa (`metricas.<grupo>.<valor>`); si no hay, el propio valor."""
+    from app.services.textos_de_salida import TEXTOS
+    from app.services.textos_de_salida_servicios_m_z import texto_para
+    valor = getattr(valor, "value", valor)
+    clave = f"metricas.{grupo}.{valor}"
+    if clave not in TEXTOS:
+        return defecto if defecto is not None else valor
+    return texto_para(db, clave, org_id=org_id)
 
 
 @register_metric("tasks_by_status")
@@ -67,7 +44,7 @@ def metric_tasks_by_status(
         q = q.filter(Task.project_id.in_(project_ids))
 
     rows = [
-        {"label": STATUS_TASK_LABELS.get(r.status, r.status), "value": r.count}
+        {"label": _etiqueta(db, kwargs.get("organization_id"), "tarea", r.status), "value": r.count}
         for r in q.group_by(Task.status).all()
     ]
     return rows, {}
@@ -128,7 +105,7 @@ def metric_projects_by_status(
         q = q.filter(Project.id.in_(project_ids))
 
     rows = [
-        {"label": STATUS_PROJECT_LABELS.get(r.status, r.status), "value": r.count}
+        {"label": _etiqueta(db, kwargs.get("organization_id"), "proyecto", r.status), "value": r.count}
         for r in q.all()
     ]
     return rows, {}
@@ -154,7 +131,7 @@ def metric_projects_by_type(
         return t.value if hasattr(t, "value") else t
 
     rows = [
-        {"label": TYPE_PROJECT_LABELS.get(_key(r.project_type), _key(r.project_type) or "Sin tipo"), "value": r.count}
+        {"label": _etiqueta(db, kwargs.get("organization_id"), "tipo_proyecto", _key(r.project_type) or "sin_tipo"), "value": r.count}
         for r in q.all()
     ]
     rows.sort(key=lambda x: x["value"], reverse=True)
@@ -209,7 +186,7 @@ def metric_deliverables_status(
         q = q.filter(Deliverable.project_id.in_(project_ids))
 
     rows = [
-        {"label": STATUS_DELIVERABLE_LABELS.get(r.status, r.status), "value": r.count}
+        {"label": _etiqueta(db, kwargs.get("organization_id"), "entregable", r.status), "value": r.count}
         for r in q.all()
     ]
     return rows, {}
@@ -237,7 +214,7 @@ def metric_tasks_lead_time(
     for proj in projects_q.all():
         done_tasks = db.query(Task).filter(
             Task.project_id == proj.id,
-            Task.status == "done",
+            Task.status == TaskStatus.done,
             Task.completed_at.isnot(None),
             Task.created_at.isnot(None)
         ).all()
@@ -372,14 +349,8 @@ def metric_risks_by_level(
             lvl = _risk_level(_risk_score(r.probability, r.impact))
             levels[lvl] = levels.get(lvl, 0) + 1
 
-        LEVEL_LABELS = {
-            "critical": "Crítico",
-            "high": "Alto",
-            "medium": "Medio",
-            "low": "Bajo"
-        }
         rows = [
-            {"label": LEVEL_LABELS.get(k, k), "value": v}
+            {"label": _etiqueta(db, kwargs.get("organization_id"), "riesgo", k), "value": v}
             for k, v in sorted(levels.items(), key=lambda x: ["critical", "high", "medium", "low"].index(x[0]))
         ]
     except ImportError:

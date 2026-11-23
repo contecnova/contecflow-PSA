@@ -1,0 +1,201 @@
+{
+ "codigos": {
+  "contrasena_max_caracteres": {
+   "es": "La contraseña no puede tener más de {n} caracteres",
+   "en": "The password cannot be longer than {n} characters",
+   "zh": "密码不能超过 {n} 个字符"
+  },
+  "contrasena_comun": {
+   "es": "Esa contraseña es demasiado común o aparece en filtraciones conocidas: elige otra",
+   "en": "That password is too common or appears in known breaches: choose another one",
+   "zh": "该密码过于常见或出现在已知泄露中：请另选一个"
+  },
+  "contrasena_con_datos_personales": {
+   "es": "La contraseña no puede contener tu usuario, tu correo ni tu nombre",
+   "en": "The password cannot contain your username, e-mail or name",
+   "zh": "密码不能包含您的用户名、电子邮件或姓名"
+  },
+  "contrasena_reutilizada": {
+   "es": "No puedes reutilizar ninguna de tus últimas {n} contraseñas",
+   "en": "You cannot reuse any of your last {n} passwords",
+   "zh": "不能重复使用最近 {n} 个密码中的任何一个"
+  },
+  "contrasena_cambio_demasiado_pronto": {
+   "es": "Has cambiado la contraseña hace poco: espera {horas} horas para volver a cambiarla",
+   "en": "You changed your password recently: wait {horas} hours before changing it again",
+   "zh": "您最近更改过密码：请等待 {horas} 小时后再更改"
+  },
+  "contrasena_temporal_caducada": {
+   "es": "La contraseña temporal ha caducado: pide otra a tu administrador",
+   "en": "The temporary password has expired: ask your administrator for a new one",
+   "zh": "临时密码已过期：请向管理员索取新密码"
+  },
+  "contrasena_cambio_obligatorio": {
+   "es": "Tienes que cambiar la contraseña antes de seguir",
+   "en": "You must change your password before continuing",
+   "zh": "继续之前必须更改密码"
+  },
+  "mfa_configuracion_obligatoria": {
+   "es": "Tienes que configurar un segundo factor (MFA) antes de seguir",
+   "en": "You must set up a second factor (MFA) before continuing",
+   "zh": "继续之前必须设置第二因素认证（MFA）"
+  },
+  "mfa_metodo_no_permitido": {
+   "es": "Tu empresa no permite el segundo factor {metodo}",
+   "en": "Your company does not allow the second factor {metodo}",
+   "zh": "贵公司不允许使用第二因素 {metodo}"
+  },
+  "mfa_obligatorio_no_desactivable": {
+   "es": "Tu empresa exige MFA y te quedarías sin segundo factor: pide a un administrador que lo restablezca",
+   "en": "Your company requires MFA and you would be left without a second factor: ask an administrator to reset it",
+   "zh": "贵公司要求 MFA，删除后您将没有第二因素：请让管理员重置"
+  },
+  "acceso_ip_no_permitida": {
+   "es": "Tu empresa no permite el acceso desde esta dirección IP",
+   "en": "Your company does not allow access from this IP address",
+   "zh": "贵公司不允许从此 IP 地址访问"
+  },
+  "acceso_fuera_de_horario": {
+   "es": "Fuera del horario de acceso de tu empresa ({horario})",
+   "en": "Outside your company's access hours ({horario})",
+   "zh": "不在贵公司的访问时间内（{horario}）"
+  },
+  "acceso_pais_bloqueado": {
+   "es": "Tu empresa no permite el acceso desde {pais}",
+   "en": "Your company does not allow access from {pais}",
+   "zh": "贵公司不允许从 {pais} 访问"
+  },
+  "sesion_revocada": {
+   "es": "La sesión se ha cerrado: vuelve a iniciar sesión",
+   "en": "The session was closed: sign in again",
+   "zh": "会话已关闭：请重新登录"
+  },
+  "sesion_inactiva": {
+   "es": "La sesión se ha cerrado por inactividad",
+   "en": "The session was closed due to inactivity",
+   "zh": "会话因不活动已关闭"
+  },
+  "sesion_caducada_por_duracion": {
+   "es": "La sesión ha alcanzado su duración máxima: vuelve a iniciar sesión",
+   "en": "The session reached its maximum length: sign in again",
+   "zh": "会话已达到最长时长：请重新登录"
+  },
+  "politica_valor_no_valido": {
+   "es": "Valor no válido para {clave}",
+   "en": "Invalid value for {clave}",
+   "zh": "{clave} 的值无效"
+  },
+  "politica_fuera_de_rango": {
+   "es": "{clave} tiene que estar entre {min} y {max}",
+   "en": "{clave} must be between {min} and {max}",
+   "zh": "{clave} 必须介于 {min} 和 {max} 之间"
+  },
+  "politica_clave_desconocida": {
+   "es": "{clave} no es un ajuste de la política de seguridad",
+   "en": "{clave} is not a security policy setting",
+   "zh": "{clave} 不是安全策略设置"
+  },
+  "politica_longitudes_incoherentes": {
+   "es": "La longitud máxima no puede ser menor que la mínima",
+   "en": "The maximum length cannot be lower than the minimum",
+   "zh": "最大长度不能小于最小长度"
+  },
+  "politica_aviso_mayor_que_caducidad": {
+   "es": "El aviso de caducidad tiene que ser menor que la caducidad",
+   "en": "The expiry warning must be shorter than the expiry",
+   "zh": "过期提醒必须短于过期期限"
+  },
+  "politica_ip_no_valida": {
+   "es": "«{valor}» no es una IP ni un rango CIDR válido",
+   "en": "«{valor}» is not a valid IP or CIDR range",
+   "zh": "“{valor}”不是有效的 IP 或 CIDR 范围"
+  },
+  "politica_horario_no_valido": {
+   "es": "«{valor}» no es un horario HH:MM-HH:MM válido",
+   "en": "«{valor}» is not a valid HH:MM-HH:MM window",
+   "zh": "“{valor}”不是有效的 HH:MM-HH:MM 时间段"
+  },
+  "politica_dias_no_validos": {
+   "es": "«{valor}» no es una lista de días válida (1 = lunes ... 7 = domingo)",
+   "en": "«{valor}» is not a valid list of days (1 = Monday ... 7 = Sunday)",
+   "zh": "“{valor}”不是有效的星期列表（1 = 周一 … 7 = 周日）"
+  },
+  "politica_pais_no_valido": {
+   "es": "«{valor}» no es un código de país ISO de dos letras",
+   "en": "«{valor}» is not a two-letter ISO country code",
+   "zh": "“{valor}”不是两字母 ISO 国家代码"
+  },
+  "politica_metodos_mfa_no_validos": {
+   "es": "Métodos MFA no válidos: «{valor}» (totp, webauthn)",
+   "en": "Invalid MFA methods: «{valor}» (totp, webauthn)",
+   "zh": "无效的 MFA 方式：“{valor}”（totp、webauthn）"
+  },
+  "politica_rol_desconocido": {
+   "es": "El rol «{valor}» no existe",
+   "en": "The role «{valor}» does not exist",
+   "zh": "角色“{valor}”不存在"
+  },
+  "ip_fuera_de_la_lista": {
+   "es": "Tu IP actual ({ip}) quedaría fuera de la lista: te dejarías sin acceso",
+   "en": "Your current IP ({ip}) would be outside the list: you would lock yourself out",
+   "zh": "您当前的 IP（{ip}）将不在列表中：您将无法访问"
+  },
+  "separacion_de_funciones_misma_persona": {
+   "es": "Separación de funciones: esta acción la tiene que hacer otra persona",
+   "en": "Segregation of duties: another person must perform this action",
+   "zh": "职责分离：此操作必须由其他人执行"
+  },
+  "solicitud_ya_decidida": {
+   "es": "La solicitud ya está decidida o ha caducado",
+   "en": "The request has already been decided or has expired",
+   "zh": "该请求已处理或已过期"
+  },
+  "recertificacion_sin_nombre": {
+   "es": "La campaña necesita un nombre",
+   "en": "The campaign needs a name",
+   "zh": "活动需要名称"
+  },
+  "recertificacion_cerrada": {
+   "es": "La campaña ya está cerrada",
+   "en": "The campaign is already closed",
+   "zh": "活动已关闭"
+  },
+  "recertificacion_decision_no_valida": {
+   "es": "Decisión no válida: «{valor}» (keep, revoke, modify)",
+   "en": "Invalid decision: «{valor}» (keep, revoke, modify)",
+   "zh": "无效的决定：“{valor}”（keep、revoke、modify）"
+  },
+  "recertificacion_sin_evidencia": {
+   "es": "Escribe la justificación de la decisión: es la evidencia de la revisión",
+   "en": "Write the reason for the decision: it is the evidence of the review",
+   "zh": "请填写决定理由：这是审核的证据"
+  },
+  "recertificacion_no_eres_responsable": {
+   "es": "Este acceso lo revisa otro responsable",
+   "en": "Another reviewer is responsible for this access",
+   "zh": "此访问由其他负责人审核"
+  },
+  "ajuste_grupo_de_seguridad": {
+   "es": "Los ajustes de {grupo} se cambian en Configuración › Seguridad de cuentas",
+   "en": "The {grupo} settings are changed in Settings › Account security",
+   "zh": "{grupo} 设置需在“设置 › 账户安全”中更改"
+  },
+  "empresa_requerida": {
+   "es": "Esta acción necesita una empresa activa",
+   "en": "This action needs an active company",
+   "zh": "此操作需要一个活动公司"
+  }
+ },
+ "que": {
+  "dispositivo": {
+   "es": "Dispositivo",
+   "en": "Device",
+   "zh": "设备"
+  },
+  "elemento": {
+   "es": "Elemento",
+   "en": "Item",
+   "zh": "条目"
+  }
+ }
+}

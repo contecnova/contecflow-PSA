@@ -5,163 +5,31 @@
  * realmente importan al cliente: salud del proyecto, progreso, presupuesto,
  * calidad (UAT), service desk + SLA, factura­ción y acciones pendientes.
  */
-import { type CSSProperties, useState, useEffect, type ReactNode } from 'react'
+import { type CSSProperties, useState, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import {
-  LayoutDashboard, Activity, Clock, CheckCircle2, AlertTriangle,
-  Wallet, Receipt, FileSignature, FlaskConical, Lightbulb, Headphones,
-  TrendingUp, ArrowRight, CalendarDays, Target, Sparkles, Zap,
-  ShieldCheck, TimerReset, ThumbsUp, FolderOpen, Pin,
-} from 'lucide-react'
-import {
-  useIdiomaDelPortal,
-  CLIENT_API, useLang, useClientAuth, rellenar, Badge, type SesionDeCliente,
-} from './portalClientContext'
-import {
-  PortalPageHeader,
-  PortalCard,
-  PortalKpi,
-  PortalSection,
-  PortalEmpty,
-  PortalProgress,
-  PortalBadge,
-  PortalButton,
-  PortalBanner,
-  PortalDonut,
-  PortalSpark,
-  PortalBars,
-  formatDuration, formatMoney, MONEDA_PORTAL_POR_DEFECTO,
-  type PortalIcon, metaItems,
-} from './PortalUI'
+import { LayoutDashboard, Activity, Clock, CheckCircle2, AlertTriangle, Wallet, Receipt, FileSignature, FlaskConical, Lightbulb, Headphones, TrendingUp, ArrowRight, CalendarDays, Target, Zap, ShieldCheck, TimerReset, ThumbsUp, FolderOpen, Pin } from 'lucide-react'
+import { useIdiomaDelPortal, CLIENT_API, useLang, useClientAuth, rellenar, Badge, type SesionDeCliente } from './portalClientContext'
+import { PortalPageHeader, PortalCard, PortalKpi, PortalSection, PortalEmpty, PortalProgress, PortalBadge, PortalButton, PortalBanner, PortalDonut, PortalSpark, PortalBars, formatDuration, formatMoney, type PortalIcon, metaItems } from './PortalUI'
 import { localeActivo, fmtDate, fmtDateTime } from '../../utils/helpers'
-import { conDefectos, tonoDe } from '../../utils/umbrales'
-import type { Umbrales } from '../../utils/umbrales'
+import { tonoDe } from '../../utils/umbrales'
 import type { ApiError } from '../../services/api'
 import { STALE_DEFAULT_MS, STALE_SHORT_MS } from '../../constants/timings'
-import './PortalDashboard.css'
-import TraduccionAutomatica, { type ContenidoTraducido } from './TraduccionAutomatica'
+import TraduccionAutomatica from './TraduccionAutomatica'
 import { px } from '../../utils/estilos'
 import { Pulsable } from '../../components/ui'
-
-// ── Lo que devuelven los endpoints del portal que usa la pizarra ─────────────
-interface DashProject {
-  id: string
-  code?: string
-  name: string
-  status?: string
-  start_date?: string | null
-  end_date_planned?: string | null
-}
-
-interface DashKpis {
-  budget_total?: number
-  budget_spent?: number
-  milestones_done?: number
-  milestones_total?: number
-  deliverables_total?: number
-  uat_total?: number
-}
-
-interface DashServiceDesk {
-  sla_compliance_pct?: number | null
-  csat_avg?: number | null
-  response_breached_open?: number
-  resolution_breached_open?: number
-  avg_first_response_minutes?: number | null
-  avg_resolution_minutes?: number | null
-}
-
-interface DashActivity {
-  type?: string
-  description?: string
-  date?: string | null
-}
-
-/** `GET /portal/dashboard`. */
-interface PortalDashboardData {
-  needs_project_selection?: boolean
-  projects?: DashProject[]
-  project?: DashProject | null
-  message?: string
-  kpis?: DashKpis
-  service_desk?: DashServiceDesk
-  recent_activity?: DashActivity[]
-  /** Umbrales de semáforo de la empresa (19-11-2026; el portal no lee /settings/org-defaults). */
-  umbrales?: Partial<Umbrales>
-}
-
-interface DashMilestone {
-  id: string
-  name: string
-  due_date?: string | null
-  is_completed?: boolean
-  billing_pct?: number | null
-}
-
-interface DashDeliverable {
-  id: string
-  status: string
-}
-
-/** `GET /portal/project` (solo lo que usa la pizarra). */
-interface PortalProjectFull {
-  milestones?: DashMilestone[]
-  deliverables?: DashDeliverable[]
-}
-
-interface DashInvoice {
-  status: string
-  client_approval_status?: string | null
-  total?: number | string | null
-  currency?: string
-}
-
-interface DashTicket {
-  status: string
-  priority?: string
-  ticket_type?: string
-  created_at?: string | null
-  csat_requested_at?: string | null
-  csat_score?: number | null
-}
-
-interface DashUat {
-  status: string
-  overdue?: boolean
-  issues?: Array<{ status: string }>
-}
-
-interface DashFeatureRequest {
-  status: string
-  client_approved?: boolean | null
-}
-
-interface DashDocument {
-  requires_signature?: boolean
-  signed_by_client?: boolean
-}
-
-interface DashAnnouncement extends ContenidoTraducido {
-  id: string
-  title: string
-  body?: string
-  type?: string
-  show_to_clients?: boolean
-}
-
-interface DashSurvey {
-  status: string
-}
-
-interface ActionItem {
-  count: number
-  label: string
-  icon: PortalIcon
-  target: string
-  tone: string
-}
+import { type DashAnnouncement, type DashDocument, type DashFeatureRequest, type DashInvoice, type DashSurvey, type DashTicket, type DashUat, type PortalDashboardData, type PortalProjectFull } from './PortalDashboardTipos'
+import { DataRow, MetricBlock, QuickLink } from './PortalDashboardPiezas'
+import { calcularPanelDelPortal } from './PortalDashboardCalculos'
 
 const SECTION_GAP = 24
+
+// 23-11-2026: el proyecto elegido se recuerda en localStorage, que puede estar bloqueado: nunca debe tumbar el panel.
+const CLAVE_PROYECTO = 'portal_selected_project'
+const proyectoGuardado = {
+  leer: (): string | null => { try { return localStorage.getItem(CLAVE_PROYECTO) } catch { /* accesorio: sin almacenamiento */ return null } },
+  guardar: (id: string) => { try { localStorage.setItem(CLAVE_PROYECTO, id) } catch { /* accesorio: no se recuerda la elección */ } },
+  borrar: () => { try { localStorage.removeItem(CLAVE_PROYECTO) } catch { /* accesorio: sin almacenamiento */ } },
+}
 
 export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string) => void }) {
   const traducir = useLang()
@@ -170,7 +38,7 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
   const tf = (k: string, v?: Record<string, string | number | null | undefined>) => rellenar(t(k), v)
   const { client, isReady }: Partial<SesionDeCliente> = useClientAuth() ?? {}
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(
-    () => localStorage.getItem('portal_selected_project') || null
+    () => proyectoGuardado.leer() || null
   )
 
   const allowedProjectIds = Array.isArray(client?.project_ids)
@@ -181,7 +49,7 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
 
   useEffect(() => {
     if (!isReady || !selectedProjectId || !hasList || valid) return
-    localStorage.removeItem('portal_selected_project')
+    proyectoGuardado.borrar()
     setSelectedProjectId(null)
   }, [hasList, valid, isReady, selectedProjectId])
 
@@ -196,7 +64,7 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
         return r.data
       } catch (e) {
         if ((e as ApiError)?.response?.status === 403 && effectiveProjectId) {
-          localStorage.removeItem('portal_selected_project')
+          proyectoGuardado.borrar()
           setSelectedProjectId(null)
           const fb = await CLIENT_API.get('/portal/dashboard')
           return fb.data
@@ -277,7 +145,7 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
         />
         <div className="portdash-grid-2">
           {(dash.projects || []).map(p => (
-            <PortalCard key={p.id} onClick={() => { setSelectedProjectId(p.id); localStorage.setItem('portal_selected_project', p.id) }}>
+            <PortalCard key={p.id} onClick={() => { setSelectedProjectId(p.id); proyectoGuardado.guardar(p.id) }}>
               <div className="portdash-box-1">{p.code}</div>
               <div className="portdash-box-2">{p.name}</div>
               <Badge status={p.status} />
@@ -303,127 +171,60 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
 
   // ── Derived metrics ────────────────────────────────────────────────────────
   const project = dash.project
-  const kpis: DashKpis = dash.kpis || {}
-  const sd: DashServiceDesk = dash.service_desk || {}
-  const milestones: DashMilestone[] = projectFull?.milestones || []
-  const deliverables: DashDeliverable[] = projectFull?.deliverables || []
-  // 19-11-2026: una definición por métrica (presupuesto, SLA, hitos) para todo el producto.
-  const umbrales = conDefectos(dash.umbrales)
-  const horizonteHitos = umbrales.sueltos.UMBRAL_HITOS_HORIZONTE_DIAS
-  const hitoInminente = umbrales.sueltos.UMBRAL_HITOS_INMINENTE_DIAS
-
-  const today = new Date()
-  const startDate = project.start_date ? new Date(project.start_date) : null
-  const endDate = project.end_date_planned ? new Date(project.end_date_planned) : null
-  const totalDays = (startDate && endDate) ? Math.max(1, Math.round((+endDate - +startDate) / 86400000)) : null
-  const elapsedDays = startDate ? Math.max(0, Math.round((+today - +startDate) / 86400000)) : 0
-  const remainingDays = endDate ? Math.round((+endDate - +today) / 86400000) : null
-  const timePct = totalDays ? Math.min(100, Math.round((elapsedDays / totalDays) * 100)) : 0
-
-  const budgetPct = kpis.budget_total > 0 ? Math.round((kpis.budget_spent / kpis.budget_total) * 100) : 0
-  const burnRate = (kpis.budget_spent && elapsedDays > 0) ? (kpis.budget_spent / elapsedDays) : 0
-  const projectedTotal = totalDays ? burnRate * totalDays : null
-  const burnRisk = (projectedTotal && kpis.budget_total)
-    ? Math.round(((projectedTotal - kpis.budget_total) / kpis.budget_total) * 100) : null
-
-  // SPI proxy (avance esperado vs presupuesto consumido)
-  const spi = (timePct > 0 && budgetPct > 0) ? +(timePct / budgetPct).toFixed(2) : null
-
-  const milestonesDone = kpis.milestones_done || milestones.filter(m => m.is_completed).length
-  const milestonesTotal = kpis.milestones_total || milestones.length
-  const milestonesPct = milestonesTotal ? Math.round((milestonesDone / milestonesTotal) * 100) : 0
-
-  // Próximos hitos en 30 días
-  const upcomingMilestones = milestones
-    .filter(m => !m.is_completed && m.due_date)
-    .map(m => ({ ...m, days: Math.round((+new Date(m.due_date) - +today) / 86400000) }))
-    .filter(m => m.days <= horizonteHitos)
-    .sort((a, b) => a.days - b.days)
-    .slice(0, 4)
-
-  // Deliverables status
-  const delTotal = deliverables.length || kpis.deliverables_total || 0
-  const delAccepted = deliverables.filter(d => d.status === 'accepted').length
-  const delDelivered = deliverables.filter(d => d.status === 'delivered').length
-  const delRejected = deliverables.filter(d => d.status === 'rejected').length
-  const delPlanned = deliverables.filter(d => d.status === 'planned').length
-
-  // UATs
-  const uatTotal = uats.length || kpis.uat_total || 0
-  const uatPassed = uats.filter(u => ['passed', 'conditional'].includes(u.status)).length
-  const uatFailed = uats.filter(u => u.status === 'failed').length
-  const uatPending = uats.filter(u => ['pending', 'in_progress'].includes(u.status)).length
-  const uatPassPct = uatTotal ? Math.round((uatPassed / uatTotal) * 100) : 0
-  const uatOverdue = uats.filter(u => u.overdue).length
-  const uatIssues = uats.reduce((s, u) => s + (u.issues?.filter(i => i.status === 'open')?.length || 0), 0)
-
-  // Tickets distribution & SLA
-  const ticketsOpen = tickets.filter(t => !['closed', 'cancelled', 'resolved'].includes(t.status)).length
-  const ticketsResolved = tickets.filter(t => ['resolved', 'closed'].includes(t.status)).length
-  const ticketsByPriority = {
-    p1_critical: tickets.filter(t => t.priority === 'p1_critical').length,
-    p2_high:     tickets.filter(t => t.priority === 'p2_high').length,
-    p3_medium:   tickets.filter(t => t.priority === 'p3_medium').length,
-    p4_low:      tickets.filter(t => t.priority === 'p4_low').length,
-  }
-  const ticketsByType = {
-    incident:        tickets.filter(t => t.ticket_type === 'incident').length,
-    service_request: tickets.filter(t => t.ticket_type === 'service_request').length,
-    change:          tickets.filter(t => t.ticket_type === 'change').length,
-    question:        tickets.filter(t => t.ticket_type === 'question').length,
-  }
-  const slaCompliance = sd.sla_compliance_pct
-  const csat = sd.csat_avg
-
-  // Last 12 weeks ticket trend (computed each render — cheap)
-  const ticketTrend = (() => {
-    const buckets = Array(12).fill(0)
-    const cutoff = new Date(today)
-    cutoff.setDate(cutoff.getDate() - 7 * 12)
-    tickets.forEach(tk => {
-      const d = tk.created_at ? new Date(tk.created_at) : null
-      if (!d || d < cutoff) return
-      const weekIdx = 11 - Math.floor((+today - +d) / (7 * 86400000))
-      if (weekIdx >= 0 && weekIdx < 12) buckets[weekIdx]++
-    })
-    return buckets
-  })()
-
-  // Invoices
-  const invoicesPaid    = invoices.filter(i => i.status === 'paid')
-  const invoicesPending = invoices.filter(i => ['sent', 'submitted', 'pending'].includes(i.status))
-  const invoicesOverdue = invoices.filter(i => i.status === 'overdue')
-  const invoicesAwaiting = invoices.filter(i => i.client_approval_status === 'pending')
-  const totalBilled = invoices.reduce((s, i) => s + Number(i.total || 0), 0)
-  const totalPaid   = invoicesPaid.reduce((s, i) => s + Number(i.total || 0), 0)
-  const totalOverdue = invoicesOverdue.reduce((s, i) => s + Number(i.total || 0), 0)
-  const collectionPct = totalBilled ? Math.round((totalPaid / totalBilled) * 100) : 0
-  const currency = invoices[0]?.currency || MONEDA_PORTAL_POR_DEFECTO
-
-  // Action items (lo que requiere atención del cliente)
-  const docsToSign = docs.filter(d => d.requires_signature && !d.signed_by_client)
-  const frsAwaitDecision = frs.filter(f => f.status === 'estimated' && f.client_approved == null)
-  const ticketsPendingClient = tickets.filter(t => t.status === 'pending_client').length
-  const ticketsCSATPending = tickets.filter(t => t.csat_requested_at && !t.csat_score).length
-  const uatToRun = uats.filter(u => ['pending', 'in_progress'].includes(u.status)).length
-  const pendingSurveys = surveys.filter(s => s.status === 'pending').length
-  const invoicesToReview = invoicesAwaiting.length
-
-  const candidatos: Array<ActionItem | 0 | false> = [
-    docsToSign.length          && { count: docsToSign.length, label: t('pdash_act_docs'), icon: FileSignature, target: 'documents', tone: 'warning' },
-    frsAwaitDecision.length    && { count: frsAwaitDecision.length, label: t('pdash_act_frs'), icon: Lightbulb, target: 'requests', tone: 'warning' },
-    invoicesToReview           && { count: invoicesToReview, label: t('pdash_act_invoices'), icon: Receipt, target: 'invoices', tone: 'warning' },
-    uatToRun                   && { count: uatToRun, label: t('pdash_act_uat'), icon: FlaskConical, target: 'uat', tone: 'accent' },
-    ticketsPendingClient       && { count: ticketsPendingClient, label: t('pdash_act_tickets'), icon: Headphones, target: 'support', tone: 'warning' },
-    ticketsCSATPending         && { count: ticketsCSATPending, label: t('pdash_act_csat'), icon: ThumbsUp, target: 'support', tone: 'accent' },
-    pendingSurveys             && { count: pendingSurveys, label: t('pdash_act_surveys'), icon: Sparkles, target: 'surveys', tone: 'accent' },
-  ]
-  const actionItems = candidatos.filter((it): it is ActionItem => Boolean(it))
-
-  const totalActions = actionItems.reduce((s: number, a) => s + a.count, 0)
-
-  // Recent activity (combinar varios)
-  const activity = [...(dash.recent_activity || [])].slice(0, 6)
+  const {
+    kpis,
+    sd,
+    milestones,
+    umbrales,
+    horizonteHitos,
+    hitoInminente,
+    today,
+    totalDays,
+    elapsedDays,
+    remainingDays,
+    timePct,
+    budgetPct,
+    burnRate,
+    burnRisk,
+    spi,
+    milestonesDone,
+    milestonesTotal,
+    milestonesPct,
+    upcomingMilestones,
+    delTotal,
+    delAccepted,
+    delDelivered,
+    delRejected,
+    delPlanned,
+    uatPassed,
+    uatFailed,
+    uatPending,
+    uatPassPct,
+    uatOverdue,
+    uatIssues,
+    ticketsOpen,
+    ticketsResolved,
+    ticketsByPriority,
+    ticketsByType,
+    slaCompliance,
+    csat,
+    ticketTrend,
+    invoicesPending,
+    invoicesAwaiting,
+    totalBilled,
+    totalPaid,
+    totalOverdue,
+    collectionPct,
+    currency,
+    docsToSign,
+    frsAwaitDecision,
+    ticketsPendingClient,
+    ticketsCSATPending,
+    uatToRun,
+    actionItems,
+    totalActions,
+    activity,
+  } = calcularPanelDelPortal({ dash, project, projectFull, invoices, tickets, uats, frs, docs, surveys, t })
 
   // Helper navigation
   const go = (s: string) => onNavigate?.(s)
@@ -449,7 +250,7 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
         actions={
           showProjectSwitcher ? (
             <PortalButton variant="secondary" size="sm" icon={<FolderOpen size={13} />}
-              onClick={() => { setSelectedProjectId(null); localStorage.removeItem('portal_selected_project') }}>
+              onClick={() => { setSelectedProjectId(null); proyectoGuardado.borrar() }}>
               {traducir('portaldashboard.cambiar_proyecto')}
             </PortalButton>
           ) : null
@@ -606,8 +407,8 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
                   const tone = m.days < 0 ? 'danger' : m.days < hitoInminente ? 'warning' : 'accent'
                   return (
                     <div key={m.id} className="u-row-center-12">
-                      <div className="portdash-row-14 portal-dashboard-e6" style={{ '--portal-dashboard-background': tone === 'danger' ? 'var(--danger-bg, rgba(239,68,68,0.12))'
-                          : tone === 'warning' ? 'var(--warning-bg, rgba(245,158,11,0.12))'
+                      <div className="portdash-row-14 portal-dashboard-e6" style={{ '--portal-dashboard-background': tone === 'danger' ? 'var(--danger-bg)'
+                          : tone === 'warning' ? 'var(--warning-bg)'
                           : 'var(--accent-muted)', '--portal-dashboard-color': tone === 'danger' ? 'var(--danger)' : tone === 'warning' ? 'var(--warning)' : 'var(--accent)' } as CSSProperties}>{m.days < 0 ? '!' : m.days}</div>
                       <div className="u-flex1-min0">
                         <div className="portdash-box-5">{m.name}</div>
@@ -846,49 +647,6 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
         </PortalCard>
       </div>
     </div>
-  )
-}
-
-// ── Helpers locales ──────────────────────────────────────────────────────────
-function DataRow({ label, value, tone = 'default', hint }: { label: ReactNode; value: ReactNode; tone?: string; hint?: ReactNode }) {
-  const color = tone === 'success' ? 'var(--success)'
-    : tone === 'warning' ? 'var(--warning)'
-    : tone === 'danger'  ? 'var(--danger)'
-    : tone === 'accent'  ? 'var(--accent)'
-    : 'var(--text-1)'
-  return (
-    <div className="portdash-row-9">
-      <div>
-        <span className="u-text2-sm">{label}</span>
-        {hint && <div className="u-text3-xs">{hint}</div>}
-      </div>
-      <span className="portdash-txt-4 portal-dashboard-e11" style={{ '--portal-dashboard-color': color } as CSSProperties}>{value}</span>
-    </div>
-  )
-}
-
-function MetricBlock({ icon: Icon, label, value, tone }: { icon: PortalIcon; label: ReactNode; value: ReactNode; tone?: string }) {
-  const color = tone === 'success' ? 'var(--success)' : tone === 'accent' ? 'var(--accent)' : 'var(--text-1)'
-  return (
-    <div className="portdash-box-9">
-      <div className="portdash-row-10">
-        <Icon size={12} /> {label}
-      </div>
-      <div className="portdash-txt-5 portal-dashboard-e11" style={{ '--portal-dashboard-color': color } as CSSProperties}>{value}</div>
-    </div>
-  )
-}
-
-function QuickLink({ icon: Icon, label, hint, onClick }: { icon: PortalIcon; label: ReactNode; hint?: ReactNode; onClick?: () => void }) {
-  return (
-    <Pulsable onClick={onClick} className="portdash-row-11">
-      <div className="portdash-row-12"><Icon size={16} /></div>
-      <div className="u-flex1-min0">
-        <div className="u-sm-700">{label}</div>
-        <div className="u-text3-xs">{hint}</div>
-      </div>
-      <ArrowRight size={14} className="portalda-sx2" aria-hidden="true" />
-    </Pulsable>
   )
 }
 

@@ -51,8 +51,8 @@ NO_IMPLEMENTADOS = {
         "el evento de cierre de SLA en una auto-resolución nunca se registra",
     ("app.services.service_desk.watcher_service", "notify_watchers"):
         "a los observadores de un ticket no se les avisa de la auto-resolución",
-    ("app.services.ai_chat_service", "quick_answer"):
-        "la vía de IA del bot Nexus nunca responde; cae al resumidor ingenuo",
+    # `ai_chat_service.quick_answer`: retirado el 23-11-2026 (auditoría 22-11-2026,
+    # fantasma 2); el bot Nexus ya no lo importa.
 }
 
 

@@ -438,10 +438,22 @@ def horas_sla_entre(desde: datetime, hasta: datetime, cal: CalendarioSLA) -> flo
     return total
 
 
-def vencimiento_efectivo(due: Optional[datetime], pause_minutes: Optional[int]) -> Optional[datetime]:
-    """El vencimiento más el tiempo en pausa: mientras se espera, no corre."""
+def vencimiento_efectivo(due: Optional[datetime], pause_minutes: Optional[int],
+                         cal: "Optional[CalendarioSLA]" = None) -> Optional[datetime]:
+    """El vencimiento más el tiempo en pausa: mientras se espera, no corre.
+
+    Auditoria 2026-11-22 (A-SD2): `sla_pause_minutes` se acumula en minutos del
+    calendario del SLA (`horas_sla_entre`), no de reloj de pared: una espera de
+    viernes 17:00 a lunes 9:00 en jornada 8-18 son 60 min, no ~64 h. Con el
+    calendario, esos minutos se suman como horas de SLA (`sumar_horas_sla`);
+    sin él (lectores sin sesión, p. ej. `ticket_out`), como minutos de pared,
+    que da el mismo resultado salvo cuando el desplazamiento cruza una noche o
+    un festivo.
+    """
     if due is None:
         return None
+    if cal is not None and pause_minutes:
+        return sumar_horas_sla(aware(due), pause_minutes / 60.0, cal)
     return aware(due) + timedelta(minutes=pause_minutes or 0)
 
 
@@ -459,7 +471,7 @@ def estado_sla(
     medido en horas del calendario: un P1 abierto el viernes a última hora no
     está en riesgo el domingo, porque su reloj no ha corrido.
     """
-    efectivo = vencimiento_efectivo(due, pause_minutes)
+    efectivo = vencimiento_efectivo(due, pause_minutes, cal)
     if efectivo is None:
         return "ok"
     ahora = ahora or datetime.now(timezone.utc)
@@ -513,7 +525,7 @@ def calculate_sla_due(
     return sumar_horas_sla(inicio, resp_h, cal), sumar_horas_sla(inicio, res_h, cal)
 
 
-def _siguiente_numero(db: Session, modelo, prefijo: str, org_id: Optional[str]) -> str:
+def _siguiente_numero(db: Session, modelo, prefijo: str, org_id: Optional[str], columna: str = "number") -> str:
     """`PREFIJO-0001` siguiente dentro de la organizacion.
 
     El numero es unico por organizacion (`uq_*_org_number`). El maximo se
@@ -529,11 +541,12 @@ def _siguiente_numero(db: Session, modelo, prefijo: str, org_id: Optional[str]) 
     # intentional: best-effort fallback, log noise outweighs diagnostic value
     except Exception:
         logger.debug("numeracion %s: SQLite / non-PG — best-effort", prefijo, exc_info=True)
+    col = getattr(modelo, columna)
     with sin_filtro_de_tenant(db):
         ultimo = (
-            db.query(func.max(cast(func.substr(modelo.number, len(prefijo) + 2), Integer)))
+            db.query(func.max(cast(func.substr(col, len(prefijo) + 2), Integer)))
             .filter(
-                modelo.number.like(f"{prefijo}-%"),
+                col.like(f"{prefijo}-%"),
                 modelo.organization_id.is_(None) if org_id is None else modelo.organization_id == org_id,
             )
             .scalar()
@@ -555,9 +568,13 @@ def next_kb_number(db: Session, org_id: Optional[str] = None) -> str:
     return _siguiente_numero(db, KBArticle, "KB", org_id or db.info.get("organization_id"))
 
 
-def next_ci_number(db: Session) -> str:
-    last = db.query(func.max(cast(func.substr(ConfigurationItem.code, 4), Integer))).scalar() or 0
-    return f"CI-{(last + 1):04d}"
+def next_ci_number(db: Session, org_id: Optional[str] = None) -> str:
+    """`CI-0001` siguiente de la empresa (ronda 2 auditoría 2026-11-22).
+
+    Antes `max(code)` sin empresa explícita ni cerrojo: en el worker o el seed
+    salía el máximo de toda la base y dos altas a la vez chocaban con
+    `uq_sd_ci_code_per_org`. Ahora como tickets y KB."""
+    return _siguiente_numero(db, ConfigurationItem, "CI", org_id or db.info.get("organization_id"), columna="code")
 
 
 def log_history(
@@ -621,7 +638,7 @@ def get_client_from_token(authorization: Optional[str], db: Session) -> "Optiona
         raise
 
 
-def _estado_mostrado(due, pause_minutes, guardado, paused_at, now) -> str:
+def _estado_mostrado(due, pause_minutes, guardado, paused_at, now, ticket=None) -> str:
     """El estado de SLA que se enseña.
 
     El incumplimiento se calcula al leer, porque es exacto y no depende del
@@ -631,7 +648,21 @@ def _estado_mostrado(due, pause_minutes, guardado, paused_at, now) -> str:
     """
     if paused_at is not None:
         return "paused"
-    efectivo = vencimiento_efectivo(due, pause_minutes)
+    cal = None
+    # Auditoria 2026-11-22 (A-SD2, resto `ticket_out`): con pausas, el
+    # desplazamiento en el calendario del SLA del ticket, como `_vencido`. Solo
+    # se busca si el vencimiento a pelo ya paso (si no, no hay incumplimiento
+    # que decidir) y el ticket tiene sesion.
+    if ticket is not None and pause_minutes and due is not None and now > aware(due):
+        try:
+            from sqlalchemy.orm import object_session
+            from app.services.service_desk.sla_del_ticket import calendario_del_ticket
+            sesion = object_session(ticket)
+            if sesion is not None:
+                cal = calendario_del_ticket(sesion, ticket)
+        except Exception:
+            logger.debug("_estado_mostrado: sin calendario; pausa en reloj de pared", exc_info=True)
+    efectivo = vencimiento_efectivo(due, pause_minutes, cal)
     if efectivo is not None and now > efectivo:
         return "breached"
     valor = getattr(guardado, "value", guardado)
@@ -658,12 +689,12 @@ def ticket_out(t: "Ticket", include_comments: bool = False, include_internal: bo
 
     now = datetime.now(timezone.utc)
     resp_sla = (
-        _estado_mostrado(t.sla_response_due, t.sla_pause_minutes, t.sla_response_status, t.sla_paused_at, now)
+        _estado_mostrado(t.sla_response_due, t.sla_pause_minutes, t.sla_response_status, t.sla_paused_at, now, t)
         if t.sla_response_due and not t.first_response_at
         else "ok"
     )
     res_sla = (
-        _estado_mostrado(t.sla_resolution_due, t.sla_pause_minutes, t.sla_resolution_status, t.sla_paused_at, now)
+        _estado_mostrado(t.sla_resolution_due, t.sla_pause_minutes, t.sla_resolution_status, t.sla_paused_at, now, t)
         if t.sla_resolution_due and t.status not in ESTADOS_DE_TICKET_CERRADOS
         else "ok"
     )

@@ -12,9 +12,9 @@ def _graph_http_error(status_code: int, body_text: str) -> httpx.HTTPStatusError
 def test_m365_calendar_sync_does_not_leak_graph_response(monkeypatch, client, admin_token):
     import app.api.v1.endpoints.m365 as m365_ep
 
-    monkeypatch.setattr(m365_ep, "_require_m365", lambda: None)
+    monkeypatch.setattr(m365_ep, "_require_m365", lambda *a, **k: None)
 
-    async def _raise_graph_error(_path):
+    async def _raise_graph_error(_path, **k):
         raise _graph_http_error(400, '{"error":"secret-graph-token"}')
 
     monkeypatch.setattr(m365_ep, "_graph_get", _raise_graph_error)

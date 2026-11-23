@@ -23,14 +23,35 @@ def _trunc_hour(dt: datetime) -> datetime:
     return dt.replace(minute=0, second=0, microsecond=0)
 
 
-# ── Detection rule thresholds (configurable via env/settings later) ─────────
+# ── Umbrales de las reglas ───────────────────────────────────────────────────
+#
+# Ronda 2 auditoria 2026-11-22: eran constantes y tres no se usaban
+# (`CRED_STUFFING_THRESHOLD` = 20 mientras la regla miraba `>= 3`;
+# `MASS_EXPORT_THRESHOLD` y `SESSION_CONCURRENT_LIMIT` sin regla). Ahora son
+# ajustes (`SOC_*`, por empresa en Config. dinamica) y las constantes sin regla
+# se retiran: las sesiones concurrentes ya las limita `SESSION_MAX_CONCURRENT`,
+# y no hay evento de exportacion que contar.
 
-BRUTE_FORCE_WINDOW_MINUTES  = 10
-BRUTE_FORCE_THRESHOLD       = 5    # failed logins per window per IP
-CRED_STUFFING_THRESHOLD     = 20   # distinct users hit per IP per hour
-MASS_EXPORT_THRESHOLD       = 50   # rows / API calls within 5 min
-SESSION_CONCURRENT_LIMIT    = 3    # max simultaneous sessions before flagging
-MFA_FAIL_THRESHOLD          = 3    # consecutive MFA fails before alert
+#: (ajuste, valor por defecto) de cada umbral.
+UMBRALES_SOC = {
+    "SOC_FUERZA_BRUTA_VENTANA_MIN": 10,   # ventana de fallos de login por IP
+    "SOC_FUERZA_BRUTA_FALLOS": 5,         # fallos por IP en la ventana
+    "SOC_CRED_STUFFING_USUARIOS": 3,      # usuarios distintos por IP → credential stuffing
+    "SOC_MFA_FALLOS": 3,                  # fallos de MFA en 15 min
+}
+
+
+def umbral_soc(db, org_id, nombre: str) -> int:
+    """El umbral `nombre` de la empresa (ajuste en vivo) o el del entorno."""
+    from app.core.config import settings
+    defecto = int(getattr(settings, nombre, UMBRALES_SOC[nombre]))
+    try:
+        from app.services.settings_service import get_runtime_int
+        valor = get_runtime_int(db, nombre, org_id)
+        return int(valor) if valor else defecto
+    except Exception:
+        logger.debug("umbral_soc %s: ajuste ilegible, por defecto", nombre, exc_info=True)
+        return defecto
 
 
 # ── Event ingestion ───────────────────────────────────────────────────────────
@@ -78,9 +99,10 @@ def _sumar_uno(fila, campo) -> None:
 class SecurityEventService:
     """Ingest events and run detections synchronously (fast path)."""
 
-    def __init__(self, db: Session, org_id: str):
+    def __init__(self, db: Session, org_id: str, *, sesion_propia: bool = False):
         self.db     = db
         self.org_id = org_id
+        self._sesion_propia = sesion_propia
 
     # ── Public: emit events from call-sites ──────────────────────────────────
 
@@ -104,7 +126,28 @@ class SecurityEventService:
         indicators: Optional[Dict[str, Any]] = None,
         occurred_at: Optional[datetime] = None,
     ) -> SecurityEvent:
-        """Persist a normalized security event and run detection rules."""
+        """Persist a normalized security event and run detection rules.
+
+        Ronda 2 auditoria 2026-11-22: el evento (y sus detecciones) se guarda en
+        una sesion PROPIA (misma clase y contexto de empresa que la del
+        llamante). Antes hacia `commit()` de la sesion del llamante: confirmaba
+        a medias su trabajo, p. ej. en mitad de un login. Y en sesion propia el
+        evento sobrevive aunque el llamante deshaga (un login rechazado).
+        """
+        if not self._sesion_propia:
+            propia = type(self.db)(bind=self.db.get_bind(), expire_on_commit=False)
+            propia.info.update({k: v for k, v in self.db.info.items() if not str(k).startswith("_rls")})
+            try:
+                return SecurityEventService(propia, self.org_id, sesion_propia=True).emit(
+                    event_type, category, severity, user_id=user_id, ip_address=ip_address,
+                    user_agent=user_agent, session_id=session_id, asn=asn, country=country,
+                    is_vpn=is_vpn, is_tor=is_tor, resource_type=resource_type, resource_id=resource_id,
+                    detail=detail, raw_event=raw_event, indicators=indicators, occurred_at=occurred_at)
+            except Exception:
+                propia.rollback()
+                raise
+            finally:
+                propia.close()
         ev = SecurityEvent(
             id            = str(uuid.uuid4()),
             org_id        = self.org_id,
@@ -238,7 +281,7 @@ class SecurityEventService:
 
     def _detect_brute_force(self, ev: SecurityEvent) -> None:
         """Brute-force / credential stuffing detection."""
-        window_start = _utcnow() - timedelta(minutes=BRUTE_FORCE_WINDOW_MINUTES)
+        window_start = _utcnow() - timedelta(minutes=umbral_soc(self.db, self.org_id, "SOC_FUERZA_BRUTA_VENTANA_MIN"))
 
         # Count fails from this IP in window
         ip_fails = self.db.query(func.count(SecurityEvent.id)).filter(
@@ -248,7 +291,7 @@ class SecurityEventService:
             SecurityEvent.occurred_at >= window_start,
         ).scalar() or 0
 
-        if ip_fails >= BRUTE_FORCE_THRESHOLD:
+        if ip_fails >= umbral_soc(self.db, self.org_id, "SOC_FUERZA_BRUTA_FALLOS"):
             # Count distinct users targeted by this IP (cred stuffing indicator)
             distinct_users = self.db.query(
                 func.count(func.distinct(SecurityEvent.user_id))
@@ -259,7 +302,7 @@ class SecurityEventService:
                 SecurityEvent.occurred_at >= window_start,
             ).scalar() or 0
 
-            is_stuffing = distinct_users >= 3
+            is_stuffing = distinct_users >= umbral_soc(self.db, self.org_id, "SOC_CRED_STUFFING_USUARIOS")
             title   = f"{'Credential stuffing' if is_stuffing else 'Brute-force'} detected from {ev.ip_address}"
             mitre   = "T1110.004" if is_stuffing else "T1110.001"
             severity = EventSeverity.CRITICAL if is_stuffing else EventSeverity.HIGH
@@ -351,7 +394,7 @@ class SecurityEventService:
             SecurityEvent.occurred_at >= window_start,
         ).scalar() or 0
 
-        if fail_count >= MFA_FAIL_THRESHOLD:
+        if fail_count >= umbral_soc(self.db, self.org_id, "SOC_MFA_FALLOS"):
             self._upsert_detection(
                 title      = f"MFA spray attempt on user {ev.user_id}",
                 category   = EventCategory.AUTH_ANOMALY,

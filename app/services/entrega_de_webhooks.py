@@ -69,6 +69,7 @@ def entregar_webhook(webhook_id, body: str, event: str, intento: int = 0) -> dic
     import httpx
 
     from app.core.encryption import decrypt_value
+    from app.core.outbound_url import ConexionBloqueada
     from app.db import session as _sesion
     from app.models.enterprise import Webhook, WebhookDelivery
     from app.services.enterprise_service import _validate_webhook_url
@@ -111,11 +112,28 @@ def entregar_webhook(webhook_id, body: str, event: str, intento: int = 0) -> dic
                     "X-Contecflow-Event": event,
                 }
                 if hook.secret:
-                    secret = decrypt_value(hook.secret) or hook.secret
+                    # M85 (auditoria 22-11-2026): si el secreto CIFRADO no se puede
+                    # descifrar (clave retirada) no se firma con el criptograma (antes
+                    # `decrypt_value(x) or x`): la entrega falla y se dice.
+                    secret = decrypt_value(hook.secret)
+                    if secret is None and str(hook.secret).startswith(("v2:", "kmsv1:")):
+                        raise httpx.HTTPError("webhook secret unreadable (key rotated?)")
+                    secret = secret or hook.secret
                     headers["X-Contecflow-Signature"] = _sign_payload(secret, body)
+                    # M85: firma con sello de tiempo (estilo Stripe: `t=<unix>,v1=<hmac>`
+                    # sobre `"<t>.<cuerpo>"`) para que el receptor rechace reenvios
+                    # viejos. La cabecera de siempre se mantiene por compatibilidad.
+                    sello = str(int(time.time()))
+                    headers["X-Contecflow-Timestamp"] = sello
+                    headers["X-Contecflow-Signature-V2"] = (
+                        f"t={sello},v1=" + _sign_payload(secret, f"{sello}.{body}").split("=", 1)[1])
                 inicio = time.time()
                 from app.services.settings_service import outbound_http_timeout
-                with httpx.Client(timeout=outbound_http_timeout(db, default=10.0)) as client:
+                # 22-11-2026 (02 A27): `cliente_httpx` comprueba la IP a la que
+                # de verdad conecta; validar y luego `httpx.Client` dejaba la
+                # ventana de DNS rebinding abierta.
+                from app.core.outbound_url import cliente_httpx
+                with cliente_httpx(timeout=outbound_http_timeout(db, default=10.0)) as client:
                     resp = client.post(hook.url, content=body, headers=headers)
                 duration_ms = int((time.time() - inicio) * 1000)
                 status_code = resp.status_code
@@ -124,6 +142,10 @@ def entregar_webhook(webhook_id, body: str, event: str, intento: int = 0) -> dic
             except httpx.HTTPError as exc:
                 error = str(exc)[:500]
                 http_exc = exc
+            except ConexionBloqueada as exc:
+                logger.warning("Webhook %s bloqueado al conectar (SSRF): %s", webhook_id, exc)
+                error = "blocked: unsafe destination (resolved to internal network)"
+
             except Exception as exc:
                 logger.warning("Webhook %s: error inesperado al entregar", webhook_id, exc_info=True)
                 error = str(exc)[:500]

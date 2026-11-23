@@ -1,10 +1,24 @@
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
 from app.schemas.common_enums import UserStatus
 from app.core.config import settings
+
+
+def _url_de_avatar(valor: Optional[str]) -> Optional[str]:
+    """M-SCH1 (ronda 2 auditoria 2026-11-22): `avatar_url` solo http(s) o una
+    ruta propia (`/uploads/...`). Antes cualquier texto: `javascript:` o
+    `data:` acababan en un `<img src>` de toda la empresa."""
+    if valor is None or valor == "":
+        return valor
+    v = valor.strip()
+    if v.startswith("/") and not v.startswith("//"):
+        return v
+    if v.lower().startswith(("https://", "http://")):
+        return v
+    raise ValueError("avatar_url: solo http(s) o una ruta propia")
 
 
 class UserBase(BaseModel):
@@ -43,14 +57,19 @@ class UserUpdate(BaseModel):
     role: Optional[str] = Field(default=None, description="Rol del usuario en el sistema")
     status: Optional[UserStatus] = Field(default=None, description="Estado del usuario")
     weekly_capacity_hours: Optional[float] = Field(default=None, description="Capacidad semanal en horas")
-    hourly_rate: Optional[float] = Field(default=None, description="Tarifa horaria del usuario (solo admin)")
-    phone: Optional[str] = Field(default=None, description="Teléfono de contacto del usuario")
-    avatar_url: Optional[str] = Field(default=None, description="URL del avatar del usuario")
+    hourly_rate: Optional[float] = Field(default=None, ge=0, description="Tarifa horaria del usuario (solo admin)")
+    phone: Optional[str] = Field(default=None, max_length=40, description="Teléfono de contacto del usuario")
+    avatar_url: Optional[str] = Field(default=None, max_length=1000, description="URL del avatar del usuario")
     manager_id: Optional[str] = Field(default=None, description="ID del manager del usuario")
     timezone: Optional[str] = Field(default=None, description="Zona horaria del usuario")
     organization_id: Optional[str] = Field(default=None, description="ID de la organización principal del usuario")
     organization_ids: Optional[list[str]] = Field(default=None, description="IDs de organizaciones a las que pertenece el usuario")
     custom_role_id: Optional[str] = Field(default=None, description="Rol personalizado (restringe modulos); vacio para quitarlo")
+
+    @field_validator("avatar_url")
+    @classmethod
+    def _avatar(cls, v):
+        return _url_de_avatar(v)
 
 
 class UserSelfUpdate(BaseModel):
@@ -60,10 +79,15 @@ class UserSelfUpdate(BaseModel):
     first_name: Optional[str] = Field(default=None, description="Nombre del usuario")
     last_name: Optional[str] = Field(default=None, description="Apellidos del usuario")
     full_name: Optional[str] = Field(default=None, description="Nombre completo del usuario")
-    phone: Optional[str] = Field(default=None, description="Teléfono de contacto del usuario")
+    phone: Optional[str] = Field(default=None, max_length=40, description="Teléfono de contacto del usuario")
     job_title: Optional[str] = Field(default=None, description="Cargo o puesto del usuario")
-    avatar_url: Optional[str] = Field(default=None, description="URL del avatar del usuario")
+    avatar_url: Optional[str] = Field(default=None, max_length=1000, description="URL del avatar del usuario")
     timezone: Optional[str] = Field(default=None, description="Zona horaria del usuario")
+
+    @field_validator("avatar_url")
+    @classmethod
+    def _avatar(cls, v):
+        return _url_de_avatar(v)
 
 
 class UserOrganizationOut(BaseModel):
@@ -95,6 +119,7 @@ class UserPublic(UserBase):
     blocked_routes: list[str] = Field(default_factory=list, description="Rutas de pantalla cerradas por el rol (solo en /auth/me y el login)")
     capacidades: list[str] = Field(default_factory=list, description="Capacidades efectivas (app.core.capacidades; solo en /auth/me y el login)")
     impersonated_by: Optional[str] = Field(default=None, description="Correo del superadmin que ha entrado como este usuario («entrar como»)")
+    account_security: Optional[dict] = Field(default=None, description="Políticas de cuenta: cambio de contraseña obligatorio, caducidad, MFA pendiente (solo en /auth/me y el login)")
 
     class Config:
         from_attributes = True

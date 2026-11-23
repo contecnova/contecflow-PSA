@@ -12,28 +12,6 @@
   font-size: var(--text-xs);
   margin-left: 3px;
 }
-.uitablcont-box-3 {
-  display: inline-flex;
-  position: absolute;
-  left: 10px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--text-3);
-  font-size: var(--text-base);
-  pointer-events: none;
-}
-.uitablcont-box-4 {
-  width: 100%;
-  background: var(--surface-2);
-  border: 1px solid var(--surface-4);
-  border-radius: 8px;
-  padding: 8px 12px 8px 32px;
-  color: var(--text-1);
-  font-size: var(--text-base);
-  outline: none;
-  font-family: inherit;
-  box-sizing: border-box;
-}
 .uitablcont-row-2 {
   display: flex;
   align-items: center;
@@ -110,16 +88,17 @@
   font-family: inherit;
 }
 .table-controls-e8 {
+  /* 23-11-2026: mismo alto, radio y letra que Select/Input del kit (antes 33 px
+     junto a un buscador de 35-38 px). */
+  box-sizing: border-box;
+  height: var(--alto-control);
   border: var(--table-controls-border);
-  border-radius: 8px;
-  padding: 8px 12px;
-  font-size: var(--text-sm);
+  border-radius: var(--radius-md);
+  padding: 0 13px;
+  font-size: var(--text-base);
   outline: none;
   font-family: inherit;
   cursor: pointer;
-}
-.table-controls-e11 {
-  position: relative;
 }
 .table-controls-m1 {
   background: var(--accent-muted);
@@ -147,7 +126,7 @@
   font-weight: 600;
 }
 .table-controls-m10 {
-  background: var(--surface-2);
+  background: var(--surface-3);
   color: var(--text-1);
   font-weight: 400;
 }

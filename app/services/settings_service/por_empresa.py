@@ -71,7 +71,10 @@ def ajuste_de_empresa(db, clave: str, org_id: Optional[str] = None, *, registro:
 
 def moneda_de_empresa(db, org_id: Optional[str] = None, *, registro: Any = None) -> str:
     """`DEFAULT_CURRENCY` de la empresa, en mayúsculas."""
-    return str(ajuste_de_empresa(db, "DEFAULT_CURRENCY", org_id, registro=registro) or "EUR").strip().upper()
+    # Ronda 2 auditoria 2026-11-22 (§6 Moneda): el respaldo es la moneda del
+    # despliegue (`DEFAULT_CURRENCY` del entorno), no "EUR" escrito aqui.
+    return str(ajuste_de_empresa(db, "DEFAULT_CURRENCY", org_id, registro=registro)
+               or app_settings.DEFAULT_CURRENCY or "EUR").strip().upper()
 
 
 def iva_de_empresa(db, org_id: Optional[str] = None, *, registro: Any = None) -> float:
@@ -105,6 +108,29 @@ def zona_de_empresa(db, org_id: Optional[str] = None, *, registro: Any = None) -
 def idioma_de_empresa(db, org_id: Optional[str] = None, *, registro: Any = None) -> str:
     """`DEFAULT_LANGUAGE` de la empresa."""
     return str(ajuste_de_empresa(db, "DEFAULT_LANGUAGE", org_id, registro=registro))
+
+
+def idioma_elegido_de_empresa(db, org_id: Optional[str] = None, *, registro: Any = None) -> Optional[str]:
+    """El idioma que la empresa (o la plataforma, en Configuración) ELIGIÓ; `None` si nadie lo eligió.
+
+    Incidencia 5 de usuarios (23-11-2026): la interfaz resuelve el idioma así:
+    preferencia del usuario > idioma de la empresa > idioma del navegador si
+    se ofrece > inglés. El `DEFAULT_LANGUAGE` del entorno (castellano en
+    `.env.example`) no cuenta como elección de la empresa: con él, todo el que
+    no hubiera elegido veía castellano aunque su navegador estuviera en otro
+    idioma. Esto solo afecta a la interfaz; los textos de salida (correos, PDF)
+    siguen con `idioma_de_empresa`.
+    """
+    if db is None:
+        return None
+    try:
+        from app.services.settings_service.runtime import _read_raw
+        valor = _read_raw(db, "DEFAULT_LANGUAGE", empresa_de(db, registro, org_id))
+    except Exception:
+        logger.debug("idioma_elegido_de_empresa: no legible", exc_info=True)
+        return None
+    valor = (valor or "").strip().lower()
+    return valor[:10] or None
 
 
 # ── Altas: columnas con `default=settings.DEFAULT_*` ─────────────────────────

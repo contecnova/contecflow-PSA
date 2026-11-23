@@ -34,9 +34,30 @@ logger = logging.getLogger(__name__)
 _TOLERANCIA_S = 300
 
 
-def _secreto(db: Session) -> Optional[str]:
-    from app.services.integration_credentials_service import get_credential
-    return get_credential(db, "stripe", "webhook_secret")
+def _secreto(db: Session, org_id: Optional[str] = None) -> Optional[str]:
+    """El secreto del webhook de la empresa de la factura (A-RZ6: Stripe por empresa)."""
+    from app.services.stripe_service import secreto_del_webhook
+    return secreto_del_webhook(db, org_id)
+
+
+def _factura_del_evento(db: Session, raw_body: bytes) -> Optional[Invoice]:
+    """La factura que dice el evento, SOLO para elegir con que secreto verificar.
+
+    El cuerpo aun no esta autenticado: de el solo se toma el id para saber de
+    que empresa es la cuenta de Stripe; nada se aplica hasta verificar la firma
+    con el secreto de esa empresa.
+    """
+    from app.db.session import sin_filtro_de_tenant
+    try:
+        evento = json.loads(raw_body)
+    except (ValueError, TypeError):
+        return None
+    objeto = ((evento or {}).get("data") or {}).get("object") or {}
+    invoice_id = (objeto.get("metadata") or {}).get("invoice_id")
+    if not invoice_id:
+        return None
+    with sin_filtro_de_tenant(db):
+        return db.query(Invoice).filter(Invoice.id == str(invoice_id)).first()
 
 
 def verificar_firma(raw_body: bytes, cabecera: Optional[str], secreto: str, ahora: Optional[float] = None) -> bool:
@@ -59,7 +80,8 @@ def verificar_firma(raw_body: bytes, cabecera: Optional[str], secreto: str, ahor
 
 
 def handle_stripe_webhook(raw_body: bytes, stripe_signature: Optional[str], db: Session) -> dict:
-    secreto = _secreto(db)
+    factura = _factura_del_evento(db, raw_body)
+    secreto = _secreto(db, getattr(factura, "organization_id", None))
     if not secreto:
         # Sin secreto no se puede autenticar: no se procesa nada.
         raise error(503, "webhook_secreto_no_configurado", detail="Webhook de Stripe no configurado (STRIPE_WEBHOOK_SECRET).", servicio="Stripe")
@@ -91,6 +113,15 @@ def handle_stripe_webhook(raw_body: bytes, stripe_signature: Optional[str], db: 
     # solo no basta para atar el evento a la factura.
     if not inv or (inv.stripe_payment_link_id and inv.stripe_payment_link_id != data.get("id")):
         logger.warning("Stripe webhook: sesion %s no corresponde a la factura %s", data.get("id"), invoice_id)
+        return {"received": True, "event_type": event_type, "applied": False}
+    # Auditoria 2026-11-22: lo cobrado tiene que ser el total de la factura en
+    # su moneda; antes se marcaba pagada con cualquier importe.
+    from app.services.stripe_service import to_minor_units
+    moneda = (inv.currency or "").lower()
+    if (data.get("amount_total") != to_minor_units(inv.total or 0, moneda)
+            or (data.get("currency") or "").lower() != moneda):
+        logger.warning("Stripe webhook: importe o moneda de la sesion %s no cuadran con la factura %s",
+                       data.get("id"), invoice_id)
         return {"received": True, "event_type": event_type, "applied": False}
     if inv.status != "paid":
         inv.status = "paid"

@@ -16,7 +16,7 @@ from fastapi import APIRouter, Body, Depends
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
-from app.core.deps import get_current_user, require_admin_or_pm, require_any_manager, require_internal_user
+from app.core.deps import get_current_user, requiere_capacidad
 from app.core.responses import APIResponse
 from app.models.user import User
 from app.services.advanced_config_service import (
@@ -44,14 +44,14 @@ def list_templates(db: Session = Depends(get_db), current_user: User = Depends(g
 
 @router.post("", summary="Crear plantilla (fases, tareas, dependencias, roles, documentos)", status_code=201)
 def create_template(payload: dict = Body(...), db: Session = Depends(get_db),
-                    current_user: User = Depends(require_any_manager)):
+                    current_user: User = Depends(requiere_capacidad("proyectos.responsables"))):
     from app.services.plantillas_de_proyecto import crear, obtener
     return APIResponse.ok(data={"ok": True, **obtener(db, current_user, crear(db, current_user, payload).id)})
 
 
 @router.post("/from-project/{project_id}", summary="Crear plantilla desde un proyecto", status_code=201)
 def template_from_project(project_id: str, payload: dict = Body(default={}), db: Session = Depends(get_db),
-                          current_user: User = Depends(require_admin_or_pm)):
+                          current_user: User = Depends(requiere_capacidad("proyectos.dirigir"))):
     from app.services.plantillas_de_proyecto import crear_desde_proyecto
     return APIResponse.ok(data=crear_desde_proyecto(
         db, current_user, project_id, payload.get("name"), payload.get("description")))
@@ -65,14 +65,14 @@ def get_template(template_id: str, db: Session = Depends(get_db), current_user: 
 
 @router.delete("/{template_id}", summary="Retirar plantilla")
 def delete_template(template_id: str, db: Session = Depends(get_db),
-                    current_user: User = Depends(require_admin_or_pm)):
+                    current_user: User = Depends(requiere_capacidad("proyectos.dirigir"))):
     from app.services.plantillas_de_proyecto import borrar
     return APIResponse.ok(data=borrar(db, current_user, template_id))
 
 
 @router.post("/{template_id}/apply/{project_id}", summary="Aplicar plantilla a un proyecto existente")
 def apply_template(template_id: str, project_id: str, payload: dict = Body(default={}),
-                   db: Session = Depends(get_db), current_user: User = Depends(require_admin_or_pm)):
+                   db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("proyectos.dirigir"))):
     from datetime import date as _date
     from app.services.plantillas_de_proyecto import aplicar
     inicio = _date.fromisoformat(payload["start_date"]) if payload.get("start_date") else None
@@ -81,7 +81,7 @@ def apply_template(template_id: str, project_id: str, payload: dict = Body(defau
 
 @router.post("/{template_id}/instantiate", summary="Proyecto nuevo desde la plantilla", status_code=201)
 def instantiate_template(template_id: str, payload: dict = Body(default={}), db: Session = Depends(get_db),
-                         current_user: User = Depends(require_any_manager)):
+                         current_user: User = Depends(requiere_capacidad("proyectos.responsables"))):
     from app.services.plantillas_de_proyecto import instanciar
     return APIResponse.ok(data=instanciar(db, current_user, template_id, payload))
 
@@ -92,7 +92,7 @@ def add_document(
     payload: dict = Body(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_admin_or_pm),  # auditoria 2026-09: dominio: plantillas de proyecto
+    _rol: User = Depends(requiere_capacidad("proyectos.dirigir")),  # auditoria 2026-09: dominio: plantillas de proyecto
 ):
     doc = anadir_documento_a_plantilla(db, current_user, template_id, payload)
     return APIResponse.ok(data={
@@ -117,7 +117,7 @@ def add_role(
     payload: dict = Body(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_admin_or_pm),  # auditoria 2026-09: dominio: plantillas de proyecto
+    _rol: User = Depends(requiere_capacidad("proyectos.dirigir")),  # auditoria 2026-09: dominio: plantillas de proyecto
 ):
     role = anadir_rol_a_plantilla(db, current_user, template_id, payload)
     return APIResponse.ok(data={
@@ -148,7 +148,7 @@ def export_project_as_template_endpoint(
     payload: dict = Body(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
+    _rol: User = Depends(requiere_capacidad("proyectos.usar")),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
 ):
     return APIResponse.ok(data=export_project_as_template(
         project_id=payload.get("project_id", ""),

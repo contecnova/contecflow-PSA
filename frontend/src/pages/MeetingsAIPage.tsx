@@ -23,7 +23,7 @@ import { useQuery } from '@tanstack/react-query'
 import {
   Bot, ClipboardPaste, Download, ListChecks, Loader2, Mic, MousePointerClick, Search, ShieldAlert, SlidersHorizontal,
 } from 'lucide-react'
-import { Button, Card, EmptyState, Input, KpiCard, Pulsable, Select, Spinner } from '../components/ui'
+import { Buscador, Button, Card, EmptyState, KpiCard, Pulsable, Select, Spinner } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { useAppT } from '../i18n/AppLangContext'
@@ -122,8 +122,8 @@ export default function MeetingsAIPage() {
           </p>
         )}
         <div className="meet-filtros">
-          <Input className="meet-filtros__buscar" aria-label={t('reuniones.buscar')} placeholder={t('reuniones.buscar_placeholder')}
-            value={busqueda} onChange={e => setBusqueda(e.target.value)} />
+          <Buscador className="meet-filtros__buscar" aria-label={t('reuniones.buscar')} placeholder={t('reuniones.buscar_placeholder')}
+            value={busqueda} onChange={setBusqueda} />
           <Select suelto aria-label={t('reuniones.filtro_estado')} value={estado} onChange={e => setEstado(e.target.value)}
             placeholder={t('reuniones.todos_los_estados')}
             options={ESTADOS_REUNION.map(s => ({ value: s, label: t(`reuniones.estado.${s}`) }))} />

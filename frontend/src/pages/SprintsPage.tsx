@@ -17,7 +17,7 @@ import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
 import { useInvalidate } from '../hooks/useInvalidate'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { projectsApi, projectSprintsApi, tasksApi } from '../services/api'
+import { projectSprintsApi, tasksApi } from '../services/api'
 import type { SprintDelProyecto, TareaDeSprint } from '../services/api/tipos-proyectos'
 import { Button, Card, EmptyState, KpiCard, Modal, Section, Spinner, Tabs, IconButton, Select, Checkbox, Textarea, Input } from '../components/ui'
 import StatusBadge from '../components/ui/StatusBadge'
@@ -32,6 +32,7 @@ import DateInput from '../components/ui/DateInput'
 import { COLUMNAS_DE_TABLERO } from '../constants/catalogos'
 import { useCatalogo } from '../hooks/useCatalogo'
 import { TOOLTIP_SUPERFICIE_3_REDONDO_SM, TOOLTIP_SUPERFICIE_3_REDONDO_XS } from '../constants/estilosGrafico'
+import { useListaDeProyectos } from '../hooks/useListas'
 
 // sprint_service.serialize_task / serialize_sprint y raci_service.get_sprint_retrospective.
 type Task = TareaDeSprint
@@ -288,10 +289,7 @@ export default function SprintsPage({ projectId }: { projectId?: string } = {}) 
   const [showRetro, setShowRetro] = useState<Sprint | null>(null)
   const [sprintForm, setSprintForm] = useState({ name: '', goal: '', start_date: '', end_date: '' })
 
-  const { data: projRaw = [] } = useQuery<{ id: string; code?: string; name?: string }[]>({
-    queryKey: ['projects'],
-    queryFn: () => projectsApi.list().then(r => r.data),
-  })
+  const { data: projRaw = [] } = useListaDeProyectos()
   const projects = Array.isArray(projRaw) ? projRaw : []
 
   const { data: sprints = [], isLoading } = useQuery({
@@ -601,7 +599,7 @@ export default function SprintsPage({ projectId }: { projectId?: string } = {}) 
         <Modal open title={t('sprints.nuevo_sprint_2')} onClose={() => setShowCreateSprint(false)} width={500}>
           <div className="u-stack-14">
             <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className={ls}>{t('sprints.nombre_del_sprint')}</label><Input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={sprintForm.name} onChange={e => setSprintForm(f => ({ ...f, name: e.target.value }))} placeholder={t('sprints.nombre_del_sprint_2')} inputClassName="spr-input" /></div>
-            <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className={ls}>{t('sprints.objetivo_del_sprint')}</label><textarea id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={sprintForm.goal} onChange={e => setSprintForm(f => ({ ...f, goal: e.target.value }))} rows={2} className={`${fs} spr-textarea`} placeholder={t('sprints.objetivo_del_sprint_2')} /></div>
+            <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className={ls}>{t('sprints.objetivo_del_sprint')}</label><Textarea id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={sprintForm.goal} onChange={e => setSprintForm(f => ({ ...f, goal: e.target.value }))} rows={2} inputClassName={`${fs} spr-textarea`} placeholder={t('sprints.objetivo_del_sprint_2')} /></div>
             <div className="u-grid2-14">
               <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className={ls}>{t('sprints.start_date')}</label><DateInput id={`${idCampo}-3`} value={sprintForm.start_date} onChange={e => setSprintForm(f => ({ ...f, start_date: e.target.value }))} className={fs} /></div>
               <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className={ls}>{t('sprints.end_date')}</label><DateInput id={`${idCampo}-4`} value={sprintForm.end_date} onChange={e => setSprintForm(f => ({ ...f, end_date: e.target.value }))} className={fs} /></div>

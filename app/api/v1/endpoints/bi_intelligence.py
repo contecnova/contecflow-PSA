@@ -16,7 +16,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.core.abac_enforce import enforce_abac
-from app.core.deps import require_admin_or_pm, get_current_user, require_admin, require_internal_user
+from app.core.deps import get_current_user, requiere_capacidad
 from app.core.responses import APIListResponse, APIResponse
 from app.services.ws_service import (
     get_active_user_by_id as _usuario_activo,
@@ -94,7 +94,7 @@ def phase2_revenue_anomalies(
 
 
 @router.get("/bi/intelligence/reports/presets", summary="Presets de Report Builder avanzado BI Intelligence")
-def phase2_report_presets(current_user: User = Depends(require_admin)):
+def phase2_report_presets(current_user: User = Depends(requiere_capacidad("bi.administrar"))):
     _ = current_user
     return APIListResponse.ok(items=svc.list_advanced_report_presets())
 
@@ -103,8 +103,8 @@ def phase2_report_presets(current_user: User = Depends(require_admin)):
 def phase2_report_preview(
     payload: AdvancedPreviewIn,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
+    current_user: User = Depends(requiere_capacidad("bi.administrar")),
+    _rol: User = Depends(requiere_capacidad("bi.usar")),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
 ):
     org_id = getattr(current_user, "organization_id", None)
     try:
@@ -136,8 +136,8 @@ def phase2_visual_query_builder_preview(
     payload: VisualQueryPreviewIn,
     request: Request,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin_or_pm),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
+    current_user: User = Depends(requiere_capacidad("bi.gestionar")),
+    _rol: User = Depends(requiere_capacidad("bi.usar")),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
 ):
     from app.services.bi_governance_service import registrar_acceso
     registrar_acceso(db, request, current_user, "entity", payload.entity, "view", {"columns": list(payload.columns or [])})
@@ -183,7 +183,7 @@ def phase2_save_visual_query_builder_template(
     payload: VisualQueryTemplateIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: analitica interna
+    _rol: User = Depends(requiere_capacidad("bi.usar")),  # auditoria 2026-09: dominio: analitica interna
 ):
     org_id = getattr(current_user, "organization_id", None)
     try:
@@ -209,7 +209,7 @@ def phase2_delete_visual_query_builder_template(
     template_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: analitica interna
+    _rol: User = Depends(requiere_capacidad("bi.usar")),  # auditoria 2026-09: dominio: analitica interna
 ):
     enforce_abac(db, current_user, "bi_visual_query_template", template_id, action="delete")
     org_id = getattr(current_user, "organization_id", None)
@@ -241,7 +241,7 @@ def phase2_delivery_run_now(
     report_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: analitica interna
+    _rol: User = Depends(requiere_capacidad("bi.usar")),  # auditoria 2026-09: dominio: analitica interna
 ):
     _ = current_user
     # Segunda auditoria 2026-11 (n.º 20): informe (PDF) + SMTP al worker. Con
@@ -322,6 +322,8 @@ async def _autorizar_flujo_de_bi(websocket: WebSocket, ticket: Optional[str], to
     from app.api.v1.endpoints.ws import _identidad_de_la_conexion
 
     with SessionLocal() as db:
+        from app.db.contexto_de_tenant import declarar_sistema as _declarar_sistema
+        _declarar_sistema(db, "ws: identidad por ticket")  # auditoría 22-11-2026: TENANT_SESION_SIN_CONTEXTO=cerrar
         return await _identidad_de_la_conexion(websocket, db, ticket=ticket, token=token)
 
 
@@ -332,6 +334,8 @@ async def _organizacion_del_usuario(user_id: str, org_activa: Optional[str] = No
     from app.api.v1.endpoints.ws import usuario_en_su_organizacion_activa
 
     db = SessionLocal()
+    from app.db.contexto_de_tenant import declarar_sistema as _declarar_sistema
+    _declarar_sistema(db, "ws: identidad por ticket")  # auditoría 22-11-2026: TENANT_SESION_SIN_CONTEXTO=cerrar
     try:
         user = await run_db(_usuario_activo, db, user_id)
         if not user:
@@ -403,6 +407,8 @@ async def _emitir_por_sondeo(websocket: WebSocket, user_id: str, org_activa: Opt
     from app.api.v1.endpoints.ws import usuario_en_su_organizacion_activa
 
     db = SessionLocal()
+    from app.db.contexto_de_tenant import declarar_sistema as _declarar_sistema
+    _declarar_sistema(db, "ws: identidad por ticket")  # auditoría 22-11-2026: TENANT_SESION_SIN_CONTEXTO=cerrar
     try:
         while True:
             user = await run_db(_usuario_activo, db, user_id)
@@ -510,7 +516,7 @@ def create_delivery_schedule(
     body: DeliveryScheduleCreateIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: analitica interna
+    _rol: User = Depends(requiere_capacidad("bi.usar")),  # auditoria 2026-09: dominio: analitica interna
 ):
     org_id = getattr(current_user, "organization_id", None)
     try:
@@ -539,7 +545,7 @@ def update_delivery_schedule(
     body: DeliveryScheduleUpdateIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: analitica interna
+    _rol: User = Depends(requiere_capacidad("bi.usar")),  # auditoria 2026-09: dominio: analitica interna
 ):
     org_id = getattr(current_user, "organization_id", None)
     try:
@@ -559,7 +565,7 @@ def delete_delivery_schedule(
     schedule_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: analitica interna
+    _rol: User = Depends(requiere_capacidad("bi.usar")),  # auditoria 2026-09: dominio: analitica interna
 ):
     enforce_abac(db, current_user, "bi_delivery_schedule", schedule_id, action="delete")
     org_id = getattr(current_user, "organization_id", None)
@@ -575,7 +581,7 @@ def send_delivery_now(
     schedule_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: analitica interna
+    _rol: User = Depends(requiere_capacidad("bi.usar")),  # auditoria 2026-09: dominio: analitica interna
 ):
     org_id = getattr(current_user, "organization_id", None)
     # Segunda auditoria 2026-11 (n.º 20): generar el informe + adjunto y

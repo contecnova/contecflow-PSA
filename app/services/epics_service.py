@@ -418,7 +418,8 @@ def restore_wiki_version(page_id: str, version_num: int, restored_by_id, db) -> 
 def search_wiki_pages(q: str, space_id, db, viewer) -> list:
     espacios = acotar_espacios(db.query(WikiSpace.id), db, viewer).subquery()
     query = db.query(WikiPage).filter(
-        or_(WikiPage.title.ilike(f"%{q}%"), WikiPage.content_text.ilike(f"%{q}%")),
+        # M86: texto buscado escapado (`%` y `_` literales).
+        or_(WikiPage.title.ilike(f"%{_esc(q)}%", escape="\\"), WikiPage.content_text.ilike(f"%{_esc(q)}%", escape="\\")),
         WikiPage.is_active == True,
         WikiPage.space_id.in_(db.query(espacios.c.id)),
     )
@@ -672,6 +673,34 @@ _ENTIDADES_NQL: dict[str, dict] = {
 }
 
 
+def _esc(texto: str) -> str:
+    from app.services.service_desk.ticket_query_service import escapar_like
+    return escapar_like(texto or "")
+
+
+def _condicion_nql(col, op: str, valor: str, parcial: bool):
+    """M86 (auditoría 22-11-2026): el operador se aplica (antes `!=`, `IN`, `>` y
+    `<` se trataban todos como `=` o contiene) y el texto de LIKE va escapado.
+
+    `=`: igual (o contiene, en campos de texto libre); `!=`: distinto (o no
+    contiene); `IN`: uno de la lista separada por comas; `LIKE`: contiene;
+    `>`/`<`: orden (texto o número, como compare la base).
+    """
+    from app.services.service_desk.ticket_query_service import escapar_like
+    patron = f"%{escapar_like(valor)}%"
+    if op == "IN":
+        return col.in_([v.strip() for v in valor.split(",") if v.strip()])
+    if op == "LIKE" or (op == "=" and parcial):
+        return col.ilike(patron, escape="\\")
+    if op == "!=":
+        return ~col.ilike(patron, escape="\\") if parcial else col != valor
+    if op == ">":
+        return col > valor
+    if op == "<":
+        return col < valor
+    return col == valor
+
+
 def execute_nql_search(entity_type: str, query: str, limit: int, db, viewer) -> dict:
     """Busca con una consulta NQL sobre una de las entidades declaradas."""
     spec = _ENTIDADES_NQL.get(entity_type)
@@ -687,8 +716,7 @@ def execute_nql_search(entity_type: str, query: str, limit: int, db, viewer) -> 
     for nombre, (columna, parcial) in spec["campos"].items():
         if nombre not in condiciones:
             continue
-        valor = condiciones[nombre]["val"]
-        q = q.filter(columna().ilike(f"%{valor}%") if parcial else columna() == valor)
+        q = q.filter(_condicion_nql(columna(), condiciones[nombre]["op"], condiciones[nombre]["val"], parcial))
 
     resultados = q.limit(limit).all()
     return {

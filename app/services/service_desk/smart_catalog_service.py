@@ -8,7 +8,7 @@ Capacidades:
   1. get_smart_recommendations()  — sugiere servicios relevantes al usuario
      basándose en histórico, rol y keywords del problema.
   2. get_popular_services()       — servicios más solicitados en las últimas N semanas.
-  3. enrich_catalog_with_stats()  — añade métricas de uso a la respuesta del catálogo.
+  3. (retirada el 23-11-2026: `enrich_catalog_with_stats` no tenía llamantes).
   4. suggest_service_for_query()  — dado un texto libre, recomienda el servicio
      más apropiado (keyword-match + IA fallback).
   5. update_service_popularity()  — recalcula conteos (no hay tarea de Celery
@@ -31,6 +31,8 @@ from sqlalchemy.orm import Session, joinedload
 from app.models.service_desk import (
     ServiceItem,
     Ticket,
+    TicketPriority,
+    TicketUrgency,
 )
 
 logger = logging.getLogger(__name__)
@@ -238,6 +240,7 @@ def suggest_service_for_query(
     db: Session,
     query: str,
     use_ai: bool = True,
+    user_id: str | None = None,
 ) -> dict:
     """Given free-text *query*, return the best matching service + reasoning.
 
@@ -303,7 +306,10 @@ def suggest_service_for_query(
                     "content": f"Catálogo:\n{catalog_summary}\n\nConsulta: {query}",
                 }
             ]
-            ai_id = (call_ai(db, messages=messages, system=system_prompt,
+            # Auditoria 2026-11-22 (4.3): con el usuario (sus politicas de IA
+            # y su consumo), no como llamada anonima.
+            ai_id = (call_ai(db, messages=messages, system=system_prompt, module="service_desk",
+                             user_id=user_id, organization_id=db.info.get("organization_id"),
                              max_tokens=settings.AI_SHORT_ANSWER_MAX_TOKENS) or "").strip()
 
             matched = next((s for s in services if s.id == ai_id), None)
@@ -364,23 +370,25 @@ def auto_prefill_request_form(
         }
     """
     # Pattern-based priority hints
-    priority = "p3_medium"
-    urgency = "u3_medium"
+    # Auditoria 2026-11-22 (§6): urgencias del enum (`TicketUrgency`); antes
+    # "u1_critical"... que no existen y el alta fallaba o las descartaba.
+    priority = TicketPriority.p3_medium.value
+    urgency = TicketUrgency.medium.value
 
     desc_lower = description.lower()
 
     # Critical signals
     if any(w in desc_lower for w in ("urgente", "urgent", "producción caída", "caída total",
                                       "down", "fuera de servicio", "p1", "bloqueando")):
-        priority = "p1_critical"
-        urgency = "u1_critical"
+        priority = TicketPriority.p1_critical.value
+        urgency = TicketUrgency.critical.value
     elif any(w in desc_lower for w in ("importante", "impacto alto", "p2", "afecta al equipo",
                                         "muchos usuarios")):
-        priority = "p2_high"
-        urgency = "u2_high"
+        priority = TicketPriority.p2_high.value
+        urgency = TicketUrgency.high.value
     elif any(w in desc_lower for w in ("cuando puedas", "no urgente", "baja prioridad", "p4")):
-        priority = "p4_low"
-        urgency = "u4_low"
+        priority = TicketPriority.p4_low.value
+        urgency = TicketUrgency.low.value
 
     # Title: first sentence / first 100 chars
     first_sentence = description.split(".")[0].strip()[:100]
@@ -412,28 +420,6 @@ def auto_prefill_request_form(
 
 
 # ── Catalog enriched with stats ───────────────────────────────────────────────
-
-def enrich_catalog_with_stats(
-    db: Session,
-    catalog: list[dict],
-    weeks: int = _POPULARITY_WEEKS,
-) -> list[dict]:
-    """Add ``ticket_count`` and ``avg_csat`` stats to each service in *catalog*.
-
-    *catalog* is the list returned by ``catalog_service.list_catalog_payload``.
-
-    Returns mutated catalog (same structure, services have extra keys).
-    """
-    popular = get_popular_services(db, weeks=weeks, limit=999)
-    stats_by_id = {p["service_id"]: p for p in popular}
-
-    for category in catalog:
-        for svc in category.get("services", []):
-            stats = stats_by_id.get(svc["id"], {})
-            svc["ticket_count_recent"] = stats.get("ticket_count", 0)
-            svc["avg_csat_recent"] = stats.get("avg_csat")
-
-    return catalog
 
 
 # ── Configuración de aprovisionamiento y su rastro, movidos del endpoint ─────
@@ -593,6 +579,7 @@ def _render_context(ticket, current_user, service_item_id: str) -> dict:
         "assignee_user_id": ticket.assigned_to_user_id or "",
         "current_user_id": current_user.id,
         "project_id": ticket.project_id,
+        "organization_id": ticket.organization_id,   # A13: carpeta de aprovisionamiento de la empresa
     }
 
 
@@ -645,11 +632,15 @@ def ejecutar_pasos_de_aprovisionamiento(db: _SesionProv, ticket, current_user, s
                     nombre_del_bot=nombre_del_bot)
                 steps_done.append({"type": step_type, "status": "ok"})
             elif step_type == "status_change":
-                anterior = str(ticket.status)
-                ticket.status = step.get("target_status", ticket.status)
-                anotar_en_el_historial_del_ticket(
-                    db, ticket, current_user, campo="status",
-                    valor_anterior=anterior, valor_nuevo=str(ticket.status))
+                # 23-11-2026 (A-SD11): por la via central (valida el estado,
+                # historial, SLA y auditoria); antes `ticket.status = <texto>`.
+                from app.services.service_desk.ticket_update_service import (
+                    cambiar_estado_por_automatismo,
+                )
+                destino = step.get("target_status")
+                if destino:
+                    cambiar_estado_por_automatismo(db, ticket, destino, actor=current_user,
+                                                   origen="catalogo_aprovisionamiento")
                 steps_done.append({"type": step_type, "status": "ok"})
             elif step_type == "assign_group":
                 ticket.assigned_group = step.get("group", ticket.assigned_group)

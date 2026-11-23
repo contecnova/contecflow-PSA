@@ -30,7 +30,7 @@ class ReviewCycle(Base):
     """Ciclo de evaluación (trimestral, anual…)."""
     __tablename__ = "review_cycles"
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     is_active   = Column(Boolean, default=True, nullable=False, server_default="1", index=True)  # audit #36 soft-delete
     name        = Column(String(200), nullable=False)
     description = Column(Text, nullable=True)
@@ -40,7 +40,7 @@ class ReviewCycle(Base):
     include_self   = Column(Boolean, default=True)
     include_peers  = Column(Boolean, default=True)
     include_manager = Column(Boolean, default=True)
-    created_by  = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    created_by  = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at  = Column(DateTime(timezone=True), server_default=func.now())
     reviews     = relationship("PerformanceReview", back_populates="cycle",
                                cascade="all, delete-orphan")
@@ -67,7 +67,7 @@ class ReviewQuestion(Base):
     """
     __tablename__ = "review_questions"
     id        = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     cycle_id  = Column(String(36), ForeignKey("review_cycles.id", ondelete="CASCADE"),
                        nullable=False, index=True)
     # `key` es el identificador estable (snake_case) usado en answers_json
@@ -92,17 +92,17 @@ class Review360Campaign(Base):
     """
     __tablename__ = "review_360_campaigns"
     id           = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     is_active    = Column(Boolean, default=True, nullable=False, server_default="1", index=True)  # audit #36 soft-delete
     cycle_id     = Column(String(36), ForeignKey("review_cycles.id", ondelete="CASCADE"),
                           nullable=False, index=True)
-    subject_id   = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
+    subject_id   = Column(String(36), ForeignKey("users.id", ondelete="RESTRICT"), nullable=False, index=True)
     status       = Column(Enum(Review360CampaignStatus),
                           default=Review360CampaignStatus.draft, nullable=False)
     # Umbral de anonimización: por debajo de N evaluadores en un grupo, las
     # respuestas individuales no se exponen, solo el agregado del grupo.
     anonymity_threshold = Column(Integer, nullable=False, default=3)
-    created_by   = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    created_by   = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at   = Column(DateTime(timezone=True), server_default=func.now())
     closed_at    = Column(DateTime(timezone=True), nullable=True)
 
@@ -116,7 +116,7 @@ class PerformanceReview(Base):
     """Evaluación individual dentro de un ciclo."""
     __tablename__ = "performance_reviews"
     id           = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     cycle_id     = Column(String(36), ForeignKey("review_cycles.id", ondelete="CASCADE"),
                           nullable=False, index=True)
     # Si la review pertenece a una campaña 360°, este FK la enlaza para
@@ -125,8 +125,8 @@ class PerformanceReview(Base):
     campaign_id  = Column(String(36),
                           ForeignKey("review_360_campaigns.id", ondelete="SET NULL"),
                           nullable=True, index=True)
-    reviewee_id  = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
-    reviewer_id  = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
+    reviewee_id  = Column(String(36), ForeignKey("users.id", ondelete="RESTRICT"), nullable=False, index=True)
+    reviewer_id  = Column(String(36), ForeignKey("users.id", ondelete="RESTRICT"), nullable=False, index=True)
     review_type  = Column(String(20), default="self")  # self | peer | manager | upward
     status       = Column(Enum(ReviewStatus), default=ReviewStatus.pending)
     # Puntuaciones 1-5
@@ -179,9 +179,9 @@ class DevelopmentPlan(Base):
     """
     __tablename__ = "development_plans"
     id            = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     is_active     = Column(Boolean, default=True, nullable=False, server_default="1", index=True)  # audit #36 soft-delete
-    subject_id    = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
+    subject_id    = Column(String(36), ForeignKey("users.id", ondelete="RESTRICT"), nullable=False, index=True)
     # Origen opcional: campaña 360° de la que se derivó (puede ser libre).
     campaign_id   = Column(String(36),
                            ForeignKey("review_360_campaigns.id", ondelete="SET NULL"),
@@ -194,7 +194,7 @@ class DevelopmentPlan(Base):
     status        = Column(Enum(DevPlanStatus), default=DevPlanStatus.draft, nullable=False)
     target_date   = Column(Date, nullable=True)
     next_review_at = Column(Date, nullable=True)
-    created_by    = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    created_by    = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at    = Column(DateTime(timezone=True), server_default=func.now())
     updated_at    = Column(DateTime(timezone=True), onupdate=func.now())
 
@@ -210,7 +210,7 @@ class DevGoal(Base):
     """Objetivo concreto dentro de un plan de desarrollo."""
     __tablename__ = "dev_goals"
     id           = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     plan_id      = Column(String(36),
                           ForeignKey("development_plans.id", ondelete="CASCADE"),
                           nullable=False, index=True)

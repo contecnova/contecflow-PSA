@@ -11,6 +11,7 @@ import { Button, EmptyState, KpiCard, Spinner, Checkbox, Radio } from '../ui'
 import DateInput from '../ui/DateInput'
 import { extractErr } from '../../utils/helpers'
 import { textoDeValor, useTextos } from './comun'
+import { Input } from '../ui'
 
 export default function Simulador({ documento }: { documento: DocumentoDePolitica & { id?: string; familia_id?: string } }) {
   const { t } = useTextos()
@@ -29,8 +30,7 @@ export default function Simulador({ documento }: { documento: DocumentoDePolitic
       <p className="pol-ayuda">{t('pol.simulador_ayuda')}</p>
       <div className="pol-fila" role="group" aria-label={t('pol.que_simular')}>
         <Radio className="pol-chip" name="modo-sim" label={t('pol.ultimos')} checked={modo === 'ultimos'} onChange={() => setModo('ultimos')} />
-        {modo === 'ultimos' && <input type="number" min={1} className="pol-campo pol-campo--corto" aria-label={t('pol.cuantos')}
-          placeholder={t('pol.por_defecto')} value={ultimos} onChange={e => setUltimos(e.target.value ? Number(e.target.value) : '')} />}
+        {modo === 'ultimos' && <Input type="number" min={1} aria-label={t('pol.cuantos')} placeholder={t('pol.por_defecto')} value={ultimos} onChange={e => setUltimos(e.target.value ? Number(e.target.value) : '')} className="pol-campo--corto" />}
         <Radio className="pol-chip" name="modo-sim" label={t('pol.rango')} checked={modo === 'rango'} onChange={() => setModo('rango')} />
         {modo === 'rango' && <>
           <DateInput className="pol-campo" aria-label={t('pol.desde')} value={desde} onChange={e => setDesde(e.target.value)} />

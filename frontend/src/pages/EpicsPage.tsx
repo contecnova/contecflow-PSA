@@ -6,10 +6,11 @@ import type { CSSProperties } from 'react'
 import { useToast } from '../context/ToastContext'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { projectsApi, epicsApi, tasksApi } from '../services/api'
-import type { EpicaDelRoadmap, EpicaSerializada, RoadmapDeEpicas } from '../services/api/tipos-proyectos'
+import { epicsApi, tasksApi } from '../services/api'
+import { useListaDeProyectos } from '../hooks/useListas'
+import type { EpicaDelRoadmap, EpicaSerializada } from '../services/api/tipos-proyectos'
 import { useAuth } from '../context/AuthContext'
-import { Button, Spinner, EmptyState, Modal, KpiCard, Tabs, IconButton, Pulsable, Select, useErroresDeCampo, Input, Textarea } from '../components/ui'
+import { Button, Spinner, EmptyState, Modal, KpiCard, Tabs, IconButton, Pulsable, Select, useErroresDeCampo, Input, Textarea, EstadoDeError } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { CalendarDays, CalendarRange, FolderKanban, Layers, List, ListChecks, Map as MapIcon, Pencil, Plus, Target, Trash2 } from 'lucide-react'
@@ -22,11 +23,6 @@ import './EpicsPage.css'
 // EpicIn: estado y prioridad son texto (la interfaz ofrece los de STATUS_CFG y PRIORITY_CFG).
 type EpicStatus = EpicaSerializada['status']
 type EpicPriority = EpicaSerializada['priority']
-
-interface ProjectItem {
-  id: string | number
-  name?: string
-}
 
 /** epics_service.serialize_epic; `progress` solo llega en el roadmap (get_roadmap_data). */
 type EpicItem = EpicaSerializada & { progress?: EpicaDelRoadmap['progress'] }
@@ -168,7 +164,11 @@ function EpicDetail({ epic, projectId, canEdit, onClose }: { epic: EpicItem; pro
             <div key={x.id} className="epics-row-2">
               <span className="epics-label">{x.title}</span>
               <span className={`u-xs ${x.status === 'done' ? 'epicspag-sx4' : 'epicspag-sx5'}`}>{etiquetaCodigo(t, 'estado', x.status)}</span>
-              {canEdit && <Button size="xs" variant="ghost" onClick={() => enlazar(x.id, true)}>{t('epics.quitar')}</Button>}
+              {canEdit && <Button size="xs" variant="ghost" onClick={() => openConfirmGlobal({
+                // 23-11-2026: desvincular una tarea de la épica cambia su avance: pide confirmación.
+                title: t('epics.confirmar_quitar_titulo'), message: t('epics.confirmar_quitar_msg', { tarea: x.title ?? '' }),
+                confirmLabel: t('epics.quitar'), danger: true, onConfirm: () => { void enlazar(x.id, true) },
+              })}>{t('epics.quitar')}</Button>}
             </div>))}
         {canEdit && (
           <div className="u-wrap-8">
@@ -264,16 +264,17 @@ export default function EpicsPage(): JSX.Element {
 
   const { STATUS_CFG, PRIORITY_CFG } = cfgDeEpicas(t)
 
-  const { data:projectsRaw=[] } = useQuery({queryKey:['projects'],queryFn:()=>projectsApi.list({}).then(r=>Array.isArray(r.data)?r.data:[]).catch(()=>[])})
-  const projects = projectsRaw as ProjectItem[]
-  const { data:epics=[],isLoading } = useQuery({
+  // 23-11-2026 (04 A8 / M6): lista compartida de proyectos y sin `.catch` tragados (avisa el onError global;
+  // la lista de épicas, además, pinta el estado de error con reintento).
+  const { data:projects=[] } = useListaDeProyectos()
+  const { data:epics=[],isLoading,error:errorEpicas,refetch:refetchEpicas } = useQuery({
     queryKey:['epics',project],
-    queryFn:()=>epicsApi.list(project).then(r=>r.data).catch(():EpicaSerializada[]=>[]),
+    queryFn:()=>epicsApi.list(project).then(r=>r.data),
     enabled:!!project,
   })
   const { data:roadmap } = useQuery({
     queryKey:['roadmap',project],
-    queryFn:()=>epicsApi.roadmap(project).then(r=>r.data).catch(():RoadmapDeEpicas|null=>null),
+    queryFn:()=>epicsApi.roadmap(project).then(r=>r.data),
     // También en la lista: el avance (tareas hechas) solo lo calcula el roadmap.
     enabled:!!project,
   })
@@ -322,7 +323,9 @@ export default function EpicsPage(): JSX.Element {
       {!project && <EmptyState icon={<FolderKanban size={28} />} title={t('epics.no_project_title')} description={t('epics.no_project_desc')}/>}
       {project&&isLoading&&<Spinner/>}
 
-      {project&&!isLoading&&epics.length===0&&(
+      {project&&errorEpicas&&<EstadoDeError error={errorEpicas} onReintentar={()=>{ void refetchEpicas() }}/>}
+
+      {project&&!isLoading&&!errorEpicas&&epics.length===0&&(
         <EmptyState icon={<Target size={28} />} title={t('epics.no_epics')} description={t('epics.no_epics_desc')}
           action={canEdit ? <Button icon={<Plus size={14} />} onClick={()=>{setEditEpic(null);setShowForm(true)}}>{t('epics.new_epic')}</Button> : undefined} />
       )}

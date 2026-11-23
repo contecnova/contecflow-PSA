@@ -26,10 +26,11 @@ import { Card, Button, Tabs, Spinner, EmptyState, IconButton, Select } from '../
 import { UserSelect } from '../ui/EntitySelect'
 import { useToast } from '../../context/ToastContext'
 import { useConfirm } from '../../context/ConfirmContext'
-import { fmtDate, fmtDateTime } from '../../utils/helpers'
+import { extractErr, fmtDate, fmtDateTime } from '../../utils/helpers'
 import { POLL_LIVE_MS } from '../../constants/timings'
 import './BiDashboardCollabPanel.css'
 import { chipColor } from '../../utils/estilos'
+import { Input } from '../ui'
 
 type ApiError = { response?: { data?: { detail?: string } } }
 
@@ -95,7 +96,7 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDash
       qc.invalidateQueries({ queryKey: ['bi-collab-comments', dashboardKey] })
       qc.invalidateQueries({ queryKey: ['bi-collab-notifications', dashboardKey] })
     },
-    onError: (e) => toast.error(e?.response?.data?.detail || t('bidashboardcollab.error_anadir_comentario')),
+    onError: (e) => toast.error(extractErr(e, t('bidashboardcollab.error_anadir_comentario'))),
   })
 
   const resolveCommentMutation = useMutation<unknown, ApiError, string>({
@@ -104,7 +105,7 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDash
       toast.success(t('bidashboardcollab.comentario_resuelto'))
       qc.invalidateQueries({ queryKey: ['bi-collab-comments', dashboardKey] })
     },
-    onError: (e) => toast.error(e?.response?.data?.detail || t('bidashboardcollab.error_resolver')),
+    onError: (e) => toast.error(extractErr(e, t('bidashboardcollab.error_resolver'))),
   })
 
   const saveViewMutation = useMutation<unknown, ApiError, { name: string; dashboard_key: string; filters: Record<string, unknown> }>({
@@ -115,13 +116,13 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDash
       qc.invalidateQueries({ queryKey: ['bi-collab-views', dashboardKey] })
       qc.invalidateQueries({ queryKey: ['bi-collab-notifications', dashboardKey] })
     },
-    onError: (e) => toast.error(e?.response?.data?.detail || t('bidashboardcollab.error_guardar_vista')),
+    onError: (e) => toast.error(extractErr(e, t('bidashboardcollab.error_guardar_vista'))),
   })
 
   const toggleViewMutation = useMutation<unknown, ApiError, { id: string; active: boolean }>({
     mutationFn: ({ id, active }) => biCollaborationApi.patchSharedView(id, { active }).then(r => r.data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['bi-collab-views', dashboardKey] }),
-    onError: (e) => toast.error(e?.response?.data?.detail || t('bidashboardcollab.error_actualizar_vista')),
+    onError: (e) => toast.error(extractErr(e, t('bidashboardcollab.error_actualizar_vista'))),
   })
 
   const shareDashboardMutation = useMutation<unknown, ApiError, { target_user_id: string; target_user_name: string; permission: string }>({
@@ -133,7 +134,7 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDash
       qc.invalidateQueries({ queryKey: ['bi-collab-shares', dashboardKey] })
       qc.invalidateQueries({ queryKey: ['bi-collab-notifications', dashboardKey] })
     },
-    onError: (e) => toast.error(e?.response?.data?.detail || t('bidashboardcollab.error_compartir')),
+    onError: (e) => toast.error(extractErr(e, t('bidashboardcollab.error_compartir'))),
   })
 
   const revokeShareMutation = useMutation<unknown, ApiError, string>({
@@ -143,7 +144,7 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDash
       toast.success(t('bidashboardcollab.acceso_revocado'))
       qc.invalidateQueries({ queryKey: ['bi-collab-shares', dashboardKey] })
     },
-    onError: (e) => toast.error(e?.response?.data?.detail || t('bidashboardcollab.error_revocar')),
+    onError: (e) => toast.error(extractErr(e, t('bidashboardcollab.error_revocar'))),
   })
 
   const restoreVersionMutation = useMutation<unknown, ApiError, string>({
@@ -154,14 +155,14 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDash
       qc.invalidateQueries({ queryKey: ['bi-collab-versions', dashboardKey] })
       qc.invalidateQueries({ queryKey: ['bi-collab-notifications', dashboardKey] })
     },
-    onError: (e) => toast.error(e?.response?.data?.detail || t('bidashboardcollab.error_restaurar')),
+    onError: (e) => toast.error(extractErr(e, t('bidashboardcollab.error_restaurar'))),
   })
 
   const markNotificationReadMutation = useMutation<unknown, ApiError, string>({
     mutationFn: (notificationId) =>
       biCollaborationApi.patchNotification(notificationId, { is_read: true }).then(r => r.data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['bi-collab-notifications', dashboardKey] }),
-    onError: (e) => toast.error(e?.response?.data?.detail || t('bidashboardcollab.error_marcar_leida')),
+    onError: (e) => toast.error(extractErr(e, t('bidashboardcollab.error_marcar_leida'))),
   })
 
   // Todas son APIListResponse: llegan como lista (tipos-grc, tipos-bi).
@@ -206,14 +207,7 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDash
         <div>
           <div className="bidacopa-fieldlabel">{t('bidashboardcollab.anadir_comentario')}</div>
           <div className="bidacopa-row-2">
-            <input aria-label={t('bidashboardcollab.escribe_un_comentario_para_este_dashboard')}
-              type="text"
-              placeholder={t('bidashboardcollab.escribe_un_comentario_para_este_dashboard')}
-              value={newComment}
-              onChange={e => setNewComment(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && submitComment()}
-              className="bidacopa-inputbase"
-            />
+            <Input aria-label={t('bidashboardcollab.escribe_un_comentario_para_este_dashboard')} type="text" placeholder={t('bidashboardcollab.escribe_un_comentario_para_este_dashboard')} value={newComment} onChange={e => setNewComment(e.target.value)} onKeyDown={e => e.key === 'Enter' && submitComment()} />
             <Button
               onClick={submitComment}
               disabled={!newComment.trim() || addCommentMutation.isPending}
@@ -264,14 +258,7 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDash
         <div>
           <div className="bidacopa-fieldlabel">{t('bidashboardcollab.guardar_vista_actual')}</div>
           <div className="bidacopa-row-2">
-            <input aria-label={t('bidashboardcollab.nombre_de_la_vista_compartida')}
-              type="text"
-              placeholder={t('bidashboardcollab.nombre_de_la_vista_compartida')}
-              value={viewName}
-              onChange={e => setViewName(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && viewName.trim() && saveViewMutation.mutate({ name: viewName.trim(), dashboard_key: dashboardKey, filters: {} })}
-              className="bidacopa-inputbase"
-            />
+            <Input aria-label={t('bidashboardcollab.nombre_de_la_vista_compartida')} type="text" placeholder={t('bidashboardcollab.nombre_de_la_vista_compartida')} value={viewName} onChange={e => setViewName(e.target.value)} onKeyDown={e => e.key === 'Enter' && viewName.trim() && saveViewMutation.mutate({ name: viewName.trim(), dashboard_key: dashboardKey, filters: {} })} />
             <Button
               onClick={() => viewName.trim() && saveViewMutation.mutate({ name: viewName.trim(), dashboard_key: dashboardKey, filters: {} })}
               disabled={!viewName.trim() || saveViewMutation.isPending}

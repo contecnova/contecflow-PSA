@@ -12,7 +12,7 @@ from typing import Optional, List
 from pydantic import BaseModel
 
 from app.db.session import get_db
-from app.core.deps import get_current_user, require_admin, require_admin_or_pm
+from app.core.deps import get_current_user, requiere_capacidad
 from app.models.user import User
 from app.core.abac_enforce import enforce_abac
 from app.core.responses import APIListResponse, APIResponse
@@ -78,7 +78,7 @@ def list_issue_types(
 def init_issue_types(
     project_id: str,
     db: Session = Depends(get_db),
-    cu: User = Depends(require_admin_or_pm),
+    cu: User = Depends(requiere_capacidad("proyectos.dirigir")),
 ):
     try:
         return APIResponse.ok(data=_svc.init_issue_types(project_id, db))
@@ -94,7 +94,7 @@ def create_issue_type(
     project_id: str,
     p: IssueTypeIn,
     db: Session = Depends(get_db),
-    cu: User = Depends(require_admin_or_pm),
+    cu: User = Depends(requiere_capacidad("proyectos.dirigir")),
 ):
     try:
         return APIResponse.ok(data=_svc.create_issue_type(project_id, p.model_dump(), db))
@@ -110,7 +110,7 @@ def update_issue_type(
     project_id: str, type_id: str,
     p: IssueTypeIn,
     db: Session = Depends(get_db),
-    cu: User = Depends(require_admin_or_pm),
+    cu: User = Depends(requiere_capacidad("proyectos.dirigir")),
 ):
     try:
         return APIResponse.ok(data=_svc.update_issue_type(project_id, type_id, p.model_dump(), db))
@@ -125,7 +125,7 @@ def update_issue_type(
 def delete_issue_type(
     project_id: str, type_id: str,
     db: Session = Depends(get_db),
-    cu: User = Depends(require_admin_or_pm),
+    cu: User = Depends(requiere_capacidad("proyectos.dirigir")),
 ):
     enforce_abac(db, cu, "issue_type", type_id, action="delete")
     try:
@@ -165,7 +165,7 @@ def get_epic_dependencies(
 def create_epic_dependency(
     p: EpicDepIn,
     db: Session = Depends(get_db),
-    cu: User = Depends(require_admin_or_pm),
+    cu: User = Depends(requiere_capacidad("proyectos.dirigir")),
 ):
     try:
         return APIResponse.ok(data=_svc.create_epic_dependency(p.model_dump(), cu.id, db))
@@ -181,7 +181,7 @@ def create_epic_dependency(
 def delete_epic_dependency(
     dep_id: str,
     db: Session = Depends(get_db),
-    cu: User = Depends(require_admin_or_pm),
+    cu: User = Depends(requiere_capacidad("proyectos.dirigir")),
 ):
     enforce_abac(db, cu, "epic_dependency", dep_id, action="delete")
     try:
@@ -203,7 +203,7 @@ def index_entity(
     p: FTSIndexIn,
     db: Session = Depends(get_db),
     cu: User = Depends(get_current_user),
-    _rol: User = Depends(require_admin),  # auditoria 2026-09: excepcion revisada: reindexar la busqueda es mantenimiento
+    _rol: User = Depends(requiere_capacidad("proyectos.administrar")),  # auditoria 2026-09: excepcion revisada: reindexar la busqueda es mantenimiento
 ):
     return APIResponse.ok(data=_svc.index_entity(p.model_dump(), db))
 
@@ -212,7 +212,7 @@ def index_entity(
 def bulk_index(
     project_id: str,
     db: Session = Depends(get_db),
-    cu: User = Depends(require_admin_or_pm),
+    cu: User = Depends(requiere_capacidad("proyectos.dirigir")),
 ):
     return APIResponse.ok(data=_svc.bulk_index(project_id, db))
 

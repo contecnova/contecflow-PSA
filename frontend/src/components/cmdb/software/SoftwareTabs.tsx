@@ -25,7 +25,7 @@ import { cmdbSoftwareApi } from '../../../services/api/cmdbSoftware'
 import type { SdCi } from '../../../services/api/tipos-sd'
 import type { InstanciaSw, Severidad } from '../../../services/api/cmdbSoftware'
 import type { RawEdge, RawNode } from '../CMDBTopologyGraph'
-import { Button, Checkbox, EmptyState, KpiCard, Modal, Section, Select, Spinner, StatusBadge, TablaSimple, Input } from '../../ui'
+import { Buscador, Button, Checkbox, EmptyState, KpiCard, Modal, Section, Select, Spinner, StatusBadge, TablaSimple, Input } from '../../ui'
 import {
   BotonFichero, CicloBadge, EXCEPCION_KIND, ListaKv, ORDEN_SEV, Opciones, PosibleBadge, SeveridadBadge, VersionTexto,
   descargar, useAvisoDeImportacion, useErr, useEtiquetaSw, useMetaSw, valorLegible,
@@ -107,7 +107,7 @@ export function SoftwareTab() {
         </div>}>
         <div className="u-stack-12">
           <div className="sdm-form">
-            <Input label={t('sw.buscar')} value={q} placeholder={t('sw.buscar_ph')} onChange={ev => setQ(ev.target.value)} />
+            <Buscador label={t('sw.buscar')} value={q} placeholder={t('sw.buscar_ph')} onChange={setQ} />
             <label className="sdm-field"><span>{t('sw.categoria')}</span>
               <Select suelto placeholder={false} value={categoria} onChange={ev => setCategoria(ev.target.value)}>
                 <Opciones valores={meta.data?.categories} catalogo="cat" todos={t('sw.todas')} /></Select></label>
@@ -339,7 +339,7 @@ export function PorMaquinaTab() {
     <div className="u-stack-20">
       <Section title={t('sw.maquina_titulo')} subtitle={t('sw.maquina_desc')}>
         <div className="sdm-form">
-          <Input label={t('sw.filtrar_ci')} value={filtro} onChange={ev => setFiltro(ev.target.value)} placeholder={t('sw.filtrar_ci_ph')} />
+          <Buscador label={t('sw.filtrar_ci')} value={filtro} onChange={setFiltro} placeholder={t('sw.filtrar_ci_ph')} />
           <label className="sdm-field"><span>{t('sw.maquina')}</span>
             <Select suelto placeholder={false} value={ciId} onChange={ev => { setCiId(ev.target.value); setVerGrafo(false) }}>
               <option value="">{t('sw.elige_ci')}</option>

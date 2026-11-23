@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tansta
 import { timesheetsApi, imputationsApi } from '../services/api'
 import type { FiltroDeTimesheets, FiltroDeTimesheetsDelEquipo } from '../services/api'
 import type { EstadoDeTimesheet, LineaDeTimesheet, Timesheet } from '../services/api/tipos-personas'
-import { Button, IconButton, Modal, Spinner, EmptyState, Tabs, SortableTH, ariaSort, Select, TablaSimple, Textarea } from '../components/ui'
+import { Buscador, Button, IconButton, Modal, Spinner, EmptyState, Tabs, SortableTH, ariaSort, Select, TablaSimple, Textarea, Input } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { Clock, Hourglass, ClipboardList, Search, CircleCheck, Users, Pencil, Trash2, Check, X, MessageSquare } from 'lucide-react'
@@ -103,17 +103,17 @@ function WeekLines({ weekStart, onClose }: { weekStart: string; onClose: () => v
                   {editingId === l.id ? (
                     /* ── Modo edición inline ── */
                     <div className="ts-line-edit">
-                      <input type="number" min="0.25" max={HORAS_MAXIMAS_POR_DIA} step="0.25"
+                      <Input type="number" min="0.25" max={HORAS_MAXIMAS_POR_DIA} step="0.25"
                         aria-label={t('timesheets.horas')}
                         value={editForm.hours}
                         onChange={e => setEditForm(f => ({ ...f, hours: parseFloat(e.target.value) || 0 }))}
-                        className="ds-input ts-line-input--hours" />
+                        inputClassName="ts-line-input--hours" />
                       <span className="u-text2-sm">h</span>
-                      <input value={editForm.description}
+                      <Input value={editForm.description}
                         onChange={e => setEditForm(f => ({ ...f, description: e.target.value }))}
                         placeholder={t('timesheets.descripcion_del_trabajo')}
                         aria-label={t('timesheets.descripcion_del_trabajo')}
-                        className="ds-input ts-line-input--desc" />
+                        inputClassName="ts-line-input--desc" />
                       <Button size="sm" icon={<Check size={14} />} onClick={() => updateLine({ id: l.id, data: { hours: editForm.hours, description: editForm.description } })}
                         loading={updating} disabled={updating || editForm.hours <= 0}>
                         {t('timesheets.guardar')}
@@ -384,7 +384,7 @@ export default function TimesheetsPage() {
           ) : (
             <div className="u-stack-10">
               <div className="ds-toolbar ts-toolbar">
-                <input value={pendingSearch} onChange={e => { setPendingSearch(e.target.value); setPendingPage(1) }} placeholder={t('timesheets.buscar_placeholder')} aria-label={t('timesheets.buscar_pendientes')} className="ds-input ts-search" />
+                <Buscador value={pendingSearch} onChange={v => { setPendingSearch(v); setPendingPage(1) }} placeholder={t('timesheets.buscar_placeholder')} aria-label={t('timesheets.buscar_pendientes')} className="ts-search" />
                 <DateInput value={pendingFrom} onChange={e => { setPendingFrom(e.target.value); setPendingPage(1) }} aria-label={t('timesheets.pendientes_desde')} className="ds-input" />
                 <span className="u-text3" aria-hidden="true">—</span>
                 <DateInput value={pendingTo} onChange={e => { setPendingTo(e.target.value); setPendingPage(1) }} aria-label={t('timesheets.pendientes_hasta')} className="ds-input" />
@@ -437,7 +437,7 @@ export default function TimesheetsPage() {
           ) : (
             <div className="u-stack-10">
               <div className="ds-toolbar ts-toolbar">
-                <input value={teamSearch} onChange={e => { setTeamSearch(e.target.value); setTeamPage(1) }} placeholder={t('timesheets.buscar_placeholder')} aria-label={t('timesheets.buscar_equipo')} className="ds-input ts-search" />
+                <Buscador value={teamSearch} onChange={v => { setTeamSearch(v); setTeamPage(1) }} placeholder={t('timesheets.buscar_placeholder')} aria-label={t('timesheets.buscar_equipo')} className="ts-search" />
                 <Select suelto placeholder={false} value={teamStatusFilter} onChange={e => { setTeamStatusFilter(e.target.value); setTeamPage(1) }} aria-label={t('timesheets.status')}>
                   <option value="">{t('timesheets.estado_todos')}</option>
                   {statusOptions}

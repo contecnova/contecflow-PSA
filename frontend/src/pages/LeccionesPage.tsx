@@ -12,7 +12,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { BookOpenCheck, ClipboardList, Inbox, Lightbulb, Plus, Star, Target } from 'lucide-react'
 import { leccionesApi } from '../services/api'
 import type { Leccion } from '../services/api'
-import { Button, EmptyState, KpiCard, Page, Spinner, Tabs, Pulsable, Select, Checkbox } from '../components/ui'
+import { Buscador, Button, EmptyState, KpiCard, Page, Spinner, Tabs, Pulsable, Select, Checkbox } from '../components/ui'
 import { useAppT } from '../i18n/AppLangContext'
 import { fmtDate, fmtNumber, extractErr } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
@@ -60,7 +60,7 @@ function Lista({ onAbrir }: { onAbrir: (id: string) => void }) {
   return (
     <div>
       <div className="lecc-row">
-        <input aria-label={t('lec.buscar')} placeholder={t('lec.buscar')} value={f.q} onChange={set('q')} className="lecciones-page-e1" />
+        <Buscador aria-label={t('lec.buscar')} placeholder={t('lec.buscar')} value={f.q} onChange={v => setF(prev => ({ ...prev, q: v }))} inputClassName="lecciones-page-e1" />
         <Select suelto placeholder={false} aria-label={t('lec.estado')} value={f.estado} onChange={set('estado')} className="lecciones-page-e6">
           <option value="">{t('lec.estado_activas')}</option>
           {['borrador', 'en_revision', 'validada', 'archivada'].map(e => <option key={e} value={e}>{t(`lec.estado_${e}`)}</option>)}

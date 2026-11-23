@@ -244,8 +244,7 @@ function FilaDeAsignacion({ id, inicial, puedeEditar, onHecha }: {
           </label>
           <Casilla etiqueta={ta('cada_anio')} ayuda={ta('cada_anio_ayuda')} valor={a.recurrente_anual} onChange={v => poner({ recurrente_anual: v })} />
           <label className="ausadm-fila"><span className="ausadm-ayuda">{ta('prioridad')}</span>
-            <input type="number" className="ausadm-campo ausadm-campo--mini" aria-label={ta('prioridad')} value={a.prioridad}
-              onChange={e => poner({ prioridad: Number(e.target.value) || 0 })} />
+            <Input type="number" aria-label={ta('prioridad')} value={a.prioridad} onChange={e => poner({ prioridad: Number(e.target.value) || 0 })} className="ausadm-campo--mini" />
             <ErrorDeCampo texto={campos.de('prioridad')} />
           </label>
         </div>

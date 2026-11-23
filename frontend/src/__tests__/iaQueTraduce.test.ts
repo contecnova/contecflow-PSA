@@ -12,7 +12,8 @@ import zh from '../i18n/langs/zh.mjs'
 
 const raiz = resolve(__dirname, '..')
 const seccion = readFileSync(resolve(raiz, 'pages/settings-sections/TraduccionSection.tsx'), 'utf8')
-const hub = readFileSync(resolve(raiz, 'pages/AIHubPage.tsx'), 'utf8')
+// Troceado de AIHubPage (23-11-2026, auditoría M12): el centro de IA son estos ficheros.
+const hub = ['pages/AIHubPage.tsx', 'pages/AIHubGobierno.tsx'].map(f => readFileSync(resolve(raiz, f), 'utf8')).join('\n')
 const rutas = readFileSync(resolve(raiz, '../../app/services/ai_provider_service/rutas.py'), 'utf8')
 
 describe('IA que traduce', () => {

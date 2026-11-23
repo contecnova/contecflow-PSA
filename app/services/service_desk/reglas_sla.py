@@ -127,7 +127,7 @@ def guardar_regla(db: Session, org_id, datos: dict, regla_id: Optional[str] = No
         db.add(regla)
     for k, v in datos.items():
         setattr(regla, k, v)
-    db.commit()
+    db.flush()  # confirma el endpoint (auditar_y_confirmar); auditoria 2026-11-22 (4.4)
     return serializar_regla(regla)
 
 
@@ -135,7 +135,7 @@ def borrar_regla(db: Session, org_id, regla_id: str) -> None:
     n = db.query(SLARule).filter(SLARule.id == regla_id, SLARule.organization_id == org_id).delete()
     if not n:
         raise error(404, "no_encontrado", detail="Regla no encontrada", que="regla")
-    db.commit()
+    db.flush()  # confirma el endpoint (auditar_y_confirmar); auditoria 2026-11-22 (4.4)
 
 
 def ola_de_la_cola(db: Session, org_id, group_id: str) -> dict:
@@ -164,5 +164,5 @@ def guardar_ola(db: Session, org_id, group_id: str, objetivos: dict) -> dict:
             db.add(OLATarget(organization_id=org_id, group_id=group_id, priority=prioridad, hours=float(horas)))
         else:
             fila.hours = float(horas)
-    db.commit()
+    db.flush()  # confirma el endpoint (auditar_y_confirmar); auditoria 2026-11-22 (4.4)
     return ola_de_la_cola(db, org_id, group_id)

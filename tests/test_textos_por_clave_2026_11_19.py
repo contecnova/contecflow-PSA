@@ -63,9 +63,19 @@ def test_nombre_del_playbook_de_serie_por_clave_y_el_propio_tal_cual():
 def test_el_registro_del_agente_se_lee_en_el_idioma_de_quien_mira(db):
     from app.models.service_desk import AutonomousPlaybookExecution, Ticket
     from app.services.service_desk.autonomous_agent_service import get_execution_log
-    ticket = db.query(Ticket).filter(Ticket.organization_id == "1").first()
-    if ticket is None:
-        pytest.skip("el escenario de pruebas no tiene tickets en la empresa 1")
+    from app.models.service_desk import TicketPriority, TicketStatus, TicketType
+    # El seed base no trae tickets: se crea uno en la empresa 1.
+    ticket = Ticket(
+        organization_id="1",
+        number="TK-TXT-0001",
+        ticket_type=TicketType.incident,
+        title="Ticket para el registro del agente",
+        description="Prueba de textos por clave",
+        status=TicketStatus.new,
+        priority=TicketPriority.p3_medium,
+    )
+    db.add(ticket)
+    db.commit()
     clave, datos = por_clave("autonomo.motivo.media", confianza="70%")
     db.add(AutonomousPlaybookExecution(organization_id="1", ticket_id=ticket.id, playbook_type="x",
                                        status="skipped", resolution_note="Confianza media (70%): …",

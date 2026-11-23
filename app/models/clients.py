@@ -37,7 +37,7 @@ class Client(Base):
     __tablename__ = "clients"
 
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     name        = Column(String(255), nullable=False, index=True)
     short_name  = Column(String(50),  nullable=True)   # Alias / nombre corto
     tax_id      = Column(String(50),  nullable=True)   # CIF / NIF / VAT
@@ -76,7 +76,7 @@ class Client(Base):
     payment_terms   = Column(String(100), nullable=True)  # "30 días", "inmediato"
     credit_limit    = Column(Money,       nullable=True)
     currency        = Column(String(3),   default=settings.DEFAULT_CURRENCY)
-    sla_policy_id   = Column(String(36), ForeignKey("sd_sla_policies.id"), nullable=True, index=True)
+    sla_policy_id   = Column(String(36), ForeignKey("sd_sla_policies.id", ondelete="SET NULL"), nullable=True, index=True)
 
     # Clientes internos (rev. 193, docs/CLIENTES_INTERNOS.md): un solo modelo
     # con `kind`. Interno = departamento, unidad de negocio, filial o centro de
@@ -99,7 +99,7 @@ class Client(Base):
     is_active  = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-    created_by = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    created_by = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
 
     account_manager = relationship("User", foreign_keys=[account_manager_id])
     business_owner  = relationship("User", foreign_keys=[business_owner_id])  # TODO #56: inverse en User (user.py)
@@ -133,7 +133,7 @@ class ClientContact(Base):
     __tablename__ = "client_contacts"
 
     id         = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     client_id  = Column(String(36), ForeignKey("clients.id", ondelete="CASCADE"), nullable=False, index=True)
 
     full_name  = Column(String(255), nullable=False)
@@ -173,7 +173,7 @@ class ClientPortalConfig(Base):
     __tablename__ = "client_portal_configs"
 
     id         = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     client_id  = Column(String(36), ForeignKey("clients.id", ondelete="CASCADE"), nullable=False, unique=True)
 
     # Accesos habilitados (JSON list de ClientServiceAccess)
@@ -189,8 +189,10 @@ class ClientPortalConfig(Base):
     logo_url    = Column(String(500), nullable=True)
     accent_color = Column(String(10), nullable=True)  # hex
 
-    # Idioma por defecto para nuevos usuarios del portal
-    default_language    = Column(String(10), default=settings.DEFAULT_LANGUAGE)
+    # Idioma por defecto del portal de este cliente. Incidencia 5 (23-11-2026):
+    # vacío = sin elegir (el de la empresa proveedora, el del navegador o inglés);
+    # antes se rellenaba con el `DEFAULT_LANGUAGE` del entorno (castellano).
+    default_language    = Column(String(10), nullable=True)
 
     # Qué puede editar el cliente desde su perfil
     allow_profile_edit  = Column(Boolean, default=True)   # puede editar nombre, tel, idioma
@@ -214,7 +216,7 @@ class ClientLicenseLink(Base):
     __tablename__ = "client_license_links"
 
     id         = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     client_id  = Column(String(36), ForeignKey("clients.id", ondelete="CASCADE"), nullable=False, index=True)
     license_id = Column(String(36), ForeignKey("alm_licenses.id", ondelete="CASCADE"), nullable=False, index=True)
     is_active  = Column(Boolean, default=True)
@@ -232,7 +234,7 @@ class ClientContractLink(Base):
     __tablename__ = "client_contract_links"
 
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     client_id   = Column(String(36), ForeignKey("clients.id", ondelete="CASCADE"), nullable=False, index=True)
     contract_id = Column(String(36), ForeignKey("contracts.id", ondelete="CASCADE"), nullable=False, index=True)
     is_active   = Column(Boolean, default=True)

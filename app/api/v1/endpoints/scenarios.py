@@ -14,12 +14,13 @@ numero 1 de la auditoria.
 tocarlos alteraria los permisos en silencio.
 """
 from fastapi import APIRouter, Depends, HTTPException
+from app.core.codigos_de_error import error_http
 from sqlalchemy.orm import Session
 from typing import Optional, List
 from datetime import date
 from pydantic import BaseModel
 from app.db.session import get_db
-from app.core.deps import require_any_manager
+from app.core.deps import requiere_capacidad
 from app.models.user import User
 from app.core.abac_enforce import enforce_abac
 from app.core.responses import APIListResponse, APIResponse
@@ -31,7 +32,7 @@ router = APIRouter()
 @router.get("/scenarios", summary="Listar escenarios what-if")
 def list_scenarios(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("recursos.gestionar")),
 ):
     return APIListResponse.ok(items=_scenarios.list_scenarios(db))
 
@@ -48,7 +49,7 @@ class ScenarioCreate(BaseModel):
 def create_scenario(
     payload: ScenarioCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("recursos.gestionar")),
 ):
     return APIResponse.ok(data=_scenarios.create_scenario(payload.model_dump(), current_user.id, db))
 
@@ -57,34 +58,34 @@ def create_scenario(
 def compute_scenario(
     scenario_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("recursos.gestionar")),
 ):
     try:
         return APIResponse.ok(data=_scenarios.compute_scenario(scenario_id, db))
     except ValueError:
-        raise HTTPException(404)
+        raise error_http(404, "no_encontrado", que="escenario")
 
 
 @router.get("/scenarios/{scenario_id}", summary="Detalle de escenario")
 def get_scenario(
     scenario_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("recursos.gestionar")),
 ):
     try:
         return APIResponse.ok(data=_scenarios.get_scenario(scenario_id, db))
     except ValueError:
-        raise HTTPException(404)
+        raise error_http(404, "no_encontrado", que="escenario")
 
 
 @router.delete("/scenarios/{scenario_id}", summary="Eliminar escenario")
 def delete_scenario(
     scenario_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("recursos.gestionar")),
 ):
     enforce_abac(db, current_user, "scenario", scenario_id, action="delete")
     try:
         return APIResponse.ok(data=_scenarios.delete_scenario(scenario_id, db))
     except ValueError:
-        raise HTTPException(404)
+        raise error_http(404, "no_encontrado", que="escenario")

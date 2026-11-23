@@ -47,7 +47,7 @@ def test_EL_ESTRUCTURAL_solo_el_emisor_importa_smtplib():
 class _SmtpFalso:
     instancias: list = []
 
-    def __init__(self, host, port, timeout=None):
+    def __init__(self, host, port, timeout=None, context=None, ip_fijada=None):
         self.host, self.port, self.timeout = host, port, timeout
         self.tls = False
         self.login_con = None
@@ -61,7 +61,7 @@ class _SmtpFalso:
     def has_extn(self, nombre):
         return nombre.lower() in self.extensiones
 
-    def starttls(self):
+    def starttls(self, context=None):
         self.tls = True
 
     def login(self, u, p):
@@ -88,6 +88,11 @@ def smtp(monkeypatch):
     _SmtpFalso.instancias = []
     monkeypatch.setattr(ns.smtplib, "SMTP", _SmtpFalso)
     monkeypatch.setattr(ns.smtplib, "SMTP_SSL", _SmtpFalso)
+    # 23-11-2026: un host de empresa conecta a la IP validada (anti DNS rebinding).
+    from app.core import conexion_fijada
+    monkeypatch.setattr(ns, "SmtpFijado", _SmtpFalso)
+    monkeypatch.setattr(ns, "SmtpSslFijado", _SmtpFalso)
+    monkeypatch.setattr(conexion_fijada, "ip_fijada", lambda host, field="host": "203.0.113.5")
     return _SmtpFalso
 
 

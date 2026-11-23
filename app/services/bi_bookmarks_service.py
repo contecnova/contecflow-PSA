@@ -190,14 +190,26 @@ def generate_share_token(
     if target.get("created_by") != current_user.id:
         raise ValueError("access_denied")
 
-    token = str(uuid.uuid4()).replace("-", "")
-    token_key = f"bi.bookmarks.share_tokens.{organization_id or 'global'}"
+    # M56 (auditoría 22-11-2026): el token lleva delante su ámbito
+    # (`<empresa>.<aleatorio>`) para buscarlo en UN blob, no con LIKE en los de
+    # todas las empresas; caduca (`BI_BOOKMARK_SHARE_DAYS`) y se puede revocar
+    # (`revoke_share_token`). Un marcador tiene un solo enlace vivo.
+    import secrets
+    from datetime import datetime, timedelta, timezone
+    from app.services.settings_service import get_runtime_int
+    dias = int(get_runtime_int(db, "BI_BOOKMARK_SHARE_DAYS", organization_id) or 0)
+    ambito = organization_id or "global"
+    token = f"{ambito}.{secrets.token_urlsafe(24)}"
+    token_key = f"bi.bookmarks.share_tokens.{ambito}"
     tokens_map = _get_json(db, token_key, None, default={})
+    for viejo in [t for t, e in tokens_map.items() if e.get("bookmark_id") == bookmark_id]:
+        tokens_map.pop(viejo, None)
     tokens_map[token] = {
         "bookmark_id": bookmark_id,
         "organization_id": organization_id,
         "created_by": current_user.id,
         "created_at": _iso_now(),
+        "expires_at": (datetime.now(timezone.utc) + timedelta(days=dias)).isoformat() if dias else None,
     }
     _set_json(db, token_key, None, tokens_map, description="BI bookmark share tokens")
 
@@ -214,14 +226,42 @@ def generate_share_token(
     }
 
 
+def revoke_share_token(db: Session, *, organization_id: Optional[str], bookmark_id: str,
+                       current_user: User) -> dict[str, Any]:
+    """M56: deja de compartir un marcador (borra su enlace público). Solo su autor."""
+    bookmarks = _get_json(db, BOOKMARKS_KEY, organization_id, default=[])
+    target = next((b for b in bookmarks if b.get("id") == bookmark_id), None)
+    if not target:
+        raise ValueError("bookmark_not_found")
+    if target.get("created_by") != current_user.id:
+        raise ValueError("access_denied")
+    token_key = f"bi.bookmarks.share_tokens.{organization_id or 'global'}"
+    tokens_map = _get_json(db, token_key, None, default={})
+    quitados = [t for t, e in tokens_map.items() if e.get("bookmark_id") == bookmark_id]
+    for t in quitados:
+        tokens_map.pop(t, None)
+    _set_json(db, token_key, None, tokens_map, description="BI bookmark share tokens")
+    target["shared"] = False
+    target["share_token"] = None
+    target["updated_at"] = _iso_now()
+    _set_json(db, BOOKMARKS_KEY, organization_id, bookmarks, description="BI dashboard bookmarks (JSON)")
+    return {"bookmark_id": bookmark_id, "revoked": len(quitados)}
+
+
 def get_bookmark_by_share_token(db: Session, token: str) -> dict[str, Any]:
-    """Public lookup — no auth required. Searches across all share token blobs."""
+    """Public lookup — no auth required.
+
+    M56: el token dice en qué blob está (`<empresa>.<aleatorio>`); solo los
+    antiguos sin prefijo se buscan en todos. Caducado → no encontrado.
+    """
+    from datetime import datetime, timezone
     from app.models.settings import AppSetting
 
-    # Find the token mapping row (keyed by org_id)
-    rows = db.query(AppSetting).filter(
-        AppSetting.key.like("bi.bookmarks.share_tokens.%")
-    ).all()
+    if "." in (token or ""):
+        rows = db.query(AppSetting).filter(
+            AppSetting.key == f"bi.bookmarks.share_tokens.{token.split('.', 1)[0]}").all()
+    else:
+        rows = db.query(AppSetting).filter(AppSetting.key.like("bi.bookmarks.share_tokens.%")).all()
 
     for row in rows:
         try:
@@ -232,6 +272,9 @@ def get_bookmark_by_share_token(db: Session, token: str) -> dict[str, Any]:
             continue
 
         entry = tokens_map[token]
+        caduca = entry.get("expires_at")
+        if caduca and datetime.fromisoformat(caduca) < datetime.now(timezone.utc):
+            break
         org_id = entry.get("organization_id")
         bookmark_id = entry.get("bookmark_id")
         bookmarks = _get_json(db, BOOKMARKS_KEY, org_id, default=[])

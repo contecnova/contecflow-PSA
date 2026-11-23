@@ -9,7 +9,7 @@ from app.schemas.governance import PolicyPackUpsert, EvidenceCreate
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from app.core.deps import require_admin
+from app.core.deps import requiere_capacidad
 from app.core.paginacion import Paginacion, lista_paginada, paginacion
 from app.core.responses import APIListResponse, APIResponse
 from app.db.session import get_db
@@ -33,7 +33,7 @@ DEFAULT_POLICY_PACKS = marcos.PAQUETES
 @router.get("/policy-packs", summary="Listar policy packs por tenant")
 def list_policy_packs(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("gobierno.administrar")),
 ):
     organization_id = _org_id(current_user)
     rows = _gsvc.list_tenant_policy_packs(db, organization_id)
@@ -58,7 +58,7 @@ def upsert_policy_pack(
     pack_key: str,
     payload: PolicyPackUpsert,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("gobierno.administrar")),
 ):
     if pack_key not in DEFAULT_POLICY_PACKS:
         raise error_http(404, "policy_pack_no_reconocido", detail="Policy pack no reconocido")
@@ -92,7 +92,7 @@ def _marco(framework: str) -> str:
 
 
 @router.get("/compliance/frameworks", summary="Marcos, controles y tipos de evidencia admitidos")
-def compliance_frameworks(current_user: User = Depends(require_admin)):
+def compliance_frameworks(current_user: User = Depends(requiere_capacidad("gobierno.administrar"))):
     return APIResponse.ok(data={"frameworks": {fw: list(ids) for fw, ids in marcos.CONTROLES.items()},
                                 "evidence_types": list(marcos.TIPOS_DE_EVIDENCIA)})
 
@@ -101,7 +101,7 @@ def compliance_frameworks(current_user: User = Depends(require_admin)):
 def create_evidence(
     payload: EvidenceCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("gobierno.administrar")),
 ):
     organization_id = _org_id(current_user)
     framework = _marco(payload.framework)
@@ -146,7 +146,7 @@ def list_evidence(
     response: Response = None,
     pagina: Paginacion = Depends(paginacion),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("gobierno.administrar")),
 ):
     organization_id = _org_id(current_user)
     rows = _gsvc.list_compliance_evidence(
@@ -191,7 +191,7 @@ def _linea_base_medida(informe: dict) -> dict:
 def compliance_control_status(
     framework: str = Query(default="SOC2", max_length=30),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("gobierno.administrar")),
 ):
     from app.services.informe_de_cumplimiento import generar
     organization_id = _org_id(current_user)
@@ -250,7 +250,7 @@ class BloqueoIn(BaseModel):
 
 
 @router.get("/retention/policies", summary="Políticas de retención de la empresa (admin)")
-def retention_policies(db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+def retention_policies(db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("gobierno.administrar"))):
     from app.services import retencion
     return APIResponse.ok(data={"policies": retencion.politicas(db, current_user.organization_id),
                                 "min_days": retencion.minimo_de_dias(db, current_user.organization_id)})
@@ -258,7 +258,7 @@ def retention_policies(db: Session = Depends(get_db), current_user: User = Depen
 
 @router.put("/retention/policies/{entity}", summary="Guardar la política de un tipo (admin)")
 def save_retention_policy(entity: str, payload: PoliticaIn, db: Session = Depends(get_db),
-                          current_user: User = Depends(require_admin)):
+                          current_user: User = Depends(requiere_capacidad("gobierno.administrar"))):
     from app.services import retencion
     return APIResponse.ok(data=retencion.guardar_politica(db, current_user.organization_id, current_user, entity,
                                                           payload.keep_days, payload.is_active))
@@ -266,7 +266,7 @@ def save_retention_policy(entity: str, payload: PoliticaIn, db: Session = Depend
 
 @router.get("/retention/preview", summary="Cuánto borraría hoy una política (admin)")
 def retention_preview(entity: str, keep_days: int = Query(..., ge=1, le=36500), db: Session = Depends(get_db),
-                      current_user: User = Depends(require_admin)):
+                      current_user: User = Depends(requiere_capacidad("gobierno.administrar"))):
     from app.services import retencion
     if entity not in retencion.TIPOS:
         raise error_http(422, "tipo_desconocido", tipo=entity)
@@ -274,25 +274,25 @@ def retention_preview(entity: str, keep_days: int = Query(..., ge=1, le=36500), 
 
 
 @router.post("/retention/run", summary="Aplicar ahora las políticas activas (admin)")
-def retention_run(db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+def retention_run(db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("gobierno.administrar"))):
     from app.services import retencion
     return APIResponse.ok(data=retencion.aplicar(db, current_user.organization_id, current_user))
 
 
 @router.get("/legal-holds", summary="Bloqueos legales de la empresa (admin)")
-def legal_holds(db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+def legal_holds(db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("gobierno.administrar"))):
     from app.services import retencion
     return APIResponse.ok(data=retencion.lista_de_bloqueos(db, current_user.organization_id))
 
 
 @router.post("/legal-holds", summary="Crear un bloqueo legal (admin)")
-def create_legal_hold(payload: BloqueoIn, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+def create_legal_hold(payload: BloqueoIn, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("gobierno.administrar"))):
     from app.services import retencion
     return APIResponse.ok(data={"id": retencion.crear_bloqueo(db, current_user, payload.model_dump())})
 
 
 @router.post("/legal-holds/{hold_id}/release", summary="Levantar un bloqueo legal (admin)")
-def release_legal_hold(hold_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+def release_legal_hold(hold_id: str, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("gobierno.administrar"))):
     from app.services import retencion
     retencion.levantar_bloqueo(db, current_user, hold_id)
     return APIResponse.ok(data={"id": hold_id, "is_active": False})
@@ -311,7 +311,7 @@ APAGADOS_SIN_CONFIGURAR = _gsvc.APAGADOS_SIN_CONFIGURAR
 @router.get("/config", summary="Configuración de módulos de IA gobernados")
 def get_ai_module_config(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("gobierno.administrar")),
 ):
     rows = _gsvc.list_ai_module_configs(db, _org_id(current_user, strict=False))
     by_module = {r.module: r for r in rows}
@@ -333,7 +333,7 @@ def patch_ai_module_config(
     module: str,
     payload: ModuloDeIaIn,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("gobierno.administrar")),
 ):
     if module not in AI_MODULES:
         raise error_http(404, "modulo_no_reconocido")
@@ -349,7 +349,7 @@ def patch_ai_module_config(
 @router.get("/stats", summary="Estadísticas de uso de módulos de IA")
 def get_ai_governance_stats(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("gobierno.administrar")),
 ):
     stats = _gsvc.get_ai_usage_stats(db, _org_id(current_user, strict=False))
     return APIResponse.ok(data=stats)
@@ -360,7 +360,7 @@ def get_ai_governance_logs(
     limit: int = Query(default=100, le=500),
     module: Optional[str] = Query(default=None),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("gobierno.administrar")),
 ):
     logs = _gsvc.list_ai_governance_logs(db, _org_id(current_user, strict=False), limit=limit, module=module)
     return APIListResponse.ok(items=logs)

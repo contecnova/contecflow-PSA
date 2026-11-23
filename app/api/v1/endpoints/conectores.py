@@ -16,8 +16,9 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_db, require_admin, require_internal_user
+from app.core.deps import get_db, requiere_capacidad
 from app.core.responses import APIResponse
+from app.core.uploads import UploadProfile, read_and_validate_upload, safe_filename
 from app.models.user import User
 from app.services.conectores import anfitrion, contecintelligence as ci, contecmind as cm
 from app.services.conectores.anfitrion import ErrorDeConector
@@ -47,13 +48,13 @@ def _producto(clave: str) -> anfitrion.Producto:
 # ── Administración ────────────────────────────────────────────────────────────
 
 @router.get("/estado", summary="Estado de los conectores: llamadas, fallos y latencias de la ventana")
-def estado(db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+def estado(db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("integraciones.administrar"))):
     from app.services.conectores.estado import estado as calcular
     return APIResponse.ok(data=calcular(db, current_user.organization_id))
 
 
 @router.post("/{producto}/probar", summary="Probar la credencial de la aplicación y el alta de la empresa")
-def probar(producto: str, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+def probar(producto: str, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("integraciones.administrar"))):
     p = _producto(producto)
     aplicacion = anfitrion.probar(db, p, current_user.organization_id)
     empresa = anfitrion.probar_con_usuario(db, p, current_user) if aplicacion["ok"] else None
@@ -73,7 +74,7 @@ class PreguntaCarpetaIn(BaseModel):
 
 
 @router.get("/contecmind/disponible", summary="Si contecmind está configurado y si este usuario puede subir")
-def cm_disponible(db: Session = Depends(get_db), current_user: User = Depends(require_internal_user)):
+def cm_disponible(db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("integraciones.usar"))):
     p = anfitrion.CONTECMIND
     ok = anfitrion.configurado(db, p, current_user.organization_id)
     return APIResponse.ok(data={"configurado": ok, "puede_escribir": ok and anfitrion.puede_escribir(db, p, current_user)})
@@ -81,19 +82,19 @@ def cm_disponible(db: Session = Depends(get_db), current_user: User = Depends(re
 
 @router.get("/contecmind/buscar", summary="Buscar documentos en contecmind con los permisos del usuario")
 def cm_buscar(q: str = Query(..., min_length=2, max_length=500), limit: Optional[int] = Query(None, ge=1, le=50),
-              db: Session = Depends(get_db), current_user: User = Depends(require_internal_user)):
+              db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("integraciones.usar"))):
     with _traducir():
         return APIResponse.ok(data={"items": cm.buscar(db, current_user, q, limite=limit)})
 
 
 @router.get("/contecmind/documentos/{document_id}", summary="Ficha de un documento de contecmind")
-def cm_documento(document_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_internal_user)):
+def cm_documento(document_id: str, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("integraciones.usar"))):
     with _traducir():
         return APIResponse.ok(data=cm.documento(db, current_user, document_id))
 
 
 @router.get("/contecmind/documentos/{document_id}/original", summary="Descargar el fichero original")
-def cm_original(document_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_internal_user)):
+def cm_original(document_id: str, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("integraciones.usar"))):
     with _traducir():
         contenido, tipo, nombre = cm.original(db, current_user, document_id)
     nombre = (nombre or f"documento-{document_id}").replace('"', "")
@@ -102,35 +103,35 @@ def cm_original(document_id: str, db: Session = Depends(get_db), current_user: U
 
 
 @router.get("/contecmind/documentos/{document_id}/aprobacion", summary="Versiones y aprobación del documento")
-def cm_aprobacion(document_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_internal_user)):
+def cm_aprobacion(document_id: str, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("integraciones.usar"))):
     with _traducir():
         return APIResponse.ok(data=cm.aprobacion(db, current_user, document_id))
 
 
 @router.post("/contecmind/documentos/{document_id}/aprobacion", summary="Pedir la aprobación de una versión")
 def cm_pedir_aprobacion(document_id: str, version_no: Optional[int] = Query(None, ge=1),
-                        db: Session = Depends(get_db), current_user: User = Depends(require_internal_user)):
+                        db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("integraciones.usar"))):
     with _traducir():
         return APIResponse.ok(data=cm.pedir_aprobacion(db, current_user, document_id, version_no))
 
 
 @router.get("/contecmind/fichas/{entidad}/{entidad_id}/documentos", summary="Documentos enlazados a una ficha")
 def cm_enlaces(entidad: str, entidad_id: str, db: Session = Depends(get_db),
-               current_user: User = Depends(require_internal_user)):
+               current_user: User = Depends(requiere_capacidad("integraciones.usar"))):
     return APIResponse.ok(data={"items": cm.enlaces(db, current_user, entidad, entidad_id)})
 
 
 @router.get("/contecmind/fichas/{entidad}/{entidad_id}/sugerencias",
             summary="Documentos de contecmind que pueden servir para esta ficha")
 def cm_sugerencias(entidad: str, entidad_id: str, db: Session = Depends(get_db),
-                   current_user: User = Depends(require_internal_user)):
+                   current_user: User = Depends(requiere_capacidad("integraciones.usar"))):
     with _traducir():
         return APIResponse.ok(data={"items": cm.sugerencias(db, current_user, entidad, entidad_id)})
 
 
 @router.post("/contecmind/fichas/{entidad}/{entidad_id}/documentos", summary="Enlazar un documento de contecmind")
 def cm_enlazar(entidad: str, entidad_id: str, body: EnlaceIn, db: Session = Depends(get_db),
-               current_user: User = Depends(require_internal_user)):
+               current_user: User = Depends(requiere_capacidad("integraciones.usar"))):
     with _traducir():
         return APIResponse.ok(data=cm.enlazar(db, current_user, entidad, entidad_id, body.document_id, body.nota))
 
@@ -139,18 +140,18 @@ def cm_enlazar(entidad: str, entidad_id: str, body: EnlaceIn, db: Session = Depe
              summary="Subir un fichero a la carpeta de la ficha en contecmind y enlazarlo")
 async def cm_subir(entidad: str, entidad_id: str, file: UploadFile = File(...),
                    titulo: Optional[str] = Form(None, max_length=500), nota: Optional[str] = Form(None, max_length=500),
-                   db: Session = Depends(get_db), current_user: User = Depends(require_internal_user)):
-    contenido = await file.read()
+                   db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("integraciones.usar"))):
+    contenido = await read_and_validate_upload(file, UploadProfile.DOCUMENT)
     from app.core.async_db import run_db
     with _traducir():
         return APIResponse.ok(data=await run_db(cm.subir, db, current_user, entidad, entidad_id, contenido,
-                                                file.filename or "documento", file.content_type, titulo, nota))
+                                                safe_filename(file.filename, fallback="documento"), file.content_type, titulo, nota))
 
 
 @router.delete("/contecmind/fichas/{entidad}/{entidad_id}/documentos/{enlace_id}",
                summary="Quitar un enlace (el documento sigue en contecmind)")
 def cm_desenlazar(entidad: str, entidad_id: str, enlace_id: str, db: Session = Depends(get_db),
-                  current_user: User = Depends(require_internal_user)):
+                  current_user: User = Depends(requiere_capacidad("integraciones.usar"))):
     cm.desenlazar(db, current_user, entidad, entidad_id, enlace_id)
     return APIResponse.ok(data={"ok": True})
 
@@ -158,7 +159,7 @@ def cm_desenlazar(entidad: str, entidad_id: str, enlace_id: str, db: Session = D
 @router.get("/contecmind/fichas/{entidad}/{entidad_id}/carpeta",
             summary="La carpeta de la ficha en contecmind y lo que contiene (sin crearla)")
 def cm_carpeta(entidad: str, entidad_id: str, db: Session = Depends(get_db),
-               current_user: User = Depends(require_internal_user)):
+               current_user: User = Depends(requiere_capacidad("integraciones.usar"))):
     carpeta = cm.carpeta_de(db, current_user, entidad, entidad_id, crear=False)
     if carpeta is None:
         return APIResponse.ok(data={"carpeta": None, "items": []})
@@ -170,7 +171,7 @@ def cm_carpeta(entidad: str, entidad_id: str, db: Session = Depends(get_db),
 @router.post("/contecmind/fichas/{entidad}/{entidad_id}/preguntar",
              summary="Preguntar a los documentos de la carpeta de la ficha (respuesta con citas)")
 def cm_preguntar(entidad: str, entidad_id: str, body: PreguntaCarpetaIn, db: Session = Depends(get_db),
-                 current_user: User = Depends(require_internal_user)):
+                 current_user: User = Depends(requiere_capacidad("integraciones.usar"))):
     carpeta = cm.carpeta_de(db, current_user, entidad, entidad_id, crear=False)
     if carpeta is None:
         raise error_http(409, "ficha_sin_documentos_mind")
@@ -219,7 +220,7 @@ class TokenIn(BaseModel):
 
 
 @router.get("/contecintelligence/disponible", summary="Si contecintelligence está configurado para la empresa")
-def ci_disponible(db: Session = Depends(get_db), current_user: User = Depends(require_internal_user)):
+def ci_disponible(db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("integraciones.usar"))):
     from app.services import settings_service
     p = anfitrion.CONTECINTELLIGENCE
     ok = anfitrion.configurado(db, p, current_user.organization_id)
@@ -233,20 +234,20 @@ def ci_disponible(db: Session = Depends(get_db), current_user: User = Depends(re
 
 
 @router.get("/contecintelligence/fuentes", summary="Fuentes de datos a las que este usuario puede preguntar")
-def ci_fuentes(db: Session = Depends(get_db), current_user: User = Depends(require_internal_user)):
+def ci_fuentes(db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("integraciones.usar"))):
     with _traducir():
         return APIResponse.ok(data={"items": ci.fuentes(db, current_user)})
 
 
 @router.post("/contecintelligence/preguntar", summary="Preguntar en lenguaje natural (respuesta con recibo)")
-def ci_preguntar(body: PreguntaIn, db: Session = Depends(get_db), current_user: User = Depends(require_internal_user)):
+def ci_preguntar(body: PreguntaIn, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("integraciones.usar"))):
     with _traducir():
         return APIResponse.ok(data=ci.preguntar(db, current_user, body.question, body.source_id, body.conversation_id))
 
 
 @router.post("/contecintelligence/preguntar/directo", summary="Preguntar con el progreso en vivo (SSE)")
 def ci_preguntar_directo(body: PreguntaIn, db: Session = Depends(get_db),
-                         current_user: User = Depends(require_internal_user)):
+                         current_user: User = Depends(requiere_capacidad("integraciones.usar"))):
     with _traducir():
         eventos = ci.preguntar_en_directo(db, current_user, body.question, body.source_id, body.conversation_id)
     return StreamingResponse(eventos, media_type="text/event-stream",
@@ -255,20 +256,20 @@ def ci_preguntar_directo(body: PreguntaIn, db: Session = Depends(get_db),
 
 @router.get("/contecintelligence/metricas", summary="Métricas certificadas del catálogo")
 def ci_metricas(source_id: Optional[str] = Query(None, max_length=120), db: Session = Depends(get_db),
-                current_user: User = Depends(require_internal_user)):
+                current_user: User = Depends(requiere_capacidad("integraciones.usar"))):
     with _traducir():
         return APIResponse.ok(data={"items": ci.metricas(db, current_user, source_id)})
 
 
 @router.post("/contecintelligence/metricas/consultar", summary="Consultar una métrica certificada")
 def ci_consultar(body: ConsultaMetricaIn, db: Session = Depends(get_db),
-                 current_user: User = Depends(require_internal_user)):
+                 current_user: User = Depends(requiere_capacidad("integraciones.usar"))):
     with _traducir():
         return APIResponse.ok(data=ci.consultar_metrica(db, current_user, body.source_id, body.query))
 
 
 @router.post("/contecintelligence/metricas/explicar", summary="Explicar el cambio de una métrica entre dos periodos")
-def ci_explicar(body: ExplicarIn, db: Session = Depends(get_db), current_user: User = Depends(require_internal_user)):
+def ci_explicar(body: ExplicarIn, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("integraciones.usar"))):
     with _traducir():
         return APIResponse.ok(data=ci.explicar_cambio(db, current_user, body.source_id, body.metric,
                                                       body.actual.model_dump(), body.anterior.model_dump(),
@@ -276,25 +277,25 @@ def ci_explicar(body: ExplicarIn, db: Session = Depends(get_db), current_user: U
 
 
 @router.post("/contecintelligence/metricas/anomalias", summary="Anomalías de una métrica en un periodo")
-def ci_anomalias(body: AnomaliasIn, db: Session = Depends(get_db), current_user: User = Depends(require_internal_user)):
+def ci_anomalias(body: AnomaliasIn, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("integraciones.usar"))):
     with _traducir():
         return APIResponse.ok(data=ci.anomalias(db, current_user, body.source_id, body.metric, body.time_column,
                                                 body.start, body.end, body.granularity))
 
 
 @router.get("/contecintelligence/recibos/{receipt_id}", summary="El recibo firmado de una respuesta")
-def ci_recibo(receipt_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_internal_user)):
+def ci_recibo(receipt_id: str, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("integraciones.usar"))):
     with _traducir():
         return APIResponse.ok(data=ci.recibo(db, current_user, receipt_id))
 
 
 @router.get("/contecintelligence/recibos/{receipt_id}/verificar", summary="Verificar la firma de un recibo")
-def ci_verificar(receipt_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_internal_user)):
+def ci_verificar(receipt_id: str, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("integraciones.usar"))):
     with _traducir():
         return APIResponse.ok(data=ci.verificar_recibo(db, current_user, receipt_id))
 
 
 @router.post("/contecintelligence/token", summary="Token acotado para los componentes incrustables")
-def ci_token(body: TokenIn, db: Session = Depends(get_db), current_user: User = Depends(require_internal_user)):
+def ci_token(body: TokenIn, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("integraciones.usar"))):
     with _traducir():
         return APIResponse.ok(data=ci.token_para_componentes(db, current_user, body.source_id))

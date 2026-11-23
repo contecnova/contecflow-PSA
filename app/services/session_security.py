@@ -128,12 +128,18 @@ def _consultar_geoip(ip_address: str, db=None) -> dict:
 
 
 def _lookup_ip_intel(ip_address: Optional[str], request, db=None) -> dict:
+    # Ronda 2 auditoria 2026-11-22: las cabeceras de geo solo valen si las pone
+    # un proxy de confianza (TRUST_PROXY_HEADERS + TRUSTED_PROXY_CIDRS); antes
+    # cualquiera mandaba `cf-ipcountry` y elegia su pais ante el riesgo y el
+    # bloqueo por pais.
+    from app.core.network import cabeceras_de_proxy_fiables
+    h = request.headers if cabeceras_de_proxy_fiables(request) else {}
     out = {
-        "country_code": request.headers.get("cf-ipcountry") or None,
+        "country_code": h.get("cf-ipcountry") or None,
         "region": None,
         "city": None,
-        "ip_asn": request.headers.get("x-asn") or None,
-        "ip_org": request.headers.get("x-isp") or request.headers.get("x-org") or None,
+        "ip_asn": h.get("x-asn") or None,
+        "ip_org": h.get("x-isp") or h.get("x-org") or None,
     }
     if not ip_address:
         return out
@@ -154,9 +160,9 @@ def _lookup_ip_intel(ip_address: Optional[str], request, db=None) -> dict:
 #: una IP nueva del mismo operador es normal y un operador nuevo no—, que es lo
 #: que hay que poder discutir de un cálculo de riesgo.
 _CAMBIOS_DE_SESION: tuple[tuple[str, int, str], ...] = (
-    ("ip_address",   20, "Cambio de IP"),
-    ("ip_asn",       25, "Cambio de ASN"),
-    ("country_code", 20, "Cambio de país"),
+    ("ip_address",   20, "ip_change"),
+    ("ip_asn",       25, "asn_change"),
+    ("country_code", 20, "country_change"),
 )
 
 #: Palabras en el nombre del operador que sugieren anonimización u hosting.
@@ -177,9 +183,9 @@ def _riesgo_de_la_ip(ip_address: Optional[str]) -> tuple[int, Optional[str]]:
     peor que saber que viene de un sitio corriente.
     """
     if not ip_address:
-        return 20, "IP ausente"
+        return 20, "ip_missing"
     if not _ip_is_public(ip_address):
-        return 5, "IP privada/no enrutable"
+        return 5, "ip_private"
     return 10, None
 
 
@@ -208,7 +214,7 @@ def _riesgo_por_cambios(previous, *, ip_address, ip_asn, country_code,
     ua_actual = (user_agent or "")[:180]
     if ua_anterior and ua_actual and ua_anterior != ua_actual:
         puntos += 10
-        motivos.append("Cambio de agente de usuario")
+        motivos.append("ua_change")
     return puntos, motivos
 
 
@@ -241,7 +247,7 @@ def _compute_risk(
     operador = (ip_org or "").lower()
     if any(palabra in operador for palabra in _OPERADORES_SOSPECHOSOS):
         puntos += 20
-        motivos.append("ASN/ISP con perfil de anonimización u hosting")
+        motivos.append("anonymizing_asn")
 
     puntos = min(puntos, 100)
     nivel = next(etiqueta for umbral, etiqueta in _NIVELES_DE_RIESGO if puntos >= umbral)
@@ -337,11 +343,13 @@ def register_or_rotate_user_session(
 
     organizacion = _organizacion_del_usuario(db, user_id)
 
+    nueva = existing is None
     if existing is None:
         existing = UserSession(
             user_id=user_id,
             organization_id=organizacion,
             refresh_token_jti=refresh_token_jti,
+            session_key=refresh_token_jti,
             auth_method=auth_method,
             created_at=_now(),
         )
@@ -377,6 +385,14 @@ def register_or_rotate_user_session(
     existing.expires_at = _now() + timedelta(days=_refresh_days)
     existing.revoked_at = None
     existing.revoke_reason = None
+    if existing.session_key is None:
+        existing.session_key = previous_refresh_token_jti or refresh_token_jti
+    if nueva:
+        # 23-11-2026 (docs/seguridad/politicas_de_cuenta.md): IP, horario y país
+        # permitidos, alerta de IP nueva y máximo de sesiones concurrentes.
+        from app.models.user import User as _Usuario
+        from app.services.seguridad_de_cuentas.sesiones import al_abrir
+        al_abrir(db, db.get(_Usuario, user_id), existing, ip_address, request, intel.get("country_code"))
     return existing
 
 
@@ -398,13 +414,20 @@ def revoke_session_by_jti(db: Session, user_id: str, refresh_token_jti: Optional
     session.revoke_reason = reason[:255]
 
 
-def parse_risk_reasons(raw: Optional[str]) -> list[str]:
+def parse_risk_reasons(raw: Optional[str], idioma: Optional[str] = None) -> list[str]:
+    """Motivos de riesgo; en BD van como códigos estables y salen en `idioma`.
+
+    Los textos que ya estaban guardados (filas anteriores a los códigos) salen
+    tal cual.
+    """
     if not raw:
         return []
     try:
         value = json.loads(raw)
         if isinstance(value, list):
-            return [str(v) for v in value]
+            from app.services.textos_de_salida import TEXTOS, texto
+            return [texto(f"sesion.riesgo.{v}", idioma) if f"sesion.riesgo.{v}" in TEXTOS else str(v)
+                    for v in value]
     # intentional: best-effort fallback, log noise outweighs diagnostic value
     except Exception:
         logger.debug("parse_risk_reasons: fallo best-effort ignorado", exc_info=True)

@@ -7,14 +7,15 @@ from __future__ import annotations
 
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
+from app.core.codigos_de_error import error_http
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_current_user
+from app.core.deps import requiere_capacidad
 from app.core.periodo import CON_HORA, Periodo, periodo
 from app.core.responses import APIResponse
 from app.db.session import get_db
-from app.models.user import User, UserRole
+from app.models.user import User
 from app.services.predictive_retraining_service import (
     ITSM_META_KEY,
     BI_META_KEY,
@@ -34,10 +35,9 @@ _STATUS_RANK = {
 }
 
 
-def _require_admin(current_user: User = Depends(get_current_user)) -> User:
-    if getattr(current_user, "role", None) != UserRole.admin:
-        raise HTTPException(status_code=403, detail="admin_required")
-    return current_user
+# Auditoría 22-11-2026 (M9): aquí había un `_require_admin` hecho a mano (rol
+# `admin`, sin dejar pasar al superadmin). Ahora es la capacidad
+# `observabilidad.administrar` (admin, sin módulo), en la firma de cada ruta.
 
 
 def _resolve_org_id(current_user: User, override: Optional[str], db: Session) -> Optional[str]:
@@ -52,7 +52,7 @@ def _resolve_org_id(current_user: User, override: Optional[str], db: Session) ->
         return user_org
     is_superadmin = bool(getattr(current_user, "is_superadmin", False))
     if not is_superadmin and override != user_org:
-        raise HTTPException(status_code=403, detail="cross_org_access_denied")
+        raise error_http(403, "sin_permiso")
     # Validar que la organización existe para evitar enumeración de IDs.
     # `Organization` vive en `app.models.mfa`, no en `enterprise`. Con la ruta
     # mal, esta comprobacion —que existe para evitar enumeracion de IDs—
@@ -60,7 +60,7 @@ def _resolve_org_id(current_user: User, override: Optional[str], db: Session) ->
     from app.core.tenancy import organizacion_existe
 
     if not organizacion_existe(db, override):
-        raise HTTPException(status_code=404, detail="organization_not_found")
+        raise error_http(404, "no_encontrado", que="organizacion")
     return override
 
 
@@ -91,7 +91,7 @@ def _ultima_evaluacion_para(resumen: dict, current_user: User, org_id: Optional[
 def predictive_observability_status(
     organization_id: Optional[str] = Query(None, description="Filtrar por organización (admin override — sólo superadmin)"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(_require_admin),
+    current_user: User = Depends(requiere_capacidad("observabilidad.administrar")),
 ):
     """Return the latest evaluation cycle summary plus per-org retraining metadata.
 
@@ -123,7 +123,7 @@ def predictive_observability_health(
     p: Periodo = Depends(periodo(dias_por_defecto=30, granularidades=CON_HORA, serie=False,
                                  alias_dias=("days", "lookback_days"), dias_alias_max=180)),
     db: Session = Depends(get_db),
-    current_user: User = Depends(_require_admin),
+    current_user: User = Depends(requiere_capacidad("observabilidad.administrar")),
 ):
     """Run and return a fresh health evaluation (read-only, no retraining).
 
@@ -159,7 +159,7 @@ def predictive_observability_health(
 )
 def predictive_trigger_retrain(
     db: Session = Depends(get_db),
-    current_user: User = Depends(_require_admin),
+    current_user: User = Depends(requiere_capacidad("observabilidad.administrar")),
 ):
     """Manually trigger the full evaluation + conditional retraining cycle.
 

@@ -30,8 +30,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Header, Request
 from pydantic import BaseModel, field_validator
 from sqlalchemy.orm import Session
 
-from app.db.session import get_db
-from app.core.deps import require_admin, require_any_manager
+from app.db.session import get_db, sesion_de_sistema
+from app.core.deps import requiere_capacidad
 from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
 from app.services.pagination_service import paginate_query
@@ -76,7 +76,7 @@ class JiraPushIn(BaseModel):
 @router.get("/config", summary="Obtener configuración Jira")
 def get_jira_config(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("integraciones.administrar")),
 ):
     cfg = jira_service.get_jira_config(db, current_user.organization_id)
     safe = {k: v for k, v in cfg.items() if k != "jira_api_token"}
@@ -90,7 +90,7 @@ def get_jira_config(
 def save_jira_config(
     payload: JiraConfigIn,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("integraciones.administrar")),
 ):
     jira_service.save_jira_config(
         db,
@@ -106,7 +106,7 @@ def save_jira_config(
 @router.get("/test", summary="Test de conexión Jira")
 def test_jira_connection(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("integraciones.responsables")),
 ):
     cfg = jira_service.get_jira_config(db, current_user.organization_id)
     # Auditoria 2026-11 (#34): la misma prueba que `/integrations/jira/configs/{id}/test`.
@@ -119,7 +119,7 @@ def list_jira_issues(
     max_results: int = Query(50, le=200),
     jql: Optional[str] = Query(None),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("integraciones.responsables")),
 ):
     cfg = jira_service.get_jira_config(db, current_user.organization_id)
     if not cfg["jira_url"] or not cfg["jira_api_token"]:
@@ -128,13 +128,15 @@ def list_jira_issues(
     if not key and not jql:
         raise error_http(400, "jira_indica_clave_o_jql", detail="Proporciona project_key o un jql personalizado.")
 
-    query = jql or f"project = {key} ORDER BY updated DESC"
-    data = jira_service.llamar_a_jira(cfg, "POST", "/rest/api/3/issue/search", timeout=15, json={
-        "jql": query, "maxResults": max_results,
-        "fields": ["summary", "status", "priority", "assignee", "description",
-                   "created", "updated", "duedate", "issuetype", "labels", "subtasks"]})
+    # A56 (auditoría 22-11-2026): `POST /rest/api/3/search/jql` (la ruta antigua
+    # está retirada en Jira Cloud) y la clave de proyecto entre comillas (M40).
+    query = jql or f"project = {jira_service.comillas_jql(key)} ORDER BY updated DESC"
+    encontrados = jira_service.buscar_incidencias(cfg, query, [
+        "summary", "status", "priority", "assignee", "description",
+        "created", "updated", "duedate", "issuetype", "labels", "subtasks"],
+        por_pagina=max_results, tope=max_results, timeout=15, crudo=False)
     issues = []
-    for iss in data.get("issues", []):
+    for iss in encontrados:
         f = iss.get("fields", {})
         issues.append({
             "key": iss["key"],
@@ -148,14 +150,15 @@ def list_jira_issues(
             "labels": f.get("labels", []),
             "updated": f.get("updated"),
         })
-    return APIResponse.ok(data={"total": data.get("total", 0), "issues": issues})
+    # `search/jql` ya no devuelve `total` (paginación por token): el número traído.
+    return APIResponse.ok(data={"total": len(issues), "issues": issues})
 
 
 @router.post("/sync", summary="Jira → NexusPM: importar / actualizar tareas")
 def sync_jira_to_nexus(
     payload: JiraSyncIn,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("integraciones.responsables")),
 ):
     """
     Pulls issues from Jira and creates or updates corresponding NexusPM Tasks.
@@ -169,16 +172,14 @@ def sync_jira_to_nexus(
     if not key:
         raise error_http(400, "jira_indica_clave", detail="Proporciona project_key.")
 
-    cutoff = (utcnow() - datetime.timedelta(days=payload.since_days)).strftime("%Y-%m-%d")
-    jql = f"project = {key} AND updated >= '{cutoff}' ORDER BY updated DESC"
+    # M40: ventana relativa (`-Nd`, independiente de la zona del usuario de Jira).
+    jql = (f"project = {jira_service.comillas_jql(key)} AND updated >= -{int(payload.since_days)}d "
+           "ORDER BY updated DESC")
     max_results = min(payload.max_results, 200)
 
-    data = jira_service.llamar_a_jira(cfg, "POST", "/rest/api/3/issue/search", timeout=20, json={
-        "jql": jql, "maxResults": max_results,
-        "fields": ["summary", "status", "priority", "description", "duedate",
-                   "assignee", "issuetype", "labels", "subtasks"]})
-
-    issues = data.get("issues", [])
+    issues = jira_service.buscar_incidencias(cfg, jql, [
+        "summary", "status", "priority", "description", "duedate",
+        "assignee", "issuetype", "labels", "subtasks"], tope=max_results, timeout=20, crudo=False)
     stats = jira_service.sync_jira_issues(
         db,
         issues=issues,
@@ -201,7 +202,7 @@ def sync_jira_to_nexus(
 def push_nexus_to_jira(
     payload: JiraPushIn,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("integraciones.responsables")),
 ):
     """
     For each NexusPM task in the project that has no jira_issue_key,
@@ -233,7 +234,7 @@ def push_nexus_to_jira(
 @router.post("/webhook-secret", summary="Generar (o rotar) el secreto del webhook Jira de la organización")
 def rotate_jira_webhook_secret(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("integraciones.administrar")),
 ):
     """El secreto se muestra UNA vez. Jira debe enviarlo en `X-Atlassian-Webhook-Token`
     (o firmar el cuerpo con él en `X-Hub-Signature-256`)."""
@@ -256,7 +257,7 @@ async def jira_webhook(
     x_atlassian_webhook_token: Optional[str] = Header(None),
     x_hub_signature_256: Optional[str] = Header(None),
     org: Optional[str] = Query(None, description="Organización (solo acota; autentica el secreto)"),
-    db: Session = Depends(get_db),
+    db: Session = Depends(sesion_de_sistema("jira: secreto de webhook de la empresa")),
 ):
     """
     Jira sends webhooks on issue events. This endpoint:
@@ -275,6 +276,9 @@ async def jira_webhook(
     if not org_id:
         logger.warning("Jira webhook rejected: invalid/missing authentication token")
         raise error_http(403, "webhook_auth_no_valida", detail="Invalid Jira webhook authentication", servicio="Jira")
+    # Auditoría 22-11-2026 (M8): el secreto ya dice la empresa; desde aquí filtra.
+    from app.db.session import publicar_empresa
+    await run_db(publicar_empresa, db, org_id)
 
     try:
         payload = json.loads(body or b"{}")
@@ -297,9 +301,8 @@ async def jira_webhook(
 def _process_legacy_jira_webhook_sync(db: Session, issue: dict, jira_key: str, event: str,
                                       org_id: Optional[str] = None) -> dict:
     fields       = issue.get("fields", {})
-    raw_status   = (fields.get("status", {}).get("name") or "").lower()
     raw_priority = (fields.get("priority", {}).get("name") or "").lower()
-    nm_status    = JIRA_STATUS_MAP.get(raw_status)
+    nm_status    = jira_service.estado_de_incidencia(fields.get("status"))   # A57: también por categoría
     nm_priority  = JIRA_PRIORITY_MAP.get(raw_priority)
 
     task = jira_service.get_task_by_jira_key(db, jira_key, org_id)
@@ -316,7 +319,7 @@ def get_linked_tasks(
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("integraciones.responsables")),
 ):
     q = jira_service.get_linked_tasks_query(db, project_id, org_id=current_user.organization_id)
     from app.models.task import Task as TaskModel

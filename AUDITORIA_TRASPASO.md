@@ -1,5 +1,7 @@
 # Auditoría de Contecflow PSA — estado y traspaso
 
+> **Documento histórico (2026-08-31): no refleja necesariamente el código actual; fuente viva: README.md, DOCS.md y los informes de `docs/auditoria/` (el más reciente, 2026-11-22). El número de tests y la regla «verificar antes de cada commit» de aquí ya no valen: la regla actual es no probar hasta el final.**
+
 Documento para retomar el trabajo desde otro equipo. Contiene el contexto
 completo: qué se auditó, qué está cerrado, qué queda, cómo se verifica y las
 reglas de trabajo que hay que respetar.

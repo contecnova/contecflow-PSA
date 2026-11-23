@@ -19,13 +19,23 @@ from app.core.codigos_de_error import ErrorConCodigo
 ALLOWED_TERRAFORM_COMMANDS = {"plan", "apply", "destroy"}
 
 
+_MARCADOR = __import__("re").compile(r"\{([A-Za-z_][A-Za-z0-9_]*)\}")
+
+
 def _render_step_value(value, context: dict):
+    """Sustituye ``{nombre}`` por el valor del contexto.
+
+    Auditoría 22-11-2026 (M58): antes era ``str.format_map`` con plantillas que
+    escribe la empresa, que admite ``{x.__class__}`` o ``{x[0]}`` (lectura de
+    atributos internos). Ahora solo nombres simples; lo demás se deja tal cual.
+    """
     if isinstance(value, str):
-        try:
-            return value.format_map({k: ("" if v is None else v) for k, v in context.items()})
-        except Exception:
-            logger.debug("Workflow step value templating failed; keeping raw value=%r", value, exc_info=True)
-            return value
+        def _uno(m):
+            nombre = m.group(1)
+            if nombre not in context:
+                return m.group(0)
+            return "" if context[nombre] is None else str(context[nombre])
+        return _MARCADOR.sub(_uno, value)
     if isinstance(value, list):
         return [_render_step_value(v, context) for v in value]
     if isinstance(value, dict):
@@ -33,19 +43,33 @@ def _render_step_value(value, context: dict):
     return value
 
 
-def _provisioning_root() -> "Path":
+def _provisioning_root(org_id=None) -> "Path":
     """Return the operator-controlled provisioning root, or raise if provisioning
-    is disabled / unconfigured (fail-closed)."""
+    is disabled / unconfigured (fail-closed).
+
+    Auditoría 22-11-2026 (A13): con empresa, la raíz es ``<raíz>/<org_id>``:
+    una empresa no puede ejecutar ni destruir los módulos de otra (estándar de
+    los orquestadores con espacios de trabajo por inquilino). Sin empresa, la
+    raíz común solo la usan llamadas internas de la plataforma.
+    """
     if not settings.PROVISIONING_ENABLED:
         raise PermissionError("Infrastructure provisioning is disabled (set PROVISIONING_ENABLED=1)")
     root = (settings.PROVISIONING_ROOT_DIR or "").strip()
     if not root:
         raise PermissionError("PROVISIONING_ROOT_DIR is not configured; refusing to run provisioning")
-    return Path(root).resolve()
+    base = Path(root).resolve()
+    if org_id:
+        sub = (base / str(org_id)).resolve()
+        if sub.parent != base:
+            raise ErrorConCodigo("aprovisionamiento_ruta_no_permitida", detail="bad organization folder",
+                                 campo="organization_id")
+        return sub
+    return base
 
 
-def _safe_provision_path(candidate, *, label: str, required: bool = True) -> "str | None":
-    """Resolve *candidate* and guarantee it stays inside PROVISIONING_ROOT_DIR.
+def _safe_provision_path(candidate, *, label: str, required: bool = True, org_id=None) -> "str | None":
+    """Resolve *candidate* and guarantee it stays inside PROVISIONING_ROOT_DIR
+    (``/<org_id>`` when given: A13).
 
     Blocks path-traversal / absolute-path escapes / symlink breakout so a
     tenant-supplied workdir/playbook/var_file/inventory can never make the
@@ -57,13 +81,27 @@ def _safe_provision_path(candidate, *, label: str, required: bool = True) -> "st
         if required:
             raise ErrorConCodigo("campo_obligatorio", detail=f"Provisioning '{label}' is required", campo=label)
         return None
-    root = _provisioning_root()
+    root = _provisioning_root(org_id)
     resolved = (root / str(candidate)).resolve()
     try:
         resolved.relative_to(root)
     except ValueError:
         raise ErrorConCodigo("aprovisionamiento_ruta_no_permitida", detail=f"Provisioning '{label}' escapes the provisioning root", campo=label)
     return str(resolved)
+
+
+#: A13: variables del entorno que hereda la herramienta (nada de secretos del
+#: worker: ni `SECRET_KEY`, ni `DATABASE_URL`, ni credenciales de nube). Las
+#: credenciales de cada módulo van en su `var_file` dentro de la carpeta de la empresa.
+_ENTORNO_PERMITIDO = ("PATH", "HOME", "USERPROFILE", "SYSTEMROOT", "TEMP", "TMP", "LANG", "LC_ALL")
+
+
+def _entorno_minimo() -> dict:
+    import os
+    env = {k: os.environ[k] for k in _ENTORNO_PERMITIDO if k in os.environ}
+    env["TF_IN_AUTOMATION"] = "1"
+    env["ANSIBLE_NOCOLOR"] = "1"
+    return env
 
 
 def _run_cli(cmd: list[str], cwd: str | None = None, timeout_seconds: int = 1200) -> dict:
@@ -75,6 +113,7 @@ def _run_cli(cmd: list[str], cwd: str | None = None, timeout_seconds: int = 1200
         text=True,
         timeout=timeout_seconds,
         check=False,
+        env=_entorno_minimo(),
     )
     finished = datetime.now(timezone.utc)
     return {
@@ -87,56 +126,45 @@ def _run_cli(cmd: list[str], cwd: str | None = None, timeout_seconds: int = 1200
     }
 
 
+def _org_del_contexto(context: dict):
+    """La empresa del flujo (obligatoria para Terraform/Ansible: A13, fail-closed)."""
+    org = context.get("organization_id")
+    if not org:
+        raise ErrorConCodigo("aprovisionamiento_sin_empresa")
+    return str(org)
+
+
+def _destroy_aprobado(org_id: str, context: dict) -> None:
+    """A13: `terraform destroy` solo con una aprobación humana ya concedida
+    (`destroy_approval_id` en el contexto: una solicitud de aprobación
+    `approved` de la MISMA empresa). Es lo que hacen los orquestadores de
+    infraestructura (plan de destrucción revisado y confirmado por una persona);
+    un flujo automático nunca destruye por sí solo."""
+    aprobacion = context.get("destroy_approval_id")
+    if not aprobacion:
+        raise ErrorConCodigo("aprovisionamiento_destroy_sin_aprobacion")
+    from app.db.session import SessionLocal
+    from app.models.billing_reports import ApprovalRequest
+    with SessionLocal() as s:
+        from app.db.contexto_de_tenant import fijar_contexto as _fijar_contexto
+        _fijar_contexto(s, org_id, "aprovisionamiento sin empresa")  # auditoría 22-11-2026: TENANT_SESION_SIN_CONTEXTO=cerrar
+        ok = s.query(ApprovalRequest.id).filter(
+            ApprovalRequest.id == str(aprobacion), ApprovalRequest.organization_id == org_id,
+            ApprovalRequest.status == "approved").first()
+    if not ok:
+        raise ErrorConCodigo("aprovisionamiento_destroy_sin_aprobacion")
+
+
 def _validate_provision_url(url: str) -> None:
-    """Validate provisioning URL to prevent SSRF attacks against internal networks."""
-    import ipaddress as _ipaddress
-    import socket as _socket
-    from urllib.parse import urlparse as _urlparse
+    """Valida la URL de aprovisionamiento contra SSRF (guardia central).
 
-    parsed = _urlparse(url or "")
-    if parsed.scheme.lower() != "https" or not parsed.netloc:
-        raise ErrorConCodigo("aprovisionamiento_url_no_valida", detail="Provision URL must be a valid HTTPS URL")
+    22-11-2026 (01 M7): era un tercer validador propio sin resolver el DNS.
+    Ahora delega en `app.core.outbound_url` (HTTPS obligatorio) y lanza
+    `ErrorConCodigo` (un `ValueError`), como antes.
+    """
+    from app.core.outbound_url import validar_url_o_valueerror
 
-    hostname = (parsed.hostname or "").strip().lower()
-    if not hostname:
-        raise ErrorConCodigo("aprovisionamiento_url_no_valida", detail="Provision URL must include a hostname")
-
-    if hostname in {"localhost", "localhost.localdomain"} or hostname.endswith(".local"):
-        raise ErrorConCodigo("aprovisionamiento_url_no_permitida", detail="Provision URL cannot target local hosts")
-
-    try:
-        ip_obj = _ipaddress.ip_address(hostname)
-    except ValueError:
-        ip_obj = None
-
-    if ip_obj is not None and (
-        ip_obj.is_private
-        or ip_obj.is_loopback
-        or ip_obj.is_link_local
-        or ip_obj.is_multicast
-        or ip_obj.is_reserved
-        or ip_obj.is_unspecified
-    ):
-        raise ErrorConCodigo("aprovisionamiento_url_no_permitida", detail="Provision URL targets a disallowed network range")
-
-    try:
-        addrinfo = _socket.getaddrinfo(hostname, parsed.port or 443, proto=_socket.IPPROTO_TCP)
-    except Exception:
-        logger.warning("Fallo resolviendo getaddrinfo para hostname=%s en validación SSRF", hostname, exc_info=True)
-        addrinfo = []
-
-    for entry in addrinfo:
-        ip_raw = entry[4][0]
-        resolved_ip = _ipaddress.ip_address(ip_raw)
-        if (
-            resolved_ip.is_private
-            or resolved_ip.is_loopback
-            or resolved_ip.is_link_local
-            or resolved_ip.is_multicast
-            or resolved_ip.is_reserved
-            or resolved_ip.is_unspecified
-        ):
-            raise ErrorConCodigo("aprovisionamiento_url_no_permitida", detail="Provision URL resolves to a disallowed network range")
+    validar_url_o_valueerror(url, field="Provision URL", require_https=True)
 
 
 def _execute_provision_action(config: dict, context: dict) -> dict:
@@ -166,7 +194,8 @@ def _execute_provision_action(config: dict, context: dict) -> dict:
     timeout_seconds = int(config.get("timeout_seconds", 15))
 
     started = datetime.now(timezone.utc)
-    with httpx.Client(timeout=timeout_seconds) as client:
+    from app.core.outbound_url import cliente_httpx
+    with cliente_httpx(timeout=timeout_seconds) as client:
         resp = client.request(method, url, headers=headers, json=payload)
     finished = datetime.now(timezone.utc)
 
@@ -188,7 +217,8 @@ def _execute_terraform_action(config: dict, context: dict) -> dict:
     module tree outside the operator-vetted root.
     """
     # Containment first — raises if provisioning is disabled or paths escape root.
-    workdir = _safe_provision_path(_render_step_value(config.get("workdir"), context), label="workdir")
+    org = _org_del_contexto(context)
+    workdir = _safe_provision_path(_render_step_value(config.get("workdir"), context), label="workdir", org_id=org)
     command = str(config.get("command") or "apply").lower()
     allowed_commands = {
         str(c).lower() for c in (config.get("allowed_commands") or sorted(ALLOWED_TERRAFORM_COMMANDS))
@@ -200,9 +230,11 @@ def _execute_terraform_action(config: dict, context: dict) -> dict:
     if not shutil.which("terraform"):
         raise RuntimeError("terraform executable not found in PATH")
 
+    if command == "destroy":
+        _destroy_aprobado(org, context)
     auto_approve = bool(config.get("auto_approve", True))
     var_file = _safe_provision_path(
-        _render_step_value(config.get("var_file"), context), label="var_file", required=False
+        _render_step_value(config.get("var_file"), context), label="var_file", required=False, org_id=org
     )
     vars_map = _render_step_value(config.get("vars") or {}, context)
     timeout_seconds = int(config.get("timeout_seconds", 1800))
@@ -233,12 +265,13 @@ def _execute_ansible_action(config: dict, context: dict) -> dict:
     # operator-controlled PROVISIONING_ROOT_DIR, so a tenant cannot point the
     # runner at an attacker-staged playbook (which could carry local-exec /
     # shell tasks → RCE on the worker).
-    playbook = _safe_provision_path(_render_step_value(config.get("playbook"), context), label="playbook")
+    org = _org_del_contexto(context)
+    playbook = _safe_provision_path(_render_step_value(config.get("playbook"), context), label="playbook", org_id=org)
     inventory = _safe_provision_path(
-        _render_step_value(config.get("inventory"), context), label="inventory", required=False
+        _render_step_value(config.get("inventory"), context), label="inventory", required=False, org_id=org
     )
     workdir = _safe_provision_path(
-        _render_step_value(config.get("workdir"), context), label="workdir", required=False
+        _render_step_value(config.get("workdir"), context), label="workdir", required=False, org_id=org
     )
     timeout_seconds = int(config.get("timeout_seconds", 1800))
     # Optional defense-in-depth: a config allow-list further narrows playbooks
@@ -264,6 +297,12 @@ def _execute_ansible_action(config: dict, context: dict) -> dict:
 
 def _execute_step_action(config: dict, context: dict, db) -> dict:
     action_type = str(config.get("type", "create_alert")).lower()
+    if not context.get("organization_id"):
+        # A13: la empresa del flujo, de la sesión (no del payload del paso).
+        from app.services.exchange_rate_service import org_de_la_sesion
+        org = org_de_la_sesion(db)
+        if org:
+            context = {**context, "organization_id": org}
     if action_type == "create_alert":
         from app.models.alert import Alert
         from app.services.alert_service import derive_alert_org_id

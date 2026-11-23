@@ -5,11 +5,11 @@
  * (tipos y flujos) vive en Configuración → Aprobaciones y políticas → Flujos de demanda.
  */
 import { useState } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ClipboardList, Plus, Settings } from 'lucide-react'
+import { ClipboardList, Info, Plus } from 'lucide-react'
 import Page from '../components/ui/Page'
-import { Button, Checkbox, EmptyState, Tabs, Input, Modal, ProjectSelect, Pulsable, Select, Spinner, TablaSimple } from '../components/ui'
+import { Buscador, Button, Checkbox, EmptyState, Tabs, Input, Modal, ProjectSelect, Pulsable, Select, Spinner, TablaSimple } from '../components/ui'
 import DetalleDemanda from '../components/demanda/DetalleDemanda'
 import { EstadoDeDemandaBadge, SlaBadge, etiquetaDe, opcionesDe, useCatalogoDemanda } from '../components/demanda/comunes'
 import { EntradaDeCampo } from '../components/demanda/PestanasDemanda'
@@ -182,7 +182,7 @@ export function ListaDeDemandas({ onAbrir, mias }: { onAbrir: (id: string) => vo
         </Select>
         <Checkbox label={t('demanda.pendientes_para_mi')} checked={!!f.pending_for_me} onChange={ok => poner({ pending_for_me: ok })} />
         <form className="dem-fila" onSubmit={e => { e.preventDefault(); poner({ q: busqueda.trim() }) }}>
-          <Input className="dem-buscar" aria-label={t('demanda.buscar')} placeholder={t('demanda.buscar')} value={busqueda} onChange={e => setBusqueda(e.target.value)} />
+          <Buscador className="dem-buscar" aria-label={t('demanda.buscar')} placeholder={t('demanda.buscar')} value={busqueda} onChange={setBusqueda} />
           <Button type="submit" size="sm" variant="secondary">{t('demanda.buscar')}</Button>
         </form>
       </div>}
@@ -221,8 +221,11 @@ export function ListaDeDemandas({ onAbrir, mias }: { onAbrir: (id: string) => vo
 export default function DemandaPage() {
   const t = useAppT()
   const auth = useAuth()
-  const navigate = useNavigate()
   const [params, setParams] = useSearchParams()
+  // 23-11-2026 (A7 del 04): sin botón «Configurar» en el módulo. Si no hay tipos de
+  // solicitud, un aviso lo explica y enlaza a Configuración solo para quien puede.
+  const { data: tiposDeDemanda, isSuccess: tiposCargados } = useQuery({ queryKey: ['demand-types'], queryFn: demandaApi.tipos })
+  const sinTipos = tiposCargados && (tiposDeDemanda ?? []).length === 0
   const [nueva, setNueva] = useState(false)
   const [vista, setVista] = useState<'todas' | 'mias'>('mias')
   const abierta = params.get('id') || ''
@@ -234,10 +237,15 @@ export default function DemandaPage() {
     <Page icon={<ClipboardList size={18} />} title={t('demanda.titulo')} subtitle={t('demanda.subtitulo')}
       actions={(
         <span className="dem-fila">
-          {auth.puede('demanda.config') && <Button variant="secondary" icon={<Settings size={13} />} onClick={() => { navigate('/settings/demanda') }}>{t('demanda.configurar')}</Button>}
           <Button icon={<Plus size={13} />} onClick={() => setNueva(true)}>{t('demanda.nueva_solicitud')}</Button>
         </span>
       )}>
+      {sinTipos && (
+        <div className="dem-aviso" role="note">
+          <Info size={13} aria-hidden /> {t('demanda.sin_tipos_configurados')}
+          {auth.puede('demanda.config') && <> <Link to="/settings/demanda">{t('demanda.ir_a_configuracion')}</Link></>}
+        </div>
+      )}
       {abierta ? <DetalleDemanda id={abierta} onVolver={() => abrir('')} /> : (
         <div className="u-stack-16">
           {verTodas && <Tabs ariaLabel={t('demanda.vistas')} active={vistaActual} onChange={v => setVista(v as 'todas' | 'mias')}

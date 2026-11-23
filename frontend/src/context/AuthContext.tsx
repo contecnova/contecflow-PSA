@@ -1,6 +1,8 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react'
 import type { ReactNode } from 'react'
-import api from '../services/api'
+import api, { refrescarSesionAlArrancar } from '../services/api'
+import { establecerDuenoDeLaCola, syncPending } from '../services/offlineQueue'
+import { borrarCacheBi, establecerAmbitoBi } from '../services/biOfflineDb'
 import { useToast } from './ToastContext'
 import { useIdleTimeout } from '../hooks/useIdleTimeout'
 import { useAppLang } from '../i18n/AppLangContext'
@@ -101,6 +103,18 @@ const SESSION_SESSIONSTORAGE_KEYS: readonly string[] = [
   'collab-notif-asked', // "have we asked this user for OS notif permission yet?"
 ]
 
+/**
+ * Auditoría 22-11-2026 (H3/H4/M2 del 05): al cerrar sesión o caducar, fuera lo
+ * de la persona que se va: la caché de react-query (la vacía `main.tsx` al oír
+ * `auth:session-cleared`), el dueño de la cola offline y la copia offline de BI.
+ */
+function limpiarDatosDeSesion(): void {
+  establecerDuenoDeLaCola(null)
+  establecerAmbitoBi(null, null)
+  void borrarCacheBi()
+  try { window.dispatchEvent(new CustomEvent('auth:session-cleared')) } catch { /* accesorio: sin window */ }
+}
+
 function clearSessionStorage(): void {
   try {
     SESSION_STORAGE_KEYS.forEach(k => {
@@ -143,14 +157,43 @@ export function AuthProvider({ children }: AuthProviderProps) {
     // Restore session by validating the httpOnly cookie via /auth/me.
     // No token is read from localStorage — cookies are sent automatically.
     // TODO type: services/api still JS, response shape inferred from User
-    api.get('/auth/me')
+    // Auditoría 22-11-2026 (H1 del 05): el acceso dura 15 min y el refresco 30 días.
+    // `/auth/me` no pasa por el refresco del interceptor: ante un 401 se intenta
+    // refrescar una vez y repetir antes de dar la sesión por perdida.
+    const pedirMe = () => api.get('/auth/me') as Promise<{ data: User }>
+    pedirMe()
+      .catch(async (e: { response?: { status?: number } }) => {
+        if (e?.response?.status !== 401) throw e
+        await refrescarSesionAlArrancar()
+        return pedirMe()
+      })
       .then((res: { data: User }) => { setUser(res.data) })
       .catch(() => {
-        localStorage.removeItem(SESSION_HINT_KEY)
+        try { localStorage.removeItem(SESSION_HINT_KEY) } catch { /* accesorio: almacenamiento bloqueado */ }
         setUser(null)
       })
       .finally(() => setLoading(false))
   }, [])
+
+  // Cola offline y copia de BI: de la persona y empresa con sesión (H4/M2 del 05).
+  const userId = user?.id ?? null
+  const orgId = (user?.organization_id as string | null | undefined) ?? null
+  useEffect(() => {
+    establecerDuenoDeLaCola(userId ? { user_id: userId, org_id: orgId } : null)
+    establecerAmbitoBi(userId, orgId)
+    // Lo que esta persona dejó sin subir en este navegador sale al volver a entrar.
+    if (userId && navigator.onLine) void syncPending(api).catch(() => { /* accesorio: se reintenta al reconectar */ })
+  }, [userId, orgId])
+
+  // Aviso de imputaciones offline que no se pudieron subir tras varios intentos.
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const count = (e as CustomEvent<{ count?: number }>).detail?.count ?? 0
+      if (count > 0) toast.warning(t('authcontext.imputaciones_offline_abandonadas', { count }), 10000)
+    }
+    window.addEventListener('offline:imputaciones-abandonadas', handler)
+    return () => window.removeEventListener('offline:imputaciones-abandonadas', handler)
+  }, [toast, t])
 
   // Fetch idle timeout settings whenever a user session is active
   useEffect(() => {
@@ -171,6 +214,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   useEffect(() => {
     const handler = () => {
       clearSessionStorage()
+      limpiarDatosDeSesion()
       setUser(null)
       setSessionExpired(true)
       // Auto-clear the banner after 4 seconds so the login page is clean
@@ -185,14 +229,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
     const handler = (e: Event) => {
       const detail = (e as CustomEvent<{ retryAfter?: number }>).detail
       const retryAfter = detail?.retryAfter
+      // Auditoría 22-11-2026 (M6 del 05): antes en castellano fijo.
       const msg = retryAfter
-        ? `Demasiadas peticiones. Espera ${retryAfter}s antes de reintentar.`
-        : 'Demasiadas peticiones. Espera un momento antes de reintentar.'
+        ? t('authcontext.demasiadas_peticiones_espera', { segundos: retryAfter })
+        : t('authcontext.demasiadas_peticiones')
       toast.warning(msg, 5000)
     }
     window.addEventListener('api:rate-limited', handler)
     return () => window.removeEventListener('api:rate-limited', handler)
-  }, [toast])
+  }, [toast, t])
 
   const acceptSession = useCallback((userData: User): void => {
     localStorage.setItem(SESSION_HINT_KEY, '1')
@@ -222,6 +267,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     // Clear all session-scoped storage (cookie hint, per-user AI conv id,
     // notification-permission flag, etc.). UI prefs are kept on purpose.
     clearSessionStorage()
+    limpiarDatosDeSesion()
     setUser(null)
   }, [])
 

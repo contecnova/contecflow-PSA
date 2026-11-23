@@ -132,12 +132,19 @@ def test_un_rango_combina_los_dos_umbrales():
     assert _check_auto_approval(flujo, _peticion({"amount": 5_000})) is None
 
 
-def test_sin_importe_en_el_contexto_cuenta_como_cero():
-    """`ctx.get("amount", 0)`. Con `amount_lt` se cumple, con `amount_gt` no."""
+def test_sin_importe_en_el_contexto_no_se_auto_aprueba():
+    """Auditoría 22-11-2026 (C1): antes `ctx.get("amount", 0)` hacía que un
+    `amount_lt` se cumpliera siempre sin importe. Ahora sin importe no se puede
+    evaluar: no se auto-aprueba con ninguno de los dos umbrales."""
     assert _check_auto_approval(_flujo(_regla(etiqueta="x", amount_lt=1_000)),
-                                _peticion({})) == "x"
+                                _peticion({})) is None
     assert _check_auto_approval(_flujo(_regla(amount_gt=1_000)),
                                 _peticion({})) is None
+
+
+def test_sin_importe_el_paso_con_umbral_queda_activo():
+    """Y en un paso, sin importe el paso sigue activo (pide firma)."""
+    assert _step_condition_met(_paso({"amount_gt": 1_000}), _solicitud({})) is True
 
 
 # ── Igualdades y combinación ──────────────────────────────────────────────────

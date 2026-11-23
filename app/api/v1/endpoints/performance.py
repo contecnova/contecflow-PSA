@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 import io
 
 from app.db.session import get_db
-from app.core.deps import get_current_user, require_any_manager, requiere_capacidad
+from app.core.deps import get_current_user, requiere_capacidad
 from app.core.responses import APIResponse, APIListResponse
 from app.models.user import User
 from app.core.abac_enforce import enforce_abac
@@ -335,7 +335,7 @@ def list_cycle_campaigns(
              status_code=201)
 def create_campaign(cycle_id: str, payload: Campaign360In,
                     db: Session = Depends(get_db),
-                    cu: User = Depends(require_any_manager)):
+                    cu: User = Depends(requiere_capacidad("evaluaciones.responsables"))):
     # Self-service: PM / Team Lead solo pueden lanzar campañas para sus
     # reportes directos. Admin / HR pueden hacerlo para cualquiera.
     if not performance_service.can_launch_campaign_for(
@@ -443,7 +443,7 @@ def org_kpis(db: Session = Depends(get_db),
 
 @router.get("/cycles/{cycle_id}/kpis", summary="KPIs operativos de un ciclo")
 def cycle_kpis(cycle_id: str, db: Session = Depends(get_db),
-               cu: User = Depends(require_any_manager)):
+               cu: User = Depends(requiere_capacidad("evaluaciones.responsables"))):
     from app.services import perf_reminder_service
     data = perf_reminder_service.cycle_kpis(db, cycle_id)
     if not data:

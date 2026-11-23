@@ -35,7 +35,11 @@ def organizacion_exige_mfa(db, user, org_id: Optional[str] = None) -> bool:
     if not org_id:
         return False
     org = db.query(Organization).filter(Organization.id == org_id).first()
-    return bool(org and getattr(org, "require_mfa", False))
+    # Baja (auditoría 22-11-2026): una empresa que no existe (borrada o id
+    # corrupto) falla CERRADO: se exige el segundo factor (antes no se pedía).
+    if org is None:
+        return True
+    return bool(getattr(org, "require_mfa", False))
 
 
 def exigir_reautenticacion(db, user, password: Optional[str] = None, code: Optional[str] = None) -> None:

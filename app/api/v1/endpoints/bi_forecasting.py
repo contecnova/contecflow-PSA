@@ -14,7 +14,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_current_user, require_internal_user
+from app.core.deps import get_current_user, requiere_capacidad
 from app.core.ratelimit import limiter
 from app.core.responses import APIResponse
 from app.db.session import get_db
@@ -64,7 +64,7 @@ def run_forecast(
     body: ForecastIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: analitica interna
+    _rol: User = Depends(requiere_capacidad("bi.usar")),  # auditoria 2026-09: dominio: analitica interna
 ):
     try:
         return APIResponse.ok(data=_pronosticar(body, db, current_user))
@@ -135,7 +135,7 @@ def run_multi_forecast(
     body: MultiForecastIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: analitica interna
+    _rol: User = Depends(requiere_capacidad("bi.usar")),  # auditoria 2026-09: dominio: analitica interna
 ):
     items = list(body.forecasts or [])
     if not items and body.metrics:

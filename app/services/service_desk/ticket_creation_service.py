@@ -2,7 +2,7 @@
 from sqlalchemy.orm import Session
 
 from app.models.client_portal import ClientUser
-from app.models.service_desk import ServiceItem, Ticket
+from app.models.service_desk import ServiceItem, SupportLevel, Ticket, TicketPriority
 from app.schemas.service_desk import TicketCreateIn
 from app.services.service_desk.routing_rule_service import apply_routing_rules
 from app.services.service_desk.scoping import resolve_sla_policy_for_ticket as _resolve_sla_policy_for_ticket
@@ -131,18 +131,24 @@ def _candidatos_de_asignacion(db: Session, ticket: Ticket) -> list:
     deduplicados por usuario: una persona en tres grupos apareceria tres veces y
     el modelo de enrutado la ponderaria el triple.
     """
-    from app.models.service_desk import AgentGroupMember
+    from app.models.service_desk import AgentGroup, AgentGroupMember
 
+    # Auditoria 2026-11-22 (A-SD5): sin empresa (buzon o secreto de correo
+    # global, Slack sin vincular, worker) `query(AgentGroupMember).all()`
+    # devolvia los agentes de TODAS las empresas. Ahora solo los de los grupos
+    # de la empresa del ticket; sin empresa, nadie (queda en la cola).
+    org_id = ticket.organization_id or db.info.get("organization_id")
+    if not org_id:
+        return []
+    base = (db.query(AgentGroupMember)
+            .join(AgentGroup, AgentGroup.id == AgentGroupMember.group_id)
+            .filter(AgentGroup.organization_id == org_id))
     if ticket.assigned_group_id:
-        return (
-            db.query(AgentGroupMember)
-            .filter(AgentGroupMember.group_id == ticket.assigned_group_id)
-            .all()
-        )
+        return base.filter(AgentGroupMember.group_id == ticket.assigned_group_id).all()
 
     vistos: set[str] = set()
     miembros = []
-    for m in db.query(AgentGroupMember).all():
+    for m in base.all():
         if m.user_id in vistos:
             continue
         vistos.add(m.user_id)
@@ -203,7 +209,7 @@ def _auto_assign_ticket_on_create(db: Session, ticket: Ticket) -> None:
     _finalizar_asignacion(db, ticket)
 
 
-def _vencimientos(db: Session, priority, sla_policy, service_item) -> tuple:
+def _vencimientos(db: Session, priority, sla_policy, service_item, org_id=None) -> tuple:
     """Vencimientos de respuesta y resolución en el calendario de la política.
 
     Un servicio del catálogo declara sus propias horas y manda sobre las de la
@@ -215,8 +221,22 @@ def _vencimientos(db: Session, priority, sla_policy, service_item) -> tuple:
         horas = (service_item.sla_response_hours, service_item.sla_resolution_hours)
     return _calculate_sla_due(
         priority, sla_policy, db=db,
-        org_id=db.info.get("organization_id"), hours=horas,
+        org_id=org_id or db.info.get("organization_id"), hours=horas,
     )
+
+
+def _enrutar(db: Session, ticket: Ticket, prioridad_inicial, sla_policy, service_item) -> None:
+    """Reglas de enrutado y, si cambian la prioridad, vencimientos de nuevo.
+
+    Auditoria 2026-11-22 (A-SD4): la accion `set_priority` cambiaba la
+    prioridad despues de calcular los vencimientos, y el ticket vencia con los
+    plazos de la prioridad anterior (un P1 enrutado vencia como P3).
+    """
+    apply_routing_rules(ticket, db)
+    nueva = _norm_enum(ticket.priority)
+    if nueva != _norm_enum(prioridad_inicial):
+        ticket.sla_response_due, ticket.sla_resolution_due = _vencimientos(
+            db, nueva, sla_policy, service_item, ticket.organization_id)
 
 
 def _aplicar_regla_sla(db: Session, ticket: Ticket) -> None:
@@ -257,7 +277,7 @@ def build_internal_ticket(db: Session, payload: TicketCreateIn, requester_user_i
     if not priority:
         priority = PRIORITY_MATRIX.get(
             (_norm_enum(payload.urgency), _norm_enum(payload.impact)),
-            "p3_medium",
+            TicketPriority.p3_medium.value,
         )
 
     sla_policy = _resolve_sla_policy_for_ticket(
@@ -288,7 +308,7 @@ def build_internal_ticket(db: Session, payload: TicketCreateIn, requester_user_i
         support_level=(
             service_item.default_support_level.value
             if service_item and hasattr(service_item.default_support_level, "value")
-            else "l1"
+            else SupportLevel.l1.value
         ),
         project_id=payload.project_id,
         client_id=payload.client_id,
@@ -309,7 +329,7 @@ def build_internal_ticket(db: Session, payload: TicketCreateIn, requester_user_i
     )
 
     db.add(ticket)
-    apply_routing_rules(ticket, db)
+    _enrutar(db, ticket, priority, sla_policy, service_item)
     _auto_assign_ticket_on_create(db, ticket)
     db.flush()
     save_ticket_dynamic_fields(db, ticket.id, payload.dynamic_fields)
@@ -321,12 +341,37 @@ def build_internal_ticket(db: Session, payload: TicketCreateIn, requester_user_i
     return ticket
 
 
+def _validar_referencias_del_portal(db: Session, payload: TicketCreateIn, client: ClientUser) -> None:
+    """Contrato y CI que cuelga un cliente del portal: solo los suyos.
+
+    Auditoria 2026-11-22 (servicios m-z, 4.3): se guardaban tal cual, asi que
+    un cliente podia colgar el contrato (y su politica de SLA) o un CI de otro
+    cliente o de otra empresa. El contrato ha de ser de su cliente y su
+    empresa; el CI, de su empresa y de su proyecto. Lo ajeno responde igual que
+    lo inexistente (404).
+    """
+    org = getattr(client, "organization_id", None)
+    if payload.contract_id:
+        from app.models.pipeline import Contract
+        contrato = db.query(Contract).filter(Contract.id == payload.contract_id).first()
+        if (contrato is None or not client.client_org_id or contrato.client_id != client.client_org_id
+                or (org and contrato.organization_id not in (None, org))):
+            raise error_con_codigo(404, "no_encontrado", detail="Contrato no encontrado", que="contrato")
+    if payload.ci_id:
+        from app.models.service_desk import ConfigurationItem
+        ci = db.query(ConfigurationItem).filter(ConfigurationItem.id == payload.ci_id).first()
+        if (ci is None or not client.project_id or ci.project_id != client.project_id
+                or (org and ci.organization_id not in (None, org))):
+            raise error_con_codigo(404, "no_encontrado", detail="CI no encontrado", que="CI")
+
+
 def build_client_portal_ticket(db: Session, payload: TicketCreateIn, client: ClientUser) -> Ticket:
+    _validar_referencias_del_portal(db, payload, client)
     priority = payload.priority
     if not priority:
         priority = PRIORITY_MATRIX.get(
             (_norm_enum(payload.urgency), _norm_enum(payload.impact)),
-            "p3_medium",
+            TicketPriority.p3_medium.value,
         )
 
     sla_policy = _resolve_sla_policy_for_ticket(
@@ -366,7 +411,7 @@ def build_client_portal_ticket(db: Session, payload: TicketCreateIn, client: Cli
         sla_resolution_due=res_due,
     )
     db.add(ticket)
-    apply_routing_rules(ticket, db)
+    _enrutar(db, ticket, priority, sla_policy, service_item)
     _auto_assign_ticket_on_create(db, ticket)
     db.flush()
     save_ticket_dynamic_fields(db, ticket.id, payload.dynamic_fields)
@@ -437,7 +482,7 @@ def build_channel_ticket(
         sla_resolution_due=res_due,
     )
     db.add(ticket)
-    apply_routing_rules(ticket, db)
+    _enrutar(db, ticket, priority, sla_policy, None)
     _auto_assign_ticket_on_create(db, ticket)
     db.flush()
     _aplicar_regla_sla(db, ticket)

@@ -106,11 +106,10 @@ def compute_composite_health(client_id: str, db: Session) -> dict:
     cutoff_tickets = utcnow() - timedelta(days=s.HEALTH_TICKET_LOOKBACK_DAYS)
     try:
         from app.models.service_desk import Ticket
-        recent_tickets = db.query(Ticket).filter(Ticket.created_at >= cutoff_tickets).all()
-        client_tickets = [t for t in recent_tickets
-                          if hasattr(t, "client_id") and t.client_id == client_id]
-        if not client_tickets:
-            client_tickets = recent_tickets[:50]
+        # Auditoría 22-11-2026 (A26): solo los tickets de ESTE cliente (antes, si
+        # no tenía, se usaban 50 de otros clientes) y filtrados en la base.
+        client_tickets = db.query(Ticket).filter(Ticket.created_at >= cutoff_tickets,
+                                                 Ticket.client_id == client_id).all()
         resolved = [t for t in client_tickets
                     if str(getattr(t.status, "value", t.status)) in ESTADOS_DE_TICKET_RESUELTOS]
         sla_ok = [t for t in resolved
@@ -151,10 +150,16 @@ def compute_composite_health(client_id: str, db: Session) -> dict:
             .count()
         )
         portal_score = min(100.0, s.HEALTH_PORTAL_BASE_SCORE + (portal_sessions * s.HEALTH_PORTAL_SCORE_PER_SESSION))
+        portal_ok = True
     except Exception:
+        # Stub (auditoría 22-11-2026, §5): antes 50.0 fijo y sin rastro. Ahora
+        # la base configurable (`HEALTH_PORTAL_BASE_SCORE`) y el componente
+        # marcado como no disponible para que la pantalla no lo dé por medido.
         logger.warning("Fallo calculando score de actividad del portal para cliente %s", client_id, exc_info=True)
-        portal_score = 50.0
-    components["portal_activity"] = {"value": portal_score, "weight": s.HEALTH_WEIGHT_PORTAL}
+        portal_score = float(s.HEALTH_PORTAL_BASE_SCORE)
+        portal_ok = False
+    components["portal_activity"] = {"value": portal_score, "weight": s.HEALTH_WEIGHT_PORTAL,
+                                     "available": portal_ok}
 
     composite = round(
         nps_component * s.HEALTH_WEIGHT_NPS +

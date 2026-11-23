@@ -17,7 +17,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_current_user, require_admin
+from app.core.deps import get_current_user, requiere_capacidad
 from app.core.ratelimit import limiter
 from app.core.responses import APIResponse
 from app.db.session import get_db
@@ -54,7 +54,7 @@ class SyncRequest(BaseModel):
 def o365_get_config(
     request: Request,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("bi.administrar")),
 ):
     org_id = getattr(current_user, "organization_id", None)
     return APIResponse.ok(data=get_config(db, str(org_id) if org_id else None))
@@ -67,7 +67,7 @@ def o365_save_config(
     body: O365ConfigUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: credenciales de Microsoft 365
+    _rol: User = Depends(requiere_capacidad("bi.administrar")),  # auditoria 2026-09: sensible: credenciales de Microsoft 365
 ):
     org_id = getattr(current_user, "organization_id", None)
     org = str(org_id) if org_id else None
@@ -95,7 +95,7 @@ def o365_sync(
     body: Optional[SyncRequest] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: credenciales de Microsoft 365
+    _rol: User = Depends(requiere_capacidad("bi.administrar")),  # auditoria 2026-09: sensible: credenciales de Microsoft 365
 ):
     """Corre en la petición y devuelve el resultado real de cada informe.
 
@@ -113,7 +113,7 @@ def o365_report_data(
     request: Request,
     report_name: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("bi.administrar")),
 ):
     if report_name not in _SUPPORTED_REPORTS:
         raise error_http(404, "campo_no_valido_opciones", detail=f"Report '{report_name}' not supported. Available: {_SUPPORTED_REPORTS}", campo="report", valor=report_name, opciones=_SUPPORTED_REPORTS)
@@ -126,7 +126,7 @@ def o365_report_data(
 def o365_adoption(
     request: Request,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("bi.administrar")),
 ):
     org_id = getattr(current_user, "organization_id", None)
     return APIResponse.ok(data=get_adoption_summary(db, str(org_id) if org_id else None))
@@ -138,7 +138,7 @@ def o365_sync_log(
     request: Request,
     limit: int = Query(20, ge=1, le=100),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("bi.administrar")),
 ):
     org_id = getattr(current_user, "organization_id", None)
     log = get_sync_log(db, str(org_id) if org_id else None, limit=limit)

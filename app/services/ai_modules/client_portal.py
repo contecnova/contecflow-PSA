@@ -24,6 +24,7 @@ from app.models.user import User
 _log = logging.getLogger(__name__)
 
 
+from app.services.textos_de_salida import texto
 from app.services.ai_modules._base import (
     call_ai_unified, extract_text, log_action,
 )
@@ -60,7 +61,7 @@ def get_client_project_data(client_user, db: Session) -> dict:
         })
     return {"projects": result}
 
-def client_demo_response(message: str, project_data: dict) -> str:
+def client_demo_response(message: str, project_data: dict, idioma: str | None = None) -> str:
     """Respuesta sin IA para el cliente: su proyecto, sin instrucciones internas.
 
     Antes le decia al cliente que configurara un proveedor en «IA &
@@ -69,11 +70,9 @@ def client_demo_response(message: str, project_data: dict) -> str:
     projects = project_data.get("projects", [])
     if projects:
         p = projects[0]
-        return (f"El asistente no está disponible en este momento. Resumen de **{p['name']}**: "
-                f"{p['progress_pct']}% completado, {p['open_tasks']} tareas pendientes. "
-                "Para cualquier otra consulta, escriba a su equipo desde Mensajes.")
-    return ("El asistente no está disponible en este momento. "
-            "Para cualquier consulta, escriba a su equipo desde Mensajes.")
+        return texto("portal_ia.sin_asistente_con_resumen", idioma, nombre=p['name'],
+                     pct=p['progress_pct'], abiertas=p['open_tasks'])
+    return texto("portal_ia.sin_asistente", idioma)
 
 def client_portal_chat(db: Session, payload: dict) -> dict:
 
@@ -144,7 +143,11 @@ def _client_portal_chat_for_user(db: Session, client_user, message: str, session
     try:
         response_text = call_ai_unified(
             db, messages, system=system,
-            module="client_portal", max_tokens=settings.AI_MEDIUM_ANSWER_MAX_TOKENS
+            module="client_portal", max_tokens=settings.AI_MEDIUM_ANSWER_MAX_TOKENS,
+            # Auditoría 22-11-2026 (A8): con la empresa del cliente, para que se apliquen
+            # los guardarraíles y políticas de IA de esa empresa (antes sin usuario ni
+            # empresa: el portal quedaba fuera de la gobernanza).
+            organization_id=getattr(client_user, "organization_id", None)
         )
     except Exception as exc:
         from app.services.ai_provider_service import PresupuestoDeIAAgotado
@@ -155,7 +158,7 @@ def _client_portal_chat_for_user(db: Session, client_user, message: str, session
             response_text = aviso("ia_limite_de_uso", getattr(client_user, "language", None))
         else:
             _log.exception("Client portal chat AI call failed for session=%s", getattr(session, "id", None))
-            response_text = client_demo_response(message, project_data)
+            response_text = client_demo_response(message, project_data, getattr(client_user, "language", None))
 
     respuesta = AIClientChatMessage(session_id=session.id, role="assistant", content=response_text)
     db.add(respuesta)
@@ -217,12 +220,13 @@ def revenue_forecast(db: Session, months_ahead: int = 3) -> dict:
         history = [{"month": k, "amount": v} for k, v in sorted(agg.items())]
     except Exception as exc:
         _log.warning("Invoice-based revenue forecast unavailable (%s); using hours fallback", exc)
+        db.rollback()   # M14 (auditoría 22-11-2026): tras un error SQL la transacción queda abortada
         # Fallback: usa imputaciones × tarifa horaria como proxy. NOTA: la
         # tarifa 85 €/h es una estimación grosera. Si tu empresa tiene
         # tarifa distinta, configurar AI_REVENUE_HOURLY_RATE_FALLBACK.
         imp_rows = (
             db.query(Imputation.date, Imputation.hours)
-            .filter(Imputation.date >= start.date())
+            .filter(Imputation.date >= start.date(), Imputation.is_active.is_(True))
             .all()
         )
         rate = float(getattr(settings, "AI_REVENUE_HOURLY_RATE_FALLBACK", 85.0) or 85.0)

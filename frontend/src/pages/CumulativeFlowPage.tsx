@@ -5,9 +5,10 @@ import type { CSSProperties } from 'react'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
-import { projectsApi, epicsApi } from '../services/api'
+import { epicsApi } from '../services/api'
+import { useListaDeProyectos } from '../hooks/useListas'
 import type { FlujoAcumulado } from '../services/api/tipos-proyectos'
-import { Button, Spinner, EmptyState, KpiCard, SelectorDePeriodo, Select, TablaSimple } from '../components/ui'
+import { Button, Spinner, EmptyState, EstadoDeError, KpiCard, SelectorDePeriodo, Select, TablaSimple } from '../components/ui'
 import { usePeriodo } from '../hooks/usePeriodo'
 import { SIN_HORA, codigoDeErrorDePeriodo, formatearTramo } from '../utils/periodo'
 import PageHeader from '../components/layout/PageHeader'
@@ -16,11 +17,6 @@ import { AlertTriangle, CalendarDays, Camera, CheckCircle2, ListChecks, Percent,
 import { useAppT } from '../i18n/AppLangContext'
 import './CumulativeFlowPage.css'
 import { LEYENDA_SM } from '../constants/estilosGrafico'
-
-interface ProjectItem {
-  id: string | number
-  name?: string
-}
 
 /** epics_service.get_cfd_data: una fila por día con `date` y el recuento de cada estado. */
 type CfdDataRow = FlujoAcumulado['data'][number]
@@ -55,14 +51,12 @@ export default function CumulativeFlowPage(): JSX.Element {
   // por semana o mes cada tramo es la última foto del tramo.
   const periodo = usePeriodo({ defecto: '30d', granularidades: SIN_HORA })
 
-  const { data:projects=[] } = useQuery<ProjectItem[]>({queryKey:['projects'],queryFn:()=>projectsApi.list({}).then(r=>Array.isArray(r.data)?(r.data as ProjectItem[]):[]).catch(()=>[])})
-  const { data:cfd,isLoading,error } = useQuery({
+  // 23-11-2026 (04 A8): lista compartida de proyectos (antes con `.catch(() => [])` que escondía el fallo).
+  const { data:projects=[] } = useListaDeProyectos()
+  const { data:cfd,isLoading,error,refetch } = useQuery({
     queryKey:['cfd',project,periodo.params],
-    queryFn:()=>epicsApi.cfd({ project_id: project, ...periodo.params }).then(r=>r.data).catch((e: unknown):FlujoAcumulado|null=>{
-      // Los errores de periodo se muestran traducidos; el resto, como antes, sin datos.
-      if (codigoDeErrorDePeriodo(e)) throw e
-      return null
-    }),
+    // Los errores de periodo se muestran traducidos; el resto con EstadoDeError (antes: «sin datos»).
+    queryFn:()=>epicsApi.cfd({ project_id: project, ...periodo.params }).then(r=>r.data),
     enabled:!!project,
   })
   const errorDePeriodo = codigoDeErrorDePeriodo(error)
@@ -120,7 +114,9 @@ export default function CumulativeFlowPage(): JSX.Element {
         <EmptyState icon={<AlertTriangle size={28} />} title={t(`periodo_err.${errorDePeriodo.motivo}`, errorDePeriodo.params)} />
       )}
 
-      {project&&!isLoading&&!errorDePeriodo&&data.length===0&&(
+      {project&&error&&!errorDePeriodo&&<EstadoDeError error={error} onReintentar={()=>{ void refetch() }}/>}
+
+      {project&&!isLoading&&!error&&data.length===0&&(
         <EmptyState icon={<Camera size={28} />} title={t('cumulative_flow.no_history')}
           description={t('cumulative_flow.no_history_desc')} action={snapshotButton} />
       )}

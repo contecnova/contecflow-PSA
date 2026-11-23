@@ -21,32 +21,6 @@
 .rb-derecha { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
 .rb-vista { padding: 0; min-height: 200px; overflow: hidden; }
 
-/* ── Buscador de campos ──────────────────────────────────────────────────── */
-.rb-buscar { position: relative; }
-.rb-buscar__icono {
-  position: absolute;
-  left: 10px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--text-3);
-  pointer-events: none;
-}
-.rb-buscar__campo { padding-left: 30px; padding-right: 30px; }
-.rb-buscar__limpiar {
-  position: absolute;
-  right: 6px;
-  top: 50%;
-  transform: translateY(-50%);
-  display: inline-flex;
-  padding: 3px;
-  border: none;
-  border-radius: var(--radius-sm);
-  background: none;
-  color: var(--text-3);
-  cursor: pointer;
-}
-.rb-buscar__limpiar:hover { color: var(--text-1); background: var(--surface-3); }
-
 .rb-seleccion { display: flex; align-items: center; gap: 4px; }
 .rb-contador {
   margin-left: auto;

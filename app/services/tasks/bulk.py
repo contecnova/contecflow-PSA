@@ -9,8 +9,8 @@ from __future__ import annotations
 from sqlalchemy.orm import Session, joinedload
 
 from app.models.project import Project
-from app.models.task import Task
-from app.models.user import UserRole
+from app.models.task import Task, TaskPriority
+from app.models.user import User, UserRole
 from app.services.tasks.core import apply_status_side_effects, validate_task_transition
 from app.core.abac_enforce import enforce_abac
 from app.core.errores import ErrorDeDominio
@@ -73,6 +73,19 @@ def bulk_update_tasks(task_ids: list, updates: dict, current_user, db: Session) 
     new_assignee_id = updates.get("assignee_id")
     new_priority = updates.get("priority")
 
+    # Ronda 2 auditoría 2026-11-22: antes se escribían tal cual. Una prioridad
+    # fuera del enum daba 500 en el commit y el asignado podía no existir, estar
+    # de baja o ser de otra empresa.
+    if new_priority is not None and new_priority not in {p.value for p in TaskPriority}:
+        from app.core.codigos_de_error import error
+        raise error(422, "valor_no_valido", valor=new_priority)
+    asignado = None
+    if new_assignee_id:
+        asignado = db.query(User).filter(User.id == new_assignee_id, User.is_active.is_(True)).first()
+        if asignado is None:
+            from app.core.codigos_de_error import error
+            raise error(422, "no_encontrado", detail="Usuario no encontrado", que="usuario")
+
     updated = 0
     skipped = []
 
@@ -89,6 +102,10 @@ def bulk_update_tasks(task_ids: list, updates: dict, current_user, db: Session) 
             enforce_abac(db, current_user, "task", task.id, action="update")
         except ErrorDeDominio:
             skipped.append({"id": task.id, "reason": "abac_denied"})
+            continue
+
+        if asignado is not None and task.organization_id and                 str(task.organization_id) not in {str(o) for o in (asignado.organization_ids or [])} | {str(asignado.organization_id)}:
+            skipped.append({"id": task.id, "reason": "assignee_other_org"})
             continue
 
         if new_status and new_status != task.status:

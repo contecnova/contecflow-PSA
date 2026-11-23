@@ -13,6 +13,13 @@ from pydantic import Field
 class AutomationsSettingsMixin:
     # Interruptor por organizacion: con False las reglas solo se simulan.
     AUTOMATIONS_ENABLED: bool = Field(default=True, env="AUTOMATIONS_ENABLED")
+    # Canal de Slack si la configuracion de la empresa no fija uno (ronda 2
+    # auditoria 2026-11-22: antes «#general» y «#contecflow-alerts» fijos).
+    SLACK_CANAL_POR_DEFECTO: str = Field(default="#contecflow-alerts", env="SLACK_CANAL_POR_DEFECTO")
+    # Entregas de webhooks salientes por webhook y minuto (antes 120 fijo).
+    WEBHOOK_OUTBOUND_PER_MIN: int = Field(default=120, env="WEBHOOK_OUTBOUND_PER_MIN")
+    # Version de la API REST de Salesforce (antes `v57.0` fijo en la URL).
+    SALESFORCE_API_VERSION: str = Field(default="v57.0", env="SALESFORCE_API_VERSION")
     # Una accion de una regla puede disparar otra regla; mas alla de esta
     # profundidad la cadena se corta (evita bucles entre reglas).
     AUTOMATIONS_MAX_CHAIN_DEPTH: int = Field(default=3, env="AUTOMATIONS_MAX_CHAIN_DEPTH")

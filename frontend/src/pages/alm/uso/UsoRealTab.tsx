@@ -8,7 +8,7 @@
  */
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Activity, Layers3, PackageSearch, Plug, Recycle, ShieldCheck, ShieldHalf } from 'lucide-react'
+import { Activity, Layers3, PackageSearch, Recycle, ShieldCheck, ShieldHalf } from 'lucide-react'
 import { Button, DataTable, EmptyState, Spinner, Tabs } from '../../../components/ui'
 import type { ColumnaDeTabla } from '../../../components/ui'
 import { pedirTexto } from '../../../context/ConfirmContext'
@@ -20,7 +20,6 @@ import type { Recuperacion } from '../../../services/api/almUso'
 import { fmtDate } from '../../../utils/helpers'
 import AjustePanel from './AjustePanel'
 import CumplimientoPanel from './CumplimientoPanel'
-import FuentesPanel from './FuentesPanel'
 import NoControladoPanel from './NoControladoPanel'
 import RecuperacionPanel from './RecuperacionPanel'
 import UsoPanel from './UsoPanel'
@@ -70,18 +69,16 @@ export default function UsoRealTab() {
     { id: 'ajuste', label: t('alm_uso.tab_ajuste'), icon: <Layers3 size={14} /> },
     { id: 'cumplimiento', label: t('alm_uso.tab_cumplimiento'), icon: <ShieldHalf size={14} /> },
     { id: 'no_controlado', label: t('alm_uso.tab_no_controlado'), icon: <PackageSearch size={14} /> },
-    ...(esAdmin ? [{ id: 'fuentes', label: t('alm_uso.tab_fuentes'), icon: <Plug size={14} /> }] : []),
   ]
   return (
     <div className="u-stack-16">
       <Tabs items={items} active={tab} onChange={setTab} size="sm" variant="underline" ariaLabel={t('alm_uso.tabs_aria')} />
       <div role="tabpanel" aria-label={items.find(i => i.id === tab)?.label}>
-        {tab === 'uso' && <UsoPanel onIr={id => setTab(esAdmin ? id : 'uso')} />}
+        {tab === 'uso' && <UsoPanel />}
         {tab === 'recuperacion' && <RecuperacionPanel />}
         {tab === 'ajuste' && <AjustePanel />}
         {tab === 'cumplimiento' && <CumplimientoPanel />}
         {tab === 'no_controlado' && <NoControladoPanel />}
-        {tab === 'fuentes' && esAdmin && <FuentesPanel />}
       </div>
     </div>
   )

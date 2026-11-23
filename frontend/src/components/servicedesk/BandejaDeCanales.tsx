@@ -36,6 +36,7 @@ import VistaPreviaDeSalida, { type SalidaAlCliente } from '../traduccion/VistaPr
 import { claveDeTraduccion, useConfigDeTraduccion, useMensajesTraducidos, type ElementoATraducir } from '../../hooks/useTraduccion'
 import useAvisosEnVivo, { enviarPorAvisosEnVivo, type MensajeDeAvisos } from '../../hooks/useAvisosEnVivo'
 import './sdMercado.css'
+import { Textarea } from '../ui'
 
 const ESTADO_KIND: Record<string, StatusBadgeKind> = { waiting_agent: 'warning', agent: 'success', bot: 'info', closed: 'neutral' }
 const ENTREGA_KIND: Record<string, StatusBadgeKind> = { template: 'info', failed: 'danger', outside_window: 'warning' }
@@ -213,7 +214,7 @@ function Conversacion({ id, onAbrirTicket, enVivo, aviso }: { id: string; onAbri
       </div>
       {c.status !== 'closed' && (
         <div className="u-row-8">
-          <textarea className="ds-input u-flex1" rows={2} aria-label={t('sd_mercado.respuesta')} value={texto} onChange={e => escribiendo(e.target.value)} />
+          <Textarea rows={2} aria-label={t('sd_mercado.respuesta')} value={texto} onChange={e => escribiendo(e.target.value)} className="u-flex1" />
           <Button icon={<Send size={14} />} onClick={() => responder.mutate()} loading={responder.isPending} disabled={!texto.trim() || desfasada}>{t('sd_mercado.enviar')}</Button>
         </div>
       )}

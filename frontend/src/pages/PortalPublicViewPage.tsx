@@ -3,7 +3,7 @@ import { useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useParams } from 'react-router-dom'
 import { LangContext, TextosDeInterfazDelPortal, useLang, useEtiquetaEstado } from './portal-client/portalClientContext'
-import { PORTAL_LANGUAGES } from '../i18n/portalTranslations'
+import { idiomaInicialDelPortal } from '../i18n/portalTranslations'
 import { fmtDate, fijarIdiomaDeFormato } from '../utils/helpers'
 import { EmptyState } from '../components/ui'
 import { Flag, Package } from 'lucide-react'
@@ -14,7 +14,6 @@ import './PortalPublicViewPage.css'
 // cookies de sesión ni refresco.
 const API = apiPublica  // base y límite comunes (19-11-2026)
 
-// TODO type: backend portal/view response shape — currently consumed as unknown
 interface PortalPublicView {
   project?: { id?: string; name?: string; code?: string; status?: string }
   milestones?: Array<{ id: string; name: string; is_completed?: boolean; due_date?: string | null }>
@@ -23,15 +22,9 @@ interface PortalPublicView {
 
 /** Idioma de la vista pública (16-11-2026): la de un enlace no tiene sesión,
  *  así que se usa el último idioma del portal en este navegador o el del
- *  navegador, si es uno de los 8 del portal; si no, castellano. */
+ *  navegador, si es uno de los 8 del portal; si no, inglés (incidencia 5). */
 function idiomaDeLaVistaPublica(): string {
-  const valido = (c?: string | null) => !!c && PORTAL_LANGUAGES.some(l => l.code === c)
-  try {
-    const guardado = localStorage.getItem('portal_lang')
-    if (valido(guardado)) return guardado as string
-  } catch { /* almacenamiento bloqueado */ }
-  const nav = (typeof navigator !== 'undefined' ? navigator.language : 'es').slice(0, 2)
-  return valido(nav) ? nav : 'es'
+  return idiomaInicialDelPortal()
 }
 
 export default function PortalPublicViewPage(): JSX.Element {

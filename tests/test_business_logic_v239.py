@@ -755,8 +755,8 @@ class TestSlackBlockKitPreview:
             },
             headers=admin_headers,
         )
-        # 503 if no webhook configured, 502 if delivery fails
-        assert resp.status_code in (503, 502)
+        # Sin webhook configurado el envio responde 503 (el 502 es solo para un fallo de entrega real).
+        assert resp.status_code == 503, resp.text
 
 
 # ══════════════════════════════════════════════════════════════════════════════

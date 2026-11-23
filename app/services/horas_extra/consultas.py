@@ -28,6 +28,16 @@ from app.services.horas_extra import calculo, config, solicitudes
 CAMPOS_DE_LIMITE = ("horas_en_dia", "horas_en_semana", "horas_en_mes", "horas_en_anio", "horas_en_anio_pago")
 
 
+
+def _json_o_vacio(texto) -> dict:
+    """Baja (auditoría 22-11-2026): un evento con JSON dañado ya no tumba la ficha."""
+    try:
+        v = json.loads(texto or "{}")
+        return v if isinstance(v, dict) else {"valor": v}
+    except (TypeError, ValueError):
+        return {}
+
+
 def _rol(u) -> str:
     return str(getattr(getattr(u, "role", None), "value", getattr(u, "role", None)) or "")
 
@@ -282,7 +292,7 @@ def detalle(db: Session, usuario, p) -> dict:
         "peticion": ficha,
         "linea_de_tiempo": [{"tipo": x.tipo, "quien": nombres.get(x.actor_id),
                              "cuando": x.created_at.isoformat() if x.created_at else None,
-                             "datos": json.loads(x.datos or "{}")} for x in eventos],
+                             "datos": _json_o_vacio(x.datos)} for x in eventos],
         "evaluaciones": _evaluaciones(db, p),
         "aprobacion": _aprobacion(db, p),
         "dia": {"horario_horas": e["horario"], "tramos": tr.a_lista(d.libres) if d is not None else [],
@@ -541,7 +551,10 @@ def cumplimiento(db: Session, org: str, user_ids: list[str]) -> dict:
     los límites publicados en el año, y horas fuera de horario sin autorizar en los últimos 30 días."""
     from app.models.horas_extra import ConfigDeHorasExtra
     f = db.query(ConfigDeHorasExtra).filter(ConfigDeHorasExtra.organization_id == org).first()
-    tolerancia = int(f.tolerancia_minutos or 0) if f is not None else 15
+    # Baja (auditoría 22-11-2026): sin fila, la tolerancia de la configuración por
+    # defecto (`config.DEFECTO`), no un 15 repetido aquí.
+    from app.services.horas_extra.config import DEFECTO
+    tolerancia = int(f.tolerancia_minutos or 0) if f is not None else int(DEFECTO["tolerancia_minutos"])
     desde, hasta = ultimos_dias(30)
     ids = set(user_ids)
     excesos = [e for e in calculo.excesos(db, desde, hasta, ids, tolerancia) if e["sin_autorizar"] > 0]

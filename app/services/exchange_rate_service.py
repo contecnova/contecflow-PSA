@@ -34,14 +34,8 @@ logger = logging.getLogger(__name__)
 ECB_URL = "https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml"
 ECB_NS  = "http://www.ecb.int/vocabulary/2002-08-01/eurofxref"
 
-# Currencies supported by ECB feed
-ECB_CURRENCIES = {
-    "USD", "JPY", "BGN", "CZK", "DKK", "GBP", "HUF", "PLN", "RON", "SEK",
-    "CHF", "ISK", "NOK", "HRK", "TRY", "AUD", "BRL", "CAD", "CNY", "HKD",
-    "IDR", "ILS", "INR", "KRW", "MXN", "MYR", "NZD", "PHP", "SGD", "THB",
-    "ZAR",
-}
-
+# Auditoría 22-11-2026: `ECB_CURRENCIES` (sin uso; incluía HRK, retirada) eliminada:
+# las monedas son las que publique el BCE en cada fichero.
 
 def org_de_la_sesion(db: Session):
     """La empresa a la que pertenece lo que se escribe ahora (None: global)."""
@@ -108,11 +102,14 @@ def sync_ecb_rates(db: Session, force: bool = False) -> dict:
                 rate_val = float(rate_str)
             except ValueError:
                 continue
+            if rate_val <= 0:   # M5: una cotización 0 ya no deshace todo el sync
+                logger.warning("ECB: cotización no válida para %s: %s", currency, rate_str)
+                continue
 
             # EUR → CURRENCY
             _upsert_pair(db, "EUR", currency, rate_val, rate_date)
             # CURRENCY → EUR (inverse)
-            _upsert_pair(db, currency, "EUR", round(1.0 / rate_val, 6), rate_date)
+            _upsert_pair(db, currency, "EUR", 1.0 / rate_val, rate_date)
             upserted += 2
 
         db.commit()
@@ -165,11 +162,13 @@ def sync_openexchangerates(db: Session, app_id: str,
     Fetch latest rates from OpenExchangeRates (requires a free App ID).
     Stores USD-based rates (or selected base).
     """
-    url = f"https://openexchangerates.org/api/latest.json?app_id={app_id}&base={base}"
+    # M5 (auditoría 22-11-2026): el App ID va en la cabecera `Authorization: Token …`
+    # (admitida por la API de OpenExchangeRates), no en la URL que registra httpx.
+    url = f"https://openexchangerates.org/api/latest.json?base={base}"
     try:
         from app.services.settings_service import outbound_http_timeout
         with httpx.Client(timeout=outbound_http_timeout(db, default=15.0)) as client:
-            resp = client.get(url)
+            resp = client.get(url, headers={"Authorization": f"Token {app_id}"})
             resp.raise_for_status()
             data = resp.json()
     except Exception as exc:
@@ -186,7 +185,7 @@ def sync_openexchangerates(db: Session, app_id: str,
         _upsert_pair(db, base.upper(), currency.upper(), float(rate_val), rate_date)
         if float(rate_val) > 0:
             _upsert_pair(db, currency.upper(), base.upper(),
-                         round(1.0 / float(rate_val), 6), rate_date)
+                         1.0 / float(rate_val), rate_date)
         upserted += 2
 
     db.commit()
@@ -206,10 +205,6 @@ def get_rate(db: Session, from_c: str, to_c: str,
     # rates in the same transaction are visible to this read.
     db.flush()
 
-    ref = as_of or timeutil.today()
-    row = db.query(ExchangeRate).filter(
-        ExchangeRate.from_currency == from_c,
-        ExchangeRate.to_currency   == to_c,
-        ExchangeRate.effective_date <= ref,
-    ).order_by(ExchangeRate.effective_date.desc(), PROPIOS_PRIMERO).first()
-    return row.rate if row else None
+    # Auditoría 22-11-2026 (A41): delega en el resolutor único (None si no hay).
+    from app.services.currency_rates_service import tipo_de_cambio
+    return tipo_de_cambio(db, from_c, to_c, as_of or timeutil.today())

@@ -9,7 +9,7 @@ import logging
 from pydantic import BaseModel, Field
 
 from app.db.session import get_db
-from app.core.deps import require_admin, require_admin_or_pm, get_current_user, require_internal_user, require_superadmin
+from app.core.deps import get_current_user, require_superadmin, requiere_capacidad
 from app.core.periodo import SIN_HORA, Periodo, periodo
 from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
@@ -1027,7 +1027,7 @@ def get_narrative(
     lang: Optional[str] = Query(None, description="Idioma: es | en | ca (por defecto, el del usuario / la organización)"),
     force_refresh: bool = Query(False, description="Ignorar caché y regenerar"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin_or_pm),
+    current_user: User = Depends(requiere_capacidad("analitica.gestionar")),
 ):
     from app.services.bi_storytelling import generate_narrative
     org_id = getattr(current_user, "organization_id", None)
@@ -1041,7 +1041,7 @@ def ask_the_data(
     request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: consultas analiticas
+    _rol: User = Depends(requiere_capacidad("analitica.usar")),  # auditoria 2026-09: dominio: consultas analiticas
 ):
     from app.services.ask_the_data import ask
     from app.services.bi_governance_service import registrar_acceso
@@ -1063,14 +1063,14 @@ class EjemploAskIn(BaseModel):
 
 
 @router.get("/ask/examples", summary="Preguntas validadas de Ask-the-Data de la empresa (admin o PM)")
-def list_ask_examples(db: Session = Depends(get_db), current_user: User = Depends(require_admin_or_pm)):
+def list_ask_examples(db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("analitica.gestionar"))):
     from app.services import ask_banco
     return APIResponse.ok(data=ask_banco.lista(db, current_user.organization_id))
 
 
 @router.post("/ask/examples", summary="Marcar una respuesta de Ask-the-Data como correcta (admin o PM)")
 def save_ask_example(payload: EjemploAskIn, db: Session = Depends(get_db),
-                     current_user: User = Depends(require_admin_or_pm)):
+                     current_user: User = Depends(requiere_capacidad("analitica.gestionar"))):
     from app.services import ask_banco
     from app.services.ask_the_data import SQLValidationError
     try:
@@ -1082,7 +1082,7 @@ def save_ask_example(payload: EjemploAskIn, db: Session = Depends(get_db),
 
 @router.delete("/ask/examples/{example_id}", summary="Quitar una pregunta validada (admin o PM)")
 def delete_ask_example(example_id: str, db: Session = Depends(get_db),
-                       current_user: User = Depends(require_admin_or_pm)):
+                       current_user: User = Depends(requiere_capacidad("analitica.gestionar"))):
     from app.services import ask_banco
     if not ask_banco.borrar(db, current_user.organization_id, example_id):
         raise error_http(404, "no_encontrado_generico", detail="No existe")
@@ -1091,7 +1091,7 @@ def delete_ask_example(example_id: str, db: Session = Depends(get_db),
 
 # ── Estado y carga del almacén analítico (revisión 2026-11) ──────────────────
 @router.get("/olap/status", summary="Última carga del almacén analítico y filas de la empresa")
-def olap_status(current_user: User = Depends(require_internal_user)):
+def olap_status(current_user: User = Depends(requiere_capacidad("analitica.usar"))):
     from app.services.olap.etl import estado
     return APIResponse.ok(data=estado(current_user.organization_id,
                                       plataforma=bool(getattr(current_user, "is_superadmin", False))))
@@ -1115,7 +1115,9 @@ def olap_refresh(db: Session = Depends(get_db), current_user: User = Depends(req
 @router.get("/olap/kpis", summary="KPIs del OLAP (DuckDB)")
 def get_olap_kpis(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    # Auditoría 22-11-2026 (03, OLAP): ingresos, márgenes y utilización; antes bastaba la
+    # sesión. Misma audiencia que /executive y margin-evolution (`analitica.ver`).
+    current_user: User = Depends(requiere_capacidad("analitica.ver")),
 ):
     from app.services.olap.query_engine import get_kpi_summary
     org_id = getattr(current_user, "organization_id", None)
@@ -1125,7 +1127,9 @@ def get_olap_kpis(
 @router.get("/olap/pipeline-funnel", summary="Funnel del pipeline (OLAP)")
 def get_olap_pipeline_funnel(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    # Auditoría 22-11-2026 (03, OLAP): ingresos, márgenes y utilización; antes bastaba la
+    # sesión. Misma audiencia que /executive y margin-evolution (`analitica.ver`).
+    current_user: User = Depends(requiere_capacidad("analitica.ver")),
 ):
     from app.services.olap.query_engine import get_pipeline_funnel
     org_id = getattr(current_user, "organization_id", None)
@@ -1135,7 +1139,9 @@ def get_olap_pipeline_funnel(
 @router.get("/olap/portfolio-health", summary="Salud del portfolio (OLAP)")
 def get_olap_portfolio_health(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    # Auditoría 22-11-2026 (03, OLAP): ingresos, márgenes y utilización; antes bastaba la
+    # sesión. Misma audiencia que /executive y margin-evolution (`analitica.ver`).
+    current_user: User = Depends(requiere_capacidad("analitica.ver")),
 ):
     from app.services.olap.query_engine import get_portfolio_health
     org_id = getattr(current_user, "organization_id", None)
@@ -1164,7 +1170,7 @@ def get_olap_margin_evolution(
     cliente_id: Optional[str] = Query(None, max_length=36, description="Solo los proyectos de este cliente."),
     p: Periodo = Depends(periodo(dias_por_defecto=365, granularidades=SIN_HORA)),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin_or_pm),
+    current_user: User = Depends(requiere_capacidad("analitica.gestionar")),
 ):
     """Periodo libre: ``desde``/``hasta``/``granularidad`` (día, semana o mes).
     Sin periodo, los últimos ``months`` (12) meses naturales por mes. Cada punto:
@@ -1188,7 +1194,7 @@ def get_olap_margin_breakdown(
     cliente_id: Optional[str] = Query(None, max_length=36),
     p: Periodo = Depends(periodo(dias_por_defecto=365, granularidades=SIN_HORA)),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin_or_pm),
+    current_user: User = Depends(requiere_capacidad("analitica.gestionar")),
 ):
     """Mismo periodo y filtros que la serie. Filas: ``id``, ``codigo``,
     ``nombre``, ``revenue``, ``total_cost``, ``margin``, ``margin_pct``,
@@ -1203,7 +1209,9 @@ def get_olap_margin_breakdown(
 @router.get("/olap/utilization", summary="Utilización por usuario (OLAP)")
 def get_olap_utilization(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    # Auditoría 22-11-2026 (03, OLAP): ingresos, márgenes y utilización; antes bastaba la
+    # sesión. Misma audiencia que /executive y margin-evolution (`analitica.ver`).
+    current_user: User = Depends(requiere_capacidad("analitica.ver")),
 ):
     from app.services.olap.query_engine import get_utilization_by_user
     org_id = getattr(current_user, "organization_id", None)

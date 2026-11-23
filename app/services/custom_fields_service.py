@@ -24,6 +24,7 @@ from app.models.user import User
 from app.core.errores import ErrorDeDominio
 from app.models.user import UserRole
 from app.core.codigos_de_error import error
+from app.services.textos_guardados import pintar_campo as _pintar
 
 if TYPE_CHECKING:
     pass
@@ -44,14 +45,15 @@ def serialize_field(f) -> dict:
 
 def serialize_state(s) -> dict:
     return {
-        "id": s.id, "project_id": s.project_id, "name": s.name,
+        "id": s.id, "project_id": s.project_id,
+        "name": _pintar(s, "name", clave="texto_clave", params="texto_params"),
         "value": s.value, "color": s.color, "icon": s.icon,
         "is_initial": s.is_initial, "is_final": s.is_final, "sort_order": s.sort_order,
         "transitions_from": [
             {
                 "id": t.id, "to_state_id": t.to_state_id,
-                "to_state_name": t.to_state.name if t.to_state else None,
-                "label": t.label, "required_role": t.required_role,
+                "to_state_name": _pintar(t.to_state, "name", clave="texto_clave", params="texto_params") if t.to_state else None,
+                "label": _pintar(t, "label", clave="texto_clave", params="texto_params"), "required_role": t.required_role,
                 "requires_comment": t.requires_comment,
             }
             for t in (s.transitions_from or [])
@@ -224,6 +226,8 @@ def update_workflow_state(project_id: str, state_id: str, payload, db: Session) 
     if not s:
         raise error(404, "no_encontrado", detail="Estado no encontrado", que="estado")
     for k, v in payload.model_dump(exclude_unset=True).items():
+        if k == "name" and v not in (s.name, _pintar(s, "name", clave="texto_clave", params="texto_params")):
+            s.texto_clave = s.texto_params = None   # migracion 200: nombre escrito a mano, se respeta
         setattr(s, k, v)
     db.commit()
     db.refresh(s)
@@ -269,7 +273,7 @@ def create_transition(project_id: str, payload, db: Session) -> dict:
     db.refresh(t)
     return {
         "id": t.id, "from_state_id": t.from_state_id, "to_state_id": t.to_state_id,
-        "label": t.label, "required_role": t.required_role,
+        "label": _pintar(t, "label", clave="texto_clave", params="texto_params"), "required_role": t.required_role,
         "requires_comment": t.requires_comment,
     }
 
@@ -287,7 +291,11 @@ def delete_transition(project_id: str, transition_id: str, db: Session) -> dict:
     # Soft-delete: mark as inactive
     t.is_active = False
     db.commit()
-    return {"ok": True, "message": "Transición eliminada"}
+    from app.models.project import Project as _Proyecto
+    from app.services.formato_regional import idioma_de_salida
+    from app.services.textos_de_salida import texto as _tx
+    _org = db.query(_Proyecto.organization_id).filter(_Proyecto.id == project_id).scalar()
+    return {"ok": True, "message": _tx("flujo.transicion_eliminada", idioma_de_salida(db, org_id=_org))}
 
 
 def init_default_workflow(project_id: str, db: Session) -> dict:
@@ -299,37 +307,47 @@ def init_default_workflow(project_id: str, db: Session) -> dict:
     if existing > 0:
         raise error(400, "proyecto_ya_tiene_flujo", detail="Este proyecto ya tiene un workflow definido")
 
+    from app.models.project import Project as _Proyecto
+    from app.services.formato_regional import idioma_de_salida
+    from app.services.textos_de_salida import texto as _tx
+    _org = db.query(_Proyecto.organization_id).filter(_Proyecto.id == project_id).scalar()
+    _id = idioma_de_salida(db, org_id=_org)
+    # 23-11-2026: nombres y etiquetas en el idioma de la empresa (`flujo.estado.*`, `flujo.transicion.*`).
     defaults = [
-        ("Pendiente",   "todo",        "#7a8aaa", "⭕", True,  False, 0),
-        ("En progreso", "in_progress", "#00d4ff", "🔵", False, False, 1),
-        ("En revisión", "in_review",   "#ffb800", "🟡", False, False, 2),
-        ("Completado",  "done",        "#00e5a0", "✅", False, True,  3),
-        ("Bloqueado",   "blocked",     "#ff4757", "🔴", False, False, 4),
+        ("todo",        "#7a8aaa", "⭕", True,  False, 0),
+        ("in_progress", "#00d4ff", "🔵", False, False, 1),
+        ("in_review",   "#ffb800", "🟡", False, False, 2),
+        ("done",        "#00e5a0", "✅", False, True,  3),
+        ("blocked",     "#ff4757", "🔴", False, False, 4),
     ]
     states: dict = {}
-    for name, value, color, icon, is_initial, is_final, order in defaults:
+    for value, color, icon, is_initial, is_final, order in defaults:
+        name = _tx(f"flujo.estado.{value}", _id)
         s = WorkflowState(
             project_id=project_id, name=name, value=value, color=color,
             icon=icon, is_initial=is_initial, is_final=is_final, sort_order=order,
+            texto_clave=f"flujo.estado.{value}",   # migracion 200
         )
         db.add(s)
         db.flush()
         states[value] = s
 
     transitions = [
-        ("todo",        "in_progress", "Iniciar",           None, False),
-        ("in_progress", "in_review",   "Enviar a revisión", None, False),
-        ("in_progress", "blocked",     "Marcar bloqueado",  None, True),
-        ("in_review",   "done",        "Aprobar",           "pm", True),
-        ("in_review",   "in_progress", "Rechazar",          "pm", True),
-        ("blocked",     "in_progress", "Desbloquear",       None, False),
-        ("todo",        "blocked",     "Bloquear",          None, False),
+        ("todo",        "in_progress", "iniciar",     None, False),
+        ("in_progress", "in_review",   "revision",    None, False),
+        ("in_progress", "blocked",     "bloqueado",   None, True),
+        ("in_review",   "done",        "aprobar",     "pm", True),
+        ("in_review",   "in_progress", "rechazar",    "pm", True),
+        ("blocked",     "in_progress", "desbloquear", None, False),
+        ("todo",        "blocked",     "bloquear",    None, False),
     ]
-    for from_v, to_v, label, role, req_comment in transitions:
+    for from_v, to_v, clave, role, req_comment in transitions:
+        label = _tx(f"flujo.transicion.{clave}", _id)
         db.add(WorkflowTransition(
             project_id=project_id,
             from_state_id=states[from_v].id, to_state_id=states[to_v].id,
             label=label, required_role=role, requires_comment=req_comment,
+            texto_clave=f"flujo.transicion.{clave}",   # migracion 200
         ))
     db.commit()
     return {"initialized": True, "states": len(defaults), "transitions": len(transitions)}
@@ -370,7 +388,7 @@ def transition_task(project_id: str, task_id: str, payload, current_user, db: Se
     db.commit()
     return {
         "task_id": task_id, "from": old_status,
-        "to": to_state.value, "state_name": to_state.name,
+        "to": to_state.value, "state_name": _pintar(to_state, "name", clave="texto_clave", params="texto_params"),
     }
 
 

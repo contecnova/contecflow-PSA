@@ -93,8 +93,8 @@
   margin-top: 10px;
   padding-left: 46px;
 }
-.okr-kr__valor.ds-input { width: 200px; }
-.okr-kr__nota.ds-input { flex: 1; min-width: 180px; width: auto; }
+.okr-kr__valor { width: 200px; }
+.okr-kr__nota { flex: 1; min-width: 180px; }
 
 @media (max-width: 640px) {
   .okr-kr { padding-left: 0; }

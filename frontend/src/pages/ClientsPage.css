@@ -24,7 +24,6 @@
 }
 textarea.cli-input { min-height: 70px; resize: vertical; }
 .cli-input--auto { width: auto; }
-.cli-input--mb { margin-bottom: 8px; }
 
 .cli-label {
   font-size: var(--text-xs);
@@ -47,8 +46,9 @@ textarea.cli-input { min-height: 70px; resize: vertical; }
   .cli-detail { border-left: none; padding-left: 0; border-top: 1px solid var(--surface-4); padding-top: 20px; }
 }
 
-.cli-filters { display: flex; gap: 6px; margin-bottom: 8px; min-width: 0; }
-
+/* 23-11-2026: filtros de la columna de lista (estrecha). Buscador, tipo como
+   segmentado a todo el ancho con botones iguales, y estado + orden en dos
+   columnas iguales: nada se recorta. Misma separación (8 px) entre filas. */
 /* ── Tarjeta de cliente (vista rejilla) ──────────────────────────────────── */
 /* Un <button> mide lo que su contenido y centra el texto: todas al ancho de la columna. */
 .cli-card {

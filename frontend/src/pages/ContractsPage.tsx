@@ -3,7 +3,8 @@ import type { CSSProperties, ChangeEvent } from 'react'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { z } from 'zod'
-import { projectsApi, contractsApi } from '../services/api'
+import { contractsApi } from '../services/api'
+import { useListaDeProyectos } from '../hooks/useListas'
 import type { ContratoDeServicio } from '../services/api/tipos-finanzas'
 import DocumentosDeFicha from '../components/conectores/DocumentosDeFicha'
 import { Button, Modal, Spinner, EmptyState, ClientSelect, KpiCard, useSort, SortableTH, Pulsable, Select, useErroresDeCampo, Input, Textarea } from '../components/ui'
@@ -117,7 +118,7 @@ function ContractFormModal({ contract, onClose }: { contract?: Contract | null; 
   const qc = useQueryClient()
   const toast = useToast()
   const isEdit = !!contract?.id
-  const { data: projects = [] } = useQuery<Array<{ id: string; code?: string; name?: string }>>({ queryKey: ['projects'], queryFn: () => projectsApi.list().then(r => ((r.data as { items?: unknown[] })?.items ?? (r.data as unknown[]) ?? []) as Array<{ id: string; code?: string; name?: string }>) })
+  const { data: projects = [] } = useListaDeProyectos() // 23-11-2026 (04 A8): lista compartida
   const [form, setForm] = useState({
     name: contract?.name || '',
     project_id: contract?.project_id || '',
@@ -164,8 +165,7 @@ function ContractFormModal({ contract, onClose }: { contract?: Contract | null; 
   const tarifaHora = (
     <div>
       <label htmlFor={`${idCampo}-tarifa`} className="ctr-label">{t('contractspage.tarifa_hora', { simbolo: fmtMoneda.simbolo })}</label>
-      <input id={`${idCampo}-tarifa`} type="number" value={form.hourly_rate} onChange={set('hourly_rate')} className="ctr-input" placeholder={t('contracts.tarifa_por_hora')} {...err('hourly_rate')} />
-      {msg('hourly_rate')}
+      <Input id={`${idCampo}-tarifa`} type="number" value={form.hourly_rate} onChange={set('hourly_rate')} inputClassName="ctr-input" placeholder={t('contracts.tarifa_por_hora')} error={errs.hourly_rate} />
     </div>
   )
 
@@ -174,8 +174,7 @@ function ContractFormModal({ contract, onClose }: { contract?: Contract | null; 
       <div className="u-grid2-14">
         <div className="u-col-full">
           <label id={`${idCampo}-eta186`} htmlFor={`${idCampo}-a186`} className="ctr-label">{t('contractspage.campo_nombre')}</label>
-          <input id={`${idCampo}-a186`} aria-labelledby={`${idCampo}-eta186`} value={form.name} onChange={set('name')} className="ctr-input" placeholder={t('contracts.nombre_del_contrato')} {...err('name')} />
-          {msg('name')}
+          <Input id={`${idCampo}-a186`} aria-labelledby={`${idCampo}-eta186`} value={form.name} onChange={set('name')} inputClassName="ctr-input" placeholder={t('contracts.nombre_del_contrato')} error={errs.name} />
         </div>
         <div>
           <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="ctr-label">{t('contractspage.campo_proyecto')}</label>
@@ -217,8 +216,7 @@ function ContractFormModal({ contract, onClose }: { contract?: Contract | null; 
         {form.contract_type === 'fixed_price' && (
           <div>
             <label htmlFor={`${idCampo}-importe`} className="ctr-label">{t('contractspage.importe_total', { simbolo: fmtMoneda.simbolo })}</label>
-            <input id={`${idCampo}-importe`} type="number" value={form.total_amount} onChange={set('total_amount')} className="ctr-input" placeholder={t('contractspage.ph_importe_total')} {...err('total_amount')} />
-            {msg('total_amount')}
+            <Input id={`${idCampo}-importe`} type="number" value={form.total_amount} onChange={set('total_amount')} inputClassName="ctr-input" placeholder={t('contractspage.ph_importe_total')} error={errs.total_amount} />
           </div>
         )}
         {form.contract_type === 'time_material' && tarifaHora}
@@ -226,8 +224,7 @@ function ContractFormModal({ contract, onClose }: { contract?: Contract | null; 
           <>
             <div>
               <label htmlFor={`${idCampo}-bolsa`} className="ctr-label">{t('contracts.bolsa_de_horas')}</label>
-              <input id={`${idCampo}-bolsa`} type="number" value={form.hours_bag} onChange={set('hours_bag')} className="ctr-input" placeholder={t('contractspage.ph_horas_incluidas')} {...err('hours_bag')} />
-              {msg('hours_bag')}
+              <Input id={`${idCampo}-bolsa`} type="number" value={form.hours_bag} onChange={set('hours_bag')} inputClassName="ctr-input" placeholder={t('contractspage.ph_horas_incluidas')} error={errs.hours_bag} />
             </div>
             {tarifaHora}
           </>
@@ -235,8 +232,7 @@ function ContractFormModal({ contract, onClose }: { contract?: Contract | null; 
         {form.contract_type === 'retainer' && (
           <div>
             <label htmlFor={`${idCampo}-retainer`} className="ctr-label">{t('contractspage.retainer_mensual', { simbolo: fmtMoneda.simbolo })}</label>
-            <input id={`${idCampo}-retainer`} type="number" value={form.monthly_retainer} onChange={set('monthly_retainer')} className="ctr-input" placeholder={t('contractspage.ph_importe_mensual')} {...err('monthly_retainer')} />
-            {msg('monthly_retainer')}
+            <Input id={`${idCampo}-retainer`} type="number" value={form.monthly_retainer} onChange={set('monthly_retainer')} inputClassName="ctr-input" placeholder={t('contractspage.ph_importe_mensual')} error={errs.monthly_retainer} />
           </div>
         )}
         <div>
@@ -376,16 +372,13 @@ function ContractDetail({ contract, onClose, onEdit }: { contract: Contract; onC
           <div className="ctr-wo-form">
             <div className="ctr-wo-form__grid">
               <div>
-                <input value={woForm.name} onChange={setWo('name')} className="ctr-input" placeholder={t('contracts.nombre_de_la_orden')} aria-label={t('contracts.nombre_de_la_orden')} {...err('name')} />
-                {msg('name')}
+                <Input value={woForm.name} onChange={setWo('name')} inputClassName="ctr-input" placeholder={t('contracts.nombre_de_la_orden')} aria-label={t('contracts.nombre_de_la_orden')} error={errs.name} />
               </div>
               <div>
-                <input type="number" value={woForm.amount} onChange={setWo('amount')} className="ctr-input" placeholder={t('contractspage.dato_importe')} aria-label={t('contractspage.dato_importe')} {...err('amount')} />
-                {msg('amount')}
+                <Input type="number" value={woForm.amount} onChange={setWo('amount')} inputClassName="ctr-input" placeholder={t('contractspage.dato_importe')} aria-label={t('contractspage.dato_importe')} error={errs.amount} />
               </div>
               <div>
-                <input type="number" value={woForm.hours} onChange={setWo('hours')} className="ctr-input" placeholder={t('contractspage.horas')} aria-label={t('contractspage.horas')} {...err('hours')} />
-                {msg('hours')}
+                <Input type="number" value={woForm.hours} onChange={setWo('hours')} inputClassName="ctr-input" placeholder={t('contractspage.horas')} aria-label={t('contractspage.horas')} error={errs.hours} />
               </div>
               <div><DateInput value={woForm.start_date} onChange={setWo('start_date')} className="ctr-input" aria-label={t('contractspage.fecha_inicio')} {...err('start_date')} /></div>
               <div>

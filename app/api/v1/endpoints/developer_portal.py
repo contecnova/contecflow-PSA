@@ -23,6 +23,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
+from app.db.session import sesion_de_sistema
 
 from app.core.deps import get_current_user, get_db, requiere_capacidad
 from app.core.abac_enforce import enforce_abac
@@ -180,7 +181,11 @@ def oauth_token(
     payload: TokenRequestIn,
     db: Session = Depends(get_db),
 ):
-    app = svc.get_app_by_client_id(db, payload.client_id)
+    # Auditoría 22-11-2026: ruta anónima; la app se busca entre empresas
+    # (contexto de sistema declarado) y el token se emite en la de la app.
+    from app.db.session import con_empresa, contexto_de_sistema
+    with contexto_de_sistema(db, "oauth_client_credentials"):
+        app = svc.get_app_by_client_id(db, payload.client_id)
     if not app or not _verify_secret(payload.client_secret, app.client_secret_hash):
         raise error_http(401, "oauth_credenciales_no_validas", detail="client_id o client_secret inválido")
 
@@ -197,20 +202,32 @@ def oauth_token(
         if not owner_id:
             raise error_http(400, "oauth_app_sin_propietario", detail="Esta app no tiene propietario configurado")
 
+        # Auditoría 22-11-2026 (M2): el token hereda la empresa de la app y el
+        # dueño tiene que seguir perteneciendo a ella.
+        if not app.organization_id:
+            raise error_http(400, "oauth_app_sin_empresa", detail="La aplicación no tiene organización")
+        vigente = svc.dueno_vigente_en_la_empresa(db, owner_id, app.organization_id)
+        if not vigente:
+            raise error_http(401, "credencial_dueno_fuera_de_empresa",
+                             detail="El dueño de la credencial ya no pertenece a su organización")
+
         raw_token = secrets.token_urlsafe(32)
-        vida = ttl_de_token(db)
+        with con_empresa(db, app.organization_id):
+            vida = ttl_de_token(db)
         expires_at = datetime.now(timezone.utc) + vida
         scopes_list = payload.scope.split() if payload.scope else ["read"]
         # Auditoria 2026-11: antes PBKDF2 con sal aleatoria, que luego se
         # buscaba por igualdad y no coincidia nunca. La huella SHA-256 si.
-        svc.create_token(
-            db,
-            app_id=app.id,
-            user_id=owner_id,
-            token_hash=huella(raw_token),
-            scopes=scopes_list,
-            expires_at=expires_at,
-        )
+        with con_empresa(db, app.organization_id):
+            svc.create_token(
+                db,
+                app_id=app.id,
+                user_id=owner_id,
+                token_hash=huella(raw_token),
+                scopes=scopes_list,
+                expires_at=expires_at,
+                organization_id=app.organization_id,
+            )
 
         return {
             "access_token": raw_token,
@@ -232,16 +249,18 @@ def revoke_token(
     if not auth.startswith("Bearer "):
         raise error_http(401, "oauth_token_bearer_requerido", detail="Token requerido en cabecera Authorization: Bearer <token>")
     raw_token = auth.removeprefix("Bearer ").strip()
-    token = svc.get_token_by_hash(db, huella(raw_token))
-    if token:
-        svc.revoke_token(db, token)
+    from app.db.session import contexto_de_sistema
+    with contexto_de_sistema(db, "oauth_revocar_por_huella"):
+        token = svc.get_token_by_hash(db, huella(raw_token))
+        if token:
+            svc.revoke_token(db, token)
     return {"ok": True}
 
 
 @router.get("/userinfo", summary="Información del usuario autenticado vía OAuth2")
 def oauth_userinfo(
     request: Request,
-    db: Session = Depends(get_db),
+    db: Session = Depends(sesion_de_sistema("oauth: token de acceso del portal de desarrolladores")),
 ):
     """Returns basic profile for the user whose OAuth token is presented."""
     auth = request.headers.get("authorization", "")

@@ -1,5 +1,7 @@
 # Canonical API Response Wrapper — Migration Plan (audit #67)
 
+> **Documento histórico (2026-07-31): no refleja necesariamente el código actual; fuente viva: `app/api/v1/endpoints/` y el `README.md` (convención de respuestas).**
+
 > Informe histórico (estado a 2026-07-31); puede no reflejar el código actual (las cifras de ficheros de endpoints han cambiado).
 
 ## Contexto

@@ -18,7 +18,6 @@ textarea.tkd-input { resize: vertical; }
 /* Respuestas rapidas */
 .tkd-canned { position: absolute; bottom: 100%; left: 0; right: 0; margin-bottom: 4px; background: var(--surface-1); border: 1px solid var(--surface-4); border-radius: var(--radius-md); box-shadow: var(--shadow-md); z-index: var(--z-mobile-nav); max-height: 340px; overflow: hidden; display: flex; flex-direction: column; }
 .tkd-canned__search { padding: 10px 12px; border-bottom: 1px solid var(--surface-4); }
-.tkd-canned__input { width: 100%; background: var(--surface-3); border: 1px solid var(--surface-4); border-radius: var(--radius-sm); padding: 7px 10px; color: var(--text-1); font-size: var(--text-base); outline: none; font-family: inherit; box-sizing: border-box; }
 .tkd-canned__list { overflow-y: auto; flex: 1; }
 .tkd-canned__empty { padding: 20px; text-align: center; font-size: var(--text-sm); color: var(--text-3); }
 .tkd-canned__cat { padding: 6px 12px 2px; font-size: var(--text-2xs); font-weight: 700; color: var(--text-3); letter-spacing: 0.07em; }

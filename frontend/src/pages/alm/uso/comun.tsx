@@ -10,7 +10,7 @@ import { useOrgSettings } from '../../../hooks/useOrgSettings'
 import { useAppT } from '../../../i18n/AppLangContext'
 import { etiquetaCodigo } from '../../../i18n/etiquetaCodigo'
 import { codigoDeError } from '../../../services/api/almUso'
-import type { EstadoDeUso, Fiabilidad } from '../../../services/api/almUso'
+import type { Fiabilidad } from '../../../services/api/almUso'
 
 export type Traducir = ReturnType<typeof useAppT>
 
@@ -41,10 +41,6 @@ export function FiabilidadBadge({ valor }: { valor: Fiabilidad | null | undefine
 
 export function nombreDeFuente(t: Traducir, clave: string | null | undefined): string {
   return clave ? clave.split(',').map(c => etiquetaCodigo(t, 'alm_uso.fuente', c.trim())).join(', ') : '—'
-}
-
-export function textoDeEstado(t: Traducir, e: EstadoDeUso): string {
-  return etiquetaCodigo(t, 'alm_uso.estado', e)
 }
 
 /** Aviso de error con el código del backend traducido (`alm_uso.err.<CODE>`) o su mensaje. */

@@ -1306,10 +1306,6 @@
   max-width: 420px;
 }
 
-.docs-input-4 {
-  padding-left: 32px;
-}
-
 .docs-input-5 {
   width: auto;
   min-width: 140px;
@@ -1404,15 +1400,6 @@
   display: block;
   margin: 0 auto 12px;
   opacity: 0.4;
-}
-
-.docs-box-44 {
-  position: absolute;
-  left: 10px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--text-3);
-  pointer-events: none;
 }
 
 /* ── Estilos en linea extraidos de DocumentsPage.tsx (#17): estaticos, alternancias por className y valores por variable CSS ── */

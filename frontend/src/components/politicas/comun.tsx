@@ -75,9 +75,7 @@ export function ListaDeValores({ valores, onChange, opciones, etiqueta, placehol
             </Pulsable>
           </span>
         ))}
-        <input id={id} className="pol-campo pol-campo--medio" list={`${id}-l`} value={texto} placeholder={placeholder ?? t('pol.anadir')}
-          onChange={e => { setTexto(e.target.value); if (opciones.includes(e.target.value)) anadir(e.target.value) }}
-          onKeyDown={tecla} onBlur={() => libre && anadir(texto)} />
+        <Input id={id} list={`${id}-l`} value={texto} placeholder={placeholder ?? t('pol.anadir')} onChange={e => { setTexto(e.target.value); if (opciones.includes(e.target.value)) anadir(e.target.value) }} onKeyDown={tecla} onBlur={() => libre && anadir(texto)} className="pol-campo--medio" />
         <datalist id={`${id}-l`}>
           {opciones.filter(o => !valores.includes(o)).map(o => <option key={o} value={o}>{ver(o)}</option>)}
         </datalist>
@@ -118,8 +116,7 @@ export function EntradaDeImporte({ valor, onChange, opciones, etiqueta }: {
   const moneda = valor?.moneda ?? opciones?.moneda_por_defecto ?? ''
   return (
     <span className="pol-fila">
-      <input type="number" step="0.01" min={0} className="pol-campo pol-campo--corto" aria-label={etiqueta}
-        value={valor?.cantidad ?? ''} onChange={e => onChange({ cantidad: Number(e.target.value), moneda })} />
+      <Input type="number" step="0.01" min={0} aria-label={etiqueta} value={valor?.cantidad ?? ''} onChange={e => onChange({ cantidad: Number(e.target.value), moneda })} className="pol-campo--corto" />
       <SelectorDeMoneda valor={moneda} opciones={opciones} etiqueta={t('pol.moneda_de', { campo: etiqueta })}
         onChange={m => onChange({ cantidad: valor?.cantidad ?? 0, moneda: m })} />
     </span>

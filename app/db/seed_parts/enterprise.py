@@ -88,13 +88,13 @@ def seed_enterprise():
     # ── Subcontractors ─────────────────────────────────────────────────────────
     sub1 = Subcontractor(
         code="SUB-0001", name="Carlos Mendoza",
-        company="Freelance Dev", email="carlos@freelance.com",
+        company="Freelance Dev", email="carlos@freelance.example.com",
         country="España", currency=settings.DEFAULT_CURRENCY, is_active=True,
         notes="Especialista React/Node. Disponible a tiempo parcial.",
     )
     sub2 = Subcontractor(
         code="SUB-0002", name="TechPartners SL",
-        company="TechPartners SL", email="proyectos@techpartners.es",
+        company="TechPartners SL", email="proyectos@techpartners.example.com",
         country="España", vat_number="B-12345678", currency=settings.DEFAULT_CURRENCY, is_active=True,
         notes="Empresa de infraestructura DevOps y cloud.",
     )

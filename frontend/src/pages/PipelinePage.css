@@ -487,3 +487,9 @@
   line-height: 1.5;
   overflow-wrap: anywhere;
 }
+
+/* 23-11-2026: vista lista del embudo. */
+.pipe-lista__nombre { font-weight: 600; color: var(--accent); text-align: left; }
+
+/* 23-11-2026 (auditoría 04b M9): envoltorio de la tasa de éxito con su ayuda (title); la tarjeta ocupa la celda. */
+.pipe-kpi-ayuda { display: grid; }

@@ -11,15 +11,14 @@ Funciones exportadas (backward-compat wrappers around ProjectService):
   calculate_evm_portfolio(db)
 """
 from __future__ import annotations
+from app.services import numbering as _numeracion  # prefijos por defecto (§6)
 
-import re
 from datetime import date
 from typing import Optional
 
-from sqlalchemy import case, func, select
+from sqlalchemy import case, func
 from sqlalchemy.orm import Session
 from app.services.settings_service import por_empresa as _pe
-from app.db.session import is_postgres
 from app.models.clients import Client
 from app.models.financial import ProjectMilestone
 from app.models.imputation import Imputation
@@ -52,20 +51,17 @@ class ProjectService(ServiceBase):
     # ── Code generation ────────────────────────────────────────────────────────
 
     def build_code(self) -> str:
-        """Generate a unique project code (PRJ-NNNN) with optimistic locking on Postgres."""
-        if is_postgres():
-            row = self.db.execute(
-                select(func.max(Project.code)).with_for_update()
-            ).scalar()
-        else:
-            row = self.db.query(func.max(Project.code)).scalar()
+        """Codigo de proyecto de la secuencia de la empresa (`numbering`).
 
-        if row:
-            m = re.search(r"(\d+)$", row)
-            next_num = (int(m.group(1)) + 1) if m else 1
-        else:
-            next_num = 1
-        return f"PRJ-{next_num:04d}"
+        Auditoria 2026-11-22 (A-MP5): era `SELECT max(code) ... FOR UPDATE`,
+        que Postgres rechaza (FOR UPDATE no admite agregados), asi que el alta
+        de proyecto fallaba siempre en Postgres; ademas `max` sobre texto ordena
+        "PRJ-9999" por encima de "PRJ-10000" y no casaba con la secuencia que
+        ya usan cartera, demanda, pipeline y plantillas. Ahora la misma
+        secuencia por empresa, bloqueada con FOR UPDATE sobre su fila.
+        """
+        from app.services.numbering import next_numbered_code
+        return next_numbered_code(self.db, "project", prefix=_numeracion.PREFIJO_PROYECTO, padding=4)
 
     # ── Batch enrichment ───────────────────────────────────────────────────────
 

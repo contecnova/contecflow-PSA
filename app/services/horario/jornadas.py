@@ -94,6 +94,8 @@ def guardar_jornada(db: Session, usuario, datos: dict, jornada_id: Optional[str]
     nombre = (datos.get("nombre") or "").strip() or nombres.get("es") or next(iter(nombres.values()), "")
     if not nombre:
         raise error_con_codigo(422, "jornada_sin_nombre")
+    from app.services.texto_para_usuario import texto_para
+    _t = lambda clave, **p: texto_para(db, getattr(usuario, "id", None), clave, org_id=_org(db, usuario), **p)  # noqa: E731
     errores = []
     semana = {}
     for d in range(1, 8):
@@ -101,18 +103,28 @@ def guardar_jornada(db: Session, usuario, datos: dict, jornada_id: Optional[str]
         try:
             t = tr.de_lista(lista)
         except (ValueError, TypeError, IndexError) as exc:
-            errores.append(f"día {d}: {exc}")
+            errores.append(_t("jornada.error_dia", dia=d, detalle=exc))
             continue
         if t and t[-1].fin - t[0].inicio > tr.DIA:
-            errores.append(f"día {d}: los tramos pasan de 24 horas")
+            errores.append(_t("jornada.error_tramos_24h", dia=d))
         semana[str(d)] = tr.a_lista(t)
-    pausa = int(datos.get("pausa_minutos") or 0)
+    # Baja (auditoría 22-11-2026): la pausa se valida (antes `int()` daba 500
+    # con texto y no tenía tope): entero entre 0 y la jornada más larga.
+    mas_larga = max((sum(t.minutos for t in tr.de_lista(v)) for v in semana.values() if v), default=tr.DIA)
+    try:
+        pausa = int(datos.get("pausa_minutos") or 0)
+    except (TypeError, ValueError):
+        pausa = -1
     if pausa < 0:
-        errores.append("la pausa no puede ser negativa")
+        errores.append(_t("jornada.error_pausa_negativa") if str(datos.get("pausa_minutos") or "0").lstrip("-").isdigit()
+                       else _t("jornada.error_pausa_no_valida", maximo=mas_larga))
+        pausa = 0
+    elif pausa > mas_larga:
+        errores.append(_t("jornada.error_pausa_no_valida", maximo=mas_larga))
     if not any(semana.values()):
-        errores.append("la jornada no tiene ningún día con horario")
+        errores.append(_t("jornada.error_sin_horario"))
     if errores:
-        raise ErrorDeDominio(422, {"message": "La jornada tiene errores", "errors": errores})
+        raise ErrorDeDominio(422, {"message": _t("jornada.errores"), "errors": errores})
     j.nombre, j.nombres = nombre[:120], json.dumps(nombres, ensure_ascii=False) if nombres else None
     j.color = datos.get("color") or j.color or "#4f8cff"
     j.semana, j.pausa_minutos = json.dumps(semana), pausa

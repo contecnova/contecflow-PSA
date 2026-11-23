@@ -17,6 +17,7 @@ log del expediente. Un fallo en una acción automática no deshace el cierre:
 queda anotado con `ok: false`.
 """
 from __future__ import annotations
+from app.services import numbering as _numeracion  # prefijos por defecto (§6)
 
 import json
 import logging
@@ -27,7 +28,7 @@ from sqlalchemy.orm import Session
 from app.core.codigos_de_error import error
 from app.services.demanda import definicion as D
 from app.services.demanda.acceso import Actor, puede_gestionar
-from app.services.demanda.motor import ahora, datos_de, flujo_de, jload, registrar
+from app.services.demanda.registro import ahora, datos_de, flujo_de, jload, registrar
 
 logger = logging.getLogger(__name__)
 
@@ -72,7 +73,7 @@ def _crear_proyecto(db: Session, req, actor: Actor, params: dict) -> str:
     from app.services.numbering import next_numbered_code
     from app.services.settings_service import get_runtime_str
     p = Project(organization_id=req.organization_id,
-                code=next_numbered_code(db, "project", prefix="PRJ", padding=4),
+                code=next_numbered_code(db, "project", prefix=_numeracion.PREFIJO_PROYECTO, padding=4),
                 name=(params.get("name") or req.title)[:255], description=_descripcion(req),
                 project_type=get_runtime_str(db, "DEFAULT_PROJECT_TYPE", req.organization_id),
                 client_id=req.client_id, pm_id=params.get("pm_id"), budget_amount=_valor(req, "coste"),
@@ -155,8 +156,14 @@ def _crear_cambio_itsm(db: Session, req, actor: Actor, params: dict) -> str:
     if usuario is None:
         raise error(422, "dem_accion_sin_solicitante")
     tipo = {"estandar": "standard", "urgente": "emergency"}.get(str(datos.get("tipo_cambio")), "normal")
+    # A-SD19 (23-11-2026): estandar solo con un modelo del catalogo de cambios
+    # estandar; sin el, va como normal (al CAB). El servidor comprueba el encaje.
+    modelo = datos.get("modelo_estandar_id") if tipo == "standard" else None
+    if tipo == "standard" and not modelo:
+        tipo = "normal"
     c = create_change_record(db, usuario, {
         "title": req.title[:250], "description": _descripcion(req), "change_type": tipo,
+        "standard_model_id": modelo,
         "risk": {"alto": "high", "bajo": "low"}.get(str(datos.get("riesgo")), "medium"),
         "implementation_plan": datos.get("plan_implantacion") or "", "rollback_plan": datos.get("plan_marcha_atras")
         or "", "business_justification": datos.get("justificacion") or "",

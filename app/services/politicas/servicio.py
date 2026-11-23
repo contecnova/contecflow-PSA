@@ -37,6 +37,11 @@ AMBITO_CLAVES = ("departamentos", "equipos", "roles", "ubicaciones", "personas",
                  "grupos", "excepto_personas", "excepto_grupos")
 MAX_REGLAS = 200
 MAX_FILAS = 5000
+# Auditoria 2026-11-22 (03, medios m-p): tope del fichero importado y de las
+# columnas leidas. Antes se leia el CSV/XLSX entero (un XLSX de 5 MB comprimido
+# puede tener millones de celdas) y solo despues se miraba MAX_FILAS.
+MAX_BYTES_IMPORTACION = 5 * 1024 * 1024
+MAX_COLUMNAS_IMPORTACION = 50
 
 
 def _org(usuario) -> Optional[str]:
@@ -535,17 +540,27 @@ _COLUMNAS = {"pais": ("pais", "país", "country"), "ciudad": ("ciudad", "city"),
 
 def importar(db: Session, usuario, tabla_id: str, contenido: bytes, nombre: str) -> dict:
     """Lee un CSV o XLSX y devuelve las filas para revisarlas en la rejilla. NO guarda nada."""
+    from itertools import islice
     t = _tabla(db, tabla_id)
+    if len(contenido or b"") > MAX_BYTES_IMPORTACION:
+        raise error(413, "fichero_supera_mb", max=MAX_BYTES_IMPORTACION // (1024 * 1024))
     nombre = (nombre or "").lower()
+    tope = MAX_FILAS + 2   # cabecera + MAX_FILAS + una de mas para detectar el exceso
     if nombre.endswith(".xlsx"):
         from openpyxl import load_workbook
-        hoja = load_workbook(io.BytesIO(contenido), read_only=True, data_only=True).active
-        filas = [["" if c is None else (c.isoformat() if isinstance(c, (date, datetime)) else str(c)) for c in fila]
-                 for fila in hoja.iter_rows(values_only=True)]
+        libro = load_workbook(io.BytesIO(contenido), read_only=True, data_only=True)
+        try:
+            filas = [["" if c is None else (c.isoformat() if isinstance(c, (date, datetime)) else str(c))
+                      for c in fila[:MAX_COLUMNAS_IMPORTACION]]
+                     for fila in islice(libro.active.iter_rows(values_only=True), tope)]
+        finally:
+            libro.close()
     else:
         texto = contenido.decode("utf-8-sig", errors="replace")
         dialecto = csv.Sniffer().sniff(texto[:2048], delimiters=",;\t") if texto.strip() else csv.excel
-        filas = list(csv.reader(io.StringIO(texto), dialecto))
+        filas = [fila[:MAX_COLUMNAS_IMPORTACION] for fila in islice(csv.reader(io.StringIO(texto), dialecto), tope)]
+    if len(filas) >= tope:
+        raise error(422, "importacion_demasiadas_filas", max=MAX_FILAS)
     if not filas:
         raise error(422, "fichero_vacio")
     cab = [c.strip().lower() for c in filas[0]]

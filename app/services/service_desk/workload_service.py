@@ -80,17 +80,6 @@ def get_group_members_or_400(db: Session, group_id: str):
     return members
 
 
-def select_best_agent_id_by_open_load(db: Session, members) -> str:
-    best_agent_id = None
-    best_count = float("inf")
-    for member in members:
-        count = _count_open_tickets_for_user(db, member.user_id)
-        if count < best_count:
-            best_count = count
-            best_agent_id = member.user_id
-    return best_agent_id
-
-
 def apply_auto_assignment(ticket: Ticket, best_agent_id: str):
     old_assignee = ticket.assigned_to_user_id
     ticket.assigned_to_user_id = best_agent_id
@@ -192,28 +181,6 @@ def score_agent_for_ticket(db: Session, user_id: str, ticket: Ticket) -> float:
     return round(score, 4)
 
 
-def select_best_agent_ml(db: Session, members, ticket: Ticket) -> str:
-    """Select the best agent using ML composite score (skills + availability + CSAT).
-
-    Falls back to open-load balancing if scoring fails.
-    """
-    try:
-        best_id = None
-        best_score = -1.0
-        for member in members:
-            s = score_agent_for_ticket(db, member.user_id, ticket)
-            if s > best_score:
-                best_score = s
-                best_id = member.user_id
-        if best_id:
-            return best_id
-    # intentional: best-effort fallback, log noise outweighs diagnostic value
-    except Exception:
-        logger.debug("select_best_agent_ml: fallo best-effort ignorado", exc_info=True)
-    # fallback
-    return select_best_agent_id_by_open_load(db, members)
-
-
 def auto_assign_ticket_ml_command(db: Session, ticket_id: str, current_user_id: str) -> dict:
     """Auto-assign a ticket using ML-enhanced routing (availability + history + CSAT + skills).
 
@@ -248,5 +215,3 @@ def auto_assign_ticket_ml_command(db: Session, ticket_id: str, current_user_id: 
         "composite_score": best_candidate.get("composite_score"),
         "components": best_candidate.get("components"),
     }
-
-

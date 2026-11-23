@@ -7,7 +7,7 @@ from app.schemas.epics import (
 )
 
 from app.db.session import get_db
-from app.core.deps import get_current_user, require_admin_or_pm, require_internal_user
+from app.core.deps import get_current_user, requiere_capacidad
 from app.core.abac_enforce import enforce_abac
 from app.core.periodo import SIN_HORA, Periodo, periodo
 from app.core.responses import APIResponse, APIListResponse
@@ -47,19 +47,19 @@ def list_spaces(project_id: Optional[str] = None,
 
 
 @router.post("/wiki/spaces", summary="Crear espacio de wiki")
-def create_space(p: WikiSpaceIn, db: Session = Depends(get_db), cu: User = Depends(require_admin_or_pm)):
+def create_space(p: WikiSpaceIn, db: Session = Depends(get_db), cu: User = Depends(requiere_capacidad("proyectos.dirigir"))):
     return APIResponse.ok(data=create_wiki_space(p.model_dump(), cu.id, db))
 
 
 @router.patch("/wiki/spaces/{space_id}", summary="Actualizar espacio de wiki")
 def update_space(space_id: str, p: WikiSpaceIn,
-                 db: Session = Depends(get_db), cu: User = Depends(require_admin_or_pm)):
+                 db: Session = Depends(get_db), cu: User = Depends(requiere_capacidad("proyectos.dirigir"))):
     return APIResponse.ok(data=update_wiki_space(space_id, p.model_dump(exclude_unset=True), db))
 
 
 @router.delete("/wiki/spaces/{space_id}", summary="Eliminar espacio de wiki")
 def delete_space(space_id: str, db: Session = Depends(get_db),
-                 cu: User = Depends(require_admin_or_pm)):
+                 cu: User = Depends(requiere_capacidad("proyectos.dirigir"))):
     enforce_abac(db, cu, "wiki_space", space_id, action="delete")
     return APIResponse.ok(data=delete_wiki_space(space_id, db))
 
@@ -78,7 +78,7 @@ def list_pages(space_id: str, db: Session = Depends(get_db), cu: User = Depends(
 
 @router.post("/wiki/spaces/{space_id}/pages", summary="Crear página de wiki")
 def create_page(space_id: str, p: WikiPageIn,
-    _rol: User = Depends(require_admin_or_pm),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
+    _rol: User = Depends(requiere_capacidad("proyectos.dirigir")),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
                 db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
     return APIResponse.ok(data=create_wiki_page(space_id, p.title, p.slug, p.content,
                                                 p.parent_id, p.is_published, p.sort_order, cu.id, db))
@@ -92,21 +92,21 @@ def get_page(page_id: str, db: Session = Depends(get_db), cu: User = Depends(get
 
 @router.patch("/wiki/pages/{page_id}", summary="Actualizar página de wiki")
 def update_page(page_id: str, p: WikiPageIn,
-                db: Session = Depends(get_db), cu: User = Depends(require_admin_or_pm)):
+                db: Session = Depends(get_db), cu: User = Depends(requiere_capacidad("proyectos.dirigir"))):
     return APIResponse.ok(data=update_wiki_page(page_id, p.title, p.slug, p.content,
                                                 p.parent_id, p.sort_order, p.is_published, p.change_note, cu.id, db))
 
 
 @router.patch("/wiki/pages/{page_id}/visibility", summary="Cambiar visibilidad de la página (portal)")
 def update_page_visibility(page_id: str, p: WikiPageVisibilityIn,
-                           db: Session = Depends(get_db), cu: User = Depends(require_admin_or_pm)):
+                           db: Session = Depends(get_db), cu: User = Depends(requiere_capacidad("proyectos.dirigir"))):
     enforce_abac(db, cu, "wiki_page", page_id, action="update")
     return APIResponse.ok(data=cambiar_visibilidad_wiki_page(page_id, p.visibility, cu.id, db))
 
 
 @router.delete("/wiki/pages/{page_id}", summary="Eliminar página de wiki")
 def delete_page(page_id: str, db: Session = Depends(get_db),
-                cu: User = Depends(require_admin_or_pm)):
+                cu: User = Depends(requiere_capacidad("proyectos.dirigir"))):
     enforce_abac(db, cu, "wiki_page", page_id, action="delete")
     return APIResponse.ok(data=delete_wiki_page(page_id, db))
 
@@ -119,7 +119,7 @@ def page_versions(page_id: str, db: Session = Depends(get_db), cu: User = Depend
 
 @router.post("/wiki/pages/{page_id}/restore/{version_num}", summary="Restaurar versión de página")
 def restore_version(page_id: str, version_num: int,
-                    db: Session = Depends(get_db), cu: User = Depends(require_admin_or_pm)):
+                    db: Session = Depends(get_db), cu: User = Depends(requiere_capacidad("proyectos.dirigir"))):
     return APIResponse.ok(data=restore_wiki_version(page_id, version_num, cu.id, db))
 
 
@@ -140,7 +140,7 @@ def list_templates(db: Session = Depends(get_db), cu: User = Depends(get_current
 
 @router.post("/wiki/templates", summary="Crear plantilla de wiki")
 def create_template(p: WikiTemplateIn, db: Session = Depends(get_db),
-                    cu: User = Depends(require_admin_or_pm)):
+                    cu: User = Depends(requiere_capacidad("proyectos.dirigir"))):
     return APIResponse.ok(data=create_wiki_template(p.name, p.description, p.icon, p.content, cu.id, db))
 
 
@@ -156,14 +156,14 @@ def page_comments(page_id: str, db: Session = Depends(get_db), cu: User = Depend
 
 @router.post("/wiki/pages/{page_id}/comments")
 def add_wiki_comment(page_id: str, p: WikiCommentIn,
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
+    _rol: User = Depends(requiere_capacidad("proyectos.usar")),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
                      db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
     return APIResponse.ok(data=add_wiki_page_comment(page_id, p.content, p.parent_id, cu.id, db))
 
 
 @router.patch("/wiki/comments/{comment_id}/resolve")
 def resolve_wiki_comment(comment_id: str, db: Session = Depends(get_db),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
+    _rol: User = Depends(requiere_capacidad("proyectos.usar")),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
                          cu: User = Depends(get_current_user)):
     return APIResponse.ok(data=resolve_wiki_page_comment(comment_id, db))
 
@@ -183,7 +183,7 @@ def list_epics(project_id: str = Query(...),
 
 @router.post("")
 def create_epic(p: EpicIn, project_id: str = Query(...),
-                db: Session = Depends(get_db), cu: User = Depends(require_admin_or_pm)):
+                db: Session = Depends(get_db), cu: User = Depends(requiere_capacidad("proyectos.dirigir"))):
     return APIResponse.ok(data=create_epic_record(p.model_dump(), project_id, cu.id, db))
 
 
@@ -198,7 +198,7 @@ def get_roadmap(project_id: str = Query(...),
 
 @router.post("/nql/search")
 def nql_search(p: NQLIn, db: Session = Depends(get_db), cu: User = Depends(get_current_user),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
+    _rol: User = Depends(requiere_capacidad("proyectos.usar")),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
 ):
     return APIResponse.ok(data=execute_nql_search(p.entity_type, p.query, p.limit, db, cu))
 
@@ -211,7 +211,7 @@ def list_filters(entity_type: Optional[str] = None,
 
 @router.post("/filters")
 def save_filter(p: SavedFilterIn, db: Session = Depends(get_db), cu: User = Depends(get_current_user),
-    _rol: User = Depends(require_admin_or_pm),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
+    _rol: User = Depends(requiere_capacidad("proyectos.dirigir")),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
     return APIResponse.ok(data=create_saved_filter(p.model_dump(), cu.id, db))
 
@@ -224,7 +224,7 @@ def delete_filter(filter_id: str, db: Session = Depends(get_db), cu: User = Depe
 
 @router.post("/cfd/snapshot")
 def take_snapshot(project_id: str = Query(...), sprint_id: Optional[str] = Query(None),
-                  db: Session = Depends(get_db), cu: User = Depends(require_admin_or_pm)):
+                  db: Session = Depends(get_db), cu: User = Depends(requiere_capacidad("proyectos.dirigir"))):
     return APIResponse.ok(data=take_cfd_snapshot(project_id, sprint_id, db))
 
 
@@ -268,7 +268,7 @@ def get_comments(entity_type: str, entity_id: str,
 
 @router.post("/comments")
 def add_comment(entity_type: str, entity_id: str, p: ThreadedCommentIn,
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
+    _rol: User = Depends(requiere_capacidad("proyectos.usar")),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
                 db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
     exigir_lectura_de_hilo(db, cu, entity_type, entity_id)
     return APIResponse.ok(data=add_threaded_comment(entity_type, entity_id, p.content, p.parent_id, cu.id, db))
@@ -282,7 +282,7 @@ def edit_comment(comment_id: str, p: ThreadedCommentIn,
 
 @router.patch("/comments/{comment_id}/resolve")
 def resolve_comment(comment_id: str, db: Session = Depends(get_db),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
+    _rol: User = Depends(requiere_capacidad("proyectos.usar")),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
                     cu: User = Depends(get_current_user)):
     return APIResponse.ok(data=resolve_threaded_comment(comment_id, db))
 
@@ -304,20 +304,20 @@ def get_epic(epic_id: str, db: Session = Depends(get_db), cu: User = Depends(get
 
 @router.patch("/{epic_id}")
 def update_epic(epic_id: str, p: EpicIn,
-                db: Session = Depends(get_db), cu: User = Depends(require_admin_or_pm)):
+                db: Session = Depends(get_db), cu: User = Depends(requiere_capacidad("proyectos.dirigir"))):
     return APIResponse.ok(data=update_epic_record(epic_id, p.model_dump(exclude_unset=True), db))
 
 
 @router.delete("/{epic_id}")
 def delete_epic(epic_id: str, db: Session = Depends(get_db),
-                cu: User = Depends(require_admin_or_pm)):
+                cu: User = Depends(requiere_capacidad("proyectos.dirigir"))):
     enforce_abac(db, cu, "epic", epic_id, action="delete")
     return APIResponse.ok(data=delete_epic_record(epic_id, db))
 
 
 @router.post("/{epic_id}/tasks/{task_id}")
 def add_task_to_epic(epic_id: str, task_id: str,
-    _rol: User = Depends(require_admin_or_pm),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
+    _rol: User = Depends(requiere_capacidad("proyectos.dirigir")),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
                      db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
     return APIResponse.ok(data=add_task_to_epic_record(epic_id, task_id, db))
 
@@ -331,7 +331,7 @@ def remove_task_from_epic(
     # Auditoria 2026-09: el unico control era `enforce_abac`, que sin
     # politicas activas no comprueba nada. Coherente con su hermana mas cercana,
     # `POST /epics/{id}/dependencies/{id}`, que ya exige admin_or_pm.
-    _: User = Depends(require_admin_or_pm),
+    _: User = Depends(requiere_capacidad("proyectos.dirigir")),
 ):
     enforce_abac(db, cu, "epic", epic_id, action="delete")
     return APIResponse.ok(data=remove_task_from_epic_record(epic_id, task_id, db))
@@ -339,12 +339,12 @@ def remove_task_from_epic(
 
 @router.post("/{epic_id}/dependencies/{depends_on_id}")
 def add_dependency(epic_id: str, depends_on_id: str,
-                   db: Session = Depends(get_db), cu: User = Depends(require_admin_or_pm)):
+                   db: Session = Depends(get_db), cu: User = Depends(requiere_capacidad("proyectos.dirigir"))):
     return APIResponse.ok(data=add_epic_dependency(epic_id, depends_on_id, db))
 
 
 @router.delete("/{epic_id}/dependencies/{depends_on_id}")
 def remove_dependency(epic_id: str, depends_on_id: str,
-                      db: Session = Depends(get_db), cu: User = Depends(require_admin_or_pm)):
+                      db: Session = Depends(get_db), cu: User = Depends(requiere_capacidad("proyectos.dirigir"))):
     enforce_abac(db, cu, "epic", epic_id, action="delete")
     return APIResponse.ok(data=remove_epic_dependency(epic_id, depends_on_id, db))

@@ -263,7 +263,7 @@ export function PanelCab({ changeId }: { changeId: string | number }) {
   const [nota, setNota] = useState('')
   const { data: cab } = useQuery<SdComiteDeCambio | null>({
     queryKey: ['sd-change-cab', changeId],
-    queryFn: () => sdChangePlanningApi.cab(changeId).then(r => r.data).catch(() => null),
+    queryFn: () => sdChangePlanningApi.cab(changeId).then(r => r.data),
   })
   const votar = useMutation({
     mutationFn: (approve: boolean) => sdChangePlanningApi.vote(changeId, { approve, note: nota }),

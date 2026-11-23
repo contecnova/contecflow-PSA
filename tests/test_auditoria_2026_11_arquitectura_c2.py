@@ -30,15 +30,12 @@ _IMPORTS_HTTP_PERMITIDOS = {
 }
 
 #: Ficheros de `app/core` y `app/db` que pueden lanzar `HTTPException`.
-_RAISES_HTTP_PERMITIDOS = {
-    # Las dependencias FastAPI de autenticacion y rol (`get_current_user`,
-    # `RequireRole`, `get_current_client`...): son la frontera HTTP.
-    "app/core/deps.py",
-    # Dependencia de router (`Depends`, `Request`) de la matriz GRC.
-    "app/core/grc_enforce.py",
-    # Define el endpoint `/metrics` (`@app.get`), con su 401.
-    "app/core/metrics.py",
-}
+#: Auditoria 22-11-2026: vacia. `deps.py`, `grc_enforce.py` y `metrics.py`
+#: (las dependencias HTTP de autenticacion/rol, la de la matriz GRC y el 401
+#: de `/metrics`) ya no lanzan `HTTPException` a mano: lanzan
+#: `error_http(status, codigo, ...)` (errores con codigo), asi que ningun
+#: fichero de core/db necesita la excepcion; si vuelve a hacer falta, entra aqui.
+_RAISES_HTTP_PERMITIDOS: set = set()
 
 
 def _py36(*carpetas):
@@ -355,5 +352,17 @@ def test_33_cada_tarea_por_organizacion_corre_con_el_filtro_de_tenant_puesto(nom
 
     _sesion_de_pruebas(monkeypatch, db)
     monkeypatch.setattr("app.services.bi_intelligence_service.publish_kpi_snapshot", lambda *a, **k: None)
+    # 23-11-2026: las tareas «a la hora de cada empresa» (alertas, presupuestos,
+    # imputaciones, desempeño) solo procesan las empresas cuyo tramo local
+    # coincide con ahora; con el reloj real daban 0 empresas. Se ejecuta la
+    # seleccion real (que recorre las empresas con su contexto) y luego se
+    # devuelven todas las activas, para medir el filtro de tenant en las dos.
+    import app.services.trabajos_de_fondo as _tf
+    _real = _tf.organizaciones_a_su_hora
+
+    def _todas_a_su_hora(clave, **k):
+        _real(clave, **k)
+        return _tf.organizaciones_activas(db)
+    monkeypatch.setattr(_tf, "organizaciones_a_su_hora", _todas_a_su_hora)
     r = w.celery_app.tasks[nombre].run()
     assert r.get("skipped") or 2 in (r.get("organizaciones"), r.get("organizations")), r

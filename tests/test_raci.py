@@ -182,8 +182,7 @@ class TestUATCases:
             headers=auth(admin_token),
         )
         case_id = case_res.json()["data"].get("id")
-        if not case_id:
-            pytest.skip("UAT case creation did not return id")
+        assert case_id, "UAT case creation did not return id"
 
         res = client.patch(
             f"/api/v1/projects/{proj['id']}/uat/{case_id}",
@@ -200,8 +199,7 @@ class TestUATCases:
             headers=auth(admin_token),
         )
         case_id = case_res.json()["data"].get("id")
-        if not case_id:
-            pytest.skip("UAT case creation did not return id")
+        assert case_id, "UAT case creation did not return id"
 
         res = client.patch(
             f"/api/v1/projects/{proj['id']}/uat/{case_id}",
@@ -247,14 +245,13 @@ class TestProjectChangelog:
         proj = _create_project(client, admin_token, "Changelog Update")
         entry = client.post(
             f"/api/v1/projects/{proj['id']}/changelog",
-            json={"version_tag": "v1.0", "title": "Initial", "entry_type": "release",
+            json={"version_tag": "v1.0", "title": "Initial", "entry_type": "milestone",
                   "entry_date": "2026-01-01"},
             headers=auth(admin_token),
         ).json()
 
         entry_id = (entry.get("data") or {}).get("id")
-        if not entry_id:
-            pytest.skip("Changelog entry id not returned")
+        assert entry_id, "Changelog entry id not returned"
 
         res = client.patch(
             f"/api/v1/projects/{proj['id']}/changelog/{entry_id}",
@@ -273,8 +270,7 @@ class TestProjectChangelog:
         ).json()["data"]
 
         entry_id = entry.get("id")
-        if not entry_id:
-            pytest.skip("Changelog entry id not returned")
+        assert entry_id, "Changelog entry id not returned"
 
         res = client.delete(
             f"/api/v1/projects/{proj['id']}/changelog/{entry_id}",

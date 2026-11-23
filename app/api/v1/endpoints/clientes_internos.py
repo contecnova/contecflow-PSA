@@ -112,9 +112,11 @@ def generar(payload: GenerarIn, db: Session = Depends(get_db), u: User = Depends
 
 
 @router.get("/charges/export", summary="CSV de asientos de los chargebacks emitidos del mes (los marca exportados)")
-def exportar(period: str = Query(..., pattern=r"^\d{4}-\d{2}$"), db: Session = Depends(get_db),
+def exportar(period: str = Query(..., pattern=r"^\d{4}-\d{2}$"),
+             reexport: bool = Query(False, description="Incluir los ya exportados con su mismo asiento (M12)"),
+             db: Session = Depends(get_db),
              u: User = Depends(requiere_capacidad("interno.cargos"))):
-    contenido = K.exportar(db, u, period)
+    contenido = K.exportar(db, u, period, reexportar=reexport)
     return Response(content=contenido, media_type="text/csv; charset=utf-8",
                     headers={"Content-Disposition": f'attachment; filename="cargos-internos-{period}.csv"'})
 

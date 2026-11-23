@@ -14,7 +14,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Download, ExternalLink, FileText, Link2, MessageSquareText, Search, Sparkles, Trash2, Upload } from 'lucide-react'
 import { conectoresApi, mensajeDeConector } from '../../services/api'
 import type { DocHit, Enlace, FichaDocumental } from '../../services/api'
-import { Button, Spinner, Pulsable } from '../ui'
+import { Buscador, Button, Spinner, Pulsable } from '../ui'
 import { useAppT } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
 import { openConfirmGlobal } from '../../context/ConfirmContext'
@@ -22,6 +22,7 @@ import { localeActivo } from '../../utils/helpers'
 import DocumentoContecmind, { descargarOriginal } from './DocumentoContecmind'
 import { STALE_DEFAULT_MS } from '../../constants/timings'
 import './DocumentosDeFicha.css'
+import { Input } from '../ui'
 
 
 export function tamano(n?: number | null): string {
@@ -144,7 +145,7 @@ export default function DocumentosDeFicha({ ficha, id, sugerir = false, pregunta
 
       {/* Buscar y enlazar */}
       <form onSubmit={e => { e.preventDefault(); setBuscado(busqueda.trim()) }} className="u-row-6">
-        <input aria-label={t('docs.buscar')} placeholder={t('docs.buscar_placeholder')} value={busqueda} onChange={e => setBusqueda(e.target.value)} className="dodefi-campo" />
+        <Buscador aria-label={t('docs.buscar')} placeholder={t('docs.buscar_placeholder')} value={busqueda} onChange={setBusqueda} className="u-flex1" />
         <Button size="sm" variant="secondary" type="submit" icon={<Search size={13} />}>{t('docs.buscar')}</Button>
       </form>
       {buscado.length >= 2 && (
@@ -160,7 +161,7 @@ export default function DocumentosDeFicha({ ficha, id, sugerir = false, pregunta
       {preguntar && lista.length > 0 && (
         <div className="dodefi-box-2">
           <form onSubmit={e => { e.preventDefault(); if (pregunta.trim().length >= 2) preguntarCarpeta.mutate() }} className="u-row-6">
-            <input aria-label={t('docs.preguntar')} placeholder={t('docs.preguntar_placeholder')} value={pregunta} onChange={e => setPregunta(e.target.value)} className="dodefi-campo" />
+            <Input aria-label={t('docs.preguntar')} placeholder={t('docs.preguntar_placeholder')} value={pregunta} onChange={e => setPregunta(e.target.value)} className="u-flex1" />
             <Button size="sm" type="submit" icon={<MessageSquareText size={13} />} loading={preguntarCarpeta.isPending}>{t('docs.preguntar')}</Button>
           </form>
           {preguntarCarpeta.data && (

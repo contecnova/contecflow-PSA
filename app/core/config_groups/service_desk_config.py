@@ -34,6 +34,12 @@ class ServiceDeskSettingsMixin:
     SD_CHANNEL_TICKET_TYPE: str = Field(default="incident", env="SD_CHANNEL_TICKET_TYPE")
     SD_MAIL_MAX_PER_RUN: int = Field(default=50, env="SD_MAIL_MAX_PER_RUN")
     SD_MAIL_MAX_ATTACHMENT_MB: int = Field(default=15, env="SD_MAIL_MAX_ATTACHMENT_MB")
+    # Auditoria 2026-11-22 (A-SD6): el `From` de un correo solo actua como su
+    # persona (comenta como ella, cambia el estado) con SPF/DKIM/DMARC en
+    # `Authentication-Results`. Apagarlo solo si la pasarela no anota esos
+    # resultados. `SD_INBOUND_AUTHSERV_ID`: el servidor cuya cabecera vale.
+    SD_INBOUND_REQUIRE_SENDER_AUTH: bool = Field(default=True, env="SD_INBOUND_REQUIRE_SENDER_AUTH")
+    SD_INBOUND_AUTHSERV_ID: str = Field(default="", env="SD_INBOUND_AUTHSERV_ID")
 
     # ── Agente autonomo ──────────────────────────────────────────────────────
     # Barrido cada 5 min de los tickets nuevos: comenta y, con un playbook que
@@ -76,6 +82,12 @@ class ServiceDeskSettingsMixin:
     SD_CAB_APPROVAL_RULE: str = Field(default="majority", env="SD_CAB_APPROVAL_RULE")
     # Un cambio estandar con riesgo calculado hasta aqui se aprueba solo.
     SD_CHANGE_AUTO_APPROVE_MAX_RISK: int = Field(default=30, env="SD_CHANGE_AUTO_APPROVE_MAX_RISK")
+    # Catalogo de cambios estandar (23-11-2026, A-SD19): un modelo se suspende
+    # (vuelve al CAB) si su tasa de fallo supera este % con al menos N cierres;
+    # su aprobacion caduca a los N dias (revision periodica).
+    SD_STANDARD_CHANGE_MAX_FAILURE_PCT: int = Field(default=20, env="SD_STANDARD_CHANGE_MAX_FAILURE_PCT")
+    SD_STANDARD_CHANGE_MIN_CLOSURES: int = Field(default=5, env="SD_STANDARD_CHANGE_MIN_CLOSURES")
+    SD_STANDARD_CHANGE_REVIEW_DAYS: int = Field(default=365, env="SD_STANDARD_CHANGE_REVIEW_DAYS")
 
     # ── Monitorizacion y guardias ────────────────────────────────────────────
     # Gravedad de la alerta -> prioridad del ticket (JSON). Lo que no este, P3.

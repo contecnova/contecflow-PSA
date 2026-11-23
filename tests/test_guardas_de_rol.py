@@ -172,7 +172,9 @@ EXENCIONES_ESPERADAS = {
     # guardados en el idioma de quien mira, acotados a `current_user.id`.
     # 93 desde 2026-11-20: POST /ai/chat sale de aquí (la conversación ya se acotaba a
     # `current_user.id` en `prepare_chat`) y gana `require_internal_user` en la firma.
-    "acotada al propio usuario": 93,  # +1 medido, tarea #25 (rev. 167): rutas nuevas de /absences que `_acota_por_propiedad` ve acotadas al usuario (vista previa y adjuntar documento; POST /absences/my va en EXENTAS_REVISADAS); 2026-11 un solo TOTP: -4 rutas /mfa/* (setup, verify, validate, disable) retiradas, +2 /auth/mfa/setup y verify-setup (antes en EXENTAS_REVISADAS);  # +1 2026-11: cambio de empresa en la sesión; +2: reservar y liberar un documento (decide el permiso del documento, como el resto de /documents); +1 auditoria 2026-11 #22: change-password (antes en EXENTAS_REVISADAS) revoca las sesiones de `current_user.id` y el detector ya la ve acotada
+    # 94 desde 2026-11-23: +1 DELETE /security/me/devices/{device_id} (olvidar un
+    # dispositivo de confianza propio: `mfa.revocar_dispositivo(db, current_user.id, ...)`).
+    "acotada al propio usuario": 94,  # +1 medido, tarea #25 (rev. 167): rutas nuevas de /absences que `_acota_por_propiedad` ve acotadas al usuario (vista previa y adjuntar documento; POST /absences/my va en EXENTAS_REVISADAS); 2026-11 un solo TOTP: -4 rutas /mfa/* (setup, verify, validate, disable) retiradas, +2 /auth/mfa/setup y verify-setup (antes en EXENTAS_REVISADAS);  # +1 2026-11: cambio de empresa en la sesión; +2: reservar y liberar un documento (decide el permiso del documento, como el resto de /documents); +1 auditoria 2026-11 #22: change-password (antes en EXENTAS_REVISADAS) revoca las sesiones de `current_user.id` y el detector ya la ve acotada
     "superficie: API key": 6,  # 2026-11: fuera POST /bookings/api-keys/verify (oraculo)
     # 20 desde 2026-11-09: fuera la copia de /clients/{cid}/portal-users (POST y
     # PATCH) que no exigía el máximo de usuarios del portal.
@@ -210,7 +212,11 @@ EXENCIONES_ESPERADAS = {
 }
 
 #: Rutas de escritura que sí llevan guarda de rol. Sólo puede subir.
-CON_GUARDA_MINIMO = 929
+# 1356 desde 2026-11-23 (M9): medido con `_clasificar` importando la app. Las guardas por
+# rol pasaron a capacidades (`requiere_capacidad`, que GUARDA reconoce): mismas funciones
+# guardadas; el salto desde 929 es el trabajo acumulado de las rondas desde 2026-09 que nadie
+# había subido aquí, más las rutas nuevas del día (seguridad de cuentas, cambios estándar).
+CON_GUARDA_MINIMO = 1356
 
 
 def _desenvolver(fn):
@@ -311,7 +317,7 @@ def test_el_reparto_de_exenciones_no_cambia_en_silencio():
 
 
 def test_las_guardas_de_rol_no_retroceden():
-    """De 603 rutas guardadas a 929. Sólo puede subir."""
+    """De 603 rutas guardadas a 929, y a 1356 el 23-11-2026. Sólo puede subir."""
     con_guarda, _ex, _rev, _sin = _clasificar()
     assert con_guarda >= CON_GUARDA_MINIMO, (
         f"Había {CON_GUARDA_MINIMO} rutas de escritura con guarda de rol y ahora "

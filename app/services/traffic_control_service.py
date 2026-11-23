@@ -38,11 +38,31 @@ def consume_quota(
     """Consume one unit from a per-scope quota.
 
     Returns: {allowed, retry_after, remaining, limit, count, window_start}
+
+    Ronda 2 auditoria 2026-11-22: el contador va en una sesion PROPIA sobre la
+    mismo motor y con el contexto de empresa del llamante y la fila se bloquea con
+    FOR UPDATE. Antes hacia `db.commit()` de la sesion del llamante: confirmaba
+    a medias su trabajo pendiente.
     """
+    # Misma clase y mismo contexto de empresa que el llamante (filtro ORM y RLS).
+    propia = type(db)(bind=db.get_bind())
+    propia.info.update({k: v for k, v in db.info.items() if not str(k).startswith("_rls")})
+    try:
+        return _consumir(propia, scope=scope, tenant_id=tenant_id, subject=subject,
+                         limit=limit, window_seconds=window_seconds)
+    except Exception:
+        propia.rollback()
+        raise
+    finally:
+        propia.close()
+
+
+def _consumir(db: Session, *, scope: str, tenant_id: Optional[str], subject: str,
+              limit: int, window_seconds: int) -> dict:
     app_key = _key(scope, tenant_id, subject)
     current_bucket = _bucket_now(window_seconds)
 
-    row = db.query(AppSetting).filter(AppSetting.key == app_key).first()
+    row = db.query(AppSetting).filter(AppSetting.key == app_key).with_for_update().first()
     if row and row.value:
         try:
             payload = json.loads(row.value)
@@ -74,7 +94,7 @@ def consume_quota(
             db.add(row)
         else:
             row.value = serialized
-        db.commit()
+    db.commit()     # la sesion es propia: confirma el contador (o suelta el bloqueo)
 
     now_ts = int(datetime.now(timezone.utc).timestamp())
     retry_after = max(0, (window_start + window_seconds) - now_ts)

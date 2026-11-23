@@ -1,6 +1,28 @@
 /* Controles.tsx: barra de filtros, chip, segmentado y pulsable. Solo tokens. */
 .ui-barra-filtros__acciones { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
 
+/* Fila de filtros ancha (BarraDeFiltros / ds-toolbar), 23-11-2026: el buscador
+   crece hasta un máximo legible; cada desplegable mide lo que su texto más
+   largo (nunca crece ni se encoge por debajo de él) y la fila salta de línea
+   antes que recortar. Todos los controles miden --alto-control. */
+.ds-toolbar > select,
+.ds-toolbar > .sr { flex: 0 0 auto; max-width: 100%; }
+.ds-toolbar > .ui-buscador { flex: 1 1 240px; min-width: min(100%, 200px); max-width: 480px; }
+.ds-toolbar > .ds-segmented { flex: 0 0 auto; }
+
+/* FiltrosDeLista: filtros de una columna o panel estrecho. */
+.ui-filtros-lista { display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; margin-bottom: var(--space-3); }
+.ui-filtros-lista > .ui-buscador { width: 100%; }
+.ui-filtros-lista__segmentado > .ds-segmented { display: flex; width: 100%; }
+.ui-filtros-lista__segmentado > .ds-segmented > button { flex: 1 1 0; justify-content: center; min-width: 0; }
+.ui-filtros-lista__rejilla { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); min-width: 0; }
+.ui-filtros-lista__rejilla:has(> :only-child) { grid-template-columns: minmax(0, 1fr); }
+.ui-filtros-lista__rejilla > * { width: 100%; min-width: 0; }
+
+/* Segmentado (23-11-2026): mismo alto que Input/Select/Button md. */
+.ds-segmented { box-sizing: border-box; min-height: var(--alto-control); align-items: stretch; }
+.ds-segmented > button { align-items: center; }
+
 /* Chip: texto libre (sin mayúsculas), alto 28 px, mismo radio que las pastillas. */
 .ui-chip {
   display: inline-flex;

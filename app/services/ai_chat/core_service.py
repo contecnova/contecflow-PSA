@@ -29,8 +29,9 @@ def log_action(
     latency: int = 0,
     status: str = "success",
 ) -> None:
-    """Log an AI action to the audit log."""
+    """Log an AI action to the audit log (la única implementación; con empresa, baja 22-11-2026)."""
     db.add(AIActionLog(
+        organization_id=(db.info or {}).get("organization_id"),
         user_id=user_id, module=module, action_type=action_type,
         input_summary=(input_s or "")[:300],
         output_summary=(output_s or "")[:300],

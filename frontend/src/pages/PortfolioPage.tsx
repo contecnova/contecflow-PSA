@@ -12,7 +12,7 @@ import React, { useState } from 'react';
 import type { CSSProperties } from 'react';
 import PageShell from '../components/layout/PageShell'
 import PageHeader from '../components/layout/PageHeader'
-import { useDialogo, Button, Card, EmptyState, Input, KpiCard, Modal, Select, Spinner, Pulsable, TablaSimple, Textarea } from '../components/ui'
+import { Buscador, useDialogo, Button, Card, EmptyState, Input, KpiCard, Modal, Select, Spinner, Pulsable, TablaSimple, Textarea } from '../components/ui'
 import StatusBadge from '../components/ui/StatusBadge'
 import type { StatusBadgeKind } from '../components/ui/StatusBadge'
 import { openConfirmGlobal } from '../context/ConfirmContext'
@@ -175,7 +175,7 @@ function AddProjectModal({ portfolioId, existingIds, onClose, onAdded }: { portf
   return (
     <Modal open onClose={onClose} title={t('portfolio.anadir_proyecto_a_la_cartera')}>
       <div className="u-stack-12">
-        <Input aria-label={t('portfolio_ui.buscar_proyectos')} value={search} onChange={e => setSearch(e.target.value)} placeholder={t('portfolio_ui.buscar_proyectos')} />
+        <Buscador aria-label={t('portfolio_ui.buscar_proyectos')} value={search} onChange={setSearch} placeholder={t('portfolio_ui.buscar_proyectos')} />
         <div className="pf-lista-proyectos">
           {available.map(p => (
             <Pulsable className="pf-opcion-proyecto" key={p.id} onClick={() => addProject(p.id)}>

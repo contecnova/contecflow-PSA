@@ -6,17 +6,17 @@ from __future__ import annotations
 
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.core.abac_enforce import enforce_abac
-from app.core.deps import get_current_user, require_internal_user
+from app.core.deps import get_current_user, requiere_capacidad
 from app.core.responses import APIResponse
 from app.db.session import get_db
 from app.models.user import User
 from app.services import bi_smart_alerts_service as svc
-from app.core.codigos_de_error import desde_valor
+from app.core.codigos_de_error import desde_valor, error_http
 
 router = APIRouter()
 
@@ -87,7 +87,7 @@ def create_custom_metric(
     body: CustomMetricIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: analitica interna
+    _rol: User = Depends(requiere_capacidad("bi.usar")),  # auditoria 2026-09: dominio: analitica interna
 ):
     org_id = getattr(current_user, "organization_id", None)
     try:
@@ -103,13 +103,13 @@ def delete_custom_metric(
     key: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: analitica interna
+    _rol: User = Depends(requiere_capacidad("bi.usar")),  # auditoria 2026-09: dominio: analitica interna
 ):
     enforce_abac(db, current_user, "bi_custom_metric", key, action="delete")
     org_id = getattr(current_user, "organization_id", None)
     deleted = svc.delete_custom_metric(db, organization_id=org_id, key=key)
     if not deleted:
-        raise HTTPException(status_code=404, detail="metric_not_found")
+        raise error_http(404, "no_encontrado", que="metrica")
 
 
 @router.get("/bi/alerts/rules", summary="Listar reglas de alertas BI")
@@ -127,7 +127,7 @@ def create_alert_rule(
     body: AlertRuleIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: analitica interna
+    _rol: User = Depends(requiere_capacidad("bi.usar")),  # auditoria 2026-09: dominio: analitica interna
 ):
     org_id = getattr(current_user, "organization_id", None)
     try:
@@ -149,7 +149,7 @@ def update_alert_rule(
     body: AlertRulePatchIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: analitica interna
+    _rol: User = Depends(requiere_capacidad("bi.usar")),  # auditoria 2026-09: dominio: analitica interna
 ):
     org_id = getattr(current_user, "organization_id", None)
     try:
@@ -171,20 +171,20 @@ def delete_alert_rule(
     rule_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: analitica interna
+    _rol: User = Depends(requiere_capacidad("bi.usar")),  # auditoria 2026-09: dominio: analitica interna
 ):
     enforce_abac(db, current_user, "bi_alert_rule", rule_id, action="delete")
     org_id = getattr(current_user, "organization_id", None)
     deleted = svc.delete_alert_rule(db, organization_id=org_id, rule_id=rule_id)
     if not deleted:
-        raise HTTPException(status_code=404, detail="rule_not_found")
+        raise error_http(404, "no_encontrado", que="regla")
 
 
 @router.post("/bi/alerts/evaluate", summary="Evaluar todas las reglas de alerta activas")
 def evaluate_alerts(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: analitica interna
+    _rol: User = Depends(requiere_capacidad("bi.usar")),  # auditoria 2026-09: dominio: analitica interna
 ):
     org_id = getattr(current_user, "organization_id", None)
     return APIResponse.ok(data=svc.evaluate_alerts(db, organization_id=org_id))
@@ -206,7 +206,7 @@ def acknowledge_alert(
     alert_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: analitica interna
+    _rol: User = Depends(requiere_capacidad("bi.usar")),  # auditoria 2026-09: dominio: analitica interna
 ):
     org_id = getattr(current_user, "organization_id", None)
     try:
@@ -225,7 +225,7 @@ def acknowledge_alert(
 def seed_default_rules(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: analitica interna
+    _rol: User = Depends(requiere_capacidad("bi.usar")),  # auditoria 2026-09: dominio: analitica interna
 ):
     org_id = getattr(current_user, "organization_id", None)
     svc.seed_default_rules_if_empty(db, organization_id=org_id)

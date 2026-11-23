@@ -57,6 +57,9 @@ class ProjectBase(BaseModel):
     billing_rate: Optional[float] = Field(default=None, description="Tarifa horaria de facturación")
     budget_hours: Optional[float] = Field(default=None, description="Horas presupuestadas")
     budget_amount: Optional[float] = Field(default=None, description="Importe presupuestado en euros")
+    # 23-11-2026 (A-MP10): importe del contrato en la moneda de la empresa; base
+    # de los hitos por % cuando el proyecto no tiene contratos.
+    contract_amount: Optional[float] = Field(default=None, ge=0, description="Importe del contrato (moneda de la empresa)")
     start_date: Optional[date] = Field(default=None, description="Fecha de inicio del proyecto")
     end_date_planned: Optional[date] = Field(default=None, description="Fecha de fin planificada")
     tags: Optional[str] = Field(default=None, description="Etiquetas separadas por comas")
@@ -90,6 +93,7 @@ class ProjectUpdate(BaseModel):
     department: Optional[str] = Field(default=None, description="Departamento responsable")
     budget_hours: Optional[float] = Field(default=None, description="Horas presupuestadas")
     budget_amount: Optional[float] = Field(default=None, description="Importe presupuestado en euros")
+    contract_amount: Optional[float] = Field(default=None, ge=0, description="Importe del contrato (moneda de la empresa)")
     billing_rate: Optional[float] = Field(default=None, description="Tarifa horaria de facturación")
     start_date: Optional[date] = Field(default=None, description="Fecha de inicio del proyecto")
     end_date_planned: Optional[date] = Field(default=None, description="Fecha de fin planificada")

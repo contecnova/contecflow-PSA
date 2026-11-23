@@ -10,7 +10,7 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from app.core.deps import require_internal_user, require_worker, requiere_capacidad
+from app.core.deps import requiere_capacidad
 from app.core.responses import APIListResponse, APIResponse
 from app.db.session import get_db
 from app.models.user import User
@@ -69,7 +69,7 @@ class CicloIn(BaseModel):
 # ── SLA condicionales ─────────────────────────────────────────────────────────
 
 @router.get("/sla-rules", summary="Reglas de SLA condicionales de la empresa")
-def list_rules(db: Session = Depends(get_db), current_user: User = Depends(require_internal_user)):
+def list_rules(db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("sd.completo"))):
     return APIListResponse.ok(items=reglas_sla.listar_reglas(db, _org(current_user)))
 
 
@@ -98,7 +98,7 @@ def delete_rule(rule_id: str, db: Session = Depends(get_db), current_user: User 
 # ── OLA por prioridad ─────────────────────────────────────────────────────────
 
 @router.get("/groups/{group_id}/ola-targets", summary="OLA de la cola por prioridad")
-def get_ola(group_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_internal_user)):
+def get_ola(group_id: str, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("sd.completo"))):
     return APIResponse.ok(data=reglas_sla.ola_de_la_cola(db, _org(current_user), group_id))
 
 
@@ -112,7 +112,7 @@ def put_ola(group_id: str, payload: OlaIn, db: Session = Depends(get_db), curren
 # ── Ciclos de vida ────────────────────────────────────────────────────────────
 
 @router.get("/lifecycles", summary="Ciclos de vida por tipo de ticket")
-def list_lifecycles(db: Session = Depends(get_db), current_user: User = Depends(require_internal_user)):
+def list_lifecycles(db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("sd.completo"))):
     return APIListResponse.ok(items=ciclos_de_vida.listar(db, _org(current_user)))
 
 
@@ -131,7 +131,7 @@ def delete_lifecycle(lifecycle_id: str, db: Session = Depends(get_db), current_u
 
 
 @router.get("/tickets/{ticket_id}/lifecycle", summary="Estados a los que puede pasar el ticket")
-def ticket_lifecycle(ticket_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_worker)):
+def ticket_lifecycle(ticket_id: str, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("sd.trabajar"))):
     # Externos como internos (16-11-2026): solo de un ticket de su alcance (`get_scoped_ticket_or_404`).
     ticket = get_scoped_ticket_or_404(db, current_user, ticket_id)
     return APIResponse.ok(data=ciclos_de_vida.opciones_del_ticket(db, ticket))

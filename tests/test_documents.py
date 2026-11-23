@@ -123,8 +123,7 @@ def test_document_permissions(db: Session, doc_client):
     # Get any non-admin user ID
     db_session = db
     dev_user = db_session.query(User).filter(User.role == "employee").first()
-    if not dev_user:
-        pytest.skip("No test employee user found")
+    assert dev_user is not None, "el seed de conftest debe traer un empleado"
 
     # Grant permission
     perm_payload = {
@@ -293,7 +292,7 @@ def test_document_file_size_validation(db: Session, doc_client):
     )
     # Should be rejected with 413 Payload Too Large
     assert response.status_code == 413
-    assert "File too large" in response.json()["detail"]
+    assert "tamaño máximo" in response.text
 
 
 def test_document_permission_expiration(db: Session, doc_client):
@@ -309,8 +308,7 @@ def test_document_permission_expiration(db: Session, doc_client):
     # Get test employee user
     db_session = db
     dev_user = db_session.query(User).filter(User.role == "employee").first()
-    if not dev_user:
-        pytest.skip("No test employee user found")
+    assert dev_user is not None, "el seed de conftest debe traer un empleado"
 
     # Grant permission with expiration 1 day in future
     expires_at = (datetime.now(timezone.utc) + timedelta(days=1)).isoformat()
@@ -344,8 +342,7 @@ def test_non_admin_cannot_see_other_documents(db: Session, client, admin_token):
     # Get a non-admin user and authenticate as them
     db_session = db
     dev_user = db_session.query(User).filter(User.role == "employee").first()
-    if not dev_user:
-        pytest.skip("No test employee user found")
+    assert dev_user is not None, "el seed de conftest debe traer un empleado"
 
     # This would require a way to get token for employee user
     # For now, we just verify the endpoint exists

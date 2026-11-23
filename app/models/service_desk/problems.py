@@ -14,7 +14,7 @@ class Problem(Base):
     __table_args__ = (UniqueConstraint("organization_id", "number", name="uq_sd_problems_org_number"),)
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     number = Column(String(20), nullable=False)
     title = Column(String(500), nullable=False)
     description = Column(Text, nullable=False)
@@ -39,7 +39,7 @@ class Problem(Base):
     investigation_started_at = Column(DateTime(timezone=True), nullable=True)
     rca_due_date = Column(DateTime(timezone=True), nullable=True)      # SLA deadline for RCA
     rca_evidence = Column(Text, nullable=True)                          # Supporting evidence (JSON/text)
-    rca_approved_by = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    rca_approved_by = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     rca_approved_at = Column(DateTime(timezone=True), nullable=True)
 
     # KEDB lifecycle (ITSM-P02)
@@ -49,10 +49,10 @@ class Problem(Base):
     kedb_effectiveness_score = Column(Float, nullable=True)            # 0-100 (% tickets resolved via workaround)
     kb_article_id = Column(String(36), nullable=True)                  # Auto-generated KB article
 
-    ci_id = Column(String(36), ForeignKey("sd_configuration_items.id"), nullable=True, index=True)
-    project_id = Column(String(36), ForeignKey("projects.id"), nullable=True, index=True)
+    ci_id = Column(String(36), ForeignKey("sd_configuration_items.id", ondelete="SET NULL"), nullable=True, index=True)
+    project_id = Column(String(36), ForeignKey("projects.id", ondelete="SET NULL"), nullable=True, index=True)
 
-    owner_user_id = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    owner_user_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
 
     resolved_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -74,7 +74,7 @@ class KnownError(Base):
     __tablename__ = "sd_known_errors"
 
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     problem_id  = Column(String(36), ForeignKey("sd_problems.id", ondelete="CASCADE"), nullable=False, index=True)
     title       = Column(String(500), nullable=False)
     description = Column(Text, nullable=True)
@@ -105,7 +105,7 @@ class KnownErrorTicket(Base):
     __tablename__ = "sd_known_error_tickets"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     known_error_id = Column(String(36), ForeignKey("sd_known_errors.id", ondelete="CASCADE"), nullable=False, index=True)
     ticket_id = Column(String(36), ForeignKey("sd_tickets.id", ondelete="CASCADE"), nullable=False, index=True)
     incident_link_id = Column(String(36), ForeignKey("sd_incident_to_problem.id", ondelete="SET NULL"), nullable=True, index=True)
@@ -128,7 +128,7 @@ class ProblemRcaTemplate(Base):
     __tablename__ = "sd_problem_rca_templates"
 
     id            = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     name          = Column(String(255), nullable=False)
     # five_whys | fishbone | itil_standard | custom
     template_type = Column(String(30), nullable=False, index=True)
@@ -154,7 +154,7 @@ class IncidentToProblem(Base):
     __tablename__ = "sd_incident_to_problem"
 
     id         = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     problem_id = Column(String(36), ForeignKey("sd_problems.id", ondelete="CASCADE"), nullable=False, index=True)
     ticket_id  = Column(String(36), ForeignKey("sd_tickets.id", ondelete="CASCADE"), nullable=False, index=True)
     # True = this ticket is considered the primary/causal incident
@@ -178,7 +178,7 @@ class MajorIncident(Base):
     __table_args__ = (UniqueConstraint("organization_id", "number", name="uq_sd_major_incidents_org_number"),)
 
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     number      = Column(String(20), nullable=False)
     title       = Column(String(500), nullable=False)
     status      = Column(Enum(MajorIncidentStatus), default=MajorIncidentStatus.active, index=True)
@@ -187,8 +187,8 @@ class MajorIncident(Base):
     declared_at   = Column(DateTime(timezone=True), server_default=func.now())
     resolved_at   = Column(DateTime(timezone=True), nullable=True)
 
-    incident_commander_id = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
-    communication_lead_id = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    incident_commander_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    communication_lead_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
 
     impact_statement  = Column(Text, nullable=True)
     resolution_summary = Column(Text, nullable=True)

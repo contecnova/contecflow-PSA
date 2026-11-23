@@ -183,27 +183,37 @@ def test_profitability_avoids_n_plus_one_queries(client, admin_token, pm_token, 
     db.commit()
 
     db.query(User).filter(User.id == "admin-test-id").first()
-    select_count = 0
 
-    def _before_cursor_execute(_conn, _cursor, statement, _parameters, _context, _executemany):
-        nonlocal select_count
-        if statement.lstrip().upper().startswith("SELECT"):
-            select_count += 1
+    def _contar() -> tuple[int, list]:
+        n = 0
 
-    event.listen(db.bind, "before_cursor_execute", _before_cursor_execute)
-    try:
-        data = get_profitability(None, None, db=db)
-    finally:
-        event.remove(db.bind, "before_cursor_execute", _before_cursor_execute)
+        def _before_cursor_execute(_conn, _cursor, statement, _parameters, _context, _executemany):
+            nonlocal n
+            if statement.lstrip().upper().startswith("SELECT"):
+                n += 1
 
+        event.listen(db.bind, "before_cursor_execute", _before_cursor_execute)
+        try:
+            filas = get_profitability(None, None, db=db)
+        finally:
+            event.remove(db.bind, "before_cursor_execute", _before_cursor_execute)
+        return n, filas
+
+    antes, data = _contar()
     assert len(data) >= 2
-    # 3 constant queries (NOT N+1): (1) projects, (2) Project.phases selectin batch
-    # — lazy="selectin" fires ONE batched query for all projects regardless of count
-    # (see app/models/project.py:102) — and (3) the imputation cost/hours aggregate.
-    # None of these scale with the number of projects/imputations, so this is not a
-    # regression; the threshold was bumped from 2 to 3 to account for the phases
-    # selectin load that prevents N+1 in the project serializers.
-    assert select_count <= 3
+    # Auditoría 22-11-2026 (§7.2): el panel usa el cálculo único en bloque
+    # (personal, gastos, subcontrata, ALM, tarifas, tipos): un número FIJO de
+    # consultas. Se comprueba que no crece al añadir proyectos (no un tope fijo).
+    for i in range(3, 7):
+        db.add(Project(id=f"profit-q{i}", code=f"PROFQ{i}", name=f"Profit Query {i}",
+                       project_type=ProjectType.consulting, status=ProjectStatus.active,
+                       is_billable=True, billing_rate=100, pm_id="pm-test-id", created_by="admin-test-id"))
+        db.flush()
+        db.add(Imputation(user_id="dev-test-id", project_id=f"profit-q{i}", date=date.today(), hours=1, cost_amount=50))
+    db.commit()
+    despues, data = _contar()
+    assert len(data) >= 6
+    assert despues <= antes   # (la segunda pasada puede acertar en la caché de ajustes)
 
 
 # ── Team Productivity ──────────────────────────────────────────────────────

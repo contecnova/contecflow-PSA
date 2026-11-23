@@ -23,6 +23,7 @@ import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { CheckCircle2, KeyRound, LifeBuoy, Lock, ShieldCheck, ShieldOff, Smartphone, Timer } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
+import { DispositivosDeConfianza } from '../components/security/EstadoDeCuenta'
 import './MFAPage.css'
 
 export default function MFAPage() {
@@ -175,6 +176,9 @@ export default function MFAPage() {
           </Card>
         )}
       </div>
+
+      {/* 23-11-2026: dispositivos en los que no se repite el reto MFA (si la empresa lo permite). */}
+      <DispositivosDeConfianza />
 
       {/* Auditoria 2026-11 (#41): overlay propio sin trampa de foco ni Esc -> Modal del kit. */}
       <Modal open={showDisable} onClose={() => setShowDisable(false)} title={t('mfa.disable_title')} size="sm">

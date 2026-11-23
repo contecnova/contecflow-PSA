@@ -14,7 +14,7 @@ import { extractErr } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { projectsApi, usersApi, permissionsApi } from '../services/api'
+import { permissionsApi } from '../services/api'
 import type { PermisoDeProyecto } from '../services/api/tipos-plataforma'
 import { Avatar, Button, Card, Spinner, EmptyState, KpiCard, Modal, Checkbox, Pulsable, Select, TablaSimple } from '../components/ui'
 import StatusBadge from '../components/ui/StatusBadge'
@@ -25,7 +25,7 @@ import { ShieldCheck, ShieldOff, Eye, User, UserCog, Crown, Plus, Pencil, Check,
 import type { LucideIcon } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 import { etiquetaCodigo } from '../i18n/etiquetaCodigo'
-import { FULL_LIST_SIZE } from '../constants/pagination'
+import { useListaDeProyectos, useListaDeUsuarios } from '../hooks/useListas'
 import './ProjectPermissionsPage.css'
 
 type IdType = string | number
@@ -167,21 +167,15 @@ export default function ProjectPermissionsPage() {
   const [showForm, setShowForm] = useState(false)
   const [editingPerm, setEditingPerm] = useState<PermisoDeProyecto | null>(null)
 
-  const { data: projectsRaw = [] } = useQuery({
-    queryKey: ['projects'],
-    queryFn: () => projectsApi.list({}).then(r => Array.isArray(r.data) ? r.data : []).catch(() => []),
-  })
-  const projects = projectsRaw as ProjectItem[]
+  const { data: projectsRaw = [] } = useListaDeProyectos()
+  const projects = projectsRaw as unknown as ProjectItem[]
 
-  const { data: allUsersRaw = [] } = useQuery({
-    queryKey: ['users'],
-    queryFn: () => usersApi.list({ page_size: FULL_LIST_SIZE }).then(r => Array.isArray(r.data) ? r.data : []).catch(() => []),
-  })
-  const allUsers = allUsersRaw as UserItem[]
+  const { data: allUsersRaw = [] } = useListaDeUsuarios()
+  const allUsers = allUsersRaw as unknown as UserItem[]
 
   const { data: perms = [], isLoading } = useQuery({
     queryKey: ['permissions', selectedProject],
-    queryFn: () => permissionsApi.list(selectedProject).then(r => r.data).catch((): PermisoDeProyecto[] => []),
+    queryFn: () => permissionsApi.list(selectedProject).then(r => r.data),
     enabled: !!selectedProject,
   })
 

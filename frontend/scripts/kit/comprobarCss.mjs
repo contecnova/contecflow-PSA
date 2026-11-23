@@ -8,10 +8,14 @@
 //   monoespaciada    font-family/font con letra monoespaciada → texto normal; cifras con font-variant-numeric: tabular-nums
 //   colorLiteral     #hex, rgb()/rgba()/hsl()/hsla() con números → var(--token) de index.css
 //   altoFijoControl  height: NNpx en un botón/campo/select       → el alto de los controles del kit (38/32 px) o min-height
+//   minAltoCampo     min-height: NNpx en un campo/select/buscador → --alto-control / --alto-control-sm (23-11-2026)
+//   selectorDsInput  un selector con `.ds-input`                  → la clase propia del campo (inputClassName) o la API
+//                    del kit: el Input/Textarea/Select del kit NO llevan ds-input, y una regla `.ds-input.x` o
+//                    `.algo .ds-input` deja de aplicarse sin avisar (23-11-2026: 22 reglas muertas así)
 import fs from 'node:fs'
 import path from 'node:path'
 
-export const COMPROBACIONES_CSS = ['mayusculas', 'monoespaciada', 'colorLiteral', 'altoFijoControl']
+export const COMPROBACIONES_CSS = ['mayusculas', 'monoespaciada', 'colorLiteral', 'altoFijoControl', 'minAltoCampo', 'selectorDsInput']
 
 const RE_MAYUSCULAS = /\b(uppercase|capitalize)\b/i
 const RE_MONO = /mono|courier|consolas|menlo/i
@@ -19,6 +23,9 @@ const RE_HEX = /#[0-9a-f]{3,8}\b/i
 const RE_FUNCION_COLOR = /\b(rgba?|hsla?)\(\s*[\d.]/i
 const RE_SELECTOR_CONTROL = /\b(button|input|select|textarea)\b|btn|boton|control|campo|toggle|switch/i
 const RE_PX = /^-?\d+(\.\d+)?px$/
+// Campos de texto/desplegables (no botones, casillas, interruptores ni áreas de texto).
+const RE_SELECTOR_CAMPO = /\b(input|select)\b|campo|buscar|buscador|search|filtro|filter/i
+const RE_NO_CAMPO = /textarea|check|radio|color|range|switch|subir|file|nql|multi|area\b/i
 
 /** Recorre las declaraciones de una hoja: (selector, propiedad, valor, línea). */
 export function declaraciones(texto) {
@@ -63,6 +70,8 @@ export function analizarCss(texto) {
     if ((d.propiedad === 'font-family' || d.propiedad === 'font') && RE_MONO.test(d.valor)) r.monoespaciada.push({ linea: d.linea, texto })
     if (RE_HEX.test(d.valor) || RE_FUNCION_COLOR.test(d.valor)) r.colorLiteral.push({ linea: d.linea, texto })
     if (d.propiedad === 'height' && RE_PX.test(d.valor) && RE_SELECTOR_CONTROL.test(d.selector)) r.altoFijoControl.push({ linea: d.linea, texto: `${d.selector} { ${texto} }` })
+    if (d.propiedad === 'min-height' && RE_PX.test(d.valor) && RE_SELECTOR_CAMPO.test(d.selector) && !RE_NO_CAMPO.test(d.selector)) r.minAltoCampo.push({ linea: d.linea, texto: `${d.selector} { ${texto} }` })
+    if (/\.ds-input(?![\w-])/.test(d.selector)) r.selectorDsInput.push({ linea: d.linea, texto: `${d.selector} { ${texto} }` })
   }
   return r
 }

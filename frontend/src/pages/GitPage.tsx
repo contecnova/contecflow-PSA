@@ -14,7 +14,8 @@
  */
 
 import { useState } from 'react'
-import { Navigate, useNavigate, useSearchParams } from 'react-router-dom'
+import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom'
+import { sanitizeUrl } from '../utils/security'
 import { useQuery } from '@tanstack/react-query'
 import { gitApi } from '../services/api'
 import type { EstadoDeDespliegue, EstadoDePullRequest } from '../services/api/tipos-proyectos'
@@ -128,7 +129,7 @@ export default function GitPage(): JSX.Element {
                 { key: 'pr_title', label: t('git_integration.col_title'), render: (_v, pr) => (
                   <span className="gitp-label-3">
                     {pr.pr_url ? (
-                      <a href={pr.pr_url} target="_blank" rel="noreferrer"
+                      <a href={sanitizeUrl(pr.pr_url)} target="_blank" rel="noreferrer"
                         className="gitp-link-2">
                         {pr.pr_title || t('git_integration.dash')}
                       </a>
@@ -139,9 +140,9 @@ export default function GitPage(): JSX.Element {
                 { key: 'author_login', label: t('git_integration.col_author'), render: (_v, pr) => pr.author_login || t('git_integration.dash') },
                 { key: 'status', label: t('git_integration.col_status'), render: (_v, pr) => <PRStatusPill status={pr.status} /> },
                 { key: 'task_id', label: t('git_integration.col_task'), render: (_v, pr) => (pr.task_id ? (
-                  <a href={`/tasks?id=${pr.task_id}`} className="gitp-link-3">
+                  <Link to={`/tasks?id=${pr.task_id}`} className="gitp-link-3">
                     #{pr.task_id}
-                  </a>
+                  </Link>
                 ) : <span className="gitp-label-5">{t('git_integration.dash')}</span>) },
                 { key: 'merged_at', label: t('git_integration.col_date'), render: (_v, pr) => <span className="u-text2-xs">{fmtDateTime(pr.merged_at || pr.created_at)}</span> },
               ]}
@@ -168,9 +169,9 @@ export default function GitPage(): JSX.Element {
                 ) },
                 { key: 'status', label: t('git_integration.col_status'), render: (_v, d) => <DeployPill status={d.status} /> },
                 { key: 'task_id', label: t('git_integration.col_task'), render: (_v, d) => (d.task_id ? (
-                  <a href={`/tasks?id=${d.task_id}`} className="gitp-link-3">
+                  <Link to={`/tasks?id=${d.task_id}`} className="gitp-link-3">
                     #{d.task_id}
-                  </a>
+                  </Link>
                 ) : <span className="gitp-label-5">{t('git_integration.dash')}</span>) },
                 { key: 'deployed_at', label: t('git_integration.col_deployed'), render: (_v, d) => <span className="u-text2-xs">{fmtDateTime(d.deployed_at || d.created_at)}</span> },
               ]}

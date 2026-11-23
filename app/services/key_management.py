@@ -42,6 +42,16 @@ class KeyRingState:
 
 
 _cache: dict[str, Optional[KeyRingState]] = {"jwt": None}
+#: Cuándo se cargó `_cache["jwt"]` (monotónico). Auditoría 22-11-2026 (02 A37):
+#: sin caducidad, la rotación hecha en Celery no llegaba a los procesos web hasta
+#: reiniciar (401 intermitentes con el kid nuevo y tokens sin validar al podar).
+_cargado_en: dict[str, float] = {"jwt": 0.0}
+
+
+def _cache_caducada() -> bool:
+    import time as _t
+    ttl = float(getattr(settings, "JWT_KEYRING_CACHE_SECONDS", 60) or 0)
+    return _cache["jwt"] is None or (ttl > 0 and _t.monotonic() - _cargado_en["jwt"] > ttl)
 
 
 def _now() -> datetime:
@@ -186,7 +196,7 @@ def ensure_jwt_keyring(db) -> KeyRingState:
         _upgrade_plaintext_keys(db, state)
         return state
 
-    kid = f"k-{_now().strftime('%Y%m%d%H%M%S')}"
+    kid = _nuevo_kid()
     state = KeyRingState(
         active_kid=kid,
         keys={kid: _generate_key_material_ref()},
@@ -202,19 +212,39 @@ def refresh_caches(db=None) -> None:
     own_session = False
     if db is None:
         db = SessionLocal()
+        from app.db.contexto_de_tenant import declarar_sistema as _declarar_sistema
+        _declarar_sistema(db, "llavero JWT (global)")  # auditoría 22-11-2026: TENANT_SESION_SIN_CONTEXTO=cerrar
         own_session = True
     try:
+        import time as _t
         state = ensure_jwt_keyring(db)
         _cache["jwt"] = state
+        _cargado_en["jwt"] = _t.monotonic()
     finally:
         if own_session:
             db.close()
 
 
+def _recargar_por_caducidad() -> None:
+    """Recarga el llavero caducado; si la base no responde, sigue con el que hay.
+
+    23-11-2026: con la caducidad (02 A37) un fallo pasajero al releer `settings`
+    (base caída un momento, o la sesión de pruebas en memoria) tumbaba TODA
+    autenticación con 500. Con un llavero ya cargado se registra y se reintenta
+    en la siguiente petición; sin ninguno, el error sube como antes.
+    """
+    try:
+        refresh_caches()
+    except Exception:
+        if _cache["jwt"] is None:
+            raise
+        logger.warning("JWT keyring: no se pudo recargar; se sigue con el cargado", exc_info=True)
+
+
 def get_jwt_signing_key() -> tuple[str, str]:
     """Return (kid, plaintext_key)."""
-    if _cache["jwt"] is None:
-        refresh_caches()
+    if _cache_caducada():
+        _recargar_por_caducidad()
     state = _cache["jwt"]
     if state is None:
         raise RuntimeError("JWT key ring not initialised — call refresh_caches() first")
@@ -224,20 +254,41 @@ def get_jwt_signing_key() -> tuple[str, str]:
     return state.active_kid, _resolve_material(material)
 
 
-def get_jwt_verification_keys() -> dict[str, str]:
-    """Return map kid -> plaintext_key (active and retained keys only)."""
-    if _cache["jwt"] is None:
-        refresh_caches()
+def get_jwt_verification_keys(kid: Optional[str] = None) -> dict[str, str]:
+    """Return map kid -> plaintext_key (active and retained keys only).
+
+    Con `kid` desconocido se recarga el llavero una vez: lo acaba de rotar otro
+    proceso (02 A37).
+    """
+    if _cache_caducada() or (kid and _cache["jwt"] is not None and kid not in _cache["jwt"].keys):
+        _recargar_por_caducidad()
     state = _cache["jwt"]
     if state is None:
         raise RuntimeError("JWT key ring not initialised — call refresh_caches() first")
     out: dict[str, str] = {}
     for kid, ref in state.keys.items():
         try:
-            out[kid] = _resolve_material(ref)
+            # Auditoría 22-11-2026 (baja): el material descifrado se guarda por su
+            # referencia; antes cada `decode_token` descifraba el llavero entero
+            # (con KMS, una llamada por petición).
+            if ref not in _materiales:
+                _materiales[ref] = _resolve_material(ref)
+            out[kid] = _materiales[ref]
         except Exception as exc:
             logger.warning("Failed resolving key for kid=%s: %s", kid, exc)
     return out
+
+
+#: Material en claro por referencia (la referencia cambia al rotar: no caduca mal).
+_materiales: dict[str, str] = {}
+
+
+def _nuevo_kid() -> str:
+    """Baja (auditoría 22-11-2026): el kid lleva un sufijo aleatorio (antes solo
+    el segundo: dos rotaciones en el mismo segundo daban el mismo kid). Sigue
+    empezando por la fecha, así que ordenar por kid sigue siendo cronológico."""
+    import secrets as _secrets
+    return f"k-{_now().strftime('%Y%m%d%H%M%S')}-{_secrets.token_hex(3)}"
 
 
 def _rotate_jwt_keyring(db) -> bool:
@@ -245,18 +296,26 @@ def _rotate_jwt_keyring(db) -> bool:
     rotation_days = get_runtime_int(db, "JWT_KEY_ROTATION_DAYS") or settings.JWT_KEY_ROTATION_DAYS
     retention     = get_runtime_int(db, "JWT_KEY_RETENTION_COUNT") or settings.JWT_KEY_RETENTION_COUNT
 
+    # Baja (auditoría 22-11-2026): la web y el worker podían rotar a la vez y
+    # perder una clave. Se serializa con un bloqueo de transacción y se relee.
+    from app.db.session import is_postgres
+    if is_postgres():
+        from sqlalchemy import text
+        db.execute(text("SELECT pg_advisory_xact_lock(hashtext('jwt_keyring_rotation'))"))
     state = ensure_jwt_keyring(db)
     due_at = state.last_rotated_at + timedelta(days=rotation_days)
     if _now() < due_at:
         return False
 
-    new_kid = f"k-{_now().strftime('%Y%m%d%H%M%S')}"
+    new_kid = _nuevo_kid()
     state.keys[new_kid] = _generate_key_material_ref()
     state.active_kid = new_kid
     state.last_rotated_at = _now()
 
-    # Prune oldest keys keeping retention and always preserving legacy fallback
-    ordered = [k for k in sorted(state.keys.keys()) if k != "legacy-secret-key"]
+    # Poda de las más antiguas manteniendo `retention`. §5 (auditoría
+    # 22-11-2026): la excepción de "legacy-secret-key" era una referencia
+    # colgante (ningún `kid` se llama así) y se retira.
+    ordered = sorted(state.keys.keys())
     while len(ordered) > retention:
         drop = ordered.pop(0)
         state.keys.pop(drop, None)
@@ -321,6 +380,7 @@ class _SecretoARecifrar:
     modelo: object
     campos: tuple[str, ...]
     filtro: object = None      # consulta acotada, si el modelo lo necesita
+    modo: str = "valor"        # ver `_secretos_a_recifrar`
 
 
 def _secretos_a_recifrar() -> tuple[_SecretoARecifrar, ...]:
@@ -328,10 +388,35 @@ def _secretos_a_recifrar() -> tuple[_SecretoARecifrar, ...]:
 
     Se construye en una funcion y no como constante de modulo porque
     `SENSITIVE_APP_SETTING_KEYS` se lee en el momento de la consulta.
+
+    Auditoría 22-11-2026 (02 A38): solo había 5 modelos; las credenciales por
+    empresa, Jira, los tokens de colaboración, NVD/GHSA, marketplace, Slack,
+    licencias, MFA, discovery y los blobs JSON con secretos anidados quedaban
+    ilegibles al retirar `SECRET_KEY_PREVIOUS`.
+    `tests/test_seguridad_entrada_salida_2026_11_23.py` comprueba que toda
+    columna que el código cifra está aquí.
+
+    `modo`: "valor" (columna cifrada con `encrypt_value`; lo heredado en claro
+    también se cifra), "prefijo" (solo se recifra lo que ya lleva `v2:`/`kmsv1:`),
+    "json" (texto JSON con valores cifrados anidados) o "colab" (MultiFernet
+    propio de las integraciones de colaboración).
     """
+    from app.models.alm import ALMLicense
+    from app.models.cab import GDPRRequest, WebhookTrigger
+    from app.models.cmdb import CMDBDiscoveryProvider
+    from app.models.cmdb_software import SoftwareConfig
+    from app.models.collaboration import CollaborationIntegration
+    from app.models.jira_integration import JiraConfig
+    from app.models.marketplace import IntegrationInstance
+    from app.models.mfa import SlackConfig
+    from app.models.service_desk.datos_propios import VoiceSession
+    from app.models.settings import IntegrationCredential
+    from app.models.user import User
+
     return (
         _SecretoARecifrar(AIProvider, ("api_key",)),
         _SecretoARecifrar(IntegrationConfig, ("access_token", "refresh_token")),
+        _SecretoARecifrar(IntegrationConfig, ("config",), modo="json"),
         _SecretoARecifrar(SSOConfig, ("oidc_client_secret",)),
         _SecretoARecifrar(Webhook, ("secret",)),
         _SecretoARecifrar(
@@ -340,7 +425,99 @@ def _secretos_a_recifrar() -> tuple[_SecretoARecifrar, ...]:
                 AppSetting.key.in_(list(SENSITIVE_APP_SETTING_KEYS))
             ),
         ),
+        # Blobs JSON de ajustes con secretos anidados (BI ETL, BI O365, reuniones...).
+        _SecretoARecifrar(
+            AppSetting, ("value",), modo="json",
+            filtro=lambda q: q.filter(
+                ~AppSetting.key.in_(list(SENSITIVE_APP_SETTING_KEYS)),
+                AppSetting.value.like('%"v2:%') | AppSetting.value.like('%"kmsv1:%'),
+            ),
+        ),
+        _SecretoARecifrar(IntegrationCredential, ("value_encrypted",)),
+        _SecretoARecifrar(JiraConfig, ("jira_api_token_enc",)),
+        _SecretoARecifrar(SoftwareConfig, ("nvd_api_key", "ghsa_token"), modo="prefijo"),
+        _SecretoARecifrar(SlackConfig, ("bot_token",)),
+        _SecretoARecifrar(WebhookTrigger, ("secret",)),
+        _SecretoARecifrar(ALMLicense, ("_license_key",), modo="prefijo"),
+        _SecretoARecifrar(User, ("mfa_secret",), modo="prefijo"),
+        _SecretoARecifrar(CMDBDiscoveryProvider, ("config_json",), modo="prefijo"),
+        _SecretoARecifrar(IntegrationInstance, ("encrypted_config",), modo="prefijo"),
+        _SecretoARecifrar(GDPRRequest, ("export_data",), modo="prefijo"),
+        # Migracion 200: sesiones de voz (numero, entidades y transcripcion cifrados).
+        _SecretoARecifrar(VoiceSession, ("caller_id_enc", "entities_enc", "transcript_enc"), modo="prefijo"),
+        _SecretoARecifrar(CollaborationIntegration, ("access_token_enc", "refresh_token_enc"), modo="colab"),
     )
+
+
+_PREFIJOS_CIFRADOS = ("v2:", "kmsv1:")
+
+
+def _todas_las_empresas(db, consulta) -> list:
+    """La rotación es de plataforma: lee las filas de todas las empresas."""
+    try:
+        from app.db.contexto_de_tenant import contexto_de_sistema
+        with contexto_de_sistema(db, "rotación de claves de cifrado"):
+            from app.db.session import sin_filtro_de_tenant
+            with sin_filtro_de_tenant(db):
+                return consulta.all()
+    except ImportError:
+        from app.db.session import sin_filtro_de_tenant
+        with sin_filtro_de_tenant(db):
+            return consulta.all()
+
+
+def _recifrar_anidado(valor):
+    """Recorre un JSON y recifra cada cadena cifrada. Devuelve (nuevo, cambios)."""
+    if isinstance(valor, str) and valor.startswith(_PREFIJOS_CIFRADOS):
+        plano = decrypt_value(valor)
+        return (encrypt_value(plano), 1) if plano else (valor, 0)
+    if isinstance(valor, dict):
+        cambios = 0
+        salida = {}
+        for k, v in valor.items():
+            salida[k], n = _recifrar_anidado(v)
+            cambios += n
+        return salida, cambios
+    if isinstance(valor, list):
+        cambios = 0
+        salida = []
+        for v in valor:
+            nuevo, n = _recifrar_anidado(v)
+            salida.append(nuevo)
+            cambios += n
+        return salida, cambios
+    return valor, 0
+
+
+def _recifrar_segun_modo(fila, campo: str, nombre_modelo: str, modo: str) -> bool:
+    valor = getattr(fila, campo, None)
+    if not valor:
+        return False
+    if modo == "valor":
+        return _recifrar_campo(fila, campo, nombre_modelo)
+    if modo == "prefijo":
+        if not str(valor).startswith(_PREFIJOS_CIFRADOS):
+            return False
+        return _recifrar_campo(fila, campo, nombre_modelo)
+    if modo == "json":
+        try:
+            datos = json.loads(valor)
+        except (TypeError, ValueError):
+            return False
+        nuevo, cambios = _recifrar_anidado(datos)
+        if cambios:
+            setattr(fila, campo, json.dumps(nuevo))
+        return bool(cambios)
+    if modo == "colab":
+        from app.services.collaboration._integrations import _fernet
+        try:
+            setattr(fila, campo, _fernet().rotate(str(valor).encode()).decode())
+            return True
+        except Exception:  # noqa: BLE001 — ilegible: se deja intacto y se avisa
+            logger.warning("Rotación: %s.%s del registro %s no se puede descifrar; se deja intacto.",
+                           nombre_modelo, campo, getattr(fila, "id", "?"))
+            return False
+    raise ValueError(f"recifrado_modo_desconocido:{modo}")
 
 
 def _recifrar_campo(fila, campo: str, nombre_modelo: str) -> bool:
@@ -377,9 +554,9 @@ def _rotate_integration_secrets(db) -> int:
         consulta = db.query(spec.modelo)
         if spec.filtro is not None:
             consulta = spec.filtro(consulta)
-        for fila in consulta.all():
+        for fila in _todas_las_empresas(db, consulta):
             for campo in spec.campos:
-                if _recifrar_campo(fila, campo, nombre):
+                if _recifrar_segun_modo(fila, campo, nombre, spec.modo):
                     changed += 1
     return changed
 
@@ -439,6 +616,9 @@ def rotate_due_materials(db=None) -> dict:
     """Rota lo que toque: el llavero JWT y los secretos de integración."""
     propia = db is None
     db = db or SessionLocal()
+    if propia:  # auditoría 22-11-2026: TENANT_SESION_SIN_CONTEXTO=cerrar
+        from app.db.contexto_de_tenant import declarar_sistema as _declarar_sistema
+        _declarar_sistema(db, "rotación de claves y secretos (global)")
     try:
         if not _rotacion_activada(db):
             return {"enabled": False, "jwt_rotated": False, "integration_reencrypted": 0}
@@ -506,6 +686,9 @@ def get_integration_rotation_status(db=None) -> dict:
 
     propia = db is None
     db = db or SessionLocal()
+    if propia:  # auditoría 22-11-2026: TENANT_SESION_SIN_CONTEXTO=cerrar
+        from app.db.contexto_de_tenant import declarar_sistema as _declarar_sistema
+        _declarar_sistema(db, "rotación de claves y secretos (global)")
     try:
         ahora = _now()
         ultima = _fecha_de_ajuste(_get_setting(db, INTEGRATION_ROTATION_KEY))

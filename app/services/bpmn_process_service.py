@@ -646,6 +646,11 @@ def save_new_version(db: Session, *, process_id: str, bpmn_xml: str,
     if not proc:
         raise error(404, "no_encontrado", detail="Process not found", que="proceso")
     validar_xml(db, proc.organization_id, bpmn_xml)
+    # Auditoría 22-11-2026 (baja): la fila del proceso se bloquea antes de
+    # numerar (dos guardados a la vez daban la misma versión).
+    from app.db.session import is_postgres
+    if is_postgres():
+        db.refresh(proc, with_for_update=True)
     next_version = (proc.latest_version or 0) + 1
     v = BPMNProcessVersion(
         process_id=process_id, version=next_version, bpmn_xml=bpmn_xml,
@@ -717,6 +722,19 @@ def delete_process(db: Session, process_id: str) -> bool:
         return False
     proc.is_active = False
     proc.updated_at = datetime.now(timezone.utc)
+    # M75 (auditoría 22-11-2026): borrar un proceso cancela sus instancias en
+    # curso (como Camunda con «cascade»); antes seguían vivas y con tareas en
+    # bandejas de un proceso que ya no existía.
+    from app.models.bpmn_process import BPMNInstance
+    ahora = datetime.now(timezone.utc)
+    for inst in db.query(BPMNInstance).filter(BPMNInstance.process_id == proc.id,
+                                              BPMNInstance.status == "running").all():
+        for p in inst.steps:
+            if p.status == "active":
+                p.status = "cancelled"
+                p.completed_at = ahora
+        inst.status = "cancelled"
+        inst.ended_at = ahora
     db.commit()
     return True
 

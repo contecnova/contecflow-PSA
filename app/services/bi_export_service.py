@@ -17,6 +17,7 @@ import logging
 from datetime import datetime, timezone
 
 from sqlalchemy.orm import Session
+from app.core.celdas_seguras import fila_segura, neutralizar_formula
 from app.core.constantes import NOMBRE_DEL_PRODUCTO
 from app.core.codigos_de_error import error
 
@@ -164,7 +165,7 @@ def _hoja_de_resumen(wb, data: dict, *, report_title: str, texto_periodo: str,
 
     ws = wb.active
     ws.title = "Resumen"
-    ws["A1"] = report_title
+    ws["A1"] = neutralizar_formula(report_title)
     ws["A1"].font = Font(bold=True, size=14)
     ws["A2"] = f"Período: {texto_periodo}  |  Generado: {_utcnow()[:10]}"
     ws["A2"].font = Font(italic=True, size=10)
@@ -182,7 +183,7 @@ def _hoja_de_resumen(wb, data: dict, *, report_title: str, texto_periodo: str,
         ["Resolución media (h)", data.get("avg_resolution_hours", 0)],
     ]
     for fila in filas:
-        ws.append(fila)
+        ws.append(fila_segura(fila))
 
     tabla = Table(displayName="TablaKPIs", ref=f"A4:B{4 + len(filas)}")
     tabla.tableStyleInfo = TableStyleInfo(name="TableStyleMedium9", showRowStripes=True)
@@ -230,7 +231,7 @@ def _hoja_mensual(wb, labels: list, revenue: list, tickets: list, sla: list, sim
 
     n = min(len(labels), len(revenue), len(tickets), len(sla))
     for i in range(n):
-        ws.append([labels[i], revenue[i], tickets[i], _pct(sla[i])])
+        ws.append(fila_segura([labels[i], revenue[i], tickets[i], _pct(sla[i])]))
 
     total = n + 2
     ws[f"A{total}"] = "TOTAL"
@@ -287,7 +288,7 @@ def export_dashboard_excel(
     ws_sla.append(["Mes", "Tickets", "SLA (%)"])
     _cabecera_con_estilo(ws_sla, 1)
     for i in range(n):
-        ws_sla.append([labels[i], tickets[i], _pct(sla[i])])
+        ws_sla.append(fila_segura([labels[i], tickets[i], _pct(sla[i])]))
 
     buf = io.BytesIO()
     wb.save(buf)

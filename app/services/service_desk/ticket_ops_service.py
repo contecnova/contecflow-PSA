@@ -4,8 +4,7 @@ import json
 
 from sqlalchemy.orm import Session
 
-from app.models.settings import AppSetting
-from app.models.service_desk import Ticket, TicketComment, TicketTimeLog
+from app.models.service_desk import Ticket, TicketComment, TicketStatus, TicketTimeLog
 from app.services.sla_service import log_history as _log_history
 from app.core.errores import ErrorDeDominio
 
@@ -90,11 +89,13 @@ def _a_partes(db: Session, ticket: Ticket, user, minutos: int, descripcion: Opti
     return {"timesheet": "created", "imputation_id": imputacion.id, "hours": imputacion.hours}
 
 
-def _pending_snapshot_key(ticket_id: str) -> str:
-    return f"sd.ticket.pending_snapshot.{ticket_id}"
-
-
 def save_pending_snapshot(db: Session, ticket: Ticket) -> None:
+    """Foto del ticket al ponerlo en espera (migracion 200: `sd_ticket_hold_snapshots`).
+
+    Antes era una clave de `AppSetting` por ticket (`sd.ticket.pending_snapshot.<id>`)
+    que nunca se borraba; ahora una fila por ticket que se borra al reanudar.
+    """
+    from app.models.service_desk import TicketHoldSnapshot
     snapshot = {
         "status": str(ticket.status.value) if hasattr(ticket.status, "value") else str(ticket.status),
         "assigned_to_user_id": ticket.assigned_to_user_id,
@@ -103,32 +104,29 @@ def save_pending_snapshot(db: Session, ticket: Ticket) -> None:
         "priority": str(ticket.priority.value) if hasattr(ticket.priority, "value") else str(ticket.priority),
     }
     serialized = json.dumps(snapshot, ensure_ascii=False)
-    key = _pending_snapshot_key(ticket.id)
-    # Revision multitenant 2026-11: con la organizacion del ticket (antes
-    # global, y salia en los ajustes generales de todas las empresas).
-    row = db.query(AppSetting).filter(AppSetting.key == key, AppSetting.organization_id == ticket.organization_id).first()
+    row = db.get(TicketHoldSnapshot, ticket.id)
     if row:
-        row.value = serialized
-        row.description = "Ticket pending snapshot"
-    else:
-        db.add(AppSetting(key=key, organization_id=ticket.organization_id, value=serialized,
-                          description="Ticket pending snapshot"))
+        row.snapshot_json = serialized
+    elif ticket.organization_id:
+        db.add(TicketHoldSnapshot(ticket_id=ticket.id, organization_id=ticket.organization_id,
+                                  snapshot_json=serialized))
 
 
 def restore_pending_snapshot(db: Session, ticket: Ticket, current_user_id: str) -> dict:
-    key = _pending_snapshot_key(ticket.id)
-    row = db.query(AppSetting).filter(AppSetting.key == key, AppSetting.organization_id == ticket.organization_id).first()
-    if not row or not row.value:
+    from app.models.service_desk import TicketHoldSnapshot
+    row = db.get(TicketHoldSnapshot, ticket.id)
+    if not row or not row.snapshot_json:
         return {"ok": False, "restored": False, "detail": "No pending snapshot"}
 
     try:
-        snap = json.loads(row.value)
+        snap = json.loads(row.snapshot_json)
     except Exception:
         logging.getLogger(__name__).debug("restore_pending_snapshot: excepcion ignorada", exc_info=True)
         snap = {}
 
     old_status = str(ticket.status.value) if hasattr(ticket.status, "value") else str(ticket.status)
-    ticket.status = snap.get("status") or "in_progress"
+    # Auditoria 2026-11-22 (§6): el estado del enum, no el texto.
+    ticket.status = snap.get("status") or TicketStatus.in_progress.value
     ticket.assigned_to_user_id = snap.get("assigned_to_user_id")
     ticket.assigned_group_id = snap.get("assigned_group_id")
     ticket.support_level = snap.get("support_level") or ticket.support_level

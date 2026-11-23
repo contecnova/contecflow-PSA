@@ -50,7 +50,10 @@ from app.core.codigos_de_error import error
 
 NIVEL = {"area": 0, "departamento": 1, "proyecto": 2, "proyecto_previsto": 2}
 RECURRENCIAS = ("unica", "mensual", "trimestral", "anual")
-ACTIVOS = ("borrador", "enviado", "aprobado")   # versiones que cuentan contra el techo del padre
+# Estados de la version de presupuesto (`Budget.estado`; ronda 2 auditoria
+# 2026-11-22, §6: antes cadenas sueltas aqui y en `presupuestos_seguir`).
+BORRADOR, ENVIADO, APROBADO, RECHAZADO = "borrador", "enviado", "aprobado", "rechazado"
+ACTIVOS = (BORRADOR, ENVIADO, APROBADO)   # versiones que cuentan contra el techo del padre
 
 
 def _aj(db: Session, clave: str, org) -> str:
@@ -430,6 +433,7 @@ def comparar(db: Session, ids: list[str]) -> dict:
 def recordar_campana(db: Session) -> int:
     """Avisa a los responsables de presupuestos sin enviar cuando la fecha límite se acerca."""
     from app.services.notifications import notify_user
+    from app.services.textos_de_salida_servicios_m_z import aviso_de
     hoy = timeutil.today()
     avisos = 0
     for c in db.query(BudgetCampaign).filter(BudgetCampaign.abierta.is_(True)).all():
@@ -443,12 +447,14 @@ def recordar_campana(db: Session) -> int:
             if clave not in ultimas or b.version > ultimas[clave].version:
                 ultimas[clave] = b
         for b in ultimas.values():
-            if b.estado not in ("borrador", "rechazado"):
+            if b.estado not in (BORRADOR, RECHAZADO):
                 continue
             quien = b.responsable_id or b.created_by
-            if quien and notify_user(db, quien, "budget_warning", f"Presupuesto «{b.name}» sin enviar",
-                                     f"La campaña «{c.nombre}» cierra el {c.fecha_limite.isoformat()} "
-                                     f"({dias} días).", "budgets", b.id, f"/budgets?id={b.id}"):
+            if quien and notify_user(db, quien, "budget_warning", resource="budgets", resource_id=b.id,
+                                     action_url=f"/budgets?id={b.id}",
+                                     **aviso_de(db, quien, "presupuestos.campana_sin_enviar.titulo",
+                                                "presupuestos.campana_sin_enviar.cuerpo", nombre=b.name,
+                                                campana=c.nombre, fecha=c.fecha_limite.isoformat(), dias=dias)):
                 avisos += 1
     db.commit()
     return avisos

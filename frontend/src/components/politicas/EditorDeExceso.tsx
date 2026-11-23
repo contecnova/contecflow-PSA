@@ -10,6 +10,7 @@ import { Button, Select } from '../ui'
 import { SelectorDeReferencia } from './ConstructorDeCondiciones'
 import EditorDeResultados from './EditorDeResultados'
 import { useTextos } from './comun'
+import { Input } from '../ui'
 
 export default function EditorDeExceso({ dominio, valor, onChange }: {
   dominio: DominioDePoliticas; valor: Exceso | null; onChange: (e: Exceso | null) => void
@@ -65,12 +66,10 @@ export default function EditorDeExceso({ dominio, valor, onChange }: {
           <div className="pol-fila">
             <span className="pol-subtitulo">{t('pol.banda_n', { n: i + 1 })}</span>
             <label className="pol-fila"><span className="pol-ayuda">{t('pol.mas_de')}</span>
-              <input type="number" min={0} className="pol-campo pol-campo--corto" aria-label={t('pol.desde_pct')} value={b.desde}
-                onChange={e => cambiarBanda(i, { ...b, desde: Number(e.target.value) })} /> %
+              <Input type="number" min={0} aria-label={t('pol.desde_pct')} value={b.desde} onChange={e => cambiarBanda(i, { ...b, desde: Number(e.target.value) })} className="pol-campo--corto" /> %
             </label>
             <label className="pol-fila"><span className="pol-ayuda">{t('pol.hasta_incluido')}</span>
-              <input type="number" min={0} className="pol-campo pol-campo--corto" aria-label={t('pol.hasta_pct')} value={b.hasta ?? ''}
-                placeholder={t('pol.sin_techo')} onChange={e => cambiarBanda(i, { ...b, hasta: e.target.value === '' ? null : Number(e.target.value) })} /> %
+              <Input type="number" min={0} aria-label={t('pol.hasta_pct')} value={b.hasta ?? ''} placeholder={t('pol.sin_techo')} onChange={e => cambiarBanda(i, { ...b, hasta: e.target.value === '' ? null : Number(e.target.value) })} className="pol-campo--corto" /> %
             </label>
             <Button size="xs" variant="ghost" icon={<Trash2 size={13} />} onClick={() => onChange({ ...valor, bandas: bandas.filter((_, j) => j !== i) })}
               title={t('pol.quitar_banda')}><span className="u-sr-only">{t('pol.quitar_banda')}</span></Button>

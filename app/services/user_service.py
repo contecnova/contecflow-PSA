@@ -46,6 +46,15 @@ from app.core.codigos_de_error import error
 
 # ── Query helpers ──────────────────────────────────────────────────────────────
 
+#: Roles que ven el coste/hora de las personas (antes la tupla `("admin", "hr")`
+#: escrita en el listado de carga; ronda 2 auditoria 2026-11-22, §6).
+ROLES_QUE_VEN_TARIFAS = (UserRole.admin.value, UserRole.hr.value)
+
+#: Campos de la ficha cuyo cambio deja rastro en `audit_log` (ronda 2, M-RZ:
+#: antes cambiar el rol, la tarifa o el responsable no dejaba ninguno).
+CAMPOS_AUDITADOS = ("role", "custom_role_id", "hourly_rate", "manager_id", "email", "status", "is_active")
+
+
 def scope_users_query(q, current_user):
     if current_user.organization_id:
         q = q.outerjoin(
@@ -171,7 +180,7 @@ def get_load_map_payload(db: Session, current_user, week_start: Optional[date] =
             hours_this_month=hours_month,
             active_tasks=active_tasks,
             active_projects=active_proj,
-            hourly_rate=user.hourly_rate if getattr(current_user, 'role', None) in ('admin', 'hr') else None,
+            hourly_rate=user.hourly_rate if getattr(current_user, 'role', None) in ROLES_QUE_VEN_TARIFAS else None,
         ))
 
     result.sort(key=lambda x: x.current_load_pct, reverse=True)
@@ -574,6 +583,11 @@ def update_user_record(user_id: str, payload, current_user, db: Session):
     )
     _validar_correo_unico(payload, user, db)
     _validar_rol(payload, user, db)
+    enviados = payload.model_dump(exclude_unset=True)
+    _exigir_correo_por_admin(user, enviados.get("email"), current_user.role == UserRole.admin)
+    if "manager_id" in enviados:
+        _validar_responsable(db, user.id, enviados["manager_id"], current_user)
+    antes = {c: getattr(user, c, None) for c in CAMPOS_AUDITADOS}
     desactiva = (payload.model_dump(exclude_unset=True).get("status") == UserStatus.inactive
                  and user.status != UserStatus.inactive)
     if desactiva:
@@ -588,6 +602,7 @@ def update_user_record(user_id: str, payload, current_user, db: Session):
     if cambia_de_organizacion:
         _sincronizar_organizaciones(user, payload_org_id, payload_org_ids, db)
 
+    _auditar_campos_sensibles(db, current_user, user, antes)
     db.commit()
     # Auditoria 2026-08. Si el `PATCH` ha movido al usuario a otra organizacion,
     # este `refresh` **no lo encuentra**: la sesion sigue acotada a la
@@ -665,6 +680,59 @@ def get_user_productivity_payload(
 
 # ── Set manager ────────────────────────────────────────────────────────────────
 
+def _validar_responsable(db: Session, user_id: str, manager_id: Optional[str], current_user) -> None:
+    """El responsable existe, es visible para quien edita (misma empresa) y no
+    forma un ciclo. Lo usan `set_manager_record` y, desde la ronda 2 de la
+    auditoria 2026-11-22, tambien `update_user_record` (antes un administrador
+    podia poner por `PATCH /users/{id}` un `manager_id` inexistente, de otra
+    empresa o ciclico)."""
+    if not manager_id:
+        return
+    if manager_id == user_id:
+        raise error(400, "jerarquia_ciclica")
+    manager = db.query(User).filter(User.id == manager_id).first()
+    if not manager:
+        raise error(404, "no_encontrado", detail="Manager no encontrado", que="responsable_directo")
+    ensure_same_org_user_access(manager, current_user)
+    check = manager
+    vistos = {user_id}
+    while check.manager_id:
+        if check.manager_id in vistos:
+            raise error(400, "jerarquia_ciclica")
+        vistos.add(check.manager_id)
+        check = db.query(User).filter(User.id == check.manager_id).first()
+        if not check:
+            break
+        ensure_same_org_user_access(check, current_user)
+
+
+def _exigir_correo_por_admin(user: User, nuevo, es_admin: bool) -> None:
+    """Cambiar el correo propio sin verificarlo permitia quedarse con la
+    identidad de otra persona en el SSO (casa por correo) y en los avisos.
+    Hasta que haya verificacion por enlace, solo lo cambia un administrador
+    (ronda 2, 23-11-2026). Mandar el mismo correo no cuenta como cambio."""
+    if nuevo is None or es_admin:
+        return
+    if str(nuevo).strip().lower() != (user.email or "").strip().lower():
+        raise error(403, "correo_solo_admin")
+
+
+def _auditar_campos_sensibles(db: Session, actor, user: User, antes: dict) -> None:
+    """`audit_log` de los `CAMPOS_AUDITADOS` que han cambiado (ronda 2)."""
+    def _v(x):
+        return getattr(x, "value", x)
+    viejos, nuevos = {}, {}
+    for campo, valor in antes.items():
+        ahora = getattr(user, campo, None)
+        if _v(ahora) != _v(valor):
+            viejos[campo] = None if valor is None else str(_v(valor))
+            nuevos[campo] = None if ahora is None else str(_v(ahora))
+    if nuevos:
+        from app.services.audit import audit_log
+        audit_log(db, actor, "UPDATE", "user", user.id, user.username,
+                  old_values=viejos, new_values=nuevos, metadata={"accion": "campos_sensibles"})
+
+
 def set_manager_record(user_id: str, manager_id: Optional[str], current_user, db: Session,
                        extra: Optional[dict] = None) -> dict:
     """Responsable de una persona; con `extra`, también su puesto y departamento, en la misma
@@ -676,22 +744,15 @@ def set_manager_record(user_id: str, manager_id: Optional[str], current_user, db
         raise error(404, "no_encontrado", detail="Usuario no encontrado", que="usuario")
     ensure_same_org_user_access(user, current_user)
 
-    if manager_id:
-        manager = db.query(User).filter(User.id == manager_id).first()
-        if not manager:
-            raise error(404, "no_encontrado", detail="Manager no encontrado", que="responsable_directo")
-        ensure_same_org_user_access(manager, current_user)
-        # Detect cycles
-        check = manager
-        while check.manager_id:
-            if check.manager_id == user_id:
-                raise error(400, "jerarquia_ciclica")
-            check = db.query(User).filter(User.id == check.manager_id).first()
-            if not check:
-                break
-            ensure_same_org_user_access(check, current_user)
+    _validar_responsable(db, user_id, manager_id, current_user)
 
+    anterior = user.manager_id
     user.manager_id = manager_id
+    if anterior != manager_id:
+        from app.services.audit import audit_log
+        audit_log(db, current_user, "UPDATE", "user", user.id, user.username,
+                  old_values={"manager_id": anterior}, new_values={"manager_id": manager_id},
+                  metadata={"accion": "responsable"})
     for campo in ("job_title", "department"):
         if extra and campo in extra:
             setattr(user, campo, extra[campo] or None)
@@ -713,8 +774,10 @@ def get_preferences_payload(user_id: str, db: Session) -> dict:
         return {
             "dashboard_widgets": None, "accent_color": None,
             "theme_mode": "freight", "sidebar_collapsed": False,
-            # 18-11-2026: sin preferencia, el idioma de la empresa (no el global del entorno).
-            "language": _pe.idioma_de_empresa(db), "ui_density": "normal", "extra": None,
+            # Incidencia 5 (23-11-2026): sin preferencia, el idioma que la empresa
+            # eligió; si no eligió ninguno, `None` y la interfaz usa el del
+            # navegador o el inglés (antes, el del entorno: castellano).
+            "language": _pe.idioma_elegido_de_empresa(db), "ui_density": "normal", "extra": None,
         }
     return {
         "dashboard_widgets": json.loads(pref.dashboard_widgets) if pref.dashboard_widgets else None,
@@ -723,7 +786,7 @@ def get_preferences_payload(user_id: str, db: Session) -> dict:
         "accent_color":      pref.accent_color,
         "theme_mode":        pref.theme_mode or "freight",
         "sidebar_collapsed": pref.sidebar_collapsed or False,
-        "language":          pref.language or _pe.idioma_de_empresa(db),
+        "language":          pref.language or _pe.idioma_elegido_de_empresa(db),
         "ui_density":        pref.ui_density or "normal",
         "extra":             json.loads(pref.extra) if pref.extra else None,
     }
@@ -791,6 +854,8 @@ def update_self_profile(user, update_data: dict, db: Session):
     allowed_fields = {"email", "first_name", "last_name", "full_name", "phone", "job_title", "avatar_url"}
 
     incoming_email = update_data.get("email")
+    _exigir_correo_por_admin(user, incoming_email, getattr(user, "role", None) == UserRole.admin)
+    antes = {"email": user.email}
     if incoming_email is not None:
         normalized_email = incoming_email.strip().lower()
         existing = db.query(User).filter(func.lower(User.email) == normalized_email, User.id != user.id).first()
@@ -807,6 +872,7 @@ def update_self_profile(user, update_data: dict, db: Session):
                 ln = user.last_name or ""
                 if fn or ln:
                     user.full_name = f"{fn} {ln}".strip()
+    _auditar_campos_sensibles(db, user, user, antes)
     db.commit()
     db.refresh(user)
     return user
@@ -827,9 +893,86 @@ def deactivate_user_record(user, db: Session, actor=None, *, confirmar_equipos: 
     return baja
 
 
-def delete_user_record(user, db: Session) -> None:
+def reactivate_user_record(user, db: Session, actor) -> None:
+    """Vuelve a activar a una persona desactivada (auditoría 22-11-2026, A1 del 04b).
+
+    Antes el botón «Activar» llamaba a desactivar otra vez (y relanzaba la baja
+    de ALM). Reactivar no devuelve licencias ni equipos: eso se reasigna a mano
+    en ALM. Respeta el límite de usuarios del plan y deja rastro en auditoría.
+    """
+    from app.services.audit import audit_log
+    from app.services.organizations_service import exigir_cupo
+    if user.is_active:
+        return
+    if getattr(user, "organization_id", None):
+        exigir_cupo(db, user.organization_id, "users")
+    user.is_active = True
+    user.status = UserStatus.active
+    audit_log(db, actor, "UPDATE", "user", user.id, user.username,
+              old_values={"is_active": False}, new_values={"is_active": True},
+              metadata={"accion": "reactivar"})
+    db.commit()
+
+
+def historial_que_retiene(db: Session, user) -> dict[str, int]:
+    """Filas que impiden borrar la ficha: claves ajenas a `users.id` SIN borrado
+    en cascada ni a NULL (`RESTRICT` o sin `ondelete`), por `tabla.columna`.
+
+    Migración 196 (23-11-2026): las autorías obligatorias (quién aprobó, quién
+    evaluó, quién votó en el CAB, horas de ticket...) son `RESTRICT`: borrar la
+    ficha las rompería o se llevaría la evidencia por delante.
+    """
+    from sqlalchemy import select
+
+    from app.db.base import Base
+
+    retiene: dict[str, int] = {}
+    with sin_filtro_de_tenant(db):
+        for nombre, tabla in Base.metadata.tables.items():
+            if nombre == "users":
+                continue
+            for col in tabla.columns:
+                for fk in col.foreign_keys:
+                    if fk.column.table.name != "users" or (fk.ondelete or "").upper() in ("CASCADE", "SET NULL"):
+                        continue
+                    n = db.execute(select(func.count()).select_from(tabla).where(col == user.id)).scalar() or 0
+                    if n:
+                        retiene[f"{nombre}.{col.name}"] = n
+    return retiene
+
+
+def delete_user_record(user, db: Session, actor=None) -> dict:
+    """Borrado definitivo de una persona.
+
+    Migración 196 (23-11-2026, GRC): si tiene historial que la base protege
+    (`historial_que_retiene`), NO se borra la ficha —la base lo impediría y,
+    además, perderíamos la evidencia—: se anonimiza con la supresión RGPD
+    (`supresion_service.suprimir_persona`: datos personales fuera, credenciales
+    borradas, ficha desactivada y seudónima; el `id` se queda para que horas,
+    aprobaciones y evaluaciones sigan cuadrando). Sin historial, se borra.
+    Devuelve `{"modo": "borrado"|"anonimizado", ...}`.
+    """
+    from app.services.audit import audit_log
+
+    retiene = historial_que_retiene(db, user)
+    nombre = user.username
+    if retiene:
+        from app.services.supresion_service import suprimir_persona
+        informe = suprimir_persona(db, user)   # 409 si hay bloqueo legal
+        audit_log(db, actor, "DELETE", "user", user.id, user.username,
+                  metadata={"accion": "anonimizar_en_vez_de_borrar", "historial": retiene,
+                            "tablas_reescritas": len(informe.get("tablas", {})),
+                            "credenciales": informe.get("credenciales", {})})
+        db.commit()
+        return {"modo": "anonimizado", "historial": retiene}
+    # Ronda 2 auditoria 2026-11-22: sin historial tambien se respeta el bloqueo
+    # legal (antes solo la rama de anonimizar lo miraba).
+    from app.services.supresion_service import exigir_sin_bloqueo_legal
+    exigir_sin_bloqueo_legal(db, user)
+    audit_log(db, actor, "DELETE", "user", user.id, nombre, metadata={"accion": "borrado_definitivo"})
     db.delete(user)
     db.commit()
+    return {"modo": "borrado"}
 
 
 # ── Preferences ────────────────────────────────────────────────────────────────
@@ -866,6 +1009,10 @@ def update_preferences_record(user_id: str, payload: dict, db: Session) -> dict:
                 if valor is None:
                     actual.pop(clave, None)
                 else:
+                    if clave == "menu":
+                        # 23-11-2026: menú lateral personal (orden y pestañas ocultas); se valida la forma.
+                        from app.services.settings_service.menu_por_defecto import normalizar_menu
+                        valor = normalizar_menu(valor)
                     actual[clave] = valor
             pref.extra = json.dumps(actual) if actual else None
 

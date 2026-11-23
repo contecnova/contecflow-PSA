@@ -44,7 +44,7 @@ class SemProfile(Base):
     )
 
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     user_id     = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     # Texto libre que describe las capacidades: job_title + skills + departamento + historial
     profile_text= Column(Text, nullable=False, default="")
@@ -86,7 +86,7 @@ class SemEmbeddingCache(Base):
     __table_args__ = (Index("uq_sem_embedding_cache_org_text_hash", "organization_id", "text_hash", unique=True),)
 
     id              = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     item_type       = Column(String(20), nullable=False)   # ticket | task
     item_id         = Column(String(36), nullable=False, index=True)
     text_hash       = Column(String(64), nullable=False, index=True)  # SHA-256
@@ -102,13 +102,13 @@ class SemAssignment(Base):
     __tablename__ = "sem_assignments"
 
     id              = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     item_type       = Column(Enum(SemAssignmentType), nullable=False)
     item_id         = Column(String(36), nullable=False, index=True)
     item_title      = Column(String(500), nullable=True)
     # Resultado de la asignación
-    suggested_user_id   = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
-    accepted_user_id    = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    suggested_user_id   = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    accepted_user_id    = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     was_accepted        = Column(Boolean, nullable=True)    # None = pendiente, True/False = validado
     # Puntuaciones
     confidence          = Column(Float, nullable=True)
@@ -129,13 +129,13 @@ class SemFeedback(Base):
     __tablename__ = "sem_feedback"
 
     id              = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     text_hash       = Column(String(64), nullable=False, index=True)
     text_snippet    = Column(String(500), nullable=True)
     embedding       = Column(Text, nullable=True)
     item_type       = Column(String(20), nullable=False)
-    correct_user_id = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
-    corrected_by    = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    correct_user_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    corrected_by    = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     times_used      = Column(Integer, default=1)
     created_at      = Column(DateTime(timezone=True), server_default=func.now())
 
@@ -145,7 +145,7 @@ class SemConfig(Base):
     __tablename__ = "sem_config"
 
     id              = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     engine_mode     = Column(Enum(SemEngineMode), default=SemEngineMode.hybrid)
     # Umbrales (equivalente a thresholds.json de Ficosa)
     threshold_ticket = Column(Float, default=0.55)   # score mínimo para auto-asignar ticket

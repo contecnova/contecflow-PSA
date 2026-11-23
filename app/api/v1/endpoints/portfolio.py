@@ -13,7 +13,7 @@ from pydantic import BaseModel
 from datetime import date
 
 from app.db.session import get_db
-from app.core.deps import get_current_user, require_admin_or_pm
+from app.core.deps import get_current_user, requiere_capacidad
 from app.core.abac_enforce import enforce_abac
 from app.core.events import emit_event, EventType
 from app.core.responses import APIListResponse, APIResponse
@@ -64,7 +64,7 @@ def list_portfolios(response: Response,
 @router.post("", summary="Crear cartera", status_code=201)
 @router.post("/", summary="Crear cartera", status_code=201, include_in_schema=False)
 def create_portfolio(payload: PortfolioIn, db: Session = Depends(get_db),
-                     cu: User = Depends(require_admin_or_pm)):
+                     cu: User = Depends(requiere_capacidad("cartera.gestionar"))):
     p = portfolio_service.create_portfolio(db, owner_id=cu.id, data=payload.model_dump())
     emit_event(db, EventType.PORTFOLIO_CREATED, {"name": p.name, "status": p.status},
                actor=cu, resource_type="portfolio", resource_id=p.id)
@@ -83,7 +83,7 @@ def get_portfolio(portfolio_id: str, db: Session = Depends(get_db),
 @router.patch("/{portfolio_id}", summary="Actualizar cartera")
 def update_portfolio(portfolio_id: str, payload: PortfolioIn,
                      db: Session = Depends(get_db),
-                     cu: User = Depends(require_admin_or_pm)):
+                     cu: User = Depends(requiere_capacidad("cartera.gestionar"))):
     p = portfolio_service.get_portfolio(db, portfolio_id)
     if not p:
         raise error_http(404, "no_encontrado", detail="Cartera no encontrada", que="cartera")
@@ -95,7 +95,7 @@ def update_portfolio(portfolio_id: str, payload: PortfolioIn,
 
 @router.delete("/{portfolio_id}", summary="Eliminar cartera")
 def delete_portfolio(portfolio_id: str, db: Session = Depends(get_db),
-                     cu: User = Depends(require_admin_or_pm)):
+                     cu: User = Depends(requiere_capacidad("cartera.gestionar"))):
     p = portfolio_service.get_portfolio(db, portfolio_id)
     if not p:
         raise error_http(404, "no_encontrado", detail="Cartera no encontrada", que="cartera")
@@ -114,7 +114,7 @@ def delete_portfolio(portfolio_id: str, db: Session = Depends(get_db),
 @router.post("/{portfolio_id}/projects", summary="Añadir proyecto a la cartera", status_code=201)
 def add_project(portfolio_id: str, payload: PortfolioProjectIn,
                 db: Session = Depends(get_db),
-                cu: User = Depends(require_admin_or_pm)):
+                cu: User = Depends(requiere_capacidad("cartera.gestionar"))):
     p = portfolio_service.get_portfolio(db, portfolio_id)
     if not p:
         raise error_http(404, "no_encontrado", detail="Cartera no encontrada", que="cartera")
@@ -139,7 +139,7 @@ def add_project(portfolio_id: str, payload: PortfolioProjectIn,
 @router.delete("/{portfolio_id}/projects/{project_id}", summary="Quitar proyecto de la cartera")
 def remove_project(portfolio_id: str, project_id: str,
                    db: Session = Depends(get_db),
-                   cu: User = Depends(require_admin_or_pm)):
+                   cu: User = Depends(requiere_capacidad("cartera.gestionar"))):
     pp = portfolio_service.get_portfolio_project(db, portfolio_id, project_id)
     if not pp:
         raise error_http(404, "proyecto_no_en_cartera")

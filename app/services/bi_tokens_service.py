@@ -27,9 +27,59 @@ from sqlalchemy.orm import joinedload as jl
 from app.core.codigos_de_error import ErrorConCodigo
 
 
+#: A14 (auditoría 22-11-2026): alcances de un token BI. `read` = todo lo de
+#: `/bi/data/*` (lo que había); los demás, solo su recurso. Es el modelo de
+#: los conectores de Power BI/Tableau de los PSA del mercado (un alcance de
+#: lectura por conjunto de datos).
+ALCANCES = ("read", "projects:read", "timesheets:read", "kpis:read")
+
+#: Caché de verificación: HMAC-SHA256 del token → id del token (bcrypt solo la
+#: primera vez). Los tokens son 192 bits aleatorios: el bcrypt de cada petición
+#: no añadía seguridad y costaba ~250 ms. Se vuelve a leer la fila en cada
+#: petición, así que revocar o caducar sigue siendo inmediato.
+_VERIFICADOS: dict = {}
+_VERIFICADOS_MAX = 2048
+
+
+def _huella(token: str) -> str:
+    import hashlib
+    import hmac
+    from app.core.config import settings
+    return hmac.new(str(settings.SECRET_KEY).encode(), token.encode(), hashlib.sha256).hexdigest()
+
+
+def _vigente(bt: BIToken) -> bool:
+    exp = bt.expires_at.replace(tzinfo=timezone.utc) if bt.expires_at and not bt.expires_at.tzinfo else bt.expires_at
+    return bool(bt.is_active) and not (exp and exp < datetime.now(timezone.utc))
+
+
+def _contar_peticion(bt: BIToken, db: Session) -> None:
+    """A14: `requests_today` se reinicia al cambiar el día (UTC) y no pasa del
+    límite diario (`BI_TOKEN_DAILY_REQUEST_LIMIT`, por empresa; 0 = sin límite)."""
+    from app.services.settings_service import get_runtime_int
+    ahora = datetime.now(timezone.utc)
+    ultimo = bt.last_used_at.replace(tzinfo=timezone.utc) if bt.last_used_at and not bt.last_used_at.tzinfo else bt.last_used_at
+    hoy = 0 if (ultimo is None or ultimo.date() != ahora.date()) else int(bt.requests_today or 0)
+    tope = get_runtime_int(db, "BI_TOKEN_DAILY_REQUEST_LIMIT", getattr(bt, "organization_id", None), default=0) or 0
+    if tope and hoy >= tope:
+        from app.core.codigos_de_error import error
+        raise error(429, "bi_token_limite_diario", limite=tope)
+    bt.last_used_at = ahora
+    bt.requests_today = hoy + 1
+
+
 def verify_bi_token(token: str, db: Session) -> Optional[BIToken]:
     if not token or not token.startswith("bi_"):
         return None
+    huella = _huella(token)
+    token_id = _VERIFICADOS.get(huella)
+    if token_id:
+        bt = db.query(BIToken).filter(BIToken.id == token_id).first()
+        if bt is None or not _vigente(bt):
+            _VERIFICADOS.pop(huella, None)
+            return None
+        _contar_peticion(bt, db)
+        return bt
     import bcrypt
     prefix = token[:10]
     candidates = db.query(BIToken).filter(
@@ -38,13 +88,21 @@ def verify_bi_token(token: str, db: Session) -> Optional[BIToken]:
     ).all()
     for bt in candidates:
         if bcrypt.checkpw(token.encode(), bt.token_hash.encode()):
-            bt_exp = bt.expires_at.replace(tzinfo=timezone.utc) if bt.expires_at and not bt.expires_at.tzinfo else bt.expires_at
-            if bt_exp and bt_exp < datetime.now(timezone.utc):
+            if not _vigente(bt):
                 return None
-            bt.last_used_at = datetime.now(timezone.utc)
-            bt.requests_today = (bt.requests_today or 0) + 1
+            if len(_VERIFICADOS) >= _VERIFICADOS_MAX:
+                _VERIFICADOS.clear()
+            _VERIFICADOS[huella] = bt.id
+            _contar_peticion(bt, db)
             return bt
     return None
+
+
+def alcances_de(bt: BIToken) -> set:
+    try:
+        return set(json.loads(bt.scopes or '["read"]'))
+    except (TypeError, ValueError):
+        return set()
 
 
 def list_bi_tokens(db: Session) -> list:
@@ -61,6 +119,15 @@ def list_bi_tokens(db: Session) -> list:
     } for t in tokens]
 
 
+def _alcances_validos(scopes) -> list:
+    """A14: solo alcances conocidos (antes se guardaba cualquier texto y no se miraba)."""
+    lista = list(scopes or ["read"])
+    malos = [x for x in lista if x not in ALCANCES]
+    if malos:
+        raise ErrorConCodigo("campo_no_valido_opciones", campo="scopes", opciones=", ".join(ALCANCES))
+    return lista
+
+
 def create_bi_token(payload_dict: dict, created_by: str, db: Session) -> dict:
     import bcrypt
     raw_token = "bi_" + secrets.token_hex(24)
@@ -72,7 +139,7 @@ def create_bi_token(payload_dict: dict, created_by: str, db: Session) -> dict:
     t = BIToken(
         name=payload_dict["name"], tool=payload_dict.get("tool", "powerbi"),
         token_hash=hashed, token_prefix=prefix,
-        scopes=json.dumps(payload_dict.get("scopes") or ["read"]),
+        scopes=json.dumps(_alcances_validos(payload_dict.get("scopes"))),
         expires_at=expires_at, created_by=created_by,
     )
     db.add(t); db.commit()
@@ -89,7 +156,7 @@ def revoke_bi_token(token_id: str, db: Session) -> dict:
     return {"ok": True}
 
 
-def _check_bi_token_auth(raw_token: Optional[str], db: Session) -> BIToken:
+def _check_bi_token_auth(raw_token: Optional[str], db: Session, alcance: Optional[str] = None) -> BIToken:
     """Verify BI token auth; raises ValueError('unauthorized') if invalid.
 
     Periodo libre (16-11-2026): además publica en la sesión la empresa del
@@ -106,6 +173,12 @@ def _check_bi_token_auth(raw_token: Optional[str], db: Session) -> BIToken:
     if not bt:
         raise ErrorConCodigo("token_no_valido", detail="unauthorized")
     db.commit()
+    # A14: el alcance del token se aplica (antes se guardaba y no se miraba).
+    if alcance:
+        tiene = alcances_de(bt)
+        if "read" not in tiene and alcance not in tiene:
+            from app.core.codigos_de_error import error
+            raise error(403, "bi_token_sin_alcance", alcance=alcance)
     org_id = getattr(bt, "organization_id", None)
     info = getattr(db, "info", None)
     if isinstance(info, dict):
@@ -127,16 +200,20 @@ def zona_del_token(bt: BIToken, db: Session):
 
 
 def bi_data_projects(raw_token: Optional[str], db: Session) -> list:
-    _check_bi_token_auth(raw_token, db)
+    _check_bi_token_auth(raw_token, db, "projects:read")
     projects = db.query(Project).filter(Project.status != "archived").all()
+    # Auditoría 22-11-2026: horas en UNA consulta agregada (antes una por
+    # proyecto) y solo imputaciones activas.
+    horas = dict(db.query(Imputation.project_id, func.sum(Imputation.hours)).filter(
+        Imputation.project_id.in_([p.id for p in projects] or [""]), Imputation.is_active.is_(True),
+    ).group_by(Imputation.project_id).all())
     return [{
         "id": p.id, "code": p.code, "name": p.name,
         "client_name": p.client_name, "status": p.status,
         "start_date": str(p.start_date) if p.start_date else None,
         "end_date_planned": str(p.end_date_planned) if p.end_date_planned else None,
         "budget_amount": p.budget_amount, "billing_rate": p.billing_rate,
-        "total_hours_logged": db.query(func.sum(Imputation.hours)).filter(
-            Imputation.project_id == p.id).scalar() or 0,
+        "total_hours_logged": float(horas.get(p.id) or 0),
     } for p in projects]
 
 
@@ -161,7 +238,7 @@ def bi_data_timesheets(
     punto por tramo: ``t``, ``clave``, ``hours``, ``billable_hours``,
     ``entries``), sin paginar; sin ella, las filas paginadas de siempre.
     """
-    bt = _check_bi_token_auth(raw_token, db)
+    bt = _check_bi_token_auth(raw_token, db, "timesheets:read")
     p = None
     if any((desde, hasta, date_from, date_to, granularidad)):
         from app.core.periodo import SIN_HORA, limites_de_periodo, resolver_periodo, zona_de
@@ -195,7 +272,7 @@ def bi_data_timesheets(
                 func.sum(case((Imputation.is_billable == True, Imputation.hours), else_=0)),  # noqa: E712
                 func.count(Imputation.id),
             )
-            .filter(filtro_de_periodo(Imputation.date, p))
+            .filter(filtro_de_periodo(Imputation.date, p), Imputation.is_active.is_(True))
             .group_by(tramo)
             .all()
         )
@@ -209,7 +286,7 @@ def bi_data_timesheets(
         }
         return p.rellenar(datos, vacio={"hours": 0.0, "billable_hours": 0.0, "entries": 0})
 
-    q = db.query(Imputation).options(jl(Imputation.user), jl(Imputation.project))
+    q = db.query(Imputation).options(jl(Imputation.user), jl(Imputation.project)).filter(Imputation.is_active.is_(True))
     if p is not None:
         from app.core.periodo import filtro_de_periodo
         q = q.filter(filtro_de_periodo(Imputation.date, p))
@@ -232,12 +309,12 @@ def bi_data_timesheets(
 
 
 def bi_data_kpis(raw_token: Optional[str], db: Session) -> dict:
-    _check_bi_token_auth(raw_token, db)
+    _check_bi_token_auth(raw_token, db, "kpis:read")
     active_projects = db.query(func.count(Project.id)).filter(Project.status == "active").scalar()
     total_users = db.query(func.count(User.id)).filter(User.is_active == True).scalar()
     this_week_start = timeutil.today() - timedelta(days=timeutil.today().weekday())
     hours_this_week = db.query(func.sum(Imputation.hours)).filter(
-        Imputation.date >= this_week_start
+        Imputation.date >= this_week_start, Imputation.is_active.is_(True),
     ).scalar() or 0
     total_budget = db.query(func.sum(Project.budget_amount)).filter(
         Project.status.in_(["active", "planning"])

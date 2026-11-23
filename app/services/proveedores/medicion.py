@@ -362,6 +362,7 @@ def medir_todo(db: Session, org_id: Optional[str] = None, hoy: Optional[date] = 
                 s.metering_last_at = datetime.now(timezone.utc)
                 db.commit()
             except Exception:
+                logger.warning("medir_todo: excepcion ignorada", exc_info=True)
                 db.rollback()
     return {"supplier_metering_measured": medidos, "supplier_metering_failed": fallos}
 
@@ -412,6 +413,7 @@ def importar(db: Session, filas: list[dict], actor, sub_id: Optional[str] = None
             resultado.append({"row": i + 1, "ok": True, "usage_id": u["id"], "quantity": u["quantity"]})
             ok += 1
         except Exception as exc:
+            logger.warning("importar: excepcion ignorada", exc_info=True)
             db.rollback()
             resultado.append({"row": i + 1, "ok": False, "code": getattr(exc, "code", None),
                               "error": str(getattr(exc, "detail", exc))[:255]})

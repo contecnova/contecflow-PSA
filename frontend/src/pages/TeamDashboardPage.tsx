@@ -1,9 +1,7 @@
 import type React from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { usersApi, analyticsApi, okrsApi, performanceApi, trainingApi, absencesApi, type Absence } from '../services/api'
-import type { Inscripcion } from '../services/api/tipos-personas'
+import { usersApi, analyticsApi, okrsApi, performanceApi, trainingApi, absencesApi } from '../services/api'
 import type { Objetivo } from '../services/api/tipos-proyectos'
-import type { EvaluacionDeDesempeno } from '../services/api/tipos-rendimiento'
 import { Spinner, KpiCard, EmptyState, Card, Section, StatusBadge } from '../components/ui'
 import PageShell from '../components/layout/PageShell'
 import PageHeader from '../components/layout/PageHeader'
@@ -51,7 +49,7 @@ export default function TeamDashboardPage() {
     queryKey: ['team-dash-resources'],
     queryFn: () => usersApi.list({ page_size: SELECTOR_LIST_SIZE }).then(r => {
       return r.data ?? []
-    }).catch(() => []),
+    }),
     staleTime: STALE_DEFAULT_MS,
   })
   const resources = resourcesRaw as TeamUser[]
@@ -60,32 +58,32 @@ export default function TeamDashboardPage() {
     // La utilización es de la semana en curso: el endpoint no admite periodo
     // (revisión 2026-11: se leía un campo que no existe y nunca se veía).
     queryKey: ['team-dash-util'],
-    queryFn: () => analyticsApi.utilization().then(r => r.data).catch(() => null),
+    queryFn: () => analyticsApi.utilization().then(r => r.data),
     staleTime: STALE_DEFAULT_MS,
   })
 
   const { data: okrs = [] } = useQuery({
     queryKey: ['team-dash-okrs'],
-    queryFn: () => okrsApi.list({ page_size: DASHBOARD_LIST_SIZE }).then(r => r.data).catch((): Objetivo[] => []),
+    queryFn: () => okrsApi.list({ page_size: DASHBOARD_LIST_SIZE }).then(r => r.data),
     staleTime: STALE_DEFAULT_MS,
   })
 
   const { data: perfReviews = [] } = useQuery({
     queryKey: ['team-dash-perf'],
-    queryFn: () => performanceApi.myReviews().then(r => r.data).catch((): EvaluacionDeDesempeno[] => []),
+    queryFn: () => performanceApi.myReviews().then(r => r.data),
     staleTime: STALE_DEFAULT_MS,
   })
 
   const { data: trainings = [] } = useQuery({
     queryKey: ['team-dash-training'],
-    queryFn: () => trainingApi.enrollments({ page_size: DASHBOARD_LIST_SIZE }).then(r => r.data).catch((): Inscripcion[] => []),
+    queryFn: () => trainingApi.enrollments({ page_size: DASHBOARD_LIST_SIZE }).then(r => r.data),
     staleTime: STALE_DEFAULT_MS,
   })
 
   const { data: absences = [] } = useQuery({
     queryKey: ['team-dash-absences'],
     // `todasLasPaginas` siempre devuelve el array ya desenvuelto.
-    queryFn: () => absencesApi.list({ page_size: DASHBOARD_LIST_SIZE }).then(r => r.data).catch((): Absence[] => []),
+    queryFn: () => absencesApi.list({ page_size: DASHBOARD_LIST_SIZE }).then(r => r.data),
     staleTime: STALE_DEFAULT_MS,
   })
 

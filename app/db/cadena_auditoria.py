@@ -83,6 +83,18 @@ def _clave_de_firma():
     return Ed25519PrivateKey.from_private_bytes(semilla)
 
 
+def firmar_bytes(datos: bytes) -> bytes:
+    """Firma Ed25519 con la clave de exportación (API pública: antes otros
+    módulos usaban `_clave_de_firma` directamente)."""
+    return _clave_de_firma().sign(datos)
+
+
+def huella_de_clave_publica() -> str:
+    """SHA-256 de la clave pública (PEM): para comprobar que la clave que trae un
+    documento es la publicada por la plataforma."""
+    return hashlib.sha256(clave_publica_pem().encode()).hexdigest()
+
+
 def clave_publica_pem() -> str:
     from cryptography.hazmat.primitives import serialization
     return _clave_de_firma().public_key().public_bytes(
@@ -220,6 +232,10 @@ def _fila_en(db, org, seq):
 
 def _canon(doc: dict) -> bytes:
     return json.dumps(doc, sort_keys=True, separators=(",", ":"), ensure_ascii=False, default=str).encode()
+
+
+#: API pública de la forma canónica (auditoría 22-11-2026, baja).
+canonico = _canon
 
 
 def exportar(db, org, limite: int) -> dict:

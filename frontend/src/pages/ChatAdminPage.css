@@ -176,6 +176,18 @@
   word-break: break-all;
 }
 
+/* Secreto del webhook recién creado: se enseña una sola vez (23-11-2026) */
+.cadm-secreto {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding: 12px;
+  background: var(--warning-bg);
+  border: 1px solid var(--warning-border);
+  border-radius: var(--radius-sm);
+}
+
 /* Resultado de verificación de la cadena de auditoría */
 .cadm-verify {
   margin-bottom: 12px;

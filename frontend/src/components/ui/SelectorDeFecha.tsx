@@ -3,6 +3,7 @@ import type { CSSProperties, FocusEvent, KeyboardEvent, ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { Calendar, ChevronLeft, ChevronRight, Clock } from 'lucide-react'
 import { useIdiomaUi, useTextoUi } from './useTextoUi'
+import { avisarCambio } from './useCambiosSinGuardar'
 import {
   ahoraEnZona, comparar, enmascarar, etiquetaDeDia, instanteEnZona, isoEnZona, leerTexto, leerValor,
   marcadorDe, moverFecha, nombresDeDias, nombresDeMeses, paredEnZona, patronDeFecha, primerDiaDeSemana,
@@ -142,9 +143,11 @@ export function CampoFecha(props: CampoFechaProps) {
     (pMin && comparar(p, pMin, modo) < 0) || (pMax && comparar(p, pMax, modo) > 0), [pMin, pMax, modo])
 
   const emitir = useCallback((p: Pared | null) => {
-    if (!p) { onChange?.(''); return }
-    onChange?.(deParedAValor(p, modo, zona))
-  }, [onChange, modo, zona])
+    const nuevo = p ? deParedAValor(p, modo, zona) : ''
+    onChange?.(nuevo)
+    // El calendario no dispara `input`: se avisa al dialogo (cambios sin guardar).
+    if (nuevo !== (value ?? '')) avisarCambio(raiz.current)
+  }, [onChange, modo, zona, value])
 
   const errorDeLimites = useCallback((p: Pared) => {
     if (pMin && comparar(p, pMin, modo) < 0) return interpolar(tx('min'), { fecha: textoDe(pMin, modo, patron) })

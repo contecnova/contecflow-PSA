@@ -67,6 +67,12 @@ def compute_timer_elapsed(timer) -> int:
 
 def start_timer_session(payload, current_user: User, db: Session):
 
+    # M31 (auditoría 22-11-2026): la comprobación de «ya hay uno activo» se
+    # serializa por persona (dos clics a la vez creaban dos cronómetros).
+    from app.db.session import is_postgres
+    if is_postgres():
+        from sqlalchemy import text
+        db.execute(text("SELECT pg_advisory_xact_lock(hashtext(:k))"), {"k": f"cronometro:{current_user.id}"})
     existing = db.query(TimerSession).filter(
         and_(TimerSession.user_id == current_user.id, TimerSession.ended_at == None)
     ).first()
@@ -105,8 +111,16 @@ def start_timer_session(payload, current_user: User, db: Session):
         started_at=now,
     )
     db.add(timer)
-    db.flush()
-    db.commit()
+    # Migración 201: el índice único parcial (un cronómetro abierto por persona)
+    # para la carrera que el bloqueo de arriba no cubre (SQLite, otro proceso):
+    # el choque es un 409 con código, nunca un 500.
+    from sqlalchemy.exc import IntegrityError
+    try:
+        db.flush()
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise error(409, "cronometro_ya_activo", detail="User already has an active timer")
     db.refresh(timer)
     return timer
 
@@ -184,7 +198,7 @@ def _proyecto_valido_para_parar(timer, current_user: User, db: Session):
     return project
 
 
-def _horas_del_cronometro(timer) -> tuple[float, "date"]:
+def _horas_del_cronometro(timer, usuario=None) -> tuple[float, "date"]:
     """Las horas trabajadas y la fecha a la que se imputan.
 
     Tres sutilezas que estaban sueltas dentro del cuerpo principal y que aquí
@@ -214,7 +228,14 @@ def _horas_del_cronometro(timer) -> tuple[float, "date"]:
         pausado += (ahora - desde).total_seconds()
 
     segundos_activos = max(0, transcurrido - pausado)
-    return max(0.25, round(segundos_activos / 3600, 2)), inicio.date()
+    # Auditoría 22-11-2026 (A47): el día de inicio en la zona de la persona
+    # (antes, en UTC: la tarde en América o la madrugada en Asia caían en otro día).
+    if usuario is not None:
+        from app.core.timeutil import zone_for_user
+        dia = inicio.astimezone(zone_for_user(usuario)).date()
+    else:
+        dia = inicio.date()
+    return max(0.25, round(segundos_activos / 3600, 2)), dia
 
 
 def _comprobar_cierre_y_tope_diario(current_user: User, db: Session,
@@ -239,6 +260,7 @@ def _comprobar_cierre_y_tope_diario(current_user: User, db: Session,
     ya_registradas = db.query(func.sum(Imputation.hours)).filter(
         Imputation.user_id == current_user.id,
         Imputation.date == fecha,
+        Imputation.is_active.is_(True),   # A45: sin contar las borradas
     ).scalar() or 0.0
     if ya_registradas + horas > 24:
         raise error(400, "imputar_mas_de_24h", detail=f"No puedes imputar más de 24h en un día. Ya tienes "
@@ -259,65 +281,34 @@ def stop_timer_session(payload, current_user: User, db: Session):
     selected_task_id = task.id if task else None
     _assert_project_membership(project, task, current_user, db)
 
-    hours, imputation_date = _horas_del_cronometro(timer)
+    hours, imputation_date = _horas_del_cronometro(timer, current_user)
+    # M31 (auditoría 22-11-2026): un cronómetro olvidado (más de 24 h) ya no
+    # queda imposible de parar: se paran con las horas reales (`hours`, como
+    # mucho las medidas), como en las herramientas de control horario del mercado.
+    reales = getattr(payload, "hours", None)
+    if reales:
+        hours = round(min(float(reales), hours), 2)
+    elif hours > 24:
+        raise error(422, "cronometro_demasiado_largo", horas=24)
 
     _comprobar_cierre_y_tope_diario(current_user, db, imputation_date, hours)
 
-    # Duplicate check (mirrors validate_and_create_imputation)
-    duplicate_imputation_id = None
-    if selected_task_id:
-        duplicate = db.query(Imputation.id).filter(
-            Imputation.user_id == current_user.id,
-            Imputation.task_id == selected_task_id,
-            Imputation.date == imputation_date,
-        ).first()
-        if duplicate:
-            duplicate_imputation_id = duplicate[0]
-            if not payload.force_duplicate:
-                raise error(409, "imputacion_duplicada")
-    else:
-        duplicate = db.query(Imputation.id).filter(
-            Imputation.user_id == current_user.id,
-            Imputation.project_id == timer.project_id,
-            Imputation.task_id.is_(None),
-            Imputation.date == imputation_date,
-        ).first()
-        if duplicate:
-            duplicate_imputation_id = duplicate[0]
-            if not payload.force_duplicate:
-                raise error(409, "imputacion_duplicada", detail="Ya existe una imputación sin tarea para este proyecto en esa fecha.")
+    # Auditoría 22-11-2026 (A48): el resto de reglas (duplicados, tope semanal,
+    # control de horas extra «bloquear», estado de la tarea…) son las del alta
+    # manual, por la misma puerta. Antes el cronómetro las esquivaba.
+    from app.services.imputation_service.alta import crear_imputacion_validada
 
-    timer_rate = resolve_user_rate(db, current_user, imputation_date, timer.project_id)
-    imputation = Imputation(
-        user_id=current_user.id,
-        task_id=selected_task_id,
-        project_id=timer.project_id,
-        date=imputation_date,
-        hours=hours,
-        description=payload.description,
-        is_billable=payload.is_billable,
-        hourly_rate_snapshot=timer_rate,
-        cost_amount=_cost_svc.cost_amount(db, current_user, hours, imputation_date, project_id=timer.project_id),
-        timer_session_id=timer.id,
+    def _cerrar_cronometro(imp) -> None:
+        imp.timer_session_id = timer.id
+        timer.imputation_id = imp.id
+        timer.ended_at = datetime.now(timezone.utc)
+
+    imputation = crear_imputacion_validada(
+        current_user, db, project_id=timer.project_id, fecha=imputation_date, horas=hours,
+        task_id=selected_task_id, description=payload.description, is_billable=payload.is_billable,
+        force_duplicate=bool(getattr(payload, "force_duplicate", False)),
+        antes_de_confirmar=_cerrar_cronometro,
     )
-    db.add(imputation)
-    db.flush()
-
-    timer.imputation_id = imputation.id
-    timer.ended_at = datetime.now(timezone.utc)
-
-    if duplicate_imputation_id and payload.force_duplicate:
-        _notify_duplicate_imputation_manager(
-            db,
-            current_user,
-            project,
-            task,
-            imputation,
-            duplicate_imputation_id,
-        )
-
-    db.commit()
-    sync_imputation_week_timesheet(db, imputation.user_id, imputation.date)
 
     imputation = db.query(Imputation).options(
         joinedload(Imputation.user),

@@ -156,7 +156,9 @@ def test_index_html_lleva_las_mismas_cabeceras_que_el_servidor():
 
 def test_la_csp_de_nginx_permite_lo_que_la_spa_usa():
     csp = _cabeceras(_NGINX.read_text(encoding="utf-8"))["Content-Security-Policy"]
-    assert "https://fonts.googleapis.com" in csp and "https://fonts.gstatic.com" in csp  # src/index.css
+    # 23-11-2026: fuentes locales (@fontsource, src/fuentes.ts): Google fuera de la CSP (RGPD).
+    assert "fonts.googleapis.com" not in csp and "fonts.gstatic.com" not in csp
+    assert "font-src 'self' data:" in csp
     assert "media-src 'self' blob:" in csp  # audio del VoiceCommandModal
     pp = _cabeceras(_NGINX.read_text(encoding="utf-8"))["Permissions-Policy"]
     assert "microphone=(self)" in pp

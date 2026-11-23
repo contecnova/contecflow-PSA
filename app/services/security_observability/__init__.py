@@ -25,12 +25,8 @@ from app.services.security_observability._comun import (  # noqa: F401
 
 from app.services.security_observability.eventos import (  # noqa: F401
     _trunc_hour,
-    BRUTE_FORCE_WINDOW_MINUTES,
-    BRUTE_FORCE_THRESHOLD,
-    CRED_STUFFING_THRESHOLD,
-    MASS_EXPORT_THRESHOLD,
-    SESSION_CONCURRENT_LIMIT,
-    MFA_FAIL_THRESHOLD,
+    UMBRALES_SOC,
+    umbral_soc,
     _CONTADOR_POR_SEVERIDAD,
     _CONTADOR_POR_TIPO,
     _sumar_uno,

@@ -25,11 +25,13 @@ import { useState, useRef, useCallback, useEffect, type CSSProperties, type Keyb
 import { AlertTriangle, ChevronLeft, FileText, Info, Languages, ListChecks, PenLine, Sparkles, X } from 'lucide-react';
 import { nexusAgentApi } from '../services/api';
 import { traduccionApi } from '../services/api/traduccion';
-import { useAppT, type TranslationParams } from '../hooks/useAppT';
+import { useAppLang } from '../i18n/AppLangContext';
 import { errorDeTraduccion, motivoDeTraduccion, nombreDeIdioma } from '../hooks/useTraduccion';
 import { Button } from './ui'
 import IconButton from './ui/IconButton'
 import './AIInlineEditor.css'
+import { Textarea } from './ui'
+import { extractErr } from '../utils/helpers'
 
 const ICONO = { size: 15, 'aria-hidden': true } as const
 
@@ -57,10 +59,8 @@ const PROMPT_MAP: Record<string, (text: string, idiomaUi: string) => string> = {
 
 /** El detalle de un error de la API (texto o lista de pydantic). */
 function detalleDeError(err: unknown): string {
-  const e = err as { response?: { data?: { detail?: unknown } }; message?: string }
-  const raw = e?.response?.data?.detail
-  if (Array.isArray(raw)) return raw.map((d: { msg?: string }) => d.msg).filter(Boolean).join(', ')
-  return (typeof raw === 'string' ? raw : '') || e?.message || ''
+  // 23-11-2026: extractErr traduce códigos y validaciones; sin detalle del servidor, el mensaje técnico no se enseña.
+  return extractErr(err, '')
 }
 
 type AIInlineEditorProps = {
@@ -77,9 +77,9 @@ type AIInlineEditorProps = {
 }
 
 export default function AIInlineEditor({ value, onChange, rows = 4, placeholder, className, style, disabled, inputId, ariaLabel }: AIInlineEditorProps) {
-  const { t, lang } = useAppT();
+  const { t, lang } = useAppLang();
   // `motivoDeTraduccion`/`errorDeTraduccion` piden una t con variables de cualquier tipo.
-  const tt = useCallback((k: string, p?: string | Record<string, unknown>) => t(k, p as string | TranslationParams), [t]);
+  const tt = useCallback((k: string, p?: string | Record<string, unknown>) => t(k, p), [t]);
   const [palette, setPalette] = useState(false);   // palette visible?
   const [filter, setFilter]   = useState('');       // text after "/"
   const [loading, setLoading] = useState(false);    // AI in progress
@@ -275,19 +275,7 @@ export default function AIInlineEditor({ value, onChange, rows = 4, placeholder,
 
   return (
     <div className="aiinedit-box-1" ref={cajaRef}>
-      <textarea
-        id={inputId}
-        ref={textareaRef}
-        value={value}
-        onChange={handleChange}
-        onKeyDown={handleKeyDown}
-        rows={rows}
-        aria-label={ariaLabel}
-        placeholder={placeholder || t('ai_inline.default_placeholder')}
-        disabled={disabled || loading}
-        className={`${className ?? 'ai-inline-editor-campo'} ${loading ? 'ai-inline-editor-campo--cargando' : ''}`}
-        style={style}
-      />
+      <Textarea id={inputId} ref={textareaRef} value={value} onChange={handleChange} onKeyDown={handleKeyDown} rows={rows} aria-label={ariaLabel} placeholder={placeholder || t('ai_inline.default_placeholder')} disabled={disabled || loading} style={style} inputClassName={`${className ?? 'ai-inline-editor-campo'} ${loading ? 'ai-inline-editor-campo--cargando' : ''}`} />
 
       {/* Loading overlay */}
       {loading && (

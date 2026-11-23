@@ -2,7 +2,7 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_db, require_admin
+from app.core.deps import get_db, requiere_capacidad
 from app.core.responses import APIResponse
 from app.models.user import User
 from app.core.codigos_de_error import error_http
@@ -14,7 +14,7 @@ router = APIRouter(tags=["Currency"])
 def sync_ecb_exchange_rates(
     force: bool = Query(default=False, description="Re-sync even if today's rates already exist"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("divisas.administrar")),
 ):
     from app.services.exchange_rate_service import sync_ecb_rates
 
@@ -35,7 +35,7 @@ def sync_ecb_exchange_rates(
 def sync_openexchangerates(
     base: str = Query(default="USD"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("divisas.administrar")),
 ):
     from app.services.integration_credentials_service import get_credential
     app_id = get_credential(db, "open_exchange_rates", "app_id", org_id=getattr(current_user, "organization_id", None))

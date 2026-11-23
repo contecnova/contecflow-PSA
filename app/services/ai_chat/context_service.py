@@ -10,7 +10,7 @@ from app.models.billing_reports import ApprovalRequest, Invoice
 from app.models.clients import Client
 from app.models.financial import ProjectMilestone, Timesheet
 from app.models.imputation import Imputation
-from app.models.pipeline import Opportunity, Risk, Contract
+from app.models.pipeline import ETAPAS_CERRADAS, Opportunity, Risk, Contract
 from app.models.project import Project
 from app.models.financial import CapacityPlan
 from app.models.resources import Absence, Deliverable, ChangeRequest
@@ -94,15 +94,13 @@ def _construir_alcance(db: Session, user=None) -> _Alcance:
     """
     now = datetime.now(timezone.utc)
     is_super = bool(getattr(user, "is_superadmin", False)) if user else False
-    can_see_financials = (
-        user is None
-        or is_super
-        or getattr(user, "role", None) in (UserRole.admin, UserRole.hr)
+    # M50 (auditoría 22-11-2026): falla cerrado. Sin usuario no hay permisos
+    # (antes `user is None` lo veía todo: finanzas, capacidad y datos de personas).
+    can_see_financials = user is not None and (
+        is_super or getattr(user, "role", None) in (UserRole.admin, UserRole.hr)
     )
-    can_see_capacity = (
-        user is None
-        or is_super
-        or getattr(user, "role", None) in (UserRole.admin, UserRole.hr, UserRole.pm, UserRole.team_lead)
+    can_see_capacity = user is not None and (
+        is_super or getattr(user, "role", None) in (UserRole.admin, UserRole.hr, UserRole.pm, UserRole.team_lead)
     )
     can_see_org_wide = can_see_capacity
     can_see_people_data = can_see_capacity
@@ -244,7 +242,7 @@ def _seccion_finanzas(ctx: _Alcance):
         q_inv = db.query(func.count(Invoice.id)).filter(Invoice.status.in_(["sent", "overdue"]))
         q_inv_amt = db.query(func.sum(Invoice.total)).filter(Invoice.status.in_(["sent", "overdue"]))
         q_overdue = db.query(func.count(Invoice.id)).filter(Invoice.status == "overdue")
-        q_pipe = db.query(func.count(Opportunity.id)).filter(Opportunity.stage.notin_(["won", "lost"]))
+        q_pipe = db.query(func.count(Opportunity.id)).filter(Opportunity.stage.notin_(ETAPAS_CERRADAS))  # auditoria 04b M9: sin canceladas
         q_inv = _filter_by_org(q_inv, Invoice, org_id)
         q_inv_amt = _filter_by_org(q_inv_amt, Invoice, org_id)
         q_overdue = _filter_by_org(q_overdue, Invoice, org_id)
@@ -420,7 +418,7 @@ def _seccion_aprobaciones_detalle(ctx: _Alcance):
 def _seccion_pipeline(ctx: _Alcance):
     """Oportunidades abiertas del pipeline."""
     can_see_org_wide, db, user = ctx.can_see_org_wide, ctx.db, ctx.user
-    q_opp = db.query(Opportunity).filter(Opportunity.stage.notin_(["won", "lost", "cancelled"]))
+    q_opp = db.query(Opportunity).filter(Opportunity.stage.notin_(ETAPAS_CERRADAS))
     if user and not can_see_org_wide:
         q_opp = q_opp.filter(Opportunity.owner_id == user.id)
     opp_rows = q_opp.order_by(Opportunity.expected_close_date.asc().nullslast()).limit(20).all()
@@ -549,42 +547,24 @@ def _seccion_rentabilidad(ctx: _Alcance, projects):
     all_active_proj_ids = [p.id for p in projects]
     prof_items = []
     if can_see_financials and all_active_proj_ids:
-        q_rates = db.query(User).filter(User.is_active == True)
-        q_rates = _filter_by_org(q_rates, User, org_id)
-        all_user_rates = {u.id: (getattr(u, "hourly_rate", None) or 0) for u in q_rates.all()}
-        q_imp_user = db.query(
-            Imputation.project_id, Imputation.user_id,
-            func.sum(Imputation.hours).label("hours"),
-        ).filter(Imputation.project_id.in_(all_active_proj_ids))
-        q_imp_user = _filter_by_org(q_imp_user, Imputation, org_id)
-        imp_user_rows = q_imp_user.group_by(
-            Imputation.project_id, Imputation.user_id
-        ).all()
-        # Expenses
-        # Invoices
+        # Auditoría 22-11-2026 (§7.2 / M50): el coste del asistente es el del
+        # cálculo único (`margen_de_proyectos`): imputaciones activas con su coste
+        # (antes horas × tarifa ACTUAL de la persona, incluidas borradas), gastos,
+        # subcontrata y ALM convertidos. Fuera la consulta de facturas duplicada
+        # (la segunda iba sin filtro de empresa).
+        from app.services.margen_de_proyectos import margen_en_bloque
+        cifras = margen_en_bloque(db, list(projects))
+        proj_labor_cost = {pid: c["internal_cost"] for pid, c in cifras.items()}
+        proj_hours_total = {pid: c["hours"] for pid, c in cifras.items()}
+        proj_expenses = {pid: round(c["expenses_cost"] + c["subcontract_cost"] + c["alm_cost"], 2)
+                         for pid, c in cifras.items()}
         q_inv = db.query(
             Invoice.project_id, func.sum(Invoice.total).label("invoiced")
         ).filter(
             Invoice.project_id.in_(all_active_proj_ids),
             Invoice.status.in_(["sent", "paid", "overdue"]),
         )
-        q_inv = _filter_by_org(q_inv, Invoice, org_id)
-        inv_rows = q_inv.group_by(Invoice.project_id).all()
-        proj_labor_cost = {}
-        proj_hours_total = {}
-        for row in imp_user_rows:
-            rate = all_user_rates.get(row.user_id, 0) or 0
-            proj_labor_cost[row.project_id] = proj_labor_cost.get(row.project_id, 0) + (row.hours * rate)
-            proj_hours_total[row.project_id] = proj_hours_total.get(row.project_id, 0) + row.hours
-        # Revisión 2026-11: la misma suma que el resto (reparto entre proyectos, reembolsados incluidos).
-        from app.services.gastos_avanzados import totales_por_proyecto
-        proj_expenses = totales_por_proyecto(db, all_active_proj_ids)
-        inv_rows = db.query(
-            Invoice.project_id, func.sum(Invoice.total).label("invoiced")
-        ).filter(
-            Invoice.project_id.in_(all_active_proj_ids),
-            Invoice.status.in_(["sent", "paid", "overdue"]),
-        ).group_by(Invoice.project_id).all()
+        inv_rows = _filter_by_org(q_inv, Invoice, org_id).group_by(Invoice.project_id).all()
         proj_invoiced = {r.project_id: (r.invoiced or 0) for r in inv_rows}
         for p in projects:
             labor = round(proj_labor_cost.get(p.id, 0), 2)

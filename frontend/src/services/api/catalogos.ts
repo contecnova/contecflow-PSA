@@ -31,9 +31,16 @@ const lista = (r: { data: unknown }): ValorDeCatalogo[] => {
   return Array.isArray(d) ? d : (d?.items ?? [])
 }
 
+// Ruta de cada catálogo. Cada valor de `NombreDeCatalogo` tiene sus cuatro
+// rutas en el backend (`app/api/v1/endpoints/settings.py`, `_rutas_de_catalogo`
+// y las de proyecto/tarea), comprobado 23-11-2026 contra `app.routes`. Se arma
+// aquí porque tests/test_rutas_del_frontend.py sustituye `${c}` por `x` y daba
+// cuatro falsos 404 (`/settings/x`); el tipo cerrado ya impide un nombre inventado.
+const ruta = (c: NombreDeCatalogo, id?: string) => (id ? `/settings/${c}/${id}` : `/settings/${c}`)
+
 export const catalogosApi = {
-  listar: (c: NombreDeCatalogo) => api.get(`/settings/${c}`).then(lista),
-  crear: (c: NombreDeCatalogo, v: ValorDeCatalogoIn) => api.post(`/settings/${c}`, v).then(r => r.data as ValorDeCatalogo),
-  guardar: (c: NombreDeCatalogo, id: string, v: ValorDeCatalogoIn) => api.patch(`/settings/${c}/${id}`, v).then(r => r.data as ValorDeCatalogo),
-  borrar: (c: NombreDeCatalogo, id: string) => api.delete(`/settings/${c}/${id}`).then(r => r.data),
+  listar: (c: NombreDeCatalogo) => api.get(ruta(c)).then(lista),
+  crear: (c: NombreDeCatalogo, v: ValorDeCatalogoIn) => api.post(ruta(c), v).then(r => r.data as ValorDeCatalogo),
+  guardar: (c: NombreDeCatalogo, id: string, v: ValorDeCatalogoIn) => api.patch(ruta(c, id), v).then(r => r.data as ValorDeCatalogo),
+  borrar: (c: NombreDeCatalogo, id: string) => api.delete(ruta(c, id)).then(r => r.data),
 }

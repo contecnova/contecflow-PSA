@@ -23,6 +23,7 @@ import { useCatalogo } from '../../hooks/useCatalogo'
 import { useOrgSettings } from '../../hooks/useOrgSettings'
 import { useFormatoMoneda } from '../../hooks/useFormatoMoneda'
 import { useToast } from '../../context/ToastContext'
+import { openConfirmGlobal } from '../../context/ConfirmContext'
 import { useAppT } from '../../i18n/AppLangContext'
 import { extractErr, fmtDate, fmtNumber } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
@@ -282,6 +283,11 @@ export function ListaDeLineas({ contrato, editable, onEditar }: {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['suppliers'] }),
     onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
+  // 23-11-2026: quitar una línea de precio pide confirmación.
+  const quitarLinea = (id: string) => openConfirmGlobal({
+    message: t('proveedores.confirmar_quitar_linea'), confirmLabel: t('proveedores.quitar_linea'), danger: true,
+    onConfirm: () => borrar.mutate(id),
+  })
   const lineas = contrato.lines || []
   if (!lineas.length) return <p className="u-text3-xs prv-mt">{t('proveedores.sin_lineas')}</p>
   return (
@@ -308,7 +314,7 @@ export function ListaDeLineas({ contrato, editable, onEditar }: {
           {editable && (
             <div className="u-row-6">
               <IconButton onClick={() => onEditar(l)} ariaLabel={t('proveedores.editar_linea')} title={t('proveedores.editar_linea')}><Pencil size={14} aria-hidden /></IconButton>
-              <IconButton className="sub-borrar" onClick={() => borrar.mutate(l.id)} ariaLabel={t('proveedores.quitar_linea')} title={t('proveedores.quitar_linea')}><Trash2 size={14} aria-hidden /></IconButton>
+              <IconButton className="sub-borrar" onClick={() => quitarLinea(l.id)} ariaLabel={t('proveedores.quitar_linea')} title={t('proveedores.quitar_linea')}><Trash2 size={14} aria-hidden /></IconButton>
             </div>
           )}
         </div>

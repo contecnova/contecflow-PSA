@@ -64,6 +64,7 @@ Reorganizada el 18-11-2026. El estado de antes, medido, está en
 | | `organizations` Empresas de la plataforma | superadmin | `/organizations` (admin de empresa la veía y todo le daba 403) |
 | Personas y jornada | `users` Usuarios | admin, hr (alta, baja y borrado solo admin) | pestaña |
 | | `roles` Roles y permisos | admin | pestaña |
+| | `menu-por-defecto` Menú por defecto (orden de categorías y pestañas ocultas del menú lateral, por rol; ver «Menú lateral personalizable») | admin (`org.administrar`) | nuevo (23-11-2026) |
 | | `ausencias` Ausencias: tipos, documentos, turnos, jornadas, festivos, personas y saldos, horario, acceso especial, ejemplos | admin, hr | Ausencias → pestaña Configuración |
 | | `vacations` Vacaciones (derecho anual; máximo asignable `VACATION_MAX_DAYS_ENTITLED`, que solo edita admin) | admin, hr | pestaña |
 | | `horas-extra` Horas extra | admin, hr | Horas extra → pestaña Configuración |
@@ -79,6 +80,7 @@ Reorganizada el 18-11-2026. El estado de antes, medido, está en
 | | `sd-agente` Agente autónomo: encendido, modo, umbrales, playbooks de serie | admin (`sd.administrar`) | Herramientas → Agente → pestaña Configuración (19-11-2026; antes la veía el equipo en solo lectura) |
 | | `sd-autorresolucion` Autorresolución: umbrales, cierre automático, validación, lote | admin (`sd.administrar`) | Herramientas → Autorresolución → tarjeta Configuración (19-11-2026) |
 | | `sd-voz` Agente de voz: saludo, idioma, silencio, teclas, palabras clave | admin (`sd.administrar`) | Herramientas → Voz → pestaña Configuración (19-11-2026) |
+| | `sd-cambios-estandar` Cambios estándar: catálogo de modelos preaprobados por el CAB (procedimiento, riesgo máximo, alcance, aprobación, revisión periódica, uso y tasa de fallo) | gestores (`sd.gestionar`); aprobar exige además ser del CAB o admin y no haberlo propuesto | nueva (23-11-2026, auditoría 2026-11-22 A-SD19). Sin botón en el módulo: el alta de cambio solo ofrece el selector de modelo. Auditada (`sd_standard_change_model`) |
 | | `cmdb-software` Software y vulnerabilidades: fuentes de avisos (OSV, NVD, GitHub, EPSS, KEV, endoflife.date) con credenciales cifradas, sincronización, SLA de remediación por severidad, licencias permitidas/prohibidas, ticket automático | admin (`software.config`) | nueva (19-11-2026), con las conexiones de escaneo SSH/WinRM/API (credenciales cifradas). Sin botón en el módulo: la CMDB avisa donde falta configuración y enlaza aquí solo a quien tiene `software.config`. Auditada (`sw_config`, `sw_scan_connection`, sin secretos) |
 | Finanzas | `rates` Tarifas | admin, pm | `/rate-cards` + pestaña «Tarifas» |
 | | `user-costs` Estructura de coste | admin, hr | `/user-costs` |
@@ -94,6 +96,7 @@ Reorganizada el 18-11-2026. El estado de antes, medido, está en
 | | `reuniones` Asistente de reuniones: consentimiento, retención de audio y transcripción, traducción, STT externo, Teams, Zoom, Meet, bot invitado y RGPD por persona | admin (`reuniones.config`) | Nueva (19-11-2026, `docs/ASISTENTE_DE_REUNIONES.md`); `/meetings-ai` queda operativo, sin botón «Configurar» (solo avisos con enlace si falta bot o conector) |
 | Integraciones | `integrations` Credenciales | admin | pestaña |
 | | `esign` Firma electrónica | admin | pestaña |
+| | `alm-fuentes` Fuentes de uso de licencias (credenciales, prueba, sincronización, mapeo) | admin | ALM → Uso real → pestaña Fuentes (23-11-2026) |
 | | `m365` Microsoft 365 | admin | `/m365` |
 | | `m365-informes` Informes de Microsoft 365: credenciales de Graph para uso y adopción | admin | Plataforma de datos → panel Office 365 → pestaña Configuración (19-11-2026) |
 | | `git` Git: webhooks de GitHub y GitLab, secreto, eventos, pasos (solo lectura) | admin, pm (`proyectos.gobierno`) | `/git` → pestaña Configuración (19-11-2026) |
@@ -102,7 +105,8 @@ Reorganizada el 18-11-2026. El estado de antes, medido, está en
 | | `webhook-log` Registro de webhooks | admin | `/webhook-log` |
 | | `developer` Portal de desarrolladores | admin, pm | `/developer` |
 | | `import` Importar datos | admin, pm | `/import` |
-| Seguridad y GRC | `session` Sesión | admin | pestaña |
+| Seguridad y GRC | `seguridad-cuentas` Seguridad de cuentas: política de contraseñas, bloqueo, MFA, sesiones (incluida la inactividad, antes `session`, que redirige aquí), acceso, usuarios, sesiones de la empresa, aprobaciones y campañas de recertificación (23-11-2026, docs/seguridad/politicas_de_cuenta.md) | `seguridad.administrar` (admin) | `/settings/seguridad-cuentas` |
+| | `recertificacion` Recertificación de accesos: lo que le toca revisar al responsable | `seguridad.recertificar` (admin, PM, jefe de equipo, RRHH) | `/settings/recertificacion` |
 | | `mfa` Mi verificación en dos pasos | todos | `/mfa` |
 | | `grc` GRC y segregación de funciones | admin | `/grc` |
 | | `chat-admin` Administración del chat (y meses de retención propuestos `CHAT_RETENTION_PROPOSED_MONTHS`) | admin | `/settings/chat-admin` (no estaba en el menú) |
@@ -161,13 +165,72 @@ Ajustes por empresa del registro en vivo, validados al guardarlos (código
   guardadas cifradas (`bi_o365_service`) para los informes de uso. Son dos
   almacenes distintos y pueden ser dos aplicaciones de Entra distintas. Por
   eso son dos secciones seguidas en Integraciones.
-- **Conectores y fuentes con su propio «Configurar»** (Plataforma de datos →
-  ETL `BiEtlPanel`, ALM → Uso → Fuentes `FuentesPanel`): cada uno configura esa
-  conexión concreta (un objeto que se da de alta y de baja), igual que una
-  integración OAuth. Se quedan junto a su lista.
+- **Conectores con su propio «Configurar»** (Plataforma de datos → ETL
+  `BiEtlPanel`): configura esa conexión concreta (un objeto que se da de alta y
+  de baja), igual que una integración OAuth. Se queda junto a su lista.
+  Las fuentes de uso de licencias (`FuentesPanel`) salieron de ALM el
+  23-11-2026 (auditoría 04b A4: guardaban credenciales dentro del módulo) y
+  viven en `/settings/alm-fuentes`; en ALM solo queda el aviso «sin fuentes»
+  con enlace para administración. Igual `/demand`: sin botón «Configurar», un
+  aviso enlaza a `/settings/demanda` cuando no hay tipos (auditoría 04 A7).
 - La bandeja de aprobaciones (`/approvals`).
 - Los informes del AI Hub siguen dentro de su sección, porque son de la misma
   pantalla.
+
+## Menú lateral personalizable (23-11-2026)
+
+Feedback de usuarios reales. Piezas:
+
+| Qué | Dónde |
+|---|---|
+| Categorías, pestañas y panel de cada categoría | `frontend/src/components/layout/menuLateral.tsx` (`NAV_GROUPS`, `PANEL_DE_CATEGORIA`) |
+| Fusión, orden y ocultas (lógica pura) | `frontend/src/permisos/menuPersonal.ts` |
+| Editor (menú y Configuración) | `frontend/src/components/layout/EditorDeMenu.tsx` |
+| Preferencia de la persona | `user_preferences.extra.menu` (`PATCH /users/me/preferences`), hook `useMenuPersonal` |
+| Menú por defecto por rol | `/settings/menu-por-defecto`; `GET/PUT /settings/menu-default` (`org.administrar`), `GET /settings/menu-default/mine` (cualquiera con sesión); servicio `app/services/settings_service/menu_por_defecto.py` |
+
+**Clic en la categoría → su panel.** Con panel, el icono y el nombre de la
+categoría llevan a él y la flecha despliega o pliega sus pestañas. Medido: Mi
+trabajo → `/work-dashboard`; Proyectos y planificación → `/projects-dashboard`; Equipo y
+personas → `/team-dashboard`; Clientes y finanzas → `/finance-dashboard`;
+Soporte e ITSM → `/support-dashboard`; Analítica y BI → `/executive`;
+Configuración → `/settings`. **IA y automatización no tiene panel** (NexusAgent
+es una herramienta, no un resumen): se queda como antes. Si la persona no puede
+abrir el panel (matriz de permisos), su categoría también se queda como antes.
+Con el menú contraído hay un icono por categoría: lleva al panel (o, sin panel,
+abre el desplegable) y el desplegable sale al pasar el ratón o con el foco; con
+el teclado, `→`/`↓` entran en él, `↑`/`↓` recorren y `Esc`, `←` o `Tab`
+vuelven al icono.
+
+**Personalizar.** Botón «Personalizar menú» al pie del menú, o Perfil →
+Apariencia → «Menú lateral». Las categorías se reordenan arrastrando o con los
+botones subir/bajar (cada movimiento se anuncia en `aria-live` y el foco se
+queda en el botón). Las pestañas se ocultan con su casilla y se reordenan con
+subir/bajar; **sin arrastre** para las pestañas (decisión: las listas son
+cortas y el arrastre anidado dentro de una categoría arrastrable confunde y no
+funciona en pantallas táctiles; los botones sirven en todas). Los cambios se
+guardan al momento. «Restablecer» borra el menú propio y vuelve al del rol.
+
+**Ocultar no quita permisos.** El menú se filtra primero por la matriz de
+permisos y después se aplica la preferencia, que solo quita y reordena: una
+ruta no permitida nunca aparece por estar en la preferencia. Lo oculto se
+sigue abriendo por URL, migas y la búsqueda ⌘K (no leen la preferencia).
+
+**Forma y versión** (la misma en la persona y en el rol):
+`{"version": 1, "orden": [ids de categoría], "ocultas": {categoría: [rutas]},
+"orden_pestanas": {categoría: [rutas]}}`. Lo que ya no existe se ignora; las
+categorías y pestañas nuevas salen al final y visibles (una pestaña nueva no
+está en `ocultas`). Si una categoría se queda sin pestañas visibles, no se
+pinta (se recupera desde «Personalizar menú»).
+
+**Por defecto por rol.** Configuración › Personas y jornada › «Menú por
+defecto». Por rol base (`users.role`). Se guarda por empresa en `app_settings`
+(clave `menu.por_defecto`, fila de la empresa; **sin migración**; la clave con
+punto no sale en la pantalla General). Cada cambio deja una fila en
+`audit_log` (`resource = "menu_por_defecto"`, valores antes/después, IP y
+navegador). RGPD: solo preferencias de interfaz, sin datos personales; la
+preferencia de la persona se borra con su fila de `user_preferences`
+(`ON DELETE CASCADE`). Retención: la del `audit_log`.
 
 ## Redirecciones (enlaces y marcadores de antes)
 

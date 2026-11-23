@@ -59,10 +59,14 @@ def enviar(db: Session, ahora: datetime | None = None) -> int:
         filas = "".join(f"<li><strong>{html.escape(n.title or '')}</strong>"
                         f"{' — ' + html.escape(n.body) if n.body else ''}</li>" for n in pendientes[:maximo])
         resto = len(pendientes) - maximo
-        cuerpo = (f"<p>Tienes {len(pendientes)} aviso(s) sin leer de las últimas 24 horas:</p><ul>{filas}</ul>"
-                  + (f"<p>… y {resto} más.</p>" if resto > 0 else "")
-                  + f'<p><a href="{settings.FRONTEND_URL}/inbox">Abrir la bandeja</a></p>')
-        if send_email_notification(usuario.email, f"Resumen diario: {len(pendientes)} aviso(s) sin leer", cuerpo):
+        from app.services.textos_de_salida_servicios_m_z import texto_para
+
+        def _t(clave, **p):
+            return texto_para(db, clave, user_id=usuario.id, org_id=usuario.organization_id, **p)
+        cuerpo = (f"<p>{_t('avisos.resumen.cuerpo', n=len(pendientes))}</p><ul>{filas}</ul>"
+                  + (f"<p>{_t('avisos.resumen.resto', resto=resto)}</p>" if resto > 0 else "")
+                  + f'<p><a href="{settings.FRONTEND_URL}/inbox">{_t("avisos.resumen.abrir")}</a></p>')
+        if send_email_notification(usuario.email, _t("avisos.resumen.asunto", n=len(pendientes)), cuerpo):
             enviados += 1
     db.commit()
     return enviados

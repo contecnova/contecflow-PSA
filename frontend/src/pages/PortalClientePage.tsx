@@ -22,6 +22,7 @@ import {
   ClientAuthProvider, LoginScreen, TextosDeInterfazDelPortal, useErrorDelPortal,
   PersonalizacionesDelPortal,
 } from './portal-client/portalClientContext'
+import { CambioDeContrasenaObligatorio } from './portal-client/CambioDeContrasenaObligatorio'
 import {
   PortalShell, PortalPageHeader,
   PortalCard, PortalSection, PortalTabs,
@@ -30,7 +31,7 @@ import {
   PortalBadge, PortalBanner,
 } from './portal-client/PortalUI'
 import { STALE_DEFAULT_MS, STALE_SHORT_MS, UI_FEEDBACK_LONG_MS } from '../constants/timings'
-import { PORTAL_LANGUAGES } from '../i18n/portalTranslations'
+import { PORTAL_LANGUAGES, idiomaInicialDelPortal } from '../i18n/portalTranslations'
 import { fijarIdiomaDeFormato } from '../utils/helpers'
 
 
@@ -86,7 +87,7 @@ import './PortalClientePage.css'
 const CLAVE_TEMA_PORTAL = 'portal_theme_mode'
 
 function temaGuardadoDelPortal(): string {
-  try { return localStorage.getItem(CLAVE_TEMA_PORTAL) || 'freight' } catch { return 'freight' }
+  try { return localStorage.getItem(CLAVE_TEMA_PORTAL) || 'freight' } catch { /* accesorio: sin almacenamiento */ return 'freight' }
 }
 
 function aplicarTemaDelPortal(id: string) {
@@ -222,7 +223,7 @@ function PortalMyProfile({ changeLang }: { changeLang: ChangeLangFn }) {
     phone: client?.phone || '',
     job_title: client?.job_title || '',
   })
-  const [pendingLang, setPendingLang] = useState(client?.language || 'es')
+  const [pendingLang, setPendingLang] = useState(client?.language || idiomaInicialDelPortal())
   const [pwdForm, setPwdForm] = useState({ current: '', new_pwd: '', confirm: '' })
   const [pwdError, setPwdError] = useState('')
   const camposPerfil = useErroresDeCampo()
@@ -275,12 +276,13 @@ function PortalMyProfile({ changeLang }: { changeLang: ChangeLangFn }) {
     mutationFn: (lang: string) => CLIENT_API.patch('/portal/auth/me', { language: lang }).then(r => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['portal-me'] })
-      localStorage.setItem('portal_lang', pendingLang)
+      // 23-11-2026: todo el bloque de localStorage va protegido (puede estar bloqueado).
       try {
+        localStorage.setItem('portal_lang', pendingLang)
         const saved = JSON.parse(localStorage.getItem('client_user') || '{}')
         saved.language = pendingLang
         localStorage.setItem('client_user', JSON.stringify(saved))
-      } catch { /* noop */ }
+      } catch { /* accesorio: sin almacenamiento o dato corrupto; el idioma ya está guardado en la ficha del servidor */ }
       if (changeLang) changeLang(pendingLang)
       setSavedLanguage(true)
       setTimeout(() => setSavedLanguage(false), UI_FEEDBACK_LONG_MS)
@@ -470,14 +472,12 @@ function PortalMyProfile({ changeLang }: { changeLang: ChangeLangFn }) {
 
 // ── Root ─────────────────────────────────────────────────────────────────────
 export default function PortalClientePage() {
-  const [lang, setLang] = useState(() => {
-    try {
-      const saved = JSON.parse(localStorage.getItem('client_user') || 'null')
-      if (saved?.language) return saved.language
-    } catch { /* noop */ }
-    return localStorage.getItem('portal_lang') || 'es'
-  })
-  const changeLang: ChangeLangFn = (l) => { setLang(l); localStorage.setItem('portal_lang', l) }
+  // Incidencia 5 (23-11-2026): usuario > empresa > navegador > inglés.
+  const [lang, setLang] = useState<string>(idiomaInicialDelPortal)
+  const changeLang: ChangeLangFn = (l) => {
+    setLang(l)
+    try { localStorage.setItem('portal_lang', l) } catch { /* accesorio: sin almacenamiento, el idioma no se recuerda entre visitas */ }
+  }
   // Fechas y números en el idioma del cliente, no en el del operador que haya
   // usado este navegador (16-11-2026). Se fija en el render —no en un efecto—
   // para que el primer pintado ya salga bien; al salir del portal se suelta.
@@ -508,6 +508,11 @@ function PortalClienteInner({ changeLang, currentLang }: { changeLang: ChangeLan
   useEffect(() => {
     if (idiomaDeLaFicha && idiomaDeLaFicha !== currentLang) changeLang(idiomaDeLaFicha)
   }, [idiomaDeLaFicha])  // eslint-disable-line react-hooks/exhaustive-deps
+  // 23-11-2026: con la contraseña generada por el sistema, primero se cambia
+  // (el servidor responde 403 `portal_cambio_de_contrasena_obligatorio` al resto).
+  if (client && (client as { must_change_password?: boolean }).must_change_password) {
+    return <CambioDeContrasenaObligatorio />
+  }
   return client
     ? <PortalApp changeLang={changeLang} />
     : <LoginScreen _changeLang={changeLang} _currentLang={currentLang} />

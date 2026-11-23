@@ -100,7 +100,7 @@ function ListaDePropuestas({ onEditar, onNueva }: { onEditar: (p: Propuesta) => 
               <tr>
                 <th>{t('cartera.col_propuesta')}</th><th className="plan-num">{t('cartera.col_puntuacion')}</th>
                 <th>{t('cartera.col_estado')}</th><th>{t('cartera.col_fase')}</th>
-                <th className="plan-num">{t('cartera.col_presupuesto')}</th><th>{t('cartera.col_ventana')}</th><th />
+                <th className="plan-num">{t('cartera.col_presupuesto')}</th><th>{t('cartera.col_ventana')}</th><th><span className="u-sr-only">{t('common.col_acciones')}</span></th>
               </tr>
             </thead>
             <tbody>
@@ -214,8 +214,8 @@ function FormularioDePropuesta({ propuesta, onClose }: { propuesta: Propuesta | 
           <h3 className="plan-card__titulo">{t('cartera.roles_que_pide')}</h3>
           {roles.map((r, i) => (
             <div key={i} className="plan-row">
-              <input className="ds-input cit-rol" aria-label={t('cartera.col_rol')} value={r.role} onChange={e => setRoles(rs => rs.map((x, j) => j === i ? { ...x, role: e.target.value } : x))} />{msgB('role')}
-              <input type="number" min={0} className="ds-input cit-num" aria-label={t('cartera.col_pedidas')} value={r.hours}
+              <Input inputClassName="ds-input cit-rol" aria-label={t('cartera.col_rol')} value={r.role} onChange={e => setRoles(rs => rs.map((x, j) => j === i ? { ...x, role: e.target.value } : x))} />{msgB('role')}
+              <Input type="number" min={0} inputClassName="ds-input cit-num" aria-label={t('cartera.col_pedidas')} value={r.hours}
                 onChange={e => setRoles(rs => rs.map((x, j) => j === i ? { ...x, hours: Number(e.target.value) } : x))} />{msgB('hours')}
               <Button size="xs" variant="ghost" onClick={() => setRoles(rs => rs.filter((_, j) => j !== i))}>{t('cartera.quitar')}</Button>
             </div>

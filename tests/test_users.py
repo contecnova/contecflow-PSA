@@ -115,8 +115,7 @@ def test_admin_can_update_any_user(client, admin_token, db):
     if isinstance(users, dict):
         users = users.get("users", users.get("items", []))
     dev = next((u for u in users if u["username"] == "dev_test"), None)
-    if not dev:
-        pytest.skip("dev_test no encontrado")
+    assert dev is not None, "conftest debe sembrar dev_test"
     res = client.patch(f"/api/v1/users/{dev['id']}",
         headers=auth(admin_token),
         json={"job_title": "Senior Dev"})

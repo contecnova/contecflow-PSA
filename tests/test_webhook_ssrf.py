@@ -42,7 +42,8 @@ def test_validate_webhook_url_rejects_http() -> None:
 
 
 def test_validate_webhook_url_rejects_metadata_hostname() -> None:
-    with pytest.raises(ValueError, match="metadata"):
+    # 23-11-2026: el validador delega en el guardia central (app/core/outbound_url.py).
+    with pytest.raises(ValueError, match="red no permitida"):
         _validate_webhook_url("https://169.254.169.254/iam/security-credentials/")
 
 

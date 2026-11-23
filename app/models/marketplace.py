@@ -7,11 +7,12 @@ allow comparing original plan vs re-forecast vs actual.
 WhatIfScenario lets PMs simulate the scheduling impact of adding/removing
 resources or changing task durations without touching the live plan.
 """
-from sqlalchemy import Column, String, Float, DateTime, ForeignKey, Text, Boolean, Integer, Date
+from sqlalchemy import Column, String, Float, DateTime, ForeignKey, Text, Boolean, Integer, Date, Index, text
 from sqlalchemy.sql import func
 import uuid
 
 from app.db.base import Base
+from app.models.money import Money
 
 
 class GanttBaseline(Base):
@@ -19,7 +20,7 @@ class GanttBaseline(Base):
     __tablename__ = "gantt_baselines"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     project_id   = Column(String(36), ForeignKey("projects.id", ondelete="CASCADE"),
                           nullable=False, index=True)
     name         = Column(String(100), nullable=False)           # "Kick-off Baseline", "End Sprint 3"
@@ -36,13 +37,13 @@ class GanttBaseline(Base):
     total_tasks     = Column(Integer, default=0)
     completed_tasks = Column(Integer, default=0)
     total_hours     = Column(Float, default=0)
-    budget_at_freeze = Column(Float, nullable=True)
+    budget_at_freeze = Column(Money, nullable=True)
 
     is_initial  = Column(Boolean, default=False)                 # True = the "contract baseline"
     # Rev. 173: la línea base vigente es contra la que se pinta el Gantt, se
     # calcula el valor ganado (PV) y se mide el desvío. Una por proyecto.
     is_current  = Column(Boolean, nullable=False, default=False, server_default="0", index=True)
-    created_by  = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    created_by  = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at  = Column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -56,7 +57,7 @@ class GanttBaselineTask(Base):
     __tablename__ = "gantt_baseline_tasks"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
     baseline_id = Column(String(36), ForeignKey("gantt_baselines.id", ondelete="CASCADE"), nullable=False, index=True)
     # Sin clave ajena a `tasks`: una tarea borrada después sigue en la foto.
     task_id = Column(String(36), nullable=False, index=True)
@@ -64,31 +65,13 @@ class GanttBaselineTask(Base):
     start_date = Column(Date, nullable=True)
     end_date = Column(Date, nullable=True)
     estimated_hours = Column(Float, nullable=True)
-    planned_cost = Column(Float, nullable=True)      # horas × coste/hora de la persona al congelar
+    planned_cost = Column(Money, nullable=True)      # horas × coste/hora de la persona al congelar
     status = Column(String(30), nullable=True)
     assignee_id = Column(String(36), nullable=True)
     progress_pct = Column(Float, nullable=True)
 
 
-class WhatIfTask(Base):
-    """A simulated task modification inside a what-if scheduling scenario."""
-    __tablename__ = "whatif_tasks"
-
-    id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
-    scenario_id = Column(String(36), ForeignKey("scenario_models.id", ondelete="CASCADE"),
-                         nullable=False, index=True)
-    task_id     = Column(String(36), ForeignKey("tasks.id"), nullable=True, index=True)   # NULL = new hypothetical task
-    title       = Column(String(255), nullable=False)
-    start_date  = Column(Date, nullable=True)
-    end_date    = Column(Date, nullable=True)
-    estimated_hours = Column(Float, nullable=True)
-    assigned_user_id = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
-    # Overrides: what changes from the real plan
-    delta_days  = Column(Integer, nullable=True)   # shift ±n days from original
-    delta_hours = Column(Float, nullable=True)     # extra/fewer hours
-
-    created_at  = Column(DateTime(timezone=True), server_default=func.now())
+# WhatIfTask: retirado el 23-11-2026 (auditoria 2026-11-22, M-MOD3: sin uso fuera de app/models). La tabla `whatif_tasks` la borra la migracion de esa fecha.
 
 
 class IntegrationConnector(Base):
@@ -113,11 +96,19 @@ class IntegrationConnector(Base):
     # Con ella, el filtro lee `org == X OR org IS NULL` y el sellado la deja en
     # paz. Misma semantica que `AppSetting`.
     _tenant_filter_include_global = True
+    # M-MOD2 (migracion 200): el slug es unico POR EMPRESA (y una sola vez en el
+    # catalogo global); antes `name` y `slug` eran unicos en toda la base y una
+    # empresa no podia añadir un conector con un slug que ya usaba otra.
+    __table_args__ = (
+        Index("uq_integration_connectors_org_slug", "organization_id", "slug", unique=True),
+        Index("uq_integration_connectors_global_slug", "slug", unique=True,
+              sqlite_where=text("organization_id IS NULL"), postgresql_where=text("organization_id IS NULL")),
+    )
 
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
-    name        = Column(String(100), unique=True, nullable=False)   # "Salesforce CRM"
-    slug        = Column(String(50),  unique=True, nullable=False)   # "salesforce"
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
+    name        = Column(String(100), nullable=False)   # "Salesforce CRM"
+    slug        = Column(String(50),  nullable=False)   # "salesforce"
     category    = Column(String(50),  nullable=False)                # crm|erp|hris|devops|comms
     description = Column(Text, nullable=True)
     logo_url    = Column(String(500), nullable=True)
@@ -143,7 +134,7 @@ class IntegrationInstance(Base):
     id             = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"),
                              nullable=False, index=True)
-    connector_id   = Column(String(36), ForeignKey("integration_connectors.id"), nullable=False, index=True)
+    connector_id   = Column(String(36), ForeignKey("integration_connectors.id", ondelete="RESTRICT"), nullable=False, index=True)
     name           = Column(String(100), nullable=False)             # "Production Salesforce"
 
     # Stored encrypted in prod; NULL in config response
@@ -158,7 +149,7 @@ class IntegrationInstance(Base):
     last_error      = Column(Text, nullable=True)
 
     is_enabled      = Column(Boolean, default=True)
-    created_by      = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    created_by      = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at      = Column(DateTime(timezone=True), server_default=func.now())
     updated_at      = Column(DateTime(timezone=True), onupdate=func.now())
 
@@ -168,7 +159,7 @@ class TemplateDocument(Base):
     __tablename__ = "template_documents"
 
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     template_id = Column(String(36), ForeignKey("project_templates.id", ondelete="CASCADE"),
                          nullable=False, index=True)
     name        = Column(String(255), nullable=False)
@@ -185,7 +176,7 @@ class TemplateRole(Base):
     __tablename__ = "template_roles"
 
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     template_id = Column(String(36), ForeignKey("project_templates.id", ondelete="CASCADE"),
                          nullable=False, index=True)
     role_name   = Column(String(100), nullable=False)               # "Senior Developer", "BA"

@@ -1,0 +1,39 @@
+/* Catálogo de cambios estándar (Configuración → Service desk, 23-11-2026). */
+.cce-barra {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.cce-dos {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+.cce-alcance {
+  border: 1px solid var(--surface-4);
+  border-radius: var(--radius-md, 8px);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.cce-subtitulo {
+  font-weight: 600;
+  margin-top: 4px;
+}
+.cce-casillas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+}
+.cce-casillas--lista {
+  max-height: 200px;
+  overflow-y: auto;
+}
+.cce-acciones {
+  display: flex;
+  gap: 4px;
+  white-space: nowrap;
+}

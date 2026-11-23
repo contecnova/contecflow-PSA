@@ -1,0 +1,34 @@
+{
+ "codigos": {
+  "formulario_destino_ajeno": {
+   "es": "El proyecto o el grupo de destino del formulario no es de esta empresa",
+   "en": "The form's target project or group does not belong to this company",
+   "zh": "表单的目标项目或组不属于本公司"
+  },
+  "proveedor_factura_ya_conciliada": {
+   "es": "Esa factura ya está conciliada con otro estado de cuenta",
+   "en": "That invoice is already reconciled with another statement",
+   "zh": "该发票已与另一份对账单核对"
+  },
+  "mes_formato_no_valido": {
+   "es": "Mes no válido: «{mes}» (formato AAAA-MM)",
+   "en": "Invalid month: “{mes}” (format YYYY-MM)",
+   "zh": "月份无效：“{mes}”（格式 YYYY-MM）"
+  },
+  "importacion_demasiadas_filas": {
+   "es": "El fichero tiene más de {max} filas",
+   "en": "The file has more than {max} rows",
+   "zh": "文件超过 {max} 行"
+  },
+  "correo_solo_admin": {
+   "es": "Solo un administrador puede cambiar el correo de una cuenta",
+   "en": "Only an administrator can change an account's email",
+   "zh": "只有管理员可以更改账户的电子邮件"
+  },
+  "informe_bi_sin_datos": {
+   "es": "No se pudieron leer los datos del informe ({que}); inténtalo más tarde",
+   "en": "The report data could not be read ({que}); try again later",
+   "zh": "无法读取报表数据（{que}）；请稍后再试"
+  }
+ }
+}

@@ -4,7 +4,7 @@ from sqlalchemy.exc import IntegrityError
 from typing import Optional
 
 from app.db.session import get_db
-from app.core.deps import require_admin, require_any_manager
+from app.core.deps import requiere_capacidad
 from app.core.abac_enforce import enforce_abac
 from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
@@ -27,7 +27,7 @@ def list_contracts(
     page_size: int = Query(50, ge=1, le=MAX_TAMANO_DE_PAGINA),
     response: Response = None,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("contratos.gestionar")),
 ):
     q = contract_service.query_contracts(db, current_user, project_id=project_id, client_id=client_id, status=status)
     total = q.count()
@@ -45,7 +45,7 @@ def list_contracts(
 def create_contract(
     payload: ContractIn,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("contratos.gestionar")),
 ):
     if not current_user.is_superadmin and current_user.organization_id:
         if not contract_service.check_project_access(db, payload.project_id, current_user.organization_id):
@@ -62,7 +62,7 @@ def create_contract(
 def get_contract(
     contract_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("contratos.gestionar")),
 ):
     """Auditoria 2026-08 (hallazgo 37): esta ruta **no existia**.
 
@@ -85,7 +85,7 @@ def update_contract(
     contract_id: str,
     payload: ContractUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("contratos.gestionar")),
 ):
     c = contract_service.get_contract(db, contract_id, current_user)
     if not c:
@@ -98,7 +98,7 @@ def update_contract(
 def delete_contract(
     contract_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("contratos.administrar")),
 ):
     c = contract_service.get_contract(db, contract_id, current_user)
     if not c:
@@ -116,7 +116,7 @@ def create_work_order(
     contract_id: str,
     payload: WorkOrderIn,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("contratos.gestionar")),
 ):
     c = contract_service.get_contract(db, contract_id, current_user)
     if not c:
@@ -133,7 +133,7 @@ def update_work_order(
     wo_id: str,
     payload: WorkOrderIn,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("contratos.gestionar")),
 ):
     wo = contract_service.get_work_order(db, wo_id, contract_id, current_user)
     if not wo:
@@ -148,7 +148,7 @@ def change_wo_status(
     wo_id: str,
     status: str = Query(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("contratos.gestionar")),
 ):
     wo = contract_service.get_work_order(db, wo_id, contract_id, current_user)
     if not wo:

@@ -28,7 +28,6 @@ from app.models.service_desk import (
 logger = logging.getLogger(__name__)
 
 
-
 # ── Constants ─────────────────────────────────────────────────────────────────
 
 # Score threshold above which a ticket is auto-resolved via KB
@@ -89,6 +88,34 @@ def _embed_text(text: str) -> list[float]:
         return [v / total for v in vec]
 
 
+#: Embeddings de articulos ya calculados: (id, huella del texto) → vector.
+#: Auditoria 2026-11-22 (servicios m-z, 4.3): se recalculaban los de todo el
+#: KB en cada llamada (cada ticket analizado). La huella del texto invalida la
+#: entrada cuando el articulo cambia; el tope evita crecer sin limite.
+_EMBEDDINGS_DE_KB: "dict[tuple[str, str], list[float]]" = {}
+_TOPE_DE_EMBEDDINGS_DE_KB = 5000
+_CERROJO_DE_EMBEDDINGS = __import__("threading").Lock()
+
+
+def embedding_de_articulo(article) -> Optional[list[float]]:
+    """Vector del articulo (titulo, resumen y cuerpo), de la cache si no ha cambiado."""
+    import hashlib
+    text = f"{article.title or ''}\n{article.summary or ''}\n{article.body or ''}".strip()
+    if not text:
+        return None
+    clave = (str(article.id), hashlib.sha256(text.encode("utf-8")).hexdigest())
+    with _CERROJO_DE_EMBEDDINGS:
+        vector = _EMBEDDINGS_DE_KB.get(clave)
+    if vector is not None:
+        return vector
+    vector = _embed_text(text)
+    with _CERROJO_DE_EMBEDDINGS:
+        if len(_EMBEDDINGS_DE_KB) >= _TOPE_DE_EMBEDDINGS_DE_KB:
+            _EMBEDDINGS_DE_KB.clear()
+        _EMBEDDINGS_DE_KB[clave] = vector
+    return vector
+
+
 def _get_top_kb_similarity(db: Session, query_text: str) -> tuple[float, Optional[str]]:
     """Return (best_similarity_score, kb_article_id) against published KB.
 
@@ -107,10 +134,9 @@ def _get_top_kb_similarity(db: Session, query_text: str) -> tuple[float, Optiona
     best_id = None
 
     for article in articles:
-        text = f"{article.title or ''}\n{article.summary or ''}\n{article.body or ''}".strip()
-        if not text:
+        a_emb = embedding_de_articulo(article)
+        if a_emb is None:
             continue
-        a_emb = _embed_text(text)
         sim = _cosine_similarity(q_emb, a_emb)
         if sim > best_score:
             best_score = sim
@@ -200,58 +226,6 @@ def score_auto_resolution(db: Session, ticket: Ticket) -> dict:
         "historical_rate": round(historical_rate, 2),
         "urgency_factor": urgency_factor,
     }
-
-
-def auto_resolve_ticket(
-    db: Session,
-    ticket: Ticket,
-    kb_article_id: str,
-    resolved_by_user_id: Optional[str] = None,
-) -> bool:
-    """Mark a ticket as resolved via KB auto-resolution.
-
-    Logs to TicketHistory and returns True on success.
-    """
-    article = db.query(KBArticle).filter(KBArticle.id == kb_article_id).first()
-    if not article:
-        logger.warning("auto_resolve_ticket: KB article %s not found", kb_article_id)
-        return False
-
-    old_status = ticket.status
-    ticket.status = TicketStatus.resolved
-    # Migracion 192: antes en ingles fijo. La resolucion la lee el cliente: en su
-    # idioma (el del ticket) o el de la empresa. El historial guarda la clave y
-    # se pinta en el idioma de quien lo mira.
-    from app.services.formato_regional import idioma_de_salida
-    from app.services.textos_guardados import en_idioma, por_clave
-    datos_kb = {"numero": article.number or "", "titulo": article.title or ""}
-    clave_kb, params_kb = por_clave("historial.autorresuelto_kb", **datos_kb)
-    ticket.resolution = en_idioma(clave_kb, idioma_de_salida(
-        db, org_id=ticket.organization_id, preferido=getattr(ticket, "language", None)), **datos_kb)
-    ticket.resolved_at = datetime.now(timezone.utc)
-
-    db.add(TicketHistory(
-        ticket_id=ticket.id,
-        field_name="status",
-        old_value=str(old_status),
-        new_value=TicketStatus.resolved,
-        changed_by_user_id=resolved_by_user_id,
-    ))
-    db.add(TicketHistory(
-        ticket_id=ticket.id,
-        field_name="resolution",
-        old_value="",
-        new_value=ticket.resolution[:500],
-        new_value_key=clave_kb, new_value_params=params_kb,
-        changed_by_user_id=resolved_by_user_id,
-    ))
-
-    logger.info(
-        "Ticket %s auto-resolved via KB article %s (confidence threshold met)",
-        ticket.number,
-        article.number,
-    )
-    return True
 
 
 # ── Alert deduplication ───────────────────────────────────────────────────────

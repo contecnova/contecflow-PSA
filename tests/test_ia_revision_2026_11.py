@@ -42,6 +42,9 @@ def test_EL_HALLAZGO_el_comando_de_voz_devuelve_la_accion_pendiente(db, monkeypa
                         lambda *_a: ("create_ticket", {"ticket_title": "Impresora rota", "priority": "high"}, ""))
     r = voice.process_voice_core("abre un ticket impresora rota", db, _pm(db), confirm=False)
     assert r["confirmed"] is False
+    # Auditoría 22-11-2026 (A6): la propuesta va firmada (`token`) y confirmar ejecuta esa.
+    token = r["pending_action"].pop("token")
+    assert token and "." in token
     assert r["pending_action"] == {"type": "create_ticket", "title": "Impresora rota", "priority": "high"}
     assert r["execution_id"] is None
 
@@ -59,7 +62,8 @@ def test_EL_HALLAZGO_crear_tareas_desde_una_reunion_les_pone_codigo(db):
     from app.models.ai_chat import AIMeeting, AIMeetingAction
     from app.models.task import Task
     from app.services.ai_modules.meetings import create_tasks_from_meeting
-    p = _proyecto(db)
+    # Auditoría 22-11-2026 (A5): solo en un proyecto accesible para quien lo pide.
+    p = _proyecto(db, pm_id="pm-test-id")
     m = AIMeeting(project_id=p.id, title="Seguimiento", organization_id="1")
     db.add(m)
     db.flush()
@@ -79,10 +83,15 @@ def test_EL_HALLAZGO_la_planificacion_inteligente_devuelve_ids_de_tarea(db, monk
               for i in (1, 2)]
     db.add_all(tareas)
     db.commit()
-    monkeypatch.setattr(client_portal, "call_ai_unified", lambda *a, **k: (
-        '[{"task_id": 2, "suggested_start": "2026-11-10", "suggested_due": "2026-11-12", "rationale": "x"}]'))
+    # Desde el 19-11-2026 `smart_schedule` es determinista
+    # (`app/services/planificador/sin_fecha.py`): ya no hay respuesta de IA con
+    # índices de posición que traducir. El hallazgo (ids reales de tarea, no
+    # posiciones) se comprueba ahora sobre el plan del motor: planifica las dos
+    # tareas sin fecha, con sus ids reales, y sin llamar a la IA.
+    monkeypatch.setattr(client_portal, "call_ai_unified",
+                        lambda *a, **k: pytest.fail("la planificación ya no llama a la IA"), raising=False)
     r = client_portal.smart_schedule(db, SimpleNamespace(project_id=p.id, max_tasks=10), _pm(db))
-    assert [s["task_id"] for s in r["scheduled"]] == [tareas[1].id]
+    assert sorted(s["task_id"] for s in r["scheduled"]) == sorted(t.id for t in tareas)
 
 
 def test_EL_HALLAZGO_la_pista_del_asistente_RCA_lee_el_texto():
@@ -97,7 +106,7 @@ def test_EL_HALLAZGO_la_pista_del_asistente_RCA_lee_el_texto():
 def test_EL_HALLAZGO_el_embedding_TFIDF_ya_es_una_lista():
     from app.services.ai_modules._base import _a_lista
     assert _a_lista([0.1, 0.2]) == [0.1, 0.2]
-    np = pytest.importorskip("numpy")
+    np = pytest.importorskip("numpy", reason="falta el paquete opcional numpy")
     assert _a_lista(np.array([1.0, 2.0])) == [1.0, 2.0]
 
 
@@ -130,8 +139,13 @@ def test_EL_HALLAZGO_ollama_respeta_temperatura_cero_y_cuenta_tokens(monkeypatch
         return SimpleNamespace(status_code=200, json=lambda: {
             "message": {"content": "ok"}, "prompt_eval_count": 11, "eval_count": 7})
     monkeypatch.setattr(s.httpx, "post", _post)
+    # Auditoría 22-11-2026 (SSRF de proveedores de IA): solo el destino de
+    # PLATAFORMA (`settings.OLLAMA_BASE_URL`) va directo; una URL puesta por la
+    # empresa pasa la guardia saliente, que rechaza `localhost`. Este test mira
+    # temperatura y tokens, así que usa el Ollama de plataforma.
+    from app.core.config import settings
     prov = SimpleNamespace(provider="ollama", default_model="llama3", max_tokens=100, temperature=0.0,
-                           api_key="", api_base_url="http://localhost:11434")
+                           api_key="", api_base_url=settings.OLLAMA_BASE_URL)
     monkeypatch.setattr(s, "_validate_model", lambda *a: None)
     r = s.call_provider(prov, [{"role": "user", "content": "hola"}])
     assert enviado["options"]["temperature"] == 0.0
@@ -271,10 +285,10 @@ def test_EL_HALLAZGO_churn_usa_los_nombres_del_modelo(client, pm_token):
 def test_EL_HALLAZGO_el_agente_de_voz_hace_urgente_lo_urgente_y_le_pone_organizacion(db):
     from app.models.service_desk import Ticket
     from app.services.service_desk import voice_agent_service as v
-    v._set_json(db, v._SESSIONS_KEY, "1", {"s1": {
-        "intent": "incident", "caller_id": "+34600", "entities": {"urgency_words": ["urgente"]},
-        "transcript": [{"speaker": "user", "text": "No funciona el servidor, es urgente"}]}})
-    v.create_ticket_from_session(db, "1", "s1", "pm-test-id")
+    # Migracion 200: la sesion es una fila de `sd_voice_sessions`.
+    sid = v.create_session(db, "1", "+34600")["session"]["id"]
+    v.add_transcript_turn(db, "1", sid, "user", "No funciona el servidor, es urgente")
+    v.create_ticket_from_session(db, "1", sid, "pm-test-id")
     t = db.query(Ticket).filter(Ticket.source == "voice_agent").one()
     assert getattr(t.priority, "value", t.priority) == "p1_critical"
     assert t.organization_id == "1"

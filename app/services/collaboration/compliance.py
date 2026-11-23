@@ -213,42 +213,150 @@ class _PoliticaPorDefecto:
         self.retention_months = retention_months
 
 
+#: Precedencia de ámbitos: manda la política MÁS ESPECÍFICA que alcanza la
+#: conversación (canal > equipo > tipo > espacio). Auditoría 22-11-2026 (C3).
+_ORDEN_DE_AMBITO = ("channel", "team", "type", "workspace")
+
+#: Lo que purga este barrido: el cuerpo de los mensajes. Una política solo de
+#: adjuntos o de llamadas no toca mensajes (su purga no existe aún: M77).
+_APLICA_A_MENSAJES = ("all", "messages", None, "")
+
+
+def _conversaciones_de(db: Session, org: str, pol) -> Optional[set]:
+    """Las conversaciones que alcanza la política; None = todas las de su ámbito
+    (el espacio de la política o, por defecto, toda la empresa)."""
+    from app.models.collaboration import CollaborationConversation
+    scope = (getattr(pol, "scope", None) or "workspace").lower()
+    target = getattr(pol, "target_id", None)
+    if scope == "channel":
+        filas = db.query(CollaborationChannel.conversation_id).filter(
+            CollaborationChannel.organization_id == org, CollaborationChannel.id == target).all()
+        return {f[0] for f in filas}
+    if scope == "team":
+        filas = db.query(CollaborationChannel.conversation_id).filter(
+            CollaborationChannel.organization_id == org, CollaborationChannel.team_id == target).all()
+        return {f[0] for f in filas}
+    q = db.query(CollaborationConversation.id).filter(CollaborationConversation.organization_id == org)
+    ws = getattr(pol, "workspace_id", None)
+    if ws:
+        q = q.filter(CollaborationConversation.workspace_id == ws)
+    if scope == "type":
+        if not target:
+            return set()
+        q = q.filter(CollaborationConversation.kind == target)
+    elif scope != "workspace":
+        # Ámbito desconocido: no alcanza nada (antes, toda la empresa).
+        return set()
+    elif not ws:
+        return None
+    return {f[0] for f in q.all()}
+
+
+def _plan_de_retencion(db: Session, org: str, politicas: list) -> list[tuple]:
+    """[(meses, conversaciones | None, excluir)] sin solapes: cada conversación
+    la gobierna solo su política más específica; a igual ámbito y destino, la
+    de retención MÁS LARGA (en la duda, no se destruye)."""
+    plan: list[tuple] = []
+    cubiertas: set = set()
+    for scope in _ORDEN_DE_AMBITO:
+        de_este = [p for p in politicas if (getattr(p, "scope", None) or "workspace").lower() == scope]
+        # Mismo destino: la más larga.
+        por_destino: dict = {}
+        for p in de_este:
+            clave = (getattr(p, "target_id", None), getattr(p, "workspace_id", None))
+            if clave not in por_destino or p.retention_months > por_destino[clave].retention_months:
+                por_destino[clave] = p
+        nuevas: set = set()
+        for p in por_destino.values():
+            convs = _conversaciones_de(db, org, p)
+            if convs is None:
+                plan.append((p.retention_months, None, set(cubiertas)))
+                continue
+            convs = convs - cubiertas
+            if convs:
+                plan.append((p.retention_months, convs, set()))
+                nuevas |= convs
+        cubiertas |= nuevas
+    return plan
+
+
+def _condicion_de_bloqueo_general(db: Session, org: str):
+    """Mensajes alcanzados por un bloqueo legal GENERAL (`legal_holds`, la pantalla
+    de Gobierno) con entidad `*` o `collaboration_messages` (C3)."""
+    from sqlalchemy import false as _false
+    from app.db.bloqueo_legal import bloqueos_activos
+    campos = {"id": CollaborationMessage.id, "user_id": CollaborationMessage.user_id,
+              "conversation_id": CollaborationMessage.conversation_id}
+    partes = [campos[b.field] == b.value for b in bloqueos_activos(db, org)
+              if b.entity in ("*", "collaboration_messages") and b.field in campos]
+    return or_(*partes) if partes else _false()
+
+
 def run_retention(db: Session, user) -> dict:
     """Marca como borrados los mensajes vencidos según las políticas activas.
 
-    **El legal hold se respeta**: los mensajes retenidos no se tocan. Ver la nota
-    de cabecera del módulo sobre el defecto que tenía ese cálculo.
+    Auditoría 22-11-2026 (C3): antes cada política purgaba TODA la empresa (se
+    ignoraban `scope`, `target_id`, `workspace_id` y `apply_to`), así que una
+    política «canal X, 1 mes» destruía todos los mensajes de más de un mes y,
+    con varias, mandaba la más corta. Ahora:
 
-    El borrado es un `UPDATE` masivo, no un recorrido: con una organización con
-    años de mensajería, marcarlos uno a uno serían cientos de miles de
-    sentencias.
+    - cada política alcanza solo su ámbito (canal, equipo, tipo de
+      conversación o espacio de trabajo);
+    - cada conversación la gobierna su política más específica (un canal con
+      60 meses no lo purga la política de 12 del espacio);
+    - solo purgan mensajes las políticas `apply_to` all/messages;
+    - **el legal hold se respeta**: el de colaboración y el bloqueo legal
+      general de la empresa. Ver la nota de cabecera del módulo.
+
+    El borrado es un `UPDATE` masivo acotado por empresa, no un recorrido.
     """
-    org = _org(user)
-    politicas: list = (
-        db.query(CollaborationRetentionPolicy)
+    return run_retention_de_empresa(db, _org(user), getattr(user, "id", None))
+
+
+def run_retention_de_empresa(db: Session, org: str, actor_id: Optional[str] = None) -> dict:
+    """`run_retention` para una empresa sin persona: lo usa el trabajo diario.
+
+    M77 (auditoría 22-11-2026): antes solo se ejecutaba a mano y no tocaba los
+    adjuntos. Ahora corre cada día con las demás políticas de retención
+    (`app.worker.aplicar_retencion`) y también borra los ADJUNTOS (fichero,
+    versiones y texto indexado) de los mensajes que purga, salvo los retenidos.
+    """
+    politicas: list = [
+        p for p in db.query(CollaborationRetentionPolicy)
         .filter(
             CollaborationRetentionPolicy.organization_id == org,
             CollaborationRetentionPolicy.is_active == True,  # noqa: E712
         )
         .all()
-    )
+        if (getattr(p, "apply_to", None) or "all") in _APLICA_A_MENSAJES
+    ]
     ajustes = get_retention_settings(db, org)
     if not politicas:
         politicas = [_PoliticaPorDefecto(ajustes["default_months"])]
 
     ahora = utcnow()
     retenidos = legal_held_message_ids(db, org)
+    bloqueo_general = _condicion_de_bloqueo_general(db, org)
     borrados = 0
-    for pol in politicas:
-        corte = ahora - timedelta(days=DIAS_POR_MES * pol.retention_months)
+    adjuntos = 0
+    for meses, conversaciones, excluir in _plan_de_retencion(db, org, politicas):
+        corte = ahora - timedelta(days=DIAS_POR_MES * max(1, int(meses or 1)))
         q = db.query(CollaborationMessage).filter(
             CollaborationMessage.organization_id == org,
             CollaborationMessage.sent_at < corte,
             CollaborationMessage.status != "deleted",
+            ~bloqueo_general,
         )
+        if conversaciones is not None:
+            q = q.filter(CollaborationMessage.conversation_id.in_(conversaciones))
+        if excluir:
+            q = q.filter(~CollaborationMessage.conversation_id.in_(excluir))
         if retenidos:
             q = q.filter(~CollaborationMessage.id.in_(retenidos))
-        n = q.update(
+        ids = [i for (i,) in q.with_entities(CollaborationMessage.id).all()]
+        if not ids:
+            continue
+        n = db.query(CollaborationMessage).filter(CollaborationMessage.id.in_(ids)).update(
             {
                 CollaborationMessage.status: "deleted",
                 CollaborationMessage.deleted_at: ahora,
@@ -257,14 +365,35 @@ def run_retention(db: Session, user) -> dict:
             synchronize_session=False,
         )
         borrados += int(n or 0)
+        adjuntos += _purgar_adjuntos(db, org, ids)
 
     audit_log.write(
-        db, organization_id=org, actor_user_id=user.id, actor_client_id=None,
+        db, organization_id=org, actor_user_id=actor_id, actor_client_id=None,
         action="retention.run", entity_type="retention", entity_id=None,
-        payload={"deleted": borrados, "policies": len(politicas)},
+        payload={"deleted": borrados, "attachments_deleted": adjuntos, "policies": len(politicas)},
     )
     db.commit()
-    return {"deleted": borrados, "policies_applied": len(politicas)}
+    return {"deleted": borrados, "attachments_deleted": adjuntos, "policies_applied": len(politicas)}
+
+
+def _purgar_adjuntos(db: Session, org: str, mensajes: list) -> int:
+    """M77: borra los adjuntos (y sus versiones y vista previa) de los mensajes purgados."""
+    from app.models.collaboration import CollaborationAttachment, CollaborationAttachmentVersion
+    from app.services.collaboration._storage import storage
+    filas = db.query(CollaborationAttachment).filter(
+        CollaborationAttachment.organization_id == org, CollaborationAttachment.message_id.in_(mensajes)).all()
+    for a in filas:
+        claves = [a.storage_key, a.preview_key] + [v.storage_key for v in db.query(CollaborationAttachmentVersion)
+                                                   .filter(CollaborationAttachmentVersion.attachment_id == a.id)]
+        for k in [k for k in claves if k]:
+            try:
+                storage.delete(k)
+            except Exception:
+                logging.getLogger(__name__).warning("retención: no se pudo borrar el fichero %s", k, exc_info=True)
+        db.query(CollaborationAttachmentVersion).filter(
+            CollaborationAttachmentVersion.attachment_id == a.id).delete(synchronize_session=False)
+        db.delete(a)
+    return len(filas)
 
 
 # ── Legal hold ──────────────────────────────────────────────────────────────

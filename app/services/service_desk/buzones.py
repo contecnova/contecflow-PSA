@@ -62,8 +62,29 @@ def organizaciones_con_buzon(db: Session) -> list[Optional[str]]:
 
 # ── IMAP ─────────────────────────────────────────────────────────────────────
 
+def _host_imap(cfg: dict) -> Optional[str]:
+    """23-11-2026 (01 M7, 03 «SSRF por IMAP»): el host lo escribe el admin de
+    empresa; sin guardia servía para sondear la red interna (puerto libre). Un
+    servidor interno legítimo se declara en `OUTBOUND_PRIVATE_HOSTS_ALLOWED`.
+    Devuelve la IP validada a la que se conecta (`None` para un privado
+    permitido, que va por nombre): imaplib ya no vuelve a resolver."""
+    from app.core.conexion_fijada import ip_fijada
+    return ip_fijada(cfg["host"], field="IMAP host")
+
+
+def _abrir_imap(cfg: dict, timeout: float) -> imaplib.IMAP4_SSL:
+    """IMAP sobre TLS a la IP validada (anti DNS rebinding) con SNI y
+    certificado del nombre configurado. 23-11-2026: con `contexto_tls()`;
+    antes `imaplib` usaba su contexto por defecto, que NO verifica el
+    certificado (`SMTP_TLS_VERIFY=false` lo relaja igual que en SMTP)."""
+    from app.core.conexion_fijada import Imap4SslFijado
+    from app.services.notification_service import contexto_tls
+    return Imap4SslFijado(cfg["host"], int(cfg.get("port") or 993), ip_fijada=_host_imap(cfg),
+                          ssl_context=contexto_tls(), timeout=timeout)
+
+
 def _leer_imap(cfg: dict, maximo: int) -> Iterator[Mensaje]:
-    conexion = imaplib.IMAP4_SSL(cfg["host"], int(cfg.get("port") or 993), timeout=outbound_http_timeout(default=30))
+    conexion = _abrir_imap(cfg, outbound_http_timeout(default=30))
     try:
         conexion.login(cfg["user"], cfg["password"])
         conexion.select(cfg.get("folder") or "INBOX")
@@ -86,17 +107,15 @@ def _leer_imap(cfg: dict, maximo: int) -> Iterator[Mensaje]:
 # ── Microsoft 365 (Graph) ────────────────────────────────────────────────────
 
 def _token_graph(db: Session, org_id: Optional[str]) -> str:
-    azure = get_provider_config(db, "ms_graph", org_id=org_id)
-    if not (azure.get("tenant_id") and azure.get("client_id") and azure.get("client_secret")):
+    """23-11-2026 (03 A-MP3): la credencial `ms_graph` de ESA empresa (o la de
+    plataforma solo con `M365_PLATFORM_CREDENTIALS_ENABLED`); antes
+    `get_provider_config` caia a los `AZURE_*` globales. Token cacheado por
+    credencial en `m365_service`."""
+    from app.services.m365_service import credenciales_de_graph, token_de_graph_sync
+    cred = credenciales_de_graph(db, org_id)
+    if cred is None:
         raise RuntimeError("Faltan las credenciales de Microsoft 365 (tenant, client id y secret)")
-    r = httpx.post(
-        f"{settings.MICROSOFT_OAUTH_BASE}/{azure['tenant_id']}/oauth2/v2.0/token",
-        data={"client_id": azure["client_id"], "client_secret": azure["client_secret"],
-              "scope": f"{settings.MICROSOFT_GRAPH_BASE}/.default", "grant_type": "client_credentials"},
-        timeout=outbound_http_timeout(db, default=20),
-    )
-    r.raise_for_status()
-    return r.json()["access_token"]
+    return token_de_graph_sync(cred)
 
 
 def _leer_graph(db: Session, org_id: Optional[str], cfg: dict, maximo: int) -> Iterator[Mensaje]:
@@ -174,7 +193,9 @@ def leer_todos(db: Session) -> dict:
         except Exception as exc:
             db.rollback()
             logger.exception("buzón de %s no leído", org_id)
-            resultado[org_id or "global"] = {"error": str(exc)[:300]}
+            # Auditoria 2026-11-22 (4.3): la clase del error, no su texto (que
+            # trae hosts, puertos y respuestas del servidor remoto).
+            resultado[org_id or "global"] = {"error": type(exc).__name__}
     return resultado
 
 
@@ -184,25 +205,34 @@ def probar_buzon(db: Session, org_id: Optional[str]) -> dict:
     protocolo = (cfg.get("protocol") or "").strip().lower()
     try:
         if protocolo == "imap":
-            conexion = imaplib.IMAP4_SSL(cfg["host"], int(cfg.get("port") or 993), timeout=outbound_http_timeout(db, default=20))
+            conexion = _abrir_imap(cfg, outbound_http_timeout(db, default=20))
             try:
                 conexion.login(cfg["user"], cfg["password"])
                 conexion.select(cfg.get("folder") or "INBOX", readonly=True)
                 _, datos = conexion.uid("search", None, "UNSEEN")
-                return {"ok": True, "protocol": "imap", "unread": len((datos[0] or b"").split())}
+                return {"ok": True, "protocol": "imap", "unread": len((datos[0] or b"").split()),
+                        "code": "buzon_prueba_ok"}
             finally:
                 conexion.logout()
         if protocolo == "graph":
             buzon = cfg.get("mailbox")
             if not buzon:
-                return {"ok": False, "protocol": "graph", "error": "Falta el buzón de Microsoft 365"}
+                return {"ok": False, "protocol": "graph", "error": "Falta el buzón de Microsoft 365",
+                        "code": "buzon_falta_m365"}
             r = httpx.get(f"{GRAPH}/users/{buzon}/mailFolders/inbox", timeout=outbound_http_timeout(db, default=20),
                           headers={"Authorization": f"Bearer {_token_graph(db, org_id)}"})
             r.raise_for_status()
-            return {"ok": True, "protocol": "graph", "unread": r.json().get("unreadItemCount")}
-        return {"ok": False, "protocol": protocolo or None, "error": "Buzón sin configurar"}
+            return {"ok": True, "protocol": "graph", "unread": r.json().get("unreadItemCount"),
+                    "code": "buzon_prueba_ok"}
+        # Incidencia 10 (23-11-2026): cada resultado lleva `code` (texto traducido en la interfaz).
+        return {"ok": False, "protocol": protocolo or None, "error": "Buzón sin configurar",
+                "code": "buzon_sin_configurar"}
     except (imaplib.IMAP4.error, OSError, KeyError, httpx.HTTPError, RuntimeError) as exc:
-        return {"ok": False, "protocol": protocolo, "error": str(exc)[:300]}
+        # Auditoria 2026-11-22 (4.3): sin `str(exc)`: con un host interno
+        # («connection refused» frente a «timed out») servia de sonda de red.
+        logger.info("prueba del buzon de %s fallida", org_id, exc_info=True)
+        return {"ok": False, "protocol": protocolo, "error": type(exc).__name__,
+                "code": "buzon_conexion_fallida", "params": {"error": type(exc).__name__}}
 
 
 def ultimos_mensajes(db: Session, limite: int) -> list[dict]:

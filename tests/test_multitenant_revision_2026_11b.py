@@ -352,9 +352,12 @@ def test_EL_HALLAZGO_la_purga_que_falla_no_queda_en_success(db, monkeypatch):
 # ── Modelos `org_id`: tercera capa, export y únicos ──────────────────────────
 
 def test_EL_HALLAZGO_la_tercera_capa_filtra_tambien_los_modelos_org_id():
-    from app.db.session import _iter_org_id_models
-    nombres = {m.__name__ for m in _iter_org_id_models()}
-    assert {"ABACPolicy", "SecurityEvent", "AIGuardrailPolicyModel"} <= nombres and len(nombres) >= 11
+    # B-MOD1 (migracion 200): las 11 tablas `org_id` usan ya `organization_id`
+    # (con `org_id` como sinonimo), asi que entran por la via normal.
+    from app.db.session import _iter_org_id_models, _iter_tenant_scoped_models
+    assert not list(_iter_org_id_models())
+    nombres = {m.__name__ for m in _iter_tenant_scoped_models()}
+    assert {"ABACPolicy", "SecurityEvent", "AIGuardrailPolicyModel"} <= nombres
 
 
 def test_la_tercera_capa_esconde_las_filas_org_id_de_otra_empresa(db):

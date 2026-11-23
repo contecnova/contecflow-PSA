@@ -18,6 +18,7 @@ import { Button, DataTable, EmptyState, KpiCard, Modal, Page, Select, Spinner, T
 import { useAppT } from '../i18n/AppLangContext'
 import { useToast } from '../context/ToastContext'
 import { fmtDate } from '../utils/helpers'
+import { sanitizeUrl } from '../utils/security'
 import DateInput from '../components/ui/DateInput'
 import { Estado, etiqueta, mensajeDeError } from '../components/alm/almComun'
 import '../components/alm/almIntegracion.css'
@@ -233,7 +234,7 @@ function AveriaModal({ equipo, onClose }: { equipo: MiEquipo; onClose: () => voi
       <div className="almint-form">
         <label className="almint-campo">{t('almint.que_le_pasa')}
           <Textarea rows={4} value={descripcion} onChange={e => setDescripcion(e.target.value)} /></label>
-        <Select label={t('almint.urgencia')} value={urgencia} onChange={e => setUrgencia(e.target.value)}
+        <Select label={t('almint.urgencia_label')} value={urgencia} onChange={e => setUrgencia(e.target.value)}
           options={URGENCIAS.map(u => ({ value: u, label: etiqueta(t, 'urgencia', u) }))} />
         <div className="almint-acciones almint-acciones--fin">
           <Button variant="ghost" onClick={onClose}>{t('common.cancel')}</Button>
@@ -295,7 +296,7 @@ function ActaModal({ id, onClose }: { id: string; onClose: () => void }) {
             {(a.checklist ?? []).map((c, i) => <li key={i} className={c.ok ? 'almint-ok' : 'almint-ko'}>{c.item}{c.note ? ` · ${c.note}` : ''}</li>)}
           </ul>}
           {a.observations && <p>{a.observations}</p>}
-          {a.pdf_url && <a className="almint-enlace" href={a.pdf_url} target="_blank" rel="noreferrer">{t('almint.ver_pdf')}</a>}
+          {a.pdf_url && <a className="almint-enlace" href={sanitizeUrl(a.pdf_url)} target="_blank" rel="noreferrer">{t('almint.ver_pdf')}</a>}
           {a.esign_provider && a.esign_provider !== 'manual' && a.status === 'pending_signature' && <p className="almint-tenue">{t('almint.firma_externa')}</p>}
           <div className="almint-acciones almint-acciones--fin">
             <Button variant="ghost" onClick={onClose}>{t('common.close')}</Button>

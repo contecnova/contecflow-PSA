@@ -18,10 +18,10 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_current_user, require_internal_user
+from app.core.deps import get_current_user, requiere_capacidad
 from app.core.responses import APIResponse
 from app.core.uploads import UploadProfile, read_and_validate_upload_sync
-from app.db.session import get_db
+from app.db.session import get_db, sesion_de_sistema
 from app.models.user import User
 from app.schemas.collaboration import AttachmentOut
 from app.services.collaboration import files as svc
@@ -41,7 +41,7 @@ def upload_attachment(
     file: UploadFile = File(...),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
+    _rol: User = Depends(requiere_capacidad("colaboracion.usar")),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
 ):
     # Lectura acotada + validación de tipo (extensión, MIME declarado, bytes
     # mágicos y coherencia entre ellos). Antes esto no validaba NADA del
@@ -80,7 +80,7 @@ def upload_new_version(
     file: UploadFile = File(...),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
+    _rol: User = Depends(requiere_capacidad("colaboracion.usar")),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
 ):
     # Esta vía no tenía ni el tope de 500 MB que sí tenía la de creación: era un
     # `await file.read()` sin límite.
@@ -97,9 +97,12 @@ def get_attachment(attachment_id: str, current_user: User = Depends(get_current_
 
 
 @router.get("/files/by-token/{token}", summary="Descargar archivo por token firmado")
-def download_by_token(token: str, db: Session = Depends(get_db)):
+def download_by_token(token: str, db: Session = Depends(sesion_de_sistema("colaboración: descarga por token firmado"))):
     rec = FileStorage.resolve_token(token)
     if not rec:
         raise error_http(404, "token_no_valido", detail="Token inválido o caducado")
     datos, mime = svc.registrar_descarga_por_token(db, rec["key"])
-    return Response(content=datos, media_type=mime or "application/octet-stream")
+    # Auditoría 22-11-2026 (01 B10): un SVG servido en línea puede ejecutar script
+    # (XSS almacenado); se descarga como adjunto, como en /documents.
+    cabeceras = {"Content-Disposition": "attachment"} if (mime or "").startswith("image/svg") else {}
+    return Response(content=datos, media_type=mime or "application/octet-stream", headers=cabeceras)

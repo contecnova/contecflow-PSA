@@ -22,7 +22,7 @@ import type { StatusBadgeKind } from '../ui/StatusBadge'
 import { useToast } from '../../context/ToastContext'
 import { useAppLang } from '../../i18n/AppLangContext'
 import { etiquetaCodigo } from '../../i18n/etiquetaCodigo'
-import { fmtDateTime } from '../../utils/helpers'
+import { extractErr, fmtDateTime } from '../../utils/helpers'
 import { DELAYED_REFETCH_SHORT_MS, POLL_DEFAULT_MS } from '../../constants/timings'
 import './AlertCorrelationPanel.css'
 
@@ -144,8 +144,7 @@ export default function AlertCorrelationPanel() {
       qc.invalidateQueries({ queryKey: ['sd-problems'] })
     },
     onError: (e: unknown) => {
-      const detail = (e as { response?: { data?: { detail?: unknown } } }).response?.data?.detail
-      toast.error(detail ? String(detail) : t('alertcorrelation.error_crear_problema'))
+      toast.error(extractErr(e, t('alertcorrelation.error_crear_problema')))
     },
   })
 
@@ -171,8 +170,7 @@ export default function AlertCorrelationPanel() {
       refrescar()
     },
     onError: (e: unknown) => {
-      const detail = (e as { response?: { data?: { detail?: unknown } } }).response?.data?.detail
-      toast.error(detail ? String(detail) : t('alertcorrelation.error_escaner'))
+      toast.error(extractErr(e, t('alertcorrelation.error_escaner')))
     },
   })
 

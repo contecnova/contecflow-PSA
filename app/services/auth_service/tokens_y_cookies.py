@@ -136,7 +136,8 @@ def send_password_reset_email(recipient: str, reset_link: str, db: Optional[Sess
             remitente=remitente, para=recipient, asunto=subject, texto=body))
         return
 
-    logger.info("Password reset requested for %s (email backend not configured)", recipient)
+    # M53 (auditoría 22-11-2026): sin el correo del destinatario en el log (dato personal).
+    logger.info("Password reset requested (email backend not configured)")
 
 
 # ── Password reset ────────────────────────────────────────────────────────────

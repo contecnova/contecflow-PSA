@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.core.codigos_de_error import desde_valor
-from app.core.deps import get_current_client, require_any_manager
+from app.core.deps import get_current_client, requiere_capacidad
 from app.db.session import get_db
 from app.models.client_portal import ClientUser
 from app.models.user import User
@@ -68,7 +68,7 @@ def list_team_conversations(
     client_org_id: Optional[str] = None,
     assigned_to_me: bool = Query(False),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("clientes.gestionar")),
 ):
     return APIListResponse.ok(items=_svc.list_team_conversations(current_user, db, project_id, client_org_id, assigned_to_me))
 
@@ -76,7 +76,7 @@ def list_team_conversations(
 @router.get("/team/policies", summary="Políticas GRC de conversaciones del portal")
 def list_policies(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("clientes.gestionar")),
 ):
     return APIListResponse.ok(items=_svc.list_policies(current_user, db))
 
@@ -86,7 +86,7 @@ def update_policy(
     topic_type: str,
     payload: PolicyUpdateIn,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("clientes.gestionar")),
 ):
     try:
         return APIResponse.ok(data=_svc.update_policy(topic_type, payload.model_dump(exclude_unset=True), current_user, db))
@@ -98,7 +98,7 @@ def update_policy(
 def create_team_conversation(
     payload: ConversationCreateIn,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("clientes.gestionar")),
 ):
     try:
         return APIResponse.ok(data=_svc.create_team_conversation(payload, current_user, db))
@@ -110,7 +110,7 @@ def create_team_conversation(
 def get_team_conversation(
     conversation_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("clientes.gestionar")),
 ):
     try:
         return APIResponse.ok(data=_svc.get_team_conversation_detail(conversation_id, current_user, db))
@@ -122,7 +122,7 @@ def get_team_conversation(
 def get_team_messages(
     conversation_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("clientes.gestionar")),
 ):
     try:
         return APIListResponse.ok(items=_svc.list_team_messages(conversation_id, current_user, db))
@@ -135,7 +135,7 @@ def send_team_message(
     conversation_id: str,
     payload: ConversationMessageIn,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("clientes.gestionar")),
 ):
     try:
         return APIResponse.ok(data=_svc.send_team_message(conversation_id, payload, current_user, db))
@@ -148,7 +148,7 @@ def assign_participants(
     conversation_id: str,
     payload: ParticipantAssignIn,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("clientes.gestionar")),
 ):
     try:
         return APIResponse.ok(data=_svc.assign_participants(conversation_id, payload, current_user, db))
@@ -162,7 +162,7 @@ def review_message(
     message_id: str,
     payload: ReviewDecisionIn,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("clientes.gestionar")),
 ):
     try:
         return APIResponse.ok(data=_svc.review_message(conversation_id, message_id, payload.decision, payload.note, current_user, db))
@@ -173,7 +173,7 @@ def review_message(
 @router.post("/team/escalations/run", summary="Ejecutar escalados SLA de conversaciones")
 def run_sla_escalations(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("clientes.gestionar")),
 ):
     return APIResponse.ok(data=_svc.run_sla_escalations(current_user, db))
 

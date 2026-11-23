@@ -1,10 +1,20 @@
 # Backend (FastAPI + Celery) — Contecflow PSA
-# Build context: repo root.  Build: docker build -f deploy/Dockerfile.backend -t contecflow-backend .
+# Build context: repo root. La construye el compose (`x-app` → api, worker, beat y migrate;
+# `./setup.sh docker` / `setup.bat docker`); a mano:
+#   docker build -f deploy/Dockerfile.backend -t contecflow-api:local .
 #
-# NOTA: imagen creada como parte de la remediación de auditoría para versionar la IaC
-# (antes el compose vivía fuera del repo, en /opt/contecflow). No ha sido "docker build"-verificada
-# en el entorno de auditoría (sin Docker disponible); revisar en un host con Docker antes de publicar.
-FROM python:3.12-slim AS base
+# Auditoría 22-11-2026 (01 B4):
+# - Imagen base fijable por digest sin tocar el fichero:
+#     docker build --build-arg PYTHON_IMAGE=python:3.12-slim@sha256:<digest> ...
+#   (el digest de hoy: `docker buildx imagetools inspect python:3.12-slim`). En
+#   producción, fijarlo en CI; aquí queda la etiqueta para que el build local no
+#   dependa de un digest que caduca con cada parche de seguridad de Debian.
+# - Sin `curl`: los healthchecks del compose usan Python (`urllib`), no hace falta.
+# - Sin HEALTHCHECK en la imagen a propósito: la misma imagen corre la API, el worker,
+#   el beat y la migración, y solo la API escucha en :8000. Cada servicio declara el
+#   suyo en docker-compose.yml (la API: GET /health).
+ARG PYTHON_IMAGE=python:3.12-slim
+FROM ${PYTHON_IMAGE} AS base
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
@@ -13,10 +23,7 @@ ENV PYTHONUNBUFFERED=1 \
 
 WORKDIR /app
 
-# psycopg2-binary y cryptography traen wheels; curl solo para el healthcheck del compose.
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends curl \
-    && rm -rf /var/lib/apt/lists/*
+# psycopg2-binary y cryptography traen wheels: no hacen falta paquetes del sistema.
 
 # Instala dependencias primero para aprovechar la caché de capas.
 COPY requirements.txt ./
@@ -33,6 +40,8 @@ USER appuser
 
 EXPOSE 8000
 
-# Arranque de la API. Las migraciones se ejecutan aparte:
-#   docker compose run --rm --no-deps backend python -m alembic upgrade head
+# Arranque de la API (dentro del contenedor escucha en 0.0.0.0; el compose solo
+# publica el puerto en 127.0.0.1). Las migraciones las hace el servicio `migrate`
+# del compose (`alembic upgrade head && python -m app.db.rls`); a mano:
+#   docker compose --profile app run --rm --no-deps migrate
 CMD ["python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

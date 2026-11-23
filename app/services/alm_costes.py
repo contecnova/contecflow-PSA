@@ -357,7 +357,8 @@ def _lineas_de_activo(cache: _Cache, activo: ALMAsset, desde: date, hasta: date,
 # ── Entrada ───────────────────────────────────────────────────────────────────
 
 def lineas(db: Session, desde: date, hasta: date, *, project_id: Optional[str] = None,
-           incluir_ociosos: bool = True, sin_amortizacion: bool = False) -> list[Linea]:
+           incluir_ociosos: bool = True, sin_amortizacion: bool = False,
+           project_ids: Optional[Iterable[str]] = None) -> list[Linea]:
     """Todas las líneas de coste del periodo [desde, hasta], ambos incluidos.
 
     Con ``project_id`` solo se cargan los recursos que pueden imputarle algo
@@ -370,15 +371,18 @@ def lineas(db: Session, desde: date, hasta: date, *, project_id: Optional[str] =
     lics = db.query(ALMLicense).filter(ALMLicense.is_active.is_(True))
     activos = db.query(ALMAsset)
     contratos = db.query(ALMContract).filter(ALMContract.is_active.isnot(False))
-    if project_id:
+    # Auditoría 22-11-2026 (§7.2): `project_ids` = la misma poda para una lista
+    # de proyectos (el margen en bloque), sin una pasada por proyecto.
+    ids = ({project_id} if project_id else set()) | set(project_ids or ())
+    if ids:
         ids_asig = db.query(ALMAsignacion.id).filter(or_(
-            ALMAsignacion.holder_project_id == project_id, ALMAsignacion.charge_project_id == project_id))
+            ALMAsignacion.holder_project_id.in_(ids), ALMAsignacion.charge_project_id.in_(ids)))
         de_proyecto = or_(ALMAsignacion.id.in_(ids_asig), ALMAsignacion.parent_id.in_(ids_asig))
-        lics = lics.filter(or_(ALMLicense.project_id == project_id, ALMLicense.id.in_(
+        lics = lics.filter(or_(ALMLicense.project_id.in_(ids), ALMLicense.id.in_(
             db.query(ALMAsignacion.license_id).filter(de_proyecto))))
-        activos = activos.filter(or_(ALMAsset.project_id == project_id, ALMAsset.id.in_(
+        activos = activos.filter(or_(ALMAsset.project_id.in_(ids), ALMAsset.id.in_(
             db.query(ALMAsignacion.asset_id).filter(de_proyecto))))
-        contratos = contratos.filter(or_(ALMContract.project_id == project_id, ALMContract.id.in_(
+        contratos = contratos.filter(or_(ALMContract.project_id.in_(ids), ALMContract.id.in_(
             db.query(ALMLicense.contract_id).filter(ALMLicense.id.in_(lics.with_entities(ALMLicense.id))))))
     contratos = contratos.all()
     reparto, sobrante = _reparto_de_contratos(contratos)
@@ -389,8 +393,8 @@ def lineas(db: Session, desde: date, hasta: date, *, project_id: Optional[str] =
     for c in contratos:
         if c.id in sobrante:
             _lineas_de_contrato(cache, c, sobrante[c.id], desde, hasta, salida)
-    if project_id:
-        salida = [li for li in salida if li.project_id == project_id]
+    if ids:
+        salida = [li for li in salida if li.project_id in ids]
     if not incluir_ociosos:
         salida = [li for li in salida if li.kind != "idle"]
     return salida

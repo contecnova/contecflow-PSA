@@ -17,6 +17,7 @@ from app.models.resources import Absence, AbsenceStatus
 from app.models.sprints import Sprint, SprintStatus, SprintTask
 from app.models.user import User, UserRole
 from app.services.notifications import notify_user
+from app.services.textos_de_salida_servicios_m_z import aviso_de, texto_para
 import logging
 from app.core import timeutil
 from app.core.codigos_de_error import error
@@ -68,8 +69,7 @@ def reject_imputation_flow(db: Session, imputation_id: str, current_user: User) 
             db,
             imp.user_id,
             "system",
-            "Imputación rechazada por manager",
-            "Tu imputación ha sido rechazada y queda pendiente de corrección.",
+            **aviso_de(db, imp.user_id, "psa.imputacion_rechazada.titulo", "psa.imputacion_rechazada.cuerpo"),
             resource="imputations",
             resource_id=imp.id,
             action_url="/time",
@@ -94,27 +94,54 @@ def review_timesheet_flow(
     if ts.status != TimesheetStatus.submitted:
         raise error(400, "imputacion_solo_enviadas", detail="Solo se pueden revisar timesheets enviados")
 
-    ts.status = TimesheetStatus.approved if approved else TimesheetStatus.rejected
-    from app.services.approval_engine import fuentes
-    fuentes.cerrar(db, "timesheet", ts.id, "approved" if approved else "rejected",
-                   f"Decidido en Partes de horas por {current_user.full_name}")
-    ts.reviewed_by = current_user.id
-    ts.reviewed_at = datetime.now(timezone.utc)
-    ts.review_notes = notes
+    # Auditoria 2026-11-22 (A-MP9): un manager se aprobaba su propio parte y,
+    # al aprobar, marcaba TODAS las imputaciones de la semana de cualquier
+    # proyecto (lo que alimenta la facturacion). Ahora: nadie decide su parte
+    # (SoD); administracion, RR. HH. o el responsable directo de la persona
+    # deciden el parte entero; un jefe de proyecto solo las imputaciones de
+    # SUS proyectos, y el parte queda aprobado cuando no queda ninguna sin
+    # aprobar.
+    from app.services.approval_engine._base import exigir_que_no_sea_suyo
+    exigir_que_no_sea_suyo(db, ts.user_id, current_user, "timesheet", ts.id)
+    week_end = ts.week_start + timedelta(days=6)
+    de_la_semana = db.query(Imputation).filter(
+        Imputation.user_id == ts.user_id,
+        Imputation.date >= ts.week_start,
+        Imputation.date <= week_end,
+    )
+    persona = db.get(User, ts.user_id)
+    revisa_todo = (current_user.role in [UserRole.admin, UserRole.hr]
+                   or (persona is not None and persona.manager_id == current_user.id))
+    if not revisa_todo:
+        mis_proyectos = db.query(Project.id).filter(Project.pm_id == current_user.id).scalar_subquery()
+        de_la_semana = de_la_semana.filter(Imputation.project_id.in_(mis_proyectos))
+        if de_la_semana.count() == 0:
+            raise error(403, "imputacion_sin_permiso_revisar",
+                        detail="No tienes permiso para revisar este parte de horas")
 
+    ahora = datetime.now(timezone.utc)
     if approved:
-        week_end = ts.week_start + timedelta(days=6)
-        db.query(Imputation).filter(
+        de_la_semana.update({"is_approved": True, "approved_by": current_user.id, "approved_at": ahora},
+                            synchronize_session=False)
+        pendientes = db.query(Imputation.id).filter(
             Imputation.user_id == ts.user_id,
             Imputation.date >= ts.week_start,
             Imputation.date <= week_end,
-        ).update(
-            {
-                "is_approved": True,
-                "approved_by": current_user.id,
-                "approved_at": datetime.now(timezone.utc),
-            }
-        )
+            Imputation.is_approved.isnot(True),
+        ).count()
+        decidido = pendientes == 0
+    else:
+        decidido = True
+
+    if decidido:
+        ts.status = TimesheetStatus.approved if approved else TimesheetStatus.rejected
+        from app.services.approval_engine import fuentes
+        fuentes.cerrar(db, "timesheet", ts.id, "approved" if approved else "rejected",
+                       texto_para(db, "psa.parte.decidido", user_id=current_user.id, quien=current_user.full_name))
+    ts.reviewed_by = current_user.id
+    ts.reviewed_at = ahora
+    ts.review_notes = notes
+    ts.review_notes_key = ts.review_notes_params = None   # migracion 200: nota libre del revisor
 
     db.commit()
     db.refresh(ts)
@@ -180,6 +207,7 @@ def sync_timesheet_from_imputations_flow(db: Session, user_id: str, week_start: 
                 ts.reviewed_by = None
                 ts.reviewed_at = None
                 ts.review_notes = None
+                ts.review_notes_key = ts.review_notes_params = None
 
     db.commit()
     db.refresh(ts)
@@ -198,7 +226,7 @@ def submit_timesheet_flow(db: Session, user_id: str, week_start: date) -> Timesh
     db.commit()
     db.refresh(ts)
     from app.services.approval_engine import fuentes
-    fuentes.abrir(db, "timesheet", ts.id, f"Parte de horas semana {ts.week_start} · {ts.total_hours} h",
+    fuentes.abrir(db, "timesheet", ts.id, texto_para(db, "psa.parte.abrir", user_id=user_id, semana=ts.week_start, horas=ts.total_hours),
                   user_id, {"hours": ts.total_hours, "billable_hours": ts.billable_hours})
     return ts
 
@@ -212,11 +240,14 @@ def send_back_timesheet_flow(db: Session, timesheet_id: str, current_user: User,
 
     ts.status = TimesheetStatus.rejected
     from app.services.approval_engine import fuentes
-    fuentes.cerrar(db, "timesheet", ts.id, "rejected", f"Devuelto para corrección por {current_user.full_name}")
+    fuentes.cerrar(db, "timesheet", ts.id, "rejected", texto_para(db, "psa.parte.devuelto", user_id=current_user.id, quien=current_user.full_name))
     ts.reviewed_by = current_user.id
     ts.reviewed_at = datetime.now(timezone.utc)
-    note_prefix = "[Devuelto para correccion]"
+    note_prefix = texto_para(db, "psa.parte.prefijo_devuelto", user_id=current_user.id)
     ts.review_notes = f"{note_prefix} {notes}".strip()
+    # Migracion 200: solo es texto de serie si el revisor no escribio nada.
+    ts.review_notes_key = None if notes else "psa.parte.prefijo_devuelto"
+    ts.review_notes_params = None
 
     db.commit()
     db.refresh(ts)

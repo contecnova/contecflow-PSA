@@ -34,138 +34,12 @@ logger = logging.getLogger(__name__)
 
 # ── Template definitions ──────────────────────────────────────────────────────
 
+#: 23-11-2026: `label` y `prompt` son claves de `textos_de_salida` (`rca.<plantilla>.<paso>.label|prompt`);
+#: se pintan en el idioma de la empresa al arrancar el asistente.
 _TEMPLATES: dict[str, list[dict[str, str]]] = {
-    "five_whys": [
-        {
-            "step": 1,
-            "label": "Why #1",
-            "prompt": (
-                "¿Por qué ocurrió el problema? "
-                "Describe el síntoma observable inicial."
-            ),
-        },
-        {
-            "step": 2,
-            "label": "Why #2",
-            "prompt": (
-                "¿Por qué ocurrió lo que describiste en el paso anterior? "
-                "Profundiza un nivel más."
-            ),
-        },
-        {
-            "step": 3,
-            "label": "Why #3",
-            "prompt": (
-                "¿Por qué se produjo esa causa? "
-                "Continúa explorando hacia atrás en la cadena causal."
-            ),
-        },
-        {
-            "step": 4,
-            "label": "Why #4",
-            "prompt": (
-                "¿Por qué existía esa condición? "
-                "Busca el factor sistémico o de proceso subyacente."
-            ),
-        },
-        {
-            "step": 5,
-            "label": "Why #5 — Causa Raíz",
-            "prompt": (
-                "¿Por qué existía ese factor? "
-                "Esta respuesta debería apuntar directamente a la causa raíz. "
-                "Resume la causa raíz final aquí."
-            ),
-        },
-    ],
-    "fishbone": [
-        {
-            "step": 1,
-            "label": "Personas",
-            "prompt": (
-                "¿Qué factores humanos o de equipo pudieron contribuir al problema? "
-                "(falta de formación, errores humanos, comunicación deficiente, etc.)"
-            ),
-        },
-        {
-            "step": 2,
-            "label": "Proceso",
-            "prompt": (
-                "¿Qué fallos en procesos o procedimientos contribuyeron? "
-                "(procedimientos ausentes, obsoletos, no seguidos, etc.)"
-            ),
-        },
-        {
-            "step": 3,
-            "label": "Tecnología",
-            "prompt": (
-                "¿Qué factores tecnológicos o de infraestructura influyeron? "
-                "(bugs de software, fallos de hardware, configuración incorrecta, etc.)"
-            ),
-        },
-        {
-            "step": 4,
-            "label": "Entorno",
-            "prompt": (
-                "¿Qué factores del entorno o externos afectaron? "
-                "(condiciones de red, proveedores externos, cambios de carga, etc.)"
-            ),
-        },
-        {
-            "step": 5,
-            "label": "Materiales / Datos",
-            "prompt": (
-                "¿Problemas con datos, configuraciones, dependencias o insumos del sistema? "
-                "(datos corruptos, configuraciones incorrectas, librerías desactualizadas, etc.)"
-            ),
-        },
-        {
-            "step": 6,
-            "label": "Métricas / Monitorización",
-            "prompt": (
-                "¿Existían alertas, umbrales o métricas que fallaron en detectar o prevenir el problema? "
-                "(falta de alertas, umbrales mal calibrados, ausencia de observabilidad, etc.)"
-            ),
-        },
-    ],
-    "itil_standard": [
-        {
-            "step": 1,
-            "label": "Cronología",
-            "prompt": (
-                "Describe la cronología del incidente: "
-                "¿cuándo comenzó, qué eventos sucedieron, cuándo fue detectado y resuelto? "
-                "Incluye timestamps aproximados."
-            ),
-        },
-        {
-            "step": 2,
-            "label": "Factores Contribuyentes",
-            "prompt": (
-                "Lista todos los factores que contribuyeron al problema. "
-                "Considera: cambios recientes, carga inusual, deuda técnica, "
-                "dependencias externas y cualquier condición preexistente."
-            ),
-        },
-        {
-            "step": 3,
-            "label": "Enunciado de Causa Raíz",
-            "prompt": (
-                "Formula un enunciado claro y conciso de la causa raíz. "
-                "Debe responder a: ¿qué falló exactamente y por qué ocurrió? "
-                "Evita síntomas — apunta al origen."
-            ),
-        },
-        {
-            "step": 4,
-            "label": "Acciones de Prevención",
-            "prompt": (
-                "¿Qué acciones concretas evitarán la recurrencia? "
-                "Incluye: cambios de configuración, mejoras de proceso, "
-                "actualizaciones de monitorización y responsables."
-            ),
-        },
-    ],
+    slug: [{"step": n, "label": f"rca.{slug}.{n}.label", "prompt": f"rca.{slug}.{n}.prompt"}
+           for n in range(1, total + 1)]
+    for slug, total in (("five_whys", 5), ("fishbone", 6), ("itil_standard", 4))
 }
 
 _VALID_TEMPLATES = set(_TEMPLATES.keys())
@@ -206,7 +80,22 @@ def _save_state(problem: Problem, state: dict[str, Any]) -> None:
     problem.rca_template = state.get("template")
 
 
-def _build_initial_state(template: str, steps_def: list[dict] | None = None) -> dict[str, Any]:
+def _pintar(valor: str, idioma: str | None) -> str:
+    """Texto de un paso: si es una clave de `textos_de_salida`, en `idioma`; si no, tal cual (plantillas propias)."""
+    from app.services.textos_de_salida import TEXTOS, texto
+    return texto(valor, idioma) if valor in TEXTOS else valor
+
+
+def _idioma_del_problema(db: Session | None, problem=None) -> str | None:
+    if db is None:
+        return None
+    from app.services.formato_regional import idioma_de_salida
+    org = getattr(problem, "organization_id", None) or db.info.get("organization_id")
+    return idioma_de_salida(db, org_id=org)
+
+
+def _build_initial_state(template: str, steps_def: list[dict] | None = None,
+                         idioma: str | None = None) -> dict[str, Any]:
     """Build wizard state from built-in or custom steps.
 
     *template* is the display key stored in the state (slug or UUID).
@@ -217,6 +106,7 @@ def _build_initial_state(template: str, steps_def: list[dict] | None = None) -> 
         steps_def = _TEMPLATES[template]
     return {
         "template": template,
+        "idioma": idioma,
         "started_at": datetime.now(timezone.utc).isoformat(),
         "current_step": 1,
         "total_steps": len(steps_def),
@@ -224,8 +114,8 @@ def _build_initial_state(template: str, steps_def: list[dict] | None = None) -> 
         "steps": [
             {
                 "step": s["step"],
-                "label": s["label"],
-                "prompt": s["prompt"],
+                "label": _pintar(s["label"], idioma),
+                "prompt": _pintar(s["prompt"], idioma),
                 "answer": None,
                 "ai_hint": None,
             }
@@ -256,7 +146,8 @@ def _derive_root_cause_from_state(state: dict[str, Any]) -> str:
         parts = []
         for s in answered:
             parts.append(f"[{s['label']}] {s['answer']}")
-        return "Análisis Fishbone:\n" + "\n".join(parts)
+        from app.services.textos_de_salida import texto
+        return texto("rca.fishbone.titulo", state.get("idioma")) + "\n" + "\n".join(parts)
 
     if template == "itil_standard":
         # Step 3 is the root-cause statement
@@ -319,7 +210,7 @@ def start_wizard(db: Session, problem: Problem, template: str) -> dict[str, Any]
             steps_def = None
         # Canonical key stored in state: slug if system template, else UUID
         canonical = _SYSTEM_ID_TO_SLUG.get(db_tpl.id, db_tpl.id)
-        state = _build_initial_state(canonical, steps_def=steps_def)
+        state = _build_initial_state(canonical, steps_def=steps_def, idioma=_idioma_del_problema(db, problem))
         _save_state(problem, state)
         db.flush()
         return state
@@ -329,7 +220,7 @@ def start_wizard(db: Session, problem: Problem, template: str) -> dict[str, Any]
         raise error(400, "rca_plantilla_desconocida", detail=f"Unknown template '{template}'. "
                 f"Built-in options: {sorted(_VALID_TEMPLATES)}. "
                 "You may also pass the UUID of a custom template.", plantilla=template, opciones=sorted(_VALID_TEMPLATES))
-    state = _build_initial_state(template)
+    state = _build_initial_state(template, idioma=_idioma_del_problema(db, problem))
     _save_state(problem, state)
     db.flush()
     return state
@@ -382,7 +273,7 @@ def submit_wizard_step(
     return state
 
 
-def ai_assist_step(db: Session, problem: Problem, step_num: int) -> dict[str, str]:
+def ai_assist_step(db: Session, problem: Problem, step_num: int, user_id: str | None = None) -> dict[str, str]:
     """Ask the AI for a suggestion for *step_num* given the wizard context.
 
     The hint is persisted in the step's ai_hint field.
@@ -441,9 +332,14 @@ def ai_assist_step(db: Session, problem: Problem, step_num: int) -> dict[str, st
             system="You are an ITIL problem manager. Provide concise, actionable RCA guidance. " + _instruccion,
             max_tokens=settings.AI_BRIEF_ANSWER_MAX_TOKENS,
             organization_id=getattr(problem, "organization_id", None),
+            # Auditoria 2026-11-22 (4.3): con el usuario si lo hay (endpoint).
+            user_id=user_id,
         )
-        provider_used = result.get("provider", "unknown")
+        # Auditoria 2026-11-22 (A-SD10): `call_ai` devuelve texto; el
+        # `result.get("provider")` lanzaba AttributeError y la pista salia
+        # siempre como «sin IA». El proveedor no viaja en la respuesta.
         hint = (_texto(result)).strip()
+        provider_used = "ai" if hint else "unknown"
     except Exception as exc:
         logger.warning("ai_assist_step: AI call failed: %s", exc)
         hint = texto("rca.sin_ia", _idioma)
@@ -562,7 +458,7 @@ def classify_from_wizard(
     return "unknown"
 
 
-def list_available_templates(db: Session | None = None) -> list[dict[str, Any]]:
+def list_available_templates(db: Session | None = None, idioma: str | None = None) -> list[dict[str, Any]]:
     """Return metadata for all available RCA templates.
 
     When *db* is provided the DB-backed ``sd_problem_rca_templates`` table is
@@ -589,12 +485,15 @@ def list_available_templates(db: Session | None = None) -> list[dict[str, Any]]:
                         steps = []
                     # Use slug as public id for system templates for backwards compat
                     public_id = _SYSTEM_ID_TO_SLUG.get(row.id, row.id)
+                    # Las de serie se escribieron en castellano al sembrarlas: salen por clave.
+                    de_serie = row.is_system and public_id in _VALID_TEMPLATES
                     result.append({
                         "id": public_id,
                         "uuid": row.id,
-                        "name": row.name,
+                        "name": _pintar(f"rca.plantilla.{public_id}.nombre", idioma) if de_serie else row.name,
                         "template_type": row.template_type,
-                        "description": row.description,
+                        "description": (_pintar(f"rca.plantilla.{public_id}.descripcion", idioma)
+                                        if de_serie else row.description),
                         "total_steps": len(steps),
                         "is_system": row.is_system,
                         "is_active": row.is_active,
@@ -608,12 +507,9 @@ def list_available_templates(db: Session | None = None) -> list[dict[str, Any]]:
         {
             "id": "five_whys",
             "uuid": _SYSTEM_TEMPLATE_IDS["five_whys"],
-            "name": "5 Whys (Toyota)",
+            "name": _pintar("rca.plantilla.five_whys.nombre", idioma),
             "template_type": "five_whys",
-            "description": (
-                "Técnica iterativa de 5 preguntas '¿Por qué?' para llegar a la causa raíz. "
-                "Ideal para problemas simples con cadena causal lineal."
-            ),
+            "description": _pintar("rca.plantilla.five_whys.descripcion", idioma),
             "total_steps": 5,
             "is_system": True,
             "is_active": True,
@@ -621,12 +517,9 @@ def list_available_templates(db: Session | None = None) -> list[dict[str, Any]]:
         {
             "id": "fishbone",
             "uuid": _SYSTEM_TEMPLATE_IDS["fishbone"],
-            "name": "Diagrama de Ishikawa (Fishbone)",
+            "name": _pintar("rca.plantilla.fishbone.nombre", idioma),
             "template_type": "fishbone",
-            "description": (
-                "Analiza 6 categorías de causas: Personas, Proceso, Tecnología, Entorno, "
-                "Materiales/Datos, Métricas. Ideal para problemas multifactoriales."
-            ),
+            "description": _pintar("rca.plantilla.fishbone.descripcion", idioma),
             "total_steps": 6,
             "is_system": True,
             "is_active": True,
@@ -634,12 +527,9 @@ def list_available_templates(db: Session | None = None) -> list[dict[str, Any]]:
         {
             "id": "itil_standard",
             "uuid": _SYSTEM_TEMPLATE_IDS["itil_standard"],
-            "name": "Análisis ITIL Estándar",
+            "name": _pintar("rca.plantilla.itil_standard.nombre", idioma),
             "template_type": "itil_standard",
-            "description": (
-                "Proceso ITIL de 4 pasos: Cronología → Factores contribuyentes → "
-                "Enunciado de causa raíz → Acciones de prevención."
-            ),
+            "description": _pintar("rca.plantilla.itil_standard.descripcion", idioma),
             "total_steps": 4,
             "is_system": True,
             "is_active": True,

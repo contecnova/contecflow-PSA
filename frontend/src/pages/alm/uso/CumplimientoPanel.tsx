@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { AlertOctagon, CheckCircle2, Coins, Download, FileSpreadsheet, PiggyBank, ShieldAlert } from 'lucide-react'
-import { Button, DataTable, EmptyState, KpiCard, Spinner, Input } from '../../../components/ui'
+import { Buscador, Button, DataTable, EmptyState, KpiCard, Spinner } from '../../../components/ui'
 import type { ColumnaDeTabla } from '../../../components/ui'
 import { useAppT } from '../../../i18n/AppLangContext'
 import { etiquetaCodigo } from '../../../i18n/etiquetaCodigo'
@@ -70,7 +70,7 @@ export default function CumplimientoPanel() {
       )}
       <div className="almu-barra almu-export">
         <label className="almu-campo almu-campo--linea">{t('alm_uso.filtrar_producto')}
-          <Input value={producto} onChange={e => setProducto(e.target.value)} placeholder={t('alm_uso.filtrar_producto_ph')} inputClassName="alm-input alm-input--compact" />
+          <Buscador value={producto} onChange={setProducto} placeholder={t('alm_uso.filtrar_producto_ph')} inputClassName="alm-input alm-input--compact" />
         </label>
         <Button size="sm" variant="secondary" icon={<Download size={14} />} loading={exportando === 'csv'}
           onClick={() => exportar('csv')}>{t('alm_uso.exportar_csv')}</Button>

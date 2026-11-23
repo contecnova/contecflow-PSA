@@ -28,6 +28,8 @@ from __future__ import annotations
 
 import json
 import logging
+import re
+import unicodedata
 from datetime import datetime, timezone
 from typing import Optional
 from uuid import uuid4
@@ -124,7 +126,9 @@ _BUILTIN_PLAYBOOKS = [
         "id": "pw-reset",
         "name": "Password Reset Self-Service",
         "trigger_keywords": ["password", "contraseña", "reset", "locked out", "bloqueado"],
-        "trigger_categories": ["access", "acceso", "security", "seguridad"],
+        # 23-11-2026 (C-SD1): sin «security»/«seguridad»; un ticket de seguridad
+        # nunca lo atiende un playbook (ver `PALABRAS_DE_SEGURIDAD`).
+        "trigger_categories": ["access", "acceso"],
         "max_priority": "p3_medium",
         "auto_resolve": True,
         "steps": [
@@ -287,10 +291,43 @@ def contenido_del_paso(paso: dict, idioma: Optional[str]) -> str:
 
 # ── Playbook matching ─────────────────────────────────────────────────────────
 
+#: Auditoria 2026-11-22 (C-SD1): un ticket que hable de esto es un posible
+#: incidente de seguridad y nunca lo atiende el agente autonomo (antes
+#: «seguridad» casaba con el playbook de cambio de contraseña y lo resolvia).
+PALABRAS_DE_SEGURIDAD = (
+    "security", "seguridad", "phishing", "malware", "ransomware", "virus", "hack", "hacked",
+    "hackeado", "hackeo", "breach", "brecha", "fraud", "fraude", "intrusion", "intrusión",
+    "suplantación", "suplantacion", "spoofing", "compromised", "comprometida", "comprometido",
+    "filtración", "leak", "安全", "钓鱼", "病毒", "入侵", "泄露",
+)
+
+
+def _normalizar(texto: str) -> str:
+    return unicodedata.normalize("NFKC", texto or "").casefold()
+
+
+def _patron_de_palabra(kw: str) -> "re.Pattern":
+    """La palabra (o frase) completa, sin letras pegadas delante ni detras. En chino no hay
+    espacios entre palabras, asi que ahi basta con que aparezca."""
+    kw = _normalizar(kw).strip()
+    if any("一" <= c <= "鿿" for c in kw):  # ideogramas CJK
+        return re.compile(re.escape(kw))
+    return re.compile(r"(?<!\w)" + r"\s+".join(re.escape(p) for p in kw.split()) + r"(?!\w)")
+
+
 def _text_matches_keywords(text: str, keywords: list[str]) -> int:
-    """Return number of keyword matches in text (case-insensitive)."""
-    text_lower = text.lower()
-    return sum(1 for kw in keywords if kw.lower() in text_lower)
+    """Cuantas palabras clave aparecen como palabra completa en el texto.
+
+    Auditoria 2026-11-22 (C-SD1): era una subcadena (`kw in text`), asi que
+    «reset» casaba con «preset», «mail» con «email» y «cola» con «escolar».
+    """
+    t = _normalizar(text)
+    return sum(1 for kw in keywords if (kw or "").strip() and _patron_de_palabra(kw).search(t))
+
+
+def es_posible_incidente_de_seguridad(ticket: Ticket) -> bool:
+    texto_del_ticket = f"{ticket.title or ''} {ticket.description or ''}"
+    return _text_matches_keywords(texto_del_ticket, list(PALABRAS_DE_SEGURIDAD)) > 0
 
 
 def match_playbook(ticket: Ticket, custom_playbooks: Optional[list[dict]] = None,
@@ -332,6 +369,10 @@ def match_playbook(ticket: Ticket, custom_playbooks: Optional[list[dict]] = None
         category_hits = _text_matches_keywords(
             search_text, pb.get("trigger_categories", [])
         )
+        # La intencion la dan las palabras clave: una categoria sola («acceso»)
+        # no basta para que un playbook se haga cargo del ticket.
+        if keyword_hits == 0:
+            continue
         score = keyword_hits * 2 + category_hits
 
         if score > best_score:
@@ -385,21 +426,15 @@ def _add_ticket_comment(db: Session, ticket: Ticket, content: str, acting_user_i
 
 
 def _resolve_ticket(db: Session, ticket: Ticket, resolution: str, acting_user_id: Optional[str]) -> None:
-    """Mark ticket as resolved by the autonomous agent."""
-    old_status = str(ticket.status)
-    ticket.status = TicketStatus.resolved
-    ticket.resolution = resolution
-    ticket.resolved_at = datetime.now(tz=timezone.utc)
+    """Resuelve el ticket por la via central (23-11-2026, A-SD11).
 
-    history = TicketHistory(
-        id=str(uuid4()),
-        ticket_id=ticket.id,
-        field_name="status",
-        old_value=old_status,
-        new_value=TicketStatus.resolved.value,
-        changed_by_user_id=acting_user_id,
-    )
-    db.add(history)
+    Antes escribia `status`/`resolved_at` a mano: sin SLA, sin encuesta, sin
+    `audit_log` y con `str(enum)` («TicketStatus.new») en el historial."""
+    from app.models.user import User
+    from app.services.service_desk.ticket_update_service import cambiar_estado_por_automatismo
+    actor = db.get(User, acting_user_id) if acting_user_id else None
+    cambiar_estado_por_automatismo(db, ticket, TicketStatus.resolved.value, actor=actor,
+                                   origen="autonomous_agent", resolucion=resolution)
 
 
 def execute_playbook(
@@ -502,10 +537,24 @@ def evaluate_ticket_for_autonomy(db: Session, ticket: Ticket, idioma: Optional[s
             "reason_params": {},
         }
 
+    if es_posible_incidente_de_seguridad(ticket):
+        return {
+            "eligible": False,
+            "action": "human_required",
+            "score": 0.0,
+            "playbook": None,
+            "reason": texto("autonomo.motivo.seguridad", idioma),
+            "reason_code": "seguridad",
+            "reason_params": {},
+        }
+
     # Check auto-resolution scoring from incident_intelligence
     try:
         aii = score_auto_resolution(db, ticket)
-        ai_score = aii.get("score", 0.0)
+        # Auditoria 2026-11-22 (C-SD1): `score_auto_resolution` puntua 0-100 y
+        # los umbrales SD_AUTONOMY_* son 0-1. Sumados tal cual, `composite`
+        # valia siempre 1,0 y los umbrales no actuaban.
+        ai_score = max(0.0, min(1.0, float(aii.get("score", 0.0) or 0.0) / 100.0))
     except Exception:
         logger.warning("evaluate_ticket_for_autonomy: excepcion ignorada", exc_info=True)
         ai_score = 0.0
@@ -714,7 +763,7 @@ def run_autonomous_scan(db: Session, org_id=None) -> dict:
     from app.models.service_desk import AutonomousPlaybookExecution
     ya_evaluados = db.query(AutonomousPlaybookExecution.ticket_id)
     q = db.query(Ticket).filter(
-        Ticket.status.in_(["new", "assigned"]),
+        Ticket.status.in_([TicketStatus.new, TicketStatus.assigned]),
         # Una vez por ticket: antes, un «assist» dejaba el ticket en `new` y
         # cada 5 minutos se repetia el mismo comentario publico.
         ~Ticket.id.in_(ya_evaluados),

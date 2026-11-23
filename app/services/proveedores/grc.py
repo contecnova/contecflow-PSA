@@ -21,6 +21,9 @@ from app.core import timeutil
 from app.core.codigos_de_error import error
 from app.services.audit import audit_log
 from app.services.proveedores import serializar as ser
+# Vive en `serializar` (que la usa al pintar un documento) para no cerrar un ciclo
+# con un import diferido (23-11-2026); se reexporta aquí con el mismo nombre.
+from app.services.proveedores.serializar import estado_de_documento  # noqa: F401
 from app.services.proveedores.tipos import (
     CERTIFICACIONES_DE_SEGURIDAD, DOCUMENT_TYPES, RISK_CRITERIA, SEGUROS,
 )
@@ -40,17 +43,6 @@ def _meses_revision(db: Session) -> int:
     from app.services.settings_service import get_runtime_int
     v = get_runtime_int(db, "PROVEEDORES_REVISION_RIESGO_MESES", db.info.get("organization_id"))
     return int(v if v is not None else 12)
-
-
-def estado_de_documento(d, hoy: Optional[date] = None, dias_aviso: int = 30) -> str:
-    hoy = hoy or timeutil.today()
-    if d.expires_at is None:
-        return "valid"
-    if d.expires_at < hoy:
-        return "expired"
-    if d.expires_at <= hoy + timedelta(days=dias_aviso):
-        return "expiring"
-    return "valid"
 
 
 def _documentos(db: Session, sub_id: str) -> list:

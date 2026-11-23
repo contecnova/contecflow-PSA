@@ -11,7 +11,7 @@ setlocal EnableDelayedExpansion
 ::   setup.bat update   - actualiza dependencias y esquema (migraciones)
 ::   setup.bat docker [demo^|clean] - TODO en Docker (app + Grafana/Prometheus/Alertmanager)
 ::   setup.bat docker-status - estado de los contenedores y URLs
-::   setup.bat docker-stop / docker-clean - para Docker (clean borra volumenes)
+::   setup.bat docker-stop / docker-clean - para Docker (clean borra los volumenes regenerables; conserva PostgreSQL y S3)
 ::   SETUP_INIT_MODE=demo^|clean setup.bat start  - modo no interactivo (CI/CD)
 
 :: La consola de Windows arranca en la pagina de codigos 850 o 1252, y el
@@ -89,7 +89,7 @@ echo   setup.bat docker [demo^|clean] -^> TODO en Docker: app, API, worker, beat
 echo                                   Prometheus, Alertmanager, Grafana y exporters
 echo   setup.bat docker-status      -^> estado de los contenedores y URLs
 echo   setup.bat docker-stop        -^> para todos los contenedores ^(conserva datos^)
-echo   setup.bat docker-clean       -^> para Docker y borra todos los datos
+echo   setup.bat docker-clean       -^> para Docker y borra los volumenes regenerables ^(conserva PostgreSQL y S3^)
 echo.
 echo   Alias: seed = demo; zero / cero / admin-only = clean
 echo   CI/CD: set SETUP_INIT_MODE=demo^|clean ^&^& setup.bat start
@@ -151,10 +151,14 @@ if not defined ENV_OK (
     endlocal
     exit /b 2
 )
-echo [INFO] Parando infraestructura Docker y borrando volumenes...
-call :docker_compose down -v
+REM Auditoria 22-11-2026 (01 B3): todos los perfiles y mensaje veraz: PostgreSQL y S3
+REM son volumenes externos, protegidos de "down -v" a proposito, y se conservan.
+echo [INFO] Parando Docker ^(todos los perfiles^) y borrando los volumenes regenerables...
+call :docker_compose --profile app --profile s3 --profile observability --profile host-metrics down -v --remove-orphans
 if errorlevel 1 goto :end
-echo [OK] Docker detenido y volumenes eliminados
+echo [OK] Docker detenido; borrados Redis, Prometheus, Alertmanager y Grafana.
+echo [AVISO] Se CONSERVAN los datos de PostgreSQL y S3 ^(contecflow_postgres_data y contecflow_s3_data^).
+echo [AVISO] Para borrarlos de verdad: docker volume rm contecflow_postgres_data contecflow_s3_data
 goto :end
 
 :: Ejecuta `docker compose` (o `docker-compose` antiguo) en la carpeta del proyecto.
@@ -227,6 +231,7 @@ call :setup_backend
 if errorlevel 1 goto :error
 call :setup_frontend
 if errorlevel 1 goto :error
+call :prepare_app_role
 echo.
 echo [OK] Actualizacion completada. Ejecuta: setup.bat start
 goto :end
@@ -299,6 +304,26 @@ if errorlevel 1 (
 .venv\Scripts\python scripts\comprobar_esquema.py
 if errorlevel 1 exit /b 1
 echo [OK] Esquema al dia
+call :prepare_app_role
+exit /b 0
+
+:: -----------------------------------------------------------------------
+:prepare_app_role
+:: Auditoria 22-11-2026 (A1): igual que setup.sh. Con Postgres, la aplicacion
+:: conecta con un rol sin superusuario ni BYPASSRLS (APP_DB_USER, contrasena
+:: generada en .env) y las migraciones con el dueno (DATABASE_MIGRATIONS_URL).
+:: Con SQLite no hace nada. CONTECFLOW_DB_APP_ROLE=0 lo omite.
+cd /d "%SCRIPT_DIR%"
+set "APP_ROLE_OUT="
+for /f "delims=" %%R in ('.venv\Scripts\python scripts\rol_de_aplicacion.py') do set "APP_ROLE_OUT=%%R"
+if not defined APP_ROLE_OUT exit /b 0
+if /I "!APP_ROLE_OUT:~0,3!"=="OK " (
+    echo [OK] RLS: !APP_ROLE_OUT:~3!
+) else if /I "!APP_ROLE_OUT:~0,5!"=="SKIP " (
+    echo [INFO] RLS: omitido ^(!APP_ROLE_OUT:~5!^)
+) else (
+    echo [WARN] RLS: no se pudo preparar el rol de aplicacion ^(!APP_ROLE_OUT:~5!^); la aplicacion sigue con el dueno
+)
 exit /b 0
 
 :: -----------------------------------------------------------------------
@@ -580,7 +605,7 @@ if /I "!DB_URL:~0,10!"=="sqlite:///" (
 set "DB_STATUS="
 if not defined DB_FILE set "DB_STATUS=ok"
 if defined DB_FILE if exist "!DB_FILE!" (
-    for /f "tokens=*" %%r in ('.venv\Scripts\python -c "from app.db.session import SessionLocal; from app.models.user import User; db=SessionLocal(); c=db.query(User).filter(User.hashed_password.isnot(None)).count(); db.close(); print('ok' if c>0 else 'empty')" 2^>nul') do set DB_STATUS=%%r
+    for /f "tokens=*" %%r in ('.venv\Scripts\python -c "from app.db.session import SessionLocal, declarar_sistema; from app.models.user import User; db=declarar_sistema(SessionLocal(), 'setup: comprobar usuarios'); c=db.query(User).filter(User.hashed_password.isnot(None)).count(); db.close(); print('ok' if c>0 else 'empty')" 2^>nul') do set DB_STATUS=%%r
 )
 
 if "!DB_STATUS!"=="ok" (
@@ -734,12 +759,15 @@ if errorlevel 1 (
 :: Arrancar backend
 echo [INFO] Arrancando backend en puerto %BACKEND_PORT%...
 set "BACKEND_RUNNER=%TEMP%\contecflow-backend-runner.cmd"
+REM Auditoria 22-11-2026 (01 B2): solo en este equipo (127.0.0.1); para abrirlo a la
+REM red local, "set BACKEND_HOST=0.0.0.0" antes de setup.bat start. Docker no pasa por aqui.
+if not defined BACKEND_HOST set "BACKEND_HOST=127.0.0.1"
 (
     echo @echo off
     echo cd /d "%SCRIPT_DIR%"
     echo set ENABLE_APSCHEDULER=0
     echo set ENABLE_CELERY_BEAT=1
-    echo .venv\Scripts\python -m uvicorn app.main:app --host 0.0.0.0 --port %BACKEND_PORT% --log-level info 1^>"%TEMP%\contecflow-backend.log" 2^>"%TEMP%\contecflow-backend.err.log"
+    echo .venv\Scripts\python -m uvicorn app.main:app --host %BACKEND_HOST% --port %BACKEND_PORT% --log-level info 1^>"%TEMP%\contecflow-backend.log" 2^>"%TEMP%\contecflow-backend.err.log"
 ) > "%BACKEND_RUNNER%"
 REM (call ) deja errorlevel a 0: si no, el "if errorlevel 1" de abajo hereda el de
 REM cualquier orden anterior y da un falso "No se pudo lanzar" (22-11-2026).
@@ -1005,7 +1033,9 @@ if exist "%PWD_HASH_FILE%" (
 )
 
 echo [INFO] Sincronizando contrasenas demo con DEFAULT_USER_PASSWORD...
-.venv\Scripts\python -c "from app.db.session import SessionLocal; from app.models.user import User; from app.core.security import get_password_hash; db=SessionLocal(); [setattr(u,'hashed_password',get_password_hash('!DEMO_PWD!')) for u in db.query(User).filter(User.username.in_(['admin','ana.torres','luis.vega','rrhh'])).all()]; db.commit(); db.close(); print('ok')"
+.venv\Scripts\python -c "from app.db.session import SessionLocal, declarar_sistema; from app.models.user import User; from app.core.security import get_password_hash; db=declarar_sistema(SessionLocal(), 'setup: contrasenas demo'
+);
+ [setattr(u,'hashed_password',get_password_hash('!DEMO_PWD!')) for u in db.query(User).filter(User.username.in_(['admin','ana.torres','luis.vega','rrhh'])).all()]; db.commit(); db.close(); print('ok')"
 if errorlevel 1 (
     echo [WARN] No se pudieron sincronizar las contrasenas demo automaticamente
 ) else (

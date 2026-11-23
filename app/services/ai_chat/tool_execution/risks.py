@@ -4,12 +4,13 @@ from __future__ import annotations
 from app.models.pipeline import Risk
 from app.models.project import Project
 from app.services.ai_chat.tool_execution.politica import buscar_proyecto, proyectos_visibles
+from app.services.ai_chat.tool_execution.textos import mensaje as _msg
 
 
 def _get_project_risks(tool_input, db, user, now, is_financial_role):
     pid = tool_input.get("project_id", "")
     p = buscar_proyecto(db, user, pid)
-    if not p: return {"error": f"Proyecto no encontrado: {pid}"}
+    if not p: return {"error": _msg(db, user, "proyecto_no_encontrado_id", id=pid)}
     q = db.query(Risk).filter(Risk.project_id == p.id)
     status_filter = tool_input.get("status", "")
     if status_filter and status_filter != "all":
@@ -68,7 +69,7 @@ def _create_risk(tool_input, db, user, now, is_financial_role):
     from app.schemas.risks import RiskIn
     from app.services import risk_service
     p = buscar_proyecto(db, user, tool_input.get("project_id", ""))
-    if not p: return {"error": "Proyecto no encontrado"}
+    if not p: return {"error": _msg(db, user, "proyecto_no_encontrado")}
     datos = RiskIn(**{
         "probability": "medium", "impact": "moderate",
         **{k: v for k, v in tool_input.items() if k in RiskIn.model_fields and k != "project_id"},

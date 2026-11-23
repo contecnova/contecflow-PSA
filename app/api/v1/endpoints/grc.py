@@ -64,7 +64,8 @@ from app.schemas.grc import PermissionUpdate, SodRuleIn, SodRuleUpdate, Violatio
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
-from app.core.deps import require_admin, require_any_manager
+from app.core.deps import requiere_capacidad
+from app.core.network import ip_del_cliente
 from app.models.user import User
 from app.core.abac_enforce import enforce_abac
 from app.services.grc_sod import record_sod_violation as _record_sod_violation
@@ -218,7 +219,7 @@ def _ensure_sod_seeded(db: Session, organization_id: Optional[str] = None):
 # ── Informe de cumplimiento (revisión 2026-11) ───────────────────────────────
 @router.get("/compliance-report", summary="Informe de evidencias medido sobre el sistema (admin)")
 def compliance_report(signed: bool = Query(False), db: Session = Depends(get_db),
-                      current_user: User = Depends(require_admin)):
+                      current_user: User = Depends(requiere_capacidad("gobierno.administrar"))):
     import json as _json
     from datetime import datetime, timezone
     from fastapi.responses import Response
@@ -240,7 +241,7 @@ def access_explainer(
     method: str = Query("GET", max_length=10),
     path: str = Query(..., min_length=1, max_length=500),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("gobierno.administrar")),
 ):
     from app.services import explicar_acceso
     usuario = explicar_acceso.usuario_explicable(db, current_user, user_id)
@@ -248,7 +249,7 @@ def access_explainer(
 
 
 @router.get("/access-explainer/routes", summary="Operaciones de la API para el explicador de accesos (admin)")
-def access_explainer_routes(request: Request, current_user: User = Depends(require_admin)):
+def access_explainer_routes(request: Request, current_user: User = Depends(requiere_capacidad("gobierno.administrar"))):
     from app.services import explicar_acceso
     return APIResponse.ok(data=explicar_acceso.rutas(request.app))
 
@@ -257,7 +258,7 @@ def access_explainer_routes(request: Request, current_user: User = Depends(requi
 def get_permissions(
     request: Request,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("gobierno.gestionar")),
 ):
     _ensure_matrix_seeded(db, request)
     rows = grc_svc.get_all_permissions(db, _org(current_user))
@@ -284,7 +285,7 @@ def update_permission(
     body: PermissionUpdate,
     request: Request,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("gobierno.administrar")),
 ):
     _ensure_matrix_seeded(db, request)
     # Revisión GRC 2026-11b: una casilla que no corresponde a ninguna ruta (o a
@@ -297,7 +298,7 @@ def update_permission(
     _log_grc(db, current_user.id, "permission_changed", "role_permission",
              f"{role}/{module}/{action}",
              {"old": old_val, "new": body.allowed, "role": role, "module": module, "action": action},
-             ip=request.client.host if request.client else None,
+             ip=ip_del_cliente(request),
              severity="warning")
     grc_svc.commit_db(db)
     return APIResponse.ok(data={"role": role, "module": module, "action": action, "allowed": body.allowed})
@@ -306,7 +307,7 @@ def update_permission(
 @router.post("/permissions/seed", summary="Resetear matriz al estado por defecto")
 def seed_permissions(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("gobierno.administrar")),
 ):
     """Borra todos los permisos y los recrea con la matriz por defecto."""
     grc_svc.reset_permission_matrix(db, DEFAULT_MATRIX, _org(current_user))
@@ -320,7 +321,7 @@ def seed_permissions(
 @router.get("/sod-rules", summary="Listar reglas SoD")
 def list_sod_rules(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("gobierno.gestionar")),
 ):
     _ensure_sod_seeded(db, _org(current_user))
     rules = grc_svc.list_sod_rules_db(db, _org(current_user))
@@ -336,7 +337,7 @@ def create_sod_rule(
     payload: SodRuleIn,
     request: Request,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("gobierno.administrar")),
 ):
     grc_svc.validar_regla_sod(db, request.app, DEFAULT_MATRIX, _org(current_user), payload.model_dump())
     rule = grc_svc.create_sod_rule_db(
@@ -350,7 +351,7 @@ def create_sod_rule(
         organization_id=_org(current_user),
     )
     _log_grc(db, current_user.id, "sod_rule_created", "sod_rule", rule.id,
-             payload.model_dump(), ip=request.client.host if request.client else None,
+             payload.model_dump(), ip=ip_del_cliente(request),
              severity="warning")
     grc_svc.commit_db(db)
     db.refresh(rule)
@@ -366,7 +367,7 @@ def update_sod_rule(
     payload: SodRuleUpdate,
     request: Request,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("gobierno.administrar")),
 ):
     rule = grc_svc.get_sod_rule_or_404(db, rule_id, _org(current_user))
     cambios = payload.model_dump(exclude_unset=True)
@@ -381,7 +382,7 @@ def update_sod_rule(
     grc_svc.validar_regla_sod(db, request.app, DEFAULT_MATRIX, _org(current_user), a_validar)
     # Revisión GRC 2026-11b: editar o borrar una regla SoD no dejaba rastro.
     _log_grc(db, current_user.id, "sod_rule_updated", "sod_rule", rule.id, cambios,
-             ip=request.client.host if request.client else None, severity="warning")
+             ip=ip_del_cliente(request), severity="warning")
     grc_svc.update_sod_rule_db(db, rule, cambios)
     return APIResponse.ok(data=_rule_out(rule))
 
@@ -390,7 +391,7 @@ def update_sod_rule(
 def delete_sod_rule(
     rule_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("gobierno.administrar")),
 ):
     enforce_abac(db, current_user, "grc_sod_rule", rule_id, action="delete")
     rule = grc_svc.get_sod_rule_or_404(db, rule_id, _org(current_user))
@@ -407,7 +408,7 @@ def delete_sod_rule(
 def sod_check(
     request: Request,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("gobierno.gestionar")),
 ):
     """
     Para cada regla SoD activa, determina qué roles tienen AMBAS acciones permitidas
@@ -434,7 +435,7 @@ def sod_check(
             if efectiva.get((role, rule.module_a, rule.action_a)) and                     efectiva.get((role, rule.module_b, rule.action_b)):
                 violations.append({
                     "rule_id": rule.id,
-                    "rule_description": rule.description,
+                    "rule_description": grc_svc.serialize_sod_rule(rule)["description"],
                     "module_a": rule.module_a, "action_a": rule.action_a,
                     "module_b": rule.module_b, "action_b": rule.action_b,
                     "risk": rule.risk,
@@ -452,7 +453,7 @@ def list_violations(
     resolved: Optional[bool] = Query(None),
     limit: int = Query(50, le=MAX_TAMANO_DE_PAGINA),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("gobierno.gestionar")),
 ):
     rows = grc_svc.list_violations_db(db, resolved, limit, _org(current_user))
     items = [_violation_out(v) for v in rows]
@@ -467,7 +468,7 @@ def resolve_violation(
     violation_id: str,
     payload: ViolationResolveIn,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("gobierno.administrar")),
 ):
     v = grc_svc.get_violation_or_404(db, violation_id, _org(current_user))
     if v.resolved:   # revisión GRC 16-11-2026: resolver dos veces pisaba la nota y la fecha
@@ -487,7 +488,7 @@ def get_audit_log(
     action_type: Optional[str] = Query(None, max_length=80),
     limit: int = Query(100, le=500),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("gobierno.administrar")),
 ):
     rows = grc_svc.list_audit_log_db(db, severity, action_type, limit, _org(current_user))
     items = [

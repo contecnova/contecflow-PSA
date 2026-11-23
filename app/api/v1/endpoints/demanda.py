@@ -17,7 +17,9 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_user, get_db, requiere_capacidad
+from app.core.network import ip_del_cliente
 from app.core.responses import APIResponse
+from app.core.uploads import UploadProfile, read_and_validate_upload_sync, safe_filename
 from app.models.user import User
 from app.services.demanda import (biblioteca, config, consultas, documentos, ejecucion, entrada, expediente,
                                   resumen_ejecutivo, serializacion)
@@ -40,7 +42,7 @@ def idioma_de(request: Request) -> str:
 
 
 def _ip(request: Request) -> Optional[str]:
-    return request.client.host if request.client else None
+    return ip_del_cliente(request)
 
 
 def _descarga(contenido: bytes, nombre: str, mime: str) -> Response:
@@ -192,9 +194,8 @@ def diagrama(payload: DefinicionIn, user: User = Depends(requiere_capacidad("dem
 
 @router.get("/flows/{flujo_id}/export", summary="Exportar flujo y sus tipos (JSON)")
 def exportar(flujo_id: str, db: Session = Depends(get_db), user: User = Depends(requiere_capacidad("demanda.config"))):
-    from app.models.demanda import DemandRequestType
     f = config.flujo(db, user, flujo_id)
-    tipos_ = db.query(DemandRequestType).filter(DemandRequestType.flow_id == f.id).all()
+    tipos_ = config.tipos_de_flujo(db, f)
     return APIResponse.ok(data=biblioteca.exportar(db, f, tipos_))
 
 
@@ -215,7 +216,7 @@ def instalar(clave: str, db: Session = Depends(get_db), user: User = Depends(req
 
 @router.post("/flows/pilot-template", summary="Instalar la plantilla piloto (CAB y comité)")
 def piloto(db: Session = Depends(get_db), user: User = Depends(requiere_capacidad("demanda.config"))):
-    return APIResponse.ok(data=biblioteca.instalar(db, user, "piloto_digital"))
+    return APIResponse.ok(data=biblioteca.instalar(db, user, "nueva_funcionalidad"))
 
 
 # ── Mis solicitudes (cualquier usuario con sesión: empleado, cliente interno, proveedor) ──
@@ -231,9 +232,7 @@ def _canal_de(user: User, canal: Optional[str]) -> str:
 def mis_tipos(request: Request, channel: Optional[str] = Query(None), db: Session = Depends(get_db),
               user: User = Depends(get_current_user)):
     # Misma forma que /portal/demand/types: {types, projects}.
-    from app.models.project import Project
-    proyectos = [{"id": p.id, "name": p.name} for p in db.query(Project).filter(
-        Project.organization_id == user.organization_id).order_by(Project.name).limit(500).all()]
+    proyectos = config.proyectos_de_la_organizacion(db, user.organization_id)
     return APIResponse.ok(data={"types": entrada.tipos_del_canal(db, _canal_de(user, channel), user.organization_id,
                                                                  idioma_de(request)), "projects": proyectos})
 
@@ -352,8 +351,9 @@ def subir(req_id: str, request: Request, file: UploadFile = File(...), tag: Opti
     actor = de_usuario(user)
     if expediente.es_solicitante(actor, req):
         internal = False
-    documentos.subir(db, actor, req, nombre=file.filename or "", content_type=file.content_type or "",
-                     contenido=file.file.read(), etiqueta=tag, datos_personales=personal_data, interno=internal,
+    contenido = read_and_validate_upload_sync(file, UploadProfile.DOCUMENT)
+    documentos.subir(db, actor, req, nombre=safe_filename(file.filename), content_type=file.content_type or "",
+                     contenido=contenido, etiqueta=tag, datos_personales=personal_data, interno=internal,
                      ip=_ip(request))
     return APIResponse.ok(data=serializacion.detalle(db, req, actor, idioma_de(request)))
 
@@ -378,8 +378,7 @@ def resumen(req_id: str, request: Request, db: Session = Depends(get_db), user: 
     req = _req(db, user, req_id)
     if req.status == "draft":
         raise error(409, "dem_estado_no_permite", estado=req.status)
-    resumen_ejecutivo.generar(db, req, de_usuario(user), idioma_de(request))
-    db.commit()
+    resumen_ejecutivo.generar_y_confirmar(db, req, de_usuario(user), idioma_de(request))
     return APIResponse.ok(data=serializacion.detalle(db, req, de_usuario(user), idioma_de(request)))
 
 

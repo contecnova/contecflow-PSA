@@ -1,14 +1,14 @@
 """Service Desk — Miscellaneous subdomain router (catalog, groups, problems, announcements, routing, changes, major incidents, assets, status page)."""
 from fastapi import APIRouter, Depends, Query, Body, Response, HTTPException, Request
-from app.core.deps import get_portal_client_or_user
+from app.core.deps import get_portal_client_or_user, requiere_capacidad
 from app.services.service_desk.portal_auth_service import Lector
 from sqlalchemy.orm import Session
 from typing import Optional
 import json
 import logging
 
-from app.db.session import get_db
-from app.core.deps import get_current_user, require_admin, require_any_manager
+from app.db.session import get_db, sesion_de_sistema
+from app.core.deps import get_current_user
 from app.core.abac_enforce import enforce_abac
 from app.core.responses import APIListResponse, APIResponse
 from app.core.ratelimit import limiter
@@ -97,13 +97,13 @@ def get_catalog(public_only: bool = False, lang: Optional[str] = Query(None, max
     return APIListResponse.ok(items=items)
 
 @router.post("/catalog/categories", summary="Crear categoría")
-def create_category(payload: ServiceCategoryIn, db: Session = Depends(get_db), _: User = Depends(require_admin)):
+def create_category(payload: ServiceCategoryIn, db: Session = Depends(get_db), _: User = Depends(requiere_capacidad("sd.administrar"))):
     c = create_category_record(db, payload)
     _commit_or_rollback(db); db.refresh(c)
     return APIResponse.ok(data={"id": c.id, "name": c.name})
 
 @router.patch("/catalog/categories/{cat_id}", summary="Actualizar categoría")
-def update_category(cat_id: str, payload: ServiceCategoryIn, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+def update_category(cat_id: str, payload: ServiceCategoryIn, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("sd.administrar"))):
     from app.services.traduccion.versiones_del_portal import avisar_si_desactualizadas
     c = update_category_record(db, cat_id, payload)
     _commit_or_rollback(db)
@@ -112,20 +112,20 @@ def update_category(cat_id: str, payload: ServiceCategoryIn, db: Session = Depen
     return APIResponse.ok(data={"id": c.id, "name": c.name, "translations_outdated": n})
 
 @router.delete("/catalog/categories/{cat_id}", summary="Desactivar categoría")
-def delete_category(cat_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+def delete_category(cat_id: str, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("sd.administrar"))):
     enforce_abac(db, current_user, "sd_catalog_category", cat_id, action="delete")
     deactivate_category_record(db, cat_id)
     _commit_or_rollback(db)
     return APIResponse.ok(data={"ok": True})
 
 @router.post("/catalog/services", summary="Crear servicio")
-def create_service(payload: ServiceItemIn, db: Session = Depends(get_db), _: User = Depends(require_admin)):
+def create_service(payload: ServiceItemIn, db: Session = Depends(get_db), _: User = Depends(requiere_capacidad("sd.administrar"))):
     s = create_service_record(db, payload)
     _commit_or_rollback(db); db.refresh(s)
     return APIResponse.ok(data={"id": s.id, "name": s.name})
 
 @router.patch("/catalog/services/{service_id}", summary="Actualizar servicio")
-def update_service(service_id: str, payload: ServiceItemUpdate, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+def update_service(service_id: str, payload: ServiceItemUpdate, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("sd.administrar"))):
     from app.services.traduccion.versiones_del_portal import avisar_si_desactualizadas
     s = update_service_record(db, service_id, payload)
     _commit_or_rollback(db)
@@ -133,7 +133,7 @@ def update_service(service_id: str, payload: ServiceItemUpdate, db: Session = De
     return APIResponse.ok(data={"ok": True, "translations_outdated": n})
 
 @router.delete("/catalog/services/{service_id}", summary="Desactivar servicio")
-def delete_service(service_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+def delete_service(service_id: str, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("sd.administrar"))):
     enforce_abac(db, current_user, "sd_catalog_service", service_id, action="delete")
     deactivate_service_record(db, service_id)
     _commit_or_rollback(db)
@@ -146,39 +146,39 @@ def get_groups(db: Session = Depends(get_db), _: User = Depends(get_current_user
     return APIListResponse.ok(items=list_groups_payload(db))
 
 @router.post("/groups", summary="Crear grupo")
-def create_group(payload: AgentGroupIn, db: Session = Depends(get_db), _: User = Depends(require_admin)):
+def create_group(payload: AgentGroupIn, db: Session = Depends(get_db), _: User = Depends(requiere_capacidad("sd.administrar"))):
     g = create_group_record(db, payload)
     _commit_or_rollback(db); db.refresh(g)
     return APIResponse.ok(data={"id": g.id, "name": g.name})
 
 @router.patch("/groups/{group_id}", summary="Actualizar grupo")
-def update_group(group_id: str, payload: AgentGroupIn, db: Session = Depends(get_db), _: User = Depends(require_admin)):
+def update_group(group_id: str, payload: AgentGroupIn, db: Session = Depends(get_db), _: User = Depends(requiere_capacidad("sd.administrar"))):
     g = update_group_record(db, group_id, payload)
     _commit_or_rollback(db)
     return APIResponse.ok(data={"id": g.id, "name": g.name})
 
 @router.delete("/groups/{group_id}", summary="Eliminar grupo")
-def delete_group(group_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+def delete_group(group_id: str, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("sd.administrar"))):
     enforce_abac(db, current_user, "sd_agent_group", group_id, action="delete")
     deactivate_group_record(db, group_id)
     _commit_or_rollback(db)
     return APIResponse.ok(data={"ok": True})
 
 @router.post("/groups/{group_id}/members/{user_id}", summary="Añadir miembro a grupo")
-def add_group_member(group_id: str, user_id: str, is_lead: bool = False, db: Session = Depends(get_db), _: User = Depends(require_admin)):
+def add_group_member(group_id: str, user_id: str, is_lead: bool = False, db: Session = Depends(get_db), _: User = Depends(requiere_capacidad("sd.administrar"))):
     add_group_member_record(db, group_id, user_id, is_lead)
     _commit_or_rollback(db)
     return APIResponse.ok(data={"ok": True})
 
 @router.delete("/groups/{group_id}/members/{user_id}", summary="Eliminar miembro de grupo")
-def remove_group_member(group_id: str, user_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+def remove_group_member(group_id: str, user_id: str, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("sd.administrar"))):
     enforce_abac(db, current_user, "sd_agent_group", group_id, action="delete")
     remove_group_member_record(db, group_id, user_id)
     _commit_or_rollback(db)
     return APIResponse.ok(data={"ok": True})
 
 @router.get("/groups/{group_id}/workload", summary="Distribución de carga de tickets por agente en el grupo")
-def get_group_workload(group_id: str, db: Session = Depends(get_db), _: User = Depends(require_any_manager)):
+def get_group_workload(group_id: str, db: Session = Depends(get_db), _: User = Depends(requiere_capacidad("sd.gestionar"))):
     return APIResponse.ok(data=get_group_workload_payload(db, group_id))
 
 # ── Problems ──────────────────────────────────────────────────────────────────
@@ -190,7 +190,7 @@ def get_group_workload(group_id: str, db: Session = Depends(get_db), _: User = D
 @router.patch("/problems/{problem_id}", summary="Actualizar problema")
 @limiter.limit("30/minute")
 def update_problem(request: Request, problem_id: str, payload: ProblemUpdateIn, db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_admin),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
+    _rol: User = Depends(requiere_capacidad("sd.administrar")),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
     p = get_scoped_problem_or_404(db, current_user, problem_id)
     apply_problem_update(db, current_user, p, payload)
@@ -200,7 +200,7 @@ def update_problem(request: Request, problem_id: str, payload: ProblemUpdateIn, 
 @router.delete("/problems/{problem_id}", summary="Cerrar problema")
 @limiter.limit("30/minute")
 def close_problem(request: Request, problem_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_admin),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
+    _rol: User = Depends(requiere_capacidad("sd.administrar")),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
     """Auditoria 2026-08 (hallazgo 37): esta ruta **no existia**.
 
@@ -216,7 +216,7 @@ def close_problem(request: Request, problem_id: str, db: Session = Depends(get_d
 @router.post("/problems/{problem_id}/link-ticket/{ticket_id}", summary="Vincular ticket a problema")
 @limiter.limit("30/minute")
 def link_ticket_to_problem(request: Request, problem_id: str, ticket_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_admin),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
+    _rol: User = Depends(requiere_capacidad("sd.administrar")),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
     link_ticket_to_problem_record(db, current_user, problem_id, ticket_id)
     _commit_or_rollback(db)
@@ -242,14 +242,14 @@ def list_announcements(page: int = Query(1, ge=1), page_size: int = Query(50, ge
     return APIListResponse.ok(items=items, page=page, page_size=page_size)
 
 @router.post("/announcements", summary="Crear anuncio")
-def create_announcement(payload: AnnouncementIn, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+def create_announcement(payload: AnnouncementIn, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("sd.administrar"))):
     a = build_announcement(db, payload, current_user.id)
     _commit_or_rollback(db); db.refresh(a)
     return APIResponse.ok(data={"id": a.id})
 
 @router.patch("/announcements/{ann_id}", summary="Actualizar anuncio")
 def update_announcement(ann_id: str, payload: AnnouncementUpdate, db: Session = Depends(get_db),
-                        current_user: User = Depends(require_admin)):
+                        current_user: User = Depends(requiere_capacidad("sd.administrar"))):
     """17-11-2026: un aviso se puede corregir. Si cambian titulo o cuerpo, sus
     versiones en otros idiomas quedan desactualizadas y se avisa a los revisores."""
     from app.services.traduccion.versiones_del_portal import avisar_si_desactualizadas
@@ -260,7 +260,7 @@ def update_announcement(ann_id: str, payload: AnnouncementUpdate, db: Session = 
     return APIResponse.ok(data={"id": a.id, "translations_outdated": n})
 
 @router.delete("/announcements/{ann_id}", summary="Desactivar anuncio")
-def deactivate_announcement(ann_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+def deactivate_announcement(ann_id: str, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("sd.administrar"))):
     enforce_abac(db, current_user, "sd_announcement", ann_id, action="delete")
     deactivate_announcement_record(db, ann_id)
     _commit_or_rollback(db)
@@ -273,20 +273,20 @@ def list_routing_rules(db: Session = Depends(get_db), current_user: User = Depen
     return APIListResponse.ok(items=[serialize_routing_rule(r) for r in _list_routing_rules(db)])
 
 @router.post("/routing-rules", summary="Crear regla de routing")
-def create_routing_rule(payload: dict = Body(...), db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+def create_routing_rule(payload: dict = Body(...), db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("sd.administrar"))):
     rule = build_routing_rule(db, payload)
     _commit_or_rollback(db); db.refresh(rule)
     return APIResponse.ok(data={"id": rule.id, "name": rule.name})
 
 @router.patch("/routing-rules/{rule_id}", summary="Actualizar regla de routing")
-def update_routing_rule(rule_id: str, payload: dict = Body(...), db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+def update_routing_rule(rule_id: str, payload: dict = Body(...), db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("sd.administrar"))):
     rule = get_routing_rule_or_404(db, rule_id)
     apply_routing_rule_update(rule, payload)
     _commit_or_rollback(db)
     return APIResponse.ok(data={"ok": True})
 
 @router.delete("/routing-rules/{rule_id}", summary="Eliminar regla de routing")
-def delete_routing_rule(rule_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+def delete_routing_rule(rule_id: str, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("sd.administrar"))):
     enforce_abac(db, current_user, "sd_routing_rule", rule_id, action="delete")
     delete_routing_rule_svc(db, rule_id)
     _commit_or_rollback(db)
@@ -296,7 +296,7 @@ def delete_routing_rule(rule_id: str, db: Session = Depends(get_db), current_use
 @router.get("/routing/stats", summary="Estadísticas del modelo ML de routing (ITSM-P07)")
 def routing_ml_stats(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("sd.gestionar")),
 ):
     """Return aggregate ML routing statistics: coverage, avg resolution time, top agents."""
     from app.services.service_desk.ml_routing_service import get_routing_stats
@@ -307,7 +307,7 @@ def routing_ml_stats(
 @router.post("/routing/run-outcome-scan", summary="Backfill de outcomes de routing (admin)")
 def run_routing_outcome_scan(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("sd.administrar")),
 ):
     """Manually trigger the routing outcome backfill job."""
     from app.services.service_desk.ml_routing_service import run_outcome_scan
@@ -332,7 +332,7 @@ def get_change(change_id: str, db: Session = Depends(get_db), current_user: User
 
 @router.post("/changes", summary="Crear Change Request ITSM")
 def create_change(payload: dict = Body(...), db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_admin),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
+    _rol: User = Depends(requiere_capacidad("sd.administrar")),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
     cr = create_change_record(db, current_user, payload)
     _commit_or_rollback(db); db.refresh(cr)
@@ -340,7 +340,7 @@ def create_change(payload: dict = Body(...), db: Session = Depends(get_db), curr
 
 @router.patch("/changes/{change_id}", summary="Actualizar Change Request")
 def update_change(change_id: str, payload: dict = Body(...), db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_admin),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
+    _rol: User = Depends(requiere_capacidad("sd.administrar")),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
     cr = update_change_record(db, current_user, change_id, payload)
     _commit_or_rollback(db)
@@ -355,7 +355,7 @@ def cancel_change(
     # politicas activas no comprueba nada. El resto del ciclo de vida del
     # cambio —`rollout/start`, `rollback`, `cab/fast-track`— ya exige
     # gestor; cancelarlo no puede ser mas facil que ejecutarlo.
-    _: User = Depends(require_any_manager),
+    _: User = Depends(requiere_capacidad("sd.gestionar")),
 ):
     """Auditoria 2026-08 (hallazgo 37): esta ruta **no existia**.
 
@@ -370,7 +370,7 @@ def cancel_change(
 
 @router.post("/changes/{change_id}/approve", summary="Aprobar Change Request (CAB)")
 def approve_change(change_id: str, payload: dict = Body(default={}), db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_admin),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
+    _rol: User = Depends(requiere_capacidad("sd.administrar")),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
     cr = approve_change_record(db, current_user, change_id, payload)
     _commit_or_rollback(db)
@@ -379,7 +379,7 @@ def approve_change(change_id: str, payload: dict = Body(default={}), db: Session
 
 @router.post("/changes/{change_id}/assess-risk", summary="Evaluar riesgo de cambio con IA")
 def assess_change_risk(change_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_admin),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
+    _rol: User = Depends(requiere_capacidad("sd.administrar")),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
     cr = get_change_by_id(db, current_user, change_id)
     if not cr:
@@ -400,6 +400,8 @@ def assess_change_risk(change_id: str, db: Session = Depends(get_db), current_us
         impact_areas=[cr.impact_description or "unspecified"],
         affected_cis=[str(v) for v in impacted],
         rollback_plan=cr.rollback_plan or "",
+        user_id=current_user.id,
+        organization_id=cr.organization_id,
     )
 
     cr.auto_risk_score = float(assessment.get("risk_score", 0) or 0)
@@ -414,7 +416,7 @@ def plan_change_rollout(
     payload: dict = Body(default={}),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_admin),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
+    _rol: User = Depends(requiere_capacidad("sd.administrar")),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
     cr = get_change_by_id(db, current_user, change_id)
     if not cr:
@@ -467,7 +469,7 @@ def automation_check(change_id: str, db: Session = Depends(get_db), current_user
 
 @router.post("/changes/{change_id}/rollback-script", summary="Generar script de rollback")
 def rollback_script(change_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_admin),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
+    _rol: User = Depends(requiere_capacidad("sd.administrar")),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
     cr = get_change_by_id(db, current_user, change_id)
     if not cr:
@@ -495,14 +497,14 @@ def list_major_incidents(status: Optional[str] = Query(None), db: Session = Depe
     return APIListResponse.ok(items=list_major_incidents_payload(db, status))
 
 @router.post("/major-incidents", summary="Declarar incidente mayor (P1/P2)")
-def declare_major_incident(payload: dict = Body(...), db: Session = Depends(get_db), current_user: User = Depends(require_any_manager)):
+def declare_major_incident(payload: dict = Body(...), db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("sd.gestionar"))):
     mi = declare_major_incident_record(db, payload, current_user.id)
     _commit_or_rollback(db); db.refresh(mi)
     return APIResponse.ok(data=serialize_major_incident(mi))
 
 @router.patch("/major-incidents/{mi_id}", summary="Actualizar incidente mayor")
 def update_major_incident(mi_id: str, payload: dict = Body(...), db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_admin),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
+    _rol: User = Depends(requiere_capacidad("sd.administrar")),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
     mi = update_major_incident_record(db, mi_id, payload)
     _commit_or_rollback(db)
@@ -515,49 +517,49 @@ def update_major_incident(mi_id: str, payload: dict = Body(...), db: Session = D
 # ── Status Page ───────────────────────────────────────────────────────────────
 
 @router.get("/status-page", summary="Estado público del servicio de una organización (?org=<slug>)")
-def get_status_page(response: Response, org: Optional[str] = Query(None, max_length=100), db: Session = Depends(get_db)):
+def get_status_page(response: Response, org: Optional[str] = Query(None, max_length=100), db: Session = Depends(sesion_de_sistema("status page pública por slug"))):
     from app.services.service_desk.status_page_service import organizacion_de_la_pagina
     # Pública y sin credenciales: la lee el widget desde la web del cliente.
     response.headers["Access-Control-Allow-Origin"] = "*"
     return APIResponse.ok(data=build_public_status_page_payload(db, organizacion_de_la_pagina(db, org)))
 
 @router.get("/status-page/link", summary="Dirección pública de la página de estado de la organización")
-def status_page_link(db: Session = Depends(get_db), current_user: User = Depends(require_any_manager)):
+def status_page_link(db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("sd.gestionar"))):
     from app.services.service_desk.status_page_service import enlace_publico
     return APIResponse.ok(data=enlace_publico(db, current_user.organization_id))
 
 
 @router.get("/status-page/components", summary="Listar componentes del status page (admin)")
-def list_status_components(db: Session = Depends(get_db), _: User = Depends(require_any_manager)):
+def list_status_components(db: Session = Depends(get_db), _: User = Depends(requiere_capacidad("sd.gestionar"))):
     return APIListResponse.ok(items=list_status_components_payload(db))
 
 @router.post("/status-page/components", summary="Crear componente del status page", status_code=201)
-def create_status_component(payload: StatusComponentIn, db: Session = Depends(get_db), _: User = Depends(require_admin)):
+def create_status_component(payload: StatusComponentIn, db: Session = Depends(get_db), _: User = Depends(requiere_capacidad("sd.administrar"))):
     c = create_status_component_record(db, payload)
     _commit_or_rollback(db); db.refresh(c)
     return APIResponse.ok(data={"id": c.id, "name": c.name})
 
 @router.patch("/status-page/components/{component_id}", summary="Actualizar estado de componente")
-def update_status_component(component_id: str, payload: StatusComponentIn, db: Session = Depends(get_db), _: User = Depends(require_any_manager)):
+def update_status_component(component_id: str, payload: StatusComponentIn, db: Session = Depends(get_db), _: User = Depends(requiere_capacidad("sd.gestionar"))):
     update_status_component_record(db, component_id, payload)
     _commit_or_rollback(db)
     return APIResponse.ok(data={"ok": True})
 
 @router.delete("/status-page/components/{component_id}", summary="Eliminar componente")
-def delete_status_component(component_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+def delete_status_component(component_id: str, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("sd.administrar"))):
     enforce_abac(db, current_user, "sd_status_component", component_id, action="delete")
     delete_status_component_svc(db, component_id)
     _commit_or_rollback(db)
     return APIResponse.ok(data={"ok": True})
 
 @router.post("/status-page/components/{component_id}/incidents", summary="Declarar incidente en status page", status_code=201)
-def declare_status_incident(component_id: str, payload: StatusIncidentIn, db: Session = Depends(get_db), _: User = Depends(require_any_manager)):
+def declare_status_incident(component_id: str, payload: StatusIncidentIn, db: Session = Depends(get_db), _: User = Depends(requiere_capacidad("sd.gestionar"))):
     inc = create_status_incident_record(db, component_id, payload)
     _commit_or_rollback(db); db.refresh(inc)
     return APIResponse.ok(data={"id": inc.id})
 
 @router.post("/status-page/incidents/{incident_id}/updates", summary="Añadir actualización a incidente de status page")
-def add_status_incident_update(incident_id: str, payload: StatusIncidentUpdateIn, db: Session = Depends(get_db), _: User = Depends(require_any_manager)):
+def add_status_incident_update(incident_id: str, payload: StatusIncidentUpdateIn, db: Session = Depends(get_db), _: User = Depends(requiere_capacidad("sd.gestionar"))):
     updates_count = add_status_incident_update_record(db, incident_id, payload)
     _commit_or_rollback(db)
     return APIResponse.ok(data={"ok": True, "updates_count": updates_count})
@@ -634,7 +636,7 @@ class MergeClusterIn(_BaseModel):
 def merge_cluster_to_problem(
     payload: MergeClusterIn,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("sd.gestionar")),
 ):
     from app.services.service_desk.alert_correlation_service import merge_cluster_to_problem as _svc
     try:
@@ -670,7 +672,7 @@ def start_rollout(
     change_id: str,
     payload: RolloutStartIn,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("sd.gestionar")),
 ):
     from app.services.service_desk.change_management_service import start_rollout_execution
     state = start_rollout_execution(db, change_id=change_id, rollout_plan=payload.rollout_plan, current_user=current_user)
@@ -697,7 +699,7 @@ def advance_phase(
     phase_number: int,
     payload: PhaseAdvanceIn,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("sd.gestionar")),
 ):
     from app.services.service_desk.change_management_service import advance_rollout_phase
     try:
@@ -713,7 +715,7 @@ def trigger_rollback(
     change_id: str,
     payload: RollbackIn,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("sd.gestionar")),
 ):
     from app.services.service_desk.change_management_service import trigger_change_rollback
     result = trigger_change_rollback(db, change_id=change_id, reason=payload.reason, current_user=current_user)
@@ -726,7 +728,7 @@ def emergency_cab_fast_track(
     change_id: str,
     payload: EmergencyCABIn,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("sd.gestionar")),
 ):
     from app.services.service_desk.change_management_service import fast_track_emergency_cab
     try:

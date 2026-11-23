@@ -19,6 +19,23 @@ from app.services.ai_provider_service.catalogo import PROVIDER_CATALOG
 from app.services.ai_provider_service.resolucion import proveedor_desde_entorno
 from app.core.codigos_de_error import error as error_con_codigo, ErrorConCodigo
 
+def _validar_base_url(url):
+    """`api_base_url` editable por el admin de empresa: guardia SSRF al guardar.
+
+    Auditoría 22-11-2026 (02 C4). Un destino de la configuración de plataforma
+    (`settings.*_API_URL`, `OLLAMA_BASE_URL`) se acepta tal cual; cualquier otro
+    debe pasar `validate_outbound_url` (la llamada lo vuelve a comprobar con la IP
+    conectada, ver `clientes._http`).
+    """
+    url = (url or "").strip() or None
+    if url:
+        from app.services.ai_provider_service.clientes import _es_de_plataforma
+        if not _es_de_plataforma(url):
+            from app.core.outbound_url import validate_outbound_url
+            validate_outbound_url(url, field="api_base_url")
+    return url
+
+
 # ── CRUD service functions ────────────────────────────────────────────────────
 
 def list_providers(db: Session, *, is_superadmin: bool, organization_id) -> list:
@@ -29,10 +46,18 @@ def list_providers(db: Session, *, is_superadmin: bool, organization_id) -> list
 
 
 def _clear_default(db: Session, *, is_superadmin: bool, organization_id) -> None:
+    """Quita el «por defecto» SOLO del ámbito del proveedor que lo toma.
+
+    M44 (auditoría 22-11-2026): sin empresa (superadmin o sesión sin empresa)
+    el UPDATE iba sin filtro y quitaba el proveedor por defecto de TODAS las
+    empresas. Ahora: con empresa, los de esa empresa; sin ella, los globales.
+    """
     q = db.query(AIProvider)
-    if not is_superadmin and organization_id:
+    if organization_id:
         q = q.filter(AIProvider.organization_id == organization_id)
-    q.update({"is_default": False})
+    else:
+        q = q.filter(AIProvider.organization_id.is_(None))
+    q.update({"is_default": False}, synchronize_session=False)
 
 
 def create_provider(db: Session, *, organization_id, created_by, data: dict,
@@ -47,7 +72,7 @@ def create_provider(db: Session, *, organization_id, created_by, data: dict,
         name=data.get("name", ""),
         provider=data.get("provider", "anthropic"),
         api_key=encrypt_value(raw_key) if raw_key else None,
-        api_base_url=data.get("api_base_url") or None,
+        api_base_url=_validar_base_url(data.get("api_base_url")),
         default_model=data.get("default_model"),
         available_models=",".join(data.get("available_models", [])) if data.get("available_models") else None,
         is_default=data.get("is_default", count == 0),
@@ -97,6 +122,8 @@ def update_provider(db: Session, provider, data: dict, *,
             if not v:
                 continue
             v = encrypt_value(v)
+        if k == "api_base_url":
+            v = _validar_base_url(v)
         if k in {"api_key", "api_base_url", "default_model", "provider", "available_models"}:
             changed_runtime_fields = True
         if es_asignable(provider, k):
@@ -177,7 +204,7 @@ def proveedor_sin_guardar(datos: dict):
     clave = (datos.get("api_key") or "").strip()
     return SimpleNamespace(
         provider=tipo, name=datos.get("name") or tipo, api_key=encrypt_value(clave) if clave else None,
-        api_base_url=(datos.get("api_base_url") or "").strip() or None,
+        api_base_url=_validar_base_url(datos.get("api_base_url")),
         default_model=(datos.get("default_model") or PROVIDER_CATALOG[tipo].get("default_model")),
         max_tokens=int(datos.get("max_tokens") or 50), temperature=datos.get("temperature"),
     )

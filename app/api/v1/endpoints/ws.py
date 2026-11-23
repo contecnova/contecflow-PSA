@@ -386,6 +386,8 @@ async def get_portal_ws_ticket(
 
     from app.db.session import SessionLocal
     db = SessionLocal()
+    from app.db.contexto_de_tenant import declarar_sistema as _declarar_sistema
+    _declarar_sistema(db, "ws: identidad del cliente del portal")  # auditoría 22-11-2026: TENANT_SESION_SIN_CONTEXTO=cerrar
     try:
         client = await run_db(verify_client_token, token, db)
         if not client or not getattr(client, "is_active", False):
@@ -500,6 +502,8 @@ async def ws_notifications(
 
     user_id: Optional[str] = None
     with SessionLocal() as db:
+        from app.db.contexto_de_tenant import declarar_sistema as _declarar_sistema
+        _declarar_sistema(db, "ws: identidad por ticket")  # auditoría 22-11-2026: TENANT_SESION_SIN_CONTEXTO=cerrar
         try:
             user_id, org_activa = separar_identidad(await _identidad_de_la_conexion(
                 websocket, db, ticket=ticket, token=token))
@@ -582,6 +586,8 @@ async def ws_portal_notifications(
 
     client_id = None
     with SessionLocal() as db:
+        from app.db.contexto_de_tenant import declarar_sistema as _declarar_sistema
+        _declarar_sistema(db, "ws: identidad por ticket")  # auditoría 22-11-2026: TENANT_SESION_SIN_CONTEXTO=cerrar
         try:
             client_id = await _identidad_de_la_conexion(
                 websocket, db, ticket=ticket, token=token, portal=True)
@@ -791,6 +797,8 @@ async def ws_doc_collab(
 
     user_id: Optional[str] = None
     with SessionLocal() as db:
+        from app.db.contexto_de_tenant import declarar_sistema as _declarar_sistema
+        _declarar_sistema(db, "ws: identidad por ticket")  # auditoría 22-11-2026: TENANT_SESION_SIN_CONTEXTO=cerrar
         try:
             user_id, org_activa = separar_identidad(await _identidad_de_la_conexion(
                 websocket, db, ticket=ticket, token=token))

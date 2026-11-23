@@ -16,6 +16,7 @@ import { useAppT } from '../../i18n/AppLangContext'
 import { Network } from 'lucide-react'
 import { Card, Button, EmptyState, Select, Spinner } from '../ui'
 import './Cmdb3dGraph.css'
+import { Input } from '../ui'
 
 /** Nodo del grafo (`SdNodo3d`) con el estado que añade la simulación de d3. */
 type CiNode = SdNodo3d & d3.SimulationNodeDatum
@@ -213,14 +214,7 @@ export default function Cmdb3dGraph({ className = '' }: { className?: string }) 
       <div className="cmdb3d-box-4">
         <label className="cmdb3d-fieldlabel" htmlFor="cmdb3d-ci">{t('cmdb3dgraph.radio_impacto')}</label>
         <div className="cmdb3d-row-6">
-          <input id="cmdb3d-ci"
-            type="text"
-            placeholder={t('cmdb3dgraph.ci_id_ej_ci_app_server_01')}
-            value={blastCiId}
-            onChange={e => setBlastCiId(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && handleBlastRadius()}
-            className="ds-input cmdb3d-ci"
-          />
+          <Input id="cmdb3d-ci" type="text" placeholder={t('cmdb3dgraph.ci_id_ej_ci_app_server_01')} value={blastCiId} onChange={e => setBlastCiId(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleBlastRadius()} className="cmdb3d-ci" />
           <Button onClick={handleBlastRadius} disabled={!blastCiId.trim()}>
             {t('cmdb3dgraph.calcular')}
           </Button>

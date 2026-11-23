@@ -1,5 +1,7 @@
 # Audit #63 — Migración inicial monolítica (NO ACCIONABLE)
 
+> **Documento histórico (audit #63, sin fecha): no refleja necesariamente el código actual; fuente viva: `alembic/versions/` y `docs/DESPLIEGUE.md` (B.2).**
+
 > Informe histórico (audit #63, sin fecha); puede no reflejar el código actual (p. ej., la migración 001 tiene hoy 8.013 líneas, no 7.979).
 
 ## Hallazgo

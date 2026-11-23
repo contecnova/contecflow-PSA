@@ -14,6 +14,8 @@ from sqlalchemy.orm import Session
 from app.core.codigos_de_error import error
 from app.services.demanda import definicion as D
 from app.services.formato_regional import IDIOMA_DE_RESPALDO
+from app.models.demanda import DemandRequestType
+from app.models.project import Project
 
 
 def _org(usuario) -> Optional[str]:
@@ -177,3 +179,18 @@ def catalogo(db: Session, usuario, idioma: str = "es") -> dict:
         "approval_workflows": [{"value": w.id, "label": w.name} for w in flujos_],
         "templates": biblioteca.listar(idioma),
     }
+
+
+def tipos_de_flujo(db: Session, flujo) -> list:
+    """Tipos de solicitud que cuelgan de un flujo."""
+    return db.query(DemandRequestType).filter(DemandRequestType.flow_id == flujo.id).all()
+
+
+def proyectos_de_la_organizacion(db: Session, org_id, limite: int = 500) -> list:
+    """Proyectos de la empresa (id y nombre) para el selector de la solicitud."""
+    return [{"id": p.id, "name": p.name} for p in db.query(Project).filter(
+        Project.organization_id == org_id).order_by(Project.name).limit(limite).all()]
+
+
+def proyecto_por_id(db: Session, project_id: str):
+    return db.query(Project).filter(Project.id == project_id).first()

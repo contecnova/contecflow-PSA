@@ -1,5 +1,7 @@
 # Decisiones Arquitectónicas IA/ML (Wave G, items #76-83)
 
+> **Documento histórico (Wave G, sin fecha): no refleja necesariamente el código actual; fuente viva: el código de `app/services/ai_provider_service/` y `app/services/semantic_*`, y la sección de IA del `README.md`; la prueba `tests/integration/test_ai_provider_chokepoint.py` que cita no existe.**
+
 > Informe histórico (Wave G, items #76-83, sin fecha); puede no reflejar el código actual. En particular #77 está superado: el filtro de tenant es automático en la sesión del ORM (`TenantSession`) y hay RLS de Postgres generada desde los modelos (`app/db/rls.py`, revisión 2026-11).
 
 > Estas son **decisiones documentadas**, no bugs. Sirven como referencia para

@@ -20,7 +20,7 @@ class ClientNPS(Base):
     __tablename__ = "client_nps"
 
     id         = Column(Integer, primary_key=True, index=True)
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     client_id  = Column(String(36), ForeignKey("clients.id", ondelete="CASCADE"), nullable=False, index=True)
     score      = Column(Integer,  nullable=False)           # 0-10
     category   = Column(Enum(NPSCategory), nullable=False)
@@ -44,7 +44,7 @@ class ClientHealthSnapshot(Base):
     __tablename__ = "client_health_snapshots"
 
     id               = Column(Integer, primary_key=True, index=True)
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     client_id        = Column(String(36), ForeignKey("clients.id", ondelete="CASCADE"), nullable=False, index=True)
     health_score     = Column(Float, nullable=False)       # 0-100
     # Component scores (all 0-100, nullable = not computed)

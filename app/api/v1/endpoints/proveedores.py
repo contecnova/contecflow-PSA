@@ -19,8 +19,10 @@ from fastapi import APIRouter, Depends, File, Query, Request, UploadFile
 from sqlalchemy.orm import Session
 
 from app.core.abac_enforce import enforce_abac
+from app.core.network import ip_del_cliente
 from app.core.deps import requiere_capacidad
 from app.core.responses import APIListResponse, APIResponse
+from app.core.uploads import UploadProfile, read_and_validate_upload_sync, safe_filename
 from app.db.session import get_db
 from app.models.user import User
 from app.schemas.proveedores import (
@@ -302,12 +304,7 @@ def revisar_informe(rid: str, payload: RevisionIn, db: Session = Depends(get_db)
 
 
 def _informe(db: Session, rid: str):
-    from app.core.codigos_de_error import error
-    from app.models.proveedores import SupplierReport
-    r = db.query(SupplierReport).filter(SupplierReport.id == rid).first()
-    if r is None:
-        raise error(404, "no_encontrado", detail="Informe no encontrado", que="informe")
-    return r
+    return paquetes.informe_o_404(db, rid)
 
 
 @router.post("/reports/{rid}/attachments", summary="Adjuntar evidencia a un informe", status_code=201)
@@ -315,15 +312,16 @@ def adjuntar_al_informe(rid: str, request: Request, file: UploadFile = File(...)
                         u: User = Depends(requiere_capacidad("proveedores.gestionar"))):
     enforce_abac(db, u, "supplier_report", rid, action="update")
     r = _informe(db, rid)
+    contenido = read_and_validate_upload_sync(file, UploadProfile.DOCUMENT)
     return APIResponse.ok(data=portal.guardar_adjunto(
-        db, u, ficha.exigir(db, r.subcontractor_id), r, file.filename or "", file.content_type or "",
-        file.file.read(), request.client.host if request.client else None, via="internal"))
+        db, u, ficha.exigir(db, r.subcontractor_id), r, safe_filename(file.filename), file.content_type or "",
+        contenido, ip_del_cliente(request), via="internal"))
 
 
 @router.get("/reports/{rid}/attachments/{doc_id}/open", summary="Enlace firmado de un adjunto (auditado)")
 def abrir_adjunto(rid: str, doc_id: str, request: Request, db: Session = Depends(get_db), u: User = Depends(requiere_capacidad("proveedores.ver"))):
     return APIResponse.ok(data=portal.abrir_adjunto(db, u, _informe(db, rid), doc_id,
-                                                    request.client.host if request.client else None))
+                                                    ip_del_cliente(request)))
 
 
 # ── Portal del proveedor: contactos ──────────────────────────────────────────

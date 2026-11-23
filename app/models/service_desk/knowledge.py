@@ -14,19 +14,19 @@ class KBArticle(Base):
     __table_args__ = (UniqueConstraint("organization_id", "number", name="uq_sd_kb_articles_org_number"),)
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     number = Column(String(20), nullable=False)
     title = Column(String(500), nullable=False)
     body = Column(Text, nullable=False)
     summary = Column(String(500), nullable=True)
     status = Column(Enum(KBStatus), default=KBStatus.draft, index=True)
 
-    category_id = Column(String(36), ForeignKey("sd_service_categories.id"), nullable=True, index=True)
+    category_id = Column(String(36), ForeignKey("sd_service_categories.id", ondelete="SET NULL"), nullable=True, index=True)
     tags = Column(String(500), nullable=True)
     is_public = Column(Boolean, default=True)
 
     created_from_ticket_id = Column(String(36), nullable=True)
-    service_item_id = Column(String(36), ForeignKey("sd_service_items.id"), nullable=True, index=True)
+    service_item_id = Column(String(36), ForeignKey("sd_service_items.id", ondelete="SET NULL"), nullable=True, index=True)
 
     view_count = Column(Integer, default=0)
     # Veces que un cliente dijo «esto me lo resuelve» antes de abrir un ticket.
@@ -39,8 +39,8 @@ class KBArticle(Base):
     helpful_count = Column(Integer, default=0)
     not_helpful_count = Column(Integer, default=0)
 
-    author_id = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
-    reviewer_id = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    author_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    reviewer_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
@@ -61,7 +61,7 @@ class KBArticleVersion(Base):
     __tablename__ = "sd_kb_article_versions"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     article_id = Column(String(36), ForeignKey("sd_kb_articles.id", ondelete="CASCADE"), nullable=False, index=True)
     version = Column(Integer, nullable=False)
     title = Column(String(500), nullable=False)
@@ -70,7 +70,7 @@ class KBArticleVersion(Base):
     tags = Column(String(500), nullable=True)
     status = Column(Enum(KBStatus), default=KBStatus.draft)
     change_note = Column(String(255), nullable=True)
-    changed_by_user_id = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    changed_by_user_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     article = relationship("KBArticle", back_populates="versions")
@@ -80,7 +80,7 @@ class Announcement(Base):
     __tablename__ = "sd_announcements"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     title = Column(String(255), nullable=False)
     body = Column(Text, nullable=False)
     type = Column(String(20), default="info")
@@ -89,8 +89,8 @@ class Announcement(Base):
     starts_at = Column(DateTime(timezone=True), nullable=True)
     ends_at = Column(DateTime(timezone=True), nullable=True)
 
-    ci_id = Column(String(36), ForeignKey("sd_configuration_items.id"), nullable=True, index=True)
-    created_by = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    ci_id = Column(String(36), ForeignKey("sd_configuration_items.id", ondelete="SET NULL"), nullable=True, index=True)
+    created_by = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     ci = relationship("ConfigurationItem")

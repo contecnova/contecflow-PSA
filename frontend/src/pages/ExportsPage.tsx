@@ -1,22 +1,15 @@
 import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
-import { integrationsApi, jiraApi, projectsApi, unwrapList } from '../services/api'
+import { integrationsApi, jiraApi } from '../services/api'
+import { useListaDeProyectos } from '../hooks/useListas'
 import { Button, Card, Page, Section, SelectorDePeriodo, Select, Checkbox } from '../components/ui'
 import { Download, FileSpreadsheet, FolderKanban, Link2, RefreshCw } from 'lucide-react'
-import { downloadBlob } from '../utils/helpers'
+import { downloadBlob, extractErr } from '../utils/helpers'
 import { useAuth } from '../context/AuthContext'
 import { useAppT } from '../i18n/AppLangContext'
 import { usePeriodo } from '../hooks/usePeriodo'
 import { SIN_HORA } from '../utils/periodo'
 import { useToast } from '../context/ToastContext'
 import './ExportsPage.css'
-
-interface ProjectListItem {
-  id: number | string
-  name?: string
-  code?: string
-  status?: string
-}
 
 interface ImputExportForm {
   include_costs: boolean
@@ -29,17 +22,6 @@ interface ProjectsExportForm {
 }
 
 type LoadingState = Record<'imput' | 'proj', boolean>
-
-function extractErrorMessage(error: unknown): string {
-  if (typeof error !== 'object' || error == null) return ''
-  const raw = (error as { response?: { data?: { detail?: unknown } } }).response?.data?.detail
-  if (Array.isArray(raw)) {
-    return raw
-      .map((entry) => (typeof entry === 'object' && entry && 'msg' in entry ? String((entry as { msg: unknown }).msg) : String(entry)))
-      .join(', ')
-  }
-  return raw ? String(raw) : ''
-}
 
 export default function ExportsPage(): JSX.Element {
   const t = useAppT()
@@ -57,10 +39,8 @@ export default function ExportsPage(): JSX.Element {
   const [jiraSyncing, setJiraSyncing] = useState(false)
   const toast = useToast()
 
-  const { data: projects = [] } = useQuery<ProjectListItem[]>({
-    queryKey: ['projects'],
-    queryFn: () => projectsApi.list({}).then((response) => unwrapList(response) as ProjectListItem[]),
-  })
+  // 23-11-2026 (04 A8): lista compartida de proyectos.
+  const { data: projects = [] } = useListaDeProyectos()
 
   const setLoad = (k: keyof LoadingState, v: boolean) => setLoading((l) => ({ ...l, [k]: v }))
 
@@ -78,7 +58,7 @@ export default function ExportsPage(): JSX.Element {
       })
       downloadBlob(data, t('pagina_exps.imputaciones', { date_from: periodo.fechas.desde, date_to: periodo.fechas.hasta, format: imputForm.format }))
       toast.success(t('pagina_exps.archivo_descargado_correctamente'))
-    } catch { toast.error(t('pagina_exps.error_al_exportar')) }
+    } catch (e) { toast.error(extractErr(e, t('pagina_exps.error_al_exportar'))) }
     finally { setLoad('imput', false) }
   }
 
@@ -91,7 +71,7 @@ export default function ExportsPage(): JSX.Element {
       })
       downloadBlob(data, t('pagina_exps.proyectos', { today, format: projForm.format }))
       toast.success(t('pagina_exps.archivo_descargado_correctamente'))
-    } catch { toast.error(t('pagina_exps.error_al_exportar')) }
+    } catch (e) { toast.error(extractErr(e, t('pagina_exps.error_al_exportar'))) }
     finally { setLoad('proj', false) }
   }
 
@@ -102,7 +82,7 @@ export default function ExportsPage(): JSX.Element {
       await jiraApi.sync({ project_id: jiraProject })
       toast.success(t('pagina_exps.sincronizacion_con_jira_iniciada_en_segundo'))
     } catch (e) {
-      toast.error(extractErrorMessage(e) || t('pagina_exps.error_al_sincronizar_con_jira'))
+      toast.error(extractErr(e, t('pagina_exps.error_al_sincronizar_con_jira')))
     } finally { setJiraSyncing(false) }
   }
 

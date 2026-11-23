@@ -120,8 +120,7 @@ export default function FichaDeFactura({ id, onClose, onPdf, onEstado, etiquetaD
                 {editando ? (<>
                   <td className="fidefa-sp-2"><Input aria-label={t('invoices.ficha_concepto')} value={l.description} onChange={e => setLineas(v => v.map((x, j) => j === i ? { ...x, description: e.target.value } : x))} inputClassName="fidefa-campo" /></td>
                   {(['quantity', 'unit', 'unit_price', 'discount_pct'] as const).map(k => (
-                    <td key={k} className="fidefa-sp-2"><input aria-label={t(`invoices.ficha_${k === 'quantity' ? 'cantidad' : k === 'unit' ? 'unidad' : k === 'unit_price' ? 'precio' : 'descuento'}`)}
-                      type={k === 'unit' ? 'text' : 'number'} value={String(l[k] ?? '')} onChange={e => setLineas(v => v.map((x, j) => j === i ? { ...x, [k]: e.target.value } : x))} className="fidefa-campo" /></td>
+                    <td key={k} className="fidefa-sp-2"><Input aria-label={t(`invoices.ficha_${k === 'quantity' ? 'cantidad' : k === 'unit' ? 'unidad' : k === 'unit_price' ? 'precio' : 'descuento'}`)} type={k === 'unit' ? 'text' : 'number'} value={String(l[k] ?? '')} onChange={e => setLineas(v => v.map((x, j) => j === i ? { ...x, [k]: e.target.value } : x))} /></td>
                   ))}
                   <td className="fidefa-box-7">{dinero(importe(l), f.currency || fmtMoneda.moneda)}</td>
                   <td><IconButton ariaLabel={t('invoices.ficha_quitar_linea')} onClick={() => setLineas(v => v.filter((_, j) => j !== i))}
@@ -146,7 +145,7 @@ export default function FichaDeFactura({ id, onClose, onPdf, onEstado, etiquetaD
           <span className="u-text3">{t('invoices.ficha_subtotal')}</span><span className="fidefa-txt-3">{dinero(subtotal, f.currency || fmtMoneda.moneda)}</span>
           <span className="u-text3">
             {t('invoices.ficha_impuestos')} {editando
-              ? <input aria-label={t('invoices.ficha_impuestos')} type="number" value={String(form.tax_rate ?? 0)} onChange={e => setForm(v => ({ ...v, tax_rate: e.target.value }))} className="fidefa-campo2" />
+              ? <Input aria-label={t('invoices.ficha_impuestos')} type="number" value={String(form.tax_rate ?? 0)} onChange={e => setForm(v => ({ ...v, tax_rate: e.target.value }))} />
               : `(${f.tax_rate ?? 0}%)`}
           </span><span className="fidefa-txt-3">{dinero(impuestos, f.currency || fmtMoneda.moneda)}</span>
           <strong>{t('invoices.total')}</strong><strong className="fidefa-txt-3">{dinero(total, f.currency || fmtMoneda.moneda)}</strong>

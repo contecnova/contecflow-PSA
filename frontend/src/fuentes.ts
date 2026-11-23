@@ -1,30 +1,30 @@
 /**
- * Tipografías (19-11-2026).
+ * Tipografías servidas desde el propio host (23-11-2026).
  *
- * Auditoría de hardcodeados: `index.css` importaba las fuentes de Google Fonts
- * con una URL fija. Una instalación sin salida a internet (o que no quiere
- * llamar a Google: RGPD, la IP del usuario viaja a un tercero) no podía
- * evitarlo. Ahora la hoja de fuentes es configurable al compilar:
+ * Antes (19-11-2026) la hoja de fuentes venía de Google Fonts salvo que se
+ * definiera `VITE_FONTS_CSS_URL`. Cada visita mandaba la IP del navegador a
+ * Google (RGPD: transferencia a un tercero sin base legal; auditoría
+ * 2026-11-22, informe 05 A.7). Ahora las familias se empaquetan con la app
+ * desde los paquetes `@fontsource/*` (ficheros .woff2 con `unicode-range`:
+ * el navegador solo descarga los subconjuntos que pinta) y Vite las sirve
+ * como recursos propios. La CSP (`app/main.py`, `frontend/nginx.frontend.conf`,
+ * `vite.config.js`) ya no permite `fonts.googleapis.com` ni `fonts.gstatic.com`.
  *
- * - `VITE_FONTS_CSS_URL` sin definir → Google Fonts, como antes;
- * - `VITE_FONTS_CSS_URL=/fonts/fuentes.css` → servida desde el propio host;
- * - `VITE_FONTS_CSS_URL=` (vacía) → ninguna: se usan las de respaldo de
- *   `--font-*` en index.css (fuentes del sistema).
- *
- * Si cambia el origen, la CSP de `app/main.py` (style-src/font-src) debe
- * permitirlo.
+ * Mismas familias y pesos que la URL de Google de antes:
+ * - DM Sans 400-800 y Geist 400-800 (`--font-sans`);
+ * - Geist Mono 400-500 (`--font-mono`).
+ * El chino (CJK) no lo cubrían ni Google ni estas familias: sigue cayendo a
+ * la fuente del sistema de la pila `--font-sans` (`system-ui`), igual que antes.
  */
-const GOOGLE_FONTS =
-  'https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap'
-
-export function cargarFuentes(): void {
-  const env = (import.meta as unknown as { env?: Record<string, string | undefined> }).env ?? {}
-  const url = 'VITE_FONTS_CSS_URL' in env ? (env.VITE_FONTS_CSS_URL ?? '').trim() : GOOGLE_FONTS
-  if (!url || typeof document === 'undefined') return
-  if (document.querySelector(`link[data-fuentes]`)) return
-  const link = document.createElement('link')
-  link.rel = 'stylesheet'
-  link.href = url
-  link.dataset.fuentes = '1'
-  document.head.appendChild(link)
-}
+import '@fontsource/dm-sans/400.css'
+import '@fontsource/dm-sans/500.css'
+import '@fontsource/dm-sans/600.css'
+import '@fontsource/dm-sans/700.css'
+import '@fontsource/dm-sans/800.css'
+import '@fontsource/geist/400.css'
+import '@fontsource/geist/500.css'
+import '@fontsource/geist/600.css'
+import '@fontsource/geist/700.css'
+import '@fontsource/geist/800.css'
+import '@fontsource/geist-mono/400.css'
+import '@fontsource/geist-mono/500.css'

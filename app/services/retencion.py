@@ -82,7 +82,7 @@ def _corte(dias: int) -> datetime:
 def _vencidos(db, org, clave: str, dias: int):
     tipo = TIPOS[clave]
     M = tipo.modelo()
-    q = db.query(M).filter(M.organization_id == org, tipo.fecha(M) < _corte(dias))
+    q = db.query(M).filter(tipo.empresa(M) == org, tipo.fecha(M) < _corte(dias))
     if tipo.condicion:
         q = q.filter(tipo.condicion(M))
     return M, q

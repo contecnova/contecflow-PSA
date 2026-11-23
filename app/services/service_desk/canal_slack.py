@@ -102,10 +102,27 @@ def firma_valida(secreto: Optional[str], marca: str, cuerpo: bytes, firma: str, 
     return hmac.compare_digest(esperada, firma)
 
 
-def tarjeta(ticket, texto: Optional[str] = None) -> dict:
+def _idioma(db: Session, usuario=None, org_id: Optional[str] = None) -> str:
+    from app.services.formato_regional import idioma_de_salida
+    return idioma_de_salida(db, user_id=getattr(usuario, "id", None),
+                            org_id=getattr(usuario, "organization_id", None) or org_id)
+
+
+def _t(db: Session, clave: str, usuario=None, org_id: Optional[str] = None, **datos) -> str:
+    """Texto de Slack en el idioma de `usuario` (o de la empresa `org_id`)."""
+    from app.services.textos_de_salida_servicios_m_z import texto_para
+    return texto_para(db, clave, user_id=getattr(usuario, "id", None),
+                      org_id=getattr(usuario, "organization_id", None) or org_id, **datos)
+
+
+def tarjeta(ticket, texto: Optional[str] = None, idioma: Optional[str] = None) -> dict:
     """Mensaje de Slack (Block Kit) con el ticket y sus botones."""
     url = f"{(settings.FRONTEND_URL or '').rstrip('/')}/service-desk?ticket={ticket.id}"
     asignado = ticket.assigned_to.full_name if getattr(ticket, "assigned_to", None) else "—"
+
+    def _txt(clave: str) -> str:
+        from app.services.textos_de_salida import texto as _texto
+        return _texto(clave, idioma)
     return {
         "response_type": "in_channel",
         "text": texto or f"{ticket.number} · {ticket.title}",
@@ -115,11 +132,11 @@ def tarjeta(ticket, texto: Optional[str] = None) -> dict:
                 f"{_v(ticket.status)} · {_v(ticket.priority)} · {asignado}"}]},
             {"type": "actions", "elements": [
                 {"type": "button", "action_id": "sd_assign_me", "value": ticket.id,
-                 "text": {"type": "plain_text", "text": "Asignarme"}},
+                 "text": {"type": "plain_text", "text": _txt("slack.asignarme")}},
                 {"type": "button", "action_id": "sd_in_progress", "value": ticket.id,
-                 "text": {"type": "plain_text", "text": "En curso"}},
+                 "text": {"type": "plain_text", "text": _txt("slack.en_curso")}},
                 {"type": "button", "action_id": "sd_open", "url": url,
-                 "text": {"type": "plain_text", "text": "Abrir"}},
+                 "text": {"type": "plain_text", "text": _txt("slack.abrir")}},
             ]},
         ],
     }
@@ -147,7 +164,7 @@ def crear(db: Session, texto: str, usuario) -> dict:
     from app.services.service_desk.ticket_creation_service import build_channel_ticket
     asunto = (texto or "").strip()
     if not asunto:
-        return {"response_type": "ephemeral", "text": "Uso: ticket <asunto>"}
+        return {"response_type": "ephemeral", "text": _t(db, "slack.uso_ticket", usuario)}
     t = build_channel_ticket(db, org_id=usuario.organization_id, titulo=asunto[:255], descripcion=asunto,
                              source="slack", requester_user=usuario, requester_name=usuario.full_name,
                              requester_email=usuario.email)
@@ -157,46 +174,47 @@ def crear(db: Session, texto: str, usuario) -> dict:
     # al ticket (el receptor del comando deja el canal en `db.info`).
     canal = db.info.get("slack_canal")
     if canal and publicar_tarjeta_en_hilo(db, t, canal, visitante=usuario.full_name):
-        return {"response_type": "ephemeral", "text": f"Ticket creado: {t.number}. Responde en su hilo."}
-    return tarjeta(t, f"Ticket creado: {t.number}")
+        return {"response_type": "ephemeral", "text": _t(db, "slack.ticket_creado_hilo", usuario, numero=t.number)}
+    return tarjeta(t, _t(db, "slack.ticket_creado", usuario, numero=t.number), _idioma(db, usuario))
 
 
 def ver(db: Session, texto: str, usuario) -> dict:
-    return {**tarjeta(_ticket_por_numero(db, usuario, texto.split()[0] if texto.split() else "")),
+    return {**tarjeta(_ticket_por_numero(db, usuario, texto.split()[0] if texto.split() else ""),
+                      idioma=_idioma(db, usuario)),
             "response_type": "ephemeral"}
 
 
 def comentar(db: Session, texto: str, usuario) -> dict:
     partes = (texto or "").split(None, 1)
     if len(partes) < 2:
-        return {"response_type": "ephemeral", "text": "Uso: comentar <número> <texto>"}
+        return {"response_type": "ephemeral", "text": _t(db, "slack.uso_comentar", usuario)}
     t = _ticket_por_numero(db, usuario, partes[0])
     from app.services.service_desk.comment_service import add_internal_comment
     add_internal_comment(db, t, t.id, partes[1], True, usuario)
     db.commit()
-    return {"response_type": "ephemeral", "text": f"Comentario añadido a {t.number}"}
+    return {"response_type": "ephemeral", "text": _t(db, "slack.comentario_anadido", usuario, numero=t.number)}
 
 
 def asignarme(db: Session, texto: str, usuario) -> dict:
     t = _ticket_por_numero(db, usuario, (texto or "").strip())
     _actualizar(db, t, usuario, assigned_to_user_id=usuario.id)
-    return tarjeta(t, f"{t.number} asignado a {usuario.full_name}")
+    return tarjeta(t, _t(db, "slack.asignado_a", usuario, numero=t.number, quien=usuario.full_name), _idioma(db, usuario))
 
 
 def en_curso(db: Session, texto: str, usuario) -> dict:
     t = _ticket_por_numero(db, usuario, (texto or "").strip())
     _actualizar(db, t, usuario, status="in_progress")
-    return tarjeta(t, f"{t.number} en curso")
+    return tarjeta(t, _t(db, "slack.n_en_curso", usuario, numero=t.number), _idioma(db, usuario))
 
 
 def resolver(db: Session, texto: str, usuario) -> dict:
     partes = (texto or "").split(None, 1)
     if len(partes) < 2:
-        return {"response_type": "ephemeral", "text": "Uso: resolver <número> <resolución>"}
+        return {"response_type": "ephemeral", "text": _t(db, "slack.uso_resolver", usuario)}
     t = _ticket_por_numero(db, usuario, partes[0])
     t.resolution = partes[1]
     _actualizar(db, t, usuario, status="resolved")
-    return tarjeta(t, f"{t.number} resuelto")
+    return tarjeta(t, _t(db, "slack.n_resuelto", usuario, numero=t.number), _idioma(db, usuario))
 
 
 # ── Botones ───────────────────────────────────────────────────────────────────
@@ -204,7 +222,7 @@ def resolver(db: Session, texto: str, usuario) -> dict:
 def leer_interaccion(db: Session, cuerpo: bytes, marca: str, firma: str) -> tuple[dict, object]:
     """Verifica la peticion de Slack y devuelve (payload, usuario de Contecflow)."""
     from app.services.integrations import (
-        VinculoAmbiguo, find_user_by_slack_name, organizacion_del_workspace_de_slack, secreto_de_firma_de_slack,
+        VinculoAmbiguo, organizacion_del_workspace_de_slack, secreto_de_firma_de_slack,
     )
     try:
         payload = json.loads((parse_qs(cuerpo.decode(errors="replace")).get("payload") or ["{}"])[0])
@@ -218,8 +236,25 @@ def leer_interaccion(db: Session, cuerpo: bytes, marca: str, firma: str) -> tupl
     if not firma_valida(secreto_de_firma_de_slack(db, org), marca, cuerpo, firma):
         raise error(403, "firma_no_valida", detail="Invalid Slack signature")
     persona = payload.get("user") or {}
-    usuario = find_user_by_slack_name(db, persona.get("username") or persona.get("name") or "", equipo)
+    usuario = usuario_de_slack(db, org, persona.get("id") or "")
     return payload, usuario
+
+
+def usuario_de_slack(db: Session, org_id: Optional[str], slack_user_id: str):
+    """El usuario interno de un usuario de Slack, por su ID (`U…`), o None.
+
+    Auditoria 2026-11-22 (A-SD7): se identificaba por el nombre de usuario de
+    Slack (`username == nombre` o correo `nombre@…`), que elige el propio
+    usuario: cualquiera del workspace se llamaba como un agente y actuaba como
+    el. Ahora el ID de Slack, que no se puede elegir, se resuelve con
+    `users.info` (token del bot de la empresa) a su correo verificado, y ese
+    correo a un unico usuario activo de la empresa vinculada al workspace. Sin
+    empresa vinculada, nadie.
+    """
+    if not org_id or not slack_user_id:
+        return None
+    usuario, _contacto, _nombre = _quien(db, org_id, slack_user_id)
+    return usuario
 
 
 def procesar_interaccion(db: Session, payload: dict, usuario) -> dict:
@@ -227,7 +262,7 @@ def procesar_interaccion(db: Session, payload: dict, usuario) -> dict:
     from app.services.service_desk.scoping import get_scoped_ticket_or_404
     if usuario is None:
         return {"response_type": "ephemeral", "replace_original": False,
-                "text": "No encuentro tu usuario de Contecflow para este Slack."}
+                "text": _t(db, "slack.sin_usuario", None, getattr(db, "info", {}).get("organization_id"))}
     from app.db.session import publicar_contexto_de_tenant
     publicar_contexto_de_tenant(db, usuario)
     accion = ((payload.get("actions") or [{}])[0])
@@ -240,7 +275,7 @@ def procesar_interaccion(db: Session, payload: dict, usuario) -> dict:
         _actualizar(db, ticket, usuario, status="in_progress")
     else:
         return {}
-    return {**tarjeta(ticket), "replace_original": True}
+    return {**tarjeta(ticket, idioma=_idioma(db, usuario)), "replace_original": True}
 
 
 def responder_por_url(db: Session, response_url: Optional[str], mensaje: dict) -> bool:
@@ -348,7 +383,8 @@ def vincular_hilo(db: Session, ticket, canal: str, ts: str, visitante: Optional[
 def publicar_tarjeta_en_hilo(db: Session, ticket, canal: str, *, visitante: Optional[str] = None,
                              thread_ts: Optional[str] = None) -> bool:
     """Publica la tarjeta del ticket (o la cuelga del mensaje `thread_ts`) y ata el hilo."""
-    datos = tarjeta(ticket)
+    from app.services.formato_regional import idioma_de_salida
+    datos = tarjeta(ticket, idioma=idioma_de_salida(db, org_id=ticket.organization_id))
     ts = publicar(db, ticket.organization_id, canal, datos["text"], blocks=datos["blocks"], thread_ts=thread_ts)
     if not ts:
         return False
@@ -515,21 +551,21 @@ def _ficheros(db: Session, org_id: str, evento: dict) -> tuple[list, list[str]]:
         url = f.get("url_private_download") or f.get("url_private") or ""
         destino = urlparse(url)
         if not token or destino.scheme != "https" or destino.hostname != HOST_DE_FICHEROS:
-            notas.append(f"[adjunto no disponible: {nombre}]")
+            notas.append(_t(db, "slack.adjunto_no_disponible", org_id=org_id, nombre=nombre))
             continue
         if int(f.get("size") or 0) > tope:
-            notas.append(f"[adjunto rechazado (size): {nombre}]")
+            notas.append(_t(db, "slack.adjunto_rechazado", org_id=org_id, nombre=nombre))
             continue
         try:
             with _cliente(_espera(db)) as c:
                 contenido, tipo = adjuntos_de_canal.descargar_acotado(
                     c, url, headers={"Authorization": f"Bearer {token}"}, tope=tope, timeout=_espera(db))
         except _Error:
-            notas.append(f"[adjunto rechazado (size): {nombre}]")
+            notas.append(_t(db, "slack.adjunto_rechazado", org_id=org_id, nombre=nombre))
             continue
         except (httpx.HTTPError, PermissionError):
             logger.warning("Slack: no se pudo bajar %s", nombre, exc_info=True)
-            notas.append(f"[adjunto no disponible: {nombre}]")
+            notas.append(_t(db, "slack.adjunto_no_disponible", org_id=org_id, nombre=nombre))
             continue
         bajados.append(adjuntos_de_canal.Fichero(nombre=nombre, tipo=f.get("mimetype") or tipo or
                                                  "application/octet-stream", contenido=contenido))
@@ -635,7 +671,7 @@ def procesar_evento(db: Session, payload: dict) -> dict:
         if conv.status == "closed":
             conv.status = "agent"
         r = conversaciones.mensaje_del_cliente(
-            db, conv, texto or ("[adjunto]" if adjuntos or notas else "[vacío]"), client_user=contacto,
+            db, conv, texto or (_t(db, "slack.adjunto", usuario, org) if adjuntos or notas else _t(db, "slack.vacio", usuario, org)), client_user=contacto,
             external_message_id=ts, autor_usuario=usuario, autor_nombre=nombre,
             adjunto=adjuntos or None, nota_de_adjunto="\n".join(notas) or None)
         return {"comment": not r["duplicate"], "duplicate": r["duplicate"]}

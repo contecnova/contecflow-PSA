@@ -7,7 +7,7 @@ bookings models — completing all 'Partial' items from the roadmap:
   - ApiKey            : Client API keys with rate limiting
   - RecurringInvoice  : Recurring invoice configuration
   - WorkflowQueue     : Execution queue for multi-step workflows
-  - OAuthState        : SSO SAML/OIDC state + session management
+  - (OAuthState retirado el 23-11-2026: el state OAuth es firmado, app/services/oauth_state.py)
 """
 from sqlalchemy import (
     Column, String, Float, DateTime, ForeignKey, Text,
@@ -40,7 +40,7 @@ class TaskDependency(Base):
     __tablename__ = "task_dependencies"
 
     id              = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     predecessor_id  = Column(String(36), ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False, index=True)
     successor_id    = Column(String(36), ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False, index=True)
     dependency_type = Column(Enum(DependencyType), default=DependencyType.finish_to_start, nullable=False)
@@ -52,7 +52,7 @@ class TaskDependency(Base):
     # (relates_to, duplicates, cloned_from) y el CPM no los mira.
     link_type       = Column(String(20), nullable=False, default="schedule", server_default="schedule")
     note            = Column(String(500), nullable=True)
-    created_by      = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    created_by      = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at      = Column(DateTime(timezone=True), server_default=func.now())
 
     predecessor = relationship("Task", foreign_keys=[predecessor_id])
@@ -75,7 +75,7 @@ class ResourceBooking(Base):
     __tablename__ = "resource_bookings"
 
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     user_id     = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     project_id  = Column(String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=True, index=True)
     task_id     = Column(String(36), ForeignKey("tasks.id", ondelete="CASCADE"), nullable=True, index=True)
@@ -87,7 +87,7 @@ class ResourceBooking(Base):
     total_hours = Column(Float, nullable=True)   # computed: days * hours_per_day
 
     note        = Column(String(500), nullable=True)
-    created_by  = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    created_by  = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at  = Column(DateTime(timezone=True), server_default=func.now())
     updated_at  = Column(DateTime(timezone=True), onupdate=func.now())
     is_active   = Column(Boolean, default=True)
@@ -115,7 +115,7 @@ class ExchangeRate(Base):
     _tenant_filter_include_global = True
 
     id            = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     from_currency = Column(String(3), nullable=False, index=True)
     to_currency   = Column(String(3), nullable=False, index=True)
     rate          = Column(Rate, nullable=False)         # 1 from_currency = rate to_currency
@@ -134,7 +134,7 @@ class SLASchedule(Base):
     __tablename__ = "sla_schedules"
 
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     name        = Column(String(255), nullable=False)    # "9-17 Mon-Fri", "24/7"
     timezone    = Column(String(50), default=settings.DEFAULT_TIMEZONE)
     is_default  = Column(Boolean, default=False)
@@ -154,7 +154,7 @@ class SLAHoliday(Base):
     __tablename__ = "sla_holidays"
 
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     schedule_id = Column(String(36), ForeignKey("sla_schedules.id", ondelete="CASCADE"), nullable=False, index=True)
     date        = Column(Date, nullable=False)
     name        = Column(String(100), nullable=True)
@@ -170,7 +170,7 @@ class ApiKey(Base):
     __tablename__ = "api_keys"
 
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     name        = Column(String(255), nullable=False)    # "Slack integration", "BI dashboard"
     key_hash    = Column(String(255), nullable=False, unique=True)  # bcrypt hash of the key
     key_prefix  = Column(String(16), nullable=False)      # First chars shown in UI: "nxpm_abc"
@@ -212,10 +212,10 @@ class RecurringInvoice(Base):
     __tablename__ = "recurring_invoices"
 
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     name        = Column(String(255), nullable=False)    # "Retainer mensual Acme"
-    project_id  = Column(String(36), ForeignKey("projects.id"), nullable=True, index=True)
-    contract_id = Column(String(36), ForeignKey("contracts.id"), nullable=True, index=True)
+    project_id  = Column(String(36), ForeignKey("projects.id", ondelete="SET NULL"), nullable=True, index=True)
+    contract_id = Column(String(36), ForeignKey("contracts.id", ondelete="SET NULL"), nullable=True, index=True)
 
     frequency   = Column(Enum(RecurringFrequency), nullable=False, default=RecurringFrequency.monthly)
     next_date   = Column(Date, nullable=False)
@@ -227,7 +227,7 @@ class RecurringInvoice(Base):
     client_email   = Column(String(255), nullable=True)
     client_vat     = Column(String(50), nullable=True)
     amount         = Column(Money, nullable=False)       # Fixed amount per period
-    tax_rate       = Column(Float, default=settings.DEFAULT_TAX_RATE)  # % ratio
+    tax_rate       = Column(Rate, default=settings.DEFAULT_TAX_RATE)   # % IVA; migracion 200: Numeric (A-MOD2)
     currency       = Column(String(3), default=settings.DEFAULT_CURRENCY)
     description    = Column(String(500), nullable=True)  # Line item description
     payment_terms_days = Column(Integer, default=30)
@@ -236,7 +236,7 @@ class RecurringInvoice(Base):
     last_generated_at = Column(DateTime(timezone=True), nullable=True)
     total_generated   = Column(Integer, default=0)
 
-    created_by  = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    created_by  = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at  = Column(DateTime(timezone=True), server_default=func.now())
     updated_at  = Column(DateTime(timezone=True), onupdate=func.now())
 
@@ -258,7 +258,7 @@ class WorkflowQueueItem(Base):
     __tablename__ = "workflow_queue"
 
     id           = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     workflow_id  = Column(String(36), ForeignKey("automation_workflows.id", ondelete="CASCADE"), nullable=False, index=True)
     execution_id = Column(String(36), nullable=True)    # Links to WorkflowExecution
     step_index   = Column(Integer, default=0)
@@ -275,20 +275,4 @@ class WorkflowQueueItem(Base):
 
 # ── OAuth / SSO State ─────────────────────────────────────────────────────────
 
-class OAuthState(Base):
-    """
-    Temporary state token for SAML/OIDC authentication flows.
-    Created at redirect, consumed at callback.
-    """
-    __tablename__ = "oauth_states"
-
-    id         = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
-    state      = Column(String(255), nullable=False, unique=True, index=True)
-    sso_config_id = Column(String(36), ForeignKey("sso_configs.id", ondelete="CASCADE"), nullable=False, index=True)
-    redirect_to = Column(String(500), default="/dashboard")
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    expires_at = Column(DateTime(timezone=True), nullable=False)
-    used       = Column(Boolean, default=False)
-
-    sso_config = relationship("SSOConfig")
+# OAuthState: retirado el 23-11-2026 (auditoria 2026-11-22, M-MOD3: sin uso fuera de app/models). La tabla `oauth_states` la borra la migracion de esa fecha. El `state` OAuth es firmado (app/services/oauth_state.py).

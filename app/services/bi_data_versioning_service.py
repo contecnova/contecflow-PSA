@@ -78,31 +78,17 @@ def _data_key(dataset_key: str, version_id: str, org_id: str) -> str:
 # ── Current dataset data source ───────────────────────────────────────────────
 
 def _fetch_current_data(db: Session, org_id: str, dataset_key: str) -> list[dict]:
-    """Pull current data for dataset from BI ETL sync data or demo records."""
-    # Try BI ETL sync data first
+    """Los datos actuales del dataset: los de la última sincronización ETL de la empresa.
+
+    Auditoría 22-11-2026 (A61): sin datos ETL se guardaba como versión
+    INMUTABLE una tabla `_demo` de DuckDB o tres filas inventadas de 2024. Ahora
+    sin datos reales no hay versión: 422 `bi_dataset_sin_datos`.
+    """
     etl_key = f"bi.etl.sync_data.{dataset_key}.{org_id}"
     raw = _get_json(db, etl_key, default=None)
     if raw and isinstance(raw.get("records"), list):
         return raw["records"]
-
-    # Try DuckDB if dataset maps to an in-memory query
-    try:
-        import duckdb
-        with duckdb.connect() as conn:
-            conn.execute("CREATE TABLE IF NOT EXISTS _demo AS SELECT * FROM (VALUES (1,'demo',100.0)) t(id,label,value)")
-            rows = conn.execute("SELECT * FROM _demo").fetchall()
-            cols = [d[0] for d in conn.description]
-            return [dict(zip(cols, r)) for r in rows]  # noqa: B905
-    # intentional: best-effort fallback, log noise outweighs diagnostic value
-    except Exception:
-        logger.debug("_fetch_current_data: fallo best-effort ignorado", exc_info=True)
-
-    # Fallback: demo snapshot data
-    return [
-        {"period": "2024-01", "value": 120000, "label": "Ene"},
-        {"period": "2024-02", "value": 135000, "label": "Feb"},
-        {"period": "2024-03", "value": 140000, "label": "Mar"},
-    ]
+    raise error(422, "bi_dataset_sin_datos", dataset=dataset_key)
 
 
 # ── Snapshot CRUD ─────────────────────────────────────────────────────────────

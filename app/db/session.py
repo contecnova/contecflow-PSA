@@ -11,6 +11,7 @@ from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker, Session
 from typing import Generator, Optional
 from app.core.config import settings
+from app.db import contexto_de_tenant as _ctx
 import logging
 
 logger = logging.getLogger(__name__)
@@ -32,13 +33,9 @@ def _extract_model_class(entity):
     return None
 
 
-class TenantIsolationError(RuntimeError):
-    """No se puede demostrar el aislamiento de tenant para una consulta.
-
-    Se lanza en vez de devolver la consulta sin filtrar. Un 500 es un incidente
-    que se investiga; una consulta sin filtro de tenant es una fuga silenciosa
-    entre clientes que nadie ve (auditoría 2026-08, P1-7).
-    """
+# `TenantIsolationError` vive en `contexto_de_tenant` (que la lanza y que esta
+# sesión importa): así no hay import diferido de vuelta. Se reexporta aquí.
+from app.db.contexto_de_tenant import TenantIsolationError  # noqa: E402,F401
 
 
 def _is_tenant_exempt(model) -> bool:
@@ -74,13 +71,16 @@ def _tenant_filter_for_model(query, model, org_id):
     Precedence:
     1. Model has ``organization_id`` column directly → filter by it.
     2. Model has ``org_id`` column → filter by it.
-    3. Model has a ``project_id`` FK column → use a subquery against projects.
-    4. Model has a direct FK to users → use a subquery against users.
-    5. Model has ``actor_id`` → use a subquery against users.
-    6. Model declares ``_tenant_exempt = True`` → pasa sin filtrar, con motivo.
-    7. Nada de lo anterior → ``TenantIsolationError`` (fail-closed).
+    3. Model declares ``_tenant_exempt = True`` → pasa sin filtrar, con motivo.
+    4. Nada de lo anterior → ``TenantIsolationError`` (fail-closed).
 
-    El paso 7 antes era "devolver la consulta sin filtrar, más seguro que
+    Auditoría 22-11-2026 (01 §4): se retiran las vías por ``project_id``,
+    ``user_id`` y ``actor_id``. Ningún modelo llegaba a ellas (de 537: 525 con
+    ``organization_id``, 11 con ``org_id`` y 1 exento) y filtraban por la empresa
+    de FICHA del usuario, que ya no es la semántica vigente: un modelo nuevo sin
+    columna de empresa debe fallar en cerrado, no colarse por ahí.
+
+    El último paso antes era "devolver la consulta sin filtrar, más seguro que
     petar". No lo era: convertía cada modelo nuevo sin columna de tenant en una
     fuga entre clientes que ninguna prueba detectaba.
     """
@@ -102,44 +102,12 @@ def _tenant_filter_for_model(query, model, org_id):
     if hasattr(model, "org_id"):
         return query.filter(model.org_id == org_id)
 
-    # Subquery route — avoids JOIN conflicts on already-joined queries.
-    if hasattr(model, "project_id"):
-        from sqlalchemy import select as sa_select
-        from app.models.project import Project
-        project_ids_sq = (
-            sa_select(Project.id)
-            .where(Project.organization_id == org_id)
-            .scalar_subquery()
-        )
-        return query.filter(model.project_id.in_(project_ids_sq))
-
-    if hasattr(model, "user_id"):
-        from sqlalchemy import select as sa_select
-        from app.models.user import User
-        user_ids_sq = (
-            sa_select(User.id)
-            .where(User.organization_id == org_id)
-            .scalar_subquery()
-        )
-        return query.filter(model.user_id.in_(user_ids_sq))
-
-    # Fallback: models (e.g. ActivityEvent) that link to users via actor_id
-    if hasattr(model, "actor_id"):
-        from sqlalchemy import select as sa_select
-        from app.models.user import User
-        user_ids_sq = (
-            sa_select(User.id)
-            .where(User.organization_id == org_id)
-            .scalar_subquery()
-        )
-        return query.filter(model.actor_id.in_(user_ids_sq))
-
     if _is_tenant_exempt(model):
         return query
 
     raise TenantIsolationError(
         f"{getattr(model, '__name__', model)} no tiene columna de tenant "
-        "(organization_id / org_id / project_id / user_id / actor_id) ni declara "
+        "(organization_id / org_id) ni declara "
         "_tenant_exempt = True. No se puede aislar por organización: revisa el "
         "modelo antes de consultarlo desde una petición de usuario."
     )
@@ -204,36 +172,6 @@ def _tenant_where_for_model(stmt, model, org_id):
     if hasattr(model, "org_id"):
         return stmt.where(model.org_id == org_id)
 
-    if hasattr(model, "project_id"):
-        from sqlalchemy import select as sa_select
-        from app.models.project import Project
-        project_ids_sq = (
-            sa_select(Project.id)
-            .where(Project.organization_id == org_id)
-            .scalar_subquery()
-        )
-        return stmt.where(model.project_id.in_(project_ids_sq))
-
-    if hasattr(model, "user_id"):
-        from sqlalchemy import select as sa_select
-        from app.models.user import User
-        user_ids_sq = (
-            sa_select(User.id)
-            .where(User.organization_id == org_id)
-            .scalar_subquery()
-        )
-        return stmt.where(model.user_id.in_(user_ids_sq))
-
-    if hasattr(model, "actor_id"):
-        from sqlalchemy import select as sa_select
-        from app.models.user import User
-        user_ids_sq = (
-            sa_select(User.id)
-            .where(User.organization_id == org_id)
-            .scalar_subquery()
-        )
-        return stmt.where(model.actor_id.in_(user_ids_sq))
-
     if _is_tenant_exempt(model):
         return stmt
 
@@ -266,16 +204,12 @@ class TenantSession(Session):
         # Salio arreglando un 500 real: mover un usuario a otra organizacion y
         # releerlo despues. Ver `sin_filtro_de_tenant`, que es la unica forma
         # recomendada de encenderla.
-        if self.info.get("bypass_tenant_filter") is True:
-            return q
-
-        # is_superadmin is explicitly set by deps.get_current_user:
-        #   True  → superadmin, bypass all tenant filters
-        #   False → regular user, enforce tenant isolation
-        #   None  → session not initialised by a request (background job / test)
-        #           → bypass for backward compatibility
-        is_superadmin = self.info.get("is_superadmin", None)
-        if is_superadmin is None or is_superadmin is True:
+        # Auditoria 22-11-2026: el estado lo decide `contexto_de_tenant.estado`,
+        # el mismo para las tres capas y para RLS. `libre` (superadmin,
+        # `sin_filtro_de_tenant`, contexto de sistema declarado) no filtra;
+        # `sin_contexto` tampoco aqui, pero el escuchador `do_orm_execute` lo
+        # cierra o lo avisa al ejecutar (TENANT_SESION_SIN_CONTEXTO).
+        if _ctx.estado(self.info) != _ctx.EMPRESA:
             return q
 
         org_id = self.info.get("organization_id")
@@ -318,13 +252,12 @@ class TenantSession(Session):
 
         db.query() intercepts the legacy SA 1.x API; this method covers the
         modern SA 2.0 pattern: db.execute(select(Model).where(...)).
-        Non-Select statements (INSERT, UPDATE, DELETE, raw SQL) pass through
-        unchanged — they carry explicit WHERE clauses by design.
+        UPDATE/DELETE masivos: los acota el escuchador `do_orm_execute`
+        (auditoria 22-11-2026; antes pasaban sin filtro). SQL a mano: RLS.
         """
         from sqlalchemy.sql import Select
-        if isinstance(statement, Select) and self.info.get("bypass_tenant_filter") is not True:
-            is_superadmin = self.info.get("is_superadmin", None)
-            if is_superadmin is False:
+        if isinstance(statement, Select):
+            if _ctx.estado(self.info) == _ctx.EMPRESA:
                 org_id = self.info.get("organization_id")
                 if org_id is None:
                     from sqlalchemy import false as sql_false
@@ -392,6 +325,11 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine, clas
 #     `query()`/`execute()` —las que usa el codigo normal— lo ignoraban. Usalo
 #     via `sin_filtro_de_tenant(session)`, que lo devuelve al salir.
 #   • Set env `TENANT_AUTO_FILTER_GLOBAL=0` to disable the event entirely.
+#   • Auditoria 22-11-2026: contexto de sistema DECLARADO, con motivo
+#     (`contexto_de_sistema(db, motivo)` o `trabajo_de_sistema(motivo)`; las
+#     tareas de Celery lo declaran solas con su nombre). Una sesion sin ninguno
+#     de estos ni empresa ya no pasa en silencio: `TENANT_SESION_SIN_CONTEXTO`
+#     (`cerrar` | `avisar`). Ver app/db/contexto_de_tenant.py.
 
 from contextlib import contextmanager as _contextmanager
 from sqlalchemy import event as _sa_event
@@ -447,20 +385,74 @@ def _rls_antes_de_escribir(session, flush_context, instances) -> None:
     _rls.sincronizar(session)
 
 
+def _modelo_de_tabla(tabla):
+    from app.db.base import Base
+    for mapper in Base.registry.mappers:
+        if mapper.persist_selectable is tabla:
+            return mapper.class_
+    return None
+
+
+def _tiene_empresa(modelo) -> bool:
+    return modelo is not None and not _is_tenant_exempt(modelo) and (
+        hasattr(modelo, "organization_id") or hasattr(modelo, "org_id"))
+
+
+def _modelos_de_empresa_de(execute_state) -> list:
+    """Modelos con columna de empresa que toca la sentencia (ORM o Core)."""
+    modelos = []
+    try:
+        modelos = [m.class_ for m in execute_state.all_mappers]
+    except Exception:
+        logger.debug("_modelos_de_empresa_de: sin mappers", exc_info=True)
+    tabla = getattr(execute_state.statement, "table", None)
+    if tabla is not None:
+        modelos.append(_modelo_de_tabla(tabla))
+    return [m for m in dict.fromkeys(modelos) if _tiene_empresa(m)]
+
+
+def _acotar_core(statement, org_id):
+    """UPDATE/DELETE Core sobre la tabla de un modelo de empresa: WHERE de su empresa.
+
+    Misma semantica que el filtro ORM (estricto, globales, miembros); sin
+    empresa, ninguna fila. Una tabla sin modelo o exenta pasa igual.
+    """
+    from sqlalchemy import false, or_, select
+    tabla = getattr(statement, "table", None)
+    modelo = _modelo_de_tabla(tabla) if tabla is not None else None
+    if not _tiene_empresa(modelo):
+        return statement
+    if org_id is None:
+        return statement.where(false())
+    col = tabla.c.organization_id if "organization_id" in tabla.c else tabla.c.org_id
+    if getattr(modelo, "_tenant_filter_members", False):
+        from app.models.user import UserOrganizationMembership as _P
+        return statement.where(or_(col == org_id, tabla.c.id.in_(
+            select(_P.user_id).where(_P.organization_id == org_id))))
+    if getattr(modelo, "_tenant_filter_include_global", False):
+        return statement.where(or_(col == org_id, col.is_(None)))
+    return statement.where(col == org_id)
+
+
 if _TENANT_AUTO_FILTER_GLOBAL:
 
     @_sa_event.listens_for(SessionLocal, "do_orm_execute")
     def _enforce_tenant_isolation(execute_state) -> None:
-        # Only filter ORM SELECT statements; INSERT/UPDATE/DELETE carry their
-        # own WHERE clauses and would be incorrectly narrowed otherwise.
-        if not execute_state.is_select:
+        # Auditoria 22-11-2026: SELECT y tambien UPDATE/DELETE masivos
+        # (`Query.update/delete`, `update(Modelo)`/`delete(Modelo)`). Antes solo
+        # SELECT («INSERT/UPDATE/DELETE carry their own WHERE clauses»): un
+        # `query(Imputation).filter(id.in_(ids)).update(...)` con ids de otra
+        # empresa los tocaba (informe 02, A12; 234 apariciones del patron en 152
+        # ficheros de app/, todas acotadas aqui de una vez).
+        es_masivo = execute_state.is_update or execute_state.is_delete
+        if not (execute_state.is_select or es_masivo):
             return
-        if execute_state.is_column_load:
+        if execute_state.is_select and execute_state.is_column_load:
             # Recarga de atributos caducados de un objeto que YA esta en la
             # sesion (tras un commit, o `refresh`): se cargo antes con el filtro
             # puesto. `db.get` y las consultas nuevas no pasan por aqui.
             return
-        if execute_state.is_relationship_load:
+        if execute_state.is_select and execute_state.is_relationship_load:
             # Relationship loads already inherit their parent's tenant scope
             # (parent row was filtered when loaded). Skipping avoids double
             # filtering joined-eager loads where the cross-table FK is the
@@ -470,14 +462,24 @@ if _TENANT_AUTO_FILTER_GLOBAL:
         session = execute_state.session
         info = getattr(session, "info", {}) or {}
 
-        if info.get("bypass_tenant_filter") is True:
+        estado = _ctx.estado(info)
+        if estado == _ctx.LIBRE:
+            # Superadmin, `sin_filtro_de_tenant` o contexto de sistema declarado.
             return
-        is_superadmin = info.get("is_superadmin", None)
-        if is_superadmin is None or is_superadmin is True:
-            # Uninitialised session (background job, test) or superadmin: skip.
+        if estado == _ctx.SIN_CONTEXTO:
+            # Auditoria 22-11-2026 (M8): antes, salida silenciosa. Ahora cierra
+            # (`TENANT_SESION_SIN_CONTEXTO=cerrar`) o avisa una vez por sitio.
+            modelos = _modelos_de_empresa_de(execute_state)
+            if modelos:
+                _ctx.sin_contexto(modelos)
             return
         org_id = info.get("organization_id")
         sin_organizacion = org_id is None
+        if es_masivo and not execute_state.is_orm_statement:
+            # `update(Modelo.__table__)`: sentencia Core, `with_loader_criteria`
+            # no la alcanza. Se acota con el WHERE de la propia tabla.
+            execute_state.statement = _acotar_core(execute_state.statement, org_id)
+            return
         # Regular user with no org → block any data return.
         #
         # Auditoria 2026-08: esta rama NO bloqueaba, reventaba. Pasaba `object`
@@ -702,6 +704,13 @@ def sin_filtro_de_tenant(session):
             session.info["bypass_tenant_filter"] = previo
 
 
+# Auditoria 22-11-2026: los contextos explicitos viven en `contexto_de_tenant`;
+# se reexportan aqui, junto a `sin_filtro_de_tenant`.
+from app.db.contexto_de_tenant import (  # noqa: E402,F401
+    con_empresa, contexto_de_sistema, declarar_sistema, fijar_contexto, trabajo_de_sistema,
+)
+
+
 def publicar_contexto_de_tenant(session, sujeto, *, es_cliente=False) -> None:
     """Pone en `session.info` la organizacion del sujeto de esta peticion.
 
@@ -738,6 +747,50 @@ def publicar_contexto_de_tenant(session, sujeto, *, es_cliente=False) -> None:
     session.info["current_client" if es_cliente else "current_user"] = sujeto
     if not session.info["is_superadmin"]:
         exigir_organizacion_activa(session, session.info["organization_id"])
+
+
+def publicar_empresa(session, organization_id) -> bool:
+    """La ruta anónima ya sabe su empresa (por firma, token o slug): a partir de aquí, filtra.
+
+    Auditoría 22-11-2026 (M8). Es `publicar_contexto_de_tenant` sin sujeto: un
+    webhook o un enlace firmado no tienen usuario, tienen empresa. Corta si la
+    empresa está desactivada. Sin empresa (filas antiguas) no hace nada y la
+    sesión sigue en su contexto de sistema declarado; devuelve si publicó.
+    """
+    if not organization_id:
+        return False
+    session.info["organization_id"] = organization_id
+    session.info["is_superadmin"] = False
+    exigir_organizacion_activa(session, organization_id)
+    return True
+
+
+def sesion_de_sistema(motivo: str):
+    """Dependencia FastAPI: la sesión de una ruta ANÓNIMA con su contexto declarado.
+
+    Auditoría 22-11-2026 (M8). Una ruta sin `get_current_user` (webhook,
+    formulario público, login, SCIM, WebSocket...) no tiene empresa hasta que
+    verifica su credencial propia (firma, token, slug). Esa búsqueda corre entre
+    empresas, y se declara con su motivo en vez de pasar «sin contexto» (que con
+    `TENANT_SESION_SIN_CONTEXTO=cerrar` lanza `TenantIsolationError`). En cuanto
+    la ruta resuelve la empresa, `publicar_contexto_de_tenant`/`con_empresa`
+    mandan sobre esto (la sesión pasa a filtrar).
+
+    Uso: ``db: Session = Depends(sesion_de_sistema("webhook:stripe"))``. Se apoya
+    en `get_db`, así que la sesión es la misma que la del resto del grafo y los
+    `dependency_overrides` de los tests se siguen aplicando.
+    """
+    from fastapi import Depends as _Depends
+
+    if not motivo:
+        raise ValueError("sesion_de_sistema necesita un motivo")
+
+    def _sesion_de_sistema(db: Session = _Depends(get_db)):
+        with contexto_de_sistema(db, motivo):
+            yield db
+
+    _sesion_de_sistema.motivo_de_sistema = motivo  # lo lee tests/test_rutas_anonimas_contexto_2026_11.py
+    return _sesion_de_sistema
 
 
 def exigir_organizacion_activa(session, organization_id) -> None:

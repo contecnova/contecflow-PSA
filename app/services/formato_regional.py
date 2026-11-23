@@ -63,15 +63,29 @@ def simbolo_de_moneda(db=None, org_id: Optional[str] = None, moneda: Optional[st
     return simbolos.get(codigo, codigo)
 
 
-def formatear_importe(valor: Any, simbolo: str, decimales: int = 0) -> str:
-    """`1234.6` → `"1,235 €"` (o el simbolo que toque). `None` → `"—"`."""
+#: M15 (auditoría 22-11-2026): separadores (miles, decimales) por idioma (CLDR).
+#: Antes todo salía en formato de EE. UU. («1,234.50 €») también en castellano.
+_SEPARADORES = {
+    "es": (".", ","), "ca": (".", ","), "gl": (".", ","), "eu": (".", ","), "de": (".", ","),
+    "it": (".", ","), "pt": (".", ","), "nl": (".", ","), "pl": ("\u00a0", ","), "fr": ("\u202f", ","),
+    "en": (",", "."), "zh": (",", "."), "ja": (",", "."),
+}
+
+
+def formatear_importe(valor: Any, simbolo: str, decimales: int = 0, idioma: Optional[str] = None) -> str:
+    """`1234.6` → `"1.235 €"` en castellano, `"1,235 €"` en inglés. `None` → `"—"`.
+
+    `idioma` (ISO 639-1); sin él, el de la instalación (`DEFAULT_LANGUAGE`).
+    """
     if valor is None or valor == "":
         return "—"
     try:
         numero = float(valor)
     except (TypeError, ValueError):
         return f"{valor} {simbolo}"
-    return f"{numero:,.{decimales}f} {simbolo}"
+    miles, coma = _SEPARADORES.get(_corto(idioma) or _corto(settings.DEFAULT_LANGUAGE) or "en", (",", "."))
+    texto = f"{numero:,.{decimales}f}".translate(str.maketrans({",": miles, ".": coma}))
+    return f"{texto} {simbolo}"
 
 
 def con_moneda(obj: Any, simbolo: str) -> Any:

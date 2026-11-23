@@ -4,8 +4,7 @@ ABAC (Attribute-Based Access Control) API endpoints for policy and attribute man
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from app.core.deps import get_current_user, get_db, require_admin, require_internal_user
-from app.core.security import verify_admin_or_governance_role
+from app.core.deps import get_current_user, get_db, requiere_capacidad
 from app.models.user import User
 from app.core.abac_enforce import enforce_abac
 from app.services.abac import ABACService, DEFAULT_ABAC_ATTRIBUTES
@@ -49,10 +48,9 @@ def create_attribute_definition(
     schema: AttributeDefinitionSchema,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: el motor de politicas que gobierna los accesos de todos
+    _rol: User = Depends(requiere_capacidad("gobierno.administrar")),  # auditoria 2026-09: sensible: el motor de politicas que gobierna los accesos de todos
 ):
     """Create new attribute definition (admin only)."""
-    verify_admin_or_governance_role(current_user)
     org_id = current_user.organization_id
     if not org_id:
         raise error_http(400, "sin_empresa", detail="User organization not set")
@@ -73,10 +71,9 @@ def create_attribute_definition(
 def initialize_default_attributes(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: el motor de politicas que gobierna los accesos de todos
+    _rol: User = Depends(requiere_capacidad("gobierno.administrar")),  # auditoria 2026-09: sensible: el motor de politicas que gobierna los accesos de todos
 ):
     """Initialize common PSA attributes. Safe to call multiple times (idempotent)."""
-    verify_admin_or_governance_role(current_user)
     org_id = current_user.organization_id
     if not org_id:
         raise error_http(400, "sin_empresa", detail="User organization not set")
@@ -130,10 +127,9 @@ def assign_user_attribute(
     schema: UserAttributeAssignSchema,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: el motor de politicas que gobierna los accesos de todos
+    _rol: User = Depends(requiere_capacidad("gobierno.administrar")),  # auditoria 2026-09: sensible: el motor de politicas que gobierna los accesos de todos
 ):
     """Assign an attribute to a user (admin/governance only)."""
-    verify_admin_or_governance_role(current_user)
     org_id = current_user.organization_id
     if not org_id:
         raise error_http(400, "sin_empresa", detail="User organization not set")
@@ -156,10 +152,9 @@ def revoke_user_attribute(
     attribute_key: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: el motor de politicas que gobierna los accesos de todos
+    _rol: User = Depends(requiere_capacidad("gobierno.administrar")),  # auditoria 2026-09: sensible: el motor de politicas que gobierna los accesos de todos
 ):
     """Revoke an attribute from a user (admin/governance only)."""
-    verify_admin_or_governance_role(current_user)
     enforce_abac(db, current_user, "abac_user_attribute", user_id, action="delete")
     org_id = current_user.organization_id
     if not org_id:
@@ -195,10 +190,9 @@ def create_policy(
     schema: ABACPolicyCreateSchema,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: el motor de politicas que gobierna los accesos de todos
+    _rol: User = Depends(requiere_capacidad("gobierno.administrar")),  # auditoria 2026-09: sensible: el motor de politicas que gobierna los accesos de todos
 ):
     """Create new ABAC policy (admin/governance only)."""
-    verify_admin_or_governance_role(current_user)
     org_id = current_user.organization_id
     if not org_id:
         raise error_http(400, "sin_empresa", detail="User organization not set")
@@ -243,10 +237,9 @@ def update_policy(
     schema: ABACPolicyCreateSchema,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: el motor de politicas que gobierna los accesos de todos
+    _rol: User = Depends(requiere_capacidad("gobierno.administrar")),  # auditoria 2026-09: sensible: el motor de politicas que gobierna los accesos de todos
 ):
     """Update an ABAC policy (admin/governance only)."""
-    verify_admin_or_governance_role(current_user)
     org_id = current_user.organization_id
     if not org_id:
         raise error_http(400, "sin_empresa", detail="User organization not set")
@@ -273,10 +266,9 @@ def delete_policy(
     policy_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: el motor de politicas que gobierna los accesos de todos
+    _rol: User = Depends(requiere_capacidad("gobierno.administrar")),  # auditoria 2026-09: sensible: el motor de politicas que gobierna los accesos de todos
 ):
     """Delete (soft) an ABAC policy (admin/governance only)."""
-    verify_admin_or_governance_role(current_user)
     enforce_abac(db, current_user, "abac_policy", policy_id, action="delete")
     org_id = current_user.organization_id
     if not org_id:
@@ -296,7 +288,7 @@ def evaluate_access(
     schema: AccessEvaluationRequestSchema,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: excepcion revisada: pregunta si YO tengo acceso; no cambia ninguna politica
+    _rol: User = Depends(requiere_capacidad("gobierno.usar")),  # auditoria 2026-09: excepcion revisada: pregunta si YO tengo acceso; no cambia ninguna politica
 ):
     """
     Evaluate if current user can access a resource based on ABAC policies.
@@ -342,13 +334,12 @@ def evaluate_access_for_user(
     schema: AccessEvaluationRequestSchema,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: el motor de politicas que gobierna los accesos de todos
+    _rol: User = Depends(requiere_capacidad("gobierno.administrar")),  # auditoria 2026-09: sensible: el motor de politicas que gobierna los accesos de todos
 ):
     """
     Evaluate access for a specific user (admin/governance only).
     Useful for testing and debugging access policies.
     """
-    verify_admin_or_governance_role(current_user)
     org_id = current_user.organization_id
     if not org_id:
         raise error_http(400, "sin_empresa", detail="User organization not set")
@@ -375,13 +366,14 @@ def evaluate_access_for_user(
 @router.get("/audit-log")
 def get_audit_log(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    # Auditoría 22-11-2026 (M9): la guarda estaba a mano en el cuerpo
+    # (admin o superadmin); ahora en la firma, con la misma audiencia.
+    current_user: User = Depends(requiere_capacidad("gobierno.administrar")),
     user_id: Optional[str] = Query(None),
     limit: int = Query(50, ge=1, le=500),
     offset: int = Query(0, ge=0),
 ):
     """Get audit log of ABAC decisions (admin/governance only)."""
-    verify_admin_or_governance_role(current_user)
     org_id = current_user.organization_id
     if not org_id:
         raise error_http(400, "sin_empresa", detail="User organization not set")

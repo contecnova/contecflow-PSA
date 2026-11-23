@@ -1,0 +1,37 @@
+/* Editor del menú lateral (23-11-2026): solo tokens, vale en tema claro y oscuro. */
+.editor-menu { display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; }
+.editor-menu__ayuda { margin: 0; font-size: var(--text-xs); color: var(--text-3); line-height: 1.45; }
+.editor-menu__lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-1); }
+.editor-menu__cat {
+  border: 1px solid var(--surface-4); border-radius: var(--radius-sm); background: var(--surface-2);
+  transition: border-color 0.15s var(--easing), opacity 0.15s var(--easing);
+}
+.editor-menu__cat--arrastrando { opacity: 0.5; }
+.editor-menu__cat--sobre { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.editor-menu__fila { display: flex; align-items: center; gap: var(--space-1); padding: var(--space-1) var(--space-1) var(--space-1) var(--space-2); min-height: 36px; }
+.editor-menu__asa { display: inline-flex; color: var(--text-3); cursor: grab; flex-shrink: 0; }
+.editor-menu__cat--arrastrando .editor-menu__asa { cursor: grabbing; }
+.editor-menu__icono { display: inline-flex; color: var(--text-2); flex-shrink: 0; }
+.editor-menu__nombre { flex: 1; min-width: 0; font-size: var(--text-sm); font-weight: 600; color: var(--text-1); overflow-wrap: anywhere; }
+.editor-menu__cuenta { font-size: var(--text-xs); color: var(--text-3); white-space: nowrap; }
+.editor-menu__mover { color: var(--text-2); padding: 4px; }
+.editor-menu__mover:hover:not(:disabled) { color: var(--text-1); background: var(--surface-3); }
+.editor-menu__mover:disabled { opacity: 0.35; cursor: default; }
+.editor-menu__flecha { transition: transform 0.15s var(--easing); }
+.editor-menu__flecha--abierta { transform: rotate(90deg); transition: transform 0.15s var(--easing); }
+.editor-menu__pestanas {
+  list-style: none; margin: 0; padding: var(--space-1) var(--space-1) var(--space-2) var(--space-6);
+  display: flex; flex-direction: column; gap: 2px; border-top: 1px solid var(--surface-4);
+}
+.editor-menu__pestana { display: flex; align-items: center; gap: var(--space-1); min-height: 30px; }
+.editor-menu__casilla { flex: 1; min-width: 0; font-size: var(--text-sm); color: var(--text-2); }
+.editor-menu__pestana--oculta .editor-menu__casilla { color: var(--text-3); }
+
+@media (max-width: 640px) {
+  .editor-menu__cuenta { display: none; }
+  .editor-menu__fila, .editor-menu__pestana { min-height: 40px; }
+  .editor-menu__mover { padding: 8px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .editor-menu__cat, .editor-menu__flecha, .editor-menu__flecha--abierta { transition: none; }
+}

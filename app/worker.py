@@ -1,10 +1,29 @@
-from celery import Celery
+from celery import Celery, Task
 from app.core.timeutil import utcnow
 from celery.schedules import crontab
 from app.core.config import settings
 
+
+class TareaDeSistema(Task):
+    """Cada tarea corre como trabajo de sistema DECLARADO, con su nombre.
+
+    Auditoría 22-11-2026 (informe 02, «causa de fondo»): una sesión del worker
+    sin contexto pasaba sin filtro de empresa y en silencio. Ahora la tarea lo
+    declara (`trabajo_de_sistema("tarea:<nombre>")`); las que trabajan por
+    empresa lo acotan con `con_empresa`/`como_organizacion` por iteración
+    (`trabajos_de_fondo.en_cada_organizacion`), que manda sobre esto. Vale en el
+    worker y en las llamadas directas de APScheduler (`task(...)`).
+    """
+
+    def __call__(self, *args, **kwargs):
+        from app.db.contexto_de_tenant import trabajo_de_sistema
+        with trabajo_de_sistema(f"tarea:{self.name}"):
+            return super().__call__(*args, **kwargs)
+
+
 celery_app = Celery(
     "contecflow",
+    task_cls=TareaDeSistema,
     broker=settings.REDIS_URL,
     backend=settings.REDIS_URL,
     # Todas las tareas @celery_app.task viven en este mismo módulo (app.worker),
@@ -46,6 +65,12 @@ celery_app.conf.beat_schedule = {
     "externos-caducidad": {
         "task": "app.worker.externos_caducidad",
         "schedule": crontab(hour=6, minute=30),
+    },
+    # 23-11-2026: cuentas inactivas, avisos de caducidad de contraseña y
+    # dispositivos de confianza caducados (docs/seguridad/politicas_de_cuenta.md).
+    "seguridad-de-cuentas-diario": {
+        "task": "app.worker.seguridad_de_cuentas_diario",
+        "schedule": crontab(hour=6, minute=40),
     },
     # Recurring retainer invoices — runs daily at 07:00, checks retainer_day
     "generate-retainer-invoices": {
@@ -487,6 +512,13 @@ def externos_caducidad():
     return _por_organizacion("externos_caducidad", externos_caducidad_y_asignaciones)
 
 
+@celery_app.task(name="app.worker.seguridad_de_cuentas_diario")
+def seguridad_de_cuentas_diario():
+    """Políticas de cuenta: desactiva cuentas inactivas, avisa de la caducidad y caduca dispositivos."""
+    from app.services.seguridad_de_cuentas.diario import por_empresa
+    return _por_organizacion("seguridad_de_cuentas_diario", por_empresa)
+
+
 @celery_app.task(name="app.worker.generate_retainer_invoices")
 def generate_retainer_invoices():
     """Facturas mensuales de los proyectos `recurring_retainer` (dia en la zona del cliente)."""
@@ -680,9 +712,27 @@ def bi_kpi_push():
 
 @celery_app.task(name="app.worker.aplicar_retencion")
 def aplicar_retencion():
-    """Politicas de retencion activas de cada empresa (respetan el bloqueo legal)."""
+    """Politicas de retencion activas de cada empresa (respetan el bloqueo legal).
+
+    Auditoría 22-11-2026 (A64): y borra las copias RGPD (acceso/portabilidad)
+    caducadas (`COMPLIANCE_GDPR_EXPORT_TTL_DAYS`).
+    """
     from app.services.retencion import aplicar
-    return _por_organizacion("aplicar_retencion", aplicar)
+    from app.services.cab_service.gdpr import purgar_copias_caducadas
+
+    def _retencion_y_copias(db, org):
+        informe = aplicar(db, org)
+        if isinstance(informe, dict):
+            informe["copias_rgpd_caducadas"] = purgar_copias_caducadas(db, org)
+            # M77 (auditoría 22-11-2026): la retención del chat también corre cada día.
+            from app.services.collaboration.compliance import run_retention_de_empresa
+            try:
+                informe["chat"] = run_retention_de_empresa(db, org)
+            except Exception:
+                db.rollback()
+                _worker_logger.exception("retención del chat de %s", org)
+        return informe
+    return _por_organizacion("aplicar_retencion", _retencion_y_copias)
 
 
 @celery_app.task(name="app.worker.ausencias_pasada_diaria")

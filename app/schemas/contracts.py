@@ -19,6 +19,8 @@ class ContractIn(BaseModel):
     client_contact: Optional[str] = Field(default=None, description="Persona de contacto del cliente")
     payment_terms: Optional[str] = Field(default=None, description="Condiciones de pago acordadas")
     notes: Optional[str] = Field(default=None, description="Notas internas sobre el contrato")
+    currency: Optional[str] = Field(default=None, min_length=3, max_length=3,
+                                    description="Moneda ISO 4217 de los importes; vacía = la de la empresa")
 
 
 class ContractUpdate(BaseModel):
@@ -32,6 +34,8 @@ class ContractUpdate(BaseModel):
     signed_date: Optional[date] = Field(default=None, description="Fecha de firma del contrato")
     payment_terms: Optional[str] = Field(default=None, description="Condiciones de pago acordadas")
     notes: Optional[str] = Field(default=None, description="Notas internas sobre el contrato")
+    currency: Optional[str] = Field(default=None, min_length=3, max_length=3,
+                                    description="Moneda ISO 4217 de los importes")
 
 
 class WorkOrderIn(BaseModel):

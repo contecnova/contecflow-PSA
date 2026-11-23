@@ -460,6 +460,7 @@ def _avisar(db: Session, ev: TicketEvent, ticket: Ticket, data: dict) -> dict:
     responder_a = _ss.get_runtime_str(db, "SD_INBOUND_ADDRESS", org) or None
     cuenta = {"campana": 0, "correos": 0, "fallidos": 0}
     pendientes_de_correo = []
+    pendientes_de_sms = []
 
     for code, dest in destinatarios(db, ev, ticket, data):
         textos = plantilla(db, code, dest.idioma, org)
@@ -491,12 +492,16 @@ def _avisar(db: Session, ev: TicketEvent, ticket: Ticket, data: dict) -> dict:
         if quiere_correo:
             pendientes_de_correo.append((dest, asunto, cuerpo))
         if dest.guardia and sms_de_guardia and dest.telefono:
-            from app.services.service_desk.sms_service import send_sms
-            send_sms(dest.telefono, f"{asunto[:120]} {_enlace(ticket, dest)}")
-            cuenta["sms"] = cuenta.get("sms", 0) + 1
+            pendientes_de_sms.append((dest, asunto))
 
-    # El correo va al final: lo que ya salio no se puede deshacer si otra cosa
-    # del evento falla y se reintenta.
+    # Lo que sale fuera (SMS y correo) va al final: lo que ya salio no se
+    # puede deshacer si otra cosa del evento falla y se reintenta. Auditoria
+    # 2026-11-22 (4.3): el SMS de guardia salia dentro del bucle, antes de los
+    # avisos de los demas destinatarios.
+    from app.services.service_desk.sms_service import send_sms
+    for dest, asunto in pendientes_de_sms:
+        send_sms(dest.telefono, f"{asunto[:120]} {_enlace(ticket, dest)}")
+        cuenta["sms"] = cuenta.get("sms", 0) + 1
     for dest, asunto, cuerpo in pendientes_de_correo:
         r = correo.enviar(db, org, dest.email, asunto, cuerpo, _texto_plano(cuerpo), responder_a=responder_a)
         db.add(EmailLog(
@@ -521,13 +526,22 @@ def procesar_evento(db: Session, ev: TicketEvent) -> dict:
         ticket = db.get(Ticket, ev.ticket_id)
         if ticket is None:
             return {"omitido": "ticket borrado"}
-        cuenta = _avisar(db, ev, ticket, data)
+        # Auditoria 2026-11-22 (servicios m-z, 4.3): primero lo que solo
+        # escribe en la base (webhook a la bandeja, flujos, cierre de la
+        # peticion) y al final los avisos, que mandan correo y SMS. Antes los
+        # avisos iban primero: si un flujo fallaba, el evento se reintentaba y
+        # los correos y SMS salian otra vez en cada intento.
         _emitir_webhook(db, ev, ticket, data)
         from app.services.service_desk.workflow_triggers import lanzar_flujos_del_evento
-        cuenta["flujos"] = lanzar_flujos_del_evento(db, ev, ticket, data)
+        flujos = lanzar_flujos_del_evento(db, ev, ticket, data)
+        peticion_resuelta = None
         if ev.kind == "status_changed" and data.get("new") in ESTADOS_DE_TICKET_CERRADOS:
             from app.services.service_desk.fulfillment_service import al_terminar_una_tarea
-            cuenta["peticion_resuelta"] = al_terminar_una_tarea(db, ticket)
+            peticion_resuelta = al_terminar_una_tarea(db, ticket)
+        cuenta = _avisar(db, ev, ticket, data)
+        cuenta["flujos"] = flujos
+        if peticion_resuelta is not None:
+            cuenta["peticion_resuelta"] = peticion_resuelta
         cuenta.update(_por_los_canales(db, ev, ticket, data))
     return cuenta
 

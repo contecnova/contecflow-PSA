@@ -645,9 +645,12 @@ def bulk_update_dates_record(db: Session, updates: list, current_user=None) -> d
 
 def record_reassign_feedback_bg(background_tasks, db, item_id: str, item_type: str):
     """Record reassignment as implicit negative feedback for the previous assignee."""
+    # Auditoría 22-11-2026 (M8): la tarea corre tras la petición; en su empresa.
+    from app.db.contexto_de_tenant import fijar_contexto
+    org_id = (getattr(db, "info", None) or {}).get("organization_id")
 
     def _run():
-        _db = SessionLocal()
+        _db = fijar_contexto(SessionLocal(), org_id, "retroalimentación semántica en segundo plano (por id)")
         try:
             from app.models.semantic_engine import SemAssignment
             assignment = _db.query(SemAssignment).filter(
@@ -667,9 +670,11 @@ def record_reassign_feedback_bg(background_tasks, db, item_id: str, item_type: s
 
 def refresh_profile_bg(background_tasks: "ProgramadorDeTareas", db: "Session", user_id: str) -> None:
     """Schedule a semantic profile refresh as a background task."""
+    from app.db.contexto_de_tenant import fijar_contexto
+    org_id = (getattr(db, "info", None) or {}).get("organization_id")
 
     def _run():
-        _db = SessionLocal()
+        _db = fijar_contexto(SessionLocal(), org_id, "perfil semántico en segundo plano (por id)")
         try:
             SemanticAssigner(_db).refresh_user_profile(user_id)
         except Exception:

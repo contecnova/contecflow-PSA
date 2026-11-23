@@ -1,9 +1,14 @@
+from app.services import numbering as _numeracion  # prefijos por defecto (§6)
 import uuid as _uuid
+from typing import Optional
 
 from sqlalchemy.orm import Session, joinedload
 
 from app.services.settings_service import por_empresa as _pe
-from app.models.pipeline import Opportunity, OpportunityActivity, OpportunityStage, PipelineStageConfig
+from app.models.pipeline import (
+    ETAPA_CANCELADA, ETAPA_GANADA, ETAPA_PERDIDA, ETAPAS_ABIERTAS, ETAPAS_CERRADAS,
+    Opportunity, OpportunityActivity, OpportunityStage, PipelineStageConfig, etapa_de,
+)
 from app.models.project import Project, ProjectStatus, ProjectType
 from app.models.user import User
 from app.services.numbering import next_numbered_code
@@ -163,7 +168,11 @@ def delete_opportunity(db: Session, current_user: User, opp_id: str) -> dict:
     return {"ok": True, "message": "Oportunidad eliminada correctamente"}
 
 
-def list_activities(db: Session, opp_id: str):
+def list_activities(db: Session, opp_id: str, current_user: Optional[User] = None):
+    """Auditoria 2026-11-22 (03, medios m-p): con `current_user`, solo las
+    actividades de una oportunidad que el sujeto ve (404 si no)."""
+    if current_user is not None:
+        oportunidad_propia(db, current_user, opp_id)
     return (
         db.query(OpportunityActivity)
         .options(joinedload(OpportunityActivity.user))
@@ -176,6 +185,9 @@ def list_activities(db: Session, opp_id: str):
 def add_activity(
     db: Session, current_user: User, opp_id: str, type_: str, content: str
 ) -> OpportunityActivity:
+    # Auditoria 2026-11-22 (03, medios m-p): antes se escribia en cualquier
+    # oportunidad (de otra empresa o ya borrada) con solo conocer su id.
+    oportunidad_propia(db, current_user, opp_id)
     act = OpportunityActivity(
         opportunity_id=opp_id,
         user_id=current_user.id,
@@ -197,7 +209,7 @@ def convert_opportunity_to_project(db: Session, current_user: User, opp_id: str)
     if str(getattr(opp.stage, "value", opp.stage)) in ("lost", "cancelled"):
         raise error(400, "oportunidad_no_convertible")
 
-    code = next_numbered_code(db, "project", prefix="PRJ", padding=4)
+    code = next_numbered_code(db, "project", prefix=_numeracion.PREFIJO_PROYECTO, padding=4)
 
     project = Project(
         id=str(_uuid.uuid4()),
@@ -279,8 +291,45 @@ def convert_opportunity_to_project(db: Session, current_user: User, opp_id: str)
 def get_active_opportunities_for_forecast(db: Session):
     return db.query(Opportunity).filter(
         Opportunity.is_active == True,
-        Opportunity.stage.notin_(["won", "lost", "cancelled"])
+        Opportunity.stage.notin_(ETAPAS_CERRADAS)
     ).all()
+
+
+def _ponderado(opp) -> float:
+    return float(opp.expected_revenue or 0) * float(opp.probability or 0) / 100
+
+
+def resumir_pipeline(opps) -> dict:
+    """Totales del pipeline con la regla de mercado (auditoría 04b M9).
+
+    - ``open_value`` / ``weighted_value``: solo etapas abiertas; perdidas y
+      canceladas no suman nunca (aunque conserven una probabilidad manual).
+    - ``win_rate`` = ganadas / (ganadas + perdidas), en %; las canceladas
+      («sin decisión») quedan fuera y se dan aparte (``cancelled_*``).
+    """
+    r = {k: 0 for k in ("open_count", "won_count", "lost_count", "cancelled_count")}
+    r.update({k: 0.0 for k in ("open_value", "weighted_value", "won_value", "lost_value", "cancelled_value")})
+    for o in opps:
+        etapa = etapa_de(o.stage)
+        importe = float(o.expected_revenue or 0)
+        if etapa in ETAPAS_ABIERTAS:
+            r["open_count"] += 1
+            r["open_value"] += importe
+            r["weighted_value"] += _ponderado(o)
+        elif etapa == ETAPA_GANADA:
+            r["won_count"] += 1
+            r["won_value"] += importe
+        elif etapa == ETAPA_PERDIDA:
+            r["lost_count"] += 1
+            r["lost_value"] += importe
+        elif etapa == ETAPA_CANCELADA:
+            r["cancelled_count"] += 1
+            r["cancelled_value"] += importe
+    decididas = r["won_count"] + r["lost_count"]
+    r["win_rate"] = round(r["won_count"] / decididas * 100, 1) if decididas else 0.0
+    for k in ("open_value", "weighted_value", "won_value", "lost_value", "cancelled_value"):
+        r[k] = round(r[k], 2)
+    return r
 
 
 def list_stage_configs(db: Session):
@@ -294,7 +343,7 @@ def list_stage_configs(db: Session):
         # Defaults si la base está vacía
         defaults = [
             dict(stage_key=k, label=v, order=i, probability_default=STAGE_PROB[k],
-                 description=None, color=None, is_terminal=(k in ("won", "lost", "cancelled")), is_won=(k == "won"), id=k)
+                 description=None, color=None, is_terminal=(k in ETAPAS_CERRADAS), is_won=(k == ETAPA_GANADA), id=k)
             for i, (k, v) in enumerate(STAGE_LABELS.items())
         ]
         # Simula objetos con atributos para compatibilidad

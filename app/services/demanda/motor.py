@@ -11,7 +11,6 @@ con la anterior del mismo expediente) y un `audit_log`. Nadie escribe
 """
 from __future__ import annotations
 
-import hashlib
 import json
 import logging
 from datetime import datetime, timedelta, timezone
@@ -22,6 +21,7 @@ from sqlalchemy.orm import Session
 from app.core.codigos_de_error import error
 from app.services.demanda import definicion as D
 from app.services.demanda.acceso import SISTEMA, Actor, es_responsable, exigir_segregacion, miembros_de_grupo
+from app.services.demanda.registro import _hash, ahora, datos_de, flujo_de, jload, registrar  # noqa: F401
 
 logger = logging.getLogger(__name__)
 
@@ -30,30 +30,10 @@ CERRADOS = ("approved", "rejected", "withdrawn", "done")
 TIPO_DE_APROBACION = "demand_step"
 
 
-def ahora() -> datetime:
-    return datetime.now(timezone.utc)
-
-
 def _aware(dt: Optional[datetime]) -> Optional[datetime]:
     if dt is None:
         return None
     return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
-
-
-def jload(texto, defecto):
-    try:
-        v = json.loads(texto) if texto else defecto
-    except (TypeError, ValueError):
-        return defecto
-    return v if v is not None else defecto
-
-
-def flujo_de(req) -> dict:
-    return D.cargar(req.flow_snapshot)
-
-
-def datos_de(req) -> dict:
-    return jload(req.data, {})
 
 
 def fase_actual(req) -> Optional[dict]:
@@ -61,43 +41,6 @@ def fase_actual(req) -> Optional[dict]:
 
 
 # ── Log inmutable ────────────────────────────────────────────────────────────
-
-def _hash(previo: Optional[str], fila: dict) -> str:
-    base = json.dumps(fila, sort_keys=True, ensure_ascii=False, default=str)
-    return hashlib.sha256(((previo or "") + base).encode("utf-8")).hexdigest()
-
-
-def registrar(db: Session, req, actor: Actor, decision: str, *, desde: Optional[str] = None,
-              hacia: Optional[str] = None, paso: Optional[str] = None, justificacion: Optional[str] = None,
-              estado_previo: Optional[str] = None, bypass: bool = False, datos: Optional[dict] = None):
-    """Añade una transición al log del expediente (y al registro de auditoría)."""
-    from app.models.demanda import DemandTransition
-    from app.services.audit import audit_log
-    ultima = db.query(DemandTransition).filter(DemandTransition.request_id == req.id) \
-        .order_by(DemandTransition.seq.desc()).first()
-    seq = (ultima.seq + 1) if ultima else 1
-    momento = ahora()
-    fila = {"request_id": req.id, "seq": seq, "from_phase": desde, "to_phase": hacia, "step_key": paso,
-            "decision": decision, "from_status": estado_previo, "to_status": req.status,
-            "actor_user_id": actor.id if actor.kind == "user" else None,
-            "actor_client_id": actor.id if actor.kind == "client" else None,
-            "actor_role": actor.rol, "justification": justificacion, "is_bypass": bypass,
-            "at": momento.isoformat()}
-    t = DemandTransition(organization_id=req.organization_id, request_id=req.id, seq=seq, from_phase=desde,
-                         to_phase=hacia, step_key=paso, decision=decision, from_status=estado_previo,
-                         to_status=req.status, actor_user_id=fila["actor_user_id"],
-                         actor_client_id=fila["actor_client_id"], actor_name=actor.nombre[:255] or None,
-                         actor_role=actor.rol, justification=justificacion, is_bypass=bypass,
-                         payload=json.dumps(datos, ensure_ascii=False, default=str) if datos else None,
-                         prev_hash=ultima.hash if ultima else None, created_at=momento)
-    t.hash = _hash(t.prev_hash, fila)
-    db.add(t)
-    audit_log(db, actor.user if actor.kind == "user" else None, f"DEMAND_{decision.upper()}", "demand_request",
-              req.id, req.code, new_values={"phase": hacia or desde, "status": req.status, "step": paso},
-              metadata={"justification": justificacion, "bypass": bypass, "actor_kind": actor.kind,
-                        "client_user_id": actor.id if actor.kind == "client" else None})
-    return t
-
 
 def verificar_cadena(db: Session, req) -> bool:
     """Comprueba el hash encadenado del log de un expediente."""
@@ -268,8 +211,8 @@ def cerrar(db: Session, req, actor: Actor, estado: str, decision: str, *, justif
     registrar(db, req, actor, decision, desde=desde, hacia=None, paso=paso, justificacion=justificacion,
               estado_previo=estado_previo, bypass=bypass, datos=datos_extra)
     if estado in ("approved", "rejected"):
-        from app.services.demanda import ejecucion
-        ejecucion.acciones_al_cerrar(db, req, actor, estado)
+        from app.services.demanda.ejecucion import acciones_al_cerrar
+        acciones_al_cerrar(db, req, actor, estado)
     from app.services.demanda import avisos
     avisos.emitir(db, req, "closed", fase_actual(req))
 

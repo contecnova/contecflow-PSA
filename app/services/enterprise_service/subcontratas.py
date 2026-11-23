@@ -530,6 +530,10 @@ def get_timelogs(sub_id: str, project_id, db: Session) -> list:
     } for l in q.order_by(SubcontractorTimeLog.log_date.desc()).all()]
 
 
+#: A43: un parte es de un día; más de 24 horas en un parte es un error de tecleo.
+_HORAS_MAX_POR_PARTE = 24.0
+
+
 def create_timelog(sub_id: str, payload: dict, db: Session) -> dict:
     """Parte manual: SOLO para personas externas sin acceso (o importado).
 
@@ -563,11 +567,22 @@ def create_timelog(sub_id: str, payload: dict, db: Session) -> dict:
     fecha = payload.get("log_date")
     fecha = _date.fromisoformat(fecha) if isinstance(fecha, str) else fecha
     horas = float(payload.get("hours", 0))
-    cost_amount = payload.get("cost_amount")
-    if not cost_amount and assignment is not None:
-        t = tarifa_de_asignacion(db, assignment, fecha or _date.today())
-        if t:
-            cost_amount = round(horas * t[0], 2)
+    # A43 (auditoría 22-11-2026): el coste SIEMPRE sale de la tarifa vigente de
+    # la asignación en la fecha (estándar PSA: el coste de un recurso externo
+    # es horas × tarifa de compra pactada; no se teclea). Antes llegaba libre
+    # del cliente (incluso negativo) o quedaba NULL sin tarifa y desaparecía
+    # del margen y del EVM sin aviso.
+    if not (0 < horas <= _HORAS_MAX_POR_PARTE):
+        from app.core.codigos_de_error import error
+        raise error(422, "horas_fuera_de_rango", minimo=0, maximo=_HORAS_MAX_POR_PARTE)
+    if assignment is None:
+        from app.core.codigos_de_error import error
+        raise error(422, "campo_obligatorio", campo="assignment_id")
+    t = tarifa_de_asignacion(db, assignment, fecha or _date.today())
+    if not t:
+        from app.core.codigos_de_error import error
+        raise error(422, "externo_sin_tarifa")
+    cost_amount = round(horas * t[0], 2)
     source = payload.get("source") if payload.get("source") in ("manual", "import") else "manual"
     log = SubcontractorTimeLog(
         id=str(_uuid.uuid4()), subcontractor_id=sub_id, organization_id=sub.organization_id,
@@ -611,6 +626,8 @@ def get_sub_invoices(sub_id: str, db: Session) -> list:
         "currency": i.currency, "status": i.status,
         "paid_date": str(i.paid_date) if i.paid_date else None,
         "description": i.description, "contract_id": i.contract_id, "created_by": i.created_by,
+        # Migracion 200: quien la aprobo y cuando.
+        "approved_by": i.approved_by, "approved_at": i.approved_at.isoformat() if i.approved_at else None,
     } for i in invs]
 
 
@@ -651,30 +668,89 @@ def create_sub_invoice(sub_id: str, payload: dict, current_user, db: Session) ->
     return {"ok": True, "id": inv.id, "total": total, "bpm_instance_id": instancia}
 
 
-def update_sub_invoice(sub_id: str, inv_id: str, payload: dict, db: Session) -> dict:
+#: A42 (auditoría 22-11-2026): ciclo de una factura de proveedor (estándar de
+#: cuentas a pagar: recibida → aprobada → pagada; o recibida → rechazada). No
+#: se salta a «pagada» sin aprobar ni se reabre lo pagado.
+TRANSICIONES_DE_FACTURA = {
+    "received": {"approved", "rejected"},
+    "approved": {"paid", "rejected"},
+    "rejected": {"received"},
+    "paid": set(),
+}
+
+
+def update_sub_invoice(sub_id: str, inv_id: str, payload: dict, db: Session, current_user=None) -> dict:
+    """Cambia estado, fecha de pago o descripción de una factura de subcontrata.
+
+    A42: transiciones válidas (`TRANSICIONES_DE_FACTURA`); segregación de
+    funciones: quien registró la factura no la aprueba ni la paga; pagar exige
+    fecha de pago; cada cambio queda en `audit_log` con quién lo hizo.
+    """
+    from app.core.codigos_de_error import error
     inv = db.query(SubcontractorInvoice).filter(
         SubcontractorInvoice.id == inv_id, SubcontractorInvoice.subcontractor_id == sub_id
     ).first()
     if not inv:
         raise ValueError("not_found")
-    for k in ["status", "paid_date", "description"]:
-        if k in payload:
-            setattr(inv, k, payload[k])
+    antes = {"status": inv.status, "paid_date": str(inv.paid_date) if inv.paid_date else None,
+             "description": inv.description, "approved_by": inv.approved_by}
+    nuevo = payload.get("status")
+    if nuevo is not None and nuevo != inv.status:
+        actual = inv.status or "received"
+        if nuevo not in TRANSICIONES_DE_FACTURA.get(actual, set()):
+            raise error(409, "factura_subcontrata_transicion_no_valida", desde=actual, hasta=nuevo)
+        if nuevo in ("approved", "paid") and current_user is not None and inv.created_by \
+                and inv.created_by == getattr(current_user, "id", None):
+            raise error(403, "factura_subcontrata_misma_persona")
+        if nuevo == "paid" and not (payload.get("paid_date") or inv.paid_date):
+            raise error(422, "campo_obligatorio", campo="paid_date")
+        if nuevo == "approved":
+            # Migracion 200: queda quien la aprobo y cuando (evidencia de la segregacion).
+            from datetime import datetime as _dt, timezone as _tz
+            inv.approved_by = getattr(current_user, "id", None)
+            inv.approved_at = _dt.now(_tz.utc)
+        elif nuevo in ("rejected", "received"):
+            # Rechazada o devuelta a recibida: la aprobacion anterior ya no vale.
+            inv.approved_by = None
+            inv.approved_at = None
+        inv.status = nuevo
+    if "paid_date" in payload:
+        if inv.status != "paid" and payload["paid_date"]:
+            raise error(409, "factura_subcontrata_transicion_no_valida", desde=inv.status, hasta="paid")
+        inv.paid_date = payload["paid_date"]
+    if "description" in payload:
+        inv.description = payload["description"]
+    db.flush()
+    if current_user is not None:
+        audit_log(db, current_user, "UPDATE", "subcontractor_invoices", inv.id, inv.invoice_number,
+                  old_values=antes, new_values={k: payload[k] for k in ("status", "paid_date", "description")
+                                                if k in payload})
     db.commit()
-    return {"ok": True}
+    return {"ok": True, "status": inv.status, "approved_by": inv.approved_by,
+            "approved_at": inv.approved_at.isoformat() if inv.approved_at else None}
 
 
 # ── Subcontractor Dashboard ───────────────────────────────────────────────────
 
 def get_subcontractors_dashboard(db: Session) -> dict:
+    from sqlalchemy import or_
+    from app.core import timeutil
+    hoy = timeutil.today()
     total_subs   = db.query(func.count(Subcontractor.id)).filter(Subcontractor.is_active == True).scalar()
-    active_assgn = db.query(func.count(SubcontractorAssignment.id)).scalar()
+    # M19 (auditoría 22-11-2026): asignaciones VIVAS (activas y sin terminar),
+    # no todas las que hubo; «pagado» solo lo pagado (lo aprobado va aparte).
+    active_assgn = db.query(func.count(SubcontractorAssignment.id)).filter(
+        SubcontractorAssignment.is_active.is_(True), SubcontractorAssignment.ended_at.is_(None),
+        or_(SubcontractorAssignment.end_date.is_(None), SubcontractorAssignment.end_date >= hoy)).scalar()
     pending_invs = db.query(func.count(SubcontractorInvoice.id)).filter(SubcontractorInvoice.status == "received").scalar()
-    total_cost   = db.query(func.sum(SubcontractorInvoice.total)).filter(SubcontractorInvoice.status.in_(["approved", "paid"])).scalar() or 0
+    total_cost   = db.query(func.sum(SubcontractorInvoice.total)).filter(SubcontractorInvoice.status == "paid").scalar() or 0
+    approved_unpaid = db.query(func.sum(SubcontractorInvoice.total)).filter(
+        SubcontractorInvoice.status == "approved").scalar() or 0
     pending_cost = db.query(func.sum(SubcontractorInvoice.total)).filter(SubcontractorInvoice.status == "received").scalar() or 0
     total_hours  = db.query(func.sum(SubcontractorTimeLog.hours)).filter(SubcontractorTimeLog.is_active == True).scalar() or 0
     return {
         "total_active_subs": total_subs, "active_assignments": active_assgn,
         "pending_invoices": pending_invs, "total_paid_cost": round(total_cost, 2),
         "pending_approval_cost": round(pending_cost, 2), "total_hours_logged": round(total_hours, 1),
+        "approved_unpaid_cost": round(float(approved_unpaid), 2),
     }

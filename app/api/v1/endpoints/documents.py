@@ -11,6 +11,7 @@ import logging
 import mimetypes
 
 from app.core.deps import get_db, get_current_user
+from app.core.network import ip_del_cliente
 from app.core.config import settings
 from app.core.abac_enforce import enforce_abac
 from app.core.responses import APIListResponse, APIResponse
@@ -150,7 +151,7 @@ def get_document(
     enforce_abac(db, current_user, "document", doc_id, action="read")
     doc = get_document_or_404(db, doc_id, current_user)
     check_document_access(doc, current_user)
-    doc_svc.log_document_view(db, doc.id, current_user.id, request.client.host if request.client else None)
+    doc_svc.log_document_view(db, doc.id, current_user.id, ip_del_cliente(request))
     return APIResponse.ok(data=serialize_document(db, doc, current_user))
 
 
@@ -219,9 +220,8 @@ def upload_version(
     org_id = getattr(current_user, "organization_id", None)
     _max_mb = get_runtime_int(db, "MAX_FILE_SIZE_MB", org_id) or settings.MAX_FILE_SIZE_MB
     max_file_size_bytes = _max_mb * 1024 * 1024
-    content = file.file.read(max_file_size_bytes + 1)
-    if len(content) > max_file_size_bytes:
-        raise error_http(413, "documentos_demasiado_grande", detail=f"File too large (max {_max_mb}MB)", max=_max_mb)
+    from app.core.uploads import read_upload_within_limit_sync
+    content = read_upload_within_limit_sync(file, max_file_size_bytes)
     # content already holds the complete file bytes — no need to re-read
 
     # P0-2: Validate MIME type and magic bytes
@@ -245,7 +245,7 @@ def upload_version(
 
     # Create version record
     try:
-        version = doc_svc.create_document_version(db, doc, doc_id, file, content, change_note, current_user, s3_key, file_size)
+        version = doc_svc.create_document_version(db, doc, doc_id, file, change_note, current_user, s3_key, file_size)
     except Exception:
         logger.exception("DB write failed for new version of doc=%s; rolling back storage upload", doc_id)
         # Prevent storage/DB split-brain when upload succeeds but DB fails.
@@ -348,7 +348,7 @@ def remove_permission(
     doc = get_document_or_404(db, doc_id, current_user)
     check_document_access(doc, current_user, DocumentAccessLevel.admin)
 
-    doc_svc.remove_document_permission(db, doc_id, perm_id)
+    doc_svc.remove_document_permission(db, doc_id, perm_id, current_user)   # M82: auditado
     return APIResponse.ok(data={"status": "revoked"})
 
 
@@ -404,9 +404,8 @@ def create_and_upload(
     from app.services.settings_service import get_runtime_int
     _max_mb = get_runtime_int(db, "MAX_FILE_SIZE_MB", getattr(current_user, "organization_id", None)) or settings.MAX_FILE_SIZE_MB
     max_bytes = _max_mb * 1024 * 1024
-    content = file.file.read(max_bytes + 1)
-    if len(content) > max_bytes:
-        raise error_http(413, "documentos_demasiado_grande", detail=f"File exceeds maximum size of {_max_mb} MB", max=_max_mb)
+    from app.core.uploads import read_upload_within_limit_sync
+    content = read_upload_within_limit_sync(file, max_bytes)
 
     # P0-2: Validate MIME type and magic bytes
     _validate_upload(file.filename or "", file.content_type or "", content)
@@ -490,7 +489,7 @@ def serve_local_file(
 
     # Audit trail for file download
     if current_user is not None:
-        doc_svc.log_document_download(db, doc.id, current_user.id, request.client.host if request.client else None)
+        doc_svc.log_document_download(db, doc.id, current_user.id, ip_del_cliente(request))
     # SVG served inline allows JS execution (XSS); force download for SVG
     disposition = "attachment" if mime_type == "image/svg+xml" else "inline"
     return StreamingResponse(

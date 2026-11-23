@@ -16,31 +16,28 @@ from sqlalchemy.orm import Session
 
 from app.core.abac_enforce import enforce_abac
 from app.core.deps import (
-    RequireRole,
     get_current_user,
-    require_admin,
-    require_any_manager,
     requiere_capacidad,
 )
 from app.core.errores import ErrorDeDominio
 from app.core.periodo import SIN_HORA, Periodo, periodo
 from app.core.responses import APIListResponse, APIResponse
 from app.db.session import get_db
-from app.models.user import User, UserRole
+from app.models.user import User
 from app.services.alm_integracion import autoservicio, bajas, catalogo, kits, proyecto
 
 router = APIRouter()
 
-#: Quien lleva altas y bajas: administración y RRHH (y el PM, que da equipo a su gente).
-require_gestor_de_personas = RequireRole(UserRole.admin, UserRole.hr, UserRole.pm)
-
-
 def _exigir_gestor_de_personas(user: User) -> None:
-    """Las escrituras de altas y bajas cuelgan de `require_any_manager` (guarda con
-    nombre, que los barridos de guardas ven y sondean) y aquí se aplica además
-    `require_gestor_de_personas`, que deja fuera al jefe de equipo: el resultado
-    es el mismo conjunto de antes (admin, RRHH o PM), con el mismo 403."""
-    require_gestor_de_personas(current_user=user)
+    """Quien lleva altas y bajas: administración y RRHH (y el PM, que da equipo a su gente).
+
+    Las escrituras de altas y bajas cuelgan de `requiere_capacidad("alm.gestionar")`
+    (gestores, en la firma: los barridos de guardas la ven y la sondean) y aquí se
+    exige además la capacidad `alm.personas` (admin, PM y RRHH), que deja fuera al
+    jefe de equipo. Auditoría 22-11-2026 (M9): antes era una `RequireRole` hecha a
+    mano con esos mismos roles; `alm.personas` no tiene módulo, así que la
+    audiencia es la misma (403 `capacidad_requerida`)."""
+    requiere_capacidad("alm.personas")(current_user=user, db=None)
 
 
 def _ip(request: Request) -> Optional[str]:
@@ -112,7 +109,7 @@ def detalle_baja(baja_id: str, db: Session = Depends(get_db), user: User = Depen
 
 @router.post("/bajas/programar", summary="Programar la baja de una persona (fin de contrato)")
 def programar_baja(datos: dict = Body(...), db: Session = Depends(get_db),
-                   user: User = Depends(require_any_manager)):
+                   user: User = Depends(requiere_capacidad("alm.gestionar"))):
     _exigir_gestor_de_personas(user)
     enforce_abac(db, user, "alm", None, action="update")
     return APIResponse.ok(data=bajas.programar_baja(db, datos.get("user_id"), datos.get("fecha"), user,
@@ -120,26 +117,26 @@ def programar_baja(datos: dict = Body(...), db: Session = Depends(get_db),
 
 
 @router.post("/bajas/{baja_id}/anular", summary="Anular una baja programada")
-def anular_baja(baja_id: str, db: Session = Depends(get_db), user: User = Depends(require_any_manager)):
+def anular_baja(baja_id: str, db: Session = Depends(get_db), user: User = Depends(requiere_capacidad("alm.gestionar"))):
     _exigir_gestor_de_personas(user)
     enforce_abac(db, user, "alm", baja_id, action="update")
     return APIResponse.ok(data=bajas.anular_baja(db, baja_id, user))
 
 
 @router.get("/personas/{user_id}/previa-baja", summary="Qué pasará con sus licencias y equipos si se da de baja")
-def previa_baja(user_id: str, db: Session = Depends(get_db), user: User = Depends(require_admin)):
+def previa_baja(user_id: str, db: Session = Depends(get_db), user: User = Depends(requiere_capacidad("alm.administrar"))):
     return APIResponse.ok(data=bajas.previsualizar_persona(db, user_id))
 
 
 @router.get("/devoluciones", summary="Devoluciones de equipo")
 def listar_devoluciones(estado: Optional[str] = None, db: Session = Depends(get_db),
-                        user: User = Depends(require_any_manager)):
+                        user: User = Depends(requiere_capacidad("alm.gestionar"))):
     return APIListResponse.ok(items=bajas.listar_devoluciones(db, estado=estado))
 
 
 @router.post("/devoluciones/{dev_id}/recibir", summary="Registrar que el equipo ha vuelto (acta de devolución)")
 def recibir(dev_id: str, datos: dict = Body(default={}), db: Session = Depends(get_db),
-            user: User = Depends(require_any_manager)):
+            user: User = Depends(requiere_capacidad("alm.gestionar"))):
     enforce_abac(db, user, "alm", dev_id, action="update")
     return APIResponse.ok(data=bajas.registrar_recepcion(
         db, dev_id, user, condition=datos.get("condition"), checklist=datos.get("checklist"),
@@ -148,7 +145,7 @@ def recibir(dev_id: str, datos: dict = Body(default={}), db: Session = Depends(g
 
 @router.post("/devoluciones/{dev_id}/perdida", summary="Dar el equipo por perdido")
 def perdida(dev_id: str, datos: dict = Body(...), db: Session = Depends(get_db),
-            user: User = Depends(require_any_manager)):
+            user: User = Depends(requiere_capacidad("alm.gestionar"))):
     enforce_abac(db, user, "alm", dev_id, action="update")
     return APIResponse.ok(data=bajas.marcar_perdida(db, dev_id, user, datos.get("motivo") or ""))
 
@@ -183,25 +180,25 @@ def borrar_kit(kit_id: str, db: Session = Depends(get_db),
 
 @router.get("/propuestas", summary="Propuestas de kit (las mías o, para administración y RRHH, todas)")
 def listar_propuestas(estado: Optional[str] = None, db: Session = Depends(get_db),
-                      user: User = Depends(require_any_manager)):
+                      user: User = Depends(requiere_capacidad("alm.gestionar"))):
     filas = kits.listar_propuestas(db, user, estado)
     return APIListResponse.ok(items=[f for f in filas if f["puedo_decidir"] or f["responsable_id"] == user.id])
 
 
 @router.post("/propuestas/{pid}/confirmar", summary="Confirmar el kit con un clic")
 def confirmar(pid: str, datos: dict = Body(default={}), db: Session = Depends(get_db),
-              user: User = Depends(require_any_manager)):
+              user: User = Depends(requiere_capacidad("alm.gestionar"))):
     return APIResponse.ok(data=kits.confirmar(db, pid, user, datos.get("claves")))
 
 
 @router.post("/propuestas/{pid}/descartar", summary="Descartar la propuesta de kit")
 def descartar(pid: str, datos: dict = Body(default={}), db: Session = Depends(get_db),
-              user: User = Depends(require_any_manager)):
+              user: User = Depends(requiere_capacidad("alm.gestionar"))):
     return APIResponse.ok(data=kits.descartar(db, pid, user, datos.get("motivo")))
 
 
 @router.post("/personas/{user_id}/proponer-kit", summary="Proponer el kit a una persona (p. ej. tras cambiar de puesto)")
-def proponer_kit(user_id: str, db: Session = Depends(get_db), user: User = Depends(require_any_manager)):
+def proponer_kit(user_id: str, db: Session = Depends(get_db), user: User = Depends(requiere_capacidad("alm.gestionar"))):
     _exigir_gestor_de_personas(user)
     return APIResponse.ok(data=kits.proponer_confirmado(db, user_id, user))
 
@@ -209,35 +206,35 @@ def proponer_kit(user_id: str, db: Session = Depends(get_db), user: User = Depen
 # ── Catálogo ──────────────────────────────────────────────────────────────────
 
 @router.get("/catalogo/items", summary="Ítems del catálogo que piden licencia o equipo")
-def items(db: Session = Depends(get_db), user: User = Depends(require_any_manager)):
+def items(db: Session = Depends(get_db), user: User = Depends(requiere_capacidad("alm.gestionar"))):
     return APIListResponse.ok(items=catalogo.listar_items(db))
 
 
 @router.post("/catalogo/items", summary="Marcar un ítem del catálogo como de licencia o equipo")
-def guardar_item(datos: dict = Body(...), db: Session = Depends(get_db), user: User = Depends(require_admin)):
+def guardar_item(datos: dict = Body(...), db: Session = Depends(get_db), user: User = Depends(requiere_capacidad("alm.administrar"))):
     enforce_abac(db, user, "alm", None, action="update")
     return APIResponse.ok(data=catalogo.guardar_item(db, datos, user))
 
 
 @router.post("/catalogo/items/crear", summary="Crear «Pedir licencia» y «Pedir equipo» en una categoría")
-def crear_items(datos: dict = Body(...), db: Session = Depends(get_db), user: User = Depends(require_admin)):
+def crear_items(datos: dict = Body(...), db: Session = Depends(get_db), user: User = Depends(requiere_capacidad("alm.administrar"))):
     enforce_abac(db, user, "alm", None, action="create")
     return APIListResponse.ok(items=catalogo.crear_items(db, datos.get("category_id"), datos.get("nombres") or {}, user))
 
 
 @router.delete("/catalogo/items/{mapeo_id}", summary="Quitar la marca de ALM a un ítem del catálogo")
-def borrar_item(mapeo_id: str, db: Session = Depends(get_db), user: User = Depends(require_admin)):
+def borrar_item(mapeo_id: str, db: Session = Depends(get_db), user: User = Depends(requiere_capacidad("alm.administrar"))):
     enforce_abac(db, user, "alm", mapeo_id, action="delete")
     return APIResponse.ok(data=catalogo.borrar_item(db, mapeo_id, user))
 
 
 @router.get("/peticiones", summary="Peticiones de licencia o equipo")
-def peticiones(estado: Optional[str] = None, db: Session = Depends(get_db), user: User = Depends(require_any_manager)):
+def peticiones(estado: Optional[str] = None, db: Session = Depends(get_db), user: User = Depends(requiere_capacidad("alm.gestionar"))):
     return APIListResponse.ok(items=catalogo.listar(db, estado=estado))
 
 
 @router.post("/peticiones/{pid}/reintentar", summary="Volver a intentar el alta (tras la compra)")
-def reintentar(pid: str, db: Session = Depends(get_db), user: User = Depends(require_any_manager)):
+def reintentar(pid: str, db: Session = Depends(get_db), user: User = Depends(requiere_capacidad("alm.gestionar"))):
     enforce_abac(db, user, "alm", pid, action="update")
     return APIResponse.ok(data=catalogo.reintentar(db, pid, user))
 
@@ -273,7 +270,7 @@ def liberar(project_id: str, aid: str, datos: dict = Body(default={}), db: Sessi
 # ── Ticket ↔ recurso ──────────────────────────────────────────────────────────
 
 @router.get("/recursos/{tipo}/{recurso_id}/tickets", summary="Tickets de un activo o una licencia")
-def tickets(tipo: str, recurso_id: str, db: Session = Depends(get_db), user: User = Depends(require_any_manager)):
+def tickets(tipo: str, recurso_id: str, db: Session = Depends(get_db), user: User = Depends(requiere_capacidad("alm.gestionar"))):
     from app.services.alm_integracion import _comun
     if tipo not in (_comun.ENLACE_ACTIVO, _comun.ENLACE_LICENCIA):
         raise ErrorDeDominio(422, "almint_tipo_invalido")

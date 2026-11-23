@@ -11,7 +11,7 @@ from app.core.periodo import CON_HORA, Periodo, periodo
 from app.core.uploads import UploadProfile, read_and_validate_upload_sync
 from app.db.session import get_db
 from app.core.config import settings
-from app.core.deps import get_current_user, require_any_manager, require_internal_user, requiere_capacidad
+from app.core.deps import get_current_user, requiere_capacidad
 from app.models.user import User
 from app.services.billing_reports.history_service import (
     get_import_jobs,
@@ -126,13 +126,13 @@ IMPORT_TEMPLATES = _svc.IMPORT_TEMPLATES
 @router.get("/report-catalog/catalog", response_model=APIResponse[Dict[str, Any]], summary="Catálogo de informes disponibles")
 def report_catalog(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("facturacion.gestionar")),
 ):
     return APIResponse.ok(data=build_report_catalog(db, current_user))
 
 
 @router.get("/report-catalog/data-sources", response_model=APIResponse[Dict[str, Any]], summary="Fuentes de datos disponibles")
-def report_data_sources(current_user: User = Depends(require_any_manager), db: Session = Depends(get_db)):
+def report_data_sources(current_user: User = Depends(requiere_capacidad("facturacion.gestionar")), db: Session = Depends(get_db)):
     return APIResponse.ok(data=get_data_sources(db, current_user.organization_id))
 
 
@@ -140,7 +140,7 @@ def report_data_sources(current_user: User = Depends(require_any_manager), db: S
 def run_report(
     payload: dict = Body(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("facturacion.gestionar")),
 ):
     report_id = payload.get("report_id")
     data_source = payload.get("data_source", "projects")
@@ -177,7 +177,7 @@ def run_report(
 def save_report(
     payload: ReportSave,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("facturacion.gestionar")),
 ):
     return APIResponse.ok(data=_svc.save_report_definition(payload, current_user, db))
 
@@ -186,7 +186,7 @@ def save_report(
 def delete_report(
     report_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("facturacion.gestionar")),
 ):
     enforce_abac(db, current_user, "billing_report_definition", report_id, action="delete")
     return APIResponse.ok(data=_svc.delete_report_definition(report_id, current_user.id, db))
@@ -281,7 +281,7 @@ def list_invoices(
     page_size: int = Query(50, ge=1, le=MAX_TAMANO_DE_PAGINA),
     response: Response = None,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("facturacion.gestionar")),
 ):
     q, total = _svc.query_invoices(db, project_id, status)
     invoices = q.offset((page - 1) * page_size).limit(page_size).all()
@@ -298,7 +298,7 @@ def list_invoices(
 def invoice_from_timesheets(
     payload: dict = Body(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("facturacion.gestionar")),
 ):
     return APIResponse.ok(data=build_invoice_preview_from_timesheets_flow(
         db=db,
@@ -313,7 +313,7 @@ def invoice_from_timesheets(
 def create_invoice(
     payload: InvoiceCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("facturacion.gestionar")),
 ):
     return APIResponse.ok(data=_svc.create_invoice(payload, current_user, db))
 
@@ -323,7 +323,7 @@ def update_invoice_status(
     invoice_id: str,
     payload: dict = Body(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("facturacion.gestionar")),
 ):
     return APIResponse.ok(data=_svc.update_invoice_status(invoice_id, payload, current_user, db))
 
@@ -336,7 +336,7 @@ def update_invoice_status(
 def download_invoice_pdf(
     invoice_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("facturacion.gestionar")),
 ):
     from fastapi.responses import Response
     from app.services import invoice_pdf as _invoice_pdf
@@ -361,7 +361,7 @@ def download_invoice_pdf(
 @router.get("/invoices/summary", response_model=APIResponse[InvoiceSummaryOut], summary="Resumen financiero de facturas")
 def invoice_summary(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("facturacion.gestionar")),
 ):
     return APIResponse.ok(data=_svc.get_invoice_summary(db))
 
@@ -383,7 +383,7 @@ def agent_performance(
     # Periodo libre (16-11-2026): `days` sigue valiendo (últimos N días).
     p: Periodo = Depends(periodo(dias_por_defecto=30, granularidades=CON_HORA, serie=False)),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("facturacion.gestionar")),
 ):
     items = _svc.get_agent_performance(p, db)
     return APIListResponse.ok(items=items, total=len(items))
@@ -395,7 +395,7 @@ def pause_resume_sla(
     payload: dict = Body(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: excepcion revisada: gestion del SLA por el agente
+    _rol: User = Depends(requiere_capacidad("facturacion.usar")),  # auditoria 2026-09: excepcion revisada: gestion del SLA por el agente
 ):
     return APIResponse.ok(data=_svc.pause_resume_sla(ticket_id, payload, db))
 
@@ -407,7 +407,7 @@ def pause_resume_sla(
 @router.get("/automation-workflows", response_model=APIListResponse[AutomationWorkflowOut], summary="Listar workflows multi-paso")
 def list_workflows(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("facturacion.gestionar")),
 ):
     items = _svc.list_workflows_all(db)
     return APIListResponse.ok(items=items, total=len(items))
@@ -417,7 +417,7 @@ def list_workflows(
 def create_workflow(
     payload: WorkflowCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("facturacion.gestionar")),
 ):
     return APIResponse.ok(data=_svc.create_workflow(payload, current_user, db))
 
@@ -426,7 +426,7 @@ def create_workflow(
 def update_workflow(
     wf_id: str, payload: dict = Body(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("facturacion.gestionar")),
 ):
     return APIResponse.ok(data=_svc.update_workflow(wf_id, payload, db))
 
@@ -435,7 +435,7 @@ def update_workflow(
 def delete_workflow(
     wf_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("facturacion.gestionar")),
 ):
     enforce_abac(db, current_user, "billing_automation_workflow", wf_id, action="delete")
     return APIResponse.ok(data=_svc.delete_workflow(wf_id, db))
@@ -448,7 +448,7 @@ def workflow_executions(
     page_size: int = Query(20, ge=1, le=MAX_TAMANO_DE_PAGINA),
     response: Response = None,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("facturacion.gestionar")),
 ):
     items = get_workflow_executions(db, wf_id, page, page_size, response)
     return APIListResponse.ok(items=items, total=len(items), page=page, page_size=page_size)
@@ -459,7 +459,7 @@ def run_workflow_now(
     wf_id: str,
     payload: dict = Body(default={}),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("facturacion.gestionar")),
 ):
     context = payload.get("context") or {}
     return APIResponse.ok(data=_bookings_svc.execute_workflow_now_record(wf_id, context, current_user.id, db))
@@ -471,7 +471,7 @@ def update_workflow_step_retries(
     step_id: str,
     payload: dict = Body(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("facturacion.gestionar")),
 ):
     return APIResponse.ok(data=_bookings_svc.configurar_reintentos_de_paso(
         db, current_user, wf_id, step_id, payload))
@@ -484,7 +484,7 @@ def update_workflow_step_retries(
 @router.get("/templates", response_model=APIListResponse[ProjectTemplateOut], summary="Listar plantillas de proyecto")
 def list_templates(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("facturacion.gestionar")),
 ):
     items = _svc.list_templates_all(db, current_user)
     return APIListResponse.ok(items=items, total=len(items))
@@ -494,7 +494,7 @@ def list_templates(
 def create_template(
     payload: TemplateCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("facturacion.gestionar")),
 ):
     return APIResponse.ok(data=_svc.create_template(payload, current_user, db))
 
@@ -504,7 +504,7 @@ def instantiate_template(
     template_id: str,
     payload: dict = Body(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("facturacion.gestionar")),
 ):
     try:
         return APIResponse.ok(data=_svc.instantiate_template(template_id, payload, current_user, db))
@@ -520,7 +520,7 @@ def instantiate_template(
 def smartmatch(
     payload: dict = Body(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("facturacion.gestionar")),
 ):
     return APIResponse.ok(data=_svc.smartmatch(payload, db))
 
@@ -532,7 +532,7 @@ def list_scheduled_reports(
     db: Session = Depends(get_db),
     # Auditoria 2026-11: los mismos roles que crean (antes cualquiera veia los
     # informes de su organizacion y sus destinatarios).
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("facturacion.gestionar")),
 ):
     items = _svc.list_scheduled_reports(db)
     return APIListResponse.ok(items=items, total=len(items))
@@ -542,7 +542,7 @@ def list_scheduled_reports(
 def create_scheduled_report(
     payload: ScheduledReportCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("facturacion.gestionar")),
 ):
     return APIResponse.ok(data=_svc.create_scheduled_report(payload, current_user, db))
 
@@ -552,7 +552,7 @@ def update_scheduled_report(
     report_id: str,
     payload: dict = Body(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("facturacion.gestionar")),
 ):
     enforce_abac(db, current_user, "scheduled_report", report_id, action="update")
     return APIResponse.ok(data=_svc.update_scheduled_report(report_id, payload, db))
@@ -562,7 +562,7 @@ def update_scheduled_report(
 def delete_scheduled_report(
     report_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("facturacion.gestionar")),
 ):
     enforce_abac(db, current_user, "scheduled_report", report_id, action="delete")
     return APIResponse.ok(data=_svc.delete_scheduled_report(report_id, db))
@@ -572,7 +572,7 @@ def delete_scheduled_report(
 def run_scheduled_report(
     report_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("facturacion.gestionar")),
 ):
     # Segunda auditoria 2026-11 (n.º 20): generar el PDF y mandarlo por SMTP
     # va al worker. Con cola: 202 `{status: "queued", recipients}`; el resultado
@@ -603,7 +603,7 @@ def run_scheduled_report(
 def preview_report_pdf(
     report_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("facturacion.gestionar")),
 ):
     # Revisión 2026-11: pintaba filas de ejemplo; ahora es el PDF que se envía.
     from fastapi.responses import Response

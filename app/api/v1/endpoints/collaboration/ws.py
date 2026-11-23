@@ -23,7 +23,7 @@ from typing import Optional
 from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
 from sqlalchemy.orm import Session
 
-from app.db.session import SessionLocal, publicar_contexto_de_tenant
+from app.db.session import SessionLocal, declarar_sistema, publicar_contexto_de_tenant
 from app.services.ws_service import get_active_user_by_id
 from app.api.v1.endpoints.ws import (
     _consume_ws_ticket,
@@ -491,6 +491,9 @@ async def collaboration_ws(
     se pueden probar por separado — antes no había ninguna forma de hacerlo.
     """
     db: Session = SessionLocal()
+    # Auditoría 22-11-2026 (M8): hasta resolver el ticket la sesión busca la
+    # identidad entre empresas; `_abrir_conexion` publica después su empresa.
+    declarar_sistema(db, "ws: identidad por ticket")
     try:
         conexion = await _abrir_conexion(websocket, ticket, db)
         if conexion is None:

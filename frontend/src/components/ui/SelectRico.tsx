@@ -12,6 +12,7 @@ import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import type { KeyboardEvent, ReactNode } from 'react'
 import { Check, ChevronDown } from 'lucide-react'
 import './SelectRico.css'
+import { avisarCambio } from './useCambiosSinGuardar'
 
 export interface OpcionRica {
   valor: string
@@ -62,7 +63,7 @@ export function SelectRico({ label, valor, onChange, opciones, placeholder, erro
   }, [abierto])
 
   useEffect(() => {
-    if (abierto && activa >= 0) lista.current?.querySelector<HTMLElement>(`[data-i="${activa}"]`)?.scrollIntoView({ block: 'nearest' })
+    if (abierto && activa >= 0) lista.current?.querySelector<HTMLElement>(`[data-i="${activa}"]`)?.scrollIntoView?.({ block: 'nearest' })
   }, [abierto, activa])
 
   const abrir = () => {
@@ -75,6 +76,8 @@ export function SelectRico({ label, valor, onChange, opciones, placeholder, erro
     const o = opciones[i]
     if (!o || o.deshabilitada) return
     onChange(o.valor)
+    // No es un control nativo: avisa al dialogo (cambios sin guardar).
+    if (o.valor !== valor) avisarCambio(raiz.current)
     setAbierto(false)
   }
   const mover = (paso: number) => {

@@ -2,7 +2,6 @@
 imputation_service.py — Lógica de negocio para imputaciones y cronómetros.
 
 Funciones exportadas:
-  compute_cost(user, hours, db=None, on_date=None)
   resolve_user_rate(db, user, on_date=None)
   validate_and_create_imputation(payload, current_user, db)
   validate_imputation_edit_allowed(imp, current_user, db)
@@ -25,7 +24,6 @@ submodulos por responsabilidad, sin cambiar el codigo:
 
 from app.services.imputation_service._comun import (  # noqa: F401
     resolve_user_rate,
-    compute_cost,
     sync_imputation_week_timesheet,
     _dias_de_bloqueo,
     get_lockout_cutoff,

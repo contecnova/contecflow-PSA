@@ -32,17 +32,8 @@ def resolve_user_rate(db: Session, user: User, on_date: Optional[date] = None,
     return _cost_svc.cost_per_hour(db, user, on_date, project_id) or 0.0
 
 
-def compute_cost(user: User, hours: float, db: Optional[Session] = None,
-                 on_date: Optional[date] = None) -> float:
-    """Compute cost for the given user and hours using the canonical cost service.
-
-    A db session is required to consult versioned cost profiles; callers without
-    one fall back to `user.hourly_rate` for backward compatibility.
-    """
-    if db is None:
-        base_rate = user.hourly_rate or 0.0
-        return round(base_rate * hours, 2)
-    return _cost_svc.cost_amount(db, user, hours, on_date)
+# §5 (auditoría 22-11-2026): `compute_cost` (solo reexportada, sin llamadas; el
+# coste se calcula con `cost_service.cost_amount`) retirada.
 
 
 def sync_imputation_week_timesheet(db: Session, user_id: str, work_date: date) -> Timesheet:
@@ -120,21 +111,20 @@ def _notify_duplicate_imputation_manager(
     if not manager_id:
         return
 
-    task_label = task.title if task and task.title else "sin tarea"
-    body = (
-        f"{current_user.full_name} forzó el cierre de un cronómetro con una imputación duplicada "
-        f"para {project.name} · {task_label} el {imputation.date}. "
-        f"Se registraron {imputation.hours}h."
-    )
+    from app.services.texto_para_usuario import texto_para
+    _t = lambda clave, **p: texto_para(db, manager_id, clave, **p)  # noqa: E731
+    task_label = task.title if task and task.title else _t("imputacion_forzada.sin_tarea")
+    body = _t("imputacion_forzada.mensaje", nombre=current_user.full_name, proyecto=project.name,
+              tarea=task_label, fecha=imputation.date, horas=imputation.hours)
     if duplicate_imputation_id:
-        body += f" Ya existía la imputación {duplicate_imputation_id}."
-    body += " Revisa el timesheet si quieres rechazarla."
+        body += " " + _t("imputacion_forzada.ya_existia", id=duplicate_imputation_id)
+    body += " " + _t("imputacion_forzada.revisa")
 
     notify_user(
         db,
         manager_id,
         "system",
-        "Imputación forzada pendiente de revisión",
+        _t("imputacion_forzada.titulo"),
         body,
         resource="imputations",
         resource_id=imputation.id,

@@ -44,7 +44,7 @@ import { Card, Button, Pulsable, Select, Spinner, EmptyState, Modal, Section, In
 import StatusBadge from '../ui/StatusBadge'
 import type { StatusBadgeKind } from '../ui/StatusBadge'
 import { useToast } from '../../context/ToastContext'
-import { fmtDateTime, formateadorDeFecha } from '../../utils/helpers'
+import { extractErr, fmtDateTime, formateadorDeFecha } from '../../utils/helpers'
 import { POLL_LIVE_MS } from '../../constants/timings'
 import './VoiceAgentPanel.css'
 
@@ -163,14 +163,7 @@ function ActiveSessionCard({ session, onClose, onCreateTicket, onAddTurn, sendin
 
       {session.status === 'active' && (
         <div className="vap-fila">
-          <input aria-label={t('voiceagent.anadir_turno_texto_del_usuario')}
-            type="text"
-            placeholder={t('voiceagent.anadir_turno_texto_del_usuario')}
-            value={turnText}
-            onChange={e => setTurnText(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter') enviar() }}
-            className="ds-input vap-fila__campo"
-          />
+          <Input aria-label={t('voiceagent.anadir_turno_texto_del_usuario')} type="text" placeholder={t('voiceagent.anadir_turno_texto_del_usuario')} value={turnText} onChange={e => setTurnText(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') enviar() }} className="vap-fila__campo" />
           <Button size="sm" icon={<Send size={13} />} onClick={enviar} disabled={!turnText.trim() || sending} loading={sending}>{t('chat.send')}</Button>
         </div>
       )}
@@ -243,8 +236,8 @@ export default function VoiceAgentPanel() {
     [sessions, activeSessionId],
   )
 
-  const errDetail = (e: unknown): string | undefined =>
-    (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+  // 23-11-2026: el texto del error pasa por extractErr (devuelve '' si el servidor no dice nada, y entonces vale el texto propio).
+  const errDetail = (e: unknown): string | undefined => extractErr(e, '') || undefined
 
   const createSessionMutation = useMutation({
     mutationFn: (payload: { caller_id: string; channel: string }) => voiceAgentApi.createSession(payload).then(r => r.data),

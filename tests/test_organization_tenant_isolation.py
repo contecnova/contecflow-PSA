@@ -238,6 +238,14 @@ ORG_ID_ROUTE_GUARDS = {
     ("GET",    "/api/v1/orgs/{org_id}/branding"): "own-org",
     ("PUT",    "/api/v1/orgs/{org_id}/branding"): "own-org",
     ("DELETE", "/api/v1/orgs/{org_id}/branding"): "own-org",
+    # Revisado 23-11-2026 (asistente de reuniones): avisos entrantes de los
+    # proveedores, sin sesión de usuario. El `org_id` de la ruta solo elige qué
+    # secreto verifica la firma (Svix / x-zm-signature / clientState de ESA
+    # empresa, app/services/reuniones/webhooks.py); sin secreto o con firma mala,
+    # 403 sin tocar nada, y se procesa con el contexto de esa empresa publicado.
+    ("POST", "/api/v1/webhooks/meetings/recall/{org_id}"): "machine",
+    ("POST", "/api/v1/webhooks/meetings/zoom/{org_id}"): "machine",
+    ("POST", "/api/v1/webhooks/meetings/teams/{org_id}"): "machine",
 }
 
 

@@ -11,6 +11,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
 from app.db.base import Base
+from app.models.money import Money, Rate
 
 
 def _id() -> str:
@@ -55,7 +56,7 @@ class InternalSharedCost(Base):
     organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
     name = Column(String(200), nullable=False)
     description = Column(Text, nullable=True)
-    monthly_amount = Column(Float, nullable=False, default=0, server_default="0")
+    monthly_amount = Column(Money, nullable=False, default=0, server_default="0")
     currency = Column(String(3), nullable=True)
     criterion = Column(String(15), nullable=False, default="usuarios", server_default="usuarios")
     fixed_shares = Column(Text, nullable=False, default="{}", server_default="{}")  # {"client_id": pct} si criterio fijo
@@ -81,7 +82,7 @@ class InternalCharge(Base):
     period = Column(String(7), nullable=False, index=True)
     mode = Column(String(15), nullable=False)
     status = Column(String(15), nullable=False, default="borrador", server_default="borrador", index=True)
-    total = Column(Float, nullable=False, default=0, server_default="0")
+    total = Column(Money, nullable=False, default=0, server_default="0")
     currency = Column(String(3), nullable=True)
     invoice_id = Column(String(36), ForeignKey("invoices.id", ondelete="SET NULL"), nullable=True, index=True)
     erp_reference = Column(String(80), nullable=True)
@@ -108,8 +109,8 @@ class InternalChargeLine(Base):
     project_id = Column(String(36), ForeignKey("projects.id", ondelete="SET NULL"), nullable=True, index=True)
     description = Column(String(500), nullable=False)
     quantity = Column(Float, nullable=True)
-    unit_amount = Column(Float, nullable=True)
-    amount = Column(Float, nullable=False, default=0, server_default="0")
+    unit_amount = Column(Rate, nullable=True)
+    amount = Column(Money, nullable=False, default=0, server_default="0")
 
     charge = relationship("InternalCharge", back_populates="lines")
 

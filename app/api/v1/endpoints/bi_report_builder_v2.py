@@ -11,7 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from app.core.deps import require_admin_or_pm, get_current_user, require_internal_user
+from app.core.deps import get_current_user, requiere_capacidad
 from app.db.session import get_db
 from app.models.user import User
 from app.core.abac_enforce import enforce_abac
@@ -41,7 +41,7 @@ def list_presets(
     category: Optional[str] = Query(None, description="Filtrar por categoría"),
     grouped: bool = Query(False, description="Agrupar por categoría"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin_or_pm),
+    current_user: User = Depends(requiere_capacidad("bi.gestionar")),
 ):
     org_id = getattr(current_user, "organization_id", None)
     if grouped:
@@ -74,7 +74,7 @@ def customize_preset(
     body: PresetCustomizeIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: analitica interna
+    _rol: User = Depends(requiere_capacidad("bi.usar")),  # auditoria 2026-09: dominio: analitica interna
 ):
     org_id = getattr(current_user, "organization_id", None)
     try:
@@ -99,7 +99,7 @@ def reset_preset_customization(
     preset_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: analitica interna
+    _rol: User = Depends(requiere_capacidad("bi.usar")),  # auditoria 2026-09: dominio: analitica interna
 ):
     enforce_abac(db, current_user, "bi_report_preset", preset_id, action="delete")
     org_id = getattr(current_user, "organization_id", None)
@@ -114,7 +114,7 @@ def preview_preset(
     preset_id: str,
     limit: int = Query(50, ge=1, le=500),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin_or_pm),
+    current_user: User = Depends(requiere_capacidad("bi.gestionar")),
 ):
     org_id = getattr(current_user, "organization_id", None)
     try:
@@ -128,7 +128,7 @@ def export_preset(
     preset_id: str,
     format: str = Query("json", pattern="^(json|csv|xlsx)$"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin_or_pm),
+    current_user: User = Depends(requiere_capacidad("bi.gestionar")),
 ):
     org_id = getattr(current_user, "organization_id", None)
     try:
@@ -148,7 +148,7 @@ def execute_preset_controlled(
     body: ControlledExecutionIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: analitica interna
+    _rol: User = Depends(requiere_capacidad("bi.usar")),  # auditoria 2026-09: dominio: analitica interna
 ):
     org_id = getattr(current_user, "organization_id", None)
     try:
@@ -167,7 +167,7 @@ def execute_preset_controlled(
 def get_controlled_execution(
     execution_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin_or_pm),
+    current_user: User = Depends(requiere_capacidad("bi.gestionar")),
 ):
     org_id = getattr(current_user, "organization_id", None)
     try:
@@ -227,7 +227,7 @@ def save_dashboard_layout(
     body: DashboardLayoutSaveIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: analitica interna
+    _rol: User = Depends(requiere_capacidad("bi.usar")),  # auditoria 2026-09: dominio: analitica interna
 ):
     org_id = getattr(current_user, "organization_id", None)
     return APIResponse.ok(data=svc.save_dashboard_layout(
@@ -285,7 +285,7 @@ def create_template(
     body: TemplateCreateIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: analitica interna
+    _rol: User = Depends(requiere_capacidad("bi.usar")),  # auditoria 2026-09: dominio: analitica interna
 ):
     org_id = getattr(current_user, "organization_id", None)
     return APIResponse.ok(data=svc.create_template(
@@ -305,7 +305,7 @@ def update_template(
     body: TemplateUpdateIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: analitica interna
+    _rol: User = Depends(requiere_capacidad("bi.usar")),  # auditoria 2026-09: dominio: analitica interna
 ):
     org_id = getattr(current_user, "organization_id", None)
     try:
@@ -324,7 +324,7 @@ def delete_template(
     template_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: analitica interna
+    _rol: User = Depends(requiere_capacidad("bi.usar")),  # auditoria 2026-09: dominio: analitica interna
 ):
     enforce_abac(db, current_user, "bi_report_template", template_id, action="delete")
     org_id = getattr(current_user, "organization_id", None)

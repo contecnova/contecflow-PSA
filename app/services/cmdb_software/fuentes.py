@@ -32,15 +32,18 @@ _ECOSISTEMA_GHSA = {"npm": "npm", "pypi": "pip", "composer": "composer", "maven"
 
 
 def _get(url: str, params: Optional[dict] = None, headers: Optional[dict] = None, timeout: float = 20):
-    import httpx
-    r = httpx.get(url, params=params, headers=headers, timeout=timeout, follow_redirects=True)
+    # SSRF: URL de ajustes de empresa (osv/nvd/...) o fija del proveedor; `peticion` valida URL, redirecciones
+    # e IP conectada. Con cabeceras (p. ej. apiKey de NVD) no se siguen redirecciones.
+    from app.core.outbound_url import peticion
+    r = peticion("GET", url, field="url", params=params, headers=headers, timeout=timeout,
+                 follow_redirects=not headers)
     r.raise_for_status()
     return r.json()
 
 
 def _post(url: str, json_: dict, headers: Optional[dict] = None, timeout: float = 20):
-    import httpx
-    r = httpx.post(url, json=json_, headers=headers, timeout=timeout)
+    from app.core.outbound_url import peticion  # SSRF: ver `_get`
+    r = peticion("POST", url, field="url", json=json_, headers=headers, timeout=timeout)
     r.raise_for_status()
     return r.json()
 
@@ -199,6 +202,10 @@ def sincronizar_kev(db: Session, org, conf: dict, r: VulnerabilitySyncRun) -> No
     for d in resp.get("vulnerabilities") or []:
         if d.get("cveID"):
             kev[d["cveID"]] = d.get("dateAdded")
+    # M71: un catálogo KEV vacío (respuesta cortada o cambio de formato) no quita
+    # la marca a todas las vulnerabilidades: es un error de la fuente.
+    if not kev:
+        raise RuntimeError("catálogo KEV vacío: no se aplica")
     for v in _cves(db, org):
         cve = _cve_de(v)
         en_kev = cve in kev
@@ -282,6 +289,10 @@ def sincronizar(db: Session, org, fuentes: Optional[list[str]] = None, usuario=N
     `estricto`: pedir una fuente apagada es un error (desde la pantalla); en
     el trabajo de fondo se salta.
     """
+    # M71 (auditoría 22-11-2026): sin empresa no se sincroniza (antes `_q` no
+    # filtraba y se mandaban a OSV/NVD los purl y CPE de TODAS las empresas).
+    if not org:
+        raise error(422, "campo_obligatorio", campo="organization_id")
     conf = ajustes.leer(db, org)
     activas = [f for f in FUENTES if conf.get(f"{f}_enabled")]
     pedidas = fuentes or activas

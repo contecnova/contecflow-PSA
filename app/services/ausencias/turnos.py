@@ -87,7 +87,10 @@ def tramos_de_turno(t: Turno) -> tuple:
         try:
             return tr.de_lista(lista)
         except ValueError:
-            pass
+            # §5 (auditoría 22-11-2026): tramos ilegibles → se anota y se usa
+            # inicio–fin (antes `pass` mudo).
+            import logging
+            logging.getLogger(__name__).warning("turno %s con tramos ilegibles; se usa inicio–fin", getattr(t, "id", None))
     return (tr.desde_texto(t.hora_inicio, t.hora_fin),)
 
 

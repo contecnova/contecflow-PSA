@@ -70,24 +70,12 @@ def ventana(db: Session, user_id: Optional[str]) -> Optional[Ventana]:
     return ventanas(db, [user_id]).get(user_id) if user_id else None
 
 
-def capacidad_en_dia(v: Optional[Ventana], dia: date, capacidad: float) -> float:
-    """La capacidad del dia: la normal, o 0 fuera de la ventana del externo."""
-    if v is None or v.contiene(dia):
-        return capacidad
-    return 0.0
-
-
-def fraccion_de_semana(v: Optional[Ventana], lunes: date) -> float:
-    """Que parte (0..1) de los dias laborables de la semana cae en la ventana."""
-    if v is None:
-        return 1.0
-    from datetime import timedelta
-    laborables = [lunes + timedelta(days=i) for i in range(5)]
-    return sum(1 for d in laborables if v.contiene(d)) / 5.0
+# Auditoría 22-11-2026 (§5): `capacidad_en_dia` y `fraccion_de_semana` (sin uso,
+# con L-V fijos) retiradas.
 
 
 def horas_disponibles(v: Optional[Ventana], inicio: date, fin: date, capacidad_semanal: float,
-                      horas_por_dia: Optional[dict] = None) -> Optional[float]:
+                      horas_por_dia: Optional[dict] = None, dias_laborables=None) -> Optional[float]:
     """Horas que puede dar en [inicio, fin]: capacidad en su ventana, con tope de
     horas contratadas. None si es interno (lo decide quien llama).
 
@@ -104,8 +92,12 @@ def horas_disponibles(v: Optional[Ventana], inicio: date, fin: date, capacidad_s
     if horas_por_dia is not None:
         horas = sum(horas_por_dia.get(a + timedelta(days=i), 0.0) for i in range((b - a).days + 1))
     else:
-        laborables = sum(1 for i in range((b - a).days + 1) if (a + timedelta(days=i)).weekday() < 5)
-        horas = capacidad_semanal / 5.0 * laborables
+        # M39 (auditoría 22-11-2026): los días laborables de la empresa
+        # (`PLANNING_WORKDAYS`, ISO 1-7) y la capacidad repartida entre ellos;
+        # antes lunes a viernes y /5 fijos.
+        dias = frozenset(dias_laborables or (1, 2, 3, 4, 5))
+        laborables = sum(1 for i in range((b - a).days + 1) if (a + timedelta(days=i)).isoweekday() in dias)
+        horas = capacidad_semanal / max(len(dias), 1) * laborables
     if v.horas_restantes is not None:
         horas = min(horas, v.horas_restantes)
     return round(horas, 2)

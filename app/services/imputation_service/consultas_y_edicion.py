@@ -26,6 +26,8 @@ from app.services.imputation_service._comun import (
     sync_imputation_week_timesheet,
 )
 from app.core.codigos_de_error import error
+from app.core.timeutil import today_for_user
+from app.models.project import Project
 
 
 def update_imputation_fields(imp, payload, db: Session, current_user: User = None):
@@ -52,7 +54,9 @@ def update_imputation_fields(imp, payload, db: Session, current_user: User = Non
 
     if is_self_non_manager:
         # Non-manager editing own imputation: only allow non-sensitive fields.
-        allowed_fields = {"hours", "notes", "body"}
+        # Auditoría 22-11-2026 (M32): `description` e `is_billable` (los que la
+        # persona pone al imputar) se ignoraban en silencio al editar.
+        allowed_fields = {"hours", "notes", "body", "description", "is_billable"}
         filtered_payload = {k: v for k, v in payload.model_dump(exclude_unset=True).items() if k in allowed_fields}
         if set(payload.model_dump(exclude_unset=True).keys()) & critical_fields:
             raise error(403, "sin_permiso", detail="No tienes permiso para editar campos críticos de la imputación")
@@ -66,7 +70,8 @@ def update_imputation_fields(imp, payload, db: Session, current_user: User = Non
     existing_hours = db.query(func.sum(Imputation.hours)).filter(
         Imputation.user_id == user.id,
         Imputation.date == imputation_date,
-        Imputation.id != imp.id
+        Imputation.id != imp.id,
+        Imputation.is_active.is_(True),   # A45: sin contar las borradas
     ).scalar() or 0.0
     if existing_hours + new_hours > 24:
         raise error(400, "imputar_mas_de_24h", detail=f"No puedes imputar más de 24h en un día. Ya tienes {existing_hours}h registradas para el {imputation_date}.", horas=existing_hours)
@@ -79,7 +84,8 @@ def update_imputation_fields(imp, payload, db: Session, current_user: User = Non
             Imputation.user_id == user.id,
             Imputation.date >= week_start,
             Imputation.date <= week_end,
-            Imputation.id != imp.id
+            Imputation.id != imp.id,
+            Imputation.is_active.is_(True),
         )
     ).scalar() or 0.0
     weekly_capacity = capacidad_semanal(db, user)
@@ -108,17 +114,38 @@ def update_imputation_fields(imp, payload, db: Session, current_user: User = Non
     return imp
 
 
+def _alcance_por_rol(db: Session, current_user: User, q):
+    from sqlalchemy import or_
+    rol = getattr(current_user.role, "value", current_user.role)
+    if getattr(current_user, "is_superadmin", False) or rol not in ("pm", "team_lead"):
+        return q
+    condiciones = [Imputation.user_id == current_user.id]
+    if rol == "pm":
+        condiciones.append(Imputation.project_id.in_(
+            db.query(Project.id).filter(Project.pm_id == current_user.id)))
+    else:
+        from app.services.horas_extra.consultas import subordinados
+        equipo = subordinados(db, current_user)
+        if equipo:
+            condiciones.append(Imputation.user_id.in_(list(equipo)))
+    return q.filter(or_(*condiciones))
+
+
 def lockout_status_payload(current_user: User, db: Session):
     """Return LockoutStatusOut for the current user."""
+    # M32 (auditoría 22-11-2026): «hoy» de la persona y los rangos rellenos
+    # (antes siempre vacíos): bloqueado hasta el día anterior al corte; editable
+    # del corte a hoy. El administrador no tiene bloqueo.
     lockout_cutoff = get_lockout_cutoff(current_user, db)
-    today = timeutil.today()
+    today = today_for_user(current_user)
     lockout_days = (today - lockout_cutoff).days
+    es_admin = current_user.role == UserRole.admin
     return LockoutStatusOut(
         lockout_days=lockout_days,
         current_date=today,
         lockout_cutoff_date=lockout_cutoff,
-        locked_date_ranges=[],
-        editable_date_ranges=[],
+        locked_date_ranges=[] if es_admin else [{"from": None, "to": str(lockout_cutoff - timedelta(days=1))}],
+        editable_date_ranges=[{"from": None if es_admin else str(lockout_cutoff), "to": str(today)}],
     )
 
 
@@ -169,7 +196,8 @@ def get_week_summary(week_start: Optional[date], current_user: User, db: Session
 
     total_hours = sum(i.hours for i in imputations)
     capacity = capacidad_semanal(db, current_user)
-    load_pct = round((total_hours / capacity) * 100, 1)
+    # M32: con capacidad 0 (persona sin jornada) ya no hay ZeroDivisionError.
+    load_pct = round((total_hours / capacity) * 100, 1) if capacity else 0.0
 
     by_project: dict = {}
     for imp in imputations:
@@ -211,6 +239,7 @@ def list_imputations_query(
     date_to: Optional[date],
     page: int,
     page_size: int,
+    solo_temporizador: bool = False,
 ):
 
     # Segunda auditoria 2026-11 (N+1): `ImputationOut.task` es un `TaskOut`
@@ -233,6 +262,10 @@ def list_imputations_query(
         q = q.filter(Imputation.user_id == current_user.id)
     elif user_id:
         q = q.filter(Imputation.user_id == user_id)
+    # M33 (auditoría 22-11-2026), estándar PSA: el PM ve las imputaciones de los
+    # proyectos que dirige; el team lead, las de su equipo (cadena de mando);
+    # los dos, también las suyas. RR. HH. y administración, las de la empresa.
+    q = _alcance_por_rol(db, current_user, q)
 
     if project_id:
         q = q.filter(Imputation.project_id == project_id)
@@ -242,6 +275,10 @@ def list_imputations_query(
         q = q.filter(Imputation.date >= date_from)
     if date_to:
         q = q.filter(Imputation.date <= date_to)
+    # Auditoria 04b (B4), 23-11-2026: historial del temporizador filtrado aqui y
+    # no en el cliente sobre la primera pagina (salia corto con imputaciones a mano).
+    if solo_temporizador:
+        q = q.filter(Imputation.timer_session_id.isnot(None))
 
     # Org scoping for non-superadmins
     if current_user.organization_id:

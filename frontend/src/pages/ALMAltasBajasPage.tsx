@@ -21,6 +21,7 @@ import { Button, DataTable, EmptyState, KpiCard, Modal, Page, Select, Spinner, T
 import DateInput from '../components/ui/DateInput'
 import { useAppT } from '../i18n/AppLangContext'
 import { useToast } from '../context/ToastContext'
+import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useAuth } from '../context/AuthContext'
 import { fmtDate } from '../utils/helpers'
 import { Estado, etiqueta, mensajeDeError } from '../components/alm/almComun'
@@ -119,7 +120,7 @@ function DetalleDeBaja({ id, onClose }: { id: string; onClose: () => void }) {
       <h3 className="almint-subtitulo">{t('almint.devoluciones')}</h3>
       <TablaDeDevoluciones filas={b.devoluciones ?? []} />
       <div className="almint-acciones almint-acciones--fin">
-        {b.estado === 'programada' && <Button variant="danger" loading={anular.isPending} onClick={() => anular.mutate()}>{t('almint.anular_baja')}</Button>}
+        {b.estado === 'programada' && <Button variant="danger" loading={anular.isPending} onClick={() => openConfirmGlobal({ message: t('almint.confirmar_anular_baja'), confirmLabel: t('almint.anular_baja'), danger: true, onConfirm: () => anular.mutate() })}>{t('almint.anular_baja')}</Button>}
         <Button variant="ghost" onClick={onClose}>{t('common.close')}</Button>
       </div>
     </div>}
@@ -311,7 +312,7 @@ function Kits({ puedeEditar }: { puedeEditar: boolean }) {
       { key: 'elementos', label: t('almint.col_contenido'), sortable: false, render: (_v, f) => f.elementos.map(e => e.tipo === 'licencia' ? e.license_name : `${etiqueta(t, 'tipo_equipo', e.asset_type)} × ${e.cantidad}`).join(', ') },
       ...(puedeEditar ? [{ key: 'acciones', label: '', sortable: false, render: (_v: never, f: Kit) => <span className="almint-acciones">
         <Button size="xs" variant="ghost" onClick={() => setEditando(f)}>{t('common.edit')}</Button>
-        <Button size="xs" variant="ghost" icon={<Trash2 size={12} />} onClick={() => borrar.mutate(f.id)}>{t('almint.retirar')}</Button>
+        <Button size="xs" variant="ghost" icon={<Trash2 size={12} />} onClick={() => openConfirmGlobal({ message: t('almint.confirmar_retirar_kit', { nombre: f.nombre }), confirmLabel: t('almint.retirar'), danger: true, onConfirm: () => borrar.mutate(f.id) })}>{t('almint.retirar')}</Button>
       </span> }] : []),
     ]} />}
     {editando && <EditorDeKit kit={editando === 'nuevo' ? null : editando} onClose={() => setEditando(null)} />}
@@ -442,7 +443,7 @@ function Catalogo({ puedeEditar }: { puedeEditar: boolean }) {
       { key: 'license_name', label: t('almint.col_concreto'), render: (_v, f) => f.license_name ?? (f.asset_type ? etiqueta(t, 'tipo_equipo', f.asset_type) : t('almint.a_elegir')) },
       { key: 'requires_catalog_approval', label: t('almint.col_aprobacion'), render: (_v, f) => etiqueta(t, 'aprobacion', f.approval) },
       ...(puedeEditar ? [{ key: 'acciones', label: '', sortable: false, render: (_v: never, f: ItemDeCatalogoAlm) =>
-        <Button size="xs" variant="ghost" icon={<Trash2 size={12} />} onClick={() => borrar.mutate(f.id)}>{t('almint.quitar')}</Button> }] : []),
+        <Button size="xs" variant="ghost" icon={<Trash2 size={12} />} onClick={() => openConfirmGlobal({ message: t('almint.confirmar_quitar_item', { nombre: f.service_item_name }), confirmLabel: t('almint.quitar'), danger: true, onConfirm: () => borrar.mutate(f.id) })}>{t('almint.quitar')}</Button> }] : []),
     ]} />}
     {puedeEditar && <>
       <h3 className="almint-subtitulo">{t('almint.marcar_item')}</h3>

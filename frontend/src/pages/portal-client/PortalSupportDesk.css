@@ -320,14 +320,6 @@
 .portalsu-sx4.portalsu-sx4 {
   border-radius: var(--radius-md);
 }
-.portalsu-sx5 {
-  position: absolute;
-  left: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--text-3);
-  pointer-events: none;
-}
 .portalsu-sx6.portalsu-sx6 {
   border-radius: 8px;
 }
@@ -338,11 +330,6 @@
 }
 .portal-support-desk-e9 {
   color: var(--portal-support-desk-color);
-}
-.portal-support-desk-e12 {
-  padding-left: 34px;
-  font-size: var(--text-md);
-  padding: 11px 12px 11px 34px;
 }
 .portal-support-desk-m1 {
   background: linear-gradient(135deg, var(--accent), var(--purple, var(--call-avatar-to)));

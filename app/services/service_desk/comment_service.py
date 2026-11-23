@@ -95,12 +95,8 @@ def add_client_comment(db: Session, ticket: Ticket, ticket_id: str, body: str, c
 
     if ticket.status == TicketStatus.pending_client:
         ticket.status = TicketStatus.in_progress
-        if ticket.sla_paused_at:
-            paused_at = ticket.sla_paused_at
-            if paused_at.tzinfo is None:
-                paused_at = paused_at.replace(tzinfo=timezone.utc)
-            paused_minutes = int((datetime.now(timezone.utc) - paused_at).total_seconds() / 60)
-            ticket.sla_pause_minutes = (ticket.sla_pause_minutes or 0) + paused_minutes
-            ticket.sla_paused_at = None
+        # 23-11-2026 (A-SD2): la misma reanudacion que el resto, en el calendario del SLA.
+        from app.services.service_desk.sla_del_ticket import _reanudar_sla_pausado
+        _reanudar_sla_pausado(ticket, datetime.now(timezone.utc))
 
     return comment

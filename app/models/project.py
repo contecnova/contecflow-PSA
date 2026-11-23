@@ -4,8 +4,14 @@ from sqlalchemy.sql import func
 import enum
 import uuid
 from app.db.base import Base
+from app.models.money import Money, Rate
 from app.core.config import settings
 
+
+
+#: `billing_type` de los proyectos con cuota mensual (ronda 2 auditoria 2026-11-22:
+#: antes la cadena escrita en `trabajos_de_fondo`).
+FACTURACION_RETAINER = "recurring_retainer"
 
 class ProjectType(str, enum.Enum):
     development = "development"
@@ -62,16 +68,16 @@ class Project(Base):
     client_id   = Column(String(36), ForeignKey("clients.id", ondelete="SET NULL"), nullable=True, index=True)
     department = Column(String(100), nullable=True)  # Internal department
     is_billable = Column(Boolean, default=False)
-    billing_rate = Column(Float, nullable=True) # €/hour billed to client
-    contract_amount = Column(Float, nullable=True)  # Total contract value €
+    billing_rate = Column(Rate, nullable=True) # €/hour billed to client
+    contract_amount = Column(Money, nullable=True)  # Total contract value €
     billing_type = Column(String(20), default="time_material")  # time_material | fixed_price | hourly_bag | recurring_retainer
     # Recurring retainer fields (only used when billing_type = recurring_retainer)
-    retainer_amount = Column(Float, nullable=True)   # Fixed €/month invoiced automatically
+    retainer_amount = Column(Money, nullable=True)   # Fixed €/month invoiced automatically
     retainer_day    = Column(Integer, nullable=True) # Day of month to generate invoice (1-28)
 
     # Budget
     budget_hours = Column(Float, nullable=True)
-    budget_amount = Column(Float, nullable=True)  # € total budget
+    budget_amount = Column(Money, nullable=True)  # € total budget
     currency = Column(String(3), default=settings.DEFAULT_CURRENCY)
 
     # Dates
@@ -80,7 +86,7 @@ class Project(Base):
     end_date_real = Column(Date, nullable=True)
 
     # People
-    pm_id = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    pm_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
 
     # Jira integration
     jira_project_key = Column(String(50), nullable=True)
@@ -92,7 +98,7 @@ class Project(Base):
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-    created_by = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    created_by = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     # Optimistic locking (P1-5): incremented on every PATCH
     version = Column(Integer, default=1, nullable=False)
 
@@ -130,7 +136,7 @@ class ProjectPhase(Base):
     __tablename__ = "project_phases"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     is_active = Column(Boolean, default=True, nullable=False, server_default="1", index=True)  # audit #36 soft-delete
     project_id = Column(String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
     name = Column(String(255), nullable=False)
@@ -171,7 +177,7 @@ class ProjectMember(Base):
     __tablename__ = "project_members"
 
     id         = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     project_id = Column(String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
     user_id    = Column(String(36), ForeignKey("users.id",    ondelete="CASCADE"), nullable=False, index=True)
     is_active  = Column(Boolean, default=True)

@@ -11,10 +11,11 @@ import { useState } from 'react'
 import type { CSSProperties } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Check, Pencil, Tags, Trash2, X } from 'lucide-react'
-import { Button, Pulsable, Spinner } from '../../components/ui'
+import { Button, Pulsable, Spinner, Input } from '../../components/ui'
 import SeccionDeAjustes from '../settings-sections/SeccionDeAjustes'
 import { useAppT } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
+import { openConfirmGlobal } from '../../context/ConfirmContext'
 import { catalogosApi, type NombreDeCatalogo, type ValorDeCatalogo } from '../../services/api/catalogos'
 import { claveDeConsultaDeCatalogo, useCatalogo } from '../../hooks/useCatalogo'
 import { extractErr } from '../../utils/helpers'
@@ -52,6 +53,11 @@ export function Catalogo({ catalogo }: { catalogo: NombreDeCatalogo }) {
     onSuccess: () => { setEditando(null); refrescar() }, onError: alFallar,
   })
   const borrar = useMutation({ mutationFn: (id: string) => catalogosApi.borrar(catalogo, id), onSuccess: refrescar, onError: alFallar })
+  // 23-11-2026: borrar un valor de catálogo pide confirmación.
+  const borrarValor = (v: ValorDeCatalogo) => openConfirmGlobal({
+    message: t('catalogos_ajustes.confirmar_borrar_valor', { nombre: v.label }), confirmLabel: t('common.delete'), danger: true,
+    onConfirm: () => borrar.mutate(v.id),
+  })
   const titulo = t(`catalogos_ajustes.${catalogo.replace(/-/g, '_')}`)
 
   return (
@@ -62,7 +68,7 @@ export function Catalogo({ catalogo }: { catalogo: NombreDeCatalogo }) {
             <div key={v.id} className="set-item set-item--wrap">
               {editando?.id === v.id ? (
                 <>
-                  <input value={editando.label} onChange={e => setEditando({ ...editando, label: e.target.value })} aria-label={t('catalogos_ajustes.nombre')} className="set-input set-input--f2 set-input--compact" autoFocus />
+                  <Input value={editando.label} onChange={e => setEditando({ ...editando, label: e.target.value })} aria-label={t('catalogos_ajustes.nombre')} autoFocus className="set-input--f2" />
                   <input type="color" value={editando.color} onChange={e => setEditando({ ...editando, color: e.target.value })} aria-label={t('catalogos_ajustes.color')} />
                   <Pulsable onClick={() => guardar.mutate(editando)} disabled={!editando.label.trim()} className="set-btn-save set-btn-confirm-light" aria-label={t('common.save')} title={t('common.save')}><Check size={14} aria-hidden /></Pulsable>
                   <Pulsable onClick={() => setEditando(null)} className="set-btn-cancel set-btn-cancel--sm" aria-label={t('common.cancel')} title={t('common.cancel')}><X size={14} aria-hidden /></Pulsable>
@@ -75,7 +81,7 @@ export function Catalogo({ catalogo }: { catalogo: NombreDeCatalogo }) {
                   {v.organization_id
                     ? <>
                         <Pulsable onClick={() => setEditando(v)} className="set-btn-edit" aria-label={t('settings_sections.editar_x', { nombre: v.label })} title={t('common.edit')}><Pencil size={14} aria-hidden /></Pulsable>
-                        <Pulsable onClick={() => borrar.mutate(v.id)} className="set-btn-delete" aria-label={t('settings_sections.eliminar_x', { nombre: v.label })} title={t('common.delete')}><Trash2 size={14} aria-hidden /></Pulsable>
+                        <Pulsable onClick={() => borrarValor(v)} className="set-btn-delete" aria-label={t('settings_sections.eliminar_x', { nombre: v.label })} title={t('common.delete')}><Trash2 size={14} aria-hidden /></Pulsable>
                       </>
                     : <span className="u-text2-sm">{t('catalogos_ajustes.del_sistema')}</span>}
                 </>
@@ -85,7 +91,7 @@ export function Catalogo({ catalogo }: { catalogo: NombreDeCatalogo }) {
         </div>
       )}
       <div className="set-add-inline">
-        <input value={nuevo.label} onChange={e => setNuevo(n => ({ ...n, label: e.target.value }))} className="set-input set-input--f2" placeholder={t('catalogos_ajustes.nombre')} aria-label={t('catalogos_ajustes.nombre')} />
+        <Input value={nuevo.label} onChange={e => setNuevo(n => ({ ...n, label: e.target.value }))} placeholder={t('catalogos_ajustes.nombre')} aria-label={t('catalogos_ajustes.nombre')} className="set-input--f2" />
         <input type="color" value={nuevo.color} onChange={e => setNuevo(n => ({ ...n, color: e.target.value }))} aria-label={t('catalogos_ajustes.color')} />
         <Button onClick={() => crear.mutate()} disabled={!claveDe(nuevo.label) || crear.isPending}>{t('settings.anadir')}</Button>
       </div>

@@ -2,8 +2,10 @@ import { useAppLang } from '../i18n/AppLangContext'
 import { type CSSProperties, useState, useMemo, useId } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
+import { Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { imputationsApi, projectsApi, tasksApi, aiCopilotApi } from '../services/api'
+import { imputationsApi, tasksApi, aiCopilotApi } from '../services/api'
+import { useListaDeProyectos } from '../hooks/useListas'
 import type { AnomaliasDeImputacion } from '../services/api/tipos-analitica'
 import type { Imputacion, ResumenSemanal, SesionDeCronometro } from '../services/api/tipos-personas'
 import { queueImputation } from '../services/offlineQueue'
@@ -42,7 +44,6 @@ interface Anomaly {
 type AnomaliesData = Partial<AnomaliasDeImputacion>
 type WeekData = ResumenSemanal
 
-interface ProjectOption { id: string; code?: string; name?: string }
 interface TaskOption { id: string; code?: string; title?: string }
 
 interface WeekGridProps {
@@ -163,7 +164,7 @@ function AnomaliesDrawer({ open, onClose, anomaliesData }: AnomaliesDrawerProps)
           <h3 className="imput-title-2">
             {traducir('imputar.anomalias_en_imputaciones_2')}
           </h3>
-          <IconButton onClick={onClose} ariaLabel={t('pagina_imput.cerrar')}>
+          <IconButton onClick={onClose} ariaLabel={t('pagina_imput.cerrar')} data-cierra-dialogo="">
             <X size={16} />
           </IconButton>
         </div>
@@ -221,10 +222,8 @@ export default function ImputarPage(): JSX.Element {
   const [duplicateError, setDuplicateError] = useState<string | null>(null)
   const [forceDuplicate, setForceDuplicate] = useState(false)
 
-  const { data: projects = [] } = useQuery<ProjectOption[]>({
-    queryKey: ['projects'],
-    queryFn: () => projectsApi.list().then(r => r.data),
-  })
+  // 23-11-2026 (04 A8): lista compartida de proyectos.
+  const { data: projects = [] } = useListaDeProyectos()
 
   const { data: tasks = [] } = useQuery<TaskOption[]>({
     queryKey: ['tasks-my', form.project_id],
@@ -241,6 +240,7 @@ export default function ImputarPage(): JSX.Element {
 
   const { data: activeTimer } = useQuery<SesionDeCronometro | null>({
     queryKey: ['timer-current'],
+    // accesorio: el aviso del cronómetro se sondea cada pocos segundos; un fallo suelto no merece un toast cada vez.
     queryFn: () => imputationsApi.timerCurrent().then(r => r.data).catch(() => null),
     refetchInterval: NOTIFICATIONS_POLL_MS,
   })
@@ -258,7 +258,7 @@ export default function ImputarPage(): JSX.Element {
       user?.id
         ? aiCopilotApi.timesheetSuggestions(user.id)
             .then(r => r.data)
-            .catch(() => ({ anomalies: [] }))
+            .catch(() => ({ anomalies: [] })) // accesorio: heurística suave de ayuda; sin ella la imputación funciona igual
         : Promise.resolve({ anomalies: [] }),
     enabled: !!user?.id,
     staleTime: STALE_5_MIN_MS,  // 5 min — heurística suave, no refrescar agresivamente
@@ -296,9 +296,10 @@ export default function ImputarPage(): JSX.Element {
       qc.invalidateQueries({ queryKey: ['timesheets-team'] })
     },
     onError: (e: unknown) => {
-      const err = e as { response?: { status?: number; data?: { detail?: string } } }
+      const err = e as { response?: { status?: number } }
       if (err?.response?.status === 409) {
-        setDuplicateError(err?.response?.data?.detail || t('pagina_imput.ya_existe_una_imputacion_para_esta'))
+        // 23-11-2026: texto del servidor ya traducido por extractErr (antes `data.detail` crudo).
+        setDuplicateError(extractErr(e, t('pagina_imput.ya_existe_una_imputacion_para_esta')))
       } else if (!campos.recoger(e)) {
         toast.error(extractErr(e, t('common.error') || GENERIC_ERROR_FALLBACK))
       }
@@ -385,9 +386,9 @@ export default function ImputarPage(): JSX.Element {
               · {Math.floor(activeTimer.total_elapsed_seconds / 3600)}h {Math.floor((activeTimer.total_elapsed_seconds % 3600) / 60)}m
             </span>
           )}
-          <a href="/timer" className="imput-link">
+          <Link to="/timer" className="imput-link">
             {t('imputa_page.timer_link')}
-          </a>
+          </Link>
         </div>
       )}
 
@@ -457,14 +458,13 @@ export default function ImputarPage(): JSX.Element {
                 {`${fmtNumber(h, 1)}h`}
               </Button>
             ))}
-            <input
-              className="ds-input imput-horas-a-mano"
+            <Input
+              inputClassName="ds-input imput-horas-a-mano"
               type="text"
               inputMode="decimal"
               aria-label={t('imputa_page.horas_a_mano')}
               placeholder={t('imputa_page.horas_a_mano')}
               value={horasEscritas}
-              aria-invalid={horasEscritas !== '' && horasLeidas === null}
               onChange={e => {
                 const v = e.target.value
                 setHorasEscritas(v)

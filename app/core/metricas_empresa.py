@@ -128,6 +128,7 @@ def _activas() -> bool:
         from app.core.config import settings
         return bool(settings.METRICS_ENABLED)
     except Exception:
+        logger.debug("_activas: excepcion ignorada", exc_info=True)
         return False
 
 

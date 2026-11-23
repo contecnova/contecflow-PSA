@@ -153,11 +153,18 @@ def get_portal_poll_data(db: Session, client_id: str) -> Dict[str, Any]:
       - recent_public_comments: respuestas públicas recientes en sus tickets
     """
 
-    # Mensajes no leídos por el cliente (enviados por el equipo interno)
+    # Mensajes no leídos por el cliente (enviados por el equipo interno).
+    # Ronda 2 auditoría 2026-11-22: solo de SUS proyectos (`client_user_projects`);
+    # antes contaba los de todos los clientes de la empresa.
+    from app.models.client_portal import client_user_projects
+    sus_proyectos = select(client_user_projects.c.project_id).where(
+        client_user_projects.c.client_user_id == client_id
+    )
     unread_messages: int = (
         db.query(ClientMessage)
         .filter(
-            ClientMessage.sender_client_id != client_id,
+            ClientMessage.project_id.in_(sus_proyectos),
+            ClientMessage.sender_client_id.is_(None),
             ClientMessage.is_read_by_client == False,
             ClientMessage.is_internal == False,
         )

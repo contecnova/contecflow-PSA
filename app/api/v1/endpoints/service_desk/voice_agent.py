@@ -22,7 +22,7 @@ from sqlalchemy.orm import Session
 from app.core.deps import get_current_user, requiere_capacidad
 from app.core.ratelimit import limiter
 from app.core.responses import APIResponse
-from app.db.session import get_db
+from app.db.session import get_db, publicar_empresa, sesion_de_sistema
 from app.models.user import User
 from app.services.service_desk.voice_agent_service import (
     get_config,
@@ -213,6 +213,8 @@ async def _llamada_verificada(request: Request, db: Session):
         verificar_llamada_de_twilio, db, urls_de_firma_de_twilio(request), form,
         request.headers.get("X-Twilio-Signature"))
     if veredicto == LLAMADA_ACEPTADA:
+        # Auditoría 22-11-2026 (M8): la firma ya dice la empresa; desde aquí filtra.
+        await run_db(publicar_empresa, db, org_id)
         return form, org_id, None
     if veredicto == LLAMADA_NUMERO_DESCONOCIDO:
         return form, None, _twiml('<Reject reason="rejected" />')
@@ -227,7 +229,7 @@ async def _llamada_verificada(request: Request, db: Session):
 @limiter.limit("120/minute")
 async def twilio_ivr_webhook(
     request: Request,
-    db: Session = Depends(get_db),
+    db: Session = Depends(sesion_de_sistema("voz: firma de Twilio")),
 ):
     """
     Twilio calls this endpoint when a call is received.
@@ -286,7 +288,7 @@ async def twilio_ivr_webhook(
 async def twilio_gather_webhook(
     request: Request,
     session_id: Optional[str] = Query(None),
-    db: Session = Depends(get_db),
+    db: Session = Depends(sesion_de_sistema("voz: firma de Twilio")),
 ):
     """Processes DTMF digit selection from a Twilio <Gather> verb."""
     from html import escape

@@ -28,6 +28,7 @@ import { useQuery, useMutation } from '@tanstack/react-query'
 import { incidentAssignmentApi, ticketsApi, type ApiError } from '../../services/api'
 import type { SdRecomendacionDeAsignacion } from '../../services/api/tipos-sd'
 import { useAppT } from '../../i18n/AppLangContext'
+import { extractErr } from '../../utils/helpers'
 import { etiquetaCodigo } from '../../i18n/etiquetaCodigo'
 import { useChartTheme } from '../../charts/useChartTheme'
 import { BarChart3, CheckCircle2, Sparkles, UserCheck } from 'lucide-react'
@@ -149,7 +150,7 @@ export default function IncidentAssignmentPanel() {
             )}
             {recommendMutation.isError && (
               <div className="iap-aviso iap-aviso--error" role="alert">
-                {recommendMutation.error?.response?.data?.detail || t('incidentassignment.error_recomendar')}
+                {extractErr(recommendMutation.error, t('incidentassignment.error_recomendar'))}
               </div>
             )}
 
@@ -181,7 +182,7 @@ export default function IncidentAssignmentPanel() {
                   </div>
                   {applyMutation.isError && (
                     <div className="iap-aviso iap-aviso--error" role="alert">
-                      {applyMutation.error?.response?.data?.detail || t('incidentassignment.error_aplicar')}
+                      {extractErr(applyMutation.error, t('incidentassignment.error_aplicar'))}
                     </div>
                   )}
                 </div>

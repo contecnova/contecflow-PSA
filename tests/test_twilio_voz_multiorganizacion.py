@@ -7,7 +7,6 @@ en su contexto. Un número desconocido se rechaza sin caer en ninguna.
 import base64
 import hashlib
 import hmac
-import json
 
 import pytest
 
@@ -29,12 +28,10 @@ def _llamar(client, to, token):
 
 
 def _sesiones(db, org):
-    from app.models.settings import AppSetting
+    # Migracion 200: las sesiones viven en `sd_voice_sessions` (antes, un blob de AppSetting).
+    from app.services.service_desk.voice_agent_service import list_sessions
     db.expire_all()
-    q = db.query(AppSetting).filter(AppSetting.key == "sd.voice_agent.sessions")
-    q = q.filter(AppSetting.organization_id == org) if org else q.filter(AppSetting.organization_id.is_(None))
-    fila = q.first()
-    return json.loads(fila.value) if fila and fila.value else {}
+    return {s["id"]: s for s in list_sessions(db, org, limit=1000)}
 
 
 @pytest.fixture
@@ -45,7 +42,8 @@ def dos_numeros(db, seed_multitenant, monkeypatch):
                                 (ORG_B, "+34600000002", "tok-b")):
         db.add(AppSetting(organization_id=org, key="TWILIO_PHONE_NUMBERS", value=numeros))
         db.add(AppSetting(organization_id=org, key="TWILIO_AUTH_TOKEN", value=token))
-    db.query(AppSetting).filter(AppSetting.key == "sd.voice_agent.sessions").delete()
+    from app.models.service_desk import VoiceSession
+    db.query(VoiceSession).delete()
     db.commit()
 
 

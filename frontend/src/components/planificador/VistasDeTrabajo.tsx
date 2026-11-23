@@ -73,7 +73,7 @@ export default function VistasDeTrabajo({ projectId, vista: vistaExterna, onVist
 }) {
   const t = useAppT()
   const toast = useToast()
-  const { pedirTexto } = useConfirm()
+  const { pedirTexto, confirmar } = useConfirm()
   const qc = useQueryClient()
   const { puede } = useAuth()
   const [vistaLocal, setVistaLocal] = useState<VistaDeTrabajo>('table')
@@ -146,7 +146,7 @@ export default function VistasDeTrabajo({ projectId, vista: vistaExterna, onVist
           {t('planificador.guardar_vista')}
         </Button>
         {vistaGuardada && (
-          <Button size="md" variant="ghost" icon={<Trash2 size={14} />} onClick={() => borrar.mutate(vistaGuardada)}>
+          <Button size="md" variant="ghost" icon={<Trash2 size={14} />} onClick={async () => { if (await confirmar({ message: t('planificador.confirmar_borrar_vista'), danger: true, confirmLabel: t('planificador.borrar') })) borrar.mutate(vistaGuardada) }}>
             {t('planificador.borrar')}
           </Button>
         )}

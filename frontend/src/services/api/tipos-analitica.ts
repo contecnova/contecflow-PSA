@@ -469,8 +469,30 @@ export type EstadoDelAgente = {
   updated_at: string | null
 }
 
-/** Paso de una ejecución: la entrada y la salida de la herramienta, ya como JSON. */
-export type PasoDelAgente = { step: number; tool: string; input: unknown; output: unknown }
+/** Paso de una ejecución: la entrada y la salida de la herramienta, ya como JSON.
+ *  Auditoría 22-11-2026 (A7): `id`, `status`, `requires_approval` e `is_approved`
+ *  para la aprobación humana de las escrituras (`is_approved` null = pendiente). */
+export type PasoDelAgente = {
+  id?: string
+  status?: string
+  requires_approval?: boolean
+  is_approved?: boolean | null
+  step: number
+  tool: string
+  input: unknown
+  output: unknown
+}
+
+/** agent_execution_service.decidir_paso (POST /ai/agent/{id}/steps/{step_id}/approve|reject). */
+export type DecisionDePasoDelAgente = {
+  execution_id: string
+  step_id: string
+  tool: string
+  approved: boolean
+  status: string
+  result: unknown
+  execution_status: EstadoDeEjecucionDelAgente
+}
 
 /** agent_execution_service.get_agent_detail_with_steps (GET /ai/agent/{id}). */
 export type EjecucionDelAgente = {
@@ -560,10 +582,11 @@ export type AnomaliasDeImputacion = {
 // ── Voz, reuniones y planificación (/ai-modules) ──────────────────────────────
 
 /** ai_modules/voice: lo que se ejecutará al confirmar. */
-export type AccionDeVozPendiente =
+export type AccionDeVozPendiente = (
   | { type: 'log_hours'; project_id: string; project_name: string; hours: number }
   | { type: 'create_ticket'; title: string; priority: string }
   | { type: 'create_task'; title: string; project_id: string | null; project_name: string | null; priority: string }
+) & { /** Propuesta firmada por el servidor: lo que se ejecuta al confirmar (auditoría 22-11-2026, A6). */ token?: string }
 
 /** ai_modules/voice.process_voice_core (POST /ai-modules/voice/command). */
 export type ComandoDeVoz = {

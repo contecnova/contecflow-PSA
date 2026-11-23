@@ -631,7 +631,7 @@ export interface PortalUsuario {
 }
 
 /** clientes.create_client. */
-export interface PortalUsuarioCreado { id: string; email: string; project_ids: string[]; portal_url: string; message: string }
+export interface PortalUsuarioCreado { id: string; email: string; project_ids: string[]; portal_url: string; message: string; /** 23-11-2026: null si se dio la contraseña a mano (API). */ credenciales_enviadas?: boolean | null }
 
 /** clientes.update_client. */
 export interface PortalUsuarioActualizado { ok: boolean; project_ids: string[] }

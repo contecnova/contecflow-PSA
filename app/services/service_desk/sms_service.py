@@ -65,11 +65,21 @@ def send_sms(to: str, body: str) -> bool:
         client = TwilioClient(sid, token)
         with track_external_call("twilio"):
             message = client.messages.create(body=body[:1600], from_=from_num, to=to)
-        logger.info("SMS sent to %s — SID: %s", to, message.sid)
+        logger.info("SMS sent to %s — SID: %s", telefono_enmascarado(to), message.sid)
         return True
     except Exception as exc:
-        logger.error("SMS send failed to %s: %s", to, exc)
+        logger.error("SMS send failed to %s: %s", telefono_enmascarado(to), type(exc).__name__)
         return False
+
+
+def telefono_enmascarado(numero) -> str:
+    """El telefono para los logs: solo los 3 ultimos digitos.
+
+    Auditoria 2026-11-22 (servicios m-z, 4.4): el numero completo (dato
+    personal) quedaba en los logs de SMS y de WhatsApp.
+    """
+    digitos = "".join(c for c in str(numero or "") if c.isdigit())
+    return ("***" + digitos[-3:]) if digitos else "-"
 
 
 #: Ajuste por organizacion con sus numeros de Twilio (E.164, separados por comas).

@@ -53,13 +53,16 @@ def list_uat_team(project_id: Optional[str], db: Session) -> list:
 def create_uat_for_project(project_id: str, payload, db: Session) -> dict:
     import re as _re
 
-    max_uat = db.query(func.max(UATSession.code)).filter(UATSession.project_id == project_id).scalar()
-    if max_uat:
-        _m = _re.search(r"(\d+)$", max_uat)
-        next_uat_num = (int(_m.group(1)) + 1) if _m else 1
-    else:
-        next_uat_num = 1
-    session = UATSession(project_id=project_id, code=f"UAT-{next_uat_num:03d}", **payload.model_dump())
+    # Auditoría 22-11-2026 (M62): secuencia segura de la empresa del proyecto.
+    from app.models.project import Project
+    from app.services.numbering import maximo_numerico, siguiente_codigo
+    org = db.query(Project.organization_id).filter(Project.id == project_id).scalar()
+    codigo = siguiente_codigo(db, "portal_uat_session", prefijo="UAT-", relleno=3, org_id=org,
+                              maximo_existente=lambda: maximo_numerico(
+                                  c for (c,) in db.query(UATSession.code).join(
+                                      Project, Project.id == UATSession.project_id).filter(
+                                      Project.organization_id == org)))
+    session = UATSession(project_id=project_id, code=codigo, **payload.model_dump())
     db.add(session)
     db.commit()
     db.refresh(session)

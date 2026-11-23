@@ -178,11 +178,6 @@ export function downloadBlob(blob: Blob, filename: string): void {
 // prioridades: `constants/catalogos.ts` + i18n `estado.*`; tipos de proyecto:
 // catálogo de la empresa (`hooks/useCatalogo`).
 
-// ── Initials ──────────────────────────────────────────────────────────────────
-export function initials(name = ''): string {
-  return name.split(' ').slice(0, 2).map(w => w[0] ?? '').join('').toUpperCase()
-}
-
 // ── Normaliza errores de API (Pydantic 422 devuelve array de objetos) ──────────
 // TODO type: shape inferred from axios + FastAPI Pydantic; refine to AxiosError<ApiError>
 // once axios is migrated in a later batch.

@@ -22,6 +22,7 @@ Las sesiones se piden a `app.db.session.worker_db_session` en el momento de
 usarlas (no se importa el nombre): las pruebas lo sustituyen ahi.
 """
 from __future__ import annotations
+from app.services import numbering as _numeracion  # prefijos por defecto (§6)
 
 import logging
 from typing import Any, Callable, Iterable, Optional
@@ -66,7 +67,6 @@ def en_cada_organizacion(tarea: str, trabajo: Trabajo, *,
     sigue con las demas y al final se lanza `FalloEnOrganizaciones`.
     """
     from app.db import session as _sesion
-    from app.services.service_desk.ticket_events import como_organizacion
 
     with _sesion.worker_db_session() as db:
         activas = organizaciones_activas(db)
@@ -83,7 +83,9 @@ def en_cada_organizacion(tarea: str, trabajo: Trabajo, *,
     fallos: dict = {}
     primera: Optional[BaseException] = None
     for org_id in organizaciones:
-        with _sesion.worker_db_session() as db, como_organizacion(db, org_id):
+        # Auditoría 22-11-2026: `con_empresa` (el mecanismo explícito por
+        # iteración; sin empresa no abre) en vez de `como_organizacion`.
+        with _sesion.worker_db_session() as db, _sesion.con_empresa(db, org_id):
             try:
                 resultados[org_id] = trabajo(db, org_id)
                 db.commit()
@@ -135,14 +137,13 @@ def organizaciones_a_su_hora(clave_hora: str, *, ahora=None) -> list[str]:
 
     from app.core.timeutil import utcnow
     from app.db import session as _sesion
-    from app.services.service_desk.ticket_events import como_organizacion
     from app.services.settings_service.por_empresa import ajuste_de_empresa, zona_de_empresa
 
     ahora = ahora or utcnow()
     salida = []
     with _sesion.worker_db_session() as db:
         for org_id in organizaciones_activas(db):
-            with como_organizacion(db, org_id):
+            with _sesion.con_empresa(db, org_id):
                 try:
                     local = ahora.astimezone(ZoneInfo(zona_de_empresa(db, org_id)))
                     tramo = (local.hour * 60 + local.minute) // TRAMO_DE_AVISOS_MINUTOS
@@ -160,7 +161,17 @@ def organizaciones_a_su_hora(clave_hora: str, *, ahora=None) -> list[str]:
 
 
 def imputaciones_pendientes_de_hoy(db: Session, org_id: str) -> dict:
-    """Empleados de la organizacion que no han imputado su capacidad de hoy.
+    """Cuantos empleados no han imputado hoy (resultado de la tarea de Celery).
+
+    Ronda 2 auditoria 2026-11-22: devolvia tambien sus correos, y el resultado
+    de Celery se guarda en el backend de resultados (Redis) fuera de retencion
+    y supresion. Ahora solo el numero; la lista: `personas_sin_imputar_hoy`.
+    """
+    return {"missing_today": len(personas_sin_imputar_hoy(db, org_id))}
+
+
+def personas_sin_imputar_hoy(db: Session, org_id: str) -> list[str]:
+    """Correos de los empleados de la organizacion que no han imputado su capacidad de hoy.
 
     «Hoy» es el dia de CADA empleado, no el del servidor (auditoria 2026-08,
     P2-14), y el fin de semana tambien: en el sabado del servidor puede ser
@@ -207,7 +218,7 @@ def imputaciones_pendientes_de_hoy(db: Session, org_id: str) -> dict:
         ).scalar() or 0.0
         if horas < capacidad:
             faltan.append(emp.email)
-    return {"missing_today": len(faltan), "users": faltan}
+    return faltan
 
 
 def externos_caducidad_y_asignaciones(db: Session, org_id: str) -> dict:
@@ -222,6 +233,11 @@ def externos_caducidad_y_asignaciones(db: Session, org_id: str) -> dict:
     from app.services.proveedores.medicion import medir_todo
     resultado.update(medir_todo(db, org_id))
     return resultado
+
+
+#: Marca de la factura de retainer de un mes (`internal_notes`), para no
+#: emitirla dos veces ni confundirla con otras facturas del proyecto.
+MARCA_DE_RETAINER = "retainer:{periodo}"
 
 
 def generar_facturas_de_retainer(db: Session, org_id: str) -> dict:
@@ -239,13 +255,13 @@ def generar_facturas_de_retainer(db: Session, org_id: str) -> dict:
     from app.models.billing_reports import Invoice, InvoiceStatus
     from app.models.clients import Client
     from app.models.mfa import Organization
-    from app.models.project import Project
+    from app.models.project import FACTURACION_RETAINER, Project
     from app.services.numbering import next_numbered_code
     from app.services.settings_service.por_empresa import iva_de_empresa, moneda_de_empresa
 
     org = db.get(Organization, org_id)
     proyectos = db.query(Project).filter(
-        Project.billing_type == "recurring_retainer",
+        Project.billing_type == FACTURACION_RETAINER,
         Project.retainer_amount.isnot(None),
         Project.retainer_day.isnot(None),
         Project.is_billable.is_(True),
@@ -257,20 +273,36 @@ def generar_facturas_de_retainer(db: Session, org_id: str) -> dict:
             clientes[cid] = db.query(Client).filter(Client.id == cid).first()
         return clientes.get(cid)
 
+    import calendar
+
     generadas, errores = [], []
     for proj in proyectos:
         # Solo el dia depende de la zona; el año de la numeracion sigue en UTC
         # a proposito (cambiarlo desplazaria secuencias ya emitidas).
         with using_zone(zone_for_client(_cliente(proj.client_id), org)):
             hoy = timeutil.today()
-        if proj.retainer_day != hoy.day:
+        # Auditoria 2026-11-22 (A-RZ7): `retainer_day != hoy.day` no facturaba
+        # nunca los dias 29-31 en los meses que no los tienen, y un dia sin
+        # ejecutar (caida del worker) se perdia hasta el mes siguiente. Ahora el
+        # dia efectivo es min(dia, ultimo del mes) y se factura en cuanto se
+        # alcanza, si el retainer de ESE mes aun no existe.
+        dia_efectivo = min(int(proj.retainer_day), calendar.monthrange(hoy.year, hoy.month)[1])
+        if hoy.day < dia_efectivo:
             continue
         try:
             inicio_de_mes = date(hoy.year, hoy.month, 1)
-            if db.query(Invoice).filter(Invoice.project_id == proj.id,
-                                        Invoice.period_from >= inicio_de_mes).first():
+            marca = MARCA_DE_RETAINER.format(periodo=inicio_de_mes.strftime("%Y-%m"))
+            # Solo bloquea el retainer de este mes (marcado), no cualquier
+            # factura del mes del proyecto (antes una factura de horas o de
+            # hito impedia la del retainer). Las anteriores al cambio, sin
+            # marca, se reconocen por su nota.
+            if db.query(Invoice.id).filter(
+                    Invoice.project_id == proj.id,
+                    Invoice.period_from >= inicio_de_mes,
+                    (Invoice.internal_notes == marca) | Invoice.notes.like("Retainer mensual automático%"),
+            ).first():
                 continue
-            numero = next_numbered_code(db, "invoice", prefix="INV", padding=4, include_year=True,
+            numero = next_numbered_code(db, "invoice", prefix=_numeracion.PREFIJO_FACTURA, padding=4, include_year=True,
                                         reset_yearly=True, year_separator="-")
             nombre = getattr(proj, "client_name", None)
             correo = getattr(proj, "client_email", None)
@@ -282,11 +314,12 @@ def generar_facturas_de_retainer(db: Session, org_id: str) -> dict:
                 direccion = direccion or getattr(cliente, "address", None)
             db.add(Invoice(
                 id=str(uuid.uuid4()), number=numero, project_id=proj.id, client_id=proj.client_id,
+                organization_id=org_id, internal_notes=marca,
                 client_name=nombre, client_email=correo, client_address=direccion,
                 total=proj.retainer_amount, currency=proj.currency or moneda_de_empresa(db, org_id),
                 tax_rate=iva_de_empresa(db, org_id),  # 18-11-2026: el de la empresa, no el del entorno
                 issue_date=hoy, period_from=inicio_de_mes, period_to=hoy, status=InvoiceStatus.draft,
-                notes=f"Retainer mensual automático — {hoy.strftime('%B %Y')}",
+                notes=f"Retainer mensual automático — {hoy.strftime('%m/%Y')}",
             ))
             db.commit()
             generadas.append(proj.code)
@@ -345,7 +378,10 @@ def puntuar_cambios_pendientes(db: Session, org_id: str, limite: int = 50) -> di
     for cambio in pendientes:
         try:
             score_and_persist(db, cambio.id)
-            if _maybe_auto_approve(db, cambio, system_user_id="system-batch-score"):
+            # M-MOD5 (2026-11-22): `approved_by` es FK a `users`; un texto
+            # ("system-batch-score") rompia el commit en Postgres. Lo aprueba
+            # la regla, no una persona: NULL (como en el alta).
+            if _maybe_auto_approve(db, cambio):
                 aprobados += 1
             db.commit()
             puntuados += 1

@@ -22,6 +22,12 @@ class Tipo:
     fecha: Callable                   # (Modelo) -> expresión de la fecha que cuenta
     condicion: Optional[Callable]     # (Modelo) -> filtro extra (p. ej. sólo cerrados)
     campos: tuple[str, ...]           # campos por los que se puede bloquear
+    #: Columna de empresa del modelo (todas `organization_id` desde la migracion 200, B-MOD1).
+    columna_empresa: str = "organization_id"
+
+    def empresa(self, M):
+        """La columna de empresa del modelo `M`."""
+        return getattr(M, self.columna_empresa)
 
 
 def _ticket():
@@ -64,6 +70,21 @@ def _entrega_webhook():
 def _correo():
     from app.models.cab import EmailLog
     return EmailLog
+
+
+def _orden_de_voz():
+    from app.models.ai_chat import AIVoiceCommand
+    return AIVoiceCommand
+
+
+def _chat_del_portal():
+    from app.models.ai_chat import AIClientChatSession
+    return AIClientChatSession
+
+
+def _justificante_de_gasto():
+    from app.models.expenses import ExpenseAttachment
+    return ExpenseAttachment
 
 
 def _documento_de_ausencia():
@@ -147,6 +168,85 @@ def _expediente_de_demanda():
     return DemandRequest
 
 
+# Auditoria 2026-11-22 (A-MOD3): tablas con datos personales (IP, correo,
+# payloads) que no tenian retencion ni purga.
+
+def _envio_de_formulario():
+    from app.models.public_forms import PublicFormSubmission
+    return PublicFormSubmission
+
+
+def _sesion_de_usuario():
+    from app.models.sessions import UserSession
+    return UserSession
+
+
+def _evento_de_seguridad():
+    from app.models.security_observability import SecurityEvent
+    return SecurityEvent
+
+
+def _deteccion_de_seguridad():
+    from app.models.security_observability import SecurityDetection
+    return SecurityDetection
+
+
+def _anomalia_de_acceso():
+    from app.models.security_observability import LoginAnomaly
+    return LoginAnomaly
+
+
+def _acceso_a_documento():
+    from app.models.documents import DocumentAccessLog
+    return DocumentAccessLog
+
+
+def _accion_de_ia():
+    from app.models.ai_chat import AIActionLog
+    return AIActionLog
+
+
+def _auditoria_de_colaboracion():
+    from app.models.collaboration import CollaborationAuditEvent
+    return CollaborationAuditEvent
+
+
+# 23-11-2026: políticas de cuenta (docs/seguridad/politicas_de_cuenta.md).
+def _historial_de_contrasenas():
+    from app.models.seguridad_de_cuentas import PasswordHistory
+    return PasswordHistory
+
+
+def _dispositivo_de_confianza():
+    from app.models.seguridad_de_cuentas import TrustedDevice
+    return TrustedDevice
+
+
+def _solicitud_de_seguridad():
+    from app.models.seguridad_de_cuentas import SecurityChangeRequest
+    return SecurityChangeRequest
+
+
+def _campana_de_recertificacion():
+    from app.models.seguridad_de_cuentas import AccessReviewCampaign
+    return AccessReviewCampaign
+
+
+def _registro_de_jira():
+    from app.models.jira_integration import JiraSyncLog
+    return JiraSyncLog
+
+
+def _sesion_de_voz():
+    from app.models.service_desk.datos_propios import VoiceSession
+    return VoiceSession
+
+
+def _hueco_de_conocimiento():
+    from app.models.service_desk.kb_calidad import KBGap
+    return KBGap
+
+
 TIPOS: dict[str, Tipo] = {
     # Sólo tickets cerrados, contando desde el cierre.
     "tickets": Tipo(_ticket, lambda M: M.closed_at, lambda M: M.closed_at.isnot(None),
@@ -166,6 +266,15 @@ TIPOS: dict[str, Tipo] = {
     # Tarea #25: documentos de ausencias (partes médicos: categoría especial),
     # desde que se subieron. Borrar la fila borra el documento del almacén.
     "absence_documents": Tipo(_documento_de_ausencia, lambda M: M.subido_en, None, ("id", "absence_id", "user_id")),
+    # M49 (auditoría 22-11-2026): transcripciones de voz y chats del portal con
+    # la IA (datos personales): retención configurable y bloqueo legal, como las
+    # conversaciones con la IA y las reuniones (antes sin purga).
+    "ai_voice_commands": Tipo(_orden_de_voz, lambda M: M.created_at, None, ("id", "user_id")),
+    "ai_client_chats": Tipo(_chat_del_portal, lambda M: M.created_at, None, ("id", "client_user_id")),
+    # A33 (auditoría 22-11-2026): justificantes de gastos (registro contable y fiscal);
+    # un bloqueo legal impide borrarlos, vengan de la pantalla o de una política.
+    "expense_attachments": Tipo(_justificante_de_gasto, lambda M: M.created_at, None,
+                                ("id", "expense_id", "uploaded_by")),
     "activity_events": Tipo(_actividad, lambda M: M.created_at, None,
                             ("id", "actor_id", "entity_type", "entity_id", "target_id")),
     # 18-11-2026: personas de un cliente (datos personales). Sólo las
@@ -217,6 +326,52 @@ TIPOS: dict[str, Tipo] = {
     "demand_requests": Tipo(_expediente_de_demanda, lambda M: M.closed_at,
                             lambda M: M.status.in_(("rejected", "withdrawn", "done")) & M.closed_at.isnot(None),
                             ("id", "client_id", "project_id", "requester_user_id", "client_user_id")),
+    # Auditoria 2026-11-22 (A-MOD3): datos personales que no tenian retencion.
+    # Envios de formularios publicos (correo e IP del remitente), desde el envio.
+    "public_form_submissions": Tipo(_envio_de_formulario, lambda M: M.submitted_at, None,
+                                    ("id", "form_id", "submitter_email")),
+    # Sesiones (IP, agente): solo las caducadas o revocadas, desde que acabaron.
+    "user_sessions": Tipo(_sesion_de_usuario, lambda M: func.coalesce(M.revoked_at, M.expires_at),
+                          lambda M: M.revoked_at.isnot(None) | (M.expires_at < func.now()),
+                          ("id", "user_id")),
+    # Seguridad (IP): eventos desde que ocurrieron, detecciones solo cerradas,
+    # anomalias de acceso desde que ocurrieron. (B-MOD1, migracion 200: ya usan
+    # `organization_id`, como el resto.)
+    "security_events": Tipo(_evento_de_seguridad, lambda M: M.occurred_at, None,
+                            ("id", "user_id", "ip_address")),
+    "security_detections": Tipo(_deteccion_de_seguridad, lambda M: M.resolved_at,
+                                lambda M: M.resolved_at.isnot(None), ("id", "user_id", "ip_address")),
+    "login_anomalies": Tipo(_anomalia_de_acceso, lambda M: M.occurred_at, None,
+                            ("id", "user_id", "ip_address")),
+    # Accesos a documentos, acciones de la IA y auditoria de colaboracion (IP).
+    "document_access_logs": Tipo(_acceso_a_documento, lambda M: M.accessed_at, None,
+                                 ("id", "document_id", "user_id")),
+    "ai_action_logs": Tipo(_accion_de_ia, lambda M: M.created_at, None, ("id", "user_id")),
+    "collaboration_audit_events": Tipo(_auditoria_de_colaboracion, lambda M: M.created_at, None,
+                                       ("id", "actor_user_id")),
+    # Registro de sincronizacion con Jira (payloads con datos personales).
+    "jira_sync_logs": Tipo(_registro_de_jira, lambda M: M.occurred_at, None, ("id", "ticket_id", "jira_issue_key")),
+    # 23-11-2026: políticas de cuenta. Historial de contraseñas (hashes) desde el
+    # alta; dispositivos de confianza revocados o caducados; solicitudes de
+    # segundo administrador decididas; campañas de recertificación cerradas (sus
+    # elementos, la evidencia, se van en cascada).
+    "password_history": Tipo(_historial_de_contrasenas, lambda M: M.created_at, None, ("id", "user_id")),
+    "trusted_devices": Tipo(_dispositivo_de_confianza, lambda M: func.coalesce(M.revoked_at, M.expires_at),
+                            lambda M: M.revoked_at.isnot(None) | (M.expires_at < func.now()), ("id", "user_id")),
+    "security_change_requests": Tipo(_solicitud_de_seguridad, lambda M: func.coalesce(M.decided_at, M.requested_at),
+                                     lambda M: M.status != "pending", ("id", "target_user_id", "requested_by")),
+    "access_review_campaigns": Tipo(_campana_de_recertificacion, lambda M: M.closed_at,
+                                    lambda M: M.status == "closed", ("id",)),
+    # Migracion 200 (A-MOD3): datos personales que vivian en `AppSetting`.
+    # Sesiones de voz (numero y transcripcion, cifrados): desde el cierre o, si
+    # no se cerraron, desde el alta; se bloquean por ticket o por la huella del
+    # numero (`voice_agent_service.huella_del_numero`).
+    "sd_voice_sessions": Tipo(_sesion_de_voz, lambda M: func.coalesce(M.closed_at, M.created_at), None,
+                              ("id", "ticket_id", "caller_id_hash")),
+    # Huecos de la base de conocimiento (preguntas literales de clientes): desde
+    # la ultima vez que se pregunto, solo los cerrados.
+    "sd_kb_gaps": Tipo(_hueco_de_conocimiento, lambda M: M.last_asked_at,
+                       lambda M: M.status.in_(("answered", "dismissed")), ("id", "article_id")),
 }
 
 
@@ -268,7 +423,7 @@ def comprobar_borrados(session) -> None:
         clave = clases.get(type(obj))
         if clave is None:
             continue
-        org = getattr(obj, "organization_id", None)
+        org = getattr(obj, TIPOS[clave].columna_empresa, None)
         if org not in por_org:
             por_org[org] = bloqueos_activos(session, org)
         b = _bloqueo_de(clave, obj, por_org[org])

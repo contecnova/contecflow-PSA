@@ -210,7 +210,7 @@ def subir(db: Session, usuario, a: Absence, *, tipo_id: str, nombre: str, conten
         raise error(413, "fichero_demasiado_grande", detail=f"El archivo supera el máximo de {maximo // (1024 * 1024)} MB", max=maximo // (1024 * 1024))
     validate_upload(nombre or "", content_type or "", contenido)
     av, detalle = scan_with_av(contenido)
-    if av == "infected":
+    if av in ("infected", "unavailable"):   # A24: antivirus caído = no se acepta
         audit_log(db, usuario, "UPLOAD_BLOCKED", "absence_document", a.id, nombre, metadata={"antivirus": detalle})
         db.commit()
         raise error(422, "antivirus_bloqueado")

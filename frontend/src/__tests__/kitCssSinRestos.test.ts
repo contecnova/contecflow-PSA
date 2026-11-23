@@ -28,6 +28,21 @@ describe('comprobación de CSS del kit', () => {
     expect(r.altoFijoControl).toHaveLength(2)
   })
 
+  it('detecta altos mínimos de campo a mano y selectores con .ds-input (23-11-2026)', () => {
+    const r = analizarCss(`
+      .x-buscar input { min-height: 34px; }
+      .mi-select { min-height: 30px; }
+      .mi-campo { min-height: var(--alto-control); }
+      .mi-textarea-campo { min-height: 80px; }
+      .x-check-input { min-height: 16px; }
+      .ds-input.mi-campo { width: 100px; }
+      .zona .ds-input { width: auto; }
+      .ds-input-propio { width: 1px; }
+    `)
+    expect(r.minAltoCampo.map(h => h.texto)).toEqual(['.x-buscar input { min-height: 34px }', '.mi-select { min-height: 30px }'])
+    expect(r.selectorDsInput).toHaveLength(2)
+  })
+
   it('ninguna hoja supera su cupo de kit-pendientes.json', () => {
     const fallos: string[] = []
     for (const rel of hojasFueraDelKit(RAIZ)) {

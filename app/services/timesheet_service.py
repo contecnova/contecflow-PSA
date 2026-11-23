@@ -11,6 +11,7 @@ from app.models.imputation import Imputation
 from app.models.user import User
 from app.core import timeutil
 from app.core.paginacion import Pagina, Paginacion, paginar
+from app.services.textos_guardados import pintar_campo
 
 
 def get_timesheet_lines(db: Session, user_id: str, week_start: date) -> list:
@@ -143,7 +144,7 @@ def _enrich(timesheets) -> list:
             "total_cost": ts.total_cost or 0,
             "submitted_at": ts.submitted_at,
             "reviewed_at": ts.reviewed_at,
-            "review_notes": ts.review_notes,
+            "review_notes": pintar_campo(ts, "review_notes"),
             "user_name": ts.user.full_name if ts.user else None,
             "reviewer_name": None,
         }

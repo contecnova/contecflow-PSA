@@ -38,7 +38,7 @@ class ServiceItemTask(Base):
     __tablename__ = "sd_service_item_tasks"
 
     id = Column(String(36), primary_key=True, default=_id)
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
     service_item_id = Column(String(36), ForeignKey("sd_service_items.id", ondelete="CASCADE"), nullable=False, index=True)
     title = Column(String(300), nullable=False)
     description = Column(Text, nullable=True)
@@ -56,7 +56,7 @@ class SLARule(Base):
     __tablename__ = "sd_sla_rules"
 
     id = Column(String(36), primary_key=True, default=_id)
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
     name = Column(String(150), nullable=False)
     is_active = Column(Boolean, nullable=False, default=True, server_default="1")
     sort_order = Column(Integer, nullable=False, default=0, server_default="0")
@@ -79,7 +79,7 @@ class OLATarget(Base):
     __table_args__ = (UniqueConstraint("group_id", "priority", name="uq_sd_ola_targets_group_priority"),)
 
     id = Column(String(36), primary_key=True, default=_id)
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
     group_id = Column(String(36), ForeignKey("sd_agent_groups.id", ondelete="CASCADE"), nullable=False, index=True)
     priority = Column(String(20), nullable=False)
     hours = Column(Float, nullable=False)
@@ -90,7 +90,7 @@ class TicketLifecycle(Base):
     __table_args__ = (UniqueConstraint("organization_id", "ticket_type", name="uq_sd_lifecycle_org_type"),)
 
     id = Column(String(36), primary_key=True, default=_id)
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
     ticket_type = Column(String(30), nullable=False)
     name = Column(String(150), nullable=False)
     is_active = Column(Boolean, nullable=False, default=True, server_default="1")
@@ -104,7 +104,7 @@ class TicketLifecycleState(Base):
     __table_args__ = (UniqueConstraint("lifecycle_id", "key", name="uq_sd_lifecycle_state_key"),)
 
     id = Column(String(36), primary_key=True, default=_id)
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
     lifecycle_id = Column(String(36), ForeignKey("sd_ticket_lifecycles.id", ondelete="CASCADE"), nullable=False, index=True)
     key = Column(String(50), nullable=False)
     label = Column(String(100), nullable=False)
@@ -120,7 +120,7 @@ class TicketLifecycleTransition(Base):
     __table_args__ = (UniqueConstraint("lifecycle_id", "from_key", "to_key", name="uq_sd_lifecycle_transition"),)
 
     id = Column(String(36), primary_key=True, default=_id)
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
     lifecycle_id = Column(String(36), ForeignKey("sd_ticket_lifecycles.id", ondelete="CASCADE"), nullable=False, index=True)
     from_key = Column(String(50), nullable=False)
     to_key = Column(String(50), nullable=False)
@@ -130,7 +130,7 @@ class ChannelConversation(Base):
     __tablename__ = "sd_channel_conversations"
 
     id = Column(String(36), primary_key=True, default=_id)
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
     channel = Column(String(20), nullable=False, index=True)          # whatsapp | livechat | slack | teams
     external_id = Column(String(255), nullable=True, index=True)      # telefono, sesion, canal+hilo
     ticket_id = Column(String(36), ForeignKey("sd_tickets.id", ondelete="SET NULL"), nullable=True, index=True)
@@ -154,7 +154,7 @@ class ChannelMessage(Base):
     __table_args__ = (UniqueConstraint("conversation_id", "external_message_id", name="uq_sd_channel_message_ext"),)
 
     id = Column(String(36), primary_key=True, default=_id)
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
     conversation_id = Column(String(36), ForeignKey("sd_channel_conversations.id", ondelete="CASCADE"), nullable=False, index=True)
     direction = Column(String(3), nullable=False)          # in | out
     author_type = Column(String(10), nullable=False)       # customer | agent | bot | system
@@ -178,7 +178,7 @@ class CIClass(Base):
     __table_args__ = (UniqueConstraint("organization_id", "key", name="uq_sd_ci_class_org_key"),)
 
     id = Column(String(36), primary_key=True, default=_id)
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
     key = Column(String(50), nullable=False)
     label = Column(String(100), nullable=False)
     # Clase base (`CIType`) que entienden el descubrimiento, el impacto y la topologia.
@@ -193,7 +193,7 @@ class PortalAssistantAction(Base):
     __tablename__ = "sd_portal_assistant_actions"
 
     id = Column(String(36), primary_key=True, default=_id)
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
     client_user_id = Column(String(36), ForeignKey("client_users.id", ondelete="CASCADE"), nullable=False, index=True)
     action = Column(String(40), nullable=False)            # ticket_status | catalog_request | password_reset
     params_json = Column(Text, nullable=True)

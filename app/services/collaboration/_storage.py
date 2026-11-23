@@ -224,10 +224,12 @@ def scan_with_av(data: bytes) -> tuple[str, dict]:
         result = _scan_with_clamd(data)
         if result is not None:
             return result
-        # clamd unreachable — degrade to dev scan but flag the reason
+        # A24 (auditoría 22-11-2026): con el antivirus ACTIVADO y clamd caído se
+        # falla CERRADO: «unavailable» (quien llama bloquea o pone en cuarentena
+        # hasta poder escanear). Antes se daba por bueno con la firma EICAR.
         if _EICAR in data:
             return "infected", {"signature": "EICAR-Test-File", "note": "fallback scan"}
-        return "skipped", {"reason": "clamd unreachable; fallback scan passed"}
+        return "unavailable", {"reason": "clamd unreachable: fail closed"}
     # AV disabled — quick local-dev scan against EICAR signature
     if _EICAR in data:
         return "infected", {"signature": "EICAR-Test-File"}
@@ -247,10 +249,15 @@ def scan_dlp(text: str) -> tuple[str, list[dict]]:
     """Returns (status, findings). status: allowed|flagged|blocked."""
     import re
 
+    import hashlib
     findings = []
     for name, pat in _DLP_PATTERNS:
         for m in re.finditer(pat, text or ""):
-            findings.append({"rule": name, "match_excerpt": m.group(0)[:32] + "..."})
+            # A24 (auditoría 22-11-2026): ni un fragmento del dato (antes 32
+            # caracteres: media tarjeta, el IBAN entero, el DNI): posición,
+            # longitud y huella para poder localizarlo y cotejarlo.
+            findings.append({"rule": name, "start": m.start(), "length": len(m.group(0)),
+                             "sha256": hashlib.sha256(m.group(0).encode()).hexdigest()[:16]})
     if not findings:
         return "allowed", []
     if any(f["rule"] in {"credit_card", "iban"} for f in findings):

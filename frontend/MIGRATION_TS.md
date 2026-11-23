@@ -2,13 +2,13 @@
 
 Gradual JS → TS migration of the Contecflow PSA frontend.
 
-## Estado actual (revisado contra el código el 2026-11-16)
+## Estado actual (revisado contra el código el 2026-11-23)
 
 Lo de abajo de esta sección es el diario de la migración (mayo 2026) y en
 varios puntos ya no es cierto. Hoy:
 
-- `frontend/src`: 461 ficheros `.ts`/`.tsx` y ningún `.js`/`.jsx` (solo quedan
-  los `.mjs` de `src/i18n`).
+- `frontend/src`: 836 ficheros `.ts`/`.tsx`, 0 `.js`/`.jsx` y 7 `.mjs` (los de
+  `src/i18n`); contados recorriendo `src/` con un script, tests incluidos.
 - `tsconfig.json` (lo usa `npm run typecheck`): `allowJs: true`,
   `strict: false`, `noImplicitAny: false`, con `noImplicitThis` y
   `strictFunctionTypes` activados. **No** es `strict: true` como dice
@@ -21,7 +21,17 @@ varios puntos ya no es cierto. Hoy:
   (`_core.ts` más módulos por dominio y `tipos-*.ts`); el punto 1 de
   «Open type-debt» y el bloqueo 1 de «Known type-debt blockers» están
   superados.
-- `// TODO type:` queda en 36 ficheros (no ~140).
+- `// TODO type:` queda en 27 ficheros (medido el 2026-11-23; no ~140).
+- **Ficheros que cita el diario de abajo y ya no existen** (renombrados,
+  fundidos o borrados; comprobado con un script sobre cada ruta citada):
+  `src/utils/wsUtils.ts`, `src/utils/logger.ts`, `src/types/api.ts` y los hooks
+  `useAlerts`, `useProblems`, `useSubcontractors`, `useVendors`, `useDashboard`,
+  `useDeliverables`, `useEpics`, `useAssets`, `useContracts`, `useMilestones`,
+  `useOKRs`, `useRisks`, `useCountUp` y `useChanges` (`src/hooks/*.ts`). Los
+  tipos de dominio viven ahora en `services/api/tipos-*.ts`. Existen todavía
+  `security.ts`, `formValidation.ts`, `collabPush.ts`, `helpers.ts`,
+  `useMediaQuery`, `useOnlineStatus`, `useOrgSettings`, `useFormValidation` y
+  `useIdleTimeout`.
 - ESLint prohíbe `any` explícito (`@typescript-eslint/no-explicit-any: error`).
 - Nada de esto se ejecuta solo: no hay hooks de git; los comandos se lanzan a
   mano.

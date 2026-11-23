@@ -8,7 +8,7 @@ import { tasksApi, projectsApi, sprintsApi, absencesApi, unwrapList } from '../s
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { Calendar, ChevronLeft, ChevronRight, ListChecks, Flag, RefreshCw, Palmtree, FileText, KeyRound } from 'lucide-react'
-import { Button, IconButton, Select } from '../components/ui'
+import { Button, EstadoDeError, IconButton, Select } from '../components/ui'
 import { useAppLang } from '../i18n/AppLangContext'
 import { localeActivo } from '../utils/helpers'
 import { CALENDAR_ABSENCES_LIMIT, CALENDAR_SPRINTS_LIMIT, CALENDAR_TASKS_LIMIT } from '../constants/pagination'
@@ -76,35 +76,37 @@ export default function CalendarPage(): JSX.Element {
   }, [locale])
 
   // Tareas con fecha de vencimiento
-  const { data: tasks = [] } = useQuery<CalendarEvent[]>({
+  // 23-11-2026: las 4 consultas ya no se tragan el error con `.catch(() => [])`; el mes se pinta con un
+  // aviso de error (y reintento) si alguna falla, en vez de un calendario vacío que parece correcto.
+  const { data: tasks = [], isError: tasksError, error: tasksErr, refetch: refetchTasks } = useQuery<CalendarEvent[]>({
     queryKey: ['cal-tasks', year, month],
     queryFn: () => tasksApi.list({ due_date_from: dateFrom, due_date_to: dateTo, limit: CALENDAR_TASKS_LIMIT })
       .then(r => (unwrapList(r) as TaskItem[]).map((t): CalendarEvent => ({
         date: t.due_date ?? '', type: 'task', title: t.title ?? '', id: t.id, status: t.status,
-      }))).catch(() => []),
+      }))),
   })
 
   // Milestones
-  const { data: milestones = [] } = useQuery<CalendarEvent[]>({
+  const { data: milestones = [], isError: milestonesError, error: milestonesErr, refetch: refetchMilestones } = useQuery<CalendarEvent[]>({
     queryKey: ['cal-milestones', year, month],
     queryFn: () => projectsApi.milestones({ date_from: dateFrom, date_to: dateTo })
       .then(r => (unwrapList(r) as MilestoneItem[]).map((m): CalendarEvent => ({
         date: m.due_date ?? '', type: 'milestone', title: m.title ?? '', id: m.id,
-      }))).catch(() => []),
+      }))),
   })
 
   // Sprints
-  const { data: sprints = [] } = useQuery<CalendarEvent[]>({
+  const { data: sprints = [], isError: sprintsError, error: sprintsErr, refetch: refetchSprints } = useQuery<CalendarEvent[]>({
     queryKey: ['cal-sprints', year, month, lang],
     queryFn: () => sprintsApi.list(undefined, { limit: CALENDAR_SPRINTS_LIMIT })
       .then(r => (unwrapList(r) as SprintItem[]).flatMap(s => [
         s.start_date ? { date: s.start_date, type: 'sprint', title: t('calendar.sprint_start', { name: s.name ?? '' }), id: s.id + '_s' } : null,
         s.end_date   ? { date: s.end_date,   type: 'sprint', title: t('calendar.sprint_end', { name: s.name ?? '' }), id: s.id + '_e' } : null,
-      ].filter(Boolean) as CalendarEvent[])).catch(() => []),
+      ].filter(Boolean) as CalendarEvent[])),
   })
 
   // Ausencias
-  const { data: absences = [] } = useQuery<CalendarEvent[]>({
+  const { data: absences = [], isError: absencesError, error: absencesErr, refetch: refetchAbsences } = useQuery<CalendarEvent[]>({
     queryKey: ['cal-absences', year, month, lang],
     queryFn: () => absencesApi.list({ date_from: dateFrom, date_to: dateTo, limit: CALENDAR_ABSENCES_LIMIT })
       // Una ausencia ocupa todos sus días del mes, no sólo el primero (revisión 2026-11).
@@ -119,8 +121,12 @@ export default function CalendarPage(): JSX.Element {
             title: t('calendar.absence_title', { user: a.user_name || t('calendar.team'), type: a.type || t('calendar.type_absence') }), id: `${a.id}_${d}` })
         }
         return dias
-      })).catch(() => []),
+      })),
   })
+  const errorDeCarga = tasksError ? { e: tasksErr, r: refetchTasks }
+    : milestonesError ? { e: milestonesErr, r: refetchMilestones }
+    : sprintsError ? { e: sprintsErr, r: refetchSprints }
+    : absencesError ? { e: absencesErr, r: refetchAbsences } : null
 
   // Todos los eventos del mes
   const allEvents = [...tasks, ...milestones, ...sprints, ...absences]
@@ -150,6 +156,8 @@ export default function CalendarPage(): JSX.Element {
   return (
     <PageShell>
       <PageHeader icon={<Calendar size={18} />} title={t('nav.calendar')} subtitle={t('calendar.subtitle')} showListExport={false} />
+
+      {errorDeCarga && <EstadoDeError error={errorDeCarga.e} onReintentar={() => { void errorDeCarga.r() }} />}
 
       {/* Controles */}
       <div className="cal-controls">

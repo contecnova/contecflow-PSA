@@ -9,12 +9,14 @@ declarados— y el idioma de la transcripcion, que ahora sale de
 from fastapi import APIRouter, Depends, File, UploadFile
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_current_user, require_internal_user
+from app.core.deps import get_current_user, requiere_capacidad
 from app.core.responses import APIListResponse, APIResponse
+from app.core.uploads import read_upload_within_limit_sync, validate_audio_upload, safe_filename
 from app.db.session import get_db
 from app.models.user import User
 from app.schemas.collaboration import CallStartIn, CallSummaryOut, CallTokenOut
 from app.services.collaboration import calls as svc
+from app.services.reuniones.transaccion import confirmar
 from app.services.collaboration._permissions import _org
 from app.services.collaboration.livekit import issue_access_token, url as lk_url
 
@@ -35,7 +37,7 @@ def _token_de(call, user, *, role: str) -> CallTokenOut:
 
 @router.post("/calls/start", response_model=APIResponse[CallTokenOut], summary="Iniciar llamada")
 def start_call(payload: CallStartIn, current_user: User = Depends(get_current_user), db: Session = Depends(get_db),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: trabajo interno diario; lo que hay que excluir es al subcontratado
+    _rol: User = Depends(requiere_capacidad("colaboracion.usar")),  # auditoria 2026-09: dominio: trabajo interno diario; lo que hay que excluir es al subcontratado
 ):
     call = svc.start_call(
         db, current_user,
@@ -51,7 +53,7 @@ def join_call(call_id: str, current_user: User = Depends(get_current_user), db: 
     # participante de la reunión (su consentimiento queda pendiente).
     from app.services.reuniones import llamadas as asistente
     asistente.al_unirse(db, current_user, call_id)
-    db.commit()
+    confirmar(db)
     return APIResponse.ok(data=_token_de(call, current_user, role="participant"))
 
 
@@ -63,7 +65,7 @@ def leave_call(call_id: str, current_user: User = Depends(get_current_user), db:
 
 @router.post("/calls/{call_id}/end", summary="Cerrar llamada")
 def end_call(call_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: trabajo interno diario; lo que hay que excluir es al subcontratado
+    _rol: User = Depends(requiere_capacidad("colaboracion.usar")),  # auditoria 2026-09: dominio: trabajo interno diario; lo que hay que excluir es al subcontratado
 ):
     recien_cerrada = svc.end_call(db, current_user, call_id)
     if recien_cerrada:
@@ -82,7 +84,7 @@ def end_call(call_id: str, current_user: User = Depends(get_current_user), db: S
 
 @router.post("/calls/{call_id}/recording/start", summary="Iniciar grabación")
 def start_recording(call_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: trabajo interno diario; lo que hay que excluir es al subcontratado
+    _rol: User = Depends(requiere_capacidad("colaboracion.usar")),  # auditoria 2026-09: dominio: trabajo interno diario; lo que hay que excluir es al subcontratado
 ):
     return APIResponse.ok(
         data={"recording_id": svc.start_recording(db, current_user, call_id)})
@@ -100,14 +102,15 @@ def transcribe_chunk(
     audio: UploadFile = File(...),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: trabajo interno diario; lo que hay que excluir es al subcontratado
+    _rol: User = Depends(requiere_capacidad("colaboracion.usar")),  # auditoria 2026-09: dominio: trabajo interno diario; lo que hay que excluir es al subcontratado
 ):
     # La llamada se comprueba ANTES de leer el fichero: no tiene sentido
     # descargar audio de una llamada a la que no se tiene acceso.
     svc.exigir_llamada_accesible(db, current_user, call_id)
     # Auditoria 2026-11: `def` (threadpool). La transcripcion es un POST de
     # hasta 30 s o un subproceso de whisper: en `async def` paraba el bucle.
-    datos = audio.file.read()
+    datos = read_upload_within_limit_sync(audio, 25 * 1024 * 1024)
+    validate_audio_upload(audio.filename or "", datos)
 
     # 19-11-2026: con el asistente de reuniones grabando, el audio solo va a los
     # proveedores de voz que la empresa permite para reuniones (externos solo
@@ -126,7 +129,7 @@ def transcribe_chunk(
         # está grabando (hablante = quien sube su propio audio; respeta su «no»).
         if asistente.registrar_fragmento(db, current_user, call_id, texto, datos,
                                          audio.content_type or "audio/webm"):
-            db.commit()
+            confirmar(db)
     return {"text": texto or ""}
 
 

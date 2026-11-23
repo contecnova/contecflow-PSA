@@ -22,11 +22,11 @@ from sqlalchemy.orm import Session
 from app.core.async_db import run_db
 from app.core.config import settings as app_settings
 from app.core.constantes import MAX_TAMANO_DE_PAGINA
-from app.core.deps import get_current_portal_client, require_internal_user, requiere_capacidad
+from app.core.deps import get_current_portal_client, requiere_capacidad
 from app.core.errores import ErrorDeDominio
 from app.core.codigos_de_error import error as error_con_codigo
 from app.core.responses import APIListResponse, APIResponse
-from app.db.session import get_db
+from app.db.session import get_db, sesion_de_sistema
 from app.models.user import User
 from app.services.service_desk import canal_slack, canal_whatsapp, conversaciones
 
@@ -56,7 +56,7 @@ class ChatIn(BaseModel):
 # ── Slack ─────────────────────────────────────────────────────────────────────
 
 @router.post("/slack/interactions", include_in_schema=False, summary="Botones de la tarjeta de Slack")
-async def slack_interactions(request: Request, db: Session = Depends(get_db)):
+async def slack_interactions(request: Request, db: Session = Depends(sesion_de_sistema("slack: firma del workspace"))):
     cuerpo = await request.body()
     payload, usuario = await run_db(canal_slack.leer_interaccion, db, cuerpo,
                                     request.headers.get("X-Slack-Request-Timestamp", ""),
@@ -69,7 +69,7 @@ async def slack_interactions(request: Request, db: Session = Depends(get_db)):
 
 
 @router.post("/slack/events", include_in_schema=False, summary="Events API de Slack (mensajes de hilos y canales)")
-async def slack_events(request: Request, db: Session = Depends(get_db)):
+async def slack_events(request: Request, db: Session = Depends(sesion_de_sistema("slack: firma del workspace"))):
     """`url_verification` contesta el `challenge`; `event_callback` se verifica y se
     procesa fuera de la peticion (Slack reintenta si no hay 200 en 3 s)."""
     from app.core.segundo_plano import encolar
@@ -92,7 +92,7 @@ def whatsapp_verify(
     hub_mode: Optional[str] = Query(None, alias="hub.mode"),
     hub_verify_token: Optional[str] = Query(None, alias="hub.verify_token"),
     hub_challenge: Optional[str] = Query(None, alias="hub.challenge", max_length=200),
-    db: Session = Depends(get_db),
+    db: Session = Depends(sesion_de_sistema("whatsapp: verify token")),
 ):
     if hub_mode != "subscribe" or not canal_whatsapp.comprobar_alta(db, hub_verify_token):
         raise error_con_codigo(403, "metodo_canal_verify_token", detail="Verify token no válido")
@@ -100,7 +100,7 @@ def whatsapp_verify(
 
 
 @router.post("/whatsapp/webhook", include_in_schema=False, summary="Mensajes de WhatsApp (Meta Cloud API)")
-async def whatsapp_webhook(request: Request, db: Session = Depends(get_db)):
+async def whatsapp_webhook(request: Request, db: Session = Depends(sesion_de_sistema("whatsapp: firma de Meta"))):
     import json
     cuerpo = await request.body()
     try:
@@ -148,25 +148,25 @@ def livechat_agent(conv_id: str, db: Session = Depends(get_db), client=Depends(g
 def list_conversations(status: Optional[str] = Query(None, pattern="^(bot|waiting_agent|agent|closed)$"),
                        channel: Optional[str] = Query(None, pattern="^(whatsapp|livechat|slack|teams)$"),
                        page: int = Query(1, ge=1), page_size: int = Query(25, ge=1, le=MAX_TAMANO_DE_PAGINA),
-                       db: Session = Depends(get_db), current_user: User = Depends(require_internal_user)):
+                       db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("sd.completo"))):
     r = conversaciones.listar(db, current_user.organization_id, status, page, page_size, channel)
     return APIListResponse.ok(items=r["items"], total=r["total"], page=page, page_size=page_size)
 
 
 @router.get("/conversations/{conv_id}", summary="Una conversación con sus mensajes")
 def get_conversation(conv_id: str, after: Optional[str] = Query(None, max_length=36), db: Session = Depends(get_db),
-                     current_user: User = Depends(require_internal_user)):
+                     current_user: User = Depends(requiere_capacidad("sd.completo"))):
     return APIResponse.ok(data=conversaciones.detalle_para_agente(db, conv_id, current_user.organization_id, after))
 
 
 @router.post("/conversations/{conv_id}/take", summary="Tomar la conversación (traspaso a agente)")
-def take_conversation(conv_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_internal_user)):
+def take_conversation(conv_id: str, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("sd.completo"))):
     return APIResponse.ok(data=conversaciones.serializar(db, conversaciones.tomar(db, conv_id, current_user)))
 
 
 @router.post("/conversations/{conv_id}/reply", summary="Contestar al cliente por su canal")
 def reply_conversation(conv_id: str, payload: RespuestaIn, db: Session = Depends(get_db),
-                       current_user: User = Depends(require_internal_user)):
+                       current_user: User = Depends(requiere_capacidad("sd.completo"))):
     m = conversaciones.responder(db, conv_id, current_user, payload.body, client_text=payload.client_text,
                                  client_language=payload.client_language)
     return APIResponse.ok(data=conversaciones.serializar_mensaje(m))
@@ -174,21 +174,21 @@ def reply_conversation(conv_id: str, payload: RespuestaIn, db: Session = Depends
 
 @router.post("/conversations/{conv_id}/attachments", summary="Enviar un adjunto del ticket por el canal")
 def send_attachment(conv_id: str, payload: AdjuntoIn, db: Session = Depends(get_db),
-                    current_user: User = Depends(require_internal_user)):
+                    current_user: User = Depends(requiere_capacidad("sd.completo"))):
     m = conversaciones.enviar_adjunto(db, conv_id, current_user, payload.document_id, payload.caption)
     return APIResponse.ok(data=conversaciones.serializar_mensaje(m, db))
 
 
 @router.get("/tickets/{ticket_id}/conversations", summary="Conversaciones de canal abiertas de un ticket y sus adjuntos")
 def ticket_channel_conversations(ticket_id: str, db: Session = Depends(get_db),
-                                 current_user: User = Depends(require_internal_user)):
+                                 current_user: User = Depends(requiere_capacidad("sd.completo"))):
     """Para enviar adjuntos desde la ficha del ticket (17-11-2026): el envio es
     `POST /conversations/{id}/attachments`, igual que en la bandeja."""
     return APIResponse.ok(data=conversaciones.del_ticket_para_adjuntos(db, ticket_id, current_user.organization_id))
 
 
 @router.post("/conversations/{conv_id}/close", summary="Cerrar la conversación")
-def close_conversation(conv_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_internal_user)):
+def close_conversation(conv_id: str, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("sd.completo"))):
     return APIResponse.ok(data=conversaciones.serializar(db, conversaciones.cerrar(db, conv_id, current_user)))
 
 

@@ -75,12 +75,16 @@ def list_clients(
     """``limit`` es el parametro antiguo (solo cabeza de la lista); ``pagina``, el comun."""
     query = scoped_client_query(db, current_user).options(joinedload(Client.account_manager))
     if q:
+        # M69 (auditoría 22-11-2026): `%` y `_` del texto buscado se escapan
+        # (antes «_» casaba con cualquier carácter y «%» con todo).
+        from app.services.service_desk.ticket_query_service import escapar_like
+        patron = f"%{escapar_like(q)}%"
         query = query.filter(
-            Client.name.ilike(f"%{q}%") |
-            Client.short_name.ilike(f"%{q}%") |
-            Client.contact_email.ilike(f"%{q}%") |
-            Client.contact_name.ilike(f"%{q}%") |
-            Client.email.ilike(f"%{q}%")
+            Client.name.ilike(patron, escape="\\") |
+            Client.short_name.ilike(patron, escape="\\") |
+            Client.contact_email.ilike(patron, escape="\\") |
+            Client.contact_name.ilike(patron, escape="\\") |
+            Client.email.ilike(patron, escape="\\")
         )
     if status:
         query = query.filter(Client.status == status)
@@ -103,10 +107,20 @@ def recuentos_de_clientes(db: Session, ids: list) -> dict:
     Segunda auditoria 2026-11 (N+1): eran cuatro ``count`` por cliente; ahora
     son cuatro ``GROUP BY`` para toda la pagina.
     """
-    recuentos = {i: {"projects_count": 0, "tickets_count": 0, "invoices_count": 0, "portal_users_count": 0}
+    recuentos = {i: {"projects_count": 0, "tickets_count": 0, "invoices_count": 0, "portal_users_count": 0,
+                     "primary_contact_id": None}
                  for i in ids}
     if not ids:
         return recuentos
+    # Ronda 2 de la auditoría 22-11-2026 (N+1): el contacto principal
+    # (`primary_contact_id`) se leía con una consulta por cliente; ahora, una
+    # para toda la página.
+    for cid, contacto in db.query(ClientContact.client_id, ClientContact.id).filter(
+        ClientContact.client_id.in_(ids), ClientContact.is_active == True,  # noqa: E712
+        ClientContact.is_primary == True,  # noqa: E712
+    ).order_by(ClientContact.client_id, ClientContact.id).all():
+        if recuentos[cid]["primary_contact_id"] is None:
+            recuentos[cid]["primary_contact_id"] = contacto
     for clave, columna in (
         ("projects_count", Project.client_id),
         ("tickets_count", Ticket.client_id),
@@ -182,7 +196,8 @@ def get_client_summary(client, db: Session, recuentos: Optional[dict] = None) ->
         # Empresa: teléfono y email generales (no los del contacto principal).
         "phone": client.phone, "email": client.email,
         # Contacto principal: reflejo del contacto `is_primary` (persona).
-        "primary_contact_id": _id_del_principal(db, client.id),
+        "primary_contact_id": (recuentos["primary_contact_id"] if "primary_contact_id" in recuentos
+                               else _id_del_principal(db, client.id)),
         "contact_name": client.contact_name, "contact_email": client.contact_email,
         "contact_phone": client.contact_phone, "contact_role": client.contact_role,
         "website": client.website, "address": client.address,
@@ -308,10 +323,16 @@ def get_client_detail(client, db: Session) -> dict:
     return out
 
 
+#: Baja (auditoría 22-11-2026): UN valor por defecto de los módulos del portal
+#: (antes «sin configuración» daba service_desk+projects y «configuración sin
+#: módulos», ninguno: el mismo cliente veía cosas distintas según la pantalla).
+MODULOS_DEL_PORTAL_POR_DEFECTO = ("service_desk", "projects")
+
+
 def _portal_config_out(cfg) -> dict:
     if cfg:
         return {
-            "enabled_modules": json.loads(cfg.enabled_modules) if cfg.enabled_modules else [],
+            "enabled_modules": json.loads(cfg.enabled_modules) if cfg.enabled_modules else list(MODULOS_DEL_PORTAL_POR_DEFECTO),
             "sd_without_project": cfg.sd_without_project,
             "sla_tier": cfg.sla_tier,
             "max_portal_users": cfg.max_portal_users,
@@ -337,14 +358,23 @@ def _con_zona(dt):
     return dt.replace(tzinfo=timezone.utc) if dt and dt.tzinfo is None else dt
 
 
+def _moneda_de_la_empresa(db: Session, cliente) -> str:
+    from app.services.settings_service.por_empresa import moneda_de_empresa
+    return moneda_de_empresa(db, registro=cliente)
+
+
 def _valor_de_contratos(db: Session, enlaces) -> float:
-    """Importe total de los contratos enlazados que tengan importe."""
-    total = 0.0
-    for enlace in enlaces:
-        contrato = db.query(Contract).filter(Contract.id == enlace.contract_id).first()
-        if contrato and contrato.total_amount:
-            total += contrato.total_amount
-    return total
+    """Importe total de los contratos enlazados que tengan importe.
+
+    M10 (auditoría 22-11-2026): `contracts` no tiene moneda: su importe es el de
+    la moneda de la empresa (lo que dice la respuesta en `currency`); una
+    columna `contracts.currency` permitiría contratos en otra moneda (ver el
+    informe). Una sola consulta (antes una por contrato).
+    """
+    ids = [e.contract_id for e in enlaces if e.contract_id]
+    if not ids:
+        return 0.0
+    return float(sum(float(t or 0) for (t,) in db.query(Contract.total_amount).filter(Contract.id.in_(ids)).all()))
 
 
 def _licencias_por_vencer(db: Session, enlaces, ahora) -> int:
@@ -384,6 +414,10 @@ def get_client_360(client_id: str, db: Session) -> dict:
 
     ahora = datetime.now(timezone.utc)
     hace_30_dias = ahora - timedelta(days=30)
+    from app.services.formato_regional import idioma_de_salida
+    from app.services.textos_de_salida import texto as _texto_de_salida
+    _idioma = idioma_de_salida(db, org_id=getattr(c, "organization_id", None))
+    _tx = lambda clave, **p: _texto_de_salida(clave, _idioma, **p)  # noqa: E731
 
     proyectos = db.query(Project).filter(Project.client_id == client_id).all()
     activos = [p for p in proyectos if p.status == "active"]
@@ -431,6 +465,7 @@ def get_client_360(client_id: str, db: Session) -> dict:
             "tickets_last_30d": len(recientes),
             "linked_contracts": len(enlaces_contrato),
             "contract_value_eur": _valor_de_contratos(db, enlaces_contrato),
+            "contract_value_currency": _moneda_de_la_empresa(db, c),
             "linked_licenses": len(enlaces_licencia),
             "licenses_expiring_soon": por_vencer,
             "portal_users": usuarios_portal,
@@ -438,8 +473,8 @@ def get_client_360(client_id: str, db: Session) -> dict:
         # El umbral de la alerta de tickets (3) es más bajo que el de la
         # penalización de salud (5): avisar antes de que puntúe.
         "alerts": [
-            *([f"{por_vencer} licencia(s) vencen en menos de 60 días"] if por_vencer > 0 else []),
-            *([f"{len(abiertos)} ticket(s) abiertos sin resolver"] if len(abiertos) > 3 else []),
+            *([_tx("cliente.alerta.licencias_por_vencer", n=por_vencer, dias=60)] if por_vencer > 0 else []),
+            *([_tx("cliente.alerta.tickets_abiertos", n=len(abiertos))] if len(abiertos) > 3 else []),
         ],
         "recent_tickets": [
             {
@@ -1018,17 +1053,17 @@ def get_portal_config(cid: str, db: Session) -> dict:
         raise ErrorDeDominio(404)
     cfg = db.query(ClientPortalConfig).filter(ClientPortalConfig.client_id == cid).first()
     if not cfg:
-        return {"client_id": cid, "enabled_modules": ["service_desk", "projects"], "sd_without_project": True}
+        return {"client_id": cid, "enabled_modules": list(MODULOS_DEL_PORTAL_POR_DEFECTO), "sd_without_project": True}
     return {
         "client_id": cid,
-        "enabled_modules": json.loads(cfg.enabled_modules) if cfg.enabled_modules else [],
+        "enabled_modules": json.loads(cfg.enabled_modules) if cfg.enabled_modules else list(MODULOS_DEL_PORTAL_POR_DEFECTO),
         "sd_without_project": cfg.sd_without_project,
         "sla_tier": cfg.sla_tier,
         "max_portal_users": cfg.max_portal_users,
         "max_open_tickets": cfg.max_open_tickets,
         "logo_url": cfg.logo_url,
         "accent_color": cfg.accent_color,
-        "default_language": cfg.default_language or _pe.idioma_de_empresa(db, registro=cfg),  # 18-11-2026
+        "default_language": cfg.default_language or _pe.idioma_elegido_de_empresa(db, registro=cfg),  # incidencia 5 (23-11-2026)
         "allow_profile_edit": cfg.allow_profile_edit if cfg.allow_profile_edit is not None else True,
         "allow_pwd_change": cfg.allow_pwd_change if cfg.allow_pwd_change is not None else True,
     }
@@ -1048,7 +1083,9 @@ def update_portal_config(cid: str, data: dict, db: Session) -> dict:
             setattr(cfg, k, v)
     db.commit()
     db.refresh(cfg)
-    return {"ok": True, "enabled_modules": json.loads(cfg.enabled_modules)}
+    # Baja (auditoría 22-11-2026): sin módulos guardados ya no revienta (`json.loads(None)`).
+    return {"ok": True, "enabled_modules": json.loads(cfg.enabled_modules) if cfg.enabled_modules
+            else list(MODULOS_DEL_PORTAL_POR_DEFECTO)}
 
 
 # ── Invoices ──────────────────────────────────────────────────────────────────

@@ -6,7 +6,7 @@ from datetime import timedelta, datetime, timezone, time
 import logging
 
 from sqlalchemy.orm import Session
-from sqlalchemy import func, or_, and_
+from sqlalchemy import func, or_, and_, false
 
 from app.services.settings_service.por_empresa import capacidad_semanal
 from app.models.alert import Alert, AlertType, AlertSeverity
@@ -16,6 +16,23 @@ from app.models.task import Task, TaskStatus
 from app.models.user import User, UserRole, UserStatus
 from app.core import timeutil
 from app.services.formato_regional import formatear_importe, simbolo_de_moneda
+from app.services.textos_de_salida import texto as _texto_plano
+
+
+class _TextoPorClave(str):
+    """Un texto de `textos_de_salida` que recuerda su clave y sus datos (migración 200):
+    `_create_alert` los guarda en `title_key`/`description_key` para pintarlos al leer."""
+    clave: str
+    params: dict
+
+
+def texto(clave, idioma=None, **params):
+    from app.services.textos_guardados import diferido
+    t = _TextoPorClave(_texto_plano(clave, idioma, **params))
+    t.clave = clave
+    t.params = {k: (diferido(v.clave, **v.params) if isinstance(v, _TextoPorClave) else v)
+                for k, v in params.items()}
+    return t
 
 logger = logging.getLogger(__name__)
 
@@ -119,11 +136,22 @@ class AlertEngine:
 
         return q.first() is not None
 
+    def _idioma(self, org_id) -> str:
+        """Idioma en que se escribe la alerta (el de la empresa; 23-11-2026)."""
+        from app.services.formato_regional import idioma_de_salida
+        return idioma_de_salida(self.db, org_id=org_id)
+
     def _create_alert(self, alert_type, severity, title, description=None,
                       user_id=None, project_id=None, task_id=None,
                       value=None, threshold=None):
         dedup_key = f"{alert_type}:{user_id or ''}:{project_id or ''}:{task_id or ''}"[:200]
+        from app.services.textos_guardados import por_clave_json
+        t_clave, t_params = por_clave_json(title.clave, **title.params) if isinstance(title, _TextoPorClave) else (None, None)
+        d_clave, d_params = (por_clave_json(description.clave, **description.params)
+                             if isinstance(description, _TextoPorClave) else (None, None))
         alert = Alert(
+            title_key=t_clave, title_params=t_params,
+            description_key=d_clave, description_params=d_params,
             alert_type=alert_type,
             severity=severity,
             title=title,
@@ -171,8 +199,9 @@ class AlertEngine:
                 self._create_alert(
                     AlertType.overload,
                     severidad,
-                    f"Sobreasignación: {user.full_name}",
-                    f"{user.full_name} tiene {load_pct:.0f}% de carga esta semana ({hours:.1f}h / {capacity}h)",
+                    texto("alerta.sobrecarga.titulo", self._idioma(user.organization_id), nombre=user.full_name),
+                    texto("alerta.sobrecarga.mensaje", self._idioma(user.organization_id), nombre=user.full_name,
+                          carga=f"{load_pct:.0f}", horas=f"{hours:.1f}", capacidad=capacity),
                     user_id=user.id,
                     value=load_pct,
                     threshold=umbral,
@@ -237,8 +266,8 @@ class AlertEngine:
         blocked = self.db.query(Task).filter(Task.status == TaskStatus.blocked).all()
 
         for task in blocked:
-            activa, dias, severidad = self._config(
-                AlertType.task_blocked, derive_alert_org_id(self.db, task_id=task.id))
+            org_id = derive_alert_org_id(self.db, task_id=task.id)
+            activa, dias, severidad = self._config(AlertType.task_blocked, org_id)
             limite = datetime.combine(timeutil.today() - timedelta(days=dias), time.min, tzinfo=timezone.utc)
             actualizada = task.updated_at
             if actualizada is not None and actualizada.tzinfo is None:
@@ -249,8 +278,10 @@ class AlertEngine:
                 self._create_alert(
                     AlertType.task_blocked,
                     severidad,
-                    f"Tarea bloqueada: {task.code}",
-                    f"'{task.title}' lleva bloqueada más de {dias:g} días. Razón: {task.blocked_reason or 'No especificada'}",
+                    texto("alerta.bloqueada.titulo", self._idioma(org_id), codigo=task.code),
+                    texto("alerta.bloqueada.mensaje", self._idioma(org_id),
+                          titulo=task.title, dias=f"{dias:g}",
+                          razon=task.blocked_reason or texto("alerta.bloqueada.sin_razon", self._idioma(org_id))),
                     task_id=task.id,
                     project_id=task.project_id,
                     user_id=task.assignee_id,
@@ -312,8 +343,8 @@ class AlertEngine:
                 self._create_alert(
                     AlertType.deadline_risk,
                     severidad,
-                    f"Deadline en {days_left} días: {p.name}",
-                    f"El proyecto {p.code} tiene fecha límite el {p.end_date_planned}",
+                    texto("alerta.deadline.titulo", self._idioma(p.organization_id), dias=days_left, nombre=p.name),
+                    texto("alerta.deadline.mensaje", self._idioma(p.organization_id), codigo=p.code, fecha=p.end_date_planned),
                     project_id=p.id,
                     value=days_left,
                     threshold=dias,
@@ -375,7 +406,8 @@ def _scope_alert_to_org(db: Session, q, current_user):
         return q
     org_id = getattr(current_user, "organization_id", None)
     if not org_id:
-        return q
+        # Auditoría 22-11-2026 (A9): sin empresa, ninguna (antes, todas).
+        return q.filter(false())
     org_user_ids = db.query(User.id).filter(
         User.organization_id == org_id
     ).scalar_subquery()
@@ -387,13 +419,8 @@ def _scope_alert_to_org(db: Session, q, current_user):
             Alert.organization_id == org_id,
             Alert.user_id.in_(org_user_ids),
             Alert.project_id.in_(org_project_ids),
-            # Fallback para alertas legacy sin ningún campo de scope
-            # (sucede solo con datos pre-migración 076).
-            and_(
-                Alert.organization_id.is_(None),
-                Alert.user_id.is_(None),
-                Alert.project_id.is_(None),
-            ),
+            # Auditoría 22-11-2026 (A9): fuera el «fallback» de alertas sin empresa,
+            # usuario ni proyecto: las veía y resolvía CUALQUIER empresa.
         )
     )
 
@@ -409,9 +436,15 @@ def mark_alert_read(db: Session, alert_id: str, current_user: User = None) -> No
 
 
 def resolve_alert(db: Session, alert_id: str, resolved_by_id, current_user: User = None) -> None:
-    """Mark an alert as resolved. Scoped to the caller's organization (audit #62)."""
+    """Mark an alert as resolved. Scoped to the caller's organization (audit #62).
+
+    Auditoría 22-11-2026 (A9): un empleado o externo solo resuelve las SUYAS
+    (como las ve en `get_alerts_query`); antes, cualquiera de la empresa por id.
+    """
     q = db.query(Alert).filter(Alert.id == alert_id)
     q = _scope_alert_to_org(db, q, current_user)
+    if current_user is not None and getattr(current_user, "role", None) in (UserRole.employee, UserRole.subcontractor):
+        q = q.filter(Alert.user_id == current_user.id)
     alert = q.first()
     if alert:
         alert.is_resolved = True

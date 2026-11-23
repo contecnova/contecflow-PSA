@@ -25,10 +25,10 @@ class Objective(Base):
     """Objetivo de alto nivel."""
     __tablename__ = "okr_objectives"
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     title       = Column(String(500), nullable=False)
     description = Column(Text, nullable=True)
-    owner_id    = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    owner_id    = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     team_id     = Column(String(36), nullable=True)          # departamento libre
     project_id  = Column(String(36), ForeignKey("projects.id", ondelete="SET NULL"), nullable=True, index=True)
     period      = Column(Enum(OKRPeriod), default=OKRPeriod.q1)
@@ -57,7 +57,7 @@ class KeyResult(Base):
     """Resultado clave medible asociado a un Objective."""
     __tablename__ = "okr_key_results"
     id            = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     objective_id  = Column(String(36), ForeignKey("okr_objectives.id", ondelete="CASCADE"),
                            nullable=False, index=True)
     title         = Column(String(500), nullable=False)
@@ -65,7 +65,7 @@ class KeyResult(Base):
     target_value  = Column(Float, nullable=True, default=100)
     current_value = Column(Float, nullable=True, default=0)
     unit          = Column(String(50), nullable=True)        # %, €, usuarios, NPS…
-    owner_id      = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    owner_id      = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     due_date      = Column(Date, nullable=True)
     progress      = Column(Float, default=0.0)   # 0-100
     notes         = Column(Text, nullable=True)
@@ -86,12 +86,12 @@ class KRCheckin(Base):
     """Actualización de progreso de un Key Result."""
     __tablename__ = "okr_checkins"
     id         = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     kr_id      = Column(String(36), ForeignKey("okr_key_results.id", ondelete="CASCADE"),
                         nullable=False, index=True)
     value      = Column(Float, nullable=False)
     note       = Column(String(500), nullable=True)
-    author_id  = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    author_id  = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     kr         = relationship("KeyResult", back_populates="checkins")
     author     = relationship("User", foreign_keys=[author_id])

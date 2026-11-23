@@ -80,6 +80,33 @@ def test_la_herramienta_cuenta_cada_patron(tmp_path, monkeypatch):
     assert [c for _, c in h.hallazgos(f)] == ["dominio", "http", "valor"]
 
 
+def test_http_crudo_en_la_capa_api(tmp_path, monkeypatch):
+    h = _herramienta()
+    api = tmp_path / "app" / "api"
+    api.mkdir(parents=True)
+    f = api / "x.py"
+    f.write_text(
+        "from fastapi import HTTPException\n"
+        "def a():\n"
+        "    raise HTTPException(404)\n"
+        "def b():\n"
+        "    raise HTTPException(status_code=404, detail='bookmark_not_found')\n"
+        "def c():\n"
+        "    raise HTTPException(400, detail={'error': 'X'})\n"
+        "def d():\n"
+        "    raise HTTPException(422, 'alm_licencia_vencida')\n"
+        "def e():\n"
+        "    raise HTTPException(403, detail='sin_permiso')\n"
+        "def f():\n"
+        "    try:\n"
+        "        pass\n"
+        "    except HTTPException:\n"
+        "        raise\n",
+        encoding="utf-8")
+    monkeypatch.setattr(h, "RAIZ", tmp_path)
+    assert [c for _, c in h.hallazgos(f)] == ["http_crudo"] * 3
+
+
 def test_encoger_nunca_sube_la_cuota():
     h = _herramienta()
     medido = {"a.py": [(1, "dominio")] * 5, "b.py": [(1, "http")] * 2, "c.py": [(1, "valor")]}

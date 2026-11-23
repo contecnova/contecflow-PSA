@@ -53,6 +53,7 @@ from app.api.v1.endpoints.service_desk import (
     canales,
     cmdb_mercado,
     asistente_del_portal,
+    cambios_estandar,
 )
 
 router = APIRouter()
@@ -103,3 +104,5 @@ router.include_router(sla_y_ciclos.router)
 router.include_router(canales.router)
 router.include_router(cmdb_mercado.router)
 router.include_router(asistente_del_portal.router)
+# 23-11-2026 (A-SD19): catalogo de cambios estandar del CAB.
+router.include_router(cambios_estandar.router)

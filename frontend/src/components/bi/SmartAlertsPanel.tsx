@@ -14,10 +14,14 @@ import { Button, EmptyState, IconButton, StatusBadge, Select } from '../ui'
 import { useAppLang } from '../../i18n/AppLangContext'
 import { etiquetaMetricaBi } from '../../i18n/catalogoMetricas'
 import { useFormatoMoneda } from '../../hooks/useFormatoMoneda'
-import { fmtDate } from '../../utils/helpers'
+import { extractErr, fmtDate } from '../../utils/helpers'
+import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
+import { useToast } from '../../context/ToastContext'
+import { confirmar } from '../../context/ConfirmContext'
 import { STALE_10_MIN_MS, STALE_SHORT_MS } from '../../constants/timings'
 import './SmartAlertsPanel.css'
 import { etiquetaCodigo } from '../../i18n/etiquetaCodigo'
+import { Input } from '../ui'
 
 const SEVERIDADES = ['info', 'warning', 'critical'] as const
 const tonoSeveridad = (s?: string | null) => (s === 'critical' ? 'danger' : s === 'warning' ? 'warning' : 'accent')
@@ -25,6 +29,7 @@ const tonoSeveridad = (s?: string | null) => (s === 'critical' ? 'danger' : s ==
 export default function SmartAlertsPanel() {
   const { t } = useAppLang()
   const fmtMoneda = useFormatoMoneda()
+  const toast = useToast()
   const [tick, setTick] = useState<number>(0)
   const [name, setName] = useState<string>('')
   const [metric, setMetric] = useState<string>('revenue')
@@ -33,17 +38,17 @@ export default function SmartAlertsPanel() {
 
   const { data: rules } = useQuery({
     queryKey: ['bi-alert-rules', tick],
-    queryFn: () => biSmartAlertsApi.listRules().then(r => r.data).catch(() => ({ items: [] as ReglaDeAlertaBi[], count: 0 })),
+    queryFn: () => biSmartAlertsApi.listRules().then(r => r.data),
     staleTime: STALE_SHORT_MS,
   })
   const { data: history } = useQuery({
     queryKey: ['bi-alert-history', tick],
-    queryFn: () => biSmartAlertsApi.getHistory(50).then(r => r.data).catch(() => ({ items: [] as AlertaDisparadaBi[], count: 0 })),
+    queryFn: () => biSmartAlertsApi.getHistory(50).then(r => r.data),
     staleTime: STALE_SHORT_MS,
   })
   const { data: supported } = useQuery({
     queryKey: ['bi-alert-supported-metrics'],
-    queryFn: () => biSmartAlertsApi.supportedMetrics().then(r => r.data).catch(() => null),
+    queryFn: () => biSmartAlertsApi.supportedMetrics().then(r => r.data),
     staleTime: STALE_10_MIN_MS,
   })
 
@@ -54,8 +59,10 @@ export default function SmartAlertsPanel() {
   }
   const etiquetaSeveridad = (s?: string | null) => (s && (SEVERIDADES as readonly string[]).includes(s) ? t(`alerts.severity_${s}`) : (s || ''))
 
+  // 23-11-2026: antes cada acción tragaba el error; ahora avisa con el mensaje del servidor.
+  const alFallar = (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))
   async function evaluateNow() {
-    try { await biSmartAlertsApi.evaluate(); setTick(x => x + 1) } catch (_) { /* ignore */ }
+    try { await biSmartAlertsApi.evaluate(); setTick(x => x + 1) } catch (e) { alFallar(e) }
   }
   async function createRule() {
     if (!name.trim()) return
@@ -63,16 +70,18 @@ export default function SmartAlertsPanel() {
       await biSmartAlertsApi.createRule({ name, metric_key: metric, condition, severity })
       setName('')
       setTick(x => x + 1)
-    } catch (_) { /* ignore */ }
+    } catch (e) { alFallar(e) }
   }
   async function deleteRule(id: ReglaDeAlertaBi['id']) {
-    try { await biSmartAlertsApi.deleteRule(id); setTick(x => x + 1) } catch (_) { /* ignore */ }
+    // 23-11-2026: borrar una regla de alerta pide confirmación.
+    if (!(await confirmar({ message: t('smartalerts.confirmar_eliminar_regla'), danger: true, confirmLabel: t('common.delete') }))) return
+    try { await biSmartAlertsApi.deleteRule(id); setTick(x => x + 1) } catch (e) { alFallar(e) }
   }
   async function seedDefaults() {
-    try { await biSmartAlertsApi.seedDefaults(); setTick(x => x + 1) } catch (_) { /* ignore */ }
+    try { await biSmartAlertsApi.seedDefaults(); setTick(x => x + 1) } catch (e) { alFallar(e) }
   }
   async function ack(id: AlertaDisparadaBi['id']) {
-    try { await biSmartAlertsApi.acknowledge(id); setTick(x => x + 1) } catch (_) { /* ignore */ }
+    try { await biSmartAlertsApi.acknowledge(id); setTick(x => x + 1) } catch (e) { alFallar(e) }
   }
 
   const reglas = rules?.items || []
@@ -91,8 +100,7 @@ export default function SmartAlertsPanel() {
         </div>
         <div className="smalpa-body">
           <div className="smalpa-form">
-            <input aria-label={t('smartalerts.nombre_de_la_regla')} value={name} onChange={e => setName(e.target.value)} placeholder={t('smartalerts.nombre_de_la_regla')}
-              className="ds-input smalpa-form-name" />
+            <Input aria-label={t('smartalerts.nombre_de_la_regla')} value={name} onChange={e => setName(e.target.value)} placeholder={t('smartalerts.nombre_de_la_regla')} className="smalpa-form-name" />
             <Select suelto aria-label={t('smartalerts.metrica')} value={metric} onChange={e => setMetric(e.target.value)} className="ds-input smalpa-form-select" placeholder={false}>
               {(supported?.metrics || [{ key: 'revenue', label: 'revenue', is_custom: false }]).map(m => <option key={m.key} value={m.key}>{etiquetaDeMetrica(m.key)}</option>)}
             </Select>

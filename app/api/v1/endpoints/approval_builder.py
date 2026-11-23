@@ -9,7 +9,7 @@ from typing import List
 
 from fastapi import APIRouter, Body, Depends
 
-from app.core.deps import get_current_user, require_any_manager
+from app.core.deps import get_current_user, requiere_capacidad
 from app.core.responses import APIResponse
 from app.models.user import User
 
@@ -107,7 +107,7 @@ def get_workflow_builder_schema(
 @router.post("/approval-workflows/builder/validate", summary="Validate a visual workflow graph structure")
 def validate_workflow_graph(
     graph: dict = Body(...),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("aprobaciones.gestionar")),
 ):
     nodes = graph.get("nodes", [])
     edges = graph.get("edges", [])

@@ -18,7 +18,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import joinedload
 from app.core.background import spawn
 
-from app.services.client_portal_service.serializacion import fr_out
+from app.services.client_portal_service.serializacion import etiqueta, fr_out
 from app.services.client_portal_service.autenticacion import logger
 from app.core.codigos_de_error import ErrorConCodigo
 
@@ -38,7 +38,7 @@ def list_feature_requests(status: Optional[str], current_client, db: Session) ->
     frs = q.order_by(FeatureRequest.submitted_at.desc()).all()
     result = []
     for f in frs:
-        item = fr_out(f)
+        item = fr_out(f, getattr(current_client, "language", None))
         # Auditoria 2026-11: `str()` de un enum de texto da «FeatureRequestStatus.new»
         # en Python 3.12: nunca coincidia y el cliente no podia editar ni retirar.
         item["can_edit_by_client"] = f.client_id == current_client.id and getattr(f.status, "value", f.status) in {
@@ -79,9 +79,6 @@ def list_all_feature_requests(
     return result
 
 
-_CR_IMPACT_LABELS = {"low": "Bajo", "medium": "Medio", "high": "Alto", "critical": "Crítico"}
-
-
 def _peticiones_de_cambio(db: Session, frs) -> dict:
     """Las CR enlazadas a `frs`, en una consulta, por id."""
     ids = {f.change_request_id for f in frs if getattr(f, "change_request_id", None)}
@@ -90,7 +87,7 @@ def _peticiones_de_cambio(db: Session, frs) -> dict:
     return {cr.id: cr for cr in db.query(ChangeRequest).filter(ChangeRequest.id.in_(ids)).all()}
 
 
-def _detalle_de_cr(cr) -> dict:
+def _detalle_de_cr(cr, idioma=None) -> dict:
     """Lo que el modal de detalle de CR del equipo lee de la peticion.
 
     Auditoria 2026-11: el modal pintaba impacto, coste, plazo, notas y fechas de
@@ -103,7 +100,7 @@ def _detalle_de_cr(cr) -> dict:
     impacto = getattr(cr.impact, "value", cr.impact)
     return {
         "impact": impacto,
-        "impact_label": _CR_IMPACT_LABELS.get(impacto, impacto),
+        "impact_label": etiqueta("cr_impacto", impacto, idioma),
         "cost_impact": cr.cost_impact,
         "schedule_impact_days": cr.schedule_impact_days,
         "resolution_notes": cr.resolution_notes,
@@ -121,20 +118,22 @@ def create_feature_request(payload, current_client, db: Session) -> dict:
     target_project_id = getattr(payload, "project_id", None) or (accessible[0] if accessible else None)
     if not target_project_id:
         raise ErrorConCodigo("sin_proyecto_para_solicitudes")
-    if accessible and target_project_id not in accessible:
+    if target_project_id not in accessible:   # A15: sin proyectos, ninguno
         raise ErrorConCodigo("sin_acceso_proyecto")
-    max_fr = db.query(func.max(FeatureRequest.code)).filter(
-        FeatureRequest.project_id == target_project_id
-    ).scalar()
-    if max_fr:
-        _m = _re.search(r"(\d+)$", max_fr)
-        next_fr_num = (int(_m.group(1)) + 1) if _m else 1
-    else:
-        next_fr_num = 1
+    # Auditoría 22-11-2026 (M62): secuencia segura por empresa (antes `max(code)`
+    # de texto por proyecto: FR-999 > FR-1000 y carreras entre dos altas).
+    from app.services.numbering import maximo_numerico, siguiente_codigo
+    from app.models.project import Project as _Proyecto
+    org_fr = db.query(_Proyecto.organization_id).filter(_Proyecto.id == target_project_id).scalar()
+    fr_code = siguiente_codigo(db, "portal_feature_request", prefijo="FR-", relleno=3, org_id=org_fr,
+                               maximo_existente=lambda: maximo_numerico(
+                                   c for (c,) in db.query(FeatureRequest.code).join(
+                                       _Proyecto, _Proyecto.id == FeatureRequest.project_id).filter(
+                                       _Proyecto.organization_id == org_fr)))
     fr_data = payload.model_dump()
     fr_data.pop("project_id", None)
     fr = FeatureRequest(
-        code=f"FR-{next_fr_num:03d}",
+        code=fr_code,
         project_id=target_project_id,
         client_id=current_client.id,
         **fr_data,
@@ -142,7 +141,7 @@ def create_feature_request(payload, current_client, db: Session) -> dict:
     db.add(fr)
     db.commit()
     db.refresh(fr)
-    return fr_out(fr)
+    return fr_out(fr, getattr(current_client, "language", None))
 
 
 def update_feature_request(fr_id: str, payload, current_client, db: Session) -> dict:
@@ -160,14 +159,14 @@ def update_feature_request(fr_id: str, payload, current_client, db: Session) -> 
     data = payload.model_dump(exclude_unset=True)
     target_project_id = data.pop("project_id", None)
     if target_project_id is not None:
-        if accessible and target_project_id not in accessible:
+        if target_project_id not in accessible:   # A15
             raise ErrorConCodigo("sin_acceso_proyecto")
         fr.project_id = target_project_id
     for key, value in data.items():
         setattr(fr, key, value)
     db.commit()
     db.refresh(fr)
-    item = fr_out(fr)
+    item = fr_out(fr, getattr(current_client, "language", None))
     item["can_edit_by_client"] = True
     return item
 
@@ -298,16 +297,16 @@ def respond_to_fr(fr_id: str, payload, current_user, db: Session) -> dict:
 
 
 def _next_cr_code(project_id: str, db: Session) -> str:
-    import re as _re
-    max_cr = db.query(func.max(ChangeRequest.code)).filter(
-        ChangeRequest.project_id == project_id
-    ).scalar()
-    if max_cr:
-        _m = _re.search(r"(\d+)$", max_cr)
-        next_num = (int(_m.group(1)) + 1) if _m else 1
-    else:
-        next_num = 1
-    return f"CR-{next_num:03d}"
+    """Auditoría 22-11-2026 (M62): secuencia segura de la empresa del proyecto
+    (antes `max(code)` de texto por proyecto, con carrera)."""
+    from app.models.project import Project
+    from app.services.numbering import maximo_numerico, siguiente_codigo
+    org = db.query(Project.organization_id).filter(Project.id == project_id).scalar()
+    return siguiente_codigo(db, "portal_change_request", prefijo="CR-", relleno=3, org_id=org,
+                            maximo_existente=lambda: maximo_numerico(
+                                c for (c,) in db.query(ChangeRequest.code).join(
+                                    Project, Project.id == ChangeRequest.project_id).filter(
+                                    ChangeRequest.code.like("CR-%"), Project.organization_id == org)))
 
 
 def _create_cr_from_fr(fr, db: Session):

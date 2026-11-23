@@ -1,0 +1,11 @@
+{
+  "_nota": "Medido el 23-11-2026 (ronda 2, auditoria 03 A-MOD1/A-MOD2) sobre Base.metadata tras importar app.main. Solo puede ENCOGER: al arreglar una FK o una columna, quitala de aqui. Migracion 200 (23-11-2026): A-MOD1 hecha (todas las FK con ondelete) y A-MOD2 (invoices.tax_rate, recurring_invoices.tax_rate, rev_obligations.standalone_price a Numeric; absences.amount es cantidad en dias/horas, no dinero).",
+  "fk_sin_ondelete": [],
+  "dinero_en_float": [
+    "absences.amount",
+    "client_health_snapshots.budget_component",
+    "ml_prediction_logs.cost_overrun_prob",
+    "project_risk_scores.budget_risk",
+    "security_metric_snapshots.auth_failure_rate"
+  ]
+}

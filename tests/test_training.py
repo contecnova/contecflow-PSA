@@ -82,8 +82,7 @@ def test_create_enrollment(client, admin_token, db):
     if isinstance(users, dict):
         users = users.get("users", users.get("items", []))
     dev = next((u for u in users if u["username"] == "dev_test"), None)
-    if not dev:
-        pytest.skip("dev_test no encontrado")
+    assert dev is not None, "conftest debe sembrar dev_test"
     res = client.post("/api/v1/training/enrollments",
         headers=auth(admin_token),
         json={"course_id": course_id, "user_id": dev["id"], "status": "planned"})
@@ -101,8 +100,7 @@ def test_delete_enrollment_hard_and_hidden(client, admin_token, db):
     if isinstance(users, dict):
         users = users.get("users", users.get("items", []))
     dev = next((u for u in users if u["username"] == "dev_test"), None)
-    if not dev:
-        pytest.skip("dev_test no encontrado")
+    assert dev is not None, "conftest debe sembrar dev_test"
 
     created = client.post(
         "/api/v1/training/enrollments",
@@ -129,8 +127,7 @@ def test_add_certification(client, admin_token, db):
     if isinstance(users, dict):
         users = users.get("users", users.get("items", []))
     dev = next((u for u in users if u["username"] == "dev_test"), None)
-    if not dev:
-        pytest.skip("dev_test no encontrado")
+    assert dev is not None, "conftest debe sembrar dev_test"
     res = client.post("/api/v1/training/certifications",
         headers=auth(admin_token),
         json={"user_id": dev["id"], "name": "AWS Certified Developer",

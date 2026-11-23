@@ -7,7 +7,8 @@ avisos que tocan y borra el histórico más antiguo que `history_days`
 """
 from __future__ import annotations
 
-from datetime import date, timedelta
+from datetime import timedelta
+from app.core import timeutil
 
 from sqlalchemy.orm import Session
 
@@ -27,7 +28,7 @@ def diario(db: Session, org) -> dict:
 
 def podar_historico(db: Session, org, dias: int) -> int:
     from app.models.cmdb_riesgo import RiskSnapshot
-    limite = date.today() - timedelta(days=max(30, dias))
+    limite = timeutil.today() - timedelta(days=max(30, dias))
     q = db.query(RiskSnapshot).filter(RiskSnapshot.day < limite)
     if org:
         q = q.filter(RiskSnapshot.organization_id == org)

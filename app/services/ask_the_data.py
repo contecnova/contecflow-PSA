@@ -403,23 +403,27 @@ LIMIT 5
         and ("utiliz" in q)
         and ("70" in q)
     ):
+        # M52 (auditoría 22-11-2026): las horas de las 4 ÚLTIMAS semanas contra
+        # 4 semanas de capacidad (antes todo el histórico contra UNA semana:
+        # cualquier veterano salía al 1.000 %).
         return """
 SELECT
     du.full_name AS usuario,
     ROUND(
         CASE
             WHEN COALESCE(du.weekly_capacity, 0) <= 0 THEN 0
-            ELSE (COALESCE(SUM(fi.hours), 0) / du.weekly_capacity) * 100
+            ELSE (COALESCE(SUM(fi.hours), 0) / (du.weekly_capacity * 4)) * 100
         END,
         2
     ) AS utilizacion_pct
 FROM dim_user du
 LEFT JOIN fact_imputations fi ON fi.user_id = du.user_id
+    AND fi.date_key >= CAST(strftime(CURRENT_DATE - INTERVAL 28 DAY, '%Y%m%d') AS INTEGER)
 GROUP BY du.user_id, du.full_name, du.weekly_capacity
 HAVING ROUND(
     CASE
         WHEN COALESCE(du.weekly_capacity, 0) <= 0 THEN 0
-        ELSE (COALESCE(SUM(fi.hours), 0) / du.weekly_capacity) * 100
+        ELSE (COALESCE(SUM(fi.hours), 0) / (du.weekly_capacity * 4)) * 100
     END,
     2
 ) < 70
@@ -532,7 +536,13 @@ def ask(
             "error": str | None
         }
     """
-    logger.info("ask_the_data: user=%s org=%s q=%r", user_id, org_id, question[:100])
+    logger.info("ask_the_data: user=%s org=%s", user_id, org_id)
+    # Auditoría 22-11-2026 (A10 y M52): sin empresa, la consulta NL→SQL leía TODO
+    # el OLAP (correos, `cost_per_hour` de todas las empresas). Ahora sin empresa
+    # solo el superadmin explícito; y la pregunta ya no va al log.
+    if not org_id and not is_superadmin:
+        from app.core.codigos_de_error import error
+        raise error(403, "sin_permiso")
 
     raw_sql = ""
     validated_sql = ""

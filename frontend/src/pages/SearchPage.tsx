@@ -9,10 +9,10 @@ import { useQuery, useMutation } from '@tanstack/react-query'
 import { epicsApi, projectsApi, tasksApi, clientsApi, ticketsApi, contractsApi, conectoresApi, mensajeDeConector } from '../services/api'
 import type { BusquedaNql } from '../services/api/tipos-proyectos'
 import DocumentoContecmind from '../components/conectores/DocumentoContecmind'
-import { Button, Spinner, EmptyState, DataTable, Pulsable, Select, Input, Textarea } from '../components/ui'
+import { Buscador, Button, Spinner, EmptyState, DataTable, Pulsable, Select, Textarea } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
-import { FileText, Search } from 'lucide-react'
+import { FileText, Loader2, Search } from 'lucide-react'
 import { useToast } from '../context/ToastContext'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAppT } from '../i18n/AppLangContext'
@@ -135,12 +135,8 @@ function FTSMode() {
       {/* Barra de búsqueda */}
       <div className="srch-panel srch-panel--bar">
         <div className="srch-bar">
-          <div className="srch-bar__field">
-            <span className="srch-bar__icon" aria-hidden="true">
-              {isFetching ? '⟳' : '🔍'}
-            </span>
-            <Input value={q} onChange={e => setQ(e.target.value)} placeholder={t('search_page.placeholder')} aria-label={t('search_page.busqueda_rapida')} autoFocus inputClassName="srch-input srch-input--query" />
-          </div>
+          <Buscador className="srch-bar__field" value={q} onChange={setQ} placeholder={t('search_page.placeholder')} aria-label={t('search_page.busqueda_rapida')} autoFocus
+            iconoFinal={isFetching ? <Loader2 className="ui-girando" aria-hidden /> : undefined} />
         </div>
         {/* Filtros por tipo */}
         <div className="u-wrap-6" role="group" aria-label={t('search_page.filtrar_por_tipo')}>

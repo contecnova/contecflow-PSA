@@ -96,6 +96,8 @@ def generate_for_attachment(attachment_id: str) -> None:
     from app.models.collaboration import CollaborationAttachment
 
     db = SessionLocal()
+    from app.db.contexto_de_tenant import declarar_sistema as _declarar_sistema
+    _declarar_sistema(db, "colaboración: miniatura de un adjunto por id")  # auditoría 22-11-2026: TENANT_SESION_SIN_CONTEXTO=cerrar
     try:
         att = db.query(CollaborationAttachment).filter(CollaborationAttachment.id == attachment_id).first()
         if not att:

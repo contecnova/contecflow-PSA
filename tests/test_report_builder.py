@@ -188,21 +188,20 @@ class TestReportTemplates:
         assert "Template B" in names
 
     def test_delete_template(self, client, admin_token, db):
-        template = self._create_template(client, admin_token, "Delete Me").json()
+        template = self._create_template(client, admin_token, "Delete Me").json()["data"]
         template_id = template.get("id")
-        if not template_id:
-            pytest.skip("Template ID not returned")
+        assert template_id, f"la plantilla creada no devolvio id: {template!r}"
         res = client.delete(
             f"/api/v1/reports/templates/{template_id}",
             headers=auth(admin_token),
         )
         assert res.status_code in (200, 204), res.text
         if res.status_code == 200:
-            assert res.json().get("ok") is True
+            assert res.json()["data"].get("ok") is True
 
         listed = client.get("/api/v1/reports/templates", headers=auth(admin_token))
         assert listed.status_code == 200
-        assert all(t.get("id") != template_id for t in listed.json())
+        assert all(t.get("id") != template_id for t in listed.json()["items"])
 
     def test_template_can_be_used_for_preview(self, client, admin_token, db):
         """A saved template's config should work when passed to the preview endpoint."""

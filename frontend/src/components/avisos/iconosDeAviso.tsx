@@ -31,6 +31,8 @@ const POR_TIPO: Record<string, EstiloDeAviso> = {
   sprint_ending:       { Icono: Flag,          tono: 'warning' },
   expense_approved:    { Icono: CheckCircle2,  tono: 'success' },
   expense_rejected:    { Icono: XCircle,       tono: 'danger' },
+  milestone_approved:  { Icono: Flag,          tono: 'success' },
+  milestone_rejected:  { Icono: Flag,          tono: 'danger' },
   ticket_assigned:     { Icono: Ticket,        tono: 'purple' },
   ticket_created:      { Icono: Ticket,        tono: 'neutral' },
   ticket_updated:      { Icono: RefreshCw,     tono: 'neutral' },

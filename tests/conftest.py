@@ -475,6 +475,8 @@ def _estado_de_modulo_limpio():
     import sys
     import app.services.semantic_classifier as sc
     _ENCODER_DEL_TEST[0] = sc.TFIDFEncoder()
+    # 23-11-2026 (A-RZ3): el TF-IDF es por empresa y vive en el proceso.
+    sc._ENCODERS_POR_EMPRESA.clear()
     ee = sys.modules.get("app.services.auth_service.estado_efimero")
     if ee is not None:
         ee._POLITICA_CACHE.clear()

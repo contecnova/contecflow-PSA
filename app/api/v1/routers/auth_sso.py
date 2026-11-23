@@ -20,7 +20,7 @@ import hashlib as _hashlib
 import base64 as _b64
 from urllib.parse import urlparse
 
-from app.db.session import get_db
+from app.db.session import get_db, sesion_de_sistema
 from app.core.config import settings
 from app.core.encryption import decrypt_value
 from app.services.session_security import register_or_rotate_user_session
@@ -132,7 +132,7 @@ def list_sso_providers(
     request: Request,
     email: Optional[str] = Query(None, max_length=320),
     domain: Optional[str] = Query(None, max_length=255),
-    db: Session = Depends(get_db),
+    db: Session = Depends(sesion_de_sistema("login: proveedores SSO")),
 ):
     """Devuelve los proveedores SSO activos para mostrar botones en el login.
 
@@ -153,7 +153,7 @@ def sso_authorize(
     request: Request,
     config_id: str,
     redirect_uri: str = Query(...),
-    db: Session = Depends(get_db),
+    db: Session = Depends(sesion_de_sistema("login: SSO")),
 ):
     """
     Genera la URL de autorización del proveedor OIDC.
@@ -435,7 +435,7 @@ def sso_callback(
     request: Request,
     response: Response,
     payload: SSOCallbackIn = Body(...),
-    db: Session = Depends(get_db),
+    db: Session = Depends(sesion_de_sistema("login: SSO")),
 ):
     """
     Recibe el authorization code del proveedor OIDC,

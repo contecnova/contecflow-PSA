@@ -13,13 +13,13 @@ import { useState, useMemo, useId, useRef } from 'react'
 import type { CSSProperties } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { contractsAIApi, projectsApi } from '../services/api'
-import type { ProjectListItem } from '../services/api/projects'
+import { contractsAIApi } from '../services/api'
+import { useListaDeProyectos } from '../hooks/useListas'
 import type { ClausulaDeContratoIa, ContratoIa, ContratoIaDetalle } from '../services/api/tipos-finanzas'
 import { useToast } from '../context/ToastContext'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
-import { Button, Card, Spinner, EmptyState, Drawer, Tabs, IconButton, Select, Textarea } from '../components/ui'
+import { Button, Card, Spinner, EmptyState, Drawer, Tabs, IconButton, Select, Textarea, Input } from '../components/ui'
 import { Coins, DoorOpen, FileText, Flag, Lock, Package, Paperclip, Ruler, ShieldAlert, Sparkles, Timer, TriangleAlert, Upload, X, type LucideIcon } from 'lucide-react'
 import { extractErr, fmtDate, fmtDateTime, fmtNumber } from '../utils/helpers'
 import { useAppLang } from '../i18n/AppLangContext'
@@ -105,7 +105,7 @@ function ContractDetailPanel({ contractId, onClose }: { contractId: string | num
                   )}
                 </div>
               </div>
-              <IconButton onClick={onClose} ariaLabel={t('contractsaipage.cerrar')}><X size={16} /></IconButton>
+              <IconButton onClick={onClose} ariaLabel={t('contractsaipage.cerrar')} data-cierra-dialogo=""><X size={16} /></IconButton>
             </div>
 
             {data.scope_summary && (
@@ -204,10 +204,8 @@ export default function ContractsAIPage(): JSX.Element {
   const [openContractId, setOpenContractId] = useState<string | number | null>(null)
   const selectorPdf = useRef<HTMLInputElement>(null)
 
-  const { data: projects = [] } = useQuery<ProjectListItem[]>({
-    queryKey: ['projects'],
-    queryFn:  () => projectsApi.list({}).then(r => r.data),
-  })
+  // 23-11-2026 (04 A8): lista compartida de proyectos.
+  const { data: projects = [] } = useListaDeProyectos()
 
   const { data: contracts = [], isLoading } = useQuery<ContractItem[]>({
     queryKey: ['contracts-ai', { project_id: initialProjectId }],
@@ -292,12 +290,12 @@ export default function ContractsAIPage(): JSX.Element {
             <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="cai-label">
               {t('contractsaipage.cliente_opcional')}
             </label>
-            <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`}
+            <Input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`}
               type="text"
               value={clientName}
               onChange={e => setClientName(e.target.value)}
               placeholder={t('contractsai.nombre_del_cliente')}
-              className="cai-input"
+              inputClassName="cai-input"
             />
           </div>
         </div>

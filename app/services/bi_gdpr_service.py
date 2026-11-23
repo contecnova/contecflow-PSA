@@ -109,14 +109,30 @@ def record_consent(
         "action": "granted" if consented else "revoked",
         "purpose": purpose,
         "channel": channel,
-        "ip_address": ip_address,
+        "ip_address": _ip_minimizada(ip_address),
         "timestamp": now,
     })
-    # Keep last 100 history entries per user
-    history[user_id] = user_hist[-100:]
+    # M55 (auditoría 22-11-2026): historial COMPLETO. Antes se quedaban las
+    # últimas 100 entradas y el art. 7.1 RGPD exige poder demostrar el
+    # consentimiento (también el primero). La IP se guarda truncada (/24 y /48):
+    # basta para la prueba y no identifica el equipo.
+    history[user_id] = user_hist
     _set_setting(db, _KEY_CONSENT_HISTORY, org_id, history)
 
     return entry
+
+
+def _ip_minimizada(ip: Optional[str]) -> Optional[str]:
+    """M55: IPv4 a /24 y IPv6 a /48 (minimización, art. 5.1.c RGPD)."""
+    if not ip:
+        return None
+    import ipaddress
+    try:
+        dir_ = ipaddress.ip_address(ip.strip())
+    except ValueError:
+        return None
+    red = ipaddress.ip_network(f"{dir_}/{24 if dir_.version == 4 else 48}", strict=False)
+    return str(red)
 
 
 def _consentimientos(db: Session, org_id: Optional[str]) -> dict:
@@ -147,6 +163,52 @@ def get_consent_history(db: Session, *, user_id: str, org_id: Optional[str]) -> 
 
 # ── DSR (Data Subject Requests) ───────────────────────────────────────────────
 
+# ── Un solo registro de solicitudes RGPD (auditoría 22-11-2026, A60 + 05·H5) ──
+#
+# `/bi/gdpr/dsr` llevaba un registro PARALELO (blob JSON en `AppSetting`) al de
+# `/gdpr/requests` (tabla `gdpr_requests`, `cab_service/gdpr.py`): las
+# solicitudes de un interesado quedaban repartidas, la supresión se marcaba
+# «completed» ANTES de borrar (y también si no se borraba: la vía sin
+# `execute_erasure_pipeline` solo revocaba el consentimiento), y rectificación
+# y restricción se aceptaban sin aplicarse. Ahora:
+#
+# - las solicitudes NUEVAS se crean en `gdpr_requests` (el registro único) y se
+#   resuelven con `cab_service.gdpr.process_gdpr_request` (el mismo circuito:
+#   bloqueo legal, supresión completa, copia cifrada con caducidad);
+# - `restriction` no tiene circuito: se rechaza con 422 (`rgpd_tipo_no_soportado`);
+# - las antiguas del blob se siguen listando y resolviendo, pero una supresión
+#   solo se marca completada DESPUÉS de borrar, y nunca sin borrar.
+
+_TIPOS_CANONICOS = ("erasure", "portability", "rectification")
+
+
+def _canonica(db: Session, dsr_id: str, org_id: Optional[str]):
+    from app.models.cab import GDPRRequest
+    q = db.query(GDPRRequest).filter(GDPRRequest.id == dsr_id)
+    if org_id:
+        q = q.filter(GDPRRequest.organization_id == org_id)
+    return q.first()
+
+
+def _de_canonica(r) -> dict:
+    return {
+        "id": r.id,
+        "subject_id": r.subject_user_id or r.subject_email,
+        "request_type": getattr(r.request_type, "value", r.request_type),
+        "status": getattr(r.status, "value", r.status),
+        "requester_user_id": r.requestor_id,
+        "notes": r.notes,
+        "created_at": r.created_at.isoformat() if r.created_at else None,
+        # Fecha y hora (la del alta) para que plazo − alta dé los días del plazo.
+        "deadline": (datetime.combine(r.deadline, r.created_at.time()).isoformat()
+                     if r.deadline and r.created_at else (str(r.deadline) if r.deadline else None)),
+        "resolved_at": r.completed_at.isoformat() if r.completed_at else None,
+        "resolution_notes": None,
+        "export_data": None,
+        "registro": "gdpr_requests",
+    }
+
+
 def create_dsr(
     db: Session,
     *,
@@ -156,31 +218,60 @@ def create_dsr(
     requester_user_id: str,
     notes: Optional[str] = None,
 ) -> dict:
+    """Alta de una solicitud del interesado.
+
+    Si el interesado es una persona de la empresa (y quien pide, un usuario),
+    va al registro ÚNICO (`gdpr_requests`) y se resuelve por su circuito. Si es
+    solo un identificador de consentimiento de BI (no una persona de la
+    aplicación), queda en el registro de BI, con las mismas reglas: la
+    supresión solo se completa ejecutándola. `restriction` → 422.
     """
-    Create a new DSR (erasure, portability, rectification, restriction).
-    Adds SLA deadline (`COMPLIANCE_GDPR_MAX_DAYS`) per GDPR Art. 12.3.
-    """
+    if request_type == "restriction":
+        raise ErrorConCodigo("rgpd_tipo_no_soportado", tipo=request_type)
+    from types import SimpleNamespace
+    from app.models.cab import GDPRRequest, GDPRRequestType
+    from app.models.user import User
+    q_sujeto = db.query(User.id).filter(User.id == subject_id)
+    if org_id:
+        q_sujeto = q_sujeto.filter(User.organization_id == org_id)
+    solicitante = db.query(User).filter(User.id == requester_user_id).first()
+    if request_type in _TIPOS_CANONICOS and solicitante is not None and q_sujeto.first() is not None:
+        from app.services.cab_service.gdpr import create_gdpr_request
+        payload = SimpleNamespace(request_type=GDPRRequestType(request_type), subject_user_id=subject_id,
+                                  subject_email=None, notes=notes)
+        res = create_gdpr_request(payload, solicitante, db)
+        return _de_canonica(db.query(GDPRRequest).filter(GDPRRequest.id == res["id"]).first())
+
     from datetime import timedelta
     now = datetime.now(timezone.utc)
-    deadline = (now + timedelta(days=_plazo_dsr(db, org_id))).isoformat()
     dsrs: dict = _get_setting(db, _KEY_DSR, org_id, {})
     dsr_id = str(uuid.uuid4())
-    entry = {
-        "id": dsr_id,
-        "subject_id": subject_id,
-        "request_type": request_type,
-        "status": "pending",
-        "requester_user_id": requester_user_id,
-        "notes": notes,
-        "created_at": now.isoformat(),
-        "deadline": deadline,
-        "resolved_at": None,
-        "resolution_notes": None,
-        "export_data": None,
+    dsrs[dsr_id] = {
+        "id": dsr_id, "subject_id": subject_id, "request_type": request_type, "status": "pending",
+        "requester_user_id": requester_user_id, "notes": notes, "created_at": now.isoformat(),
+        "deadline": (now + timedelta(days=_plazo_dsr(db, org_id))).isoformat(),
+        "resolved_at": None, "resolution_notes": None, "export_data": None,
     }
-    dsrs[dsr_id] = entry
     _set_setting(db, _KEY_DSR, org_id, dsrs)
-    return entry
+    return dsrs[dsr_id]
+
+
+def completar_con_copia(db: Session, *, dsr_id: str, org_id: Optional[str], actor, copia: dict) -> dict:
+    """Completa una solicitud del registro único guardando su copia (cifrada, con caducidad)."""
+    from app.models.cab import GDPRRequestStatus
+    from app.services.audit import audit_log
+    from app.services.cab_service.gdpr import _guardar_copia
+    req = _canonica(db, dsr_id, org_id)
+    if req is None:
+        raise ErrorConCodigo("no_encontrado", que="solicitud_rgpd")
+    req.status = GDPRRequestStatus.completed
+    req.completed_at = datetime.now(timezone.utc)
+    req.processed_by = getattr(actor, "id", None)
+    _guardar_copia(req, copia)
+    audit_log(db, actor, "GDPR_PROCESS", "users", req.subject_user_id or "unknown", "",
+              new_values={"type": getattr(req.request_type, "value", req.request_type), "result": "completed"})
+    db.commit()
+    return _de_canonica(req)
 
 
 def resolve_dsr(
@@ -190,46 +281,79 @@ def resolve_dsr(
     org_id: Optional[str],
     resolution_notes: Optional[str] = None,
     execute_erasure_pipeline: bool = False,
+    actor=None,
 ) -> dict:
+    canonica = _canonica(db, dsr_id, org_id)
+    if canonica is not None:
+        tipo = getattr(canonica.request_type, "value", canonica.request_type)
+        if tipo == "erasure" and not execute_erasure_pipeline:
+            # A60: una supresión no se «resuelve» sin borrar.
+            raise ErrorConCodigo("rgpd_borrado_sin_ejecutar")
+        if actor is None:
+            raise ErrorConCodigo("sin_permiso")
+        from app.services.cab_service.gdpr import process_gdpr_request
+        res = process_gdpr_request(canonica.id, actor, db)
+        db.refresh(canonica)
+        entrada = _de_canonica(canonica)
+        entrada["resolution_notes"] = resolution_notes
+        if tipo == "erasure":
+            entrada["erasure_report"] = res.get("data")
+        else:
+            entrada["export_data"] = res.get("data")
+        return entrada
+
     dsrs: dict = _get_setting(db, _KEY_DSR, org_id, {})
     if dsr_id not in dsrs:
         raise ErrorConCodigo("no_encontrado", detail=f"DSR '{dsr_id}' not found", que="solicitud_rgpd")
-    dsrs[dsr_id]["status"] = "completed"
-    dsrs[dsr_id]["resolved_at"] = _iso_now()
-    dsrs[dsr_id]["resolution_notes"] = resolution_notes
-    _set_setting(db, _KEY_DSR, org_id, dsrs)
 
     # Borrado. Revisión 2026-11: antes se registraba primero la revocación, que
     # volvía a escribir el identificador del interesado en consentimientos e
     # historial justo antes de borrar. Con el borrado, se borra todo y la
-    # solicitud guarda el identificador seudonimizado; sin él, sólo se revoca.
+    # solicitud guarda el identificador seudonimizado.
+    # Auditoría 22-11-2026 (A60): se borra PRIMERO y solo después se marca
+    # completada; sin ejecutar el borrado, una supresión no se cierra.
     if dsrs[dsr_id]["request_type"] == "erasure":
+        if not execute_erasure_pipeline:
+            raise ErrorConCodigo("rgpd_borrado_sin_ejecutar")
+        if actor is not None:
+            from app.models.user import User
+            from app.services.supresion_service import exigir_sin_bloqueo_legal
+            sujeto_u = db.query(User).filter(User.id == dsrs[dsr_id]["subject_id"]).first()
+            if sujeto_u is not None:
+                exigir_sin_bloqueo_legal(db, sujeto_u)
         sujeto = dsrs[dsr_id]["subject_id"]
-        if execute_erasure_pipeline:
-            report = execute_erasure(db, subject_id=sujeto, org_id=org_id)
-            report["subject_id"] = _anon_hash(sujeto)
-            dsrs[dsr_id]["erasure_report"] = report
-            dsrs[dsr_id]["subject_id"] = _anon_hash(sujeto)
-            _set_setting(db, _KEY_DSR, org_id, dsrs)
-        else:
-            record_consent(db, user_id=sujeto, consented=False, org_id=org_id)
+        report = execute_erasure(db, subject_id=sujeto, org_id=org_id)
+        report["subject_id"] = _anon_hash(sujeto)
+        dsrs[dsr_id]["erasure_report"] = report
+        dsrs[dsr_id]["subject_id"] = _anon_hash(sujeto)
+    elif dsrs[dsr_id]["request_type"] == "restriction":
+        raise ErrorConCodigo("rgpd_tipo_no_soportado", tipo="restriction")
 
+    dsrs[dsr_id]["status"] = "completed"
+    dsrs[dsr_id]["resolved_at"] = _iso_now()
+    dsrs[dsr_id]["resolution_notes"] = resolution_notes
+    _set_setting(db, _KEY_DSR, org_id, dsrs)
     return dsrs[dsr_id]
 
 
 def list_dsrs(db: Session, *, org_id: Optional[str], status: Optional[str] = None) -> list[dict]:
-    dsrs = list(_get_setting(db, _KEY_DSR, org_id, {}).values())
+    """Las del registro único (`gdpr_requests`) y las antiguas del blob de BI."""
+    from app.models.cab import GDPRRequest
+    q = db.query(GDPRRequest)
+    if org_id:
+        q = q.filter(GDPRRequest.organization_id == org_id)
+    dsrs = [_de_canonica(r) for r in q.all()] + list(_get_setting(db, _KEY_DSR, org_id, {}).values())
     if status:
         dsrs = [d for d in dsrs if d["status"] == status]
-    return sorted(dsrs, key=lambda d: d["created_at"], reverse=True)
+    return sorted(dsrs, key=lambda d: d.get("created_at") or "", reverse=True)
 
 
 def get_dsr_stats(db: Session, *, org_id: Optional[str]) -> dict:
     """Return dashboard summary: pending count, overdue DSRs, consent totals."""
     from datetime import timedelta
     now = datetime.now(timezone.utc)
-    dsrs = list(_get_setting(db, _KEY_DSR, org_id, {}).values())
-    pending = [d for d in dsrs if d["status"] == "pending"]
+    dsrs = list_dsrs(db, org_id=org_id)
+    pending = [d for d in dsrs if d["status"] in ("pending", "processing")]
     completed = [d for d in dsrs if d["status"] == "completed"]
     # SLA breach: pending DSRs past deadline
     plazo = _plazo_dsr(db, org_id)
@@ -268,6 +392,9 @@ def get_dsr_stats(db: Session, *, org_id: Optional[str]) -> dict:
 
 
 def get_dsr(db: Session, *, dsr_id: str, org_id: Optional[str]) -> Optional[dict]:
+    canonica = _canonica(db, dsr_id, org_id)
+    if canonica is not None:
+        return _de_canonica(canonica)
     dsrs: dict = _get_setting(db, _KEY_DSR, org_id, {})
     return dsrs.get(dsr_id)
 
@@ -331,6 +458,25 @@ def execute_portability(db: Session, *, subject_id: str, org_id: Optional[str]) 
         for t in tickets
     ]
 
+    # M55 (auditoría 22-11-2026): portabilidad (art. 20) con los datos que la
+    # persona aporta en el uso normal: imputaciones, gastos y ausencias (antes
+    # solo ficha, tickets y consentimiento).
+    if user:
+        from app.models.expenses import Expense
+        from app.models.imputation import Imputation
+        from app.models.resources import Absence
+        export["data"]["time_entries"] = [
+            {"date": str(i.date), "hours": i.hours, "project_id": i.project_id, "description": i.description}
+            for i in db.query(Imputation).filter(Imputation.user_id == user.id, Imputation.is_active.is_(True)).all()]
+        export["data"]["expenses"] = [
+            {"date": str(e.expense_date), "amount": e.amount, "currency": e.currency,
+             "category": str(getattr(e.category, "value", e.category)), "description": e.description}
+            for e in db.query(Expense).filter(Expense.user_id == user.id, Expense.is_active.isnot(False)).all()]
+        export["data"]["absences"] = [
+            {"start": str(a.start_date), "end": str(a.end_date), "type": a.type,
+             "status": str(getattr(a.status, "value", a.status))}
+            for a in db.query(Absence).filter(Absence.user_id == user.id, Absence.is_active.is_(True)).all()]
+
     # ── Consent history ───────────────────────────────────────────────────────
     export["data"]["consent_history"] = get_consent_history(db, user_id=subject_id, org_id=org_id)
 
@@ -383,8 +529,16 @@ def list_field_masks(db: Session, *, org_id: Optional[str]) -> list[dict]:
 # ── Erasure pipeline ──────────────────────────────────────────────────────────
 
 def _anon_hash(value: str) -> str:
-    """One-way pseudonymisation: SHA-256 first 12 chars, prefixed."""
-    return "[erased:" + hashlib.sha256(value.encode()).hexdigest()[:12] + "]"
+    """Seudónimo de un solo sentido CON CLAVE.
+
+    M55 (auditoría 22-11-2026): era SHA-256 sin sal a 12 hex: con la lista de
+    correos de la empresa se deshacía por fuerza bruta. Ahora HMAC-SHA256 con la
+    clave del servidor (16 hex): sin la clave no se puede recomputar.
+    """
+    import hmac
+    from app.core.config import settings
+    return "[erased:" + hmac.new(str(settings.SECRET_KEY).encode(), value.encode(),
+                                  hashlib.sha256).hexdigest()[:16] + "]"
 
 
 def execute_erasure(db: Session, *, subject_id: str, org_id: Optional[str]) -> dict:

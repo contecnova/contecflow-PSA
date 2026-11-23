@@ -40,6 +40,8 @@ def execute_workflow_from_webhook(workflow_id: str, context: dict, organization_
     disparador.
     """
     bg_db = SessionLocal()
+    from app.db.contexto_de_tenant import fijar_contexto
+    fijar_contexto(bg_db, organization_id, "webhook entrante: disparador sin empresa")  # M8
     try:
         item = WorkflowQueueItem(
             workflow_id=workflow_id,
@@ -69,9 +71,12 @@ def create_webhook_trigger(payload, current_user_id: str, db: Session) -> dict:
     if existing:
         raise ErrorConCodigo("slug_en_uso", detail=f"Slug '{payload.slug}' ya está en uso", slug=payload.slug)
     secret = payload.secret or _secrets.token_hex(32)
+    # 23-11-2026 (02 M67): el secreto HMAC se guardaba en claro; ahora cifrado
+    # (se devuelve en claro solo esta vez, al crearlo).
+    from app.core.encryption import encrypt_value
     t = WebhookTrigger(
         name=payload.name, slug=payload.slug,
-        secret=secret,
+        secret=encrypt_value(secret),
         workflow_id=payload.workflow_id,
         rule_id=payload.rule_id,
         field_mapping=json.dumps(payload.field_mapping) if payload.field_mapping else None,

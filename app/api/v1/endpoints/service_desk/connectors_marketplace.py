@@ -16,7 +16,7 @@ from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_current_user, require_any_manager
+from app.core.deps import get_current_user, requiere_capacidad
 from app.core.responses import APIListResponse, APIResponse
 from app.db.session import get_db
 from app.models.user import User
@@ -50,7 +50,7 @@ def list_connectors(
 @router.get("/connectors/installed", summary="Conectores instalados para la organización")
 def list_installed_connectors(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("sd.gestionar")),
 ):
     return APIListResponse.ok(
         items=svc.instalados_para_service_desk(db, current_user))
@@ -60,7 +60,7 @@ def list_installed_connectors(
 def install_connector(
     payload: ConnectorInstallIn,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("sd.gestionar")),
 ):
     inst = svc.instalar_por_id(db, current_user, payload.model_dump())
     return APIResponse.ok(data={"ok": True, "instance_id": inst.id})

@@ -36,11 +36,11 @@ import {
 } from 'lucide-react'
 import { collabApi } from '../services/collaborationApi'
 import { useAppT } from '../i18n/AppLangContext'
-import { localeActivo } from '../utils/helpers'
+import { extractErr, localeActivo } from '../utils/helpers'
 import StatusBadge from '../components/ui/StatusBadge'
 import { CLOCK_TICK_MS } from '../constants/timings'
 import './CallPage.css'
-import { Pulsable } from '../components/ui'
+import { Input, Pulsable } from '../components/ui'
 import { useGrabacionPorTrozos } from '../components/reuniones/grabacionPorTrozos'
 import { BannerDelAsistente, ModalActivarAsistente, useAsistenteEnLlamada } from '../components/reuniones/AsistenteEnLlamada'
 
@@ -72,18 +72,34 @@ export default function CallPage(): JSX.Element {
   const { callId } = useParams<{ callId: string }>()
   const [params] = useSearchParams()
   const navigate = useNavigate()
-  // Leer credenciales desde sessionStorage (nunca desde URL) y limpiar inmediatamente
-  const _stored: { room?: string; url?: string; token?: string; kind?: string } = (() => {
+  // Auditoría 22-11-2026 (A4 del 04): las credenciales LiveKit NUNCA salen de la URL
+  // (`?token=&url=&room=` dejaba el token en historial y Referer, y un enlace podía
+  // llevar el cliente a un servidor LiveKit ajeno). Vienen de sessionStorage (las deja
+  // ChatPage al abrir la ventana; se leen una vez, en el estado) o, si no están (recarga,
+  // enlace), del servidor por la sala: POST /collaboration/calls/{id}/join.
+  const [creds, setCreds] = useState<{ room?: string; url?: string; token?: string; kind?: string }>(() => {
     try {
       const raw = sessionStorage.getItem(`call_creds_${callId}`)
       if (raw) { sessionStorage.removeItem(`call_creds_${callId}`); return JSON.parse(raw) }
-    } catch { /* noop */ }
+    } catch { /* accesorio: sessionStorage bloqueado; se piden al servidor */ }
     return {}
-  })()
-  const livekitRoom = _stored.room || params.get('room')
-  const livekitUrl = _stored.url || params.get('url')
-  const livekitToken = _stored.token || params.get('token')
-  const kind = _stored.kind || params.get('kind') || 'video'
+  })
+  const [errorDeCredenciales, setErrorDeCredenciales] = useState<string | null>(null)
+  useEffect(() => {
+    if (creds.token || !callId) return
+    let vivo = true
+    collabApi.joinCall(callId)
+      .then((c: { livekit_room?: string; livekit_url?: string; livekit_token?: string; kind?: string }) => {
+        if (vivo) setCreds({ room: c.livekit_room, url: c.livekit_url, token: c.livekit_token, kind: c.kind })
+      })
+      .catch((e: unknown) => { if (vivo) setErrorDeCredenciales(extractErr(e, t('call.error_unirse'))) })
+    return () => { vivo = false }
+  }, [callId, creds.token, t])
+  const livekitRoom = creds.room ?? null
+  const livekitUrl = creds.url ?? null
+  const livekitToken = creds.token ?? null
+  // El tipo (vídeo/voz) sí puede venir en la URL: no es una credencial.
+  const kind = creds.kind || params.get('kind') || 'video'
   const isLiveKitReal = !!livekitToken && !livekitToken.startsWith('dev:')
 
   const [muted, setMuted] = useState(false)
@@ -143,7 +159,7 @@ export default function CallPage(): JSX.Element {
             // Auto-fallback a audio si la red baja
             if (quality === ConnectionQuality.Poor && !autoFallback) {
               setAutoFallback(true)
-              try { room.localParticipant.setCameraEnabled(false) } catch { /* noop */ }
+              try { room.localParticipant.setCameraEnabled(false) } catch { /* accesorio: limpieza o señal de la llamada; un fallo no cambia lo que ve el usuario */ }
             } else if (quality === ConnectionQuality.Excellent && autoFallback) {
               setAutoFallback(false)
             }
@@ -164,7 +180,7 @@ export default function CallPage(): JSX.Element {
             const decoded = new TextDecoder().decode(payload)
             const msg = JSON.parse(decoded)
             handleDataMessage(msg, p)
-          } catch { /* noop */ }
+          } catch { /* accesorio: limpieza o señal de la llamada; un fallo no cambia lo que ve el usuario */ }
         })
 
         await room.connect(livekitUrl, livekitToken)
@@ -230,7 +246,7 @@ export default function CallPage(): JSX.Element {
 
     return () => {
       mounted = false
-      try { room?.disconnect() } catch { /* noop */ }
+      try { room?.disconnect() } catch { /* accesorio: limpieza o señal de la llamada; un fallo no cambia lo que ve el usuario */ }
       roomRef.current = null
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -298,7 +314,7 @@ export default function CallPage(): JSX.Element {
           roomRef.current.localParticipant.publishData(enc, { reliable: true })
         }
       }
-    } catch { /* noop */ }
+    } catch { /* accesorio: limpieza o señal de la llamada; un fallo no cambia lo que ve el usuario */ }
     // `t` (traducciones) faltaba: al cambiar de idioma el callback seguía usando el anterior.
   }, [callId, t])
 
@@ -338,7 +354,7 @@ export default function CallPage(): JSX.Element {
         await collabApi.startRecording(callId)
         setRecording(true)
       }
-    } catch { /* noop */ }
+    } catch { /* accesorio: limpieza o señal de la llamada; un fallo no cambia lo que ve el usuario */ }
   }
 
   const raiseHand = () => {
@@ -360,14 +376,14 @@ export default function CallPage(): JSX.Element {
   }
 
   const leave = async () => {
-    try { await collabApi.leaveCall(callId) } catch { /* noop */ }
-    try { roomRef.current?.disconnect() } catch { /* noop */ }
+    try { await collabApi.leaveCall(callId) } catch { /* accesorio: limpieza o señal de la llamada; un fallo no cambia lo que ve el usuario */ }
+    try { roomRef.current?.disconnect() } catch { /* accesorio: limpieza o señal de la llamada; un fallo no cambia lo que ve el usuario */ }
     navigate(-1)
   }
 
   const endCall = async () => {
-    try { await collabApi.endCall(callId) } catch { /* noop */ }
-    try { roomRef.current?.disconnect() } catch { /* noop */ }
+    try { await collabApi.endCall(callId) } catch { /* accesorio: limpieza o señal de la llamada; un fallo no cambia lo que ve el usuario */ }
+    try { roomRef.current?.disconnect() } catch { /* accesorio: limpieza o señal de la llamada; un fallo no cambia lo que ve el usuario */ }
     navigate(-1)
   }
 
@@ -387,6 +403,7 @@ export default function CallPage(): JSX.Element {
           <span aria-label={t('call.duracion')}>{fmtDuration(duration)}</span>
         </div>
       </header>
+      {errorDeCredenciales && <div role="alert" className="call-error">{errorDeCredenciales}</div>}
 
       {estadoAsistente?.active && (
         <BannerDelAsistente
@@ -565,10 +582,10 @@ function ChatLateral({ items, value, onChange, onSend, onClose, t }: {
         ))}
       </div>
       <div className="call-side__form">
-        <input aria-label={t('call.write_placeholder')} value={value} onChange={e => onChange(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && onSend()}
+        <Input aria-label={t('call.write_placeholder')} value={value} onChange={e => onChange(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') onSend() }}
           placeholder={t('call.write_placeholder')}
-          className="call-side__input" />
+          className="u-flex1-min0" inputClassName="call-side__input" />
         <Pulsable type="button" onClick={onSend} className="call-side__send" aria-label={t('call.enviar')} title={t('call.enviar')}><Send size={13} aria-hidden="true" /></Pulsable>
       </div>
     </aside>

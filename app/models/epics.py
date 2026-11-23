@@ -22,14 +22,14 @@ class WikiSpace(Base):
     # una segunda empresa no podia repetir el codigo/nombre de otra.
     __table_args__ = (Index("uq_wiki_spaces_org_slug", "organization_id", "slug", unique=True),)
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     project_id  = Column(String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=True, index=True)
     name        = Column(String(200), nullable=False)
     slug        = Column(String(100), nullable=False, index=True)
     is_active   = Column(Boolean, default=True)
     description = Column(Text, nullable=True)
     is_public   = Column(Boolean, default=False)
-    created_by  = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    created_by  = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at  = Column(DateTime(timezone=True), server_default=func.now())
     pages       = relationship("WikiPage", back_populates="space", cascade="all, delete-orphan")
 
@@ -38,7 +38,7 @@ class WikiPage(Base):
     """Página de un espacio wiki, con jerarquía padre/hijos y versionado."""
     __tablename__ = "wiki_pages"
     id           = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     space_id     = Column(String(36), ForeignKey("wiki_spaces.id", ondelete="CASCADE"), nullable=False, index=True)
     parent_id    = Column(String(36), ForeignKey("wiki_pages.id",  ondelete="SET NULL"),  nullable=True,  index=True)
     title        = Column(String(500), nullable=False)
@@ -49,8 +49,8 @@ class WikiPage(Base):
     content_text = Column(Text, nullable=True)       # texto plano para búsqueda
     is_published = Column(Boolean, default=True)
     sort_order   = Column(Integer, default=0)
-    created_by   = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
-    updated_by   = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    created_by   = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    updated_by   = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at   = Column(DateTime(timezone=True), server_default=func.now())
     updated_at   = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     space    = relationship("WikiSpace",   back_populates="pages")
@@ -62,14 +62,14 @@ class WikiPage(Base):
 class WikiVersion(Base):
     __tablename__ = "wiki_versions"
     id           = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     page_id      = Column(String(36), ForeignKey("wiki_pages.id", ondelete="CASCADE"), nullable=False, index=True)
     version_num  = Column(Integer, nullable=False, default=1)
     title        = Column(String(500), nullable=False)
     content      = Column(Text, nullable=True)
     content_text = Column(Text, nullable=True)
     change_note  = Column(String(500), nullable=True)
-    created_by   = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    created_by   = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at   = Column(DateTime(timezone=True), server_default=func.now())
     page         = relationship("WikiPage", back_populates="versions")
 
@@ -77,25 +77,25 @@ class WikiVersion(Base):
 class WikiTemplate(Base):
     __tablename__ = "wiki_templates"
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     name        = Column(String(200), nullable=False)
     description = Column(String(500), nullable=True)
     icon        = Column(String(10),  nullable=True)
     content     = Column(Text, nullable=True)   # JSON blocks de la plantilla
     is_system   = Column(Boolean, default=False)
-    created_by  = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    created_by  = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at  = Column(DateTime(timezone=True), server_default=func.now())
 
 
 class WikiComment(Base):
     __tablename__ = "wiki_comments"
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     page_id     = Column(String(36), ForeignKey("wiki_pages.id", ondelete="CASCADE"), nullable=False, index=True)
     parent_id   = Column(String(36), ForeignKey("wiki_comments.id", ondelete="CASCADE"), nullable=True, index=True)
     content     = Column(Text, nullable=False)
     is_resolved = Column(Boolean, default=False)
-    created_by  = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    created_by  = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at  = Column(DateTime(timezone=True), server_default=func.now())
     page    = relationship("WikiPage",    back_populates="wiki_comments")
     replies = relationship("WikiComment", foreign_keys=[parent_id])
@@ -107,7 +107,7 @@ class Epic(Base):
     """Épica: agrupación de alto nivel de tareas dentro del roadmap de un proyecto."""
     __tablename__ = "epics"
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     project_id  = Column(String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
     title       = Column(String(500), nullable=False)
     is_active   = Column(Boolean, default=True)
@@ -118,7 +118,7 @@ class Epic(Base):
     start_date  = Column(String(10), nullable=True)
     end_date    = Column(String(10), nullable=True)
     sort_order  = Column(Integer, default=0)
-    created_by  = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    created_by  = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at  = Column(DateTime(timezone=True), server_default=func.now())
     updated_at  = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     epic_tasks  = relationship("EpicTask",       back_populates="epic", cascade="all, delete-orphan")
@@ -132,7 +132,7 @@ class Epic(Base):
 class EpicTask(Base):
     __tablename__ = "epic_tasks"
     id       = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     epic_id  = Column(String(36), ForeignKey("epics.id", ondelete="CASCADE"), nullable=False, index=True)
     task_id  = Column(String(36), ForeignKey("tasks.id",     ondelete="CASCADE"), nullable=False, index=True)
     is_active = Column(Boolean, default=True)
@@ -142,7 +142,7 @@ class EpicTask(Base):
 class EpicDependency(Base):
     __tablename__ = "epic_dependencies"
     id            = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     epic_id       = Column(String(36), ForeignKey("epics.id", ondelete="CASCADE"), nullable=False, index=True)
     depends_on_id = Column(String(36), ForeignKey("epics.id", ondelete="CASCADE"), nullable=False, index=True)
     is_active     = Column(Boolean, default=True)
@@ -155,13 +155,13 @@ class EpicDependency(Base):
 class SavedFilter(Base):
     __tablename__ = "saved_filters"
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     name        = Column(String(200), nullable=False)
     entity_type = Column(String(30), nullable=False, index=True)  # task, ticket, project, epic
     nql_query   = Column(Text, nullable=False, default="", server_default="")
     is_active   = Column(Boolean, default=True)
     is_shared   = Column(Boolean, default=False)
-    created_by  = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    created_by  = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at  = Column(DateTime(timezone=True), server_default=func.now())
     # Rev. 173: un solo modelo de vista guardada. Un filtro NQL es una vista sin
     # disposición; las vistas de Tareas (tabla, línea temporal, calendario,
@@ -178,7 +178,7 @@ class SavedFilter(Base):
 class TaskStateSnapshot(Base):
     __tablename__ = "task_state_snapshots"
     id         = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     project_id = Column(String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
     sprint_id  = Column(String(36), ForeignKey("sprints.id",  ondelete="CASCADE"), nullable=True,  index=True)
     snap_date  = Column(String(10), nullable=False, index=True)   # YYYY-MM-DD
@@ -193,9 +193,9 @@ class Mention(Base):
     """Mención @usuario vinculada a una entidad (task, ticket, wiki, comment)."""
     __tablename__ = "mentions"
     id             = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     mentioned_user = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
-    mentioned_by   = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    mentioned_by   = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     entity_type    = Column(String(30), nullable=False)   # task, ticket, wiki_page, comment
     entity_id      = Column(String(36), nullable=False, index=True)
     context_text   = Column(String(500), nullable=True)
@@ -209,14 +209,14 @@ class Mention(Base):
 class ThreadedComment(Base):
     __tablename__ = "threaded_comments"
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     entity_type = Column(String(30), nullable=False, index=True)  # task, ticket
     entity_id   = Column(String(36), nullable=False, index=True)
     parent_id   = Column(String(36), ForeignKey("threaded_comments.id", ondelete="CASCADE"), nullable=True, index=True)
     content     = Column(Text, nullable=False)
     is_active   = Column(Boolean, default=True)
     is_resolved = Column(Boolean, default=False)
-    created_by  = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    created_by  = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at  = Column(DateTime(timezone=True), server_default=func.now())
     updated_at  = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     replies     = relationship("ThreadedComment", foreign_keys=[parent_id])

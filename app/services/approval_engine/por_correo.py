@@ -31,8 +31,11 @@ def _horas(db: Session) -> int:
 def crear_enlace(db: Session, req, user_id: str) -> str:
     import jwt
     from app.core.security import ALGORITHM, get_jwt_signing_key
+    import uuid
     kid, key = get_jwt_signing_key()
+    # M54 (auditoría 22-11-2026): `jti` de un solo uso (ver `_consumir`).
     token = jwt.encode({"type": _TIPO, "sub": user_id, "req": req.id, "step": req.current_step,
+                        "jti": uuid.uuid4().hex,
                         "exp": datetime.now(timezone.utc) + timedelta(hours=_horas(db))},
                        key, algorithm=ALGORITHM, headers={"kid": kid})
     return f"{settings.FRONTEND_URL.rstrip('/')}/approvals/decide?token={token}"
@@ -68,7 +71,52 @@ def _leer(db: Session, token: str):
         set_committed_value(usuario, "organization_id", req.organization_id)
     if req.status != "pending" or req.current_step != datos.get("step"):
         raise error(410, "aprobacion_ya_decidida_o_cambio_paso")
+    if _usado(datos.get("jti")):
+        raise error(410, "enlace_ya_no_valido")
     return req, usuario
+
+
+#: M54: enlaces ya usados (jti → caducidad). Con Redis, compartido entre
+#: procesos; si no, en memoria. Un enlace de aprobación sirve UNA vez: si se
+#: reenvía el correo después de decidir, ya no vale (antes valía hasta caducar).
+_USADOS: dict = {}
+
+
+def _clave(jti: str) -> str:
+    return f"approval_email:used:{jti}"
+
+
+def _usado(jti) -> bool:
+    if not jti:
+        return False
+    from app.services.auth_service.estado_efimero import get_sso_redis
+    r = get_sso_redis()
+    if r is not None:
+        try:
+            return bool(r.exists(_clave(jti)))
+        except Exception:
+            pass
+    import time
+    exp = _USADOS.get(jti)
+    return bool(exp and exp > time.time())
+
+
+def _consumir(jti, segundos: int) -> None:
+    if not jti:
+        return
+    from app.services.auth_service.estado_efimero import get_sso_redis
+    r = get_sso_redis()
+    if r is not None:
+        try:
+            r.setex(_clave(jti), max(int(segundos), 1), "1")
+            return
+        except Exception:
+            pass
+    import time
+    ahora = time.time()
+    for k in [k for k, v in _USADOS.items() if v <= ahora]:
+        _USADOS.pop(k, None)
+    _USADOS[jti] = ahora + segundos
 
 
 def resumen(db: Session, token: str) -> dict:
@@ -85,4 +133,6 @@ def decidir(db: Session, token: str, decision: str, nota) -> dict:
         raise error(422, "motivo_de_rechazo_obligatorio", detail="Para rechazar indica el motivo")
     req, usuario = _leer(db, token)
     req = decide_approval_request(req.id, decision, nota, None, db, usuario)
+    from app.core.security import decode_token
+    _consumir((decode_token(token or "") or {}).get("jti"), _horas(db) * 3600)
     return {"request_id": req.id, "status": req.status}

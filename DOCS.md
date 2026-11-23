@@ -135,7 +135,7 @@ Recorrido de punta a punta de `/bpm` (diseño, versiones, ejecución, bandeja, p
 
 - **Clave de proceso BPMN única en la base (#33, migración `168_indice_unico_procesos_bpmn`).** `clave_unica` solo comprobaba en código; dos altas simultáneas podían duplicar la clave. Ahora hay un índice único `(organization_id, key)` y otro parcial `(key) WHERE organization_id IS NULL` para el catálogo global (NULL no choca con NULL). `create_process` convierte el `IntegrityError` en `ErrorDeDominio` 409 (antes habría sido 500). La migración resuelve los duplicados previos conservando la clave de la fila más antigua y poniendo `_dup_<n>` a las demás (no borra nada; el sufijo no se revierte en el downgrade).
 
-- **Geo-IP activado por defecto (decisión de producto, 14-11-2026):** `GEOIP_LOOKUP_ENABLED=True`. La IP pública de cada inicio de sesión y refresco se envía a `GEOIP_LOOKUP_URL` (ipapi.co por defecto) para el riesgo de sesión (cambio de país/ASN). Es una transferencia de datos personales a un tercero: requiere base legal y aviso de privacidad, salida a Internet y vigilar la cuota del proveedor. Para no enviarla: `GEOIP_LOOKUP_ENABLED=false`.
+- **Geo-IP apagado por defecto (auditoría 22-11-2026, M6, RGPD; antes encendido por la decisión de producto del 14-11-2026):** `GEOIP_LOOKUP_ENABLED=False`. Encendido, la IP pública de cada inicio de sesión y refresco se envía a `GEOIP_LOOKUP_URL` (ipapi.co por defecto, fuera del EEE) para el riesgo de sesión (cambio de país/ASN). Es una transferencia de datos personales a un tercero: requiere base legal, registro de tratamientos, contrato de encargo y aviso de privacidad, salida a Internet y vigilar la cuota del proveedor. Ver `docs/seguridad/entrada_y_salida.md`.
 
 - **CSRF:** las exenciones de los webhooks de Twilio (voz) y entrada multicanal apuntaban a `/api/v1/service-desk/...`; las rutas reales son `/api/v1/sd/voice/webhook/twilio` y `/api/v1/sd/multichannel/inbound/`. Sin efecto práctico hoy (Twilio no envía cookies), pero la lista ya casa con las rutas.
 
@@ -876,6 +876,18 @@ flechas cambian de pestaña, e `Inicio` y `Fin` van a la primera y la última.
 Los avisos que salen abajo a la derecha los lee también el lector de
 pantalla; los errores, en cuanto aparecen.
 
+**Menú lateral personalizable (23-11-2026).** Pulsar el icono o el nombre de
+una categoría lleva a su panel (Mi día, Salud del portfolio, Capacidad del
+equipo, Resumen financiero, Estado del soporte, Executive Dashboard,
+Configuración; IA y automatización no tiene panel) y la flecha despliega sus
+pestañas. «Personalizar menú» (pie del menú o Perfil → Apariencia) reordena
+las categorías (arrastrando o con subir/bajar) y las pestañas, y oculta las que
+no se usan; se guarda en el servidor y sigue a la persona en cualquier equipo.
+Ocultar no quita permisos: lo oculto se abre igual y ⌘K lo encuentra. El
+administrador fija el menú de partida de cada rol en Configuración › «Menú por
+defecto» (auditado); «Restablecer» vuelve a él. Detalle en
+[docs/CONFIGURACION.md](docs/CONFIGURACION.md#menú-lateral-personalizable-23-11-2026).
+
 Las fechas salen en el idioma de la interfaz: `02/11/2026` en español,
 `11/02/2026` en inglés y `2026/11/02` en chino. Quedan pantallas que todavía
 las escriben en formato español (véase la guía de diseño, apartado 15).
@@ -993,6 +1005,7 @@ Errores que la auditoría 2026-08 encontró y que conviene no repetir:
 
 ### Otras capacidades activas
 - JWT, refresh y MFA (TOTP + WebAuthn), forzado también en SSO
+- «¿Olvidaste tu contraseña?» para operadores y portal de clientes y restablecimiento forzado por el administrador (23-11-2026). El enlace es de un solo uso de verdad (`reclamar_jti`) y caduca a los 30 min. La respuesta no revela si la cuenta existe. Aplica la política de la empresa, cierra todas las sesiones y queda auditado. Detalle en `docs/seguridad/politicas_de_cuenta.md` §3 bis.
 - SSO OIDC con verificación de firma contra JWKS, PKCE S256, `state` con HMAC de
   un solo uso y verificación de `nonce`
 - Rate limiting: 128 decoradores `@limiter.limit` (16-11-2026) y `RATE_LIMIT_DEFAULT` en el resto (por ruta y usuario; sin sesión, por IP), bloqueo por intentos en
@@ -2548,6 +2561,13 @@ Búsqueda (la API le daba 403), Gastos, Habilidades, Formación e Informes; para
 Flujo acumulado y Sprint planning IA. Página de inicio tras el login: la misma que la raíz (antes el
 empleado iba a /imputar y el resto a /tasks).
 
+**Toda la API por capacidad (23-11-2026, auditoría 01 M9).** Ya no hay rutas guardadas por rol: las 1 425
+que lo estaban y las guardas a mano usan `requiere_capacidad("<área>.<acción>")` con los mismos roles
+(`scripts/codemods/guardas_a_capacidades.py`; 101 capacidades nuevas sin módulo, así que no cierran más).
+Detalle, medida antes/después y tabla capacidad → roles → rutas: `docs/seguridad/guardas_por_capacidad.md`.
+Una ruta nueva se guarda con una capacidad del catálogo; `tests/test_auditoria_2026_11_22_ronda2_nucleo.py`
+falla con un `Depends(require_*)` de rol o una guarda de rol en el cuerpo.
+
 ## Auditoría de hardcodeados: catálogos, integraciones, etiquetas y estilos (19-11-2026)
 
 **Catálogos editables por empresa.** `projects.project_type`, `clients.industry` y `expenses.category`
@@ -2588,7 +2608,7 @@ impresión.
 **Baja.** `max_tokens` por tamaño de respuesta (`AI_SHORT/BRIEF/MEDIUM/LONG_ANSWER_MAX_TOKENS`,
 `AI_CHAT_MAX_TOKENS`); tope y temperatura del proveedor del .env (`AI_PROVIDER_DEFAULT_MAX_TOKENS`,
 `AI_DEFAULT_TEMPERATURE`); modelos retirados en `app/core/ai_models.json` (`_retirados`); logos del marketplace
-con `CONNECTOR_LOGO_BASE_URL`; fuentes con `VITE_FONTS_CSS_URL` (`src/fuentes.ts`; vacía = sin llamar a Google);
+con `CONNECTOR_LOGO_BASE_URL`; fuentes locales con `@fontsource` (`src/fuentes.ts`, 23-11-2026; antes `VITE_FONTS_CSS_URL`);
 sin restos de demo (Acme, Alice Smith, hr@example.com).
 
 **GRC.** Las altas de catálogo quedan selladas con la empresa de quien las crea y las globales solo las toca el
@@ -2771,3 +2791,300 @@ Diseño, inventario medido y API: [docs/CLIENTES_INTERNOS.md](docs/CLIENTES_INTE
 - Cargos (`/internal-clients/charges`): informe de showback, nota de cargo interna sin IVA exportable como asiento CSV, intercompañía con factura real. Presupuesto = `budgets` aprobados con `cliente_id`; exceso con aprobación del responsable (tipo de bandeja `internal_charge`) y segregación.
 - Portal interno `/internal-portal` (pantalla `/mi-departamento`): proyectos, hitos y UAT a firmar, tickets, SLA, coste (responsable/finanzas), peticiones por el flujo de demanda (respaldo: cartera), NPS/CSAT, adopción y beneficios.
 - Capacidades `interno.portal`, `interno.gestionar`, `interno.cargos`. GRC: retención `internal_satisfaction`, `internal_client_roles`, `internal_charges`; controles `internal_units_owner`, `internal_units_budget`, `internal_charges_sod`, `internal_charges_pending`, `internal_chargeback_erp`. Tests: `tests/test_clientes_internos.py`, `frontend/src/__tests__/clientesInternos.test.ts`.
+
+## Arreglos de la auditoría 2026-11-22, informe 03: servicios m–z y modelos (23-11-2026)
+
+Estado por hallazgo en `docs/auditoria/2026-11-22/03_servicios_m_z_modelos.md`; Service Desk en
+`docs/SERVICE_DESK.md` («Arreglos de la auditoría del 22-11-2026»). Fuera del Service Desk:
+
+- **Proyectos:** el código de proyecto sale de la secuencia por empresa (`next_numbered_code`);
+  antes `max(code) FOR UPDATE` fallaba en Postgres. Un hito por % se calcula sobre lo facturable
+  (contratos o `contract_amount`), nunca sobre el presupuesto de coste.
+- **Partes de horas:** nadie decide su propio parte; un jefe de proyecto solo aprueba las
+  imputaciones de sus proyectos; el parte queda aprobado cuando no le queda ninguna pendiente.
+- **Microsoft 365 BI:** OneDrive solo de usuarios de la empresa (y el propio si no se administra);
+  exportar exige `analitica.ver`; el webhook de Teams es el de cada empresa (credencial
+  `ms_graph.teams_webhook` o ajuste `TEAMS_WEBHOOK_URL` de la empresa), nunca el global.
+- **Cobros:** Stripe por empresa (credenciales `stripe.*` de la empresa), el webhook verifica con
+  el secreto de la empresa de la factura y comprueba importe y moneda; un enlace caducado o de otro
+  importe no se reutiliza. Retainer: se factura también los días 29-31 y recupera días perdidos.
+- **Ingresos (ASC 606):** reconocimiento acumulado (horas aprobadas tarde y periodos revertidos se
+  recuperan), hitos una sola vez y con tope, cierre y reapertura auditados.
+- **Firma:** el código del certificado es un HMAC con la clave del despliegue sobre la huella del
+  documento y los datos de la firma.
+- **Clasificador semántico:** un TF-IDF por empresa.
+- **RGPD (supresión):** solo filas de las empresas de la persona (también tablas `org_id`); nombre
+  y usuario solo en columnas de identidad; seudónimo HMAC.
+- **Retención:** tipos nuevos `public_form_submissions`, `user_sessions` (caducadas o revocadas),
+  `security_events`, `security_detections` (cerradas), `login_anomalies`, `document_access_logs`,
+  `ai_action_logs`, `collaboration_audit_events` y `jira_sync_logs`; `Tipo.columna_empresa`
+  para las tablas con `org_id`.
+- **Modelos retirados:** `AIAnomaly`, `OAuthState`, `SubcontractorWorkerSkill`,
+  `ImputationSnapshot`, `WhatIfTask` y `WikiExportJob` (sin uso). Sus tablas las borra la
+  migración `196_auditoria_2026_11_22`.
+- **Migración 196** (23-11-2026): columnas `collaboration_audit_events.hash_version` (cadena v2:
+  HMAC con clave, actor, IP y fecha; las filas antiguas se verifican como v1),
+  `client_documents.signed_pdf_sha256` (la descarga del PDF firmado comprueba la huella),
+  `collaboration_webhooks.secret_token_hash` (la entrega busca por la huella; el secreto en claro
+  sigue mientras la pantalla lo enseñe) y `automation_events.idempotency_key` (única por empresa;
+  en PostgreSQL el worker reclama cada evento con `FOR UPDATE SKIP LOCKED`). `ondelete` en las 171
+  claves a `users.id` (159 SET NULL, 8 RESTRICT, 4 CASCADE). **GRC/RGPD:** el borrado definitivo de
+  un usuario con historial protegido lo anonimiza con `suprimir_persona` (no lo borra) y lo deja en
+  auditoría (`user_service.delete_user_record`).
+- **Migración 197** (23-11-2026): 79 columnas de dinero de `Float` a `Money` (Numeric 18,2) o `Rate`
+  (Numeric 18,6); Python sigue con `float` (`asdecimal=False`, como el resto de `Money`). Descartadas
+  por no ser dinero: `absences.amount`, `alerts.value`, `client_health_snapshots.budget_component`,
+  `ml_prediction_logs.cost_overrun_prob`, `okr_checkins.value`, `okr_key_results.target_value`,
+  `okr_key_results.current_value`, `project_risk_scores.budget_risk`,
+  `security_metric_snapshots.auth_failure_rate`, `tabla_de_referencia_filas.valor`.
+- **Ajustes nuevos:** `SD_INBOUND_REQUIRE_SENDER_AUTH` (true), `SD_INBOUND_AUTHSERV_ID` ("").
+  Errores nuevos con código: `scripts/codemods/errores_con_codigo/auditoria_servicios_m_z.json`.
+- **Tests:** `tests/test_auditoria_2026_11_22_servicios_m_z.py`.
+
+## Arreglos de la auditoría 2026-11-22, informe 02: servicios a–l (23-11-2026)
+
+Estado por hallazgo en `docs/auditoria/2026-11-22/02_servicios_a_l.md` (✅/⏸ en cada fila).
+
+- **Aprobaciones (C1):** `POST /approvals/requests` ya no decide con el `context` del cliente: flujo,
+  auto-aprobación y condiciones de paso se evalúan con la entidad REAL
+  (`approval_engine.fuentes.contexto_de_entidad`: gasto, factura, presupuesto, traspaso, CR, parte,
+  ausencia, horas extra, cargo interno, estado de proveedor), de la empresa de quien pide (404 si no
+  existe); lo del cliente queda en `contexto._cliente`, solo informativo. El flujo pedido por id tiene
+  que ser activo, del tipo y de la empresa. Los dominios (que construyen su contexto en servidor)
+  llaman con `de_confianza=True`. Sin importe en el contexto, una regla `amount_lt` ya no se cumple.
+- **Discovery CMDB (C2):** cada fallo del proveedor se anota; solo se retiran CIs con inventario
+  completo (sin errores, no vacío y no < 50 % de los activos si había ≥ 10). Si no, job `partial`
+  (algo leído) o `error` (nada) con el motivo en `error_message` y `summary_json.retirada_omitida`.
+- **Retención del chat (C3):** cada política alcanza su ámbito (canal, equipo, tipo de conversación,
+  espacio); manda la más específica (a igual ámbito, la más larga); solo `apply_to` all/messages;
+  respeta el legal hold del chat y el bloqueo legal general (`legal_holds` con entidad `*` o
+  `collaboration_messages` y campo `id`, `user_id` o `conversation_id`).
+- **Cadena de auditoría del chat (C5):** bloqueo hasta el fin de la transacción
+  (`pg_advisory_xact_lock` en PostgreSQL; semáforo por empresa en SQLite); el anterior es la cola de
+  la cadena; `verify_chain` en O(n) y detecta bifurcaciones. HMAC con clave: pendiente (necesita
+  columna de versión, ver «Migraciones»).
+- **Divisas:** un resolutor (`currency_rates_service.tipo_de_cambio`: directo, inverso o cruzado por
+  EUR; `None` si no hay). Cálculos puntuales → 409 `tipo_de_cambio_no_configurado`; agregados
+  (`profitability_service.get_fx_rate`) → `tipo_o_aviso`: cuentan 1:1 pero lo avisan
+  (`fx_warnings` en rentabilidad y panel, `missing_rates` en el informe multimoneda).
+  El panel (`/dashboard/profitability`) cuenta solo imputaciones activas; unificarlo con el margen de
+  Rentabilidad queda pendiente (ese cálculo hace varias consultas por proyecto; hace falta una versión por lotes).
+- **Imputaciones:** topes y duplicados sin borradas; «hoy» y el día del cronómetro en la zona de la
+  persona; una sola puerta de alta (`imputation_service.alta.crear_imputacion_validada`) para
+  cronómetro, Slack, bots y voz (cierre de periodo, fecha futura, pertenencia, tarifa, topes,
+  duplicados, horas extra «bloquear»).
+- **Facturación:** marcar horas facturadas solo con imputaciones activas, no facturadas, de la empresa
+  (y proyecto) de la factura; si no se pueden marcar todas, 409 `imputaciones_no_facturables`.
+  Factura recurrente con `next_invoice_number`. Factura PDF: datos del emisor
+  (`INVOICE_ISSUER_NAME/TAX_ID/ADDRESS/IBAN`), texto escapado, DejaVu Sans
+  (`app/assets/fonts`, licencia en `LICENSE_DEJAVU`) y STSong-Light en chino, IVA con decimales.
+- **Portal de cliente:** sin proyectos no ve ninguno; respuestas internas ocultas; el cliente no
+  decide `is_internal` ni cuelga mensajes en hilos ajenos; firmar exige documento visible y PDF
+  generado (si falla, 409 `firma_sin_certificado` y no queda firmado); la huella SHA-256 del
+  certificado queda en `audit_log`.
+- **RGPD:** `/bi/gdpr/dsr` crea y resuelve en el registro único (`gdpr_requests`, circuito de
+  `/gdpr/requests`); `restriction` → 422; una supresión solo se cierra ejecutándola, y solo se marca
+  completada después de borrar. Copia de acceso/portabilidad cifrada y con caducidad
+  (`COMPLIANCE_GDPR_EXPORT_TTL_DAYS`, 30): caducada → 410 y se borra; el barrido diario
+  (`aplicar_retencion`) las borra. Procesar una solicitud es una sola transacción.
+- **Webhooks:** los suspendidos por el cortacircuitos se listan y se reactivan
+  (`POST /enterprise/webhooks/{id}/reactivate`, botón en el registro de webhooks). Los salientes del
+  chat se retiran (422); el canal destino de un entrante tiene que ser de la empresa.
+- **BI:** versiones de dataset solo con datos ETL reales (422 `bi_dataset_sin_datos`); churn
+  heurístico (`rule_based`) sobre los datos reales, sin modelo entrenado con datos sintéticos;
+  `cron_expression` de los informes programados se aplica (5 campos, UTC).
+- **IA:** aprobación humana de las escrituras del agente
+  (`POST /ai/agent/{id}/steps/{step_id}/approve|reject`, ejecuta la herramienta guardada, auditado;
+  también en streaming); `send_notification` solo con enlaces internos; voz: confirmar ejecuta la
+  propuesta FIRMADA (`pending_action.token`, 10 min) con los servicios de dominio, sin volver al LLM;
+  portal IA con la empresa del cliente (guardarraíles); guardarraíles fail-closed si no se pueden
+  leer las políticas; analítica ad hoc con `analitica.ver` (facturación además `finanzas.ver`);
+  anomalías de imputaciones ajenas con `partes.equipo`; aceptar estimación con pertenencia y ABAC.
+- **Funcionalidades retiradas o que ahora funcionan:** `quick_answer` (bot Nexus) retirada;
+  `POST /cmdb/wiki-export/{page_id}` retirada; tareas automáticas BPMN (service/script/send/
+  businessRule) esperan confirmación humana en la bandeja en vez de darse por hechas.
+- **Numeración:** `numbering.siguiente_codigo` (fila bloqueada y semilla con el mayor número ya
+  usado) para FR, CR y UAT del portal y cargos internos; tareas recurrentes con la secuencia de
+  tareas; tickets de Slack y del bot con la numeración de tickets.
+- **Otros:** ABAC (editar/borrar políticas; deny con atributo ausente y `not_in`/`not_contains`/
+  `is_empty`), Excel de gastos (categoría, alcance de empresa, textos por clave), alertas sin el
+  fallback entre empresas, `ask_the_data` exige empresa, jornadas, contratos, salud de cliente, uso
+  de IA y registro GRC acotados por empresa.
+- **Errores nuevos con código:** `scripts/codemods/errores_con_codigo/auditoria_servicios_a_l.json`
+  (+ `firma_sin_certificado` del portal en 8 idiomas).
+- **Tests:** `tests/test_auditoria_2026_11_22_servicios_a_l.py` (C1, C2, C5),
+  `tests/test_legal_hold_retencion.py` (C3).
+
+### Ronda 2 (23-11-2026): altos, medias, bajas y §5 restantes
+
+- **Margen único:** `app/services/margen_de_proyectos.py` (`margen_en_bloque`, `cifras_por_tramo`) es el
+  único cálculo; panel, rentabilidad, evolución, EVM, BI/OLAP, métricas y chat lo usan. Divisas con
+  `currency_rates_service.TablaDeTipos` (precarga) y `tipo_o_aviso` (si falta un tipo, aviso, no 1:1);
+  tarifas precargadas `rate_card_service.TarifasPrecargadas`. Un solo resolutor de divisas (el quinto, en
+  `bookings_service/divisas`, delega).
+- **Seguridad/RGPD:** redacción de TODO el contexto enviado a la IA (A8); antivirus caído → `unavailable`
+  y DLP sin fragmentos (A24); sin empresa ninguna fila (A25, M47, M50, M71, M81); RGPD completo
+  (M55); enlaces de marcador con caducidad y revocación (M56); aprobación por correo de un solo uso
+  (M54); límites atómicos en Redis (M53); HMAC rotado en BI embebido (M60); webhooks firmados v2 (M85).
+- **Tiempo/horas:** imputaciones con bloqueo por persona/día (M30, M31), alcance por rol (M33), excepción
+  de administrador auditada (M34); horas extra en la zona de la empresa (M23-M26); partes externos netos
+  del solape (A50) y en la moneda del proveedor (M18).
+- **Integraciones según API documentada (sin probar con servicio real):** Jira `search/jql` +
+  `statusCategory` (A56/A57), QuickBooks (M16), Qualys `id_min` y Tenable con espera (A22), OER por
+  cabecera (M101). Requieren verificación con credenciales reales.
+- **§5:** retirado el código sin uso (`_integrations_clients` salvo los listados de calendario,
+  `ai_chat/rag_service.py`, `compute_cost`, `_CI_SPECIFIC`, `DEFAULT_COUNTRY_PRESETS`,
+  `tiene_secreto_de_webhook`, `get_plans_for_leveling`, …); los `pass` mudos anotan; LiveKit `dev:` solo
+  en desarrollo (si no, 503 `integracion_no_configurada`).
+- **Ajustes nuevos (Admin → ajustes):** `BI_BOOKMARK_SHARE_DAYS` (30), `RECURRING_TASKS_MAX_CATCHUP` (10),
+  `COLLAB_TUS_TTL_HOURS` (24), `DOC_COLLAB_HISTORY_MAX` (200), `AI_CONTRACT_MAX_PAGES` (200),
+  `QB_MINOR_VERSION` (65), además de los de la fase 1 (`BI_TOKEN_DAILY_REQUEST_LIMIT`, …).
+- **Errores con código:** `scripts/codemods/errores_con_codigo/ronda2_servicios_a_l.json` (es/en/zh,
+  sincronizado).
+- **Esquema pendiente (sin migración en esta ronda):** índice único parcial
+  `timer_sessions(user_id) WHERE ended_at IS NULL`; HMAC de `collaboration_audit_events` (`hmac`,
+  `key_id`); renombrar `sprint_plans.ai_reasoning`/`sprint_plan_tasks.ai_note`. `subcontractor_invoices
+  .approved_by/approved_at` y `contracts.currency` van en la migración 200.
+- **Estado fila a fila:** `docs/auditoria/2026-11-22/02_servicios_a_l.md` (sección 0 y cada fila).
+
+## Arreglos de la auditoría 2026-11-22, informes 04, 04b y 05-A: frontend (23-11-2026)
+
+Detalle hallazgo a hallazgo en `docs/auditoria/2026-11-22/04_frontend_paginas_ux.md`, `04b_frontend_paginas_f_z.md` y `05_frontend_componentes_docs_tests.md` (marcas «✅ arreglado 23-11-2026» / «⏸ pendiente»). Lo que cambia para quien usa o mantiene la aplicación:
+
+**Sesión y datos locales**
+- Al recargar con el acceso caducado (15 min) y el refresco vigente (30 días), `AuthContext` intenta `POST /auth/refresh` una vez antes de dar la sesión por perdida (`refrescarSesionAlArrancar` en `services/api/_core.ts`).
+- Al cerrar sesión o caducar se emite `auth:session-cleared`: `main.tsx` vacía la caché de react-query, la cola offline pierde su dueño y se borra la copia offline de BI.
+- Cola offline de imputaciones (`services/offlineQueue.ts`): cada entrada lleva `_dueno_user`/`_dueno_org`; solo se cuenta y se sube lo de la persona y empresa con sesión. Tras 3 fallos la entrada queda `abandonada` (no se borra ni se reintenta) y se avisa con un toast (`authcontext.imputaciones_offline_abandonadas`). Las entradas antiguas sin dueño no se suben.
+- Copia offline de BI (`services/biOfflineDb.ts`): clave `empresa:usuario:tipo:periodo`; se vacía al salir.
+- Enlace profundo tras el login: `ProtectedRoute` guarda la ruta en sessionStorage (`utils/destinoTrasLogin.ts`, solo rutas internas, nunca `//`) y el login vuelve a ella (también tras SSO).
+
+**Errores visibles**
+- `MutationCache.onError` global (`main.tsx` + `lib/queryErrorBus.ts`): toda mutación sin `onError` propio avisa con el texto traducido (`toast.write_error` de respaldo). `meta: { errorToast: false }` lo silencia.
+- `EstadoDeError` en el kit (`components/ui/EstadoDeError.tsx`): estado de error con reintento para consultas. Se retiraron unos 135 `.catch(() => [])`/`catch {}` que convertían un fallo en «sin datos»; los que quedan son accesorios y llevan `/* accesorio: … */`.
+- Errores del servidor por `extractErr` en ~60 sitios que pintaban `detail` crudo.
+
+**Seguridad**
+- Enlaces guardados: `app/schemas/_enlaces.py` (`EnlaceSeguro`) rechaza esquemas que no sean http(s) (texto sin esquema y rutas `/…` valen) en `file_url`, `test_environment`, `test_guide_url` del portal, `receipt_url` de gastos y `document_url` de entregables y proveedores. Al pintar, `sanitizeUrl`/`isSafeUrl`.
+- Llamadas: `CallPage` ya no acepta `?token=&url=&room=`; sin credenciales en sessionStorage las pide a `POST /collaboration/calls/{id}/join`.
+- Contraseña del cliente del portal: el equipo ya no la escribe, ni la ve ni la copia. Sin contraseña en el alta, el servidor la genera (`secrets.token_urlsafe`) y la envía por correo al titular (`client_portal_service.clientes.enviar_acceso`); «Reenviar acceso» (`POST /portal/clients/{id}/send-access`, auditado sin la contraseña) genera otra. Si el SMTP no está configurado se avisa y el acceso se puede reenviar después. El API sigue aceptando `password` (compatibilidad).
+- Reactivar usuario: `POST /users/{id}/reactivate` (`requiere_capacidad("org.administrar")`, misma empresa y ABAC que desactivar, cupo de usuarios del plan, `audit_log` UPDATE). No devuelve licencias ni equipos (se reasignan en ALM). El botón «Activar» de Configuración → Usuarios pide confirmación y usa esta vía (antes volvía a desactivar).
+
+**Configuración y navegación**
+- `/demand` sin botón «Configurar»: si no hay tipos de solicitud, aviso con enlace a `/settings/demanda` para quien tiene `demanda.config`.
+- Fuentes de uso de licencias: de ALM → Uso real → Fuentes a `/settings/alm-fuentes` (Integraciones, `org.administrar`). En ALM queda el aviso «sin fuentes» con enlace solo para administración.
+- Menú: «Firma electrónica» (`/esign`, Proyectos, `proyectos.gobierno`) y «Portal de clientes» (`/client-portal`, Clientes y finanzas, `finanzas.ver`). No se retiró `/client-portal`: crea UAT, documentos y responde peticiones, cosas que la ficha del cliente no hace.
+- Acciones rápidas (⌘K y «Crear»): traducidas, iconos lucide y filtradas por la capacidad de su ruta (`puedeAbrir` + `canOpen`). Migas y NexusAssist con `nav.*`.
+- Navegación interna sin `window.location.href` ni `<a href="/…">` (MFA, ESign, correo entrante, guardias, ticket, Git, GRC, Imputar).
+- Pipeline con vista lista (tabla ordenable) además del tablero; se recuerda la elección.
+
+**Claves de react-query**
+- `hooks/useListas.ts`: `useListaDeProyectos(params)` y `useListaDeUsuarios(params)`, con los parámetros en la clave (`queryKeys.*.list`). Sustituyen ~45 `['projects']`/`['users']` con funciones distintas. `['integrations']` → `['chat-admin','integraciones']` y `['oauth-integraciones']`.
+
+**Código muerto retirado**
+- 25 ficheros de hooks sin uso y el barril `hooks/index.ts`; exports muertos de `useAnalytics`, `useProjects`, `usePipeline`; `meetingsAIApi`, `initials`, `ORIGENES_REUNION` (reexport), `textoDeEstado`, `useMetaProveedores`, `UNIDADES_DEL_SISTEMA`, `TIPOS_DE_SERVICIO_DEL_SISTEMA`, `_PALETTE`.
+- `frontend/scripts/check_portal_i18n_missing.{js,cjs}` (leían un fichero que ya no existe) y los scripts npm `test:e2e*`/`install:playwright` (no había configuración ni specs; el e2e real es `tests_e2e/` en Python).
+- `vite.config.js`: los dos bytes NUL literales pasan a `'\0'` (mismo valor; git ya no lo trata como binario).
+
+**GRC**
+- Auditoría: reactivar usuario y reenviar acceso del portal quedan en `audit_logs` (sin secretos).
+- RGPD/privilegios: la contraseña del cliente deja de pasar por el equipo y el portapapeles; la caché local (react-query, cola offline, BI) ya no cruza de una persona o empresa a otra en un puesto compartido.
+- Retención: sin cambios. Migraciones: ninguna.
+
+### Segunda ronda del frontend (04, 04b y 05, 23-11-2026)
+
+- **Fuentes locales (RGPD).** DM Sans y Geist (400-800) y Geist Mono (400-500) salen de `@fontsource/*` (`frontend/src/fuentes.ts`, importado en `main.tsx`); ya no se pide nada a `fonts.googleapis.com`/`fonts.gstatic.com`, así que la IP del visitante (operador o cliente del portal) no llega a Google. CSP sin Google en `app/main.py`, `frontend/nginx.frontend.conf` y `vite.config.js` (`font-src 'self' data:`). Se retira `VITE_FONTS_CSS_URL`. El chino cae a la fuente del sistema, como antes.
+- **Pipeline comercial.** Regla de mercado en todos los cálculos: ver `docs/PIPELINE_COMERCIAL.md`.
+- **Aprobación humana del agente de IA (A7).** `/nexus-agent` muestra la bandeja «Pendientes de tu aprobación» y, en cada ejecución, los pasos de escritura pendientes con los datos que se enviarán; «Aprobar y ejecutar» (con confirmación) o «Rechazar» llaman a `POST /ai/agent/{id}/steps/{step_id}/approve|reject`. El servidor ejecuta exactamente lo guardado y lo audita (`AI_AGENT_APPROVE/REJECT`).
+- **Componentes de más de 800 líneas troceados** (24 ficheros) sin cambio de comportamiento; ver la tabla del M12 en el informe 04.
+- **Un solo mecanismo de confirmación.** `components/ui/Confirm.tsx` retirado; todo usa `context/ConfirmContext` (`confirmar`, `openConfirmGlobal`).
+- **Un solo desenvoltorio de sobres** `{items, meta}` / `{data, meta}`: `services/api/clienteBase.ts → desenvolverSobre`, usado por `_core.ts` y por el portal.
+- **Un solo traductor de operador.** Fuera `hooks/useAppT.ts` (traducía por su cuenta y tenía el mismo nombre que `useAppT` de `i18n/AppLangContext` con otro contrato); todo usa `useAppLang()`/`useAppT()` de `AppLangContext`.
+- **Llamadas `api.*` sueltas → servicios tipados** (`services/api/pantallasSueltas.ts`: firma, reservas, changelog, RACI, puntuaciones de riesgo, aprobación por correo, preferencias de avisos, armazón; y `avisosApi.listar`, `wsApi`, `pipelineApi`, `nexusAgentApi.texto`).
+- **Capacidad por ruta = la de su API (M16).** `/bpm` → `bpm.usar`, `/agent-dashboard` → `cmdb.gestionar`, `/portfolio/intake` → `cartera.usar`; `/reports` sigue en `colaboracion.ver` (su API la abre cualquiera con sesión).
+- **Accesibilidad.** Las reglas `jsx-a11y` pasan de `warn` a `error` (medido antes: 25 avisos reales; arreglados; `td`/`option` ignorados y los controles del kit cuentan dentro de `<label>`).
+- **Webhooks entrantes del chat.** El secreto se enseña una sola vez, al crearlo; en la base solo quedan su huella SHA-256 y una máscara (`••••` + 4 últimos). Las filas antiguas se limpian al listarlas (sin migración). Nadie, tampoco un administrador, lo vuelve a ver.
+- **Historial del temporizador** filtrado en el servidor: `GET /imputations?only_timer=true`.
+- **Otros.** `/search` enlazado desde la paleta (⌘K: «Ver todos los resultados» e Intro); claves `['chat-admin','webhooks'|'auditoria']`; `META_POR_DEFECTO` y 4 constantes de proveedores sin uso, fuera; `i18n_baseline.json` regenerado (es/en/zh); colores de TSX a tokens o a `constants/theme.ts` (paleta de acentos, marca por defecto, Avatar); `demanda.css` con `var(--text-*)`; impresión de BI sin `document.write` (`@media print`); `PageLoader` sin `<style>` propio; rutas de la wiki con `/` inicial; la IA de la wiki por `/ai/texto` (gobernada, sin abrir conversación).
+
+**GRC:** RGPD (fuentes: sin transferencia de la IP a Google; secreto de webhook ya no se guarda en claro); auditoría (aprobación del agente ya auditada en el servidor); privilegios (rutas alineadas con las guardas de su API); retención sin cambios. Migraciones: ninguna.
+
+## Arreglos de la auditoría 2026-11-22, segunda ronda transversal: textos, exportaciones, M365, red y conectores (23-11-2026)
+
+**1. Textos fijos y errores sin código** (informes 01 B13, 02 §6 y 03 §6)
+- Los 73 `raise HTTPException(...)` directos de `app/api` pasan a `error_http(status, código)`; los 404 usan `no_encontrado` con `que=`. Hay 8 entidades nuevas en `scripts/codemods/errores_con_codigo/http_sin_codigo.json`.
+- `scripts/errores_sin_codigo.py` cuenta además una categoría nueva, `http_crudo`: cualquier `HTTPException` construido a mano en `app/api` y `app/core`, y los `detail` snake_case que no están en el catálogo. Medido: 73 → 0. La cuota sigue en 0.
+- **Servicios a–l:** líneas con castellano fijo 246 → 118. Sin las tablas es/en/zh de `demanda/` son 181 → 53; lo que queda son prompts al modelo y `detail=` de respaldo de errores que ya llevan código.
+  - 338 claves nuevas en `app/services/textos_de_salida_servicios_a_l.py`, en es/en/zh. Las del portal y el correo de acceso, también en fr/de/it/pt/pl.
+  - Lo que se guarda en BD (reglas SoD, tipos de incidencia, flujos y grupos de serie) se escribe en el idioma de la empresa.
+- **Plantilla de demanda:** el flujo de demanda de un cliente concreto pasa a ser una plantilla OPCIONAL (`nueva_funcionalidad`, con el alias `piloto_digital`) con grupos genéricos y traducibles. Ni el seed ni la migración 195 la crean ya por defecto.
+- **Servicios m–z:** 284 → 112 (recuento aproximado). Lo que queda son prompts de IA, semillas y las propias tablas de idiomas.
+  - 283 claves nuevas en `app/services/textos_de_salida_servicios_m_z.py`.
+  - `plantillas_aviso` tiene ya zh en sus 15 plantillas.
+  - Los motivos de riesgo de sesión se guardan como código y se pintan en el idioma de quien lee.
+  - La puntuación de SLA de gobernanza se reconoce por código, no por el título.
+- **Sincronización:** se han sincronizado los códigos pendientes de otras zonas (`seguridad_de_cuentas`, `ronda2_cab_portal`, `ronda2_servicios_mz`…). Catálogo: 1085 códigos y 191 entidades.
+
+**2. Exportaciones** (informe 02 A39, resto)
+- Los ficheros de `app/` que escriben CSV/XLSX son 10. Antes neutralizaban fórmulas 3 y ahora los 10 (`celdas_seguras`).
+- `tests/test_exportaciones_sin_formulas.py` es estático y falla con un generador nuevo sin neutralizar. Detalle en `docs/seguridad/entrada_y_salida.md` §6.
+
+**3. Microsoft 365 / Graph por empresa** (informe 03 A-MP3)
+- `m365_service.credenciales_de_graph(db, empresa)` lee la credencial cifrada `ms_graph` de cada empresa. El token se cachea por credencial y una credencial a medias no se completa con la de plataforma.
+- Los `AZURE_*` globales solo se usan con `M365_PLATFORM_CREDENTIALS_ENABLED=true`, un ajuste nuevo que viene desactivado.
+- Usan ya la empresa activa:
+  - los endpoints de `m365.py` y `m365_bi.py` (calendario, presencia, Planner, pestaña y tarjeta de Teams, SharePoint, OneDrive y estado);
+  - el buzón Graph del service desk;
+  - el informe de uso de O365.
+- El `tenant_id` y los identificadores de equipo, canal, sitio y plan se validan antes de ir a la ruta.
+- **Pendiente de despliegue:** las empresas que hoy funcionan con los `AZURE_*` globales tienen que guardar su credencial, o el operador activar el ajuste. Hay que avisarlo en la nota de versión.
+
+**4. Red**
+- **SMTP de empresa e IMAP del service desk:** se resuelve y valida el host y se conecta a esa IP sin volver a resolverlo (`app/core/conexion_fijada.py`; `SmtpFijado`/`SmtpSslFijado` en `notification_service`). TLS verifica el nombre.
+  - Un host que no resuelve se rechaza (`host_no_resuelve`).
+  - El IMAP verifica ya el certificado: antes imaplib no lo hacía.
+- **GitHub Enterprise del CAB:** sale por `cliente_httpx` (IP conectada) en `_pedir_github`. Los errores ya no repiten el texto remoto.
+  - `tests/test_integraciones_reales.py` sustituye `_pedir_github` en vez de `httpx.get` global y conserva lo que probaba.
+  - Además prueba que la petición pasa por el cliente con IP conectada y que una conexión bloqueada no filtra la IP.
+
+**5. Pruebas de conexión reales**
+- Cada proveedor del almacén de credenciales tiene prueba y dice qué ha verificado (`verificado`). Las de `sd_mailbox`, `whatsapp`, `monitoring` y `alm_*` son nuevas. La de `ms_graph` pide el token de la empresa y lee `/organization`.
+- DocuSign ya no dice `ok` sin llamar a nada.
+- La prueba de Jira añade `comprobaciones` (proyecto, `POST /search/jql` y `statusCategory`), que es lo que A56 y A57 piden confirmar.
+- Salesforce tiene `POST /salesforce-sync/integrations/salesforce/test` (`/limits` y lectura de `Opportunity`); dice que la salida no existe.
+- Tabla por conector, y qué requiere credenciales reales del usuario: `docs/integraciones/pruebas_de_conexion.md`.
+
+**Migraciones necesarias (no creadas; las hace la 200)**
+- Columnas de clave + parámetros para repintar en el idioma de cada lector lo que hoy se guarda en el idioma de la empresa:
+  - `sod_rules`, `issue_types`, `workflow_states`, `workflow_transitions` y `approval_groups`;
+  - `ai_reasoning_params` en `sprint_plans`;
+  - `SLAEvent.note`, `Alert.title`/`description`, `Invoice.notes`, `RevenueEntry.description` y `review_notes` del timesheet.
+- `NotificationType`: `milestone_approved` y `milestone_rejected` (los hitos usan hoy `expense_*`).
+
+**Verificación:** `py_compile` de cada fichero tocado e `import app.main`. Los tests no se han ejecutado (regla de esta fase); la lista está en el informe de la ronda.
+
+**GRC**
+- **Privilegios:** Graph deja de usar una aplicación con permisos sobre todo un tenant compartida entre empresas.
+- **RGPD:** el correo de empresa ya no puede desviarse a la red interna por DNS rebinding, y el IMAP verifica el certificado.
+- **Auditoría:** el guardado de credenciales sigue igual (`record_change`). Las pruebas no devuelven texto remoto.
+- **Retención:** sin cambios.
+
+## Migración 200: esquema pendiente de la auditoría 2026-11-22 (23-11-2026)
+
+`alembic/versions/200_esquema_pendiente_auditoria.py` (bloqueos y tiempos en `docs/DESPLIEGUE.md` B.2). Reúne lo que los informes 01–03 dejaron como «migración necesaria».
+
+- **Facturas de subcontrata (02 A42).** `approved_by`/`approved_at`: aprobar deja quién y cuándo; rechazar o devolver a recibida los borra; quien registró la factura no la aprueba ni la paga (`enterprise_service/subcontratas.update_sub_invoice`). La lista y el cambio de estado los devuelven.
+- **Moneda del contrato.** `contracts.currency` (alta y edición, ISO de 3 letras); al leer, si está vacía, la de la empresa (`contract_service.moneda_del_contrato`, campo `currency` de la API).
+- **Textos por clave.** Columnas clave/datos en reglas SoD, tipos de incidencia, estados y transiciones de flujo, grupos de aprobación, eventos SLA, alertas, notas de factura, asientos de ingresos y notas de revisión de partes. Se guardan al escribir un texto del sistema y se pintan al leer en el idioma de quien mira (`textos_guardados.pintar_campo` / `idioma_del_lector`, que toma el usuario de la sesión). Al editar a mano el texto, la clave se borra y se respeta lo escrito. Los avisos de hito usan los tipos nuevos `milestone_approved`/`milestone_rejected`.
+- **Datos personales fuera de `AppSetting` (03 A-MOD3).** Sesiones de voz en `sd_voice_sessions` (número, entidades y transcripción cifrados; huella HMAC del número para buscar; 4 últimos dígitos), fotos de espera en `sd_ticket_hold_snapshots` (se borran al reanudar), reglas de formularios dinámicos e historial en `sd_dynamic_form_rules`/`sd_dynamic_form_rule_history` (las globales del portal, sin empresa, siguen en `AppSetting`). Retención y bloqueo legal: `sd_voice_sessions` y `sd_kb_gaps` en `app/db/bloqueo_legal.TIPOS`. RGPD: la copia de la persona lleva sus sesiones de voz y la supresión las borra (por la huella de su teléfono). Las columnas cifradas están en la rotación de claves (`key_management`).
+- **Modelos (03).** A-MOD1: las 440 FK sin `ondelete` lo tienen (hacia `organizations` `CASCADE`; nullable `SET NULL`; si no `RESTRICT`); el test de la auditoría ya no admite ninguna. A-MOD2: `tax_rate` de facturas y recurrentes y `standalone_price` en Numeric (`absences.amount` no es dinero). B-MOD1: `org_id` → `organization_id` en 11 tablas (el modelo mantiene `org_id` como sinónimo). M-MOD2: conectores únicos por empresa. M-MOD1: relleno de empresa por proyecto/ticket; el `NOT NULL` por dominios sigue pendiente.
+- **Pendiente.** `client_users` único por empresa (necesita que el login del portal elija empresa); `NOT NULL` de `organization_id`. (✅ 23-11-2026: etiquetas de retención `grc.retencion_tipo_sd_voice_sessions`/`sd_kb_gaps` y avisos `milestone_approved`/`milestone_rejected` con icono, tono y texto es/en/zh en la campana, la bandeja y las preferencias del perfil.)
+
+## Migración 201: cadena de colaboración con HMAC y un solo cronómetro (23-11-2026)
+
+`alembic/versions/201_cadena_colaboracion_y_cronometro.py` (cabeza; bloqueos y medidas en `docs/DESPLIEGUE.md` B.2).
+
+- **Cadena de auditoría de colaboración (C5 del informe 02).** `collaboration_audit_events.hmac` y `key_id`. Cada evento nuevo (`app/services/collaboration/_audit.write`) lleva, además de la huella encadenada (`integrity_hash` v2), un HMAC-SHA256 de id, empresa, evento anterior y huella, con la clave activa del llavero (`app/services/key_management.py`, derivada con una etiqueta propia para no reutilizar la de firmar JWT) y el `kid` en `key_id`. `verify_chain` comprueba el HMAC con la clave de ese `kid`: un HMAC cambiado es rotura; un `kid` que el llavero ya podó (`JWT_KEY_RETENTION_COUNT`) sale en `unverifiable` y no invalida la cadena. Las filas anteriores a la 201 no se rellenan (un HMAC de hoy no prueba nada de ayer) y se verifican por `integrity_hash` (v1/v2) como antes. Sin llavero disponible, la fila se guarda sin HMAC y queda en el log.
+- **Un cronómetro abierto por persona (M31).** Índice único parcial `uq_timer_sessions_un_activo_por_usuario` (`timer_sessions(user_id) WHERE ended_at IS NULL`), también en el modelo. La migración cierra antes los duplicados (deja el más reciente; al resto `ended_at` = ahora, sin imputación) y lo cuenta en el log. `start_timer_session` traduce el choque con el índice (la carrera que el bloqueo consultivo no cubre, p. ej. en SQLite) a 409 `cronometro_ya_activo`, nunca 500.
+- **Frontend (misma ronda).** `ProjectsPage` troceada en `pages/proyectos/` (sin cambio de comportamiento; conserva `contract_amount`); `EstadoDeCuenta` usa `seguridadApi.cambiarContrasena`/`seguridadApi.yo` en vez de llamadas `api.*` sueltas.
+- **Auditoría:** la cadena de colaboración pasa a ser verificable con la rotación de claves del despliegue. **RGPD:** sin datos personales nuevos (el HMAC no contiene datos). **Retención:** sin cambios (los eventos siguen la retención y el bloqueo legal de la tabla). **Privilegios:** sin cambios.
+- **Tests (sin ejecutar):** `tests/test_migracion_201_cadena_y_cronometro.py` (sube/baja/sube con duplicados sembrados, una cabeza, HMAC y `kid`, HMAC cambiado, `kid` podado, filas sin HMAC, carrera del cronómetro → 409).

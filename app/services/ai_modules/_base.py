@@ -42,7 +42,8 @@ def _default_model(db=None, org_id: Optional[str] = None) -> str:
 
 
 
-def call_ai_unified(db, messages, system=None, module="v16", user_id=None, max_tokens=None):
+def call_ai_unified(db, messages, system=None, module="v16", user_id=None, max_tokens=None,
+                    organization_id=None):
     """La puerta común de la IA (`call_ai`): proveedor, gobernanza y tope de gasto.
 
     Revisión 2026-11: si `call_ai` no tenía proveedor o fallaba, esto llamaba a
@@ -53,7 +54,8 @@ def call_ai_unified(db, messages, system=None, module="v16", user_id=None, max_t
     from app.services.ai_provider_service import es_aviso_de_ia
     if max_tokens is None:  # 19-11-2026: antes 1000 fijo
         max_tokens = settings.AI_LONG_ANSWER_MAX_TOKENS
-    texto = call_ai(db, messages, system=system, module=module, user_id=user_id, max_tokens=max_tokens)
+    texto = call_ai(db, messages, system=system, module=module, user_id=user_id, max_tokens=max_tokens,
+                    organization_id=organization_id)
     if es_aviso_de_ia(texto):
         raise RuntimeError(texto)
     return texto
@@ -119,12 +121,10 @@ def compute_kb_embedding(db, article_id: str, text: str):
 
 def log_action(db, user_id, module, action_type, input_s=None, output_s=None,
                entities=None, tokens=0, latency=0, status="success"):
-    db.add(AIActionLog(
-        user_id=user_id, module=module, action_type=action_type,
-        input_summary=(input_s or "")[:300], output_summary=(output_s or "")[:300],
-        entities_affected=json.dumps(entities or []),
-        tokens_used=tokens, latency_ms=latency, status=status,
-    ))
+    """Baja (auditoría 22-11-2026): una sola implementación (`ai_chat.core_service.log_action`);
+    esta era una copia literal."""
+    from app.services.ai_chat.core_service import log_action as _log_action
+    return _log_action(db, user_id, module, action_type, input_s, output_s, entities, tokens, latency, status)
 
 
 def burnout_score(weekly_hours: list, sobrecarga: float = 42.0) -> float:

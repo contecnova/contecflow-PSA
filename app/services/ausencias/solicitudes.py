@@ -43,7 +43,6 @@ from app.services.ausencias import catalogo, cupos, reglas, saldos
 
 logger = logging.getLogger(__name__)
 DOMINIO = "ausencias"
-ROLES_QUE_GESTIONAN = ("admin", "hr", "pm", "team_lead")
 
 
 def _rol(u) -> str:
@@ -741,4 +740,11 @@ def promover_pendientes(db: Session) -> list[str]:
 def pasada_diaria(db: Session, org: Optional[str] = None) -> dict:
     """Lo que corre el worker cada día en cada empresa (`app.worker.ausencias_pasada_diaria`)."""
     from app.services.ausencias import bolsa, documentos
+    # Auditoría 22-11-2026 (§5): `org` ya no se ignora: la pasada trabaja como
+    # esa empresa de forma explícita (antes dependía de cómo dejara la sesión quien llamaba).
+    if org:
+        from app.services.service_desk.ticket_events import como_organizacion
+        with como_organizacion(db, org):
+            return {"documentos": documentos.pasada(db), "promovidas": len(promover_pendientes(db)),
+                    "bolsa": bolsa.pasada(db)}
     return {"documentos": documentos.pasada(db), "promovidas": len(promover_pendientes(db)), "bolsa": bolsa.pasada(db)}

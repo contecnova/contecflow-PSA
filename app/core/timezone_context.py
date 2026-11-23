@@ -84,9 +84,9 @@ async def bind_request_timezone(
 
         # Import diferido: `app.core.security` arrastra configuración pesada y
         # esta dependencia se evalúa en cada petición.
-        from app.core.security import decode_token
+        from app.core.security import decode_token_de_peticion
 
-        payload = decode_token(token)
+        payload = decode_token_de_peticion(request, token)
         if not payload or payload.get("type") != "access":
             set_current_zone(UTC)
             return
@@ -98,7 +98,12 @@ async def bind_request_timezone(
 
         from app.models.user import User
 
-        user = db.query(User).filter(User.id == user_id).first()
+        # Auditoría 22-11-2026: corre antes de publicar la empresa; lectura de
+        # identidad declarada (si no, con TENANT_SESION_SIN_CONTEXTO=cerrar
+        # fallaría y la zona caería a UTC).
+        from app.db.contexto_de_tenant import contexto_de_sistema
+        with contexto_de_sistema(db, "identidad"):
+            user = db.query(User).filter(User.id == user_id).first()
         if user is None:
             set_current_zone(UTC)
             return

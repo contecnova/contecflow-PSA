@@ -7,7 +7,7 @@ import pytest
 
 def test_ready_endpoint_exposes_orchestration_checks(client, db):
     res = client.get("/ready")
-    assert res.status_code in (200, 503)
+    assert res.status_code == 200, res.text
     payload = res.json()
     assert payload["status"] in {"ok", "error"}
     assert "checks" in payload

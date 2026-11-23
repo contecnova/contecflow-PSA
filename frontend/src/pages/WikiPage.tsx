@@ -14,9 +14,10 @@ import { useEffect, useRef, useState, useId } from 'react'
 import { useToast } from '../context/ToastContext'
 import { useDocCollab } from '../hooks/useDocCollab'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import api, { wikiApi, projectsApi } from '../services/api'
+import { nexusAgentApi, wikiApi } from '../services/api'
 import type { VisibilidadDeWiki, WikiBloque, WikiEspacio, WikiEtiqueta, WikiPagina, WikiPaginaEnArbol, WikiResultadoDeBusqueda } from '../services/api/tipos-alm'
-import { Button, Spinner, EmptyState, IconButton, Modal, StatusBadge, Tabs, useDialogo, Select, Pulsable, Checkbox, useErroresDeCampo, Input } from '../components/ui'
+import { Buscador, Button, Spinner, EmptyState, IconButton, Modal, StatusBadge, Tabs, useDialogo, Select, Pulsable, Checkbox, useErroresDeCampo, Input, Textarea } from '../components/ui'
+import { useListaDeProyectos } from '../hooks/useListas'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import {
@@ -97,6 +98,7 @@ function CasillaTarea({ etiqueta, className }: { etiqueta: string; className?: s
 
 function BlockEditor({ blocks, onChange }: { blocks: Block[]; onChange: (b: Block[]) => void }) {
   const traducir = useAppT() as Traducir
+  const toast = useToast()
   const update = (i: number, k: string, v: string) => { const n=[...blocks]; n[i]={...n[i],[k]:v}; onChange(n) }
   const add    = (after: number, type='paragraph') => { const n=[...blocks]; n.splice(after+1,0,{type,content:''}); onChange(n) }
   const remove = (i: number) => { if(blocks.length>1) onChange(blocks.filter((_,x)=>x!==i)) }
@@ -152,17 +154,21 @@ function BlockEditor({ blocks, onChange }: { blocks: Block[]; onChange: (b: Bloc
                           onMouseDown={e=>{
                             e.preventDefault()
                             if(!block.content) return
-                            api.post('/ai/chat',{message:`Mejora la redacción y claridad del siguiente texto, manteniendo el significado original. Devuelve únicamente el texto mejorado:\n\n${block.content}`,context_type:'inline_editor'})
-                              .then(r=>{ const t=r.data?.response||r.data?.message||''; if(t) update(i,'content',t) })
-                              .catch(()=>{})
+                            // 23-11-2026 (M7 del 04b): la instrucción sale en el idioma del operador
+                            // (`wiki.ia_mejorar_redaccion`); antes, castellano fijo. Y si falla, se avisa.
+                            // 23-11-2026: por `/ai/texto` (módulo inline_editor: gobernanza, tope de gasto y registro, sin abrir
+                            // conversación; si no hay IA da 503 y el texto no se toca), como el editor en línea.
+                            nexusAgentApi.texto(traducir('wiki.ia_mejorar_redaccion', { texto: block.content }))
+                              .then(r=>{ const t=r.data?.texto||''; if(t) update(i,'content',t) })
+                              .catch((e: unknown)=>toast.error(extractErr(e, traducir('wiki.error_ia'))))
                           }}
                           className="wk-format-btn wk-format-btn--ai">
                           <Sparkles size={12} aria-hidden="true" />
                         </IconButton>
                       </div>
                     )}
-                    <textarea aria-label={traducir('wiki.bloque_n', { n: i+1 })} value={block.content||''} onChange={e=>update(i,'content',e.target.value)}
-                      className={`wk-ta ${TA_CLASS[block.type] ?? ''}`}
+                    <Textarea aria-label={traducir('wiki.bloque_n', { n: i+1 })} value={block.content||''} onChange={e=>update(i,'content',e.target.value)}
+                      inputClassName={`wk-ta ${TA_CLASS[block.type] ?? ''}`}
                       rows={block.type==='code'?4:1}
                       onKeyDown={e=>{
                         if(e.key==='Enter'&&!e.shiftKey&&block.type!=='code'){e.preventDefault();add(i)}
@@ -387,11 +393,11 @@ function WikiTagsInline() {
 
   const { data: spaces = [] } = useQuery<WikiEspacio[]>({
     queryKey: ['wiki-spaces-tags'],
-    queryFn: () => wikiApi.spaces().then(r => r.data).catch(() => []),
+    queryFn: () => wikiApi.spaces().then(r => r.data),
   })
   const { data: tags = [], isLoading } = useQuery<WikiEtiqueta[]>({
     queryKey: ['wiki-tags-inline', space],
-    queryFn: () => space ? wikiApi.tags(space).then(r => r.data).catch(() => []) : [],
+    queryFn: () => space ? wikiApi.tags(space).then(r => r.data) : [],
     enabled: !!space,
   })
 
@@ -502,15 +508,16 @@ export default function WikiPage() {
   const [spaceForm,  setSpaceForm] = useState({name:'',slug:'',description:'',project_id:'',is_public:false})
   const [showHistory, setShowHistory] = useState(false)
 
-  const { data:projects=[] } = useQuery<Array<{ id?: string; name?: string }>>({queryKey:['projects'],queryFn:()=>projectsApi.list().then(r=>Array.isArray(r.data)?r.data:[]).catch(()=>[])})
+  // 23-11-2026 (A8/A9 del 04): lista compartida; un fallo ya no se guarda como «sin proyectos».
+  const { data:projects=[] } = useListaDeProyectos()
   const { data:versions=[], isLoading:lVer } = useQuery({
     queryKey:['wiki-versions', page?.id],
-    queryFn:()=>wikiApi.versions(page!.id).then(r=>r.data).catch(()=>[]),
+    queryFn:()=>wikiApi.versions(page!.id).then(r=>r.data),
     enabled:!!page?.id && showHistory,
   })
 
-    const { data:spaces=[],isLoading:lSpaces } = useQuery<WikiEspacio[]>({queryKey:['wiki-spaces'],queryFn:()=>wikiApi.spaces().then(r=>r.data).catch(()=>[])})
-  const { data:pages=[],isLoading:lPages }   = useQuery<WikiPaginaEnArbol[]>({queryKey:['wiki-pages',space?.id],queryFn:()=>wikiApi.pages(space!.id).then(r=>r.data).catch(()=>[]),enabled:!!space})
+    const { data:spaces=[],isLoading:lSpaces } = useQuery<WikiEspacio[]>({queryKey:['wiki-spaces'],queryFn:()=>wikiApi.spaces().then(r=>r.data)})
+  const { data:pages=[],isLoading:lPages }   = useQuery<WikiPaginaEnArbol[]>({queryKey:['wiki-pages',space?.id],queryFn:()=>wikiApi.pages(space!.id).then(r=>r.data),enabled:!!space})
 
   const { mutate:createSpace,isPending:cSpace } = useMutation({
     mutationFn: (d: Record<string, unknown>)=>wikiApi.createSpace(d).then(r=>r.data),
@@ -525,7 +532,7 @@ export default function WikiPage() {
       setShowHistory(false)
       toast.info(traducir('wiki.restaurado_a_version', { version: vn, nueva: d.new_version ?? '' }))
       // Recargar página actual
-      if (page) wikiApi.getPage(page.id).then(r=>setPage(r.data)).catch(()=>{})
+      if (page) wikiApi.getPage(page.id).then(r=>setPage(r.data)).catch((e: unknown)=>toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)))
     },
     onError: (e: unknown) => toast.error(extractErr(e, traducir('wiki.error_restaurar'))),
   })
@@ -564,9 +571,9 @@ export default function WikiPage() {
 
       {wikiMode === 'tags' && <WikiTagsInline />}
       {wikiMode === 'wiki' && <div className="ds-toolbar wk-search" role="search">
-        <input value={searchQ} onChange={e=>{setSearchQ(e.target.value);if(!e.target.value)setSearchRes(null)}}
-          onKeyDown={e=>e.key==='Enter'&&doSearch()}
-          placeholder={traducir('wiki.buscar_placeholder')} aria-label={traducir('wiki.buscar_placeholder')} className="ds-input wk-input wk-input--search"/>
+        <Buscador value={searchQ} onChange={v => {setSearchQ(v);if(!v)setSearchRes(null)}}
+          onKeyDown={e=>{ if (e.key==='Enter') doSearch() }}
+          placeholder={traducir('wiki.buscar_placeholder')} aria-label={traducir('wiki.buscar_placeholder')} inputClassName="wk-input wk-input--search"/>
         <Button variant="secondary" icon={<Search size={14} />} onClick={doSearch}>{traducir('wiki.buscar')}</Button>
         {searchRes&&<IconButton onClick={()=>{setSearchRes(null);setSearchQ('')}} ariaLabel={traducir('wiki.limpiar_busqueda')}><X size={14} /></IconButton>}
       </div>}

@@ -16,10 +16,11 @@ import type { ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Bot, Copy, Download, FileLock2, Languages, PlugZap, ShieldCheck, Timer, Trash2, Video } from 'lucide-react'
 import {
-  Button, Confirm, FormField, Input, Section, Segmentado, Select, Spinner, StatusBadge, Switch, UserSelect, Textarea,
+  Button, FormField, Input, Section, Segmentado, Select, Spinner, StatusBadge, Switch, UserSelect, Textarea,
 } from '../ui'
 import { useAppT } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
+import { confirmar } from '../../context/ConfirmContext'
 import { downloadBlob, extractErr, fmtDateTime } from '../../utils/helpers'
 import { reunionesApi } from '../../services/api/reuniones'
 import type { ConectorReuniones, ConfigReuniones as Config, ConfigReunionesIn } from '../../services/api/reuniones'
@@ -300,7 +301,6 @@ function RgpdPorPersona() {
   const [por, setPor] = useState<'email' | 'user'>('email')
   const [correo, setCorreo] = useState('')
   const [usuario, setUsuario] = useState('')
-  const [confirmar, setConfirmar] = useState(false)
   const [informe, setInforme] = useState<unknown>(null)
   const quien = por === 'email' ? { email: correo.trim() } : { user_id: usuario }
   const hayQuien = por === 'email' ? !!correo.trim() : !!usuario
@@ -315,8 +315,8 @@ function RgpdPorPersona() {
   })
   const suprimir = useMutation({
     mutationFn: () => reunionesApi.suprimirRgpd(quien),
-    onSuccess: r => { setConfirmar(false); setInforme(r); toast.success(t('reuniones.rgpd.suprimido')) },
-    onError: e => { setConfirmar(false); toast.error(extractErr(e)) },
+    onSuccess: r => { setInforme(r); toast.success(t('reuniones.rgpd.suprimido')) },
+    onError: e => { toast.error(extractErr(e)) },
   })
 
   return (
@@ -333,7 +333,8 @@ function RgpdPorPersona() {
           <Button variant="secondary" icon={<Download size={14} />} disabled={!hayQuien} loading={copia.isPending} onClick={() => copia.mutate()}>
             {t('reuniones.rgpd.descargar_copia')}
           </Button>
-          <Button variant="danger" icon={<Trash2 size={14} />} disabled={!hayQuien} onClick={() => setConfirmar(true)}>
+          <Button variant="danger" icon={<Trash2 size={14} />} disabled={!hayQuien} loading={suprimir.isPending}
+            onClick={async () => { if (await confirmar({ title: t('reuniones.rgpd.suprimir_titulo'), message: t('reuniones.rgpd.suprimir_desc'), danger: true })) suprimir.mutate() }}>
             {t('reuniones.rgpd.suprimir')}
           </Button>
         </div>
@@ -344,8 +345,6 @@ function RgpdPorPersona() {
           </div>
         )}
       </div>
-      <Confirm open={confirmar} title={t('reuniones.rgpd.suprimir_titulo')} description={t('reuniones.rgpd.suprimir_desc')}
-        loading={suprimir.isPending} onCancel={() => setConfirmar(false)} onConfirm={() => suprimir.mutate()} />
     </Bloque>
   )
 }

@@ -53,8 +53,8 @@ def create_problem(
     return problem_service.create_problem_record(db, current_user, payload)
 
 
-def suggest_root_cause(db: Session, *, problem: Problem) -> dict:
-    return problem_service.suggest_rca_from_ai(db, problem)
+def suggest_root_cause(db: Session, *, problem: Problem, user_id: str | None = None) -> dict:
+    return problem_service.suggest_rca_from_ai(db, problem, user_id=user_id)
 
 
 # ── Incident <-> Problem linking (sd_incident_to_problem) ────────────────────

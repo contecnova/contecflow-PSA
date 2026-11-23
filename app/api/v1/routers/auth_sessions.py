@@ -28,6 +28,8 @@ def list_active_sessions(
     current_jti = _current_refresh_jti(request)
     now = datetime.now(timezone.utc)
     sessions = _svc.get_active_user_sessions(db, current_user.id, now)
+    from app.services.formato_regional import idioma_de_salida
+    _idioma = idioma_de_salida(db, user_id=current_user.id)
     items = [
         ActiveSessionOut(
             id=s.id,
@@ -41,7 +43,7 @@ def list_active_sessions(
             device_name=s.device_name,
             risk_score=s.risk_score or 0,
             risk_level=s.risk_level or "low",
-            risk_reasons=parse_risk_reasons(s.risk_reasons),
+            risk_reasons=parse_risk_reasons(s.risk_reasons, _idioma),
             auth_method=s.auth_method,
             last_seen_at=s.last_seen_at,
             expires_at=s.expires_at,

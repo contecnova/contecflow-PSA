@@ -122,6 +122,13 @@ class AISettingsMixin:
     OPENAI_API_KEY: str = Field(default="", env="OPENAI_API_KEY")
     # OpenAI Speech-to-Text model (gpt-4o-mini-transcribe es el sucesor de whisper-1)
     OPENAI_STT_MODEL: str = Field(default="gpt-4o-mini-transcribe", env="OPENAI_STT_MODEL")
+    # Ronda 2 auditoria 2026-11-22: coste estimado de la voz (USD por minuto de
+    # audio) para que el tope diario de gasto en IA tambien frene la
+    # transcripcion. Antes se apuntaba 0. Por empresa en Config. dinamica.
+    STT_COSTE_USD_POR_MINUTO: float = Field(default=0.006, env="STT_COSTE_USD_POR_MINUTO")
+    # Modelo de sobrecoste (`ml_features`): coste real > presupuesto x este
+    # factor cuenta como sobrecoste (ronda 2 auditoria 2026-11-22; antes 1.10 fijo).
+    ML_FACTOR_DE_SOBRECOSTE: float = Field(default=1.10, env="ML_FACTOR_DE_SOBRECOSTE")
 
     # ── AI cost alerting ──────────────────────────────────────────────────────
     AI_COST_ALERT_USD_PER_DAY: float = Field(default=10.0, env="AI_COST_ALERT_USD_PER_DAY")

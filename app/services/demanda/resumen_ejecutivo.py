@@ -175,6 +175,13 @@ def generar(db: Session, req, actor: Actor, idioma: str = "es", config=None) -> 
     return docs
 
 
+def generar_y_confirmar(db: Session, req, actor: Actor, idioma: str = "es", config=None) -> list:
+    """`generar` y confirma la transacción."""
+    resultado = generar(db, req, actor, idioma, config)
+    db.commit()
+    return resultado
+
+
 def agendar_comite(db: Session, req, actor: Actor, fecha, idioma: str = "es") -> list:
     """Agenda el comité de la fase actual y, si la fase lo pide, genera el resumen. Commitea."""
     from app.core.codigos_de_error import error

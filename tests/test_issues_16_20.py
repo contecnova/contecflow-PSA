@@ -49,6 +49,21 @@ def _make_approval_workflow(client, admin_token):
     return wf_id
 
 
+def _gasto_real() -> str:
+    """Auditoría 22-11-2026 (C1): la solicitud se evalúa con la entidad REAL, así
+    que el gasto tiene que existir en la empresa (antes valía un uuid inventado)."""
+    from datetime import date
+    from tests.conftest import TestSession
+    from app.models.expenses import Expense, ExpenseStatus
+    gid = str(uuid.uuid4())
+    with TestSession() as s:
+        s.add(Expense(id=gid, code="EXP-T16", user_id="admin-test-id", organization_id="1", category="travel",
+                      description="Prueba", amount=100, currency="EUR", expense_date=date.today(),
+                      status=ExpenseStatus.submitted))
+        s.commit()
+    return gid
+
+
 def _make_approval_request(client, admin_token, workflow_id, entity_type="expense"):
     """Submit an approval request and return its id."""
     res = client.post(
@@ -56,7 +71,7 @@ def _make_approval_request(client, admin_token, workflow_id, entity_type="expens
         json={
             "workflow_id": workflow_id,
             "entity_type": entity_type,
-            "entity_id": str(uuid.uuid4()),
+            "entity_id": _gasto_real() if entity_type == "expense" else str(uuid.uuid4()),
             "note": "Test request",
         },
         headers=auth(admin_token),

@@ -1,0 +1,44 @@
+{
+ "codigos": {
+  "voz_propuesta_no_valida": {
+   "es": "La propuesta de voz no es válida o ha caducado: vuelve a dictar la orden",
+   "en": "The voice proposal is invalid or has expired: dictate the command again",
+   "zh": "语音提议无效或已过期：请重新说出指令"
+  },
+  "imputaciones_no_facturables": {
+   "es": "Solo {validas} de {pedidas} horas se pueden facturar: hay imputaciones ya facturadas, borradas o de otro proyecto o empresa",
+   "en": "Only {validas} of {pedidas} time entries can be invoiced: some are already invoiced, deleted or from another project or company",
+   "zh": "{pedidas} 条工时中只有 {validas} 条可开票：有些已开票、已删除或属于其他项目或公司"
+  },
+  "rgpd_tipo_no_soportado": {
+   "es": "Tipo de solicitud RGPD no admitido: {tipo}. Usa supresión, portabilidad, acceso o rectificación",
+   "en": "Unsupported GDPR request type: {tipo}. Use erasure, portability, access or rectification",
+   "zh": "不支持的 GDPR 请求类型：{tipo}。请使用删除、可携带、访问或更正"
+  },
+  "rgpd_borrado_sin_ejecutar": {
+   "es": "Una solicitud de supresión solo se cierra ejecutando el borrado",
+   "en": "An erasure request can only be closed by running the erasure",
+   "zh": "删除请求只能在执行删除后关闭"
+  },
+  "rgpd_copia_caducada": {
+   "es": "La copia de datos caducó a los {dias} días y se ha borrado: procesa una solicitud nueva",
+   "en": "The data copy expired after {dias} days and has been deleted: process a new request",
+   "zh": "数据副本已在 {dias} 天后过期并被删除：请处理新的请求"
+  },
+  "webhook_saliente_no_disponible": {
+   "es": "El chat solo admite webhooks entrantes; para avisar a una URL externa usa Integraciones → Webhooks",
+   "en": "Chat only supports incoming webhooks; to notify an external URL use Integrations → Webhooks",
+   "zh": "聊天仅支持入站 Webhook；如需通知外部 URL，请使用 集成 → Webhook"
+  },
+  "bi_dataset_sin_datos": {
+   "es": "El dataset «{dataset}» no tiene datos sincronizados: sincronízalo antes de crear una versión",
+   "en": "Dataset “{dataset}” has no synchronised data: synchronise it before creating a version",
+   "zh": "数据集“{dataset}”没有已同步的数据：请先同步再创建版本"
+  },
+  "agente_paso_no_pendiente": {
+   "es": "Ese paso del agente no está pendiente de aprobación",
+   "en": "That agent step is not awaiting approval",
+   "zh": "该智能体步骤不在待审批状态"
+  }
+ }
+}

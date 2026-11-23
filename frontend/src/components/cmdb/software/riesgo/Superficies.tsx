@@ -16,7 +16,7 @@ import { useAuth } from '../../../../context/AuthContext'
 import { confirmar } from '../../../../context/ConfirmContext'
 import { cmdbRiesgoApi } from '../../../../services/api/cmdbRiesgo'
 import type { Agrupacion, Exposicion, FiltroDeSuperficie, HallazgoDeSuperficie, Superficie, VistaGuardada } from '../../../../services/api/cmdbRiesgo'
-import { Button, Checkbox, EmptyState, IconButton, Input, Modal, Section, Segmentado, Select, Spinner, StatusBadge, TablaSimple } from '../../../ui'
+import { Buscador, Button, Checkbox, EmptyState, IconButton, Input, Modal, Section, Segmentado, Select, Spinner, StatusBadge, TablaSimple } from '../../../ui'
 import Pagination from '../../../ui/Pagination'
 import { ESTADO_KIND, Opciones, Semaforo, SeveridadBadge, VersionTexto, useErr, useEtiquetaSw, useMetaSw } from '../comun'
 import DetalleDeHallazgo from '../DetalleDeHallazgo'
@@ -129,7 +129,7 @@ export default function Superficies() {
         </div>}>
         <div className="u-stack-12">
           <div className="sdm-form">
-            <Input label={t('swr.buscar')} value={q} placeholder={t('swr.buscar_ph')} onChange={ev => cambia(setQ)(ev.target.value)} />
+            <Buscador label={t('swr.buscar')} value={q} placeholder={t('swr.buscar_ph')} onChange={v => cambia(setQ)(v)} />
             <label className="sdm-field"><span>{t('swr.superficie')}</span>
               <Select suelto placeholder={false} value={superficie} onChange={ev => cambia(setSuperficie)(ev.target.value)}>
                 <option value="">{t('swr.todas')}</option>

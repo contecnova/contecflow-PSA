@@ -8,11 +8,12 @@ import type { CSSProperties, RefObject } from 'react'
 import type BaseViewer from 'bpmn-js/lib/BaseViewer'
 import type { BaseViewerOptions } from 'bpmn-js/lib/BaseViewer'
 import type Canvas from 'diagram-js/lib/core/Canvas'
-import { Button, Page, Tabs, EmptyState, IconButton, Pulsable, Select, Input } from '../components/ui'
-import { Network, Plus, X, ChevronLeft, ChevronRight, Edit3, Download, Search, Play, History, Trash2, Archive, User, Timer, ListOrdered, LayoutGrid, Activity, Workflow, SearchX, Save } from 'lucide-react'
+import { Buscador, Button, Page, Tabs, EmptyState, IconButton, Pulsable, Select, Input } from '../components/ui'
+import { Network, Plus, X, ChevronLeft, ChevronRight, Edit3, Download, Play, History, Trash2, Archive, User, Timer, ListOrdered, LayoutGrid, Activity, Workflow, SearchX, Save } from 'lucide-react'
 import BpmRunPanel from './bpm/BpmRunPanel'
 import BpmVersionsModal, { BpmProblemsModal } from './bpm/BpmVersionsModal'
 import { bpmnProcessesApi, apiErrorMsg } from '../services/api'
+import { extractErr } from '../utils/helpers'
 import type { ProblemaBpmn, ProcesoBpmn } from '../services/api/tipos-documentos'
 import { useToast } from '../context/ToastContext'
 import { useAuth } from '../context/AuthContext'
@@ -62,6 +63,11 @@ const CAT_COLOR = Object.fromEntries(CATEGORIES.map(c => [c.id, c.color]))
 function useBpmnViewer(containerRef: RefObject<HTMLDivElement | null>, xml: string | null, editMode: boolean) {
   const instanceRef = useRef<BaseViewer | null>(null)
   const [errorImport, setErrorImport] = useState(false)
+  const toast = useToast()
+  const { t } = useAppLang()
+  // El efecto no debe relanzarse por el toast ni por `t`: se leen de la referencia.
+  const avisoRef = useRef({ toast, t })
+  avisoRef.current = { toast, t }
 
   useEffect(() => {
     setErrorImport(false)
@@ -69,7 +75,7 @@ function useBpmnViewer(containerRef: RefObject<HTMLDivElement | null>, xml: stri
 
     const init = async () => {
       if (instanceRef.current) {
-        try { instanceRef.current.destroy() } catch {}
+        try { instanceRef.current.destroy() } catch { /* accesorio: liberar un visor ya roto no debe impedir abrir el siguiente */ }
         instanceRef.current = null
       }
 
@@ -97,16 +103,21 @@ function useBpmnViewer(containerRef: RefObject<HTMLDivElement | null>, xml: stri
         // diagram-js comprueba si es truthy. Antes se pasaba 'auto'.
         canvas.zoom('fit-viewport', { x: 0, y: 0 })
       } catch (err) {
-        console.error('BPMN import error:', err)
+        // 23-11-2026 (04 B11): antes `console.error`; ahora el operador ve el motivo (además del aviso en el lienzo).
+        avisoRef.current.toast.error(extractErr(err, avisoRef.current.t('bpm.error_abrir_diagrama')))
         setErrorImport(true)
       }
     }
 
-    init()
+    init().catch((err: unknown) => {
+      // La carga dinámica de bpmn-js (red, chunk) también puede fallar.
+      avisoRef.current.toast.error(extractErr(err, avisoRef.current.t('bpm.error_abrir_diagrama')))
+      setErrorImport(true)
+    })
 
     return () => {
       if (instanceRef.current) {
-        try { instanceRef.current.destroy() } catch {}
+        try { instanceRef.current.destroy() } catch { /* accesorio: al desmontar, un visor ya roto no necesita aviso */ }
         instanceRef.current = null
       }
     }
@@ -117,7 +128,10 @@ function useBpmnViewer(containerRef: RefObject<HTMLDivElement | null>, xml: stri
     try {
       const { xml: exported } = await instanceRef.current.saveXML({ format: true })
       return exported
-    } catch { return null }
+    } catch (e) {
+      toast.error(extractErr(e, t('bpm.error_exportar_diagrama')))
+      return null
+    }
   }
 
   return { getXml, errorImport }
@@ -217,9 +231,9 @@ export default function BPMPage(): JSX.Element {
     cargarTextosCatalogo(lang).then(({ lang: cargado, textos, lineales }) => {
       if (vigente) setCatalogo({ lang: cargado, procesos: construirCatalogo(textos, traducir, lineales) })
     }).catch(e => {
-      console.warn('[BPM] catalogue texts failed:', e)
       // Sin textos del catálogo se muestran al menos los procesos propios.
-      if (vigente) { setCatalogo({ lang, procesos: [] }); setErrorCarga(true) }
+      // 23-11-2026: el motivo se avisa (antes `console.warn`) además del estado de error de la pantalla.
+      if (vigente) { toast.error(extractErr(e, traducir('bpm.error_cargar_catalogo'))); setCatalogo({ lang, procesos: [] }); setErrorCarga(true) }
     })
     return () => { vigente = false }
     // `traducir` cambia con el idioma; el efecto ya depende de `lang`.
@@ -261,10 +275,11 @@ export default function BPMPage(): JSX.Element {
       setErrorCarga(false)
     } catch (e) {
       // El catálogo del sistema se sigue viendo; los procesos guardados no.
-      console.warn('[BPM] backend load failed:', e)
+      toast.error(extractErr(e, traducir('bpm.error_cargar_procesos')))
       setErrorCarga(true)
     }
   }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- carga única al montar; `reloadBackend` se redefine en cada render
   useEffect(() => { reloadBackend() }, [])
 
   // Merge: catalogue (with backend XML override if present) + custom backend processes
@@ -519,10 +534,7 @@ export default function BPMPage(): JSX.Element {
 
         {/* ── SIDEBAR ─────────────────────────────────────────────── */}
         <nav className="ds-card bpmp-sidebar" aria-label={traducir('bpm.categoria')}>
-          <div className="bpmp-search">
-            <Search size={13} aria-hidden className="bpmp-search__icon" />
-            <Input aria-label={traducir('bpm.buscar_proceso')} type="search" value={search} onChange={e => setSearch(e.target.value)} placeholder={traducir('bpm.buscar_proceso')} />
-          </div>
+          <Buscador className="bpmp-search" aria-label={traducir('bpm.buscar_proceso')} value={search} onChange={setSearch} placeholder={traducir('bpm.buscar_proceso')} />
           <div className="bpmp-cats">
             {CATEGORIES.map(cat => {
               const count = cat.id === 'all' ? allProcesses.length : allProcesses.filter(p => p.category === cat.id).length

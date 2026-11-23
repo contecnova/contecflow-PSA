@@ -148,7 +148,7 @@ describe('configuración que salió de los módulos (19-11-2026)', () => {
   })
 
   it('no se movieron: el portal de cada cliente (dato del cliente) ni Microsoft 365 (ya montado en Configuración)', () => {
-    expect(leer('pages/clients/ClientsPageTabs.tsx')).toContain("{ id: 'config'")
+    expect(leer('pages/clients/ClientsTabsPortal.tsx')).toContain("{ id: 'config'")
     expect(SECCIONES_DE_AJUSTES.find(s => s.id === 'm365')?.rutaAntigua).toBe('/m365')
   })
 })

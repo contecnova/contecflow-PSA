@@ -19,6 +19,7 @@ import { settingsApi } from '../../services/api'
 import { extractErr } from '../../utils/helpers'
 import { Button, Input } from '../../components/ui'
 import { RotateCcw, Save } from 'lucide-react'
+import { MARCA_POR_DEFECTO } from '../../constants/theme'
 import './MarcaSection.css'
 
 type Marca = { app_name?: string; primary_color?: string | null; accent_color?: string | null; text_color?: string | null; is_default?: boolean }
@@ -59,14 +60,14 @@ export default function MarcaSection() {
       </label>
       {(['primary_color', 'accent_color', 'text_color'] as const).map(c => (
         <label key={c} className="marcsect-row-1">
-          <input type="color" aria-label={t(`marca.${c}`)} value={/^#[0-9a-f]{6}$/i.test(form[c] || '') ? form[c] : '#000000'}
+          <input type="color" aria-label={t(`marca.${c}`)} value={/^#[0-9a-f]{6}$/i.test(form[c] || '') ? form[c] : MARCA_POR_DEFECTO.selector}
             onChange={e => setForm(f => ({ ...f, [c]: e.target.value }))} className="marcsect-box-2" />
-          <input aria-label={t(`marca.${c}`)} value={form[c] || ''} placeholder="#RRGGBB" onChange={e => setForm(f => ({ ...f, [c]: e.target.value }))} className="ds-input marcsect-campo2" />
+          <Input aria-label={t(`marca.${c}`)} value={form[c] || ''} placeholder="#RRGGBB" onChange={e => setForm(f => ({ ...f, [c]: e.target.value }))} className="marcsect-campo2" />
           {t(`marca.${c}`)}
         </label>
       ))}
       <div aria-hidden className="marcsect-box-3">
-        <div className="marcsect-box-6 marca-section-e1" style={{ '--marca-section-background': form.primary_color || '#1f2937', '--marca-section-color': form.text_color || '#ffffff' } as CSSProperties}>
+        <div className="marcsect-box-6 marca-section-e1" style={{ '--marca-section-background': form.primary_color || MARCA_POR_DEFECTO.fondo, '--marca-section-color': form.text_color || MARCA_POR_DEFECTO.texto } as CSSProperties}>
           {form.app_name || data.app_name} · {t('marca.ejemplo_factura')}
         </div>
         <div className="marcsect-box-7 marca-section-e2" style={{ '--marca-section-background': form.accent_color || 'var(--accent)' } as CSSProperties} />

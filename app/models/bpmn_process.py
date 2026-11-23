@@ -60,7 +60,7 @@ class BPMNProcess(Base):
     is_seeded = Column(Boolean, default=False, nullable=False)   # came from initial inventory
     is_active = Column(Boolean, default=True, nullable=False)
 
-    created_by_user_id = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    created_by_user_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
@@ -76,7 +76,7 @@ class BPMNProcessVersion(Base):
     __tablename__ = "bpmn_process_versions"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     process_id = Column(String(36), ForeignKey("bpmn_processes.id", ondelete="CASCADE"),
                         nullable=False, index=True)
     version = Column(Integer, nullable=False)
@@ -86,7 +86,7 @@ class BPMNProcessVersion(Base):
     is_published = Column(Boolean, default=False, nullable=False)
     published_at = Column(DateTime(timezone=True), nullable=True)
 
-    created_by_user_id = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    created_by_user_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     process = relationship("BPMNProcess", back_populates="versions")
@@ -101,7 +101,7 @@ class BPMNInstance(Base):
     __tablename__ = "bpmn_instances"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
     process_id = Column(String(36), ForeignKey("bpmn_processes.id", ondelete="CASCADE"), nullable=False, index=True)
     version = Column(Integer, nullable=False)
     status = Column(String(20), nullable=False, default="running", index=True)  # running | completed | cancelled | failed
@@ -112,7 +112,7 @@ class BPMNInstance(Base):
     # como texto legible en castellano para logs y clientes de la API.
     error_code = Column(String(60), nullable=True)
     error_params = Column(Text, nullable=True)    # JSON
-    started_by_user_id = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    started_by_user_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     started_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     ended_at = Column(DateTime(timezone=True), nullable=True)
 
@@ -124,7 +124,7 @@ class BPMNInstanceStep(Base):
     __tablename__ = "bpmn_instance_steps"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
     instance_id = Column(String(36), ForeignKey("bpmn_instances.id", ondelete="CASCADE"), nullable=False, index=True)
     element_id = Column(String(120), nullable=False)
     element_type = Column(String(40), nullable=False)
@@ -138,7 +138,7 @@ class BPMNInstanceStep(Base):
     wait_kind = Column(String(20), nullable=True)
     due_at = Column(DateTime(timezone=True), nullable=True)   # temporizadores
     arrived = Column(Integer, nullable=False, default=1)      # fichas llegadas (union paralela)
-    completed_by_user_id = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    completed_by_user_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     result = Column(Text, nullable=True)          # JSON: variables que aporto quien lo completo
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     completed_at = Column(DateTime(timezone=True), nullable=True)

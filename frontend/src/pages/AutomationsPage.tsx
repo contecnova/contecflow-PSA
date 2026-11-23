@@ -14,11 +14,12 @@ import { extractErr, fmtDateTime, fmtNumber } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { projectsApi, automationsApi } from '../services/api'
+import { automationsApi } from '../services/api'
+import { useListaDeProyectos } from '../hooks/useListas'
 import type { AccionDeRegla, CatalogoDeAutomatizaciones, CondicionDeRegla, PlantillaDeRegla, ReglaDeAutomatizacion, SimulacionDeRegla } from '../services/api/tipos-plataforma'
-import { Button, Modal, Spinner, EmptyState, Page, Table, KpiCard, IconButton, StatusBadge, Select, Checkbox, Radio, useErroresDeCampo, Input } from '../components/ui'
+import { Buscador, Button, Modal, Spinner, EmptyState, Page, Table, KpiCard, IconButton, StatusBadge, Select, Checkbox, Radio, useErroresDeCampo, Input } from '../components/ui'
 import {
-  Bot, FileStack, Plus, Zap, Pause, Play, Settings as SettingsIcon, Search,
+  Bot, FileStack, Plus, Zap, Pause, Play, Settings as SettingsIcon,
   ListChecks, FolderKanban, Wallet, AlertTriangle, Clock, Palmtree, Ticket, Receipt, TrendingUp, FileText,
   CheckCircle2, CalendarClock, Bell, User, Users, Mail, Link2, MessageSquare, RefreshCw, ArrowUp, ListPlus,
   ArrowUpCircle, PenLine, FileCheck, Pencil, Trash2, X, ArrowRight, Check, History, FlaskConical,
@@ -195,8 +196,8 @@ function RuleModal({ rule, onClose }: { rule?: ReglaDeAutomatizacion; onClose: (
   const cambiarCondicion = (i: number, campo: string, valor: string) =>
     setCondiciones(cs => cs.map((c, j) => j === i ? { ...c, [campo]: valor } : c))
 
-  const { data: projRaw = [] } = useQuery({ queryKey: ['projects'], queryFn: () => projectsApi.list().then(r => r.data ?? []) })
-  const projects = Array.isArray(projRaw) ? projRaw : []
+  // 23-11-2026 (04 A8): lista compartida de proyectos.
+  const { data: projects = [] } = useListaDeProyectos()
   const { data: catalog, isError: catalogError } = useCatalog()
   const triggerDefs = catalog?.triggers ?? []
   const actionDefs = catalog?.actions ?? []
@@ -387,7 +388,7 @@ function RuleModal({ rule, onClose }: { rule?: ReglaDeAutomatizacion; onClose: (
                             {param.options?.map((o: string) => <option key={o} value={o}>{t('automations.opt_' + o.replace('.', '_'), o)}</option>)}
                           </Select>
                         ) : (
-                          <input id={`${idPrefix}-action-${i}-${param.key}`} aria-label={t('automations.param_' + param.key, param.key)} type={param.type === 'number' ? 'number' : 'text'} value={action.params?.[param.key] || ''} onChange={e => updateAction(i, param.key, e.target.value)} className="aut-input" placeholder={t('automations.param_' + param.key, param.key)} />
+                          <Input id={`${idPrefix}-action-${i}-${param.key}`} aria-label={t('automations.param_' + param.key, param.key)} type={param.type === 'number' ? 'number' : 'text'} value={action.params?.[param.key] || ''} onChange={e => updateAction(i, param.key, e.target.value)} inputClassName="aut-input" placeholder={t('automations.param_' + param.key, param.key)} />
                         )}
                       </div>
                     ))}
@@ -551,10 +552,7 @@ export default function AutomationsPage(): JSX.Element {
 
       {/* Filters */}
       <div className="ds-toolbar aut-mb">
-        <div className="aut-search">
-          <Search size={14} aria-hidden className="aut-search-icon" />
-          <Input value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder={t('automations.search_placeholder')} aria-label={t('automations.search_aria')} />
-        </div>
+        <Buscador className="aut-search" value={searchTerm} onChange={setSearchTerm} placeholder={t('automations.search_placeholder')} aria-label={t('automations.search_aria')} />
         <Select suelto placeholder={false} aria-label={t('automations.filter_status_aria')} className="ds-input aut-filtro-estado"
           value={filterActive === null ? 'all' : filterActive ? 'active' : 'paused'}
           onChange={e => setFilterActive(e.target.value === 'all' ? null : e.target.value === 'active')}>

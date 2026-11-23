@@ -14,9 +14,10 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.core.abac_enforce import enforce_abac
-from app.core.deps import get_db, require_admin, require_internal_user
+from app.core.deps import get_db, requiere_capacidad
 from app.core.errores import ErrorDeDominio
 from app.core.responses import APIResponse
+from app.core.uploads import UploadProfile, read_and_validate_upload_sync, safe_filename
 from app.models.user import User
 from app.services.politicas import servicio as svc
 from app.services.politicas import simulador
@@ -88,13 +89,13 @@ def _abac(db, u, accion="read", rid=None):
 # ── Catálogo y opciones ──────────────────────────────────────────────────────
 
 @router.get("/catalog", summary="Dominios registrados, sus campos tipados, operadores y resultados")
-def catalogo(db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+def catalogo(db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("gobierno.administrar"))):
     _abac(db, current_user)
     return APIResponse.ok(data=svc.catalogo_publico())
 
 
 @router.get("/options", summary="Valores para los selectores (departamentos, equipos, roles, monedas, grupos…)")
-def opciones(db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+def opciones(db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("gobierno.administrar"))):
     _abac(db, current_user)
     return APIResponse.ok(data=svc.opciones(db, current_user))
 
@@ -102,32 +103,32 @@ def opciones(db: Session = Depends(get_db), current_user: User = Depends(require
 # ── Tablas de referencia (antes que /{politica_id}) ──────────────────────────
 
 @router.get("/tables", summary="Tablas de referencia")
-def listar_tablas(db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+def listar_tablas(db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("gobierno.administrar"))):
     _abac(db, current_user)
     return APIResponse.ok(data=svc.tablas(db))
 
 
 @router.post("/tables", summary="Crear tabla de referencia")
-def crear_tabla(body: TablaIn, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+def crear_tabla(body: TablaIn, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("gobierno.administrar"))):
     _abac(db, current_user, "create")
     return APIResponse.ok(data=svc.crear_tabla(db, current_user, body.model_dump()))
 
 
 @router.get("/tables/{tabla_id}", summary="Tabla de referencia con sus filas")
-def ver_tabla(tabla_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+def ver_tabla(tabla_id: str, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("gobierno.administrar"))):
     _abac(db, current_user, rid=tabla_id)
     return APIResponse.ok(data=svc.tabla(db, tabla_id))
 
 
 @router.patch("/tables/{tabla_id}", summary="Editar la cabecera de una tabla")
 def editar_tabla(tabla_id: str, body: TablaIn, db: Session = Depends(get_db),
-                 current_user: User = Depends(require_admin)):
+                 current_user: User = Depends(requiere_capacidad("gobierno.administrar"))):
     _abac(db, current_user, "update", tabla_id)
     return APIResponse.ok(data=svc.editar_tabla(db, current_user, tabla_id, body.model_dump()))
 
 
 @router.delete("/tables/{tabla_id}", summary="Borrar una tabla que ninguna política usa")
-def borrar_tabla(tabla_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+def borrar_tabla(tabla_id: str, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("gobierno.administrar"))):
     _abac(db, current_user, "delete", tabla_id)
     svc.borrar_tabla(db, current_user, tabla_id)
     return APIResponse.ok(data={"ok": True})
@@ -135,33 +136,33 @@ def borrar_tabla(tabla_id: str, db: Session = Depends(get_db), current_user: Use
 
 @router.put("/tables/{tabla_id}/rows", summary="Guardar las filas de la rejilla (sustituye todas)")
 def guardar_filas(tabla_id: str, body: FilasIn, db: Session = Depends(get_db),
-                  current_user: User = Depends(require_admin)):
+                  current_user: User = Depends(requiere_capacidad("gobierno.administrar"))):
     _abac(db, current_user, "update", tabla_id)
     return APIResponse.ok(data=svc.guardar_filas(db, current_user, tabla_id, body.filas))
 
 
 @router.post("/tables/{tabla_id}/import", summary="Leer un CSV o XLSX para revisarlo en la rejilla (no guarda)")
 def importar(tabla_id: str, file: UploadFile = File(...), db: Session = Depends(get_db),
-             current_user: User = Depends(require_admin)):
+             current_user: User = Depends(requiere_capacidad("gobierno.administrar"))):
     # Síncrono: FastAPI lo ejecuta en el pool de hilos y la sesión es síncrona.
     _abac(db, current_user, "update", tabla_id)
-    contenido = file.file.read(_MAX_IMPORTACION + 1)
+    contenido = read_and_validate_upload_sync(file, UploadProfile.DATA_IMPORT)
     if len(contenido) > _MAX_IMPORTACION:
         raise error(413, "fichero_supera_mb", max=5)
-    return APIResponse.ok(data=svc.importar(db, current_user, tabla_id, contenido, file.filename or ""))
+    return APIResponse.ok(data=svc.importar(db, current_user, tabla_id, contenido, safe_filename(file.filename)))
 
 
 # ── Validar, simular, explicar ───────────────────────────────────────────────
 
 @router.post("/validate", summary="Validar una política sin guardarla")
-def validar(body: PoliticaIn, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+def validar(body: PoliticaIn, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("gobierno.administrar"))):
     _abac(db, current_user)
     errores = svc.validar(db, current_user, body.model_dump())
     return APIResponse.ok(data={"valida": not errores, "errores": errores})
 
 
 @router.post("/simulate", summary="Simular una política contra entidades históricas (sin efectos)")
-def simular(body: SimulacionIn, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+def simular(body: SimulacionIn, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("gobierno.administrar"))):
     _abac(db, current_user)
     return APIResponse.ok(data=simulador.simular(
         db, current_user, politica_id=body.politica_id,
@@ -172,27 +173,27 @@ def simular(body: SimulacionIn, db: Session = Depends(get_db), current_user: Use
 # ── Tipos de documento y ejemplos (rev. 166, #27) ────────────────────────────
 
 @router.get("/document-types", summary="Tipos de documento que una regla puede exigir (POLICY_DOCUMENT_TYPES)")
-def tipos_de_documento(db: Session = Depends(get_db), current_user: User = Depends(require_internal_user)):
+def tipos_de_documento(db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("gobierno.usar"))):
     # Los lee también quien adjunta un justificante: no es configuración sensible.
     return APIResponse.ok(data={"tipos": svc.tipos_de_documento(db, current_user.organization_id)})
 
 
 @router.put("/document-types", summary="Guardar la lista de tipos de documento (admin)")
 def guardar_tipos_de_documento(body: TiposDeDocumentoIn, db: Session = Depends(get_db),
-                               current_user: User = Depends(require_admin)):
+                               current_user: User = Depends(requiere_capacidad("gobierno.administrar"))):
     _abac(db, current_user, "update")
     return APIResponse.ok(data={"tipos": svc.guardar_tipos_de_documento(db, current_user, body.tipos)})
 
 
 @router.post("/examples/{dominio}", summary="Cargar las políticas de ejemplo del dominio como borradores")
-def cargar_ejemplos(dominio: str, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+def cargar_ejemplos(dominio: str, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("gobierno.administrar"))):
     _abac(db, current_user, "create")
     return APIResponse.ok(data=svc.cargar_ejemplos(db, current_user, dominio))
 
 
 @router.get("/explanations/{dominio}/{entidad_id}", summary="Por qué: evaluaciones guardadas de una entidad")
 def explicar(dominio: str, entidad_id: str, db: Session = Depends(get_db),
-             current_user: User = Depends(require_internal_user)):
+             current_user: User = Depends(requiere_capacidad("gobierno.usar"))):
     _abac(db, current_user, rid=entidad_id)
     return APIResponse.ok(data=svc.explicaciones(db, current_user, dominio, entidad_id))
 
@@ -201,77 +202,77 @@ def explicar(dominio: str, entidad_id: str, db: Session = Depends(get_db),
 
 @router.get("", summary="Políticas (última versión de cada una), por dominio")
 def listar(dominio: Optional[str] = Query(None, max_length=40), db: Session = Depends(get_db),
-           current_user: User = Depends(require_admin)):
+           current_user: User = Depends(requiere_capacidad("gobierno.administrar"))):
     _abac(db, current_user)
     return APIResponse.ok(data=svc.listar(db, dominio))
 
 
 @router.post("", summary="Crear política (borrador v1)")
-def crear(body: PoliticaIn, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+def crear(body: PoliticaIn, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("gobierno.administrar"))):
     _abac(db, current_user, "create")
     return APIResponse.ok(data=svc.crear(db, current_user, body.model_dump()))
 
 
 @router.get("/{politica_id}", summary="Detalle de una versión con sus reglas")
-def ver(politica_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+def ver(politica_id: str, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("gobierno.administrar"))):
     _abac(db, current_user, rid=politica_id)
     return APIResponse.ok(data=svc.detalle(db, politica_id))
 
 
 @router.put("/{politica_id}", summary="Guardar un borrador (cabecera y reglas)")
 def guardar(politica_id: str, body: PoliticaIn, db: Session = Depends(get_db),
-            current_user: User = Depends(require_admin)):
+            current_user: User = Depends(requiere_capacidad("gobierno.administrar"))):
     _abac(db, current_user, "update", politica_id)
     return APIResponse.ok(data=svc.guardar(db, current_user, politica_id, body.model_dump()))
 
 
 @router.delete("/{politica_id}", summary="Eliminar un borrador o retirar una versión publicada")
-def borrar(politica_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+def borrar(politica_id: str, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("gobierno.administrar"))):
     _abac(db, current_user, "delete", politica_id)
     return APIResponse.ok(data=svc.borrar(db, current_user, politica_id))
 
 
 @router.post("/{politica_id}/publish", summary="Publicar un borrador (retira la versión publicada anterior)")
-def publicar(politica_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+def publicar(politica_id: str, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("gobierno.administrar"))):
     _abac(db, current_user, "update", politica_id)
     return APIResponse.ok(data=svc.publicar(db, current_user, politica_id))
 
 
 @router.post("/{politica_id}/new-version", summary="Nueva versión (borrador copiado de esta)")
-def nueva_version(politica_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+def nueva_version(politica_id: str, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("gobierno.administrar"))):
     _abac(db, current_user, "create", politica_id)
     return APIResponse.ok(data=svc.nueva_version(db, current_user, politica_id))
 
 
 @router.post("/{politica_id}/activation", summary="Activar o desactivar una versión")
 def activar(politica_id: str, body: ActivacionIn, db: Session = Depends(get_db),
-            current_user: User = Depends(require_admin)):
+            current_user: User = Depends(requiere_capacidad("gobierno.administrar"))):
     _abac(db, current_user, "update", politica_id)
     return APIResponse.ok(data=svc.activar(db, current_user, politica_id, body.activa))
 
 
 @router.get("/{politica_id}/history", summary="Todas las versiones de la política")
-def historial(politica_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+def historial(politica_id: str, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("gobierno.administrar"))):
     _abac(db, current_user, rid=politica_id)
     return APIResponse.ok(data=svc.historial(db, politica_id))
 
 
 @router.post("/{politica_id}/rules", summary="Añadir una regla a un borrador")
 def crear_regla(politica_id: str, body: ReglaIn, db: Session = Depends(get_db),
-                current_user: User = Depends(require_admin)):
+                current_user: User = Depends(requiere_capacidad("gobierno.administrar"))):
     _abac(db, current_user, "update", politica_id)
     return APIResponse.ok(data=svc.crear_regla(db, current_user, politica_id, body.model_dump()))
 
 
 @router.patch("/{politica_id}/rules/{regla_id}", summary="Editar una regla de un borrador")
 def editar_regla(politica_id: str, regla_id: str, body: dict = Body(...), db: Session = Depends(get_db),
-                 current_user: User = Depends(require_admin)):
+                 current_user: User = Depends(requiere_capacidad("gobierno.administrar"))):
     _abac(db, current_user, "update", politica_id)
     return APIResponse.ok(data=svc.editar_regla(db, current_user, politica_id, regla_id, body))
 
 
 @router.delete("/{politica_id}/rules/{regla_id}", summary="Quitar una regla de un borrador")
 def borrar_regla(politica_id: str, regla_id: str, db: Session = Depends(get_db),
-                 current_user: User = Depends(require_admin)):
+                 current_user: User = Depends(requiere_capacidad("gobierno.administrar"))):
     _abac(db, current_user, "update", politica_id)
     return APIResponse.ok(data=svc.borrar_regla(db, current_user, politica_id, regla_id))

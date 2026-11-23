@@ -99,6 +99,33 @@ export type ColorToken = keyof typeof COLOR
  */
 export const COLOR_DATO_POR_DEFECTO = '#7a8aaa'
 
+/**
+ * Color por defecto de una categoría nueva del catálogo del Service Desk (dato
+ * que se guarda en la API; hex porque `<input type="color">` no admite `var()`).
+ */
+export const COLOR_CATEGORIA_POR_DEFECTO = '#4f8ef7'
+
+/**
+ * Acentos del perfil (23-11-2026, M14: antes escritos en UserProfilePanel). Son
+ * DATOS, no estilo: se guardan como `accent_color` y applyAccent() solo acepta
+ * #rrggbb. Nombre: userprofilepanel.acento_<clave>.
+ */
+export const PALETA_DE_ACENTO: { clave: string; color: string }[] = [
+  { clave: 'indigo',  color: '#4f8ef7' },
+  { clave: 'violeta', color: '#a78bfa' },
+  { clave: 'teal',    color: '#1d9e75' },
+  { clave: 'azul',    color: '#60a5fa' },
+  { clave: 'rosa',    color: '#f43f5e' },
+  { clave: 'ambar',   color: '#f59e0b' },
+  { clave: 'verde',   color: '#34d399' },
+  { clave: 'coral',   color: '#fb923c' },
+]
+/** Acento por defecto (el del tema; valor del selector de color sin elección). */
+export const ACENTO_POR_DEFECTO = '#4f8ef7'
+
+/** Marca por defecto en la vista previa de Configuración → Marca (datos hex del selector). */
+export const MARCA_POR_DEFECTO = { fondo: '#1f2937', texto: '#ffffff', selector: '#000000' } as const
+
 // ── Paleta secuencial para gráficos ───────────────────────────────────────────
 // Usar en Recharts, Chart.js, D3, SVG donde CSS vars no aplican
 // ── Paleta extendida para gráficos con más series ────────────────────────────

@@ -1,0 +1,24 @@
+{
+ "codigos": {
+  "url_con_credenciales": {
+   "es": "{campo} no puede llevar usuario ni contraseña en la URL",
+   "en": "{campo} cannot carry a username or password in the URL",
+   "zh": "{campo} 的 URL 中不能包含用户名或密码"
+  },
+  "cmdb_credenciales_explicitas": {
+   "es": "El descubrimiento de {proveedor} necesita credenciales propias de la empresa ({falta}); no se usan las del servidor",
+   "en": "{proveedor} discovery needs the company's own credentials ({falta}); the server's credentials are not used",
+   "zh": "{proveedor} 发现需要公司自己的凭据（{falta}）；不会使用服务器的凭据"
+  },
+  "cmdb_host_no_configurado": {
+   "es": "El host {host} no está entre los configurados para este escaneo",
+   "en": "Host {host} is not among the hosts configured for this scan",
+   "zh": "主机 {host} 不在此扫描配置的主机中"
+  },
+  "cuerpo_demasiado_grande": {
+   "es": "La petición es demasiado grande (máximo {max} MB)",
+   "en": "The request is too large (maximum {max} MB)",
+   "zh": "请求过大（最大 {max} MB）"
+  }
+ }
+}

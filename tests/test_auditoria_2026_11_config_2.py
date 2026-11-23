@@ -80,7 +80,7 @@ def test_tampoco_se_importa_environ_o_getenv_suelto():
     ("VAPID_CONTACT", "mailto:noreply@contecflow.local"), ("APP_PUBLIC_URL", ""),  # 19-11-2026: vacío = FRONTEND_URL
     ("MS365_TENANT_ID", "common"), ("WHISPER_BIN", "whisper"), ("WHISPER_MODEL", "base"),
     ("WHISPER_LOCAL_LANGUAGE", "es"), ("SEED_USERS_DATA_PATH", "seed_users_data.json"),
-    ("GEOIP_LOOKUP_ENABLED", True), ("GEOIP_LOOKUP_URL", "https://ipapi.co/{ip}/json/"),
+    ("GEOIP_LOOKUP_ENABLED", False), ("GEOIP_LOOKUP_URL", "https://ipapi.co/{ip}/json/"),
 ])
 def test_cada_variable_movida_conserva_nombre_y_defecto(campo, defecto):
     assert Settings.model_fields[campo].default == defecto

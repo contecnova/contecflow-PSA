@@ -8,9 +8,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Download, Headphones, Play, Trash2 } from 'lucide-react'
-import { Button, Card, Confirm, Section, Spinner } from '../ui'
+import { Button, Card, Section, Spinner } from '../ui'
 import { useAppT } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
+import { confirmar } from '../../context/ConfirmContext'
 import { downloadBlob, extractErr, fmtDate } from '../../utils/helpers'
 import { reunionesApi } from '../../services/api/reuniones'
 import type { ReunionDetalle, TrozoDeAudio } from '../../services/api/reuniones'
@@ -23,7 +24,6 @@ export default function AudioDeReunion({ reunion }: { reunion: ReunionDetalle })
   const qc = useQueryClient()
   const [sonando, setSonando] = useState<{ id: string; url: string } | null>(null)
   const [cargando, setCargando] = useState<string | null>(null)
-  const [confirmar, setConfirmar] = useState(false)
   const urlRef = useRef<string | null>(null)
 
   const { data: trozos = [], isLoading } = useQuery({
@@ -65,7 +65,6 @@ export default function AudioDeReunion({ reunion }: { reunion: ReunionDetalle })
   const borrar = useMutation({
     mutationFn: () => reunionesApi.borrarAudio(reunion.id),
     onSuccess: () => {
-      setConfirmar(false)
       setSonando(null)
       toast.success(t('reuniones.audio.borrado'))
       qc.invalidateQueries({ queryKey: CLAVES.audio(reunion.id) })
@@ -81,7 +80,8 @@ export default function AudioDeReunion({ reunion }: { reunion: ReunionDetalle })
         title={<span className="reu-seccion"><Headphones size={16} aria-hidden />{t('reuniones.audio.titulo')}</span>}
         subtitle={reunion.audio?.expires_at ? t('reuniones.audio.caduca', { fecha: fmtDate(reunion.audio.expires_at) }) : undefined}
         actions={reunion.permissions.manage && trozos.length > 0 ? (
-          <Button size="sm" variant="danger" icon={<Trash2 size={14} />} disabled={reunion.legal_hold} onClick={() => setConfirmar(true)}>
+          <Button size="sm" variant="danger" icon={<Trash2 size={14} />} disabled={reunion.legal_hold} loading={borrar.isPending}
+            onClick={async () => { if (await confirmar({ title: t('reuniones.audio.borrar_titulo'), message: t('reuniones.audio.borrar_desc'), danger: true })) borrar.mutate() }}>
             {t('reuniones.audio.borrar')}
           </Button>
         ) : undefined}
@@ -109,8 +109,6 @@ export default function AudioDeReunion({ reunion }: { reunion: ReunionDetalle })
           </ul>
         )}
       </Section>
-      <Confirm open={confirmar} title={t('reuniones.audio.borrar_titulo')} description={t('reuniones.audio.borrar_desc')}
-        loading={borrar.isPending} onCancel={() => setConfirmar(false)} onConfirm={() => borrar.mutate()} />
     </Card>
   )
 }

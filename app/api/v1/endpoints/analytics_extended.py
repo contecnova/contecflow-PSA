@@ -3,6 +3,7 @@
 from fastapi import status, Body, APIRouter, Depends, HTTPException, Query
 from fastapi.responses import JSONResponse, StreamingResponse
 from sqlalchemy.orm import Session
+from app.core.celdas_seguras import fila_segura
 from datetime import date, datetime, timedelta, timezone
 from typing import List, Optional, Dict
 import logging
@@ -15,7 +16,7 @@ from app.core.errores import ErrorDeDominio
 from app.services import adhoc_analytics_service, analytics_service
 from app.api.descargas import respuesta_de_descarga
 from app.services.exportador_tabular import respuesta_tabular
-from app.core.deps import get_current_user, get_db, require_any_manager, require_internal_user
+from app.core.deps import get_current_user, get_db, requiere_capacidad
 from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
 from pydantic import BaseModel
@@ -35,7 +36,10 @@ def adhoc_analytics(
     payload: dict = Body(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: consultas analiticas
+    # Auditoría 22-11-2026 (A2): antes cualquier empleado veía la facturación y las
+    # horas de cada persona de toda la empresa. Ahora la capacidad de analítica, y la
+    # métrica de facturación además la de finanzas.
+    _rol: User = Depends(requiere_capacidad("analitica.ver")),
 ):
     # Auditoría 2026-08 (P1-9). Aquí había un
     # `if hasattr(v238_service, "run_analytics_adhoc")` — y esa función NO
@@ -48,6 +52,10 @@ def adhoc_analytics(
     #
     # Se llama directo, sin hasattr: si algún día se renombra, queremos un
     # ImportError al arrancar y no un endpoint que miente en silencio.
+    from app.core import capacidades as _capacidades
+    if payload.get("metric") == "revenue" and not getattr(current_user, "is_superadmin", False)             and not _capacidades.tiene(db, current_user, "finanzas.ver"):
+        from app.core.codigos_de_error import error_http
+        raise error_http(403, "capacidad_requerida", capacidad="finanzas.ver")
     try:
         metric = payload.get("metric")
         dimensions = payload.get("dimensions", [])
@@ -79,7 +87,7 @@ def analytics_drilldown(
     date_from: Optional[str] = None,
     date_to: Optional[str] = None,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(requiere_capacidad("analitica.ver")),   # A2 (22-11-2026)
 ):
     # Auditoría 2026-08 (hallazgo 22). Aquí había un
     # `if hasattr(v238_service, "run_analytics_drilldown")`. Es el mismo patrón
@@ -106,7 +114,7 @@ def analytics_cross_filter(
     payload: dict = Body(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: consultas analiticas
+    _rol: User = Depends(requiere_capacidad("analitica.ver")),   # A2 (22-11-2026)
 ):
     # Mismo caso que el drilldown: fuera el `hasattr`, llamada directa.
     try:
@@ -328,7 +336,7 @@ def get_document_analytics(
     p: Periodo = Depends(periodo(dias_por_defecto=90, granularidades=CON_HORA, serie=False,
                                  alias_dias=("days_back",))),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("analitica.responsables")),
 ):
     """Get document management statistics."""
     docs = analytics_service.get_documents_for_analytics(db, p.desde, p.hasta)
@@ -372,7 +380,7 @@ def get_advanced_forecast(
     weeks_ahead: int = Query(12, ge=1, le=52),
     include_risk_assessment: bool = True,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("analitica.responsables")),
 ):
     """Get advanced forecast with risk assessment."""
     users = analytics_service.get_active_users(db)
@@ -489,7 +497,7 @@ def export_projects_csv(
     include_costs: bool = False,
     formato: str = "csv",
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("analitica.responsables")),
 ):
     """Auditoria 2026-08 (hallazgo 37): este export **no existia**.
 
@@ -547,7 +555,7 @@ def export_projects_csv(
 @router.get("/exports/resources-csv", summary="Export resource data to CSV")
 def export_resources_csv(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("analitica.responsables")),
 ):
     """Export resource utilization data to CSV."""
     snapshots = analytics_service.get_all_resource_snapshots(db)
@@ -561,7 +569,7 @@ def export_resources_csv(
     ])
 
     for snapshot in snapshots:
-        writer.writerow([
+        writer.writerow(fila_segura([
             snapshot.user.full_name if snapshot.user else "",
             snapshot.week_iso,
             snapshot.planned_hours,
@@ -569,7 +577,7 @@ def export_resources_csv(
             snapshot.billable_hours,
             snapshot.utilization_pct or "",
             snapshot.billable_pct or "",
-        ])
+        ]))
 
     output.seek(0)
     return StreamingResponse(

@@ -80,7 +80,13 @@ def test_EL_HALLAZGO_un_diagrama_se_ejecuta_y_su_tarea_llega_a_la_bandeja(client
     r = client.post(f"/api/v1/bpmn-instances/{inst['id']}/steps/{paso['id']}/complete",
                     headers=auth(pm_token), json={"variables": {"aprobada": True}})
     assert r.status_code == 200, r.text
-    fin = r.json()["data"]
+    inst = r.json()["data"]
+    # Auditoría 22-11-2026 (M75): la tarea de servicio «Dar de alta» ya no se da
+    # por hecha sola: espera confirmación humana en la bandeja.
+    assert inst["status"] == "running" and inst["active_steps"] == ["Dar de alta"]
+    alta = _pendiente(inst, "Dar de alta")
+    fin = client.post(f"/api/v1/bpmn-instances/{inst['id']}/steps/{alta['id']}/complete",
+                      headers=auth(pm_token)).json()["data"]
     assert fin["status"] == "completed"
     recorrido = [s["element_id"] for s in fin["steps"]]
     assert recorrido == ["S", "Revisar", "G", "Alta", "E_ok"]
@@ -144,7 +150,7 @@ def test_el_diagrama_de_ejemplo_lineal_se_ejecuta(client, pm_token, db):
 
 def test_un_bucle_sin_espera_falla_en_vez_de_colgarse(client, pm_token, db):
     xml = _CAB + """<bpmn:process id="P"><bpmn:startEvent id="S"/>
-      <bpmn:serviceTask id="X" name="X"/><bpmn:serviceTask id="Y" name="Y"/>
+      <bpmn:intermediateThrowEvent id="X" name="X"/><bpmn:intermediateThrowEvent id="Y" name="Y"/>
       <bpmn:sequenceFlow id="a" sourceRef="S" targetRef="X"/>
       <bpmn:sequenceFlow id="b" sourceRef="X" targetRef="Y"/>
       <bpmn:sequenceFlow id="c" sourceRef="Y" targetRef="X"/></bpmn:process></bpmn:definitions>"""

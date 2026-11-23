@@ -10,6 +10,7 @@
   si no, `GET /api/v1/bot/{id}/transcript/` (formato anterior).
 """
 from __future__ import annotations
+import logging
 
 import base64
 import hashlib
@@ -39,6 +40,7 @@ def _plazo() -> float:
         from app.services.settings_service import outbound_http_timeout
         return outbound_http_timeout(default=20)
     except Exception:  # noqa: BLE001
+        logging.getLogger(__name__).debug("_plazo: excepcion ignorada", exc_info=True)
         return 20.0
 
 
@@ -72,7 +74,12 @@ class RecallBots(ProveedorDeBots):
     nombre = "recall"
 
     def __init__(self, api_key: str, region: str = "eu-central-1", cliente: Optional[httpx.Client] = None):
-        self.api_key, self.base = api_key, f"https://{region}.recall.ai/api/v1"
+        # 23-11-2026 (SSRF): la región entra en el HOST; con `x/#` o `169.254.169.254/?`
+        # la clave salía a otro sitio. Solo una etiqueta DNS (p. ej. `eu-central-1`).
+        import re
+        if not re.fullmatch(r"[a-z0-9][a-z0-9-]{0,62}", (region or "").strip().lower()):
+            raise ErrorDeBot("credencial_rechazada", "región de Recall no válida")
+        self.api_key, self.base = api_key, f"https://{region.strip().lower()}.recall.ai/api/v1"
         self._cliente = cliente
 
     def _http(self, metodo: str, ruta: str, **kw):

@@ -109,14 +109,22 @@ def get_ai_contract(db: Session, contract_id: str, current_user=None) -> dict:
         } for cl in contract.clauses],
     }
 
-def extract_pdf_text(pdf_bytes: bytes) -> str:
-    """Extrae texto plano de un PDF (pypdf). Devuelve "" si falla."""
+def extract_pdf_text(pdf_bytes: bytes, max_paginas: int | None = None) -> str:
+    """Extrae texto plano de un PDF (pypdf). Devuelve "" si falla.
+
+    Baja (auditoría 22-11-2026): como mucho `AI_CONTRACT_MAX_PAGES` páginas
+    (antes todas: un PDF de miles de páginas bloqueaba el proceso y el texto no
+    cabía en el modelo de todas formas).
+    """
     try:
         from pypdf import PdfReader
         from io import BytesIO
+        from app.core.config import settings
+        tope = int(max_paginas or getattr(settings, "AI_CONTRACT_MAX_PAGES", 0) or 0)
         reader = PdfReader(BytesIO(pdf_bytes))
         chunks = []
-        for page in reader.pages:
+        paginas = reader.pages if not tope else list(reader.pages)[:tope]
+        for page in paginas:
             try:
                 chunks.append(page.extract_text() or "")
             except Exception:

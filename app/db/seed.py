@@ -67,6 +67,8 @@ if __name__ == "__main__":
     seed_v12()
     seed_v13()
     db_main = SessionLocal()
+    from app.db.contexto_de_tenant import declarar_sistema as _declarar_sistema
+    _declarar_sistema(db_main, "siembra de datos")  # auditoría 22-11-2026: TENANT_SESION_SIN_CONTEXTO=cerrar
     seed_v14(db_main)
     seed_v15(db_main)
     seed_v16(db_main)

@@ -14,13 +14,14 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
+from app.db.session import sesion_de_sistema
 
 from app.api.deps import get_current_user, get_db
 from app.models.user import User
 from app.core.abac_enforce import enforce_abac
 from app.services import bi_embed_service as svc
 from app.services import m365_bi_embed_service
-from app.core.deps import require_admin
+from app.core.deps import requiere_capacidad
 
 router = APIRouter(prefix="/bi/embed", tags=["BI Embedded SDK"])
 
@@ -32,7 +33,7 @@ def create_embed_token(
     payload: dict,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: tokens de incrustacion
+    _rol: User = Depends(requiere_capacidad("bi.administrar")),  # auditoria 2026-09: sensible: tokens de incrustacion
 ):
     """Genera un JWT firmado para incrustar un dashboard en un iframe externo.
 
@@ -55,7 +56,7 @@ def revoke_embed_token(
     jti: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: tokens de incrustacion
+    _rol: User = Depends(requiere_capacidad("bi.administrar")),  # auditoria 2026-09: sensible: tokens de incrustacion
 ):
     enforce_abac(db, current_user, "bi_embed_token", jti, action="delete")
     org_id = str(current_user.organization_id or "global")
@@ -70,7 +71,7 @@ def sso_exchange(
     payload: dict,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: tokens de incrustacion
+    _rol: User = Depends(requiere_capacidad("bi.administrar")),  # auditoria 2026-09: sensible: tokens de incrustacion
 ):
     """Intercambia un token JWT de un proveedor SSO externo por un embed token.
 
@@ -96,7 +97,7 @@ def get_sdk_config(
     dashboard_id: str = Query("default"),
     token: str = Query(...),
     org_id: str = Query(...),
-    db: Session = Depends(get_db),
+    db: Session = Depends(sesion_de_sistema("bi: token de embebido")),
 ):
     """Endpoint público que valida el embed token y retorna la config JS SDK.
     No requiere autenticación Contecflow — el token embed actúa como credencial.
@@ -112,7 +113,7 @@ def embed_view(
     dashboard_id: str = Query("executive", max_length=120),
     token: str = Query(...),
     org: str = Query(..., max_length=64),
-    db: Session = Depends(get_db),
+    db: Session = Depends(sesion_de_sistema("bi: token de embebido")),
 ):
     contenido = svc.pagina(db, org, dashboard_id, token, m365_bi_embed_service.get_dashboard_snapshot)
     return HTMLResponse(contenido, headers={
@@ -138,7 +139,7 @@ def save_embed_config(
     payload: dict,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: tokens de incrustacion
+    _rol: User = Depends(requiere_capacidad("bi.administrar")),  # auditoria 2026-09: sensible: tokens de incrustacion
 ):
     org_id = str(current_user.organization_id or "global")
     result = svc.save_embed_config(db, org_id, payload)

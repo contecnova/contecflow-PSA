@@ -33,6 +33,46 @@ from sqlalchemy.orm import Session
 
 from app.services.integration_credentials_service import get_provider_config
 
+_httpx = httpx  # el módulo real (abajo `httpx` pasa a ser la salida segura)
+
+
+class _SalidaSegura:
+    """El `httpx` que usa este módulo, con el guardia SSRF central.
+
+    Auditoría 22-11-2026 (02 M80): `base_url` lo escribe el admin de empresa y
+    se le manda `client_secret` y tokens delegados; sin guardia, cualquier host
+    (también la intranet o los metadatos de nube) los recibía. Cada llamada pasa
+    por `cliente_httpx` (URL, redirecciones e IP conectada). Se expone con la
+    forma de `httpx` para que los tests sigan sustituyéndolo por un doble.
+    """
+
+    HTTPError = _httpx.HTTPError
+    Timeout = _httpx.Timeout
+    Response = _httpx.Response
+
+    @staticmethod
+    def request(metodo, url, **k):
+        from app.core.outbound_url import ConexionBloqueada, cliente_httpx
+        try:
+            with cliente_httpx(timeout=k.pop("timeout", 30.0)) as c:
+                return c.request(metodo, url, **k)
+        except ConexionBloqueada as e:  # IP conectada interna (DNS rebinding)
+            raise _httpx.ConnectError(str(e)) from e
+
+    def post(self, url, **k):
+        return self.request("POST", url, **k)
+
+    def get(self, url, **k):
+        return self.request("GET", url, **k)
+
+    @staticmethod
+    def Client(**k):  # noqa: N802 — misma forma que httpx.Client
+        from app.core.outbound_url import cliente_httpx
+        return cliente_httpx(**k)
+
+
+httpx = _SalidaSegura()  # noqa: F811 — ver docstring de `_SalidaSegura`
+
 logger = logging.getLogger("contecflow.conectores")
 
 _lock = threading.Lock()
@@ -101,6 +141,12 @@ def configuracion(db: Session, producto: Producto, org_id: Optional[str]) -> dic
     if not (cfg.get("base_url") and cfg.get("client_id") and cfg.get("client_secret")):
         raise ErrorDeConector("no_configurado", f"{producto.clave} no está configurado (Ajustes → Integraciones)")
     cfg["base_url"] = str(cfg["base_url"]).rstrip("/")
+    from app.core.errores import ErrorDeDominio
+    from app.core.outbound_url import validate_outbound_url
+    try:
+        validate_outbound_url(cfg["base_url"], field=f"{producto.clave} base_url")
+    except ErrorDeDominio as e:
+        raise ErrorDeConector("no_configurado", f"{producto.clave}: {e.detail}") from e
     return cfg
 
 
@@ -348,7 +394,7 @@ def probar(db: Session, producto: Producto, org_id: Optional[str]) -> dict:
         if listo.status_code != 200:
             return {"ok": False, "codigo": "no_listo",
                     "detail": f"{producto.clave} está vivo pero no puede atender: {producto.ruta_listo} "
-                              f"responde {listo.status_code} {listo.text[:200]}"}
+                              f"responde {listo.status_code}"}
         _tokens_de_aplicacion.pop(_clave_de_aplicacion(producto, cfg), None)
         _token_de_aplicacion(producto, cfg, plazo)
     except ErrorDeConector as e:

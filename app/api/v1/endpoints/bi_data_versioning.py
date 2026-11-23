@@ -11,7 +11,7 @@ from app.api.deps import get_current_user, get_db
 from app.core.responses import APIResponse
 from app.models.user import User
 from app.services import bi_data_versioning_service as svc
-from app.core.deps import require_internal_user
+from app.core.deps import requiere_capacidad
 
 router = APIRouter(prefix="/bi/versioning", tags=["BI Data Versioning"])
 
@@ -21,7 +21,7 @@ def create_snapshot(
     payload: dict,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: analitica interna
+    _rol: User = Depends(requiere_capacidad("bi.usar")),  # auditoria 2026-09: dominio: analitica interna
 ):
     """Captura el estado actual de un dataset y lo guarda como versión inmutable.
 

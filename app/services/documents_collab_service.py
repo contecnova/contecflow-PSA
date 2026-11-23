@@ -40,7 +40,20 @@ def save_collab_snapshot(
     - Auto-increments the Lamport clock relative to the current snapshot.
     - Marks all previous snapshots as not-current.
     - Returns the newly created snapshot (already committed).
+
+    M83 (auditoría 22-11-2026): tope de tamaño (el de un documento,
+    `uploads.max_bytes_for(DOCUMENT)`), el reloj de Lamport se calcula con el
+    documento bloqueado (dos guardados a la vez daban el mismo `clock`) y el
+    historial se poda a las últimas `DOC_COLLAB_HISTORY_MAX` instantáneas. El
+    acceso lo comprueba el endpoint (permiso del documento y reserva).
     """
+    from app.core.uploads import UploadProfile, max_bytes_for
+    tope = max_bytes_for(UploadProfile.DOCUMENT)
+    if len(snapshot_bytes) > tope:
+        raise error(413, "fichero_demasiado_grande", max=tope // (1024 * 1024))
+    from app.db.session import is_postgres
+    if is_postgres():
+        db.query(Document.id).filter(Document.id == doc_id).with_for_update().first()
     prev = (
         db.query(DocumentCollabSnapshot)
         .filter_by(document_id=doc_id, is_current=True)
@@ -62,6 +75,15 @@ def save_collab_snapshot(
         created_by=user_id,
     )
     db.add(snap)
+    db.flush()
+    from app.core.config import settings
+    maximo = int(getattr(settings, "DOC_COLLAB_HISTORY_MAX", 0) or 0)
+    if maximo > 0:
+        sobran = [i for (i,) in db.query(DocumentCollabSnapshot.id).filter_by(document_id=doc_id)
+                  .order_by(desc(DocumentCollabSnapshot.clock)).offset(maximo).all()]
+        if sobran:
+            db.query(DocumentCollabSnapshot).filter(DocumentCollabSnapshot.id.in_(sobran)).delete(
+                synchronize_session=False)
     db.commit()
     return snap
 

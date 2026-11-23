@@ -68,6 +68,8 @@ export const collabApi = {
 
   // Calls
   startCall: (d: Record<string, unknown>) => api.post(`${root}/calls/start`, d).then(r => r.data),
+  /** Credenciales LiveKit de una sala pedidas al servidor (23-11-2026: nunca por URL). */
+  joinCall:  (id: PathId) => api.post(`${root}/calls/${id}/join`).then(r => r.data),
   leaveCall: (id: PathId) => api.post(`${root}/calls/${id}/leave`).then(r => r.data),
   endCall:   (id: PathId) => api.post(`${root}/calls/${id}/end`).then(r => r.data),
   startRecording: (id: PathId) => api.post(`${root}/calls/${id}/recording/start`).then(r => r.data),

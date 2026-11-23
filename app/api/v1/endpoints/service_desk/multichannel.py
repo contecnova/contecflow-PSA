@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_user, requiere_capacidad
 from app.core.responses import APIListResponse, APIResponse
-from app.db.session import get_db
+from app.db.session import get_db, sesion_de_sistema
 from app.models.user import User
 from app.services.service_desk.multichannel_service import (
     get_channel_status,
@@ -85,7 +85,7 @@ def list_channels(
 )
 async def inbound_email(
     request: Request,
-    db: Session = Depends(get_db),
+    db: Session = Depends(sesion_de_sistema("correo entrante: secreto de la empresa del destinatario")),
     x_inbound_secret: Optional[str] = Header(None, alias="X-Inbound-Secret"),
 ):
     """Accept inbound email webhook and create/update a ticket.
@@ -116,7 +116,7 @@ async def inbound_email(
 )
 async def inbound_sms(
     request: Request,
-    db: Session = Depends(get_db),
+    db: Session = Depends(sesion_de_sistema("sms entrante: firma de Twilio")),
     x_twilio_signature: Optional[str] = Header(None, alias="X-Twilio-Signature"),
 ):
     """Accept inbound SMS from Twilio webhook and create a ticket.

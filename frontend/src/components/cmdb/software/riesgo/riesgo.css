@@ -6,7 +6,7 @@
 @media (max-width: 760px) { .swr-cabecera { grid-template-columns: 1fr; } }
 
 .swr-cifra { display: flex; flex-direction: column; gap: 6px; padding: 16px; border-radius: 12px; background: var(--surface-1); border: 1px solid var(--border); }
-.swr-cifra__valor { font-size: 56px; line-height: 1; font-weight: var(--font-semibold); font-variant-numeric: tabular-nums; }
+.swr-cifra__valor { font-size: var(--text-56); line-height: 1; font-weight: var(--font-semibold); font-variant-numeric: tabular-nums; }
 .swr-cifra__pie { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: var(--text-xs); color: var(--text-3); }
 
 .swr-tono--critical { color: var(--danger); }

@@ -14,9 +14,11 @@ import { openConfirmGlobal } from '../context/ConfirmContext'
 import { extractErr, localeActivo, downloadBlob, fmtDate } from '../utils/helpers'
 import { useToast } from '../context/ToastContext'
 import { keepPreviousData, useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { projectsApi, expensesApi, gastosApi } from '../services/api'
+import { expensesApi, gastosApi } from '../services/api'
+import { useListaDeProyectos } from '../hooks/useListas'
+import { sanitizeUrl } from '../utils/security'
 import type { FiltrosDeGastos, GastoConPoliticas } from '../services/api/gastos'
-import { Button, Modal, Spinner, EmptyState, useSort, SortableTH, SearchInput, FilterSelect, KpiCard, Tabs, IconButton, Pulsable, Select, Checkbox, useErroresDeCampo, Input, Textarea } from '../components/ui'
+import { Button, Modal, Spinner, EmptyState, useSort, SortableTH, Buscador, FilterSelect, KpiCard, Tabs, IconButton, Pulsable, Select, Checkbox, useErroresDeCampo, Input, Textarea } from '../components/ui'
 import Pagination from '../components/ui/Pagination'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -146,7 +148,7 @@ function ExpenseRow({ expense, onAction, isManager }: { expense: Expense; onActi
           {isManager && <span className="exp-separado">· {expense.user_name}</span>}
         </div>
         {expense.receipt_url && (
-          <a href={expense.receipt_url} target="_blank" rel="noopener noreferrer" onClick={ev => ev.stopPropagation()} className="exp-enlace">
+          <a href={sanitizeUrl(expense.receipt_url)} target="_blank" rel="noopener noreferrer" onClick={ev => ev.stopPropagation()} className="exp-enlace">
             <Paperclip size={12} aria-hidden /> {t('expenses.receipt')}
           </a>
         )}
@@ -226,8 +228,8 @@ function ExpenseModal({ expense, onClose }: { expense?: Expense; onClose: () => 
   const set = (k: string) => (e: { target: { value: string } }) => { campos.limpiar(k); setForm(f => ({ ...f, [k]: e.target.value })) }
   const msg = (k: string) => campos.de(k) ? <div className="u-field-error">{campos.de(k)}</div> : null
 
-  const { data: projRaw = [] } = useQuery({ queryKey: ['projects'], queryFn: () => projectsApi.list().then(r => r.data) })
-  const projects: Array<{ id?: string; code?: string; name?: string }> = Array.isArray(projRaw) ? projRaw : []
+  // 23-11-2026 (04 A8): lista compartida de proyectos.
+  const { data: projects = [] } = useListaDeProyectos()
 
   const { mutate, isPending } = useMutation({
     mutationFn: (d: Record<string, unknown>) => isEdit ? expensesApi.updateMy(expense!.id, d) : expensesApi.create(d),
@@ -402,7 +404,7 @@ function ReviewModal({ expense, onClose }: { expense: Expense; onClose: () => vo
         </div>
         {expense.notes && <div className="exp-revision__notas">{expense.notes}</div>}
         {expense.receipt_url && (
-          <a href={expense.receipt_url} target="_blank" rel="noopener noreferrer" className="exp-enlace">
+          <a href={sanitizeUrl(expense.receipt_url)} target="_blank" rel="noopener noreferrer" className="exp-enlace">
             <Paperclip size={12} aria-hidden /> {t('expenses.ver_justificante')}
           </a>
         )}
@@ -473,7 +475,7 @@ function MyExpenses({ showCreate, setShowCreate }: { showCreate: boolean; setSho
         <KpiCard icon={<Clock size={16} />} label={t('expenses.pendientes_kpi')} value={totales.data ? pendientes : '—'} warning={pendientes > 0} />
       </div>
       <div className="exp-filtros">
-        <div className="exp-busqueda"><SearchInput value={search} onChange={lista.conFiltro(setSearch)} placeholder={t('expenses.buscar_codigo_o_descripcion')} /></div>
+        <div className="exp-busqueda"><Buscador value={search} onChange={lista.conFiltro(setSearch)} placeholder={t('expenses.buscar_codigo_o_descripcion')} /></div>
         <FilterSelect value={statusFilter} onChange={lista.conFiltro(setStatusFilter)} placeholder={t('expenses.estado')}
           options={Object.keys(STATUSES).map(v => ({ value: v, label: estado(v) }))} />
         <FilterSelect value={catFilter} onChange={lista.conFiltro(setCatFilter)} placeholder={t('expenses.tipo')}
@@ -567,7 +569,7 @@ function PendingApproval() {
           : totales.data ? t('expenses.no_hay_pendientes') : ''}
       </div>
       <div className="exp-filtros">
-        <div className="exp-busqueda"><SearchInput value={pendSearch} onChange={lista.conFiltro(setPendSearch)} placeholder={t('expenses.buscar_codigo_descripcion_o_solicitante')} /></div>
+        <div className="exp-busqueda"><Buscador value={pendSearch} onChange={lista.conFiltro(setPendSearch)} placeholder={t('expenses.buscar_codigo_descripcion_o_solicitante')} /></div>
         <FilterSelect value={pendCat} onChange={lista.conFiltro(setPendCat)} placeholder={t('expenses.tipo')}
           options={categorias} />
         <FiltroDeFecha valor={pendFrom} onChange={lista.conFiltro(setPendFrom)} etiqueta={t('expenses.desde')} />
@@ -616,8 +618,8 @@ function TeamExpenses() {
   const lista = useListaPaginada('expense_date', 'desc')
   const filtros = { project_id: projectFilter, status: statusFilter }
 
-  const { data: projRaw = [] } = useQuery({ queryKey: ['projects'], queryFn: () => projectsApi.list().then(r => r.data) })
-  const projects: Array<{ id?: string; code?: string; name?: string }> = Array.isArray(projRaw) ? projRaw : []
+  // 23-11-2026 (04 A8): lista compartida de proyectos.
+  const { data: projects = [] } = useListaDeProyectos()
 
   const q = useQuery({
     queryKey: ['expenses-team', filtros, lista.sort, lista.page],

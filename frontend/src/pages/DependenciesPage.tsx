@@ -4,9 +4,10 @@ import { extractErr } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { projectsApi, tasksApi, taskDependenciesApi } from '../services/api'
+import { tasksApi, taskDependenciesApi } from '../services/api'
+import { useListaDeProyectos } from '../hooks/useListas'
 import type { DependenciaDeTarea } from '../services/api/tipos-proyectos'
-import { Button, Spinner, EmptyState, Modal, KpiCard, IconButton, Tabs, Pulsable, Select, TablaSimple, useErroresDeCampo, Input } from '../components/ui'
+import { Button, Spinner, EmptyState, Modal, KpiCard, IconButton, Tabs, Pulsable, Select, TablaSimple, useErroresDeCampo, Input, EstadoDeError } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { ArrowLeft, ArrowRight, Check, FolderKanban, GitMerge, List, Network, Plus, Trash2 } from 'lucide-react'
@@ -20,11 +21,6 @@ import './DependenciesPage.css'
 type DependencyType = DependenciaDeTarea['dependency_type']
 const DE_ORDEN = new Set(['FS', 'SS', 'FF', 'SF'])
 type TaskStatus = 'todo' | 'in_progress' | 'done' | 'blocked' | 'in_review' | string
-
-type ProjectItem = {
-  id: string | number
-  name: string
-}
 
 type TaskItem = {
   id: string | number
@@ -238,28 +234,27 @@ export default function DependenciesPage(): JSX.Element {
   const [view,    setView]    = useState<'list' | 'visual'>('list')
   const [showForm,setShowForm]= useState(false)
 
-  const { data: projects = [] } = useQuery<ProjectItem[]>({
-    queryKey: ['projects'],
-    queryFn: () => projectsApi.list({}).then(r => Array.isArray(r.data) ? r.data : []).catch(() => []),
-  })
+  // 23-11-2026 (04 A8 / M6): lista compartida de proyectos y sin `.catch` tragados; si fallan las
+  // dependencias o las tareas se pinta el estado de error en vez de un mapa vacío que parece correcto.
+  const { data: projects = [] } = useListaDeProyectos()
   // Usar siempre el endpoint correcto y nunca llamar sin projectId
-  const { data: tasks = [] } = useQuery<TaskItem[]>({
+  const { data: tasks = [], error: errorTareas, refetch: refetchTareas } = useQuery<TaskItem[]>({
     queryKey: ['tasks-list', project],
     queryFn: () => project
       ? tasksApi.list({ project_id: project, limit: FULL_LIST_SIZE })
           .then(r => Array.isArray(r.data) ? r.data : [])
-          .catch(() => [])
       : Promise.resolve([]),
     enabled: !!project,
   })
 
-  const { data: deps = [], isLoading } = useQuery({
+  const { data: deps = [], isLoading, error: errorDeps, refetch: refetchDeps } = useQuery({
     queryKey: ['task-deps', project],
     queryFn: () => project
-      ? taskDependenciesApi.getByProject(project).then(r => r.data).catch((): DependencyItem[] => [])
+      ? taskDependenciesApi.getByProject(project).then(r => r.data)
       : Promise.resolve<DependencyItem[]>([]),
     enabled: !!project,
   })
+  const errorDeCarga = errorDeps ?? errorTareas ?? null
 
   const { mutate: deleteEdge } = useMutation({
     mutationFn: (id: string | number) => taskDependenciesApi.delete(id),
@@ -314,7 +309,9 @@ export default function DependenciesPage(): JSX.Element {
       {!project && <EmptyState icon={<FolderKanban size={28} />} title={t('dependencies.selecciona_un_proyecto_2')} description={t('pagina_deps.elige_un_proyecto_para_ver_o')} />}
       {project && isLoading && <Spinner />}
 
-      {project && !isLoading && (
+      {project && errorDeCarga && <EstadoDeError error={errorDeCarga} onReintentar={() => { void refetchDeps(); void refetchTareas() }} />}
+
+      {project && !isLoading && !errorDeCarga && (
         <>
           {/* KPIs */}
           {edges.length > 0 && (

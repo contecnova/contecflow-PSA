@@ -72,6 +72,12 @@ def reset_numbering_seq(entity: str, db: Session) -> dict:
     s = db.query(NumberingSequence).filter(NumberingSequence.entity == entity).first()
     if not s:
         raise NotFoundError("No encontrado")
+    # M91 (auditoría 22-11-2026): volver a 0 una serie que ya emitió códigos los
+    # repite (dos facturas o proyectos con el mismo número). Estándar de los ERP:
+    # una serie no se reinicia; para empezar otra se cambia el prefijo o el
+    # sufijo (o se usa la serie anual, `include_year`).
+    if (s.current_value or 0) > 0:
+        raise error(409, "numeracion_reset_no_permitido")
     s.current_value = 0
     db.commit()
     return {"ok": True}

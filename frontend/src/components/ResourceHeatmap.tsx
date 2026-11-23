@@ -18,7 +18,7 @@
 import { useMemo, useState, type CSSProperties, useId } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import api, { projectsApi, usersApi } from '../services/api'
+import { reservasApi } from '../services/api'
 import { Button, Card, KpiCard, Modal, Select, Spinner, EmptyState, SelectorDePeriodo, RejillaPersonaDia, columnasDeSemanas, useErroresDeCampo, Input } from './ui'
 import type { TonoDeRejilla } from './ui'
 import { usePeriodo } from '../hooks/usePeriodo'
@@ -31,6 +31,7 @@ import { fmtDate, fmtNumber } from '../utils/helpers'
 import DateInput from './ui/DateInput'
 import { POLL_DEFAULT_MS } from '../constants/timings'
 import './ResourceHeatmap.css'
+import { useListaDeProyectos, useListaDeUsuarios } from '../hooks/useListas'
 
 interface ProjectItem {
   id: string | number
@@ -142,8 +143,8 @@ function BookingModal({ onClose, prefill }: { onClose: () => void; prefill?: Boo
   const esquema = useMemo(() => crearEsquema(t), [t])
   const validation = useFormValidation(esquema)
 
-  const { data: projRaw = [] } = useQuery({ queryKey: ['projects'], queryFn: () => projectsApi.list({}).then(r => r.data ?? []) })
-  const { data: usersRaw = [] } = useQuery({ queryKey: ['users'], queryFn: () => usersApi.list({}).then(r => r.data) })
+  const { data: projRaw = [] } = useListaDeProyectos()
+  const { data: usersRaw = [] } = useListaDeUsuarios()
   const projects = projRaw as ProjectItem[]
   const users = usersRaw as UserItem[]
 
@@ -151,7 +152,7 @@ function BookingModal({ onClose, prefill }: { onClose: () => void; prefill?: Boo
   const msg = (k: string) => campos.de(k) ? <div className="u-field-error">{campos.de(k)}</div> : null
   const { mutate: create, isPending } = useMutation({
     onMutate: () => campos.limpiar(),
-    mutationFn: (d: unknown) => api.post('/bookings', d),
+    mutationFn: (d: unknown) => reservasApi.crear(d),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['heatmap'] }); qc.invalidateQueries({ queryKey: ['bookings'] }); validation.setErrors({}); onClose() },
     onError: (e: unknown) => { campos.recoger(e) },
   })
@@ -191,8 +192,7 @@ function BookingModal({ onClose, prefill }: { onClose: () => void; prefill?: Boo
               <option value="soft">{t('resourceheatmap.soft_tentativo')}</option>
             </Select>{msg('booking_type')}
           </div>
-          <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="resoheat-ls">{t('resourceheatmap.h_dia')}</label>
-            <input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} type="number" min={1} max={24} value={form.hours_per_day} onChange={setField('hours_per_day')} className={validation.inputClass('ds-input', 'hours_per_day')} />{msg('hours_per_day')}
+          <div><Input label={t('resourceheatmap.h_dia')} id={`${idCampo}-4`} type="number" min={1} max={24} value={form.hours_per_day} onChange={setField('hours_per_day')} />{msg('hours_per_day')}
             {validation.errors.hours_per_day && <div className="u-field-error">{validation.errors.hours_per_day}</div>}
           </div>
           <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="resoheat-ls">{t('resourceheatmap.fecha_inicio')}</label>
@@ -231,20 +231,20 @@ export default function ResourceHeatmap() {
 
   const { data: heatmapData } = useQuery<HeatmapData>({
     queryKey: ['heatmap', periodo.params],
-    queryFn: () => api.get('/bookings/heatmap', { params: periodo.params }).then(r => r.data),
+    queryFn: () => reservasApi.mapaDeCalor<HeatmapData>(periodo.params).then(r => r.data),
     refetchInterval: POLL_DEFAULT_MS,
   })
   const isLoading = !heatmapData
 
   const { data: bookingsRaw = [] } = useQuery({
     queryKey: ['bookings'],
-    queryFn: () => api.get('/bookings').then(r => r.data?.items ?? r.data ?? []),
+    queryFn: () => reservasApi.listar<BookingItem[] | { items?: BookingItem[] }>().then(r => (Array.isArray(r.data) ? r.data : r.data?.items) ?? []),
     enabled: showBookingsPanel,
   })
   const bookings = bookingsRaw as BookingItem[]
 
   const { mutate: deleteBooking } = useMutation({
-    mutationFn: (id: string | number) => api.delete(`/bookings/${id}`),
+    mutationFn: (id: string | number) => reservasApi.borrar(id),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['heatmap'] }); qc.invalidateQueries({ queryKey: ['bookings'] }) },
   })
 

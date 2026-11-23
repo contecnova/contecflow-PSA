@@ -23,6 +23,8 @@ const ALCANCE = [
   'components/alm', 'components/aprobaciones', 'components/presupuestos', 'components/gastos',
   'components/invoices', 'components/lecciones', 'components/ausencias', 'components/cmdb', 'components/bi',
   'pages/alm', 'pages/bpm', 'pages/clients',
+  // Troceado de ChatPage, ApprovalsPage y DocumentsPage (23-11-2026, auditoría M12).
+  'pages/chat', 'pages/aprobaciones', 'pages/documentos',
   ...[
     'AbsencesPage', 'AgentDashboardPage', 'AIHubPage', 'AlertsPage', 'ALMPage', 'ALMAltasBajasPage',
     'ApprovalsPage', 'AprobacionPorCorreoPage', 'PreguntarALaEmpresaPage', 'AutomationsPage', 'BPMPage',
@@ -38,7 +40,7 @@ const ALCANCE = [
 
 /** Líneas con emoji permitidas: el emoji es contenido, no un icono. */
 const PERMITIDAS: Array<[string, RegExp]> = [
-  ['pages/ChatPage.tsx', /\['👍'/],
+  ['pages/chat/Mensajes.tsx', /\['👍'/],
 ]
 
 function* ficheros(rel: string): Generator<string> {

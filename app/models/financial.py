@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Float, DateTime, ForeignKey, Text, Date, Boolean, Integer, Enum
+from sqlalchemy import JSON, Column, String, Float, DateTime, ForeignKey, Text, Date, Boolean, Integer, Enum
 from app.models.money import Money
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -19,7 +19,7 @@ class Timesheet(Base):
     __tablename__ = "timesheets"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     is_active = Column(Boolean, default=True, nullable=False, server_default="1", index=True)  # audit #36 soft-delete
     user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     week_start = Column(Date, nullable=False, index=True)  # Monday of the week
@@ -33,9 +33,12 @@ class Timesheet(Base):
 
     # Approval
     submitted_at = Column(DateTime(timezone=True), nullable=True)
-    reviewed_by = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    reviewed_by = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     reviewed_at = Column(DateTime(timezone=True), nullable=True)
     review_notes = Column(Text, nullable=True)
+    # Migracion 200: nota de revision del sistema por clave (se pinta en el idioma de quien lee).
+    review_notes_key    = Column(String(120), nullable=True)
+    review_notes_params = Column(JSON, nullable=True)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
@@ -50,7 +53,7 @@ class CapacityPlan(Base):
     __tablename__ = "capacity_plans"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     project_id = Column(String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=True, index=True)
 
@@ -59,7 +62,7 @@ class CapacityPlan(Base):
     is_active = Column(Boolean, default=True)
     notes = Column(String(255), nullable=True)
 
-    created_by = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    created_by = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
@@ -74,7 +77,7 @@ class ProjectMilestone(Base):
     __tablename__ = "project_milestones"
 
     id         = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     project_id = Column(String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
 
     name        = Column(String(255), nullable=False)
@@ -88,21 +91,21 @@ class ProjectMilestone(Base):
     billing_status  = Column(String(30), default="pending")
     is_completed    = Column(Boolean, default=False)
     completed_date  = Column(Date, nullable=True)
-    completed_by    = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    completed_by    = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
 
     # ── Aprobación ──────────────────────────────────────────────────────────────
     approval_requested_at  = Column(DateTime(timezone=True), nullable=True)
-    approval_requested_by  = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    approval_requested_by  = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     approved_at            = Column(DateTime(timezone=True), nullable=True)
-    approved_by            = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    approved_by            = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     rejected_at            = Column(DateTime(timezone=True), nullable=True)
-    rejected_by            = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    rejected_by            = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     rejection_reason       = Column(Text, nullable=True)
 
     # ── Facturación ─────────────────────────────────────────────────────────────
     billing_amount  = Column(Money, nullable=True)    # € a facturar
     billing_pct     = Column(Float, nullable=True)    # % del contrato total (ratio)
-    invoice_id      = Column(String(36), ForeignKey("invoices.id"), nullable=True, index=True)
+    invoice_id      = Column(String(36), ForeignKey("invoices.id", ondelete="SET NULL"), nullable=True, index=True)
     is_billed       = Column(Boolean, default=False)
     billed_at       = Column(Date, nullable=True)
 

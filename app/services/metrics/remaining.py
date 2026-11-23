@@ -24,7 +24,7 @@ def metric_sprint_velocity(
     """Velocidad de sprint: story points completados por sprint."""
     try:
         from app.models.sprints import Sprint, SprintTask
-        from app.models.task import Task
+        from app.models.task import Task, TaskStatus
 
         sprints_q = db.query(Sprint)
         if project_ids:
@@ -39,7 +39,7 @@ def metric_sprint_velocity(
         # Query all points per sprint in batch
         pts = db.query(
             SprintTask.sprint_id,
-            func.sum(case([(Task.status == "done", Task.story_points)], else_=0)).label("done_pts"),
+            func.sum(case([(Task.status == TaskStatus.done, Task.story_points)], else_=0)).label("done_pts"),
             func.sum(Task.story_points).label("total_pts")
         ).join(Task, SprintTask.task_id == Task.id)
         if sprint_ids:
@@ -76,7 +76,7 @@ def metric_sprint_completion_rate(
     """Tasa de completitud de sprint."""
     try:
         from app.models.sprints import Sprint, SprintTask
-        from app.models.task import Task
+        from app.models.task import Task, TaskStatus
 
         sprints_q = db.query(Sprint)
         if project_ids:
@@ -90,7 +90,7 @@ def metric_sprint_completion_rate(
 
         pts = db.query(
             SprintTask.sprint_id,
-            func.sum(case([(Task.status == "done", Task.story_points)], else_=0)).label("done_pts"),
+            func.sum(case([(Task.status == TaskStatus.done, Task.story_points)], else_=0)).label("done_pts"),
             func.sum(Task.story_points).label("total_pts")
         ).join(Task, SprintTask.task_id == Task.id)
         if sprint_ids:

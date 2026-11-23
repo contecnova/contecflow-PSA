@@ -104,6 +104,57 @@ _FONDO_DEL_SELLO = TINTES_DE_FIRMA["fondo_del_sello"]
 _FONDO_DE_EVIDENCIA = PALETA_POR_DEFECTO.fila_alterna
 
 
+def codigo_de_evidencia(document_title: str, signer_email: str, signed_at: datetime,
+                        signature_ip: str, huella_del_documento: str) -> str:
+    """Codigo de verificacion del certificado: HMAC-SHA256 con la clave del
+    despliegue sobre el documento (su huella) y los datos de la firma.
+
+    Auditoria 2026-11-22 (A-RZ5): era `sha256(titulo|correo|fecha|ip)`, sin
+    el documento ni clave: cualquiera lo recalculaba para otro contenido y el
+    texto del PDF afirmaba una integridad que no daba. Ahora cambiar el
+    documento o cualquier dato da otro codigo, y solo el servidor lo emite y
+    lo comprueba (`verificar_evidencia`).
+    """
+    import hashlib
+    import hmac
+    from app.core.config import settings
+    datos = "|".join([huella_del_documento or "", document_title or "", signer_email or "",
+                      signed_at.isoformat(), signature_ip or ""])
+    clave = (getattr(settings, "SECRET_KEY", "") or "").encode()
+    return hmac.new(clave, datos.encode(), hashlib.sha256).hexdigest()
+
+
+def verificar_evidencia(codigo: str, *args) -> bool:
+    """¿Corresponde `codigo` a esos datos? (comparacion en tiempo constante)."""
+    import hmac
+    return hmac.compare_digest((codigo or "").lower(), codigo_de_evidencia(*args))
+
+
+def huella_del_documento(doc) -> str:
+    """SHA-256 del documento firmado.
+
+    Si el fichero esta en el almacen local (`UPLOAD_DIR`), la de sus bytes; si
+    no (enlace externo), la de su ficha (id, titulo, descripcion, nombre,
+    enlace y tamaño): lo que el firmante vio y acepto.
+    """
+    import hashlib
+    from pathlib import Path
+    from app.core.config import settings
+    url = getattr(doc, "file_url", None) or ""
+    if url and not url.lower().startswith(("http://", "https://")):
+        raiz = Path(getattr(settings, "UPLOAD_DIR", "uploads")).resolve()
+        ruta = (raiz / url.lstrip("/").removeprefix("uploads/")).resolve()
+        if raiz in ruta.parents and ruta.is_file():
+            h = hashlib.sha256()
+            with open(ruta, "rb") as fichero:
+                for bloque in iter(lambda: fichero.read(1 << 20), b""):
+                    h.update(bloque)
+            return h.hexdigest()
+    ficha = "|".join(str(getattr(doc, c, "") or "") for c in
+                     ("id", "title", "description", "file_name", "file_url", "file_size_kb"))
+    return hashlib.sha256(ficha.encode()).hexdigest()
+
+
 def generate_signed_pdf(
     document_title: str,
     document_description: str,
@@ -118,13 +169,14 @@ def generate_signed_pdf(
     idioma=None,
     marca=None,
     zona=None,
+    huella_del_documento: str = "",
 ) -> bytes:
     """
     Genera un PDF certificado de firma digital del documento.
     Incluye: datos del firmante, timestamp, IP y un hash de evidencia.
     `idioma`, `marca` y `zona` los resuelve quien llama (tiene el `db`).
+    `huella_del_documento`: SHA-256 del documento firmado (`huella_del_documento()`).
     """
-    import hashlib
 
     # La resuelve el llamador con `marca_de_organizacion()`, que tiene el
     # `db` y el `organization_id`.
@@ -148,9 +200,8 @@ def generate_signed_pdf(
 
     styles = getSampleStyleSheet()
 
-    # Hash de evidencia (SHA256 de los datos clave)
-    evidence_str = f"{document_title}|{signer_email}|{signed_at.isoformat()}|{signature_ip}"
-    evidence_hash = hashlib.sha256(evidence_str.encode()).hexdigest()
+    evidence_hash = codigo_de_evidencia(document_title, signer_email, signed_at, signature_ip,
+                                        huella_del_documento)
 
     elements = []
 

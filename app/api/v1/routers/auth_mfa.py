@@ -8,7 +8,7 @@ from typing import Optional
 import json
 import logging
 
-from app.db.session import get_db
+from app.db.session import get_db, sesion_de_sistema
 from app.core.deps import get_current_user
 from app.core.config import settings
 from app.core.ratelimit import limiter
@@ -65,6 +65,8 @@ def mfa_setup(
     verificar el nuevo codigo; por eso pide la contrasena actual o un codigo
     TOTP valido (`{"password": ...}` o `{"code": ...}`).
     """
+    from app.services.seguridad_de_cuentas.mfa import metodo_permitido
+    metodo_permitido(db, current_user, "totp")
     if current_user.mfa_enabled:
         _svc.exigir_reautenticacion(db, current_user,
                                     password=payload.password if payload else None,
@@ -183,7 +185,7 @@ def mfa_validate(
     request: Request,
     response: Response,
     payload: MfaValidateIn = Body(...),
-    db: Session = Depends(get_db),
+    db: Session = Depends(sesion_de_sistema("login: segundo factor")),
 ):
     """Valida el código TOTP durante el proceso de login."""
     try:
@@ -205,6 +207,8 @@ def mfa_validate(
         raise error_http(404, "no_encontrado", detail="Usuario no encontrado", que="usuario")
     if not user.mfa_enabled or not user.mfa_secret:
         raise error_http(400, "mfa_sin_totp", detail="Este usuario no tiene TOTP activo. Usa autenticación WebAuthn/passkey.")
+    from app.services.seguridad_de_cuentas.mfa import metodo_permitido
+    metodo_permitido(db, user, "totp")
 
     totp  = pyotp.TOTP(decrypt_value(user.mfa_secret) or "")
     # Auditoria 2026-11: un codigo TOTP valido se podia reutilizar dentro de su
@@ -257,19 +261,28 @@ def mfa_validate(
             )
     except Exception:
         logger.warning("SOC login_success audit raised for user=%s during MFA validate", user.id, exc_info=True)
+    # 23-11-2026: recordar este dispositivo (si la empresa lo permite).
+    recordado = None
+    if payload.remember_device:
+        from app.services.seguridad_de_cuentas.mfa import recordar
+        recordado = recordar(db, user, _client_ip(request), request.headers.get("User-Agent"))
     _svc.commit_db(db)
 
     _set_auth_cookies(response, access_token, new_refresh_token)
+    if recordado:
+        from app.services.seguridad_de_cuentas.mfa import COOKIE_DISPOSITIVO
+        response.set_cookie(COOKIE_DISPOSITIVO, recordado[0], max_age=recordado[1], path="/api/v1/auth",
+                            **{**_svc.COOKIE_OPTS, "samesite": "strict"})
 
+    # 23-11-2026: el usuario completo (capacidades y `account_security`): la
+    # pantalla decide con eso si pide el cambio de contrasena o el MFA.
+    from app.core.modulos import con_rutas_cerradas
+    from app.schemas.users import UserPublic
     return {
         "access_token":  access_token,
         "refresh_token": new_refresh_token,
         "token_type":    "bearer",
-        "user": {
-            "id": user.id, "email": user.email,
-            "full_name": user.full_name,
-            "role": user.role.value if hasattr(user.role, "value") else str(user.role),
-        }
+        "user": UserPublic.model_validate(con_rutas_cerradas(db, user)).model_dump(mode="json"),
     }
 
 
@@ -297,11 +310,18 @@ def mfa_disable(
     if not valid:
         raise error_http(401, "mfa_codigo_incorrecto", detail="Código incorrecto")
 
+    # 23-11-2026: si la politica le exige MFA y se quedaria sin factor, no.
+    from app.services.seguridad_de_cuentas.mfa import puede_quitarse_el_factor
+    puede_quitarse_el_factor(db, current_user, "totp")
     current_user.mfa_secret = None
     current_user.mfa_verified_at = None
     _svc.borrar_codigos_de_respaldo(db, current_user)
     from app.services.audit import audit_log
-    audit_log(db, current_user, "MFA_DISABLED", "users", current_user.id, current_user.email)
+    audit_log(db, current_user, "MFA_DISABLED", "users", current_user.id, current_user.email,
+              ip_address=_client_ip(request) or None)
+    from app.services.seguridad_de_cuentas import alertas as _alertas
+    _alertas.a_los_admins(db, current_user.organization_id, "seguridad.alerta.mfa_desactivado",
+                          usuario=current_user.email or current_user.username)
     has_passkeys = _svc.user_has_passkeys(db, current_user.id)
     current_user.mfa_enabled = bool(has_passkeys)
     _svc.commit_db(db)
@@ -322,6 +342,8 @@ def webauthn_register_start(
 ):
     # Auditoria 2026-11 (#21): una passkey nueva es un segundo factor nuevo:
     # se pide la contrasena actual o un codigo TOTP, no solo la sesion.
+    from app.services.seguridad_de_cuentas.mfa import metodo_permitido
+    metodo_permitido(db, current_user, "webauthn")
     _svc.exigir_reautenticacion(db, current_user,
                                 password=payload.password if payload else None,
                                 code=payload.code if payload else None)
@@ -471,6 +493,8 @@ def webauthn_delete_credential(
     cred = _svc.get_active_webauthn_credential(db, credential_id, current_user.id)
     if not cred:
         raise error_http(404, "no_encontrado", detail="Passkey no encontrada", que="llave_de_acceso")
+    from app.services.seguridad_de_cuentas.mfa import puede_quitarse_el_factor
+    puede_quitarse_el_factor(db, current_user, "webauthn")
     cred.is_active = False
     remaining = _svc.has_remaining_active_credentials(db, current_user.id, credential_id)
     if not remaining and not current_user.mfa_secret:
@@ -490,7 +514,7 @@ def webauthn_delete_credential(
 def webauthn_auth_start(
     request: Request,
     payload: WebAuthnAuthStartIn = Body(...),
-    db: Session = Depends(get_db),
+    db: Session = Depends(sesion_de_sistema("login: segundo factor")),
 ):
     try:
         from webauthn import generate_authentication_options, options_to_json
@@ -540,7 +564,7 @@ def webauthn_auth_finish(
     request: Request,
     response: Response,
     payload: WebAuthnAuthFinishIn = Body(...),
-    db: Session = Depends(get_db),
+    db: Session = Depends(sesion_de_sistema("login: segundo factor")),
 ):
     try:
         from webauthn import verify_authentication_response
@@ -631,7 +655,7 @@ def _sin_contrasena_permitido(db: Session) -> bool:
 
 @router.post("/passkey/login/start", summary="Iniciar acceso con passkey (sin contraseña)")
 @limiter.limit("15/minute")
-def passkey_login_start(request: Request, db: Session = Depends(get_db)):
+def passkey_login_start(request: Request, db: Session = Depends(sesion_de_sistema("login: passkey"))):
     try:
         from webauthn import generate_authentication_options, options_to_json
         from webauthn.helpers.structs import UserVerificationRequirement
@@ -658,7 +682,7 @@ def passkey_login_finish(
     request: Request,
     response: Response,
     payload: dict = Body(...),
-    db: Session = Depends(get_db),
+    db: Session = Depends(sesion_de_sistema("login: passkey")),
 ):
     try:
         from webauthn import verify_authentication_response

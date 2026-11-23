@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from typing import Optional
 
 from app.db.session import get_db
-from app.core.deps import get_current_user, require_any_manager, require_admin
+from app.core.deps import get_current_user, requiere_capacidad
 from app.models.user import User
 from app.core.abac_enforce import enforce_abac
 from app.core.responses import APIResponse, APIListResponse
@@ -26,21 +26,21 @@ def list_oncall_schedules(group_id: Optional[str] = None, db: Session = Depends(
 
 
 @router.post("/oncall/schedules", summary="Crear schedule de guardia", status_code=201)
-def create_oncall_schedule(payload: OnCallScheduleIn, db: Session = Depends(get_db), _: User = Depends(require_any_manager)):
+def create_oncall_schedule(payload: OnCallScheduleIn, db: Session = Depends(get_db), _: User = Depends(requiere_capacidad("sd.gestionar"))):
     s = create_oncall_schedule_record(db, payload)
     _commit_or_rollback(db); db.refresh(s)
     return APIResponse.ok(data={"id": s.id, "name": s.name})
 
 
 @router.patch("/oncall/schedules/{schedule_id}", summary="Actualizar schedule")
-def update_oncall_schedule(schedule_id: str, payload: OnCallScheduleIn, db: Session = Depends(get_db), _: User = Depends(require_any_manager)):
+def update_oncall_schedule(schedule_id: str, payload: OnCallScheduleIn, db: Session = Depends(get_db), _: User = Depends(requiere_capacidad("sd.gestionar"))):
     update_oncall_schedule_record(db, schedule_id, payload)
     _commit_or_rollback(db)
     return APIResponse.ok(data={"ok": True})
 
 
 @router.delete("/oncall/schedules/{schedule_id}", summary="Eliminar schedule")
-def delete_oncall_schedule(schedule_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+def delete_oncall_schedule(schedule_id: str, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("sd.administrar"))):
     enforce_abac(db, current_user, "sd_oncall_schedule", schedule_id, action="delete")
     delete_oncall_schedule_svc(db, schedule_id)
     _commit_or_rollback(db)
@@ -48,14 +48,14 @@ def delete_oncall_schedule(schedule_id: str, db: Session = Depends(get_db), curr
 
 
 @router.post("/oncall/schedules/{schedule_id}/entries", summary="Añadir turno de guardia", status_code=201)
-def add_oncall_entry(schedule_id: str, payload: OnCallEntryIn, db: Session = Depends(get_db), _: User = Depends(require_any_manager)):
+def add_oncall_entry(schedule_id: str, payload: OnCallEntryIn, db: Session = Depends(get_db), _: User = Depends(requiere_capacidad("sd.gestionar"))):
     entry = create_oncall_entry_record(db, schedule_id, payload)
     _commit_or_rollback(db)
     return APIResponse.ok(data={"id": entry.id})
 
 
 @router.delete("/oncall/entries/{entry_id}", summary="Eliminar turno de guardia")
-def delete_oncall_entry(entry_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_any_manager)):
+def delete_oncall_entry(entry_id: str, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("sd.gestionar"))):
     enforce_abac(db, current_user, "sd_oncall_entry", entry_id, action="delete")
     delete_oncall_entry_svc(db, entry_id)
     _commit_or_rollback(db)

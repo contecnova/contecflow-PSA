@@ -100,8 +100,9 @@ def leer(db: Session, org: Optional[str]) -> dict:
 
 def _url_base() -> str:
     from app.core.config import settings
-    return (getattr(settings, "PUBLIC_API_URL", None) or getattr(settings, "BACKEND_URL", None)
-            or getattr(settings, "FRONTEND_URL", None) or "").rstrip("/")
+    # `PUBLIC_API_URL` no existe en Settings (la lectura daba siempre None):
+    # la URL pública del API es `BACKEND_URL`.
+    return (settings.BACKEND_URL or settings.FRONTEND_URL or "").rstrip("/")
 
 
 def url_de_webhook(proveedor: str, org: Optional[str]) -> str:

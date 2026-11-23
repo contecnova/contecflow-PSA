@@ -451,6 +451,29 @@ marca su uso en `style`.
 6. Lo que valida el cliente lo vuelve a validar el servidor (422 con un mensaje
    legible).
 
+### 9.1 Alturas, iconos en campos y filas de filtros (23-11-2026)
+
+- **Un alto por tamaño** con tokens: `--alto-control` 38 px (campo, desplegable,
+  fecha, segmentado, botón normal), `--alto-control-sm` 32, `-xs` 26, `-lg` 44.
+  Alto fijo en campos de una línea: el relleno de una pantalla no lo cambia.
+- **Icono dentro del campo**, nunca superpuesto a mano: el componente lo centra,
+  lo oculta al lector y reserva su hueco (`Input icono` / `iconoFinal` /
+  `onLimpiar`). La búsqueda es un componente propio (`Buscador`: lupa, X para
+  vaciar con nombre accesible, espera opcional antes de consultar).
+- **Fila de filtros ancha:** el buscador crece hasta un máximo legible; cada
+  desplegable mide su opción más larga; se salta de línea antes de recortar; con
+  etiquetas, se alinea por abajo.
+- **Columna estrecha:** buscador a todo el ancho, segmentado de botones iguales
+  para 2–4 opciones cortas, y el resto de dos en dos. Nunca tres desplegables
+  que no quepan enteros.
+- **Lista nativa con el tema:** `color-scheme` por tema y opciones con tokens.
+- **Vigilancia barata:** el test de CSS marca alturas de campo a mano y
+  selectores que apuntan a una clase que el componente ya no pone.
+
+Detalle y ejemplos: `frontend/src/components/ui/DESIGN_SYSTEM.md`, «Alturas,
+campos con icono y filas de filtros».
+
+
 ---
 
 ## 10. Texto e idiomas
@@ -530,7 +553,11 @@ dominio, una sola copia, y una prueba que falle si se pinta el código.
 - avisos emergentes anunciados (`aria-live`, `role="alert"` para errores);
 - 450 `aria-label` en 100 ficheros;
 - `jsx-a11y` activo en ESLint;
-- un tema de alto contraste.
+- un tema de alto contraste;
+- listas reordenables también con teclado (menú personalizable, 23-11-2026):
+  botones subir/bajar además del arrastre, anuncio en `aria-live` y el foco
+  que sigue al elemento; el desplegable del menú contraído se abre con el foco
+  y se recorre con flechas (`components/ui/DESIGN_SYSTEM.md`, «Menú lateral»).
 
 **Lo que queda** está en el apartado 15. La auditoría completa es
 `docs/A11Y_WCAG_AUDIT.md`.

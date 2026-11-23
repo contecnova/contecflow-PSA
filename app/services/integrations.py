@@ -5,7 +5,6 @@ Funciones:
   - send_slack_message(webhook_url, text, blocks)
   - send_teams_message(webhook_url, title, text, color)
   - create_jira_issue(config, project_key, summary, description, issue_type)
-  - update_jira_issue(config, issue_key, fields)
   - transition_jira_issue(config, issue_key, transition_name)
   - notify_event(event_type, entity, db) → despacha a todas las integraciones activas
 """
@@ -156,20 +155,21 @@ def create_jira_issue(
     return result
 
 
-def update_jira_issue(config_dict: dict, issue_key: str, fields: dict) -> dict:
-    """Actualiza campos de un issue Jira."""
-    return _jira_request(config_dict, "PUT", f"/issue/{issue_key}", {"fields": fields})
+def _clave(issue_key: str) -> str:
+    """M95: la clave va a la ruta: se escapa (antes `../` o `?` cambiaban la URL)."""
+    from urllib.parse import quote
+    return quote(str(issue_key or ""), safe="")
 
 
 def get_jira_issue(config_dict: dict, issue_key: str) -> dict:
     """Obtiene un issue de Jira."""
-    return _jira_request(config_dict, "GET", f"/issue/{issue_key}")
+    return _jira_request(config_dict, "GET", f"/issue/{_clave(issue_key)}")
 
 
 def transition_jira_issue(config_dict: dict, issue_key: str, transition_name: str) -> dict:
     """Cambia el estado de un issue Jira buscando la transición por nombre."""
     # Obtener transiciones disponibles
-    trans = _jira_request(config_dict, "GET", f"/issue/{issue_key}/transitions")
+    trans = _jira_request(config_dict, "GET", f"/issue/{_clave(issue_key)}/transitions")
     if not trans["ok"]: return trans
 
     transition_id = None
@@ -182,13 +182,18 @@ def transition_jira_issue(config_dict: dict, issue_key: str, transition_name: st
         available = [t["name"] for t in trans["data"].get("transitions", [])]
         return {"ok": False, "error": f"Transición '{transition_name}' no encontrada. Disponibles: {available}"}
 
-    return _jira_request(config_dict, "POST", f"/issue/{issue_key}/transitions",
+    return _jira_request(config_dict, "POST", f"/issue/{_clave(issue_key)}/transitions",
                          {"transition": {"id": transition_id}})
 
 
 def search_jira_issues(config_dict: dict, jql: str, max_results: int = 50) -> dict:
-    """Busca issues en Jira via JQL."""
-    return _jira_request(config_dict, "POST", "/search",
+    """Busca issues en Jira via JQL.
+
+    A56 (auditoría 22-11-2026): `POST /rest/api/3/search/jql` (la ruta `/search`
+    está retirada en Jira Cloud); la respuesta trae `issues`, `nextPageToken` e
+    `isLast`. Aquí una página de `max_results` (el buscador de la pantalla).
+    """
+    return _jira_request(config_dict, "POST", "/search/jql",
                          {"jql": jql, "maxResults": max_results,
                           "fields": ["summary", "status", "priority", "assignee", "labels"]})
 
@@ -247,6 +252,11 @@ EVENT_TEMPLATES = {
 }
 
 
+#: A55: plantilla de los eventos sin una propia: título + resumen.
+_PLANTILLA_GENERICA = ("🔔", "{title}", lambda e: [(k, e.get(k)) for k in ("summary", "resource")
+                                                   if e.get(k)])
+
+
 def notify_event(
     event_type: str,
     entity: dict,
@@ -275,12 +285,12 @@ def notify_event(
     except ImportError:
         return []
 
-    template = EVENT_TEMPLATES.get(event_type)
-    if not template:
-        return []
-
-    emoji, title_tpl, fields_fn = template
-    title  = f"{emoji} " + title_tpl.format(**entity)
+    # A55 (auditoría 22-11-2026): un evento sin plantilla propia sale con la
+    # genérica (antes se perdía: `policy.matched`, `alm.license_reclaim`).
+    emoji, title_tpl, fields_fn = EVENT_TEMPLATES.get(event_type) or _PLANTILLA_GENERICA
+    # M95: un campo que falta en `entity` ya no corta el envío con KeyError.
+    from collections import defaultdict
+    title  = f"{emoji} " + title_tpl.format_map(defaultdict(lambda: "—", {"event_type": event_type, **entity}))
     fields = fields_fn(entity)
 
     configs = db.query(IntegrationConfig).filter(
@@ -369,11 +379,49 @@ def _xero_request(config_dict: dict, method: str, path: str, body=None) -> dict:
         with abrir(req, timeout=outbound_http_timeout(default=15)) as resp:  # noqa: S310
             return {"ok": True, "data": _json.loads(resp.read())}
     except urllib.error.HTTPError as e:
-        err = e.read().decode()[:300]
-        return {"ok": False, "error": f"HTTP {e.code}: {err}"}
+        # M16 (auditoría 22-11-2026): el access token de Xero caduca a los 30
+        # minutos. Con 401 y `refresh_token`, se renueva (OAuth 2.0, grant
+        # `refresh_token`, https://identity.xero.com/connect/token) y se repite
+        # una vez. `config_dict` queda con los tokens nuevos: quien llama los guarda.
+        if e.code == 401 and not config_dict.get("_reintentado") and _refrescar_token_xero(config_dict):
+            return _xero_request({**config_dict, "_reintentado": True}, method, path, body) | {
+                "tokens": {k: config_dict.get(k) for k in ("access_token", "refresh_token")}}
+        logger.warning("Xero %s %s -> HTTP %s", method, path, e.code)
+        return {"ok": False, "error": f"HTTP {e.code}"}   # sin el cuerpo remoto
     except Exception as e:
         logger.warning("Fallo en petición Xero %s %s: %s", method, path, e)
-        return {"ok": False, "error": str(e)}
+        return {"ok": False, "error": "No se pudo conectar con Xero"}
+
+
+def _refrescar_token_xero(config_dict: dict) -> bool:
+    """Renueva el access token de Xero con el refresh token (rotatorio: Xero
+    devuelve también un refresh token nuevo). True si se renovó."""
+    import base64
+    import json as _json
+    import urllib.parse
+    import urllib.request
+    rt, cid, sec = (config_dict.get("refresh_token"), config_dict.get("client_id"),
+                    config_dict.get("client_secret"))
+    if not (rt and cid and sec):
+        return False
+    url = settings.XERO_TOKEN_URL if getattr(settings, "XERO_TOKEN_URL", None) else "https://identity.xero.com/connect/token"
+    req = urllib.request.Request(  # noqa: S310
+        validate_outbound_url(url, field="URL de integración"), method="POST",
+        data=urllib.parse.urlencode({"grant_type": "refresh_token", "refresh_token": rt}).encode(),
+        headers={"Authorization": "Basic " + base64.b64encode(f"{cid}:{sec}".encode()).decode(),
+                 "Content-Type": "application/x-www-form-urlencoded", "Accept": "application/json"})
+    try:
+        with abrir(req, timeout=outbound_http_timeout(default=15)) as resp:  # noqa: S310
+            datos = _json.loads(resp.read())
+    except Exception:
+        logger.warning("Xero: no se pudo renovar el token", exc_info=True)
+        return False
+    if not datos.get("access_token"):
+        return False
+    config_dict["access_token"] = datos["access_token"]
+    if datos.get("refresh_token"):
+        config_dict["refresh_token"] = datos["refresh_token"]
+    return True
 
 
 def _qb_request(config_dict: dict, method: str, path: str, body=None) -> dict:
@@ -387,7 +435,9 @@ def _qb_request(config_dict: dict, method: str, path: str, body=None) -> dict:
     if not access_token:
         return {"ok": False, "error": "Falta access_token de QuickBooks"}
 
-    url  = f"{base_url}{path}?minorversion=65"
+    sep  = "&" if "?" in path else "?"
+    minor = config_dict.get("minor_version") or getattr(settings, "QB_MINOR_VERSION", 65)
+    url  = f"{base_url}{path}{sep}minorversion={minor}"
     data = _json.dumps(body).encode() if body else None
     req  = urllib.request.Request(  # noqa: S310
         validate_outbound_url(url, field="URL de integración"), data=data, method=method,
@@ -401,11 +451,11 @@ def _qb_request(config_dict: dict, method: str, path: str, body=None) -> dict:
         with abrir(req, timeout=outbound_http_timeout(default=15)) as resp:  # noqa: S310
             return {"ok": True, "data": _json.loads(resp.read())}
     except urllib.error.HTTPError as e:
-        err = e.read().decode()[:300]
-        return {"ok": False, "error": f"HTTP {e.code}: {err}"}
+        logger.warning("QuickBooks %s %s -> HTTP %s", method, path, e.code)
+        return {"ok": False, "error": f"HTTP {e.code}"}   # M16: sin el cuerpo remoto
     except Exception as e:
         logger.warning("Fallo en petición QuickBooks %s %s: %s", method, path, e)
-        return {"ok": False, "error": str(e)}
+        return {"ok": False, "error": "No se pudo conectar con QuickBooks"}
 
 
 def push_invoice_to_xero(config_dict: dict, invoice: dict) -> dict:
@@ -414,9 +464,17 @@ def push_invoice_to_xero(config_dict: dict, invoice: dict) -> dict:
     invoice: { number, client_name, client_email, issue_date, due_date,
                subtotal, tax_rate, total, lines: [{description, quantity, unit_price}] }
     """
+    # M16 (auditoría 22-11-2026): importes a céntimos, moneda de la factura
+    # (`CurrencyCode`, ISO 4217) y `TaxType` solo si la conexión lo configura
+    # (sin él Xero aplica el impuesto por defecto de la cuenta; «OUTPUT» fijo no
+    # vale para muchos países). Sin cliente no se inventa «Cliente».
+    if not invoice.get("client_name"):
+        return {"ok": False, "error": "La factura no tiene cliente"}
+    tax_type = config_dict.get("tax_type")
     xero_invoice = {
         "Type":         "ACCREC",
-        "Contact":      {"Name": invoice.get("client_name", "Cliente")},
+        "Contact":      {"Name": invoice["client_name"]},
+        "CurrencyCode": (invoice.get("currency") or "").upper() or None,
         "InvoiceNumber": invoice.get("number", ""),
         "Date":         invoice.get("issue_date", ""),
         "DueDate":      invoice.get("due_date", invoice.get("issue_date", "")),
@@ -426,12 +484,13 @@ def push_invoice_to_xero(config_dict: dict, invoice: dict) -> dict:
             {
                 "Description": l.get("description", "Servicio"),
                 "Quantity":    l.get("quantity", 1),
-                "UnitAmount":  l.get("unit_price", 0),
-                "TaxType":     "OUTPUT",
+                "UnitAmount":  round(float(l.get("unit_price", 0) or 0), 2),
+                **({"TaxType": tax_type} if tax_type else {}),
             }
             for l in (invoice.get("lines") or [{"description": invoice.get("notes", "Servicios"), "quantity": 1, "unit_price": invoice.get("subtotal", 0)}])
         ],
     }
+    xero_invoice = {k: v for k, v in xero_invoice.items() if v is not None}
     result = _xero_request(config_dict, "POST", "/Invoices", {"Invoices": [xero_invoice]})
     if result["ok"]:
         xero_id = result["data"].get("Invoices", [{}])[0].get("InvoiceID")
@@ -439,24 +498,58 @@ def push_invoice_to_xero(config_dict: dict, invoice: dict) -> dict:
     return result
 
 
+def _cliente_de_quickbooks(config_dict: dict, nombre: Optional[str], correo: Optional[str] = None) -> dict:
+    """{"ok", "id"}: el Customer de QuickBooks con ese DisplayName, creado si no existe.
+
+    API de QuickBooks Online: `GET /query?query=select * from Customer where
+    DisplayName = '…'` (comillas simples escapadas con barra) y `POST /customer`.
+    """
+    from urllib.parse import quote
+    if not nombre:
+        return {"ok": False, "error": "La factura no tiene cliente"}
+    literal = str(nombre).replace("\\", "\\\\").replace("'", "\\'")
+    r = _qb_request(config_dict, "GET", "/query?query=" + quote(f"select * from Customer where DisplayName = '{literal}'"))
+    if not r["ok"]:
+        return r
+    encontrados = ((r["data"] or {}).get("QueryResponse") or {}).get("Customer") or []
+    if encontrados:
+        return {"ok": True, "id": encontrados[0].get("Id")}
+    cuerpo = {"DisplayName": str(nombre)[:100]}
+    if correo:
+        cuerpo["PrimaryEmailAddr"] = {"Address": correo}
+    r = _qb_request(config_dict, "POST", "/customer", cuerpo)
+    if not r["ok"]:
+        return r
+    return {"ok": True, "id": ((r["data"] or {}).get("Customer") or {}).get("Id")}
+
+
 def push_invoice_to_quickbooks(config_dict: dict, invoice: dict) -> dict:
     """
     Empuja una factura de Contecflow a QuickBooks Online.
     """
 
-    # Crear el Customer si no existe (simplificado — en producción buscar primero)
+    # M16 (auditoría 22-11-2026): el cliente se busca por nombre (consulta de
+    # la API de QuickBooks) y, si no existe, se crea; antes todas las facturas
+    # iban al cliente «1». El artículo es el configurado (`default_item_id`):
+    # sin él no se envía (antes «1», un artículo cualquiera).
+    cliente = _cliente_de_quickbooks(config_dict, invoice.get("client_name"), invoice.get("client_email"))
+    if not cliente.get("ok"):
+        return cliente
+    if not config_dict.get("default_item_id"):
+        return {"ok": False, "error": "Falta default_item_id en la conexión de QuickBooks"}
     qb_invoice = {
-        "CustomerRef":   {"value": config_dict.get("default_customer_id", "1")},
+        "CustomerRef":   {"value": cliente["id"]},
+        **({"CurrencyRef": {"value": invoice["currency"].upper()}} if invoice.get("currency") else {}),
         "DocNumber":     invoice.get("number", ""),
         "TxnDate":       invoice.get("issue_date", ""),
         "DueDate":       invoice.get("due_date", invoice.get("issue_date", "")),
         "Line": [
             {
                 "DetailType":         "SalesItemLineDetail",
-                "Amount":             l.get("quantity", 1) * l.get("unit_price", 0),
+                "Amount":             round(float(l.get("quantity", 1) or 0) * float(l.get("unit_price", 0) or 0), 2),
                 "Description":        l.get("description", "Servicio"),
                 "SalesItemLineDetail": {
-                    "ItemRef":   {"value": config_dict.get("default_item_id", "1")},
+                    "ItemRef":   {"value": config_dict["default_item_id"]},
                     "Qty":       l.get("quantity", 1),
                     "UnitPrice": l.get("unit_price", 0),
                 },
@@ -548,10 +641,11 @@ def get_slack_webhook_url(db, org_id: str | None) -> str | None:
     dia `SlackConfig` deja de estar donde esta, tiene que verse.
     """
     from app.models.mfa import SlackConfig
-    q = db.query(SlackConfig)
-    if org_id and hasattr(SlackConfig, "organization_id"):
-        q = q.filter(SlackConfig.organization_id == org_id)
-    cfg = q.first()
+    # M95 (auditoría 22-11-2026): sin empresa no hay webhook (antes, el de
+    # cualquier empresa: el aviso salía por el Slack de otra).
+    if not org_id:
+        return None
+    cfg = db.query(SlackConfig).filter(SlackConfig.organization_id == org_id).first()
     return cfg.webhook_url if cfg and hasattr(cfg, "webhook_url") else None
 
 
@@ -707,66 +801,46 @@ def slack_create_task_from_text(db, text: str, user) -> dict:
 
 
 def slack_log_time_from_text(db, text: str, user) -> dict:
-    """Parse text, create an Imputation in the db, and return a Slack response dict."""
+    """Parse text, create an Imputation in the db, and return a Slack response dict.
+
+    Auditoría 22-11-2026 (A34): creaba `Imputation(...)` a mano, sin coste, sin
+    tope, sin cierre de periodo ni pertenencia, con el primer número del texto
+    (también el de `#PRJ-0001`) y el proyecto buscado en todas las empresas.
+    Ahora el proyecto es obligatorio y de la empresa de la persona, las horas
+    son el primer número FUERA del código, y el alta pasa por
+    `imputation_service.crear_imputacion_validada` (las reglas del formulario).
+    """
     import re
-    import uuid
+    from app.core.errores import ErrorDeDominio
+    from app.services.imputation_service.alta import crear_imputacion_validada
 
     if not user:
         return {"response_type": "ephemeral", "text": f"❌ No encontré tu usuario en {NOMBRE_DEL_PRODUCTO}. Contacta con el admin."}
 
-    hours_match = re.search(r'(\d+(?:[.,]\d+)?)', text)
-    if not hours_match:
-        return {"response_type": "ephemeral", "text": "❌ Indica las horas. Ejemplo: `/contecflow tiempo 2.5 #PRJ-0001 Revisión de diseño`"}
+    project_match = re.search(r'#(\S+)', text)
+    sin_codigo = re.sub(r'#\S+', '', text)
+    hours_match = re.search(r'(\d+(?:[.,]\d+)?)', sin_codigo)
+    if not hours_match or not project_match:
+        return {"response_type": "ephemeral", "text": "❌ Indica las horas y el proyecto. Ejemplo: `/contecflow tiempo 2.5 #PRJ-0001 Revisión de diseño`"}
 
     hours = float(hours_match.group(1).replace(',', '.'))
-    project_match = re.search(r'#(\S+)', text)
-    description = re.sub(r'\d+(?:[.,]\d+)?', '', re.sub(r'#\S+', '', text)).strip() or "Imputación desde Slack"
-    project_id = None
-    if project_match:
-        proj = db.query(Project).filter(Project.code.ilike(project_match.group(1).upper())).first()
-        if proj:
-            project_id = proj.id
+    description = re.sub(r'\d+(?:[.,]\d+)?', '', sin_codigo, count=1).strip() or "Imputación desde Slack"
+    q = db.query(Project).filter(Project.code == project_match.group(1).upper())
+    if getattr(user, "organization_id", None):
+        q = q.filter(Project.organization_id == user.organization_id)
+    proj = q.first()
+    if not proj:
+        return {"response_type": "ephemeral", "text": f"❌ No encuentro el proyecto {project_match.group(1)}."}
 
-    imp = Imputation(
-        id=str(uuid.uuid4()), user_id=user.id, project_id=project_id,
-        hours=hours, date=timeutil.today(), description=description,
-    )
-    db.add(imp)
-    db.commit()
+    try:
+        crear_imputacion_validada(user, db, project_id=proj.id, fecha=timeutil.today_for_user(user),
+                                  horas=hours, description=description, is_billable=bool(proj.is_billable))
+    except ErrorDeDominio as exc:
+        db.rollback()
+        return {"response_type": "ephemeral", "text": f"❌ {exc.detail}"}
     return {
         "response_type": "in_channel",
         "text": f"⏱ *{hours}h* registradas para {user.full_name} — {description}",
-    }
-
-
-def slack_create_ticket_from_text(db, text: str, user) -> dict:
-    """Create a Service Desk incident ticket and return a Slack response dict."""
-    import uuid
-
-    prefix = "INC"
-    last_num = db.query(
-        func.max(cast(func.substr(Ticket.number, len(prefix) + 2), Integer))
-    ).filter(Ticket.ticket_type == TicketType.incident).scalar() or 0
-    number = f"{prefix}-{(last_num + 1):04d}"
-    ticket = Ticket(
-        id=str(uuid.uuid4()),
-        number=number,
-        ticket_type=TicketType.incident,
-        title=(text or "Ticket desde Slack")[:255],
-        description=text or "Ticket creado desde Slack",
-        status=TicketStatus.new,
-        priority=TicketPriority.p3_medium,
-        support_level=SupportLevel.l1,
-        requester_user_id=user.id if user else None,
-        requester_name=user.full_name if user else None,
-        source="slack",
-    )
-    db.add(ticket)
-    db.commit()
-    db.refresh(ticket)
-    return {
-        "response_type": "in_channel",
-        "text": f"🎫 Ticket creado: *{ticket.title}* (`{ticket.number}`)",
     }
 
 

@@ -8,6 +8,8 @@ import { useAppT } from '../../../i18n/AppLangContext'
 import { almUsoApi } from '../../../services/api/almUso'
 import type { UsoDeAsignacion, UsoDeEquipo, UsoDeLicencia } from '../../../services/api/almUso'
 import { fmtCurrency, fmtDate, fmtDateTime } from '../../../utils/helpers'
+import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../../../context/AuthContext'
 import { Estado, FiabilidadBadge, nombreDeFuente } from './comun'
 
 function DetalleDeLicencia({ licencia }: { licencia: UsoDeLicencia }) {
@@ -100,7 +102,10 @@ function TablaDeEquipos() {
   return <DataTable columns={columnas} data={data} loading={isLoading} emptyTitle={t('alm_uso.sin_equipos')} />
 }
 
-export default function UsoPanel({ onIr }: { onIr: (tab: string) => void }) {
+export default function UsoPanel() {
+  // 23-11-2026 (A4 del 04b): las fuentes se configuran en /settings/alm-fuentes; aquí solo el aviso.
+  const { puede } = useAuth()
+  const navigate = useNavigate()
   const t = useAppT()
   const [vista, setVista] = useState('licencias')
   const panel = useQuery({ queryKey: ['alm-uso-panel'], queryFn: () => almUsoApi.panel() })
@@ -112,7 +117,7 @@ export default function UsoPanel({ onIr }: { onIr: (tab: string) => void }) {
       {p && p.fuentes_activas === 0 && (
         <EmptyState svgIcon={<Plug size={28} aria-hidden="true" />} title={t('alm_uso.sin_fuentes_titulo')}
           description={t('alm_uso.sin_fuentes_desc')}
-          action={<Button icon={<Plug size={14} />} onClick={() => onIr('fuentes')}>{t('alm_uso.ir_a_fuentes')}</Button>} />
+          action={puede('org.administrar') ? <Button icon={<Plug size={14} />} onClick={() => navigate('/settings/alm-fuentes')}>{t('alm_uso.ir_a_fuentes')}</Button> : null} />
       )}
       {p && (
         <div className="ds-grid-stats almu-kpis">

@@ -5,9 +5,10 @@
 .pol-grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
 .pol-fila { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .pol-fila-fin { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+/* 23-11-2026: igual que el Input/Select del kit (superficie, radio, letra y alto 38 px). */
 .pol-campo {
-  background: var(--surface-1); border: 1px solid var(--surface-4); border-radius: var(--radius-sm, 8px);
-  padding: 6px 10px; color: var(--text-1); font-size: var(--text-sm); font-family: inherit; min-height: 32px;
+  background: var(--surface-3); border: 1px solid var(--surface-4); border-radius: var(--radius-md);
+  padding: 0 12px; color: var(--text-1); font-size: var(--text-base); font-family: inherit; min-height: var(--alto-control);
 }
 .pol-campo:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .pol-campo--corto { width: 110px; }
@@ -76,7 +77,7 @@
 .pol-rejilla { border-collapse: collapse; width: 100%; font-size: var(--text-sm); }
 .pol-rejilla th { text-align: left; padding: 6px 8px; background: var(--surface-3); color: var(--text-2); font-size: var(--text-xs); position: sticky; top: 0; }
 .pol-rejilla td { padding: 2px 4px; border-top: 1px solid var(--surface-3); }
-.pol-rejilla td .pol-campo { width: 100%; min-height: 28px; padding: 3px 6px; }
+.pol-rejilla td .pol-campo { width: 100%; min-height: var(--alto-control-sm); height: var(--alto-control-sm); padding: 0 8px; font-size: var(--text-sm); }
 .pol-rejilla tr[aria-invalid='true'] td { background: color-mix(in srgb, var(--danger) 10%, transparent); }
 
 /* Simulador */

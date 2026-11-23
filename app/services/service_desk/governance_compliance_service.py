@@ -14,7 +14,7 @@ Capacidades:
   4. audit_access_reviews()         — detecta usuarios con accesos sin revisión
      periódica, tickets de acceso pendientes más de 30 días, y cuentas inactivas
      con acceso activo.
-  5. get_executive_dashboard()      — KPIs de alto nivel para CIO/CISO.
+  5. (retirada el 23-11-2026: `get_executive_dashboard` no tenía llamantes).
   6. schedule_compliance_check()    — Celery entrypoint que ejecuta todas las
      auditorías y persiste el resultado en la BD.
 """
@@ -33,6 +33,7 @@ from typing import Optional
 from app.models.service_desk._enums import ESTADOS_DE_PROBLEMA_RESUELTOS, ESTADOS_DE_TICKET_CERRADOS
 from app.models.service_desk import (
     ITSMChangeRequest,
+    ChangeStatus,
     ChangeType,
     MajorIncident,
     Problem,
@@ -70,7 +71,17 @@ def _cmm_level(score: float) -> int:
     return 1
 
 
-_CMM_LABELS = {1: "Initial", 2: "Repeatable", 3: "Defined", 4: "Managed", 5: "Optimized"}
+_CMM_NIVELES = (1, 2, 3, 4, 5)
+
+
+def _g(db: Session, clave: str, **datos) -> str:
+    """Texto del informe en el idioma de la empresa del contexto (`gov.*` en `textos_de_salida`)."""
+    from app.services.textos_de_salida_servicios_m_z import texto_para
+    return texto_para(db, clave, org_id=db.info.get("organization_id"), **datos)
+
+
+def _cmm_label(db: Session, nivel: int) -> str:
+    return _g(db, f"gov.cmm.{nivel}")
 
 
 # ── Incident management audit ─────────────────────────────────────────────────
@@ -108,16 +119,14 @@ def _hallazgo_p1_sin_incidencia_mayor(db: Session, incidentes) -> tuple[int, Opt
     pct = round(len(sin_declarar) / max(len(p1), 1) * 100)
     return min(30, pct // 3), {
         "severity": "high" if pct >= 50 else "medium",
-        "title": "P1 incidents without Major Incident record",
+        "title": _g(db, "gov.inc.p1.titulo"),
         "count": len(sin_declarar),
-        "details": (
-            f"{pct}% of P1 incidents ({len(sin_declarar)}) lack a Major Incident declaration."
-        ),
+        "details": _g(db, "gov.inc.p1.detalle", pct=pct, n=len(sin_declarar)),
         "sample": sin_declarar[:5],
     }
 
 
-def _hallazgo_recurrentes_sin_problema(incidentes) -> tuple[int, Optional[dict]]:
+def _hallazgo_recurrentes_sin_problema(incidentes, db: Session) -> tuple[int, Optional[dict]]:
     """CIs con tres o más incidentes y ningún problema enlazado.
 
     Tres es el corte de ITIL para «esto ya no es casualidad»: a partir de ahí
@@ -138,14 +147,14 @@ def _hallazgo_recurrentes_sin_problema(incidentes) -> tuple[int, Optional[dict]]
 
     return min(20, len(recurrentes) * 4), {
         "severity": "medium",
-        "title": "Recurring incidents without Problem record",
+        "title": _g(db, "gov.inc.recurrentes.titulo"),
         "count": len(recurrentes),
-        "details": f"{len(recurrentes)} CIs had 3+ incidents with no linked Problem.",
+        "details": _g(db, "gov.inc.recurrentes.detalle", n=len(recurrentes)),
         "sample": recurrentes[:5],
     }
 
 
-def _hallazgo_incumplimiento_de_sla(incidentes) -> tuple[int, Optional[dict]]:
+def _hallazgo_incumplimiento_de_sla(incidentes, db: Session) -> tuple[int, Optional[dict]]:
     """Tasa de incumplimiento de SLA por encima del 10 %.
 
     Sólo se miran los resueltos: un incidente abierto todavía puede cumplir.
@@ -161,11 +170,10 @@ def _hallazgo_incumplimiento_de_sla(incidentes) -> tuple[int, Optional[dict]]:
 
     return min(20, int(tasa * 100) // 2), {
         "severity": "high" if tasa > 0.25 else "medium",
-        "title": "SLA resolution breach rate above threshold",
+        "code": "sla_resolution_breach",
+        "title": _g(db, "gov.inc.sla.titulo"),
         "count": len(incumplidos),
-        "details": (
-            f"{round(tasa * 100, 1)}% of resolved incidents breached SLA (target <10%)."
-        ),
+        "details": _g(db, "gov.inc.sla.detalle", tasa=round(tasa * 100, 1)),
     }
 
 
@@ -196,8 +204,8 @@ def audit_incident_management(db: Session, days: int = 30) -> dict:
     findings = []
     for penalizacion, hallazgo in (
         _hallazgo_p1_sin_incidencia_mayor(db, incidentes),
-        _hallazgo_recurrentes_sin_problema(incidentes),
-        _hallazgo_incumplimiento_de_sla(incidentes),
+        _hallazgo_recurrentes_sin_problema(incidentes, db),
+        _hallazgo_incumplimiento_de_sla(incidentes, db),
     ):
         score -= penalizacion
         if hallazgo:
@@ -207,11 +215,8 @@ def audit_incident_management(db: Session, days: int = 30) -> dict:
     return {
         "score": score,
         "findings": findings,
-        "summary": (
-            f"Incident management score: {score}/100 (CMM Level {_cmm_level(score)} — "
-            f"{_CMM_LABELS[_cmm_level(score)]}). "
-            f"Analysed {len(incidentes)} incidents over {days} days."
-        ),
+        "summary": _g(db, "gov.resumen.incidentes", score=score, nivel=_cmm_level(score),
+                      etiqueta=_cmm_label(db, _cmm_level(score)), n=len(incidentes), dias=days),
     }
 
 
@@ -222,7 +227,7 @@ def audit_change_management(db: Session, days: int = 30) -> dict:
 
     Checks:
       - Emergency changes without PIR
-      - Normal changes approved without CAB record (approver_id missing)
+      - Normal changes approved without CAB record (`approved_by` missing or the requester)
       - Changes with high auto-risk score that were applied as standard
       - High rollback usage (pir_success = False rate)
 
@@ -236,7 +241,8 @@ def audit_change_management(db: Session, days: int = 30) -> dict:
         db.query(ITSMChangeRequest)
         .filter(
             ITSMChangeRequest.created_at >= since,
-            ITSMChangeRequest.status.in_(["implemented", "closed_success", "closed_failed"]),
+            ITSMChangeRequest.status.in_([ChangeStatus.implemented, ChangeStatus.post_review,
+                                          ChangeStatus.closed_success, ChangeStatus.closed_failed]),
         )
         .all()
     )
@@ -252,28 +258,35 @@ def audit_change_management(db: Session, days: int = 30) -> dict:
         score -= min(25, pct // 3)
         findings.append({
             "severity": "high" if pct >= 60 else "medium",
-            "title": "Emergency changes without PIR (Post-Implementation Review)",
+            "title": _g(db, "gov.chg.pir.titulo"),
             "count": len(emergency_no_pir),
-            "details": f"{pct}% of emergency changes lack a PIR. ITIL requires PIR for all emergency changes.",
+            "details": _g(db, "gov.chg.pir.detalle", pct=pct),
             "sample": [c.number for c in emergency_no_pir[:5]],
         })
 
     # ── Finding 2: Normal changes without CAB approval ────────────────────────
     normal = [c for c in changes if c.change_type == ChangeType.normal]
-    normal_no_cab = [c for c in normal if not c.approver_id]
+    # Auditoria 2026-11-22 (C-SD5): se miraba `approver_id`, que nadie escribe
+    # (el CAB y la decision del administrador escriben `approved_by`), asi que
+    # el 100 % salia «sin CAB». Tampoco cuenta como aprobado el que aprobo el
+    # propio solicitante.
+    normal_no_cab = [c for c in normal
+                     if not c.approved_by or c.approved_by == getattr(c, "requester_id", None)]
     if normal_no_cab:
         pct = round(len(normal_no_cab) / max(len(normal), 1) * 100)
         score -= min(20, pct // 4)
         findings.append({
             "severity": "high" if pct >= 40 else "medium",
-            "title": "Normal changes without CAB approval record",
+            "title": _g(db, "gov.chg.cab.titulo"),
             "count": len(normal_no_cab),
-            "details": f"{pct}% of normal changes have no approver recorded.",
+            "details": _g(db, "gov.chg.cab.detalle", pct=pct),
             "sample": [c.number for c in normal_no_cab[:5]],
         })
 
     # ── Finding 3: Change failure rate ────────────────────────────────────────
-    failed = [c for c in changes if str(c.status) in ("failed",)]
+    # 2026-11-22 (C-SD5): el estado es `closed_failed` (no "failed") y
+    # `str(enum)` daba "ChangeStatus.x": la tasa de fallos salia siempre 0.
+    failed = [c for c in changes if getattr(c.status, "value", c.status) == ChangeStatus.closed_failed.value]
     if changes:
         failure_rate = len(failed) / len(changes)
         if failure_rate > 0.10:
@@ -281,9 +294,9 @@ def audit_change_management(db: Session, days: int = 30) -> dict:
             score -= penalty
             findings.append({
                 "severity": "high" if failure_rate > 0.20 else "medium",
-                "title": "Change failure rate above threshold",
+                "title": _g(db, "gov.chg.fallos.titulo"),
                 "count": len(failed),
-                "details": f"{round(failure_rate*100, 1)}% of changes failed (target <10%).",
+                "details": _g(db, "gov.chg.fallos.detalle", tasa=round(failure_rate * 100, 1)),
             })
 
     # ── Finding 4: Standard changes with high auto-risk ───────────────────────
@@ -298,18 +311,15 @@ def audit_change_management(db: Session, days: int = 30) -> dict:
             score -= min(15, len(high_risk_standard) * 3)
             findings.append({
                 "severity": "medium",
-                "title": "Standard changes with elevated auto-risk score",
+                "title": _g(db, "gov.chg.estandar.titulo"),
                 "count": len(high_risk_standard),
-                "details": "These changes were classified as Standard but scored ≥55 risk. Consider reclassification.",
+                "details": _g(db, "gov.chg.estandar.detalle", umbral=_riesgo_alto),
                 "sample": [c.number for c in high_risk_standard[:5]],
             })
 
     score = max(0, score)
-    summary = (
-        f"Change management score: {score}/100 (CMM Level {_cmm_level(score)} — "
-        f"{_CMM_LABELS[_cmm_level(score)]}). "
-        f"Analysed {len(changes)} implemented changes over {days} days."
-    )
+    summary = _g(db, "gov.resumen.cambios", score=score, nivel=_cmm_level(score),
+                 etiqueta=_cmm_label(db, _cmm_level(score)), n=len(changes), dias=days)
 
     return {"score": score, "findings": findings, "summary": summary}
 
@@ -342,9 +352,9 @@ def audit_problem_management(db: Session, days: int = 90) -> dict:
         score -= min(25, len(stale_no_rca) * 5)
         findings.append({
             "severity": "high",
-            "title": "Open problems older than 30 days without RCA",
+            "title": _g(db, "gov.prob.rca.titulo"),
             "count": len(stale_no_rca),
-            "details": f"{len(stale_no_rca)} problems are stale with no root cause documented.",
+            "details": _g(db, "gov.prob.rca.detalle", n=len(stale_no_rca)),
             "sample": [p.number for p in stale_no_rca[:5]],
         })
 
@@ -355,17 +365,14 @@ def audit_problem_management(db: Session, days: int = 90) -> dict:
         score -= min(15, len(auto_no_review) * 3)
         findings.append({
             "severity": "medium",
-            "title": "Auto-detected problems awaiting human review",
+            "title": _g(db, "gov.prob.auto.titulo"),
             "count": len(auto_no_review),
-            "details": "Auto-detected problems need RCA validation by a human engineer.",
+            "details": _g(db, "gov.prob.auto.detalle"),
         })
 
     score = max(0, score)
-    summary = (
-        f"Problem management score: {score}/100 (CMM Level {_cmm_level(score)} — "
-        f"{_CMM_LABELS[_cmm_level(score)]}). "
-        f"Analysed {len(problems)} problems over {days} days."
-    )
+    summary = _g(db, "gov.resumen.problemas", score=score, nivel=_cmm_level(score),
+                 etiqueta=_cmm_label(db, _cmm_level(score)), n=len(problems), dias=days)
 
     return {"score": score, "findings": findings, "summary": summary}
 
@@ -414,12 +421,9 @@ def audit_access_reviews(db: Session, days: int = 90) -> dict:
             score -= penalty
             findings.append({
                 "severity": "high" if pct >= 50 else "medium",
-                "title": "Access request tickets unresolved for 30+ days",
+                "title": _g(db, "gov.acc.pendientes.titulo"),
                 "count": len(stale_access),
-                "details": (
-                    f"{len(stale_access)} access request tickets have been open for over 30 days "
-                    f"({pct}% of access tickets in period)."
-                ),
+                "details": _g(db, "gov.acc.pendientes.detalle", n=len(stale_access), pct=pct),
                 "sample": [t.number for t in stale_access[:5]],
             })
     except Exception as exc:
@@ -429,26 +433,26 @@ def audit_access_reviews(db: Session, days: int = 90) -> dict:
     try:
         from app.models.user import User
 
-        inactive_users = (
-            db.query(User)
-            .filter(
-                User.is_active.is_(True),
-                User.last_login.isnot(None),
-                User.last_login <= ninety_days_ago,
-            )
-            .all()
+        q_inactivos = db.query(User).filter(
+            User.is_active.is_(True),
+            User.last_login.isnot(None),
+            User.last_login <= ninety_days_ago,
         )
+        # Auditoria 2026-11-22 (servicios m-z, 4.3): solo las personas de la
+        # empresa del informe, y la muestra con ids, no con correos: el informe
+        # se guarda (`ComplianceReport`) y los correos quedaban en el sin
+        # retencion propia.
+        if db.info.get("organization_id"):
+            q_inactivos = q_inactivos.filter(User.organization_id == db.info["organization_id"])
+        inactive_users = q_inactivos.all()
         if inactive_users:
             score -= min(20, len(inactive_users) * 2)
             findings.append({
                 "severity": "high" if len(inactive_users) > 10 else "medium",
-                "title": "Active accounts with no login in 90+ days",
+                "title": _g(db, "gov.acc.inactivas.titulo"),
                 "count": len(inactive_users),
-                "details": (
-                    f"{len(inactive_users)} user accounts are marked active but have not logged in "
-                    "for 90 or more days. Consider disabling or reviewing these accounts."
-                ),
-                "sample": [u.email for u in inactive_users[:5]],
+                "details": _g(db, "gov.acc.inactivas.detalle", n=len(inactive_users)),
+                "sample": [u.id for u in inactive_users[:5]],
             })
     except Exception as exc:
         logger.debug("Inactive user audit skipped: %s", exc)
@@ -478,23 +482,17 @@ def audit_access_reviews(db: Session, days: int = 90) -> dict:
             score -= min(20, len(unreviewed) * 5)
             findings.append({
                 "severity": "high",
-                "title": "Privileged access tickets without timely review",
+                "title": _g(db, "gov.acc.privilegiados.titulo"),
                 "count": len(unreviewed),
-                "details": (
-                    f"{len(unreviewed)} privileged access tickets (admin/elevated) remain unresolved "
-                    "beyond the 30-day review window. Privileged access should be time-bound and reviewed."
-                ),
+                "details": _g(db, "gov.acc.privilegiados.detalle", n=len(unreviewed)),
                 "sample": [t.number for t in unreviewed[:5]],
             })
     except Exception as exc:
         logger.debug("Privileged access audit skipped: %s", exc)
 
     score = max(0, score)
-    summary = (
-        f"Access reviews score: {score}/100 (CMM Level {_cmm_level(score)} — "
-        f"{_CMM_LABELS[_cmm_level(score)]}). "
-        f"Analysed access management over {days} days."
-    )
+    summary = _g(db, "gov.resumen.accesos", score=score, nivel=_cmm_level(score),
+                 etiqueta=_cmm_label(db, _cmm_level(score)), dias=days)
     return {"score": score, "findings": findings, "summary": summary}
 
 
@@ -509,7 +507,7 @@ def _puntuacion_de_sla(auditoria_incidentes: dict) -> int:
     """
     puntuacion = 100
     for hallazgo in auditoria_incidentes["findings"]:
-        if "SLA" in hallazgo["title"]:
+        if hallazgo.get("code") == "sla_resolution_breach":
             puntuacion = max(0, 100 - hallazgo["count"] * 3)
     return puntuacion
 
@@ -537,18 +535,17 @@ def _puntuacion_de_cmdb(db: Session) -> int:
 #: (hallazgo 18): eran seis `if` seguidos con el texto en línea.
 _RECOMENDACIONES: tuple[tuple[str, int, str], ...] = (
     ("change_management", 70,
-     "Implementar registro formal de aprobación CAB para todos los cambios normales."),
+     "gov.rec.change_management"),
     ("incident_management", 70,
-     "Enlazar incidentes P1 con Major Incident automáticamente al crear el ticket."),
+     "gov.rec.incident_management"),
     ("problem_management", 70,
-     "Establecer SLA interno de 30 días para documentar RCA en problemas abiertos."),
+     "gov.rec.problem_management"),
     ("sla_compliance", 80,
-     "Revisar políticas SLA — breach rate supera el umbral aceptable del 10%."),
+     "gov.rec.sla_compliance"),
     ("asset_cmdb", 60,
-     "Aumentar cobertura de auto-discovery CMDB — menos del 60% de CIs están descubiertos."),
+     "gov.rec.asset_cmdb"),
     ("access_reviews", 70,
-     "Revisar cuentas de usuario inactivas y tickets de acceso sin resolver — implementar "
-     "revisión periódica de accesos (Access Review Campaign)."),
+     "gov.rec.access_reviews"),
 )
 
 #: Orden de gravedad para ordenar los hallazgos. Alfabéticamente `high` iría
@@ -596,7 +593,7 @@ def generate_compliance_report(
     }
     for dim in dimensiones.values():
         dim["cmm_level"] = _cmm_level(dim["score"])
-        dim["cmm_label"] = _CMM_LABELS[dim["cmm_level"]]
+        dim["cmm_label"] = _cmm_label(db, dim["cmm_level"])
 
     global_ = round(sum(
         dimensiones[clave]["score"] * peso for clave, peso in _MATURITY_DIMENSIONS.items()
@@ -614,11 +611,11 @@ def generate_compliance_report(
         "period_days": days,
         "overall_score": global_,
         "cmm_level": _cmm_level(global_),
-        "cmm_label": _CMM_LABELS[_cmm_level(global_)],
+        "cmm_label": _cmm_label(db, _cmm_level(global_)),
         "dimensions": dimensiones,
         "top_findings": hallazgos[:10],
         "recommendations": [
-            texto for dimension, umbral, texto in _RECOMENDACIONES
+            _g(db, texto) for dimension, umbral, texto in _RECOMENDACIONES
             if dimensiones[dimension]["score"] < umbral
         ],
     }
@@ -657,105 +654,6 @@ def _persist_compliance_report(db: Session, report: dict) -> None:
 
 
 # ── Executive dashboard ───────────────────────────────────────────────────────
-
-def get_executive_dashboard(db: Session, days: int = 30) -> dict:
-    """Return a CIO/CISO-level KPI dashboard combining ITSM health indicators.
-
-    Returns::
-
-        {
-          "service_health_score": int,  # 0-100
-          "open_incidents": int,
-          "critical_open": int,
-          "unresolved_problems": int,
-          "pending_changes": int,
-          "sla_compliance_pct": float,
-          "cmm_level": int,
-          "top_risks": [str],
-        }
-    """
-    since = datetime.now(tz=timezone.utc) - timedelta(days=days)
-
-    open_incidents = (
-        db.query(func.count(Ticket.id))
-        .filter(
-            Ticket.ticket_type == TicketType.incident,
-            Ticket.status.notin_(ESTADOS_DE_TICKET_CERRADOS),
-        )
-        .scalar() or 0
-    )
-
-    critical_open = (
-        db.query(func.count(Ticket.id))
-        .filter(
-            Ticket.ticket_type == TicketType.incident,
-            Ticket.priority == TicketPriority.p1_critical,
-            Ticket.status.notin_(ESTADOS_DE_TICKET_CERRADOS),
-        )
-        .scalar() or 0
-    )
-
-    unresolved_problems = (
-        db.query(func.count(Problem.id))
-        .filter(Problem.status.notin_(ESTADOS_DE_PROBLEMA_RESUELTOS))
-        .scalar() or 0
-    )
-
-    pending_changes = (
-        db.query(func.count(ITSMChangeRequest.id))
-        .filter(ITSMChangeRequest.status.in_(["submitted", "cab_review", "approved"]))
-        .scalar() or 0
-    )
-
-    # SLA compliance last N days
-    resolved_recent = (
-        db.query(Ticket)
-        .filter(
-            Ticket.ticket_type == TicketType.incident,
-            Ticket.resolved_at.isnot(None),
-            Ticket.created_at >= since,
-        )
-        .all()
-    )
-    sla_ok = [t for t in resolved_recent if not getattr(t, "sla_resolution_breached", False)]
-    sla_pct = round(len(sla_ok) / len(resolved_recent) * 100, 1) if resolved_recent else 100.0
-
-    # Overall service health score (simplified)
-    health = 100
-    if critical_open:
-        health -= min(30, critical_open * 10)
-    # 19-11-2026: cortes de SLA de la empresa (`app.core.umbrales`); antes 90/85 fijos.
-    from app.core.umbrales import cortes as _cortes
-    sla_aviso, sla_critico = _cortes("sla", db)
-    if sla_pct < sla_aviso:
-        health -= int((sla_aviso - sla_pct) // 2)
-    if unresolved_problems > 5:
-        health -= min(20, (unresolved_problems - 5) * 2)
-    health = max(0, health)
-
-    top_risks: list[str] = []
-    if critical_open:
-        top_risks.append(f"{critical_open} open P1 incident(s) require immediate attention")
-    if sla_pct < sla_critico:
-        top_risks.append(f"SLA compliance at {sla_pct}% — below {sla_critico:g}% target")
-    if unresolved_problems > 10:
-        top_risks.append(f"{unresolved_problems} unresolved problems in backlog")
-
-    compliance_report = generate_compliance_report(db, days=days, persist=False)
-
-    return {
-        "service_health_score": health,
-        "open_incidents": open_incidents,
-        "critical_open": critical_open,
-        "unresolved_problems": unresolved_problems,
-        "pending_changes": pending_changes,
-        "sla_compliance_pct": sla_pct,
-        "cmm_level": compliance_report["cmm_level"],
-        "cmm_label": compliance_report["cmm_label"],
-        "overall_compliance_score": compliance_report["overall_score"],
-        "top_risks": top_risks,
-        "generated_at": datetime.now(tz=timezone.utc).isoformat(),
-    }
 
 
 # ── Celery entrypoint ─────────────────────────────────────────────────────────
@@ -929,6 +827,6 @@ def guardar_contrato_de_calidad(db: _Session, user, contrato: dict) -> None:
             organization_id=_org_de(user),
             key=CLAVE_CONTRATO_DE_CALIDAD,
             value=_json.dumps(contrato),
-            description="Service Desk quality contract",
+            description=_g(db, "gov.contrato_calidad"),
         ))
     db.commit()

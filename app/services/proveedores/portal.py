@@ -28,6 +28,7 @@ validacion de subidas y el antivirus de siempre; el `Document` no tiene
 proyecto, asi que en `/documents` solo lo ven su autor y administracion.
 """
 from __future__ import annotations
+import logging
 
 import uuid
 from datetime import date, datetime, timezone
@@ -235,8 +236,10 @@ def _avisar_responsable(db: Session, sub, informe, persona: str) -> None:
     if not destino:
         return
     try:
-        notify_user(db, destino, "system", f"{sub.name}: informe nuevo del proveedor ({informe.report_type})",
-                    f"{persona} lo ha subido desde el portal del proveedor. Revísalo en su ficha.",
+        from app.services.textos_de_salida_servicios_m_z import aviso_de
+        notify_user(db, destino, "system",
+                    **aviso_de(db, destino, "proveedores.informe_nuevo.titulo", "proveedores.informe_nuevo.cuerpo",
+                               proveedor=sub.name, tipo=informe.report_type, persona=persona),
                     resource="subcontractors", resource_id=sub.id, action_url="/subcontractors")
     except Exception:  # el aviso no tumba el informe
         import logging
@@ -307,7 +310,7 @@ def guardar_adjunto(db: Session, user, sub, r, nombre: str, content_type: str, c
                     max=maximo // (1024 * 1024))
     validate_upload(nombre or "", content_type or "", contenido)
     av, detalle = scan_with_av(contenido)
-    if av == "infected":
+    if av in ("infected", "unavailable"):   # A24: antivirus caído = no se acepta
         audit_log(db, user, "UPLOAD_BLOCKED", "supplier_reports", r.id, nombre, metadata={"antivirus": detalle})
         db.commit()
         raise error(422, "antivirus_bloqueado")
@@ -333,7 +336,7 @@ def guardar_adjunto(db: Session, user, sub, r, nombre: str, content_type: str, c
         try:
             file_storage.delete_file(clave)
         except Exception:
-            pass
+            logging.getLogger(__name__).debug("guardar_adjunto: excepcion ignorada", exc_info=True)
         raise
     db.refresh(r)
     return ser.informe(r)

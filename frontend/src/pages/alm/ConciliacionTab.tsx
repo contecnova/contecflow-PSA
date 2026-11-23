@@ -111,7 +111,7 @@ function EnlazarGasto({ factura, onClose }: { factura: FacturaDeProveedor; onClo
                 <span className="almf-fila__meta">
                   <span className="almf-importe">{fmtCurrency(g.amount, g.currency)}</span>
                   <span>{fmtDate(g.expense_date)}</span>
-                  <span>{t(`gastos.categoria_${g.category}`, g.category)}</span>
+                  <span>{t(`expenses.cat_${g.category}`, g.category)}</span>
                   <span>{t(`alm.expense_status_${g.status}`, g.status)}</span>
                 </span>
               </div>

@@ -122,11 +122,26 @@ def _parecido(buscado: str, real: str, op: str) -> float:
     return difflib.SequenceMatcher(None, b, r).ratio()
 
 
+_PERSONALES = ("email", "mail", "correo", "phone", "telefono", "mobile", "movil", "full_name", "user_name",
+               "username", "first_name", "last_name", "apellido", "requester", "assignee_name", "dni", "nif",
+               "vat", "iban", "address", "direccion", "birth", "nacimiento", "ip_address")
+
+
+def _es_personal(columna: str) -> bool:
+    c = (columna or "").lower()
+    return any(p in c for p in _PERSONALES)
+
+
 def pistas(sql: str, org_id: Optional[str], *, max_valores: int, min_parecido: float,
            max_leidos: int = 500) -> list[dict]:
     """Para cada filtro literal: lo buscado, si existe, los valores reales más parecidos y una muestra."""
     salida = []
     for f in filtros_literales(sql):
+        # M51 (auditoría 22-11-2026): las columnas de datos personales (correo,
+        # teléfono, nombre de persona, documentos…) no dan pistas: sus valores
+        # reales irían al proveedor de IA (minimización, art. 5.1.c RGPD).
+        if _es_personal(f["column"]):
+            continue
         try:
             reales = _existentes(f["table"], f["column"], org_id, max_leidos)
         except Exception:

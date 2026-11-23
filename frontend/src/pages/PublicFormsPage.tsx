@@ -212,7 +212,7 @@ export default function PublicFormsPage() {
     const url = texto ?? getPublicUrl(token)
     const ok = aviso ?? t('public_forms.link_copied')
     if (navigator.clipboard) {
-      navigator.clipboard.writeText(url).then(() => toast.success(ok))
+      navigator.clipboard.writeText(url).then(() => toast.success(ok), () => toast.error(t('public_forms.error_copiar')))
     } else {
       // Fallback for non-HTTPS contexts
       const ta = document.createElement('textarea')

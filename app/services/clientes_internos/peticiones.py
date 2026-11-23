@@ -35,19 +35,13 @@ CANAL = "internal_portal"
 def _entrada(db: Session = None, org_id: Optional[str] = None):
     """El módulo de entrada del flujo de demanda, si existe y (con `db`) la empresa
     tiene algún tipo de solicitud activo en el canal del portal interno."""
-    try:
-        m = importlib.import_module("app.services.demanda.entrada")
-    except ImportError:
-        return None
-    if not all(hasattr(m, n) for n in ("Solicitante", "crear", "listar")):
-        return None
-    if db is not None and hasattr(m, "tipos_del_canal"):
-        try:
-            if not m.tipos_del_canal(db, CANAL, org_id):
-                return None
-        except Exception:
-            logger.warning("flujo de demanda: no se pudieron leer los tipos del canal", exc_info=True)
-            return None
+    # Baja (auditoría 22-11-2026): el flujo de demanda ya existe (migración
+    # 195): se importa directamente. Antes `import_module`/`hasattr`/`except`
+    # escondían cualquier fallo (un error de la base o un nombre cambiado)
+    # detrás de «no hay flujo» y la petición iba a la cartera sin avisar.
+    m = importlib.import_module("app.services.demanda.entrada")
+    if db is not None and not m.tipos_del_canal(db, CANAL, org_id):
+        return None   # la empresa no tiene tipos para este canal: va a la cartera
     return m
 
 

@@ -49,7 +49,7 @@ def _get_setting(db: Session, key: str, org_id: Optional[str]) -> Optional[AppSe
     )
 
 
-def _get_json(db: Session, key: str, org_id: Optional[str], fallback):
+def _get_json_de_ajuste(db: Session, key: str, org_id: Optional[str], fallback):
     row = _get_setting(db, key, org_id)
     if not row or not row.value:
         return fallback
@@ -60,7 +60,7 @@ def _get_json(db: Session, key: str, org_id: Optional[str], fallback):
         return fallback
 
 
-def _set_json(db: Session, key: str, org_id: Optional[str], value: dict | list, description: str) -> None:
+def _set_json_de_ajuste(db: Session, key: str, org_id: Optional[str], value: dict | list, description: str) -> None:
     payload = json.dumps(value, ensure_ascii=False)
     row = _get_setting(db, key, org_id)
     if row:
@@ -73,6 +73,62 @@ def _set_json(db: Session, key: str, org_id: Optional[str], value: dict | list, 
             value=payload,
             description=description,
         ))
+
+
+# Migracion 200: las reglas y su historial de cada empresa viven en
+# `sd_dynamic_form_rules` / `sd_dynamic_form_rule_history` (antes, blobs JSON
+# de `AppSetting`). Las reglas globales del portal (sin empresa) siguen en
+# `AppSetting`: no son de nadie y la tabla exige empresa. `_get_json`/`_set_json`
+# conservan su firma para el endpoint.
+
+def _fila_de_reglas(db: Session, org_id: str):
+    from app.models.service_desk import DynamicFormRule
+    return db.query(DynamicFormRule).filter(DynamicFormRule.organization_id == org_id).first()
+
+
+def _cargar(texto: Optional[str], fallback):
+    try:
+        return json.loads(texto) if texto else fallback
+    except Exception:
+        logging.getLogger(__name__).debug("dynamic_forms: JSON ilegible", exc_info=True)
+        return fallback
+
+
+def _get_json(db: Session, key: str, org_id: Optional[str], fallback):
+    if not org_id:
+        return _get_json_de_ajuste(db, key, org_id, fallback)
+    from app.models.service_desk import DynamicFormRuleHistory
+    fila = _fila_de_reglas(db, org_id)
+    if key == _RULES_KEY:
+        return _cargar(fila.regla_json, fallback) if fila else fallback
+    if key == _HISTORY_KEY:
+        if fila is None:
+            return fallback
+        filas = (db.query(DynamicFormRuleHistory).filter(DynamicFormRuleHistory.rule_id == fila.id)
+                 .order_by(DynamicFormRuleHistory.created_at.desc()).limit(_MAX_HISTORY).all())
+        return [{"snapshot_id": h.id, "created_at": h.created_at.isoformat() if h.created_at else None,
+                 "created_by": h.created_by, "reason": h.reason, "rules": _cargar(h.regla_json, {})}
+                for h in filas]
+    return _get_json_de_ajuste(db, key, org_id, fallback)
+
+
+def _set_json(db: Session, key: str, org_id: Optional[str], value: dict | list, description: str) -> None:
+    if not org_id or key not in (_RULES_KEY, _HISTORY_KEY):
+        _set_json_de_ajuste(db, key, org_id, value, description)
+        return
+    from app.models.service_desk import DynamicFormRule
+    fila = _fila_de_reglas(db, org_id)
+    if key == _RULES_KEY:
+        texto = json.dumps(value, ensure_ascii=False)
+        quien = value.get("updated_by") if isinstance(value, dict) else None
+        version = int(value.get("version", 1)) if isinstance(value, dict) else 1
+        if fila is None:
+            db.add(DynamicFormRule(organization_id=org_id, regla_json=texto, version=version, updated_by=quien))
+        else:
+            fila.regla_json, fila.version, fila.updated_by = texto, version, quien
+        return
+    # El historial se escribe una version cada vez (`_append_history`).
+    raise ValueError("el historial de formularios dinamicos se escribe con _append_history")
 
 
 def _default_rules() -> dict:
@@ -116,23 +172,45 @@ def _default_rules() -> dict:
 def reglas_o_sembrar(db: Session, org_id: Optional[str]) -> dict:
     """Las reglas de la organizacion (`None`: las globales del portal).
 
-    Si aun no hay, siembra las de por defecto y confirma.
+    Si aun no hay, devuelve las de por defecto. Auditoria 2026-11-22 (4.4):
+    antes las sembraba y confirmaba dentro del GET (escritura y commit en una
+    lectura); ahora se guardan la primera vez que alguien las cambia
+    (`_save_rules_with_history` parte de las mismas por defecto).
     """
     rules = _get_json(db, _RULES_KEY, org_id, fallback=None)
     if not isinstance(rules, dict):
         rules = _default_rules()
-        _set_json(db, _RULES_KEY, org_id, rules, "Service Desk dynamic forms rules")
-        db.commit()
     return rules
 
 
 def _append_history(db: Session, org_id: Optional[str], snapshot: dict) -> None:
-    history = _get_json(db, _HISTORY_KEY, org_id, fallback=[])
-    if not isinstance(history, list):
-        history = []
-    history.insert(0, snapshot)
-    history = history[:_MAX_HISTORY]
-    _set_json(db, _HISTORY_KEY, org_id, history, "Service Desk dynamic forms configuration history")
+    if not org_id:
+        history = _get_json_de_ajuste(db, _HISTORY_KEY, org_id, fallback=[])
+        if not isinstance(history, list):
+            history = []
+        history.insert(0, snapshot)
+        _set_json_de_ajuste(db, _HISTORY_KEY, org_id, history[:_MAX_HISTORY],
+                            "Service Desk dynamic forms configuration history")
+        return
+    from app.models.service_desk import DynamicFormRule, DynamicFormRuleHistory
+    fila = _fila_de_reglas(db, org_id)
+    if fila is None:
+        # Primera vez: la version anterior son las de por defecto; se crea la fila.
+        fila = DynamicFormRule(organization_id=org_id, regla_json=json.dumps(snapshot.get("rules") or {},
+                                                                              ensure_ascii=False))
+        db.add(fila)
+        db.flush()
+    db.add(DynamicFormRuleHistory(
+        id=snapshot.get("snapshot_id") or str(uuid4()), organization_id=org_id, rule_id=fila.id,
+        regla_json=json.dumps(snapshot.get("rules") or {}, ensure_ascii=False),
+        reason=(snapshot.get("reason") or None) and str(snapshot.get("reason"))[:200],
+        created_by=snapshot.get("created_by"), created_at=datetime.now(timezone.utc)))
+    db.flush()
+    # Se guardan las ultimas `_MAX_HISTORY` versiones (como antes).
+    sobran = (db.query(DynamicFormRuleHistory.id).filter(DynamicFormRuleHistory.rule_id == fila.id)
+              .order_by(DynamicFormRuleHistory.created_at.desc()).offset(_MAX_HISTORY).all())
+    if sobran:
+        db.query(DynamicFormRuleHistory).filter(DynamicFormRuleHistory.id.in_([s[0] for s in sobran]))             .delete(synchronize_session=False)
 
 
 def _save_rules_with_history(db: Session, org_id: Optional[str], new_rules: dict, user_id: Optional[str], reason: Optional[str]) -> dict:
@@ -245,6 +323,11 @@ def _normalize_mapping_rule(
         tipo, fuente, atributo = _regla_por_nombre_de_columna(col)
 
     return field_id, tipo or "text", fuente, atributo
+
+
+def _valor_de_enum(valor) -> str:
+    """El valor de un enum (auditoria 2026-11-22, 4.4: `str()` daba «CIType.server»)."""
+    return str(getattr(valor, "value", valor) or "")
 
 
 def _pick(obj: object, attr: str, default: str = "") -> str:
@@ -362,7 +445,7 @@ def _context_options_payload(
             {
                 "id": s.id,
                 "name": _pick(s, "name"),
-                "ticket_type": str(getattr(s, "ticket_type", "") or ""),
+                "ticket_type": _valor_de_enum(getattr(s, "ticket_type", None)),
             }
             for s in servicios
             if (not qn) or (qn in _pick(s, "name").lower())
@@ -372,8 +455,8 @@ def _context_options_payload(
                 "id": ci.id,
                 "code": _pick(ci, "code"),
                 "name": _pick(ci, "name"),
-                "ci_type": str(getattr(ci, "ci_type", "") or ""),
-                "status": str(getattr(ci, "status", "") or ""),
+                "ci_type": _valor_de_enum(getattr(ci, "ci_type", None)),
+                "status": _valor_de_enum(getattr(ci, "status", None)),
                 "environment": _pick(ci, "environment"),
 
                 "project_id": getattr(ci, "project_id", None),

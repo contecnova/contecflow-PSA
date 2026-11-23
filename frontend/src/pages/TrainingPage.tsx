@@ -13,7 +13,7 @@ import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { trainingApi, usersApi } from '../services/api'
 import type { PersonaVisible } from '../services/api'
-import type { Certificacion, Curso, EstadoDeInscripcion, Inscripcion } from '../services/api/tipos-personas'
+import type { Certificacion, Curso, EstadoDeInscripcion } from '../services/api/tipos-personas'
 import { Button, Card, IconButton, Modal, Spinner, EmptyState, StatusBadge, Table, Tabs, Select, useErroresDeCampo, Input } from '../components/ui'
 import type { StatusBadgeKind } from '../components/ui/StatusBadge'
 import PageHeader from '../components/layout/PageHeader'
@@ -31,7 +31,6 @@ import { useFormatoMoneda } from '../hooks/useFormatoMoneda'
 type TrainingStatus = EstadoDeInscripcion
 type CourseItem = Curso
 type CertItem = Certificacion
-type EnrollmentItem = Inscripcion
 
 const STATUS_CFG: Record<TrainingStatus, { kind: StatusBadgeKind; label: string }> = {
   planned: { kind: 'accent', label: 'training.status_planned' },
@@ -167,16 +166,16 @@ export default function TrainingPage() {
 
   const { data: courses = [], isLoading: loadC } = useQuery({
     queryKey: ['training-courses'],
-    queryFn: () => trainingApi.courses({}).then(r => r.data).catch((): CourseItem[] => []),
+    queryFn: () => trainingApi.courses({}).then(r => r.data),
   })
   const { data: certs = [], isLoading: loadCert } = useQuery({
     queryKey: ['training-certs'],
-    queryFn: () => trainingApi.certs({}).then(r => r.data).catch((): CertItem[] => []),
+    queryFn: () => trainingApi.certs({}).then(r => r.data),
     enabled: tab === 'certs',
   })
   const { data: enrollments = [] } = useQuery({
     queryKey: ['training-enrollments'],
-    queryFn: () => trainingApi.enrollments({}).then(r => r.data).catch((): EnrollmentItem[] => []),
+    queryFn: () => trainingApi.enrollments({}).then(r => r.data),
     enabled: tab === 'enrollments',
   })
 

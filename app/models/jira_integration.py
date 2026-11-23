@@ -49,7 +49,7 @@ class JiraConfig(Base):
     __tablename__ = "sd_jira_configs"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     name = Column(String(100), nullable=False)
 
     # Connection
@@ -87,7 +87,7 @@ class JiraConfig(Base):
     last_full_sync_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-    created_by_user_id = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    created_by_user_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
 
     sync_maps = relationship("JiraSyncMap", back_populates="config",
                              cascade="all, delete-orphan")
@@ -100,7 +100,7 @@ class JiraSyncMap(Base):
     __tablename__ = "sd_jira_sync_map"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     config_id = Column(String(36), ForeignKey("sd_jira_configs.id", ondelete="CASCADE"),
                        nullable=False, index=True)
     ticket_id = Column(String(36), ForeignKey("sd_tickets.id", ondelete="CASCADE"),
@@ -125,7 +125,7 @@ class JiraSyncLog(Base):
     __tablename__ = "sd_jira_sync_log"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     config_id = Column(String(36), ForeignKey("sd_jira_configs.id", ondelete="CASCADE"),
                        nullable=False, index=True)
     ticket_id = Column(String(36), ForeignKey("sd_tickets.id", ondelete="SET NULL"),
@@ -150,7 +150,7 @@ class JiraFieldMap(Base):
     __tablename__ = "sd_jira_field_map"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     config_id = Column(String(36), ForeignKey("sd_jira_configs.id", ondelete="CASCADE"),
                        nullable=False, index=True)
     contecflow_field = Column(String(100), nullable=False)   # e.g. "priority", "tags"

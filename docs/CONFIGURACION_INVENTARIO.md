@@ -1,5 +1,7 @@
 # Inventario de la configuración del operador
 
+> **Documento histórico (2026-11-18, antes de la reorganización): no refleja necesariamente el código actual; fuente viva: `docs/CONFIGURACION.md` y el catálogo de ajustes `RUNTIME_FLAG_GROUPS` (`app/services/settings_service/_catalogo.py`); las líneas que cita de `app/core/deps.py` (188-205) hoy son 211-214.**
+
 **Estado medido el 18-11-2026, antes de la reorganización** (commit `a204e7f1`, `main`).
 
 Referencia del estado ANTERIOR de todo lo que el operador configura: dónde está cada ajuste, qué endpoint y qué tabla toca, quién lo ve en el frontend, qué exige el backend, qué diseño usa y qué falla. Todo lo de aquí se ha comprobado leyendo el código (grep y AST de los decoradores `@router` y de los `Depends(...)`). Lo que no se comprobó se marca como **[no verificado]**.

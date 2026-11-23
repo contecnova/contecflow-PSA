@@ -4,8 +4,8 @@ import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { createPortal } from 'react-dom'
 import { useQuery } from '@tanstack/react-query'
 import { useAuth } from '../../context/AuthContext'
-import { Avatar, IconButton, Pulsable } from '../ui'
-import api, { projectsApi, tasksApi } from '../../services/api'
+import { Avatar, Button, IconButton, Pulsable } from '../ui'
+import { armazonApi, imputationsApi, projectsApi, tasksApi } from '../../services/api'
 import GlobalSearch from './GlobalSearch'
 import QuickCreateMenu from './QuickCreateMenu'
 import NexusAssistPanel from './NexusAssistPanel'
@@ -23,153 +23,31 @@ import OfflineIndicator from '../OfflineIndicator'
 import { useSwipeGesture } from '../../hooks/useSwipeGesture'
 import { useAppLang, EVENTO_IDIOMA_ELEGIDO } from '../../i18n/AppLangContext'
 import {
-  LayoutDashboard, CheckSquare, Clock, Calendar, Umbrella, AlarmClockPlus,
-  FileText, Receipt, CheckCircle, Folder, RefreshCw, Sparkles,
-  BarChart2, Target, Package, ArrowLeftRight, AlertTriangle, Link,
-  GitBranch, BookOpen, Mic, Users, TrendingUp, Award, Network,
-  Trophy, Star, UserCheck, Megaphone, CreditCard, DollarSign,
-  Briefcase, HardHat, Calculator, ThumbsUp, MessageSquare, Monitor,
-  Key, Bell, Download, Zap, Eye, Brain, Bot, Settings, Search, LogOut, ChevronRight, ChevronLeft, Menu, X, Activity,
-  Timer, Flag, Layers, Shield, Keyboard, BarChart, LayoutGrid,
-  Wrench, FolderOpen, ScrollText, ClipboardCheck,
-  CalendarRange, Plus, Inbox, Database, MessageSquareText, Lightbulb,
-  Laptop, UserMinus, Globe, ClipboardList, Building, Building2,
+  Calendar, MessageSquare, Brain, Search, LogOut, ChevronRight, ChevronLeft, Menu, X,
+  Timer, Keyboard, Plus, Inbox, Mic, SlidersHorizontal, RotateCcw,
 } from 'lucide-react'
 import { ANIMATION_FAST_MS, CLOCK_TICK_MS, DROPDOWN_DELAY_MS, POLL_FAST_MS, STALE_5_MIN_MS, STALE_LIVE_MS } from '../../constants/timings'
 import './Layout.css'
+// 23-11-2026 (menú personalizable): categorías y pestañas en `menuLateral.tsx`;
+// orden y ocultas de cada persona en `permisos/menuPersonal.ts`.
+import {
+  NAV_GROUPS, PANEL_DE_CATEGORIA, EVENTO_PERSONALIZAR_MENU, getGroupLabel, getNavLabel,
+  type NavGroupConfig, type NavItemConfig, type TFn,
+} from './menuLateral'
+import EditorDeMenu from './EditorDeMenu'
+import useMenuPersonal from '../../hooks/useMenuPersonal'
+import { aplicarMenu } from '../../permisos/menuPersonal'
 import { puedeAbrir } from '../../permisos/navegacion'
 import { px } from '../../utils/estilos'
 
-const ROUTE_LABELS: Record<string, string> = {
-  '/work-dashboard': 'Dashboard', '/projects-dashboard': 'Dashboard',
-  '/team-dashboard': 'Dashboard', '/finance-dashboard': 'Dashboard',
-  '/support-dashboard': 'Dashboard',
-  '/tasks': 'Tasks',
-  '/time': 'Tiempo', '/imputar': 'Log hours', '/timer': 'Timer', '/timesheets': 'Timesheets',
-  '/calendar': 'Calendar', '/absences': 'Absences', '/overtime': 'Overtime', '/documents': 'Documents',
-  '/expenses': 'Expenses', '/approvals': 'Approvals', '/projects': 'Projects',
-  '/sprints': 'Sprints', '/sprint-planning': 'Sprint Planning AI', '/gantt': 'Gantt', '/epic-gantt': 'Epic Gantt',
-  '/epics': 'Epics & Roadmap', '/deliverables': 'Deliverables', '/changes': 'Changes',
-  '/risks': 'Risks', '/dependencies': 'Dependencies', '/git': 'Git',
-  '/wiki': 'Wiki', '/meetings-ai': 'Meeting Assistant',
-  '/resources': 'Resources', '/resources/planning': 'Resource planning', '/portfolio/intake': 'Portfolio intake', '/demand': 'Demand requests', '/capacity': 'Capacity Planning',
-  '/resource-forecast': 'Resource Forecast', '/resource-scheduler': 'Visual Scheduler', '/skills': 'Skills', '/org-chart': 'Org Chart',
-  '/okrs': 'OKRs', '/performance-reviews': 'Performance Reviews', '/training': 'Training & Certs',
-  '/clients': 'Clients / CRM', '/pipeline': 'Sales Pipeline', '/contracts': 'Contracts',
-  '/invoices': 'Invoicing', '/milestone-billing': 'Milestone Billing',
-  '/profitability': 'Profitability', '/revenue': 'Revenue Recognition', '/budgets': 'Budgets',
-  '/rate-cards': 'Rate Cards', '/subcontractors': 'Subcontractors', '/supplier-portal': 'Supplier portal',
-  '/internal-clients': 'Internal clients', '/mi-departamento': 'My department',
-  '/scenarios': 'What-If Scenarios', '/nps': 'NPS & Health',
-  '/service-desk': 'Service Desk', '/cmdb': 'CMDB', '/sd/workflow-designer': 'Workflow Designer', '/alm': 'Licenses & Assets',
-  '/alm/altas-y-bajas': 'Onboarding & offboarding', '/my-equipment': 'My equipment & licences',
-  '/sla-calendars': 'SLA Calendars', '/agent-dashboard': 'Agent Dashboard',
-  '/reports': 'Reports', '/report-builder': 'Report Builder',
-  '/executive': 'Executive Dashboard',
-  '/data-explorer': 'Data Explorer', '/ask-company': 'Ask the company', '/lessons': 'Lessons learned', '/predictions': 'Predictions',
-  '/data-platform': 'Data Platform', '/data-governance': 'Data Governance',
-  '/evm': 'EVM — Earned Value', '/portfolio': 'Project Portfolio', '/sprint-charts': 'Burnup & Velocity',
-  '/cumulative-flow': 'Cumulative Flow', '/risk-scores': 'Project Risk',
-  '/alerts': 'Alerts', '/exports': 'Data Export',
-  '/nexus-agent': 'NexusAgent', '/oracle': 'NexusOracle',
-  '/semantic-engine': 'AI Assignment', '/automations': 'Automations',
-  '/bpm': 'BPM Procesos',
-  '/chat': 'Chat',
-  '/settings/chat-admin': 'Admin Collaboration',
-  '/settings': 'Settings', '/workflows': 'Workflows', '/issue-types': 'Issue Types',
-  '/custom-fields': 'Custom Fields', '/project-permissions': 'Project Permissions',
-  '/ai-hub': 'AI Hub', '/esign': 'E-Signature', '/m365': 'Microsoft 365',
-  '/import': 'Import Data', '/mfa': 'MFA Security',
-  '/governance': 'AI Governance', '/grc': 'GRC / SoD', '/organizations': 'Organizations',
-  '/enterprise': 'Enterprise', '/webhook-log': 'Webhook Log',
-  '/raci': 'RACI Matrix', '/changelog': 'Changelog', '/uat': 'UAT',
-  '/jira-integration': 'Jira Integration',
-  '/project-templates': 'Project Templates',
-  '/search': 'Search',
-  '/public-forms': 'Public Forms',
-  '/developer': 'Developer Portal',
-  '/settings/approval-workflows': 'Approval Flows (Config)',
-  '/settings/policies': 'Policies & Rules',
-  '/settings/project-workflows': 'Project Issue Flows',
+// Auditoría 22-11-2026 (M2 y B1 del 04): fuera `ROUTE_LABELS` (≈20 rutas retiradas y
+// literales en inglés) y `ROUTE_SECTION` en inglés/castellano. Las rutas que no están
+// en el menú dicen aquí a qué grupo pertenecen y la miga sale traducida (`nav.group_*`).
+const GRUPO_DE_RUTA_FUERA_DEL_MENU: Record<string, string> = {
+  '/calendar': 'group_work', '/timer': 'group_work', '/timesheets': 'group_work', '/imputar': 'group_work',
+  '/chat': 'group_work', '/search': 'group_work', '/inbox': 'group_work',
+  '/contracts-ai': 'group_business',
 }
-
-const ROUTE_SECTION: Record<string, string> = {
-  '/work-dashboard': 'My Work', '/projects-dashboard': 'Projects',
-  '/team-dashboard': 'Team', '/finance-dashboard': 'Finance',
-  '/support-dashboard': 'Support',
-  '/tasks': 'My Work', '/time': 'My Work', '/imputar': 'My Work', '/chat': 'My Work', '/settings/chat-admin': 'Settings',
-  '/timer': 'My Work', '/timesheets': 'My Work', '/calendar': 'My Work',
-  '/absences': 'My Work', '/overtime': 'My Work', '/documents': 'My Work', '/expenses': 'My Work',
-  '/approvals': 'My Work',
-  '/projects': 'Projects', '/projects/:id': 'Detalle de proyecto', '/sprints': 'Projects', '/sprint-planning': 'Projects',
-  '/raci': 'Projects', '/changelog': 'Projects', '/uat': 'Projects',
-  '/gantt': 'Projects', '/epic-gantt': 'Projects', '/epics': 'Projects', '/deliverables': 'Projects',
-  '/changes': 'Projects', '/risks': 'Projects', '/dependencies': 'Projects',
-  '/git': 'Projects', '/wiki': 'Projects', '/meetings-ai': 'My Work',
-  '/resources': 'Team', '/resources/planning': 'Team', '/portfolio/intake': 'Analytics', '/demand': 'Projects', '/capacity': 'Team', '/resource-forecast': 'Team', '/resource-scheduler': 'Team',
-  '/skills': 'Team', '/org-chart': 'Team', '/okrs': 'Team',
-  '/performance-reviews': 'Team', '/training': 'Team',
-  '/clients': 'Finance', '/pipeline': 'Finance', '/contracts': 'Finance',
-  '/invoices': 'Finance', '/milestone-billing': 'Finance',
-  '/profitability': 'Finance', '/revenue': 'Finance', '/budgets': 'Finance',
-  '/rate-cards': 'Finance', '/subcontractors': 'Finance', '/supplier-portal': 'My Work',
-  '/internal-clients': 'Finance', '/mi-departamento': 'My Work',
-  '/scenarios': 'Finance', '/nps': 'Finance',
-  '/service-desk': 'Support', '/cmdb': 'Support', '/sd/workflow-designer': 'Support', '/alm': 'Support', '/alm/altas-y-bajas': 'Support', '/my-equipment': 'My Work',
-  '/sla-calendars': 'Support', '/agent-dashboard': 'Support',
-  '/reports': 'Analytics', '/report-builder': 'Analytics',
-  '/executive': 'Analytics',
-  '/data-explorer': 'Analytics', '/ask-company': 'Analytics', '/lessons': 'Projects', '/predictions': 'Analytics',
-  '/data-platform': 'Analytics', '/data-governance': 'Analytics',
-  '/evm': 'Analytics', '/portfolio': 'Analytics', '/sprint-charts': 'Analytics',
-  '/cumulative-flow': 'Analytics', '/risk-scores': 'Analytics',
-  '/alerts': 'Analytics', '/exports': 'Analytics',
-  '/nexus-agent': 'AI', '/oracle': 'AI', '/semantic-engine': 'AI', '/automations': 'AI', '/bpm': 'AI',
-  '/settings': 'Settings', '/workflows': 'Settings', '/issue-types': 'Settings',
-  '/custom-fields': 'Settings', '/project-permissions': 'Settings',
-  '/ai-hub': 'Settings', '/esign': 'Settings', '/m365': 'Settings',
-  '/import': 'Settings', '/mfa': 'Settings',
-  '/governance': 'Settings', '/grc': 'Settings', '/organizations': 'Settings',
-  '/enterprise': 'Settings', '/webhook-log': 'Settings',
-  '/jira-integration': 'Settings',
-  '/project-templates': 'Settings',
-  '/settings/approval-workflows': 'Settings',
-  '/settings/policies': 'Settings',
-  '/settings/project-workflows': 'Settings',
-  '/search': 'My Work',
-  '/public-forms': 'Settings',
-  '/developer': 'Settings',
-}
-
-const PATH_NAV_KEY: Record<string, string> = {
-  '/work-dashboard': 'work_dashboard', '/projects-dashboard': 'projects_dashboard',
-  '/my-equipment': 'my_equipment', '/alm/altas-y-bajas': 'alm_onboarding_offboarding',
-  '/portfolio/intake': 'portfolio_intake', '/demand': 'demand', '/resources/planning': 'resource_planning',
-  '/team-dashboard': 'team_dashboard', '/finance-dashboard': 'finance_dashboard',
-  '/support-dashboard': 'support_dashboard',
-  '/time': 'time', '/imputar': 'log_hours', '/meetings-ai': 'meetings',
-  '/sprint-planning': 'sprint_planning', '/resource-forecast': 'resource_forecast', '/resource-scheduler': 'resource_scheduler',
-  '/org-chart': 'org_chart', '/milestone-billing': 'milestone_billing',
-  '/rate-cards': 'rate_cards', '/service-desk': 'service_desk',
-  '/agent-dashboard': 'agent_dashboard', '/report-builder': 'report_builder',
-  '/data-explorer': 'data_explorer', '/ask-company': 'ask_company', '/lessons': 'lessons', '/predictions': 'predictions',
-  '/data-platform': 'data_platform', '/data-governance': 'data_governance',
-  '/sprint-charts': 'sprint_charts', '/cumulative-flow': 'cumulative_flow',
-  '/risk-scores': 'risk_scores', '/ai-hub': 'ai_hub', '/nexus-agent': 'nexus_agent',
-  '/semantic-engine': 'semantic_engine', '/webhook-log': 'webhook_log',
-  '/issue-types': 'issue_types', '/custom-fields': 'custom_fields',
-  '/project-permissions': 'project_permissions', '/sla-calendars': 'sla_calendars',
-  '/performance-reviews': 'performance_reviews', '/kanban': 'kanban',
-  '/exports': 'data_exports', '/jira-integration': 'jira_integration',
-  '/public-forms': 'public_forms',
-  '/developer': 'developer_portal',
-  '/settings/approval-workflows': 'approval_flows',
-  '/settings/policies': 'policies',
-  '/settings/project-workflows': 'project_issue_flows',
-  '/sd/workflow-designer': 'sd_workflow_designer',
-}
-
-const SZ = 13
 
 const NAV_WORKSPACE_KEY = 'contecflow_nav_workspace'
 const WORKSPACE_GROUPS: Record<string, string[]> = {
@@ -187,118 +65,6 @@ const WORKSPACE_GROUPS: Record<string, string[]> = {
 // Textos del armazón: diccionarios, módulo `layout_texto` (es/en/zh).
 const CLAVES_LAYOUT = ["shortcut_global_search", "shortcut_ai_assist", "shortcut_view_shortcuts", "shortcut_close_modal", "shortcut_toggle_sidebar", "shortcut_go_tasks", "shortcut_go_projects", "shortcut_go_log_hours", "shortcut_go_service_desk", "shortcuts", "keyboard_shortcuts", "shortcuts_hint", "shortcuts_hint_suffix", "close", "recent", "workspace", "workspace_all", "workspace_work", "workspace_projects", "workspace_team", "workspace_business", "workspace_support", "workspace_analytics", "workspace_ai", "workspace_settings", "global_search_title", "open_global_search", "search_placeholder", "ai_title", "open_ai", "ai_short", "active_alerts_title", "pending_approvals_title", "skip_to_content", "main_navigation", "side_menu", "expand_sidebar", "collapse_sidebar", "main_content", "open_menu"] as const
 
-const NAV_GROUPS: NavGroupConfig[] = [
-  { id: 'trabajo', label: 'My Work', groupKey: 'group_work', icon: <Clock size={12} />, items: [
-    { to: '/work-dashboard',  icon: <LayoutGrid size={SZ} />,   label: 'Mi día' },
-    { to: '/inbox',           icon: <Inbox size={SZ} />,        label: 'Bandeja de entrada' },
-    { to: '/tasks',           icon: <CheckSquare size={SZ} />,  label: 'Tasks' },
-    { to: '/time',            icon: <Clock size={SZ} />,        label: 'Tiempo' },
-    { to: '/meetings-ai',     icon: <Mic size={SZ} />,            label: 'Meeting Assistant' },
-    { to: '/absences',        icon: <Umbrella size={SZ} />,     label: 'Absences' },
-    { to: '/overtime',        icon: <AlarmClockPlus size={SZ} />,label: 'Overtime' },
-    { to: '/documents',       icon: <FileText size={SZ} />,     label: 'Documents' },
-    { to: '/expenses',        icon: <Receipt size={SZ} />,      label: 'Expenses' },
-    { to: '/approvals',       icon: <CheckCircle size={SZ} />,  label: 'Approval Inbox' },
-    // Licencias y hardware, fase 4: la ve toda persona con sesión (cada uno lo suyo).
-    { to: '/my-equipment',    icon: <Laptop size={SZ} />,       label: 'My equipment & licences' },
-    // Migración 191: portal del proveedor (solo externos con `proveedores.portal`).
-    { to: '/supplier-portal', icon: <Globe size={SZ} />,        label: 'Supplier portal' },
-    // Clientes internos (22-11-2026): portal de la unidad interna (`interno.portal`).
-    { to: '/mi-departamento', icon: <Building size={SZ} />,     label: 'My department' },
-  ]},
-  { id: 'proyectos', label: 'Projects', groupKey: 'group_projects', icon: <Folder size={12} />, items: [
-    { to: '/projects-dashboard', icon: <LayoutGrid size={SZ} />,  label: 'Salud del portfolio' },
-    { to: '/projects',        icon: <FolderOpen size={SZ} />,     label: 'Projects' },
-    { to: '/lessons',         icon: <Lightbulb size={SZ} />,      label: 'Lessons learned' },
-    { to: '/sprints',         icon: <RefreshCw size={SZ} />,      label: 'Sprints' },
-    { to: '/sprint-planning', icon: <Sparkles size={SZ} />,       label: 'Sprint Planning AI' },
-    { to: '/raci',            icon: <Shield size={SZ} />,          label: 'RACI Matrix' },
-    { to: '/changelog',       icon: <ScrollText size={SZ} />,      label: 'Changelog' },
-    { to: '/uat',            icon: <ClipboardCheck size={SZ} />,  label: 'UAT' },
-    { to: '/gantt',           icon: <BarChart2 size={SZ} />,      label: 'Gantt' },
-    // Auditoria 2026-11 (#45): /epic-gantt existia sin entrada en el menu.
-    { to: '/epic-gantt',      icon: <BarChart2 size={SZ} />,      label: 'Gantt de épicas' },
-    { to: '/epics',           icon: <Target size={SZ} />,         label: 'Epics & Roadmap' },
-    { to: '/deliverables',    icon: <Package size={SZ} />,        label: 'Deliverables' },
-    { to: '/changes',         icon: <ArrowLeftRight size={SZ} />, label: 'Changes' },
-    // 22-11-2026: expedientes del flujo de demanda configurable.
-    { to: '/demand',          icon: <ClipboardList size={SZ} />,  label: 'Demand requests' },
-    { to: '/risks',           icon: <AlertTriangle size={SZ} />,  label: 'Risks' },
-    { to: '/dependencies',    icon: <Link size={SZ} />,           label: 'Dependencies' },
-    { to: '/git',             icon: <GitBranch size={SZ} />,      label: 'Git Integration' },
-    { to: '/wiki',            icon: <BookOpen size={SZ} />,       label: 'Wiki' },
-  ]},
-  { id: 'equipo', label: 'Team & People', groupKey: 'group_team', icon: <Users size={12} />, items: [
-    { to: '/team-dashboard',  icon: <LayoutGrid size={SZ} />,     label: 'Capacidad del equipo' },
-    { to: '/resources',           icon: <Users size={SZ} />,      label: 'Resources' },
-    { to: '/resources/planning',  icon: <CalendarRange size={SZ} />, label: 'Resource planning' },
-    { to: '/capacity',            icon: <TrendingUp size={SZ} />, label: 'Capacity' },
-    { to: '/resource-forecast',   icon: <BarChart size={SZ} />,   label: 'Resource Forecast' },
-    { to: '/resource-scheduler',  icon: <CalendarRange size={SZ} />, label: 'Visual Scheduler' },
-    { to: '/skills',              icon: <Award size={SZ} />,      label: 'Skills' },
-    { to: '/org-chart',           icon: <Network size={SZ} />,    label: 'Org Chart' },
-    { to: '/okrs',                icon: <Trophy size={SZ} />,     label: 'OKRs' },
-    { to: '/performance-reviews', icon: <Star size={SZ} />,       label: 'Performance Reviews' },
-    { to: '/training',            icon: <BookOpen size={SZ} />,   label: 'Training & Certs' },
-  ]},
-  { id: 'negocio', label: 'Clients & Finance', groupKey: 'group_business', icon: <DollarSign size={12} />, items: [
-    { to: '/finance-dashboard', icon: <LayoutGrid size={SZ} />,  label: 'Resumen financiero' },
-    { to: '/clients',           icon: <UserCheck size={SZ} />,   label: 'Clients / CRM' },
-    { to: '/pipeline',          icon: <Megaphone size={SZ} />,   label: 'Sales Pipeline' },
-    { to: '/contracts',         icon: <ScrollText size={SZ} />,  label: 'Contracts' },
-    { to: '/invoices',          icon: <CreditCard size={SZ} />,  label: 'Invoicing' },
-    { to: '/milestone-billing', icon: <Flag size={SZ} />,        label: 'Milestone Billing' },
-    { to: '/profitability',     icon: <TrendingUp size={SZ} />,  label: 'Profitability' },
-    { to: '/revenue',           icon: <DollarSign size={SZ} />,  label: 'Revenue Recognition' },
-    { to: '/budgets',           icon: <Briefcase size={SZ} />,   label: 'Budgets' },
-    { to: '/subcontractors',    icon: <HardHat size={SZ} />,     label: 'Subcontractors' },
-    // Clientes internos (22-11-2026): cuadro de dirección, cargos y beneficios (`interno.gestionar`).
-    { to: '/internal-clients',  icon: <Building2 size={SZ} />,   label: 'Internal clients' },
-    { to: '/scenarios',         icon: <Calculator size={SZ} />,  label: 'What-If Scenarios' },
-    { to: '/nps',               icon: <ThumbsUp size={SZ} />,    label: 'NPS & Health' },
-  ]},
-  { id: 'soporte', label: 'Support & ITSM', groupKey: 'group_support', icon: <MessageSquare size={12} />, items: [
-    { to: '/support-dashboard', icon: <LayoutGrid size={SZ} />,  label: 'Estado del soporte' },
-    { to: '/service-desk',    icon: <MessageSquare size={SZ} />, label: 'Service Desk' },
-    { to: '/cmdb',            icon: <Monitor size={SZ} />,       label: 'CMDB' },
-    { to: '/alm',             icon: <Key size={SZ} />,           label: 'Licenses & Assets' },
-    { to: '/alm/altas-y-bajas', icon: <UserMinus size={SZ} />,   label: 'Onboarding & offboarding' },
-    { to: '/agent-dashboard', icon: <LayoutGrid size={SZ} />,    label: 'Agent Dashboard' },
-  ]},
-  { id: 'analisis', label: 'Analytics & BI', groupKey: 'group_analytics', icon: <BarChart2 size={12} />, items: [
-    { to: '/executive',       icon: <LayoutDashboard size={SZ} />, label: 'Executive Dashboard' },
-    { to: '/data-explorer',   icon: <Search size={SZ} />,          label: 'Data Explorer' },
-    { to: '/ask-company',     icon: <MessageSquareText size={SZ} />, label: 'Ask the company' },
-    { to: '/reports',         icon: <FileText size={SZ} />,        label: 'Reports' },
-    { to: '/report-builder',  icon: <Wrench size={SZ} />,          label: 'Report Builder' },
-    { to: '/predictions',     icon: <Brain size={SZ} />,           label: 'Predictions' },
-    { to: '/alerts',          icon: <Bell size={SZ} />,            label: 'Alerts' },
-    { to: '/evm',             icon: <BarChart size={SZ} />,        label: 'EVM — Earned Value' },
-    { to: '/portfolio',       icon: <Layers size={SZ} />,          label: 'Project Portfolio' },
-    { to: '/portfolio/intake', icon: <Inbox size={SZ} />,          label: 'Portfolio intake' },
-    { to: '/sprint-charts',   icon: <Activity size={SZ} />,        label: 'Burnup & Velocity' },
-    { to: '/cumulative-flow', icon: <BarChart2 size={SZ} />,       label: 'Cumulative Flow' },
-    { to: '/risk-scores',     icon: <Shield size={SZ} />,          label: 'Project Risk' },
-    { to: '/exports',         icon: <Download size={SZ} />,        label: 'Data Export' },
-    { to: '/data-platform',   icon: <Database size={SZ} />,        label: 'Data Platform' },
-    { to: '/data-governance', icon: <Shield size={SZ} />,          label: 'Data Governance' },
-  ]},
-  { id: 'ia', label: 'AI & Automation', groupKey: 'group_ai', icon: <Brain size={12} />, items: [
-    { to: '/nexus-agent',     icon: <Zap size={SZ} />,           label: 'NexusAgent' },
-    { to: '/oracle',          icon: <Eye size={SZ} />,           label: 'NexusOracle' },
-    { to: '/semantic-engine', icon: <Brain size={SZ} />,         label: 'AI Assignment' },
-    { to: '/automations',     icon: <Bot size={SZ} />,           label: 'Automations' },
-    { to: '/bpm',             icon: <Network size={SZ} />,       label: 'BPM Procesos' },
-  ]},
-  // 18-11-2026: una sola entrada. Toda la configuración (antes 20 entradas aquí,
-  // más /rate-cards, /user-costs, /sla-calendars y el diseñador de flujos del
-  // service desk en otros grupos) vive en /settings/:seccion, con su propia
-  // navegación agrupada y buscador (pages/settings/catalogoDeAjustes.tsx).
-  { id: 'configuracion', label: 'Settings', groupKey: 'group_settings', icon: <Settings size={12} />, items: [
-    { to: '/settings',            icon: <Settings size={SZ} />,    label: 'Settings' },
-  ]},
-]
-
 function formatTimerDisplay(seconds: number): string {
   const h = Math.floor(seconds / 3600)
   const m = Math.floor((seconds % 3600) / 60)
@@ -306,7 +72,6 @@ function formatTimerDisplay(seconds: number): string {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
 }
 
-// TODO type: timer payload — needs shared type from timer API
 interface TimerState {
   started_at: string
   paused_at?: string | null
@@ -348,20 +113,6 @@ const SHORTCUTS = [
   { keys: ['G', 'I'], labelKey: 'shortcut_go_log_hours' },
   { keys: ['G', 'S'], labelKey: 'shortcut_go_service_desk' },
 ]
-
-// TODO type: i18n t() — uses module-shorthand signature
-type TFn = (module: string, key?: string) => string
-
-function getNavKeyForPath(path: string): string {
-  return PATH_NAV_KEY[path] || path?.replace(/^\//, '').replace(/-/g, '_')
-}
-
-function getNavLabel(path: string, fallbackLabel: string | undefined, t: TFn | null | undefined): string {
-  const navKey = getNavKeyForPath(path)
-  const translated = t ? t('nav', navKey) : null
-  if (translated && translated !== navKey) return translated
-  return ROUTE_LABELS[path] || fallbackLabel || path?.replace(/^\//, '').replace(/-/g, ' ')
-}
 
 function getSectionLabel(path: string, t: TFn | null | undefined): string | null {
   const group = NAV_GROUPS.find(g => (g.items || []).some(
@@ -427,14 +178,6 @@ function ShortcutsModal({ onClose, text }: { onClose: () => void; text: Record<s
   )
 }
 
-// TODO type: nav item config — defined as plain object literal in NAV_GROUPS
-interface NavItemConfig {
-  to?: string
-  icon?: React.ReactNode
-  label?: string
-  divider?: boolean
-}
-
 interface NavItemProps {
   item: NavItemConfig
   collapsed?: boolean
@@ -486,81 +229,120 @@ function NavItem({ item, collapsed, alertCount, approvalCount, t }: NavItemProps
   )
 }
 
-// TODO type: nav group config — defined as plain object literal in NAV_GROUPS
-interface NavGroupConfig {
-  id?: string
-  label: string
-  groupKey?: string
-  icon?: React.ReactNode
-  items: NavItemConfig[]
-}
-
 interface NavGroupProps {
   group: NavGroupConfig
   collapsed?: boolean
   alertCount?: number
   approvalCount?: number
   t?: TFn | null
+  /** Panel de la categoría, si la persona puede abrirlo (`PANEL_DE_CATEGORIA`). */
+  panel?: string
   /** Acordeón: solo un grupo abierto a la vez (lo decide `Layout`). */
   open: boolean
   onToggle: () => void
   onActive: () => void
 }
 
-function NavGroup({ group, collapsed, alertCount, approvalCount, t, open, onToggle, onActive }: NavGroupProps) {
+// 23-11-2026 (menú personalizable): con panel, el icono y el nombre de la
+// categoría llevan a su panel y la flecha despliega; sin panel, como antes (el
+// nombre despliega). Plegado: un icono por categoría (al panel, o abre el
+// desplegable si no tiene) y el desplegable sale al pasar el ratón o con el
+// foco; con el teclado, → o ↓ entran en él, ↑/↓ recorren, Esc/←/Tab vuelven.
+function NavGroup({ group, collapsed, alertCount, approvalCount, t, panel, open, onToggle, onActive }: NavGroupProps) {
   const location = useLocation()
+  const { t: traducir } = useAppLang()
   const isAnyChildActive = group.items.filter(i => !i.divider).some(
     i => location.pathname === i.to || location.pathname.startsWith(i.to + '/')
   )
+  const enPanel = !!panel && (location.pathname === panel || location.pathname.startsWith(panel + '/'))
   const [hoverOpen, setHoverOpen] = useState<boolean>(false)
   const [hoverTop, setHoverTop] = useState<number>(0)
   const groupRef = useRef<HTMLDivElement | null>(null)
+  const flyoutRef = useRef<HTMLDivElement | null>(null)
   const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Al navegar a una pantalla de este grupo, se abre (y se cierran los demás).
-  useEffect(() => { if (isAnyChildActive) onActive() }, [isAnyChildActive]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (isAnyChildActive || enPanel) onActive() }, [isAnyChildActive, enPanel]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => () => { if (hoverTimer.current) clearTimeout(hoverTimer.current) }, [])
 
-  // Ya filtrados por permiso en `Layout` (navGroups).
+  // Ya filtrados por permiso y por el menú de la persona en `Layout`.
   const visibleItems = group.items
   const realVisible = visibleItems.filter(i => !i.divider)
   if (realVisible.length === 0) return null
 
-  const groupKey = group.groupKey
-  const translatedGroupLabel = (t && groupKey) ? t('nav', groupKey) : null
-  const groupLabel = (translatedGroupLabel && translatedGroupLabel !== groupKey) ? translatedGroupLabel : group.label
+  const groupLabel = getGroupLabel(group, t)
+  const idDesplegable = `nav-flyout-${group.id}`
 
-  const handleEnter = () => {
+  const abrir = () => {
     if (!collapsed) return
     if (hoverTimer.current) clearTimeout(hoverTimer.current)
     const rect = groupRef.current?.getBoundingClientRect()
     if (rect) setHoverTop(rect.top)
     setHoverOpen(true)
   }
-  const handleLeave = () => {
+  const cerrarLuego = () => {
     if (!collapsed) return
     hoverTimer.current = setTimeout(() => setHoverOpen(false), DROPDOWN_DELAY_MS)
   }
+  const dentro = (n: EventTarget | null) =>
+    n instanceof Node && (!!groupRef.current?.contains(n) || !!flyoutRef.current?.contains(n))
+  const enlaces = () => Array.from(flyoutRef.current?.querySelectorAll<HTMLElement>('a[href]') ?? [])
+  const disparador = () => groupRef.current?.querySelector<HTMLElement>('[data-disparador]')
+  const entrar = () => { abrir(); requestAnimationFrame(() => enlaces()[0]?.focus()) }
+  const alTeclado = (e: React.KeyboardEvent) => {
+    if (!collapsed) return
+    const lista = enlaces()
+    const i = lista.indexOf(document.activeElement as HTMLElement)
+    if (e.key === 'Escape' && hoverOpen) { setHoverOpen(false); disparador()?.focus(); return }
+    if (i === -1 && (e.key === 'ArrowRight' || e.key === 'ArrowDown')) { e.preventDefault(); entrar(); return }
+    if (i >= 0 && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+      e.preventDefault()
+      lista[(i + (e.key === 'ArrowDown' ? 1 : -1) + lista.length) % lista.length]?.focus()
+      return
+    }
+    if (i >= 0 && (e.key === 'ArrowLeft' || e.key === 'Tab')) { e.preventDefault(); setHoverOpen(false); disparador()?.focus() }
+  }
+  const alSalirElFoco = (e: React.FocusEvent) => { if (!dentro(e.relatedTarget)) setHoverOpen(false) }
 
   if (collapsed) {
+    const conAviso = realVisible.some(i => (i.to === '/alerts' && (alertCount ?? 0) > 0) || (i.to === '/approvals' && (approvalCount ?? 0) > 0))
+    const claseIcono = ['nav-enlace', 'nav-enlace--plegado', 'nav-cat-plegada__icono',
+      (isAnyChildActive || enPanel) ? 'nav-enlace--activo' : ''].filter(Boolean).join(' ')
+    const icono = (
+      <span className="layo-row-2">
+        {group.icon}
+        {conAviso && <span className="layo-box-20 layout-e1" style={{ '--layout-background': 'var(--danger)' } as CSSProperties} />}
+      </span>
+    )
     return (
-      <div ref={groupRef} className="layo-sp-1" onPointerEnter={handleEnter} onPointerLeave={handleLeave}>
-        <div className="layo-stack-1">
-          {realVisible.map(item => (
-            <NavItem key={item.to} item={item} collapsed alertCount={alertCount} approvalCount={approvalCount} t={t} />
-          ))}
-        </div>
+      <div ref={groupRef} className="layo-sp-1 nav-cat-plegada"
+        onPointerEnter={abrir} onPointerLeave={cerrarLuego}>
+        {panel ? (
+          <NavLink to={panel} data-disparador="" className={claseIcono} title={groupLabel}
+            aria-label={traducir('menu_personal.ir_al_panel', { nombre: groupLabel })}
+            aria-haspopup="true" aria-expanded={hoverOpen} aria-controls={hoverOpen ? idDesplegable : undefined}
+            onKeyDown={alTeclado} onFocus={abrir} onBlur={alSalirElFoco}>
+            {icono}
+          </NavLink>
+        ) : (
+          <IconButton data-disparador="" ariaLabel={groupLabel} className={claseIcono}
+            aria-haspopup="true" aria-expanded={hoverOpen} aria-controls={hoverOpen ? idDesplegable : undefined}
+            onClick={entrar} onKeyDown={alTeclado} onFocus={abrir} onBlur={alSalirElFoco}>
+            {icono}
+          </IconButton>
+        )}
         {/* 19-11-2026: en un portal al <body>. Dentro de la barra lateral quedaba en su
             capa y lo tapaban columnas de las páginas (p. ej. la del chat). */}
         {hoverOpen && createPortal(
-          <div className="nav-hover-preview layo-box-23 layout-e5" style={{ '--layout-top': px(hoverTop - 4) } as CSSProperties}
-            onPointerEnter={() => { if (hoverTimer.current) clearTimeout(hoverTimer.current); setHoverOpen(true) }}
-            onPointerLeave={() => { hoverTimer.current = setTimeout(() => setHoverOpen(false), DROPDOWN_DELAY_MS) }}
+          <div ref={flyoutRef} id={idDesplegable} role="group" aria-label={groupLabel}
+            className="nav-hover-preview layo-box-23 layout-e5" style={{ '--layout-top': px(hoverTop - 4) } as CSSProperties}
+            onPointerEnter={abrir} onPointerLeave={cerrarLuego}
           >
             <div className="nav-hover-title">{groupLabel}</div>
             {realVisible.map(item => {
               const itemLabel = getNavLabel(item.to || '', item.label, t)
               return (
-              <NavLink key={item.to} to={item.to || '#'} onClick={() => setHoverOpen(false)}
+              <NavLink key={item.to} to={item.to || '#'} onClick={() => setHoverOpen(false)} onKeyDown={alTeclado} onBlur={alSalirElFoco}
                 style={({ isActive }) => ({
                   display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', borderRadius: 'var(--radius-sm)',
                   textDecoration: 'none', fontSize: "var(--text-sm-h)", fontWeight: 500,
@@ -576,40 +358,61 @@ function NavGroup({ group, collapsed, alertCount, approvalCount, t, open, onTogg
           </div>,
           document.body,
         )}
-        <div className="layo-box-5" />
+      </div>
+    )
+  }
+
+  const lista = (
+    <div className={`layo-grid-1 ${open ? 'layout-m9' : 'layout-m10'}`} id={`nav-group-${group.id}`}>
+      <div className="layo-box-7">
+        <div className="layo-stack-2">
+          {visibleItems.map((item, idx) =>
+            item.divider
+              ? <div key={'div-' + idx} className="layo-box-8" />
+              : <NavItem key={item.to} item={item} collapsed={false} alertCount={alertCount} approvalCount={approvalCount} t={t} />
+          )}
+        </div>
+      </div>
+    </div>
+  )
+
+  if (!panel) {
+    return (
+      <div className="layo-sp-2">
+        <IconButton ariaLabel={String(groupLabel)} title={String(groupLabel)} className={`layo-row-17 ${isAnyChildActive ? 'layout-m6' : 'layout-m4'}`} onClick={onToggle} aria-expanded={open} aria-controls={`nav-group-${group.id}`}
+          onMouseEnter={e => { e.currentTarget.style.color = 'var(--text-2)' }}
+          onMouseLeave={e => { e.currentTarget.style.color = isAnyChildActive ? 'var(--accent)' : 'var(--text-3)' }}
+        >
+          <span className="layo-row-4">{group.icon}</span>
+          <span className="u-flex1">{groupLabel}</span>
+          {!open && realVisible.length > 0 && (
+            <span className="layo-box-6">{realVisible.length}</span>
+          )}
+          <ChevronRight size={10} className={`layout-sx2 ${open ? 'layout-m7' : 'layout-m8'}`} />
+        </IconButton>
+        {lista}
       </div>
     )
   }
 
   return (
     <div className="layo-sp-2">
-      <IconButton ariaLabel={String(groupLabel)} title={String(groupLabel)} className={`layo-row-17 ${isAnyChildActive ? 'layout-m6' : 'layout-m4'}`} onClick={onToggle} aria-expanded={open} aria-controls={`nav-group-${group.id}`}
-        onMouseEnter={e => { e.currentTarget.style.color = 'var(--text-2)' }}
-        onMouseLeave={e => { e.currentTarget.style.color = isAnyChildActive ? 'var(--accent)' : 'var(--text-3)' }}
-      >
-        <span className="layo-row-4">{group.icon}</span>
-        <span className="u-flex1">{groupLabel}</span>
-        {!open && realVisible.length > 0 && (
-          <span className="layo-box-6">{realVisible.length}</span>
-        )}
-        <ChevronRight size={10} className={`layout-sx2 ${open ? 'layout-m7' : 'layout-m8'}`} />
-      </IconButton>
-      <div className={`layo-grid-1 ${open ? 'layout-m9' : 'layout-m10'}`} id={`nav-group-${group.id}`}>
-        <div className="layo-box-7">
-          <div className="layo-stack-2">
-            {visibleItems.map((item, idx) =>
-              item.divider
-                ? <div key={'div-' + idx} className="layo-box-8" />
-                : <NavItem key={item.to} item={item} collapsed={false} alertCount={alertCount} approvalCount={approvalCount} t={t} />
-            )}
-          </div>
-        </div>
+      <div className={`nav-cat ${isAnyChildActive || enPanel ? 'nav-cat--activa' : ''}`}>
+        <NavLink to={panel} end className="nav-cat__enlace" title={traducir('menu_personal.ir_al_panel', { nombre: groupLabel })}>
+          <span className="layo-row-4">{group.icon}</span>
+          <span className="u-flex1">{groupLabel}</span>
+        </NavLink>
+        {!open && <span className="layo-box-6">{realVisible.length}</span>}
+        <IconButton ariaLabel={traducir(open ? 'menu_personal.plegar' : 'menu_personal.desplegar', { nombre: groupLabel })}
+          aria-expanded={open} aria-controls={`nav-group-${group.id}`} className="nav-cat__flecha" onClick={onToggle}>
+          <ChevronRight size={10} className={`layout-sx2 ${open ? 'layout-m7' : 'layout-m8'}`} />
+        </IconButton>
       </div>
+      {lista}
     </div>
   )
 }
 
-// TODO type: timer payload — needs shared type from timer API
 interface ActiveTimer {
   project_id?: string | number
   task_id?: string | number
@@ -622,7 +425,6 @@ interface ActiveTimer {
   [key: string]: unknown
 }
 
-// TODO type: auth user payload — needs shared type from authContext
 interface AuthUser {
   id?: string | number
   full_name?: string
@@ -671,7 +473,8 @@ function TopAppBar({ onSearchOpen, onAiToggle, aiOpen, onChatToggle, chatOpen, c
     return () => clearTimeout(id)
   }, [chatUnread])
 
-  const section = getSectionLabel(location.pathname, t) || ROUTE_SECTION[location.pathname]
+  const grupoFuera = GRUPO_DE_RUTA_FUERA_DEL_MENU[location.pathname]
+  const section = getSectionLabel(location.pathname, t) || (grupoFuera && t ? t('nav', grupoFuera) : null)
   const currentNavItem = allNavItems
     .filter(i => location.pathname === i.to || location.pathname.startsWith((i.to || '') + '/'))
     .sort((a, b) => (b.to || '').length - (a.to || '').length)[0]
@@ -700,8 +503,8 @@ function TopAppBar({ onSearchOpen, onAiToggle, aiOpen, onChatToggle, chatOpen, c
     staleTime: STALE_5_MIN_MS,
   })
 
-  const topbarProjectLabel = activeTimer?.project_name || timerProject?.name || (activeTimer?.project_id ? `Proyecto #${activeTimer.project_id}` : null)
-  const topbarTaskLabel = activeTimer?.task_name || timerTask?.title || (activeTimer?.task_id ? `Tarea #${activeTimer.task_id}` : null)
+  const topbarProjectLabel = activeTimer?.project_name || timerProject?.name || (activeTimer?.project_id && t ? t('layout_texto', 'proyecto') : null)
+  const topbarTaskLabel = activeTimer?.task_name || timerTask?.title || (activeTimer?.task_id && t ? t('layout_texto', 'tarea') : null)
   const topbarTimerSubtitle = topbarTaskLabel ? `${topbarProjectLabel} · ${topbarTaskLabel}` : topbarProjectLabel
 
   const breadcrumbs = useMemo(() => {
@@ -727,7 +530,7 @@ function TopAppBar({ onSearchOpen, onAiToggle, aiOpen, onChatToggle, chatOpen, c
           accPath += `/${seg}`
           const isLast = idx === extraSegments.length - 1
           const isIdLike = /^\d+$/.test(seg) || /^[0-9a-fA-F-]{8,}$/.test(seg)
-          let label = isIdLike ? 'Detalle' : decodeURIComponent(seg).replace(/-/g, ' ')
+          let label = isIdLike ? (t ? t('layout_texto', 'detalle') : seg) : decodeURIComponent(seg).replace(/-/g, ' ')
           // Use real project name when on /projects/:id
           // 18-11-2026: /settings/<seccion> → nombre de la sección del catálogo de Configuración.
           if (currentNavItem?.to === '/settings' && idx === 0) label = t('ajustes', `s_${seg.replace(/-/g, '_')}`)
@@ -742,7 +545,7 @@ function TopAppBar({ onSearchOpen, onAiToggle, aiOpen, onChatToggle, chatOpen, c
     }
 
     if (!segments.length) {
-      items.push({ label: 'Inicio', to: null })
+      items.push({ label: t ? t('layout_texto', 'inicio') : '/', to: null })
       return items
     }
 
@@ -751,7 +554,7 @@ function TopAppBar({ onSearchOpen, onAiToggle, aiOpen, onChatToggle, chatOpen, c
       accPath += `/${seg}`
       const isLast = idx === segments.length - 1
       const isIdLike = /^\d+$/.test(seg) || /^[0-9a-fA-F-]{8,}$/.test(seg)
-      const label = isIdLike ? 'Detalle' : decodeURIComponent(seg).replace(/-/g, ' ')
+      const label = isIdLike ? (t ? t('layout_texto', 'detalle') : seg) : decodeURIComponent(seg).replace(/-/g, ' ')
       items.push({ label, to: isLast ? null : accPath })
     })
     return items
@@ -854,7 +657,7 @@ function TopAppBar({ onSearchOpen, onAiToggle, aiOpen, onChatToggle, chatOpen, c
               </span>
             </Pulsable>
             <IconButton onClick={onLogout}
-              ariaLabel={t ? t('nav', 'logout') : 'Cerrar sesión'}
+              ariaLabel={t ? t('nav', 'logout') : ''}
               className="layout-e34"
               onMouseEnter={e => e.currentTarget.style.color = 'var(--danger)'}
               onMouseLeave={e => e.currentTarget.style.color = 'var(--text-3)'}
@@ -888,7 +691,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
   }, [save])
   const { data: traduccionesDeLaEmpresa } = useQuery({
     queryKey: ['app-translations'],
-    queryFn: () => api.get('/settings/app-translations').then((r: { data: Record<string, Record<string, unknown>> }) => r.data),
+    queryFn: () => armazonApi.traduccionesDeLaApp().then(r => r.data),
     enabled: !!user, staleTime: STALE_5_MIN_MS, retry: false,
   })
   useEffect(() => {
@@ -917,6 +720,24 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
 
   const [collapsed, setCollapsed] = useState<boolean>(false)
   const [mobileOpen, setMobileOpen] = useState<boolean>(false)
+  // Menú personalizable (23-11-2026): orden y pestañas ocultas de la persona (o de su rol).
+  // Se aplica DESPUÉS del filtro por permisos: ocultar no quita ni da permisos, y las
+  // migas, la búsqueda ⌘K y las rutas siguen usando el menú completo permitido.
+  const menuPersonal = useMenuPersonal()
+  const [personalizando, setPersonalizando] = useState<boolean>(false)
+  const gruposDelMenu = useMemo(() => aplicarMenu(navGroups, menuPersonal.efectivo), [navGroups, menuPersonal.efectivo])
+  const panelDe = (id?: string): string | undefined => {
+    const p = id ? PANEL_DE_CATEGORIA[id] : undefined
+    return p && canOpen(p) && puedeAbrir(p, puede) ? p : undefined
+  }
+  useEffect(() => {
+    const abrir = () => {
+      setPersonalizando(true); setCollapsed(false)
+      if (window.innerWidth <= 1024) setMobileOpen(true)
+    }
+    window.addEventListener(EVENTO_PERSONALIZAR_MENU, abrir)
+    return () => window.removeEventListener(EVENTO_PERSONALIZAR_MENU, abrir)
+  }, [])
   const swipeHandlers = useSwipeGesture({
     onSwipeRight: () => setMobileOpen(true),
     onSwipeLeft:  () => setMobileOpen(false),
@@ -942,12 +763,12 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
   const alertsDrawerOpen = panel === 'alerts', setAlertsDrawerOpen = setters.alerts
   const quickCreateOpen = panel === 'quick', setQuickCreateOpen = setters.quick
   const voiceOpen = panel === 'voice', setVoiceOpen = setters.voice
-  const [workspace, setWorkspace] = useState<string>(() => localStorage.getItem(NAV_WORKSPACE_KEY) || 'all')
+  const [workspace, setWorkspace] = useState<string>(() => { try { return localStorage.getItem(NAV_WORKSPACE_KEY) || 'all' } catch { return 'all' } })
   const [timerElapsed, setTimerElapsed] = useState<number>(0)
 
   const { data: activeTimer } = useQuery<ActiveTimer | null>({
     queryKey: ['timer-current'],
-    queryFn: () => api.get('/imputations/timer/current').then(r => r.data).catch(() => null),
+    queryFn: () => imputationsApi.timerCurrent().then(r => r.data as unknown as ActiveTimer | null).catch(() => null),
     refetchInterval: POLL_FAST_MS,
     retry: false,
     staleTime: STALE_LIVE_MS,
@@ -969,7 +790,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
   })
 
   useEffect(() => {
-    localStorage.setItem(NAV_WORKSPACE_KEY, workspace)
+    try { localStorage.setItem(NAV_WORKSPACE_KEY, workspace) } catch { /* accesorio: almacenamiento bloqueado */ }
     // Un workspace concreto abre su grupo; en «Todo» manda el acordeón (uno a
     // la vez: el de la pantalla actual, o el que abra el usuario).
     if (workspace !== 'all') setOpenGroup(WORKSPACE_GROUPS[workspace]?.[0] ?? null)
@@ -1007,7 +828,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') { e.preventDefault(); setSearchOpen(o => !o); return }
       if ((e.metaKey || e.ctrlKey) && e.key === 'i') { e.preventDefault(); setAiOpen(o => !o); return }
       if ((e.metaKey || e.ctrlKey) && e.key === 'b') { e.preventDefault(); setCollapsed(c => !c); return }
-      if (e.key === 'Escape') { setSearchOpen(false); setAiOpen(false); setShortcutsOpen(false); setProfileOpen(false); setMobileOpen(false); return }
+      if (e.key === 'Escape') { setPersonalizando(false); setSearchOpen(false); setAiOpen(false); setShortcutsOpen(false); setProfileOpen(false); setMobileOpen(false); return }
       if (!isInput && e.key === '?') { e.preventDefault(); setShortcutsOpen(o => !o); return }
     }
     window.addEventListener('keydown', handler)
@@ -1021,7 +842,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
   // refresco sigue siendo la del superadmin, así que refrescar le devuelve su sesión.
   const suplantadoPor = typeof user?.impersonated_by === 'string' ? user.impersonated_by : null
   async function salirDeSuplantacion() {
-    try { await api.post('/auth/refresh') } finally { window.location.href = '/organizations' }
+    try { await armazonApi.renovarSesion() } finally { window.location.href = '/settings/organizations' /* recarga completa a propósito: cambia la sesión */ }
   }
 
   return (
@@ -1067,43 +888,60 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
 
         {/* Nav */}
         <nav className={`layo-stack-4 ${collapsed ? 'layout-m26' : 'layout-m27'}`} aria-label={text.side_menu}>
-          {!collapsed && (
-            <div className="layo-sp-4">
-              <div className="layo-box-19">
-                {text.workspace}
+          {personalizando && !collapsed ? (
+            <div className="nav-personalizar">
+              <div className="nav-personalizar__cabecera">
+                <span className="nav-personalizar__titulo">{t('menu_personal.personalizar')}</span>
+                <Button size="sm" onClick={() => setPersonalizando(false)}>{t('menu_personal.hecho')}</Button>
               </div>
-              <div className="layo-row-15">
-                {[
-                  ['all', text.workspace_all],
-                  ['work', text.workspace_work],
-                  ['projects', text.workspace_projects],
-                  ['team', text.workspace_team],
-                  ['business', text.workspace_business],
-                  ['support', text.workspace_support],
-                  ['analytics', text.workspace_analytics],
-                  ['ai', text.workspace_ai],
-                  ['settings', text.workspace_settings],
-                ].map(([key, label]) => (
-                  <Pulsable className={`layo-box-26 ${workspace === key ? 'layout-m28' : 'layout-m29'}`} key={key} onClick={() => setWorkspace(key)}>
-                    {label}
-                  </Pulsable>
-                ))}
+              <EditorDeMenu grupos={navGroups} valor={menuPersonal.efectivo} onChange={menuPersonal.guardar} idBase="menu-personal" />
+              <div className="nav-personalizar__pie">
+                <span>{t(menuPersonal.personalizado ? 'menu_personal.estado_propio' : 'menu_personal.estado_rol')}</span>
+                <Button size="sm" variant="ghost" icon={<RotateCcw size={13} />} disabled={!menuPersonal.personalizado}
+                  onClick={menuPersonal.restablecer}>{t('menu_personal.restablecer')}</Button>
               </div>
             </div>
-          )}
+          ) : (
+            <>
+            {!collapsed && (
+              <div className="layo-sp-4">
+                <div className="layo-box-19">
+                  {text.workspace}
+                </div>
+                <div className="layo-row-15">
+                  {[
+                    ['all', text.workspace_all],
+                    ['work', text.workspace_work],
+                    ['projects', text.workspace_projects],
+                    ['team', text.workspace_team],
+                    ['business', text.workspace_business],
+                    ['support', text.workspace_support],
+                    ['analytics', text.workspace_analytics],
+                    ['ai', text.workspace_ai],
+                    ['settings', text.workspace_settings],
+                  ].map(([key, label]) => (
+                    <Pulsable className={`layo-box-26 ${workspace === key ? 'layout-m28' : 'layout-m29'}`} key={key} onClick={() => setWorkspace(key)}>
+                      {label}
+                    </Pulsable>
+                  ))}
+                </div>
+              </div>
+            )}
 
-          {navGroups.map(group => {
-            const visible = group.items.some(i => !i.divider)
-            if (!visible) return null
-            if (workspace !== 'all' && !WORKSPACE_GROUPS[workspace]?.includes(group.id || '')) return null
-            return (
-              <NavGroup key={group.id} group={group} collapsed={collapsed}
-                alertCount={alertCount} approvalCount={approvalCount} t={t}
-                open={openGroup === group.id}
-                onToggle={() => setOpenGroup(g => (g === group.id ? null : group.id))}
-                onActive={() => setOpenGroup(group.id)} />
-            )
-          })}
+            {gruposDelMenu.map(group => {
+              const visible = group.items.some(i => !i.divider)
+              if (!visible) return null
+              if (workspace !== 'all' && !WORKSPACE_GROUPS[workspace]?.includes(group.id || '')) return null
+              return (
+                <NavGroup key={group.id} group={group} collapsed={collapsed} panel={panelDe(group.id)}
+                  alertCount={alertCount} approvalCount={approvalCount} t={t}
+                  open={openGroup === group.id}
+                  onToggle={() => setOpenGroup(g => (g === group.id ? null : group.id))}
+                  onActive={() => setOpenGroup(group.id)} />
+              )
+            })}
+            </>
+          )}
         </nav>
 
         {/* Footer */}
@@ -1128,6 +966,14 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
               <span className="kbd layo-txt-2">?</span>
             </IconButton>
           )}
+          {/* 23-11-2026: modo «Personalizar menú» (también desde el perfil). */}
+          <IconButton ariaLabel={t('menu_personal.personalizar')} title={t('menu_personal.personalizar')}
+            aria-pressed={personalizando && !collapsed} className="layo-row-16 nav-personalizar__abrir"
+            onClick={() => { if (collapsed) { setCollapsed(false); setPersonalizando(true) } else setPersonalizando(p => !p) }}
+          >
+            <SlidersHorizontal size={11} />
+            {!collapsed && <span>{t('menu_personal.personalizar')}</span>}
+          </IconButton>
         </div>
       </aside>
 

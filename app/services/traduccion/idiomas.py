@@ -184,9 +184,3 @@ def detectar_si_seguro(texto: Optional[str], minima: float) -> Optional[str]:
     """El idioma si la confianza llega a `minima`; si no, None (que detecte el proveedor)."""
     idioma, confianza = detectar(texto)
     return idioma if idioma and confianza >= minima else None
-
-
-def mismo_idioma(a: Optional[str], b: Optional[str]) -> bool:
-    """`zh` y `zh-hant` NO son el mismo idioma de destino; `pt` y `pt-BR` si."""
-    na, nb = normalizar(a), normalizar(b)
-    return bool(na) and na == nb

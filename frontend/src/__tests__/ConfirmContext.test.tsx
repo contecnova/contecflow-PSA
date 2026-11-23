@@ -4,8 +4,10 @@ import { vi, describe, it, expect } from 'vitest'
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { ConfirmProvider, confirmar, pedirTexto } from '../context/ConfirmContext'
 
-vi.mock('../hooks/useAppT', () => ({
-  useAppT: () => ({ t: (k: string) => ({ 'common.cancel': 'Cancelar', 'confirm_modal.default_title': 'Confirmar', 'confirm_modal.danger_title': 'Atención' } as Record<string, string>)[k] ?? k }),
+vi.mock('../i18n/AppLangContext', () => ({
+  // La etiqueta de «escribe X» ya sale de i18n (`confirm_modal.escribe_para_confirmar`).
+  // 23-11-2026: ConfirmContext usa `useAppLang` (fuera `hooks/useAppT`).
+  useAppLang: () => ({ lang: 'es', t: (k: string, p?: { palabra?: string }) => ({ 'common.cancel': 'Cancelar', 'confirm_modal.default_title': 'Confirmar', 'confirm_modal.danger_title': 'Atención', 'confirm_modal.escribe_para_confirmar': `Escribe ${p?.palabra} para confirmar` } as Record<string, string>)[k] ?? k }),
 }))
 
 const montar = () => render(<ConfirmProvider><div /></ConfirmProvider>)

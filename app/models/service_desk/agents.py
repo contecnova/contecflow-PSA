@@ -13,7 +13,7 @@ class AgentGroup(Base):
     __tablename__ = "sd_agent_groups"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     name = Column(String(100), nullable=False)
     description = Column(String(255), nullable=True)
     support_level = Column(Enum(SupportLevel), nullable=False)
@@ -29,7 +29,7 @@ class AgentGroupMember(Base):
     __tablename__ = "sd_agent_group_members"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     group_id = Column(String(36), ForeignKey("sd_agent_groups.id", ondelete="CASCADE"), nullable=False, index=True)
     user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     is_lead = Column(Boolean, default=False)

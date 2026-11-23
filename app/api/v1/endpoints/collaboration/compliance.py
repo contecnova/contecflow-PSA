@@ -3,7 +3,7 @@
 from fastapi import APIRouter, Depends, Request
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_current_user, require_admin
+from app.core.deps import get_current_user, requiere_capacidad
 from app.core.ratelimit import limiter
 from app.db.session import get_db
 from app.models.user import User
@@ -39,7 +39,7 @@ def list_policies(current_user: User = Depends(get_current_user), db: Session = 
 
 
 @router.post("/retention", response_model=APIResponse[RetentionPolicyOut], summary="Crear política de retención",
-             dependencies=[Depends(require_admin)])
+             dependencies=[Depends(requiere_capacidad("colaboracion.administrar"))])
 def create_policy(payload: RetentionPolicyIn, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     row = svc.create_policy(db, current_user, payload.model_dump())
     return APIResponse.ok(data=RetentionPolicyOut(
@@ -50,7 +50,7 @@ def create_policy(payload: RetentionPolicyIn, current_user: User = Depends(get_c
 
 
 @router.post("/retention/run", summary="Ejecutar barrido de retención (manual)",
-             dependencies=[Depends(require_admin)])
+             dependencies=[Depends(requiere_capacidad("colaboracion.administrar"))])
 def run_retention(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """Marca como borrados los mensajes vencidos segun las politicas activas.
 
@@ -59,12 +59,12 @@ def run_retention(current_user: User = Depends(get_current_user), db: Session = 
     return APIResponse.ok(data=svc.run_retention(db, current_user))
 
 
-@router.get("/retention/settings", summary="Config retention por tenant", dependencies=[Depends(require_admin)])
+@router.get("/retention/settings", summary="Config retention por tenant", dependencies=[Depends(requiere_capacidad("colaboracion.administrar"))])
 def get_retention_settings(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     return APIResponse.ok(data=svc.get_retention_settings(db, _org(current_user)))
 
 
-@router.put("/retention/settings", summary="Actualizar config retention por tenant", dependencies=[Depends(require_admin)])
+@router.put("/retention/settings", summary="Actualizar config retention por tenant", dependencies=[Depends(requiere_capacidad("colaboracion.administrar"))])
 def put_retention_settings(payload: dict, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     return APIResponse.ok(data=svc.set_retention_settings(db, _org(current_user), payload))
 
@@ -86,7 +86,7 @@ def list_holds(current_user: User = Depends(get_current_user), db: Session = Dep
 
 
 @router.post("/legal-holds", response_model=APIResponse[LegalHoldOut], summary="Crear legal hold",
-             dependencies=[Depends(require_admin)])
+             dependencies=[Depends(requiere_capacidad("colaboracion.administrar"))])
 def create_hold(payload: LegalHoldIn, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     row = svc.create_hold(db, current_user, payload.model_dump())
     return APIResponse.ok(data=LegalHoldOut(
@@ -99,7 +99,7 @@ def create_hold(payload: LegalHoldIn, current_user: User = Depends(get_current_u
 
 
 @router.post("/legal-holds/{hold_id}/release", summary="Cerrar legal hold",
-             dependencies=[Depends(require_admin)])
+             dependencies=[Depends(requiere_capacidad("colaboracion.administrar"))])
 def release_hold(hold_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     svc.release_hold(db, current_user, hold_id)
     return APIResponse.ok(data={"ok": True})
@@ -107,7 +107,7 @@ def release_hold(hold_id: str, current_user: User = Depends(get_current_user), d
 
 # ── eDiscovery export ────────────────────────────────────────────────────────
 @router.post("/ediscovery/export", summary="Export legal (eDiscovery JSON)",
-             dependencies=[Depends(require_admin)])
+             dependencies=[Depends(requiere_capacidad("colaboracion.administrar"))])
 def ediscovery_export(payload: EDiscoveryRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     return APIResponse.ok(data=svc.ediscovery_export(
         db, current_user,
@@ -126,7 +126,7 @@ def list_decisions(limit: int = 100, current_user: User = Depends(get_current_us
 
 
 @router.get("/audit", response_model=APIListResponse[AuditEventOut], summary="Eventos de auditoría",
-            dependencies=[Depends(require_admin)])
+            dependencies=[Depends(requiere_capacidad("colaboracion.administrar"))])
 @limiter.limit("30/minute")
 def list_audit(request: Request, limit: int = 200, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     items = [
@@ -141,6 +141,6 @@ def list_audit(request: Request, limit: int = 200, current_user: User = Depends(
 
 
 @router.get("/audit/verify", summary="Verificar integridad de la cadena de auditoría",
-            dependencies=[Depends(require_admin)])
+            dependencies=[Depends(requiere_capacidad("colaboracion.administrar"))])
 def verify_audit(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     return APIResponse.ok(data=audit_log.verify_chain(db, _org(current_user)))

@@ -17,6 +17,7 @@ import { fmtNumber } from '../../utils/helpers'
 import { etiquetaCodigo } from '../../i18n/etiquetaCodigo'
 import { STALE_DEFAULT_MS } from '../../constants/timings'
 import './BiQueryBuilderPanel.css'
+import { confirmar } from '../../context/ConfirmContext'
 
 
 
@@ -247,9 +248,7 @@ export default function BiQueryBuilderPanel() {
                     <Select suelto className="biqubupa-is3" value={f.operator} onChange={e => updateFilter(i, 'operator', e.target.value)} placeholder={false}>
                       {Object.entries(operadores).map(([op, def]) => <option key={op} value={op}>{def.label}</option>)}
                     </Select>
-                    <input aria-label={traducir('pol.valor')} className="biqubupa-is2" placeholder={NULL_OPS.has(f.operator) ? traducir('biquerybuilder.no_aplica') : traducir('biquerybuilder.valor')} value={f.value}
-                      disabled={NULL_OPS.has(f.operator)}
-                      onChange={e => updateFilter(i, 'value', e.target.value)} />
+                    <Input aria-label={traducir('pol.valor')} placeholder={NULL_OPS.has(f.operator) ? traducir('biquerybuilder.no_aplica') : traducir('biquerybuilder.valor')} value={f.value} disabled={NULL_OPS.has(f.operator)} onChange={e => updateFilter(i, 'value', e.target.value)} className="biqubupa-is2" />
                     <IconButton className="biqubupa-del" ariaLabel={traducir('biquerybuilder.quitar')} onClick={() => removeFilter(i)}><X size={14} /></IconButton>
                   </div>
                 ))}
@@ -277,8 +276,7 @@ export default function BiQueryBuilderPanel() {
                     <Select suelto className="biqubupa-is5" value={a.func} onChange={e => updateAgg(i, 'func', e.target.value)} placeholder={false}>
                       {agregaciones.map(fn => <option key={fn} value={fn}>{etiquetaCodigo(traducir, 'biquerybuilder.agg', fn)}</option>)}
                     </Select>
-                    <input aria-label={traducir('biquerybuilder.alias_opcional')} className="biqubupa-is6" placeholder={traducir('biquerybuilder.alias_opcional')} value={a.alias}
-                      onChange={e => updateAgg(i, 'alias', e.target.value)} />
+                    <Input aria-label={traducir('biquerybuilder.alias_opcional')} placeholder={traducir('biquerybuilder.alias_opcional')} value={a.alias} onChange={e => updateAgg(i, 'alias', e.target.value)} className="biqubupa-is6" />
                     <IconButton className="biqubupa-del" ariaLabel={traducir('biquerybuilder.quitar')}
                       onClick={() => setAggregations(prev => prev.filter((_, idx) => idx !== i))}><X size={14} /></IconButton>
                   </div>
@@ -346,7 +344,7 @@ export default function BiQueryBuilderPanel() {
                     <Button size="sm" variant="secondary" onClick={() => loadSavedQuery(q)}>{traducir('biquerybuilder.cargar')}</Button>
                     <Button size="sm" icon={<Play size={14} />} onClick={() => execSavedMut.mutate(q.id)}
                       disabled={execSavedMut.isPending}>{traducir('biquerybuilder.ejecutar')}</Button>
-                    <IconButton className="biqubupa-del" ariaLabel={traducir('biquerybuilder.eliminar')} onClick={() => deleteMut.mutate(q.id)}><Trash2 size={14} /></IconButton>
+                    <IconButton className="biqubupa-del" ariaLabel={traducir('biquerybuilder.eliminar')} onClick={async () => { if (await confirmar({ message: traducir('biquerybuilder.confirmar_eliminar_consulta'), danger: true, confirmLabel: traducir('biquerybuilder.eliminar') })) deleteMut.mutate(q.id) }}><Trash2 size={14} /></IconButton>
                   </div>
                 </div>
               ))}

@@ -16,6 +16,7 @@ Seguridad: el XML se lee con `defusedxml` (sin entidades externas); el tamaño
 lo limita el endpoint.
 """
 from __future__ import annotations
+import logging
 
 import json
 import re
@@ -473,6 +474,7 @@ def pom_xml(texto: str, otros: Optional[dict] = None) -> Resultado:
             i = _pom_info(t)
             poms[f"{i['groupId']}:{i['artifactId']}"] = i
         except Exception:  # noqa: BLE001 - un POM roto no impide leer el resto
+            logging.getLogger(__name__).debug("pom_xml: excepcion ignorada", exc_info=True)
             continue
     cadena = [info]
     visto = set()
@@ -703,7 +705,11 @@ def expandir(ficheros: list[tuple[str, bytes]]) -> list[tuple[str, bytes]]:
             except zipfile.BadZipFile:
                 raise FormatoNoReconocido(nombre or "zip")
             total = 0
-            for info in z.infolist()[:ZIP_MAX_FICHEROS]:
+            # Baja (auditoría 22-11-2026): pasar del tope de ficheros es un error
+            # (antes se cortaba en silencio a 300 y el SBOM salía incompleto).
+            if len([i for i in z.infolist() if not i.is_dir()]) > ZIP_MAX_FICHEROS:
+                raise FormatoNoReconocido(f"zip con más de {ZIP_MAX_FICHEROS} ficheros")
+            for info in z.infolist():
                 ruta = info.filename.replace("\\", "/")
                 if info.is_dir() or ruta.startswith("/") or ".." in ruta.split("/"):
                     continue
@@ -747,6 +753,7 @@ def leer_varios(ficheros: list[tuple[str, bytes]]) -> Resultado:
         try:
             r = leer(contenido, nombre)
         except Exception:  # noqa: BLE001 - lo que no se entiende se informa, no se inventa
+            logging.getLogger(__name__).debug("leer_varios: excepcion ignorada", exc_info=True)
             ignorados.append(nombre)
             continue
         formatos_usados.append(r.formato)

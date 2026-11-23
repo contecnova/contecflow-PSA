@@ -9,24 +9,28 @@ import { useAppLang } from '../../i18n/AppLangContext'
 import { alpha } from '../../constants/theme'
 import { STALE_DEFAULT_MS } from '../../constants/timings'
 import { SELECTOR_LIST_SIZE } from '../../constants/pagination'
-import { IconButton, Pulsable, Select, Input } from '../ui'
+import { IconButton, Pulsable, Select, Input, useCambiosSinGuardar, confirmarDescarte } from '../ui'
 import './QuickCreateMenu.css'
+import { useAuth } from '../../context/AuthContext'
+import { puedeAbrir } from '../../permisos/navegacion'
 
+// Auditoría 22-11-2026 (A3 del 04): textos traducidos (`quickcreatemenu.accion_<id>`) y
+// cada acción filtrada por la capacidad de su ruta (`ruta`): nadie ve «Nueva factura»
+// para acabar en /403.
 const ACTIONS = [
-  { id: 'task',     icon: CheckSquare,  label: 'Nueva tarea',     color: 'var(--accent)',  inline: true },
-  { id: 'hours',    icon: Clock,        label: 'Imputar horas',   color: 'var(--success)', path: '/imputar' },
-  { id: 'ticket',   icon: Ticket,       label: 'Nuevo ticket',    color: 'var(--warning)', path: '/service-desk?create=1' },
-  { id: 'invoice',  icon: FileText,     label: 'Nueva factura',   color: 'var(--accent)',  path: '/invoices?create=1' },
-  { id: 'client',   icon: Building2,    label: 'Nuevo cliente',   color: 'var(--purple)',  path: '/clients?create=1' },
-  { id: 'contract', icon: ScrollText,   label: 'Nuevo contrato',  color: 'var(--purple)',  path: '/contracts?create=1' },
-  { id: 'risk',     icon: AlertTriangle,label: 'Nuevo riesgo',    color: 'var(--danger)',  path: '/risks?create=1' },
-  { id: 'expense',  icon: Receipt,      label: 'Reportar gasto',  color: 'var(--orange)',  path: '/expenses?create=1' },
-  { id: 'project',  icon: FolderOpen,   label: 'Nuevo proyecto',  color: 'var(--accent)',  path: '/projects?create=1' },
+  { id: 'task',     icon: CheckSquare,  color: 'var(--accent)',  inline: true, ruta: '/tasks' },
+  { id: 'hours',    icon: Clock,        color: 'var(--success)', path: '/imputar', ruta: '/imputar' },
+  { id: 'ticket',   icon: Ticket,       color: 'var(--warning)', path: '/service-desk?create=1', ruta: '/service-desk' },
+  { id: 'invoice',  icon: FileText,     color: 'var(--accent)',  path: '/invoices?create=1', ruta: '/invoices' },
+  { id: 'client',   icon: Building2,    color: 'var(--purple)',  path: '/clients?create=1', ruta: '/clients' },
+  { id: 'contract', icon: ScrollText,   color: 'var(--purple)',  path: '/contracts?create=1', ruta: '/contracts' },
+  { id: 'risk',     icon: AlertTriangle,color: 'var(--danger)',  path: '/risks?create=1', ruta: '/risks' },
+  { id: 'expense',  icon: Receipt,      color: 'var(--orange)',  path: '/expenses?create=1', ruta: '/expenses' },
+  { id: 'project',  icon: FolderOpen,   color: 'var(--accent)',  path: '/projects?create=1', ruta: '/projects' },
   // I27: quick action — auto-planificar tareas sin fecha
-  { id: 'smart_schedule', icon: Sparkles, label: 'Auto-planificar tareas IA', color: 'var(--purple)', inline: true },
+  { id: 'smart_schedule', icon: Sparkles, color: 'var(--purple)', inline: true, ruta: '/tasks' },
 ]
 
-// TODO type: project payload — needs shared type from projectsApi
 interface ProjectOption {
   id: string | number
   name: string
@@ -85,7 +89,7 @@ function CreateTaskForm({ onClose }: { onClose: () => void }) {
           onClick={() => title.trim() && create()}
           disabled={!title.trim() || isPending}
         >
-          {isPending ? 'Creando…' : 'Crear tarea'}
+          {isPending ? t('quickcreatemenu.creando') : t('quickcreatemenu.crear_tarea')}
         </Pulsable>
       </div>
     </div>
@@ -95,11 +99,20 @@ function CreateTaskForm({ onClose }: { onClose: () => void }) {
 export default function QuickCreateMenu({ onClose }: { onClose: () => void }) {
   const { t } = useAppLang()
   const navigate = useNavigate()
+  const { puede, canOpen } = useAuth()
+  const acciones = ACTIONS.filter(a => puedeAbrir(a.ruta, puede, true) && canOpen(a.ruta))
   const [activeAction, setActiveAction] = useState<string | null>(null)
   const panelRef = useRef<HTMLDivElement | null>(null)
+  // Cambios sin guardar (kit, 23-11-2026): la tarea rápida es un formulario;
+  // Esc y el clic fuera preguntan si hay algo escrito (aquí o en el modal de
+  // planificación que se abre dentro).
+  useCambiosSinGuardar<HTMLDivElement>(true, { ref: panelRef })
+  const pedirCierre = () => { void confirmarDescarte().then(ok => { if (ok) onClose() }) }
 
   useEffect(() => {
-    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') void confirmarDescarte().then(ok => { if (ok) onClose() })
+    }
     document.addEventListener('keydown', handler)
     return () => document.removeEventListener('keydown', handler)
   }, [onClose])
@@ -113,7 +126,7 @@ export default function QuickCreateMenu({ onClose }: { onClose: () => void }) {
 
   return (
     <>
-      <div role="presentation" onMouseDown={onClose}
+      <div role="presentation" onMouseDown={pedirCierre}
         className="qucrme-box-4" />
       <div ref={panelRef}
         role="region"
@@ -134,12 +147,12 @@ export default function QuickCreateMenu({ onClose }: { onClose: () => void }) {
           <>
             <div className="qucrme-row-1">
               <span>{t('quickcreatemenu.crear_nuevo')}</span>
-              <Pulsable onClick={onClose} aria-label={t('common.close')} className="qucrme-row-2">
+              <Pulsable onClick={pedirCierre} aria-label={t('common.close')} className="qucrme-row-2">
                 <X size={13} />
               </Pulsable>
             </div>
             <div role="menu" aria-label={t('quickcreatemenu.crear_nuevo')} className="qucrme-stack-2">
-              {ACTIONS.map(({ id, icon: Icon, label, color }) => (
+              {acciones.map(({ id, icon: Icon, color }) => { const label = t(`quickcreatemenu.accion_${id}`); return (
                 <IconButton key={id} ariaLabel={label} title={label} role="menuitem" onClick={() => handleAction(id)} className="qucrme-row-3"
                   onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-3)'}
                   onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
@@ -149,7 +162,7 @@ export default function QuickCreateMenu({ onClose }: { onClose: () => void }) {
                   </div>
                   <span className="u-text1-base-600">{label}</span>
                 </IconButton>
-              ))}
+              ) })}
             </div>
           </>
         )}

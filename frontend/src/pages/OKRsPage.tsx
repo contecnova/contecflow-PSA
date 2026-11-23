@@ -121,12 +121,12 @@ function KRRow({ kr, onDelete }: { kr: KeyResult; onDelete: (id: string | number
       </div>
       {showCheckin && (
         <div className="okr-kr__checkin">
-          <input type="number" aria-label={t('pagina_okr.nuevo_valor_actual', { current_value: kr.current_value })} value={checkinVal}
+          <Input type="number" aria-label={t('pagina_okr.nuevo_valor_actual', { current_value: kr.current_value })} value={checkinVal}
             onChange={e => setCheckinVal(e.target.value)}
-            className="ds-input okr-kr__valor"
+            className="okr-kr__valor"
             placeholder={t('pagina_okr.nuevo_valor_actual', { current_value: kr.current_value })} />
-          <input aria-label={t('okrs.nota_del_check_in')} value={checkinNote} onChange={e => setCheckinNote(e.target.value)}
-            className="ds-input okr-kr__nota"
+          <Input aria-label={t('okrs.nota_del_check_in')} value={checkinNote} onChange={e => setCheckinNote(e.target.value)}
+            className="okr-kr__nota"
             placeholder={t('okrs.nota_del_check_in')} />
           <Button onClick={() => submitCheckin()} loading={isPending} size="sm">
             {t('pagina_okr.guardar')}
@@ -219,12 +219,11 @@ function ObjModal({ obj, onClose }: { obj: Objective | null; onClose: () => void
   })
   const { data: departments = [] } = useQuery<DepartmentPick[]>({
     queryKey: ['okr-departments-pick'],
+    // 23-11-2026: sin catch que se trague el fallo; el aviso global de consultas lo cubre.
     queryFn: async () => {
-      try {
-        const { settingsApi } = await import('../services/settingsApi')
-        const r = await settingsApi.getDepartments()
-        return (Array.isArray(r.data) ? r.data : []) as DepartmentPick[]
-      } catch { return [] }
+      const { settingsApi } = await import('../services/settingsApi')
+      const r = await settingsApi.getDepartments()
+      return (Array.isArray(r.data) ? r.data : []) as DepartmentPick[]
     },
   })
 

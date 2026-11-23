@@ -11,6 +11,7 @@ Cada importación deja `sw_sbom_imports` y una entrada de auditoría con las
 cifras.
 """
 from __future__ import annotations
+import logging
 
 import csv
 import hashlib
@@ -235,6 +236,7 @@ def importar_csv(db: Session, org, contenido: bytes, usuario=None) -> dict:
                         cat.actualizar_instancia(db, org, existente, datos, usuario, origen="csv", auditar=False)
                         resumen["instances_updated"] += 1
         except Exception as e:  # noqa: BLE001 - una fila mala no tumba el resto
+            logging.getLogger(__name__).warning("importar_csv: excepcion ignorada", exc_info=True)
             codigo = getattr(e, "code", None) or type(e).__name__
             resumen["errors"].append({"row": n, "error": codigo})
     imp = SoftwareSbomImport(organization_id=org, kind="catalog", format="csv", total=resumen["rows"],
@@ -312,6 +314,7 @@ def aplicar_inventario(db: Session, org, ci_id: str, inventario: dict, origen: s
                     r = formatos.leer(json.dumps(sbom) if isinstance(sbom, (dict, list)) else str(sbom))
                     comps = r.componentes
                 except Exception:  # noqa: BLE001 - un SBOM roto del agente no tumba el check-in
+                    logging.getLogger(__name__).debug("aplicar_inventario: excepcion ignorada", exc_info=True)
                     comps = comps or []
             if comps:
                 normal = [c if "ref" in c else formatos._componente(c.get("name") or "", c.get("version"),

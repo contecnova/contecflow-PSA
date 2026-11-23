@@ -76,6 +76,7 @@ def detectar_idioma(texto: str) -> Optional[str]:
         from app.services.traduccion.idiomas import detectar_si_seguro
         return detectar_si_seguro(texto[:4000], 0.5)
     except Exception:  # noqa: BLE001 - sin detector, sin idioma
+        logger.debug("detectar_idioma: excepcion ignorada", exc_info=True)
         return None
 
 

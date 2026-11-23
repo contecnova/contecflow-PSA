@@ -10,30 +10,35 @@ import type { ResultadoDeBusqueda } from '../../services/api/tipos-analitica'
 import { INPUT_DEBOUNCE_MS } from '../../constants/timings'
 import { useAppT } from '../../i18n/AppLangContext'
 import { etiquetaCodigo } from '../../i18n/etiquetaCodigo'
-import { Pulsable } from '../ui'
+import { Input, Pulsable } from '../ui'
+import { useAuth } from '../../context/AuthContext'
+import { puedeAbrir } from '../../permisos/navegacion'
+import { Calendar, CheckSquare, Clock, FileText, FolderOpen, Megaphone, Receipt, Search, Settings, Ticket, Timer, User } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import './GlobalSearch.css'
 
-const ICON_MAP: Record<string, string> = { project:'⬡', task:'▦', ticket:'🎫', user:'👤', invoice:'🧾', opportunity:'🎪' }
+const ICON_MAP: Record<string, LucideIcon> = { project: FolderOpen, task: CheckSquare, ticket: Ticket, user: User, invoice: FileText, opportunity: Megaphone }
 
 interface QuickAction {
-  label: string
-  icon: string
+  /** Texto: `globalsearch.accion_<clave>` y `globalsearch.pista_<clave>`. */
+  clave: string
+  Icono: LucideIcon
   path: string
-  hint: string
 }
 
+// Auditoría 22-11-2026 (A2 del 04): antes, textos en castellano fijos y emojis, y sin
+// mirar permisos. Ahora claves i18n, iconos lucide y filtro por la capacidad de la ruta.
 const QUICK_ACTIONS: QuickAction[] = [
-  { label: 'Nueva tarea',         icon: '✅', path: '/tasks',           hint: 'Ir a tareas' },
-  { label: 'Imputar horas',       icon: '⏱',  path: '/time',            hint: 'Registro de tiempo' },
-  { label: 'Nuevo ticket soporte',icon: '🎫', path: '/service-desk',    hint: 'Service desk' },
-  { label: 'Ver proyectos',       icon: '⬡',  path: '/projects',        hint: 'Lista de proyectos' },
-  { label: 'Cronómetro',          icon: '⏲',  path: '/time',            hint: 'Timer de trabajo' },
-  { label: 'Calendario',          icon: '📅', path: '/calendar',        hint: 'Ver calendario' },
-  { label: 'Gastos',              icon: '💸', path: '/expenses',        hint: 'Registrar gasto' },
-  { label: 'Configuración',       icon: '⚙️',  path: '/settings',        hint: 'Ajustes del sistema' },
+  { clave: 'nueva_tarea',   Icono: CheckSquare, path: '/tasks' },
+  { clave: 'imputar_horas', Icono: Clock,       path: '/time' },
+  { clave: 'nuevo_ticket',  Icono: Ticket,      path: '/service-desk' },
+  { clave: 'proyectos',     Icono: FolderOpen,  path: '/projects' },
+  { clave: 'cronometro',    Icono: Timer,       path: '/timer' },
+  { clave: 'calendario',    Icono: Calendar,    path: '/calendar' },
+  { clave: 'gastos',        Icono: Receipt,     path: '/expenses' },
+  { clave: 'configuracion', Icono: Settings,    path: '/settings' },
 ]
 
-// TODO type: search result payload — needs shared type from searchApi
 type SearchResult = ResultadoDeBusqueda
 
 type FlatItem =
@@ -61,11 +66,21 @@ function apagarFila(e: MouseEvent<HTMLElement>) {
 export default function GlobalSearch({ onClose }: Props) {
   const t = useAppT()
   const navigate = useNavigate()
+  const { puede, canOpen } = useAuth()
+  const acciones = useMemo(() => QUICK_ACTIONS.filter(a => puedeAbrir(a.path, puede, true) && canOpen(a.path)), [puede, canOpen])
   const [q, setQ] = useState<string>('')
   const [debouncedQ, setDebouncedQ] = useState<string>('')
   const [selectedIdx, setSelectedIdx] = useState<number>(-1)
   const inputRef = useRef<HTMLInputElement | null>(null)
   const listRef = useRef<HTMLDivElement | null>(null)
+
+  // Auditoría 04 (código muerto, /search), 23-11-2026: «Ver todos los resultados» abre la
+  // búsqueda completa (/search?q=…, filtros por tipo) desde la paleta; también Intro sin fila elegida.
+  const puedeVerTodo = puedeAbrir('/search', puede, true) && canOpen('/search')
+  function verTodos() {
+    navigate(`/search?q=${encodeURIComponent(q.trim())}`)
+    onClose()
+  }
 
   function runAction(path: string) {
     navigate(path)
@@ -94,10 +109,10 @@ export default function GlobalSearch({ onClose }: Props) {
   // Flat list of navigable items for keyboard nav
   const flatItems = useMemo<FlatItem[]>(() => {
     if (debouncedQ.length < 2) {
-      return QUICK_ACTIONS.map(a => ({ kind: 'action', path: a.path }))
+      return acciones.map(a => ({ kind: 'action', path: a.path }))
     }
     return results.map(item => ({ kind: 'result', url: item.url }))
-  }, [debouncedQ, results])
+  }, [debouncedQ, results, acciones])
 
   // Scroll selected item into view
   useEffect(() => {
@@ -119,6 +134,9 @@ export default function GlobalSearch({ onClose }: Props) {
       const item = flatItems[selectedIdx]
       if (item.kind === 'action') runAction(item.path)
       else if (item.url) { navigate(item.url); onClose() }
+    } else if (e.key === 'Enter' && q.trim().length >= 2 && puedeVerTodo) {
+      e.preventDefault()
+      verTodos()
     }
   }
 
@@ -131,13 +149,14 @@ export default function GlobalSearch({ onClose }: Props) {
       <div role="dialog" aria-modal="true" aria-label={t('globalsearch.busqueda_global')} className="globalse-sx2"
         onMouseDown={e => e.stopPropagation()}>
         <div className="globsear-row-1">
-          <span className="globsear-txt-1">⌕</span>
-          <input aria-label={t('global_search.placeholder')}
+          <span className="globsear-txt-1"><Search size={16} aria-hidden /></span>
+          <Input aria-label={t('global_search.placeholder')}
             ref={inputRef}
             value={q}
             onChange={e => setQ(e.target.value)}
             placeholder={t('global_search.placeholder')}
-            className="globsear-box-1"
+            className="u-flex1-min0"
+            inputClassName="globsear-box-1"
             onKeyDown={handleKeyDown}
           />
           {isLoading && <span className="u-text3-sm">{t('common.searching')}</span>}
@@ -151,18 +170,18 @@ export default function GlobalSearch({ onClose }: Props) {
                 {t('globalsearch.acciones_rapidas')}
               </div>
               <div className="globsear-grid-1">
-                {QUICK_ACTIONS.map((action, idx) => {
+                {acciones.map((action, idx) => {
                   const isSelected = selectedIdx === idx
                   return (
-                    <Pulsable className={`globsear-row-3 globalse-sx3 ${isSelected ? 'global-search-m1' : 'global-search-m2'}`} key={action.path + action.label}
+                    <Pulsable className={`globsear-row-3 globalse-sx3 ${isSelected ? 'global-search-m1' : 'global-search-m2'}`} key={action.clave}
                       data-nav-item="1"
                       data-sel={isSelected ? '1' : undefined}
                       onClick={() => runAction(action.path)}
                     >
-                      <span className="globsear-box-5">{action.icon}</span>
+                      <span className="globsear-box-5"><action.Icono size={16} aria-hidden /></span>
                       <div>
-                        <div className={`globsear-txt-2 ${isSelected ? 'global-search-m3' : 'global-search-m4'}`}>{action.label}</div>
-                        <div className="globsear-box-6">{action.hint}</div>
+                        <div className={`globsear-txt-2 ${isSelected ? 'global-search-m3' : 'global-search-m4'}`}>{t(`globalsearch.accion_${action.clave}`)}</div>
+                        <div className="globsear-box-6">{t(`globalsearch.pista_${action.clave}`)}</div>
                       </div>
                     </Pulsable>
                   )
@@ -188,7 +207,7 @@ export default function GlobalSearch({ onClose }: Props) {
                       data-sel={isSelected ? '1' : undefined}
                       onClick={() => { if (item.url) navigate(item.url); onClose() }}
                     >
-                      <span className="globsear-box-9">{(item.type && ICON_MAP[item.type]) || '•'}</span>
+                      <span className="globsear-box-9">{(() => { const Icono = item.type ? ICON_MAP[item.type] : undefined; return Icono ? <Icono size={14} aria-hidden /> : '•' })()}</span>
                       <div className="u-flex1-min0">
                         <div className={`globsear-box-12 ${isSelected ? 'global-search-m7' : 'global-search-m8'}`}>{item.title}</div>
                         {item.subtitle && <div className="globsear-box-10">{item.subtitle}</div>}
@@ -203,6 +222,15 @@ export default function GlobalSearch({ onClose }: Props) {
             ))
           )}
         </div>
+
+        {debouncedQ.length >= 2 && puedeVerTodo && (
+          <Pulsable className="globsear-row-4 global-search-m6" onClick={verTodos}>
+            <span className="globsear-box-9"><Search size={14} aria-hidden /></span>
+            <div className="u-flex1-min0">
+              <div className="globsear-box-12 global-search-m8">{t('globalsearch.ver_todos', { q: debouncedQ })}</div>
+            </div>
+          </Pulsable>
+        )}
 
         <div className="globsear-row-2">
           <span>{`↑↓ ${t('common.navigate')}`}</span><span>{`↵ ${t('common.open')}`}</span><span>{`Esc ${t('common.close').toLowerCase()}`}</span>

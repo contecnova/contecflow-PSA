@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Float, DateTime, ForeignKey, Text, Boolean, Enum
+from sqlalchemy import JSON, Column, String, Float, DateTime, ForeignKey, Text, Boolean, Enum
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import enum
@@ -30,7 +30,7 @@ class Alert(Base):
     __tablename__ = "alerts"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     is_active = Column(Boolean, default=True, nullable=False, server_default="1", index=True)  # audit #36 soft-delete
     alert_type = Column(Enum(AlertType), nullable=False, index=True)
     severity = Column(Enum(AlertSeverity), nullable=False)
@@ -42,6 +42,11 @@ class Alert(Base):
 
     title = Column(String(255), nullable=False)
     description = Column(Text)
+    # Migracion 200: titulo y descripcion por clave (se pintan en el idioma de quien lee).
+    title_key = Column(String(120), nullable=True)
+    title_params = Column(JSON, nullable=True)
+    description_key = Column(String(120), nullable=True)
+    description_params = Column(JSON, nullable=True)
     value = Column(Float, nullable=True)    # e.g. 110 (% load) or 92000 (€ spent)
     threshold = Column(Float, nullable=True)  # e.g. 100 (% limit)
     dedup_key = Column(String(200), nullable=True, index=True)  # Previene duplicados a nivel de BD
@@ -49,7 +54,7 @@ class Alert(Base):
     is_read = Column(Boolean, default=False)
     is_resolved = Column(Boolean, default=False)
     resolved_at = Column(DateTime(timezone=True), nullable=True)
-    resolved_by = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    resolved_by = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
 
     # Notification sent
     email_sent = Column(Boolean, default=False)

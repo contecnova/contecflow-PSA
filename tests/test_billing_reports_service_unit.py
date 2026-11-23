@@ -110,6 +110,12 @@ class TestGetInvoiceSummary:
     def _moneda_de_la_empresa(self, monkeypatch):
         # Con un db falso, el ajuste DEFAULT_CURRENCY sería otro MagicMock.
         monkeypatch.setattr("app.services.settings_service.get_runtime_str", lambda *a, **k: "EUR")
+        # Desde los ajustes por empresa el resumen lee la moneda con
+        # `moneda_de_empresa` (settings_service.por_empresa), que no pasa por
+        # `get_runtime_str`: con el db falso devolvía un MagicMock y cada
+        # factura «EUR» se convertía con un tipo de cambio falso.
+        monkeypatch.setattr("app.services.billing_reports_service.facturas.moneda_de_empresa",
+                            lambda *a, **k: "EUR")
 
     def _db_with(self, invoices):
         db = MagicMock()

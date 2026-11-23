@@ -5,13 +5,14 @@
  */
 import { useState, useCallback, useMemo } from 'react'
 import { useToast } from '../context/ToastContext'
-import type { ToastMessage } from '../context/ToastContext'
+import { extractErr } from '../utils/helpers'
+import { useListaDeProyectos } from '../hooks/useListas'
 import { useQuery, useQueries, useMutation, useQueryClient } from '@tanstack/react-query'
-import { tasksApi, taskDependenciesApi, projectsApi, aiCopilotApi, planificacionApi, type NodoDelPlan } from '../services/api'
+import { tasksApi, taskDependenciesApi, aiCopilotApi, planificacionApi, type NodoDelPlan } from '../services/api'
 import type { SugerenciaDelGantt, SugerenciasDelGantt } from '../services/api/tipos-analitica'
 import type { CambioDeFechas, DependenciaDeTarea } from '../services/api/tipos-proyectos'
 import { BarChart2, CalendarDays, CalendarCheck } from 'lucide-react'
-import { Button, Spinner, EmptyState, Tabs, Page, SearchInput, FilterSelect } from '../components/ui'
+import { Button, Spinner, EmptyState, Tabs, Page, Buscador, FilterSelect } from '../components/ui'
 import PanelDelPlan from '../components/planificador/PanelDelPlan'
 import PanelDeLineasBase from '../components/planificador/PanelDeLineasBase'
 import EditorDeDependencias from '../components/planificador/EditorDeDependencias'
@@ -58,10 +59,8 @@ export default function GanttPage({ projectId: proyectoFijo }: { projectId?: str
   const puedeEditar = useAuth().puede('proyectos.gestionar')
 
   // ── data ────────────────────────────────────────────────────────────────────
-  const { data: projects = [] } = useQuery({
-    queryKey: ['projects'],
-    queryFn:  () => projectsApi.list({}).then(r => r.data),
-  })
+  // 23-11-2026 (04 A8): lista compartida de proyectos.
+  const { data: projects = [] } = useListaDeProyectos()
 
   const { data: rawTasks = [], isLoading } = useQuery({
     queryKey: ['gantt-tasks', projectId],
@@ -76,7 +75,7 @@ export default function GanttPage({ projectId: proyectoFijo }: { projectId?: str
     queryKey: ['task-deps', projectId],
     queryFn: () =>
       projectId
-        ? taskDependenciesApi.getByProject(projectId).then(r => r.data).catch((): DependenciaDeTarea[] => [])
+        ? taskDependenciesApi.getByProject(projectId).then(r => r.data) // 23-11-2026: sin `.catch` que pintaba un Gantt sin flechas como si no hubiera dependencias
         : Promise.resolve<DependenciaDeTarea[]>([]),
     staleTime: STALE_SHORT_MS,
   })
@@ -95,7 +94,7 @@ export default function GanttPage({ projectId: proyectoFijo }: { projectId?: str
       projectId
         ? aiCopilotApi.ganttSuggestions(projectId)
             .then(r => r.data)
-            .catch(() => ({ suggestions: [] }))
+            .catch(() => ({ suggestions: [] })) // accesorio: las sugerencias de la IA son una ayuda; el Gantt funciona sin ellas
         : Promise.resolve({ suggestions: [] }),
     enabled: !!projectId,
     staleTime: STALE_DEFAULT_MS,
@@ -165,8 +164,7 @@ export default function GanttPage({ projectId: proyectoFijo }: { projectId?: str
     onSuccess:  () => { invalidate('tasks'); invalidate('gantt-tasks'); invalidate('plan'); setLocalDates({}); toast.success(t('gantt.dates_saved')) },
     onError:    (e: unknown) => {
       setLocalDates({})
-      const detail = (e as { response?: { data?: { detail?: unknown } } }).response?.data?.detail
-      toast.error(((detail && String(detail)) || t('gantt.error_save')) as ToastMessage)
+      toast.error(extractErr(e, t('gantt.error_save')))
     },
   })
 
@@ -179,8 +177,7 @@ export default function GanttPage({ projectId: proyectoFijo }: { projectId?: str
     }),
     onSuccess:  () => { invalidate('task-deps'); toast.success(t('gantt.dependency_created')) },
     onError:    (e: unknown) => {
-      const detail = (e as { response?: { data?: { detail?: unknown } } }).response?.data?.detail
-      toast.error(((detail && String(detail)) || t('gantt.error_create_dependency')) as ToastMessage)
+      toast.error(extractErr(e, t('gantt.error_create_dependency')))
     },
   })
 
@@ -209,7 +206,7 @@ export default function GanttPage({ projectId: proyectoFijo }: { projectId?: str
   const contenido = (
     <>
       <div className="ds-toolbar">
-        <SearchInput value={filter} onChange={setFilter} placeholder={t('gantt.filter_ph')} />
+        <Buscador value={filter} onChange={setFilter} placeholder={t('gantt.filter_ph')} />
         {!proyectoFijo && (
           <FilterSelect
             value={projectId}

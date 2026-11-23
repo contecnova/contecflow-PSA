@@ -20,7 +20,12 @@ from app.core.codigos_de_error import error
 
 def _miembro(db: Session, a, worker, role, allocation_pct):
     from app.models.project import ProjectMember, ProjectMemberRole
-    papel = ProjectMemberRole(role) if role else ProjectMemberRole.developer
+    # Baja (auditoría 22-11-2026): un papel desconocido es un 422 con código, no un 500.
+    try:
+        papel = ProjectMemberRole(role) if role else ProjectMemberRole.developer
+    except ValueError:
+        raise error(422, "campo_no_valido_opciones", campo="role",
+                    opciones=", ".join(r.value for r in ProjectMemberRole))
     m = db.query(ProjectMember).filter(ProjectMember.project_id == a.project_id,
                                        ProjectMember.user_id == worker.user_id).first()
     if m is None:

@@ -662,13 +662,6 @@
   height: 100vh;
   z-index: calc(var(--z-content) + 4);
 }
-.portalui-sx2 {
-  position: absolute;
-  left: 10px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--text-3);
-}
 .portalui-sx3 {
   position: fixed;
   inset: 0;

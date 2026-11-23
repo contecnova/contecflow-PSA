@@ -233,12 +233,17 @@ def fijar_organizacion_activa(db: Session, user, org: Optional[str]) -> Optional
     return _fijar_en_memoria(user, org)
 
 
-def emitir_tokens(user, org: Optional[str]) -> tuple[str, str, str]:
-    """(acceso, refresco, jti) de una sesion de `user` en la empresa `org`."""
+def emitir_tokens(user, org: Optional[str], sid: Optional[str] = None) -> tuple[str, str, str]:
+    """(acceso, refresco, jti) de una sesion de `user` en la empresa `org`.
+
+    23-11-2026: el acceso lleva `sid`, la clave estable de la sesion
+    (`user_sessions.session_key`): en una sesion nueva es el jti de su primer
+    refresco; al rotar, el que ya tenia. Ver `seguridad_de_cuentas/sesiones.py`.
+    """
     from app.core.security import create_access_token, create_refresh_token
-    extra = {"role": user.role, **({"org": org} if org else {})}
-    acceso = create_access_token(subject=user.id, extra=extra)
     refresco, jti = create_refresh_token(subject=user.id, org=org)
+    extra = {"role": user.role, "sid": sid or jti, **({"org": org} if org else {})}
+    acceso = create_access_token(subject=user.id, extra=extra)
     return acceso, refresco, jti
 
 

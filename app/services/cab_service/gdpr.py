@@ -45,8 +45,60 @@ def list_gdpr_requests(db: Session, pagina: Optional[Paginacion] = None, org: Op
         "processor": r.processor.full_name if r.processor else None,
         "created_at": str(r.created_at)[:10] if r.created_at else None,
         "notes": r.notes,
-        "has_export": _tipo(r) in _CON_COPIA and r.status == GDPRRequestStatus.completed and bool(r.export_data),
+        "has_export": _tipo(r) in _CON_COPIA and r.status == GDPRRequestStatus.completed and bool(r.export_data)
+                      and not _copia_caducada(db, r),
     })
+
+
+# ── Copia de los datos: cifrada y con caducidad (auditoría 22-11-2026, A64) ──
+#
+# `export_data` guardaba la copia de los datos personales EN CLARO y para
+# siempre. Ahora se guarda cifrada (`encrypt_value`, la clave de la plataforma)
+# y caduca a los `COMPLIANCE_GDPR_EXPORT_TTL_DAYS` días de completarse: al
+# pedirla caducada se borra y responde 410; el barrido diario
+# (`purgar_copias_caducadas`) las borra aunque nadie las pida.
+
+def _ttl_de_copia(db: Session, org) -> int:
+    from app.core.config import settings
+    from app.services.settings_service import get_runtime_int
+    return int(get_runtime_int(db, "COMPLIANCE_GDPR_EXPORT_TTL_DAYS", org)
+               or settings.COMPLIANCE_GDPR_EXPORT_TTL_DAYS)
+
+
+def _copia_caducada(db: Session, req) -> bool:
+    if not req.completed_at:
+        return False
+    fin = req.completed_at if req.completed_at.tzinfo else req.completed_at.replace(tzinfo=timezone.utc)
+    return datetime.now(timezone.utc) > fin + timedelta(days=_ttl_de_copia(db, req.organization_id))
+
+
+def _guardar_copia(req, datos: dict) -> None:
+    from app.core.encryption import encrypt_value
+    req.export_data = encrypt_value(json.dumps(datos, default=str))
+
+
+def _leer_copia(req) -> dict:
+    from app.core.encryption import decrypt_value
+    crudo = req.export_data or ""
+    if not crudo.lstrip().startswith("{"):
+        crudo = decrypt_value(crudo) or "{}"
+    return json.loads(crudo)
+
+
+def purgar_copias_caducadas(db: Session, org: Optional[str] = None) -> int:
+    """Borra las copias RGPD caducadas de la empresa `org` (barrido diario de
+    retención, `app.worker.aplicar_retencion`)."""
+    n = 0
+    q = db.query(GDPRRequest).filter(GDPRRequest.export_data.isnot(None), GDPRRequest.completed_at.isnot(None))
+    if org:
+        q = q.filter(GDPRRequest.organization_id == org)
+    for req in q.all():
+        if _copia_caducada(db, req):
+            req.export_data = None
+            n += 1
+    if n:
+        db.commit()
+    return n
 
 
 #: Tipos cuyo resultado es una copia de los datos de la persona (art. 15 y 20).
@@ -147,11 +199,25 @@ def _gdpr_portability_export(db: Session, user) -> dict:
         "overtime_requests": horas_extra,
         # Migracion 189: si es persona externa (o freelance), su ficha de proveedor y accesos.
         "supplier": _datos_de_proveedor(db, user),
+        # 23-11-2026: su seguridad de cuenta (sin contraseñas, hashes ni secretos).
+        "account_security": _seguridad_de_cuenta(db, user),
+        # Migracion 200: sus llamadas al agente de voz (por la huella de su telefono).
+        "voice_sessions": _sesiones_de_voz(db, user),
         "data_summary": {"imputations": len(imputaciones), "tickets": len(tickets),
                          "overtime_requests": len(horas_extra), "meetings": reuniones["meetings_count"]},
         "export_date": str(timeutil.today()),
         "format": "JSON",
     }
+
+
+def _sesiones_de_voz(db: Session, user):
+    from app.services.service_desk.voice_agent_service import copia_rgpd
+    return copia_rgpd(db, getattr(user, "phone", None), getattr(user, "organization_id", None))
+
+
+def _seguridad_de_cuenta(db: Session, user):
+    from app.services.seguridad_de_cuentas.rgpd import copia
+    return copia(db, user)
 
 
 def _datos_de_proveedor(db: Session, user):
@@ -196,11 +262,32 @@ def process_gdpr_request(request_id: str, current_user, db: Session) -> dict:
         if es_contacto:
             contactos_rgpd.exigir_sin_bloqueo_legal(db, email, org)
 
+    # A64: todo en UNA transacción. Antes se confirmaba «processing» y, si la
+    # supresión fallaba a medias, la solicitud quedaba atascada en curso con
+    # parte de los datos anonimizados. Ahora, si algo falla, se deshace todo y
+    # la solicitud sigue como estaba.
     req.status = GDPRRequestStatus.processing
     req.processed_by = current_user.id
-    db.commit()
-    export_data: dict = {}
+    try:
+        export_data = _ejecutar_solicitud(db, req, tipo, user, email, es_contacto, en_reuniones, org)
+    except Exception:
+        db.rollback()
+        raise
 
+    req.status = GDPRRequestStatus.completed
+    req.completed_at = datetime.now(timezone.utc)
+    _guardar_copia(req, export_data)
+    audit_log(db, current_user, "GDPR_PROCESS", "users",
+              req.subject_user_id or "unknown", "",
+              new_values={"type": tipo.value, "result": req.status.value})
+    db.commit()
+    return {"ok": True, "status": req.status.value, "data": export_data}
+
+
+def _ejecutar_solicitud(db: Session, req, tipo, user, email, es_contacto: bool, en_reuniones: bool, org) -> dict:
+    from app.services import datos_personales_de_contactos as contactos_rgpd
+    from app.services.reuniones import rgpd as rgpd_reuniones
+    export_data: dict = {}
     if tipo == GDPRRequestType.erasure and (user or es_contacto or en_reuniones):
         # Primero sus fichas de contacto (con el email original), luego la cuenta.
         contactos_suprimidos = contactos_rgpd.anonimizar(db, email, org) if es_contacto else None
@@ -223,15 +310,7 @@ def process_gdpr_request(request_id: str, current_user, db: Session) -> dict:
         # La rectificación la hace una persona en la ficha: aquí se deja
         # constancia de quién la confirma.
         export_data = {"rectification": "confirmed_by_processor"}
-
-    req.status = GDPRRequestStatus.completed
-    req.completed_at = datetime.now(timezone.utc)
-    req.export_data = json.dumps(export_data)
-    audit_log(db, current_user, "GDPR_PROCESS", "users",
-              req.subject_user_id or "unknown", "",
-              new_values={"type": tipo.value, "result": req.status.value})
-    db.commit()
-    return {"ok": True, "status": req.status.value, "data": export_data}
+    return export_data
 
 
 def reject_gdpr_request(request_id: str, motivo: str, current_user, db: Session) -> dict:
@@ -254,7 +333,11 @@ def export_of_gdpr_request(request_id: str, current_user, db: Session) -> dict:
     req = _de_la_empresa_o_404(db, request_id, current_user.organization_id)
     if _tipo(req) not in _CON_COPIA or req.status != GDPRRequestStatus.completed or not req.export_data:
         raise error(404, "rgpd_sin_copia")
+    if _copia_caducada(db, req):
+        req.export_data = None
+        db.commit()
+        raise error(410, "rgpd_copia_caducada", dias=_ttl_de_copia(db, req.organization_id))
     audit_log(db, current_user, "EXPORT", "gdpr_request", req.id, "gdpr export",
               metadata={"type": _tipo(req).value})
     db.commit()
-    return json.loads(req.export_data)
+    return _leer_copia(req)

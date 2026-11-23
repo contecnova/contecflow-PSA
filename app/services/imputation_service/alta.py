@@ -53,14 +53,23 @@ def _validar_fecha_imputable(payload, current_user: User, db: Session) -> None:
     historico, y bloquearles la correccion dejaria los errores sin arreglar.
     """
     if current_user.role == UserRole.admin:
+        # M34 (auditoría 22-11-2026): la excepción del administrador queda
+        # marcada y se audita aparte (`IMPUTATION_ADMIN_OVERRIDE`) al crear.
+        cierre = get_lockout_cutoff(current_user, db)
+        if payload.date < cierre or payload.date > today_for_user(current_user):
+            try:
+                payload._excepcion_admin = "fecha_bloqueada" if payload.date < cierre else "fecha_futura"
+            except AttributeError:
+                pass
         return
 
     earliest_allowed = get_lockout_cutoff(current_user, db)
     if payload.date < earliest_allowed:
         lockout_days = (today_for_user(current_user) - earliest_allowed).days
         raise error(400, "imputar_fecha_bloqueada", dias=lockout_days, fecha=earliest_allowed)
-    today_utc = datetime.now(timezone.utc).date()
-    if payload.date > today_utc:
+    # Auditoría 22-11-2026 (A46): «hoy» en la zona de la persona (antes UTC: en
+    # UTC+8 no se podía imputar el día en curso hasta las 08:00).
+    if payload.date > today_for_user(current_user):
         raise error(400, "imputar_fecha_futura")
 
 
@@ -120,9 +129,11 @@ def _validar_tope_diario(payload, current_user: User, db: Session) -> None:
     devolver siempre 400 y no un 409 de duplicado, porque el 409 es recuperable
     (`force_duplicate`) y este no.
     """
+    # A45: sin contar las borradas (antes daban 400 al volver a imputar).
     existing_hours = db.query(func.sum(Imputation.hours)).filter(
         Imputation.user_id == current_user.id,
         Imputation.date == payload.date,
+        Imputation.is_active.is_(True),
     ).scalar() or 0.0
     if existing_hours + payload.hours > 24:
         raise error(400, "imputar_mas_de_24h", horas=existing_hours)
@@ -149,6 +160,7 @@ def _id_de_imputacion_duplicada(payload, current_user: User, task, db: Session) 
             Imputation.user_id == current_user.id,
             Imputation.task_id == payload.task_id,
             Imputation.date == payload.date,
+            Imputation.is_active.is_(True),
         ).first()
         mensaje = "Ya existe una imputación para esta tarea en esa fecha."
     else:
@@ -157,6 +169,7 @@ def _id_de_imputacion_duplicada(payload, current_user: User, task, db: Session) 
             Imputation.project_id == payload.project_id,
             Imputation.task_id.is_(None),
             Imputation.date == payload.date,
+            Imputation.is_active.is_(True),
         ).first()
         mensaje = "Ya existe una imputación sin tarea para este proyecto en esa fecha."
 
@@ -176,6 +189,7 @@ def _validar_tope_semanal(payload, current_user: User, db: Session) -> None:
             Imputation.user_id == current_user.id,
             Imputation.date >= week_start,
             Imputation.date <= week_end,
+            Imputation.is_active.is_(True),
         )
     ).scalar() or 0.0
     weekly_capacity = capacidad_semanal(db, current_user)
@@ -220,14 +234,35 @@ def _crear_imputacion(payload, current_user: User, db: Session) -> Imputation:
     return imputation
 
 
-def validate_and_create_imputation(payload, current_user: User, db: Session):
+def _bloquear_dia(db: Session, user_id: str, fecha) -> None:
+    """M30: dos altas simultáneas de la misma persona y día se serializan (bloqueo
+    de transacción de PostgreSQL), así el control de duplicados y de topes ve la
+    otra. No hay índice único posible: un duplicado consciente (`force_duplicate`)
+    está permitido."""
+    from app.db.session import is_postgres
+    if not is_postgres():
+        return
+    from sqlalchemy import text
+    db.execute(text("SELECT pg_advisory_xact_lock(hashtext(:k))"), {"k": f"imputacion:{user_id}:{fecha}"})
+
+
+def validate_and_create_imputation(payload, current_user: User, db: Session, antes_de_confirmar=None):
     """
     Validates all business rules and creates an Imputation record.
     Returns the newly created Imputation ORM object.
     Raises HTTPException on any violation.
 
     El orden de las reglas es parte del contrato: ver la nota de cabecera.
+
+    Auditoría 22-11-2026 (A34, A35, A48, A6): es la ÚNICA puerta de alta. El
+    cronómetro, Slack, los bots de colaboración y la voz pasan por aquí (con
+    `crear_imputacion_validada`), así que todas aplican el cierre de periodo,
+    la fecha futura, la pertenencia, la tarifa, los topes diario y semanal,
+    los duplicados y el control de horas extra. `antes_de_confirmar(imp)`
+    deja a quien llama completar su parte (p. ej. cerrar el cronómetro) en la
+    MISMA transacción.
     """
+    _bloquear_dia(db, current_user.id, payload.date)
     _validar_fecha_imputable(payload, current_user, db)
     project = _buscar_proyecto_del_usuario(payload, current_user, db)
     task = _buscar_tarea_del_proyecto(payload, db)
@@ -243,6 +278,8 @@ def validate_and_create_imputation(payload, current_user: User, db: Session):
     control_horas_extra.antes_de_imputar(db, current_user.id, payload.date, payload.hours)
 
     imputation = _crear_imputacion(payload, current_user, db)
+    if antes_de_confirmar is not None:
+        antes_de_confirmar(imputation)
 
     if getattr(payload, "force_duplicate", False) and duplicate_imputation_id:
         _notify_duplicate_imputation_manager(
@@ -254,12 +291,43 @@ def validate_and_create_imputation(payload, current_user: User, db: Session):
             duplicate_imputation_id,
         )
 
-    db.commit()
+    excepcion = getattr(payload, "_excepcion_admin", None)
+    if excepcion:
+        from app.services.audit import audit_log
+        audit_log(db, current_user, "IMPUTATION_ADMIN_OVERRIDE", "imputations", imputation.id, str(payload.date),
+                  new_values={"motivo": excepcion, "fecha": str(payload.date), "horas": payload.hours})
+    # M30 (auditoría 22-11-2026): la hoja semanal se recalcula en la MISMA
+    # transacción que la imputación (antes, commit y luego otra transacción: si
+    # la segunda fallaba, la hoja quedaba desfasada).
+    db.flush()
+    sync_imputation_week_timesheet(db, imputation.user_id, imputation.date)   # confirma las dos cosas
     db.refresh(imputation)
-    sync_imputation_week_timesheet(db, imputation.user_id, imputation.date)
     # Horas extra: regularizar (declaración posterior) o avisar; nunca deshace la imputación.
     control_horas_extra.despues_de_imputar(db, imputation.user_id, imputation.date, current_user.id)
     return imputation
+
+
+def crear_imputacion_validada(current_user: User, db: Session, *, project_id: str, fecha, horas: float,
+                              task_id: Optional[str] = None, description: Optional[str] = None,
+                              is_billable: bool = False, force_duplicate: bool = False,
+                              antes_de_confirmar=None) -> Imputation:
+    """Alta de imputación desde cualquier vía que no sea el formulario (cronómetro,
+    Slack, bots, voz): construye el payload y pasa por `validate_and_create_imputation`.
+
+    Las horas se validan como en el esquema de la API (> 0 y <= 24, en medias horas
+    no: se respetan las del origen, redondeadas a centésimas).
+    """
+    from types import SimpleNamespace
+    try:
+        horas = round(float(horas), 2)
+    except (TypeError, ValueError):
+        raise error(422, "valor_no_valido", valor=horas)
+    if not (0 < horas <= 24):
+        raise error(400, "imputar_mas_de_24h", horas=horas)
+    payload = SimpleNamespace(project_id=project_id, task_id=task_id, date=fecha, hours=horas,
+                              description=description, is_billable=bool(is_billable),
+                              force_duplicate=bool(force_duplicate))
+    return validate_and_create_imputation(payload, current_user, db, antes_de_confirmar=antes_de_confirmar)
 
 
 def validate_imputation_edit_allowed(imp, current_user: User, db: Session) -> None:

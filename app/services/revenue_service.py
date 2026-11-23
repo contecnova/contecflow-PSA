@@ -31,6 +31,21 @@ from app.models.revenue import (
 from app.models.financial import ProjectMilestone
 from app.models.project import Project
 from app.core import timeutil
+from app.services.textos_de_salida_servicios_m_z import texto_para as _texto_para_plano
+from app.services.textos_guardados import por_clave_json, pintar_campo
+
+
+class _TextoPorClave(str):
+    """Texto del asiento que recuerda su clave y datos (migración 200: `description_key`/`_params`)."""
+    clave: str
+    params: dict
+
+
+def texto_para(db, clave, **params):
+    t = _TextoPorClave(_texto_para_plano(db, clave, **params))
+    t.clave = clave
+    t.params = {k: v for k, v in params.items() if k not in ("user_id", "org_id", "preferido")}
+    return t
 from app.core.paginacion import Pagina, Paginacion, paginar
 from app.core.errores import ErrorDeDominio
 from app.core.codigos_de_error import error
@@ -205,12 +220,25 @@ def close_period(db: Session, organization_id: str, year: int, month: int, user_
         notes=notes,
     )
     db.add(pc)
+    _auditar_periodo(db, "CLOSE", organization_id, year, month, user_id, notes)
     db.commit()
     db.refresh(pc)
     return pc
 
 
-def reopen_period(db: Session, organization_id: str, year: int, month: int) -> None:
+def _auditar_periodo(db: Session, accion: str, organization_id, year: int, month: int,
+                     user_id: Optional[str], notes: Optional[str] = None) -> None:
+    """Auditoria 2026-11-22 (A-RZ8): cerrar y reabrir un periodo contable no
+    dejaba rastro; reabrir permite reconocer o revertir ingresos ya cerrados."""
+    from app.models.user import User
+    from app.services.audit import audit_log
+    usuario = db.get(User, user_id) if user_id else None
+    audit_log(db, usuario, accion, "revenue_periods", f"{year}-{month:02d}", f"{year}-{month:02d}",
+              new_values={"organization_id": organization_id, "year": year, "month": month, "notes": notes})
+
+
+def reopen_period(db: Session, organization_id: str, year: int, month: int,
+                  user_id: Optional[str] = None) -> None:
     pc = (
         db.query(RevenuePeriodClose)
         .filter(
@@ -223,6 +251,7 @@ def reopen_period(db: Session, organization_id: str, year: int, month: int) -> N
     if not pc:
         raise error(404, "periodo_no_cerrado")
     db.delete(pc)
+    _auditar_periodo(db, "REOPEN", organization_id, year, month, user_id)
     db.commit()
 
 
@@ -257,7 +286,10 @@ def _create_entry(
     description: Optional[str] = None,
     reverses_entry_id: Optional[str] = None,
 ) -> RevenueEntry:
+    d_clave, d_params = (por_clave_json(description.clave, **description.params)
+                         if isinstance(description, _TextoPorClave) else (None, None))
     entry = RevenueEntry(
+        description_key=d_clave, description_params=d_params,
         id=str(uuid.uuid4()),
         organization_id=contract.organization_id,
         rev_contract_id=contract.id,
@@ -296,7 +328,8 @@ def reverse_entry(db: Session, entry_id: str, user_id: str) -> RevenueEntry:
         month=orig.period_month,
         user_id=user_id,
         milestone_id=orig.milestone_id,
-        description=f"Reversal de entrada {entry_id[:8]}",
+        description=texto_para(db, "ingresos.reversal", user_id=user_id, org_id=contract.organization_id,
+                               entrada=entry_id[:8]),
         reverses_entry_id=entry_id,
     )
     db.commit()
@@ -332,6 +365,13 @@ def recognize_on_milestone(db: Session, milestone_id: str, user_id: Optional[str
     for contract in contracts:
         if is_period_closed(db, year, month, contract.organization_id):
             continue
+        # Auditoria 2026-11-22 (A-RZ8): completar el mismo hito dos veces (o
+        # reabrirlo y completarlo) reconocia otra vez su importe, sin tope.
+        # Ahora una sola vez por hito y contrato (salvo que se revirtiera) y
+        # nunca por encima de lo que queda del contrato.
+        if _hito_ya_reconocido(db, contract, milestone_id):
+            continue
+        queda = _pendiente_de_reconocer(db, contract)
 
         obligations = (
             db.query(RevenueObligation)
@@ -350,20 +390,26 @@ def recognize_on_milestone(db: Session, milestone_id: str, user_id: Optional[str
                 if milestone.billing_pct
                 else 0.0
             )
+            amount = round(min(amount, queda), 2)
             if amount > 0:
                 _create_entry(
                     db, contract, EntryType.recognized, amount,
                     year, month, user_id, milestone_id,
-                    f"Hito completado: {milestone.name}",
+                    texto_para(db, "ingresos.hito", user_id=user_id, org_id=contract.organization_id,
+                               nombre=milestone.name),
                 )
         else:
             for ob in obligations:
                 amount = ob.allocated_amount or (ob.allocated_pct / 100 * contract.contract_value)
-                _create_entry(
-                    db, contract, EntryType.recognized, round(amount, 2),
-                    year, month, user_id, milestone_id,
-                    f"Obligación satisfecha: {ob.name}",
-                )
+                amount = round(min(amount, queda), 2)
+                queda = round(queda - max(amount, 0.0), 2)
+                if amount > 0:
+                    _create_entry(
+                        db, contract, EntryType.recognized, amount,
+                        year, month, user_id, milestone_id,
+                        texto_para(db, "ingresos.obligacion", user_id=user_id, org_id=contract.organization_id,
+                                   nombre=ob.name),
+                    )
                 ob.is_satisfied = True
                 ob.satisfied_date = today
 
@@ -373,6 +419,31 @@ def recognize_on_milestone(db: Session, milestone_id: str, user_id: Optional[str
         except Exception:
             _logger.warning("recognize_on_milestone: excepcion ignorada", exc_info=True)
             db.rollback()
+
+
+def _reconocido_neto(db: Session, contract: RevenueContract) -> float:
+    """Lo reconocido del contrato, neto de reversiones."""
+    return float(
+        db.query(func.sum(RevenueEntry.amount)).filter(
+            RevenueEntry.rev_contract_id == contract.id,
+            RevenueEntry.entry_type.in_([EntryType.recognized, EntryType.reversal]),
+        ).scalar() or 0.0)
+
+
+def _pendiente_de_reconocer(db: Session, contract: RevenueContract) -> float:
+    return max(float(contract.contract_value or 0.0) - _reconocido_neto(db, contract), 0.0)
+
+
+def _hito_ya_reconocido(db: Session, contract: RevenueContract, milestone_id: str) -> bool:
+    """¿Hay un asiento de ese hito en ese contrato que no se haya revertido?"""
+    revertidos = db.query(RevenueEntry.reverses_entry_id).filter(
+        RevenueEntry.reverses_entry_id.isnot(None)).scalar_subquery()
+    return db.query(RevenueEntry.id).filter(
+        RevenueEntry.rev_contract_id == contract.id,
+        RevenueEntry.milestone_id == milestone_id,
+        RevenueEntry.entry_type == EntryType.recognized,
+        ~RevenueEntry.id.in_(revertidos),
+    ).first() is not None
 
 
 # ── Recognition: over_time / consumption ──────────────────────────────────────
@@ -435,9 +506,17 @@ def _recognize_over_time(db: Session, contract: RevenueContract, year: int, mont
     (revisión 2026-11). Si no hay tarifa no se reconoce nada y se AVISA:
     antes ese caso era indistinguible del «no hay horas».
     """
-    from sqlalchemy import extract
+    from calendar import monthrange
 
     from app.models.imputation import Imputation
+
+    # Auditoria 2026-11-22 (A-RZ8): reconocimiento ACUMULADO. Antes se miraban
+    # solo las horas del mes y, como cada mes se reconoce una vez, las horas
+    # aprobadas despues del lote de su mes (o las de un periodo revertido) no
+    # se reconocian nunca. Ahora: lo devengado hasta el fin del periodo (todas
+    # las horas aprobadas con fecha <= fin de mes) menos lo ya reconocido neto;
+    # la diferencia va al periodo que se cierra (ajuste de recuperacion).
+    fin_del_periodo = date(year, month, monthrange(year, month)[1])
 
     # Sólo horas aprobadas: es lo que dice el contrato de esta función y lo que
     # exige la norma. `is_approved` puede ser NULL en filas antiguas, así que se
@@ -447,8 +526,7 @@ def _recognize_over_time(db: Session, contract: RevenueContract, year: int, mont
         .filter(
             Imputation.project_id == contract.project_id,
             Imputation.is_approved.is_(True),
-            extract("year", Imputation.date) == year,
-            extract("month", Imputation.date) == month,
+            Imputation.date <= fin_del_periodo,
         )
         .scalar()
         or 0.0
@@ -480,7 +558,7 @@ def _recognize_over_time(db: Session, contract: RevenueContract, year: int, mont
         cache: dict = {}
         imps = db.query(Imputation).filter(
             Imputation.project_id == contract.project_id, Imputation.is_approved.is_(True),
-            extract("year", Imputation.date) == year, extract("month", Imputation.date) == month).all()
+            Imputation.date <= fin_del_periodo).all()
         por_tarifa = sum(i.hours * tarifa_de_facturacion(db, i.user, proj, i.date, cache) for i in imps if i.user)
         avg_rate = round(por_tarifa / total_hours, 2) if por_tarifa else float(proj.billing_rate or 0.0)
     else:
@@ -495,27 +573,31 @@ def _recognize_over_time(db: Session, contract: RevenueContract, year: int, mont
         )
         return 0.0
 
-    recognized = round(total_hours * avg_rate, 2)
+    devengado = round(total_hours * avg_rate, 2)
 
-    # Tope en el valor de contrato que queda por reconocer.
-    already_recognized = (
+    # Lo pendiente: devengado hasta el periodo menos lo ya reconocido neto (de
+    # los asientos del lote; los de hitos son de otra via), con tope en el
+    # valor del contrato que queda.
+    already_recognized = float(
         db.query(func.sum(RevenueEntry.amount))
         .filter(
             RevenueEntry.rev_contract_id == contract.id,
             RevenueEntry.entry_type.in_([EntryType.recognized, EntryType.reversal]),
+            RevenueEntry.milestone_id.is_(None),
         )
         .scalar()
         or 0.0
     )
-    remaining = max(contract.contract_value - already_recognized, 0.0)
-    recognized = min(recognized, remaining)
+    recognized = round(min(devengado - already_recognized, _pendiente_de_reconocer(db, contract)), 2)
 
     if recognized > 0:
         _create_entry(
             db, contract, EntryType.recognized, recognized, year, month, user_id,
-            description=f"T&M reconocido: {total_hours:.1f}h × {avg_rate}",
+            description=texto_para(db, "ingresos.tm", user_id=user_id, org_id=contract.organization_id,
+                                    periodo=f"{year}-{month:02d}", horas=f"{total_hours:.1f}", tarifa=avg_rate),
         )
-    return recognized
+        return recognized
+    return 0.0
 
 
 def _recognize_straight_line(db: Session, contract: RevenueContract, year: int, month: int, user_id: Optional[str]) -> float:
@@ -542,10 +624,22 @@ def _recognize_straight_line(db: Session, contract: RevenueContract, year: int, 
     if _ya_reconocido(db, contract, year, month):
         return 0.0
 
-    amount = round(contract.contract_value / n, 2)
+    # Auditoria 2026-11-22 (A-RZ8): acumulado. Lo que corresponde hasta este
+    # periodo (meses transcurridos / N del contrato) menos lo ya reconocido
+    # neto: un mes que no se reconocio (o que se revirtio) se recupera aqui, y
+    # el ultimo mes absorbe los centimos del redondeo.
+    transcurridos = n
+    if contract.start_date:
+        transcurridos = (year - contract.start_date.year) * 12 + (month - contract.start_date.month) + 1
+    transcurridos = max(1, min(transcurridos, n))
+    objetivo = round(float(contract.contract_value or 0.0) * transcurridos / n, 2)
+    amount = round(min(objetivo - _reconocido_neto(db, contract), _pendiente_de_reconocer(db, contract)), 2)
+    if amount <= 0:
+        return 0.0
     _create_entry(
         db, contract, EntryType.recognized, amount, year, month, user_id,
-        description=f"Retainer {year}-{month:02d}: 1/{n} del contrato",
+        description=texto_para(db, "ingresos.retainer", user_id=user_id, org_id=contract.organization_id,
+                               periodo=f"{year}-{month:02d}", transcurridos=transcurridos, n=n),
     )
     return amount
 
@@ -635,7 +729,8 @@ def _recognize_por_avance(db: Session, contract: RevenueContract, year: int, mon
         ultimo = date(year, month, monthrange(year, month)[1])
         if not fin or estado not in ("completed", "closed") or not (date(year, month, 1) <= fin <= ultimo):
             return 0.0
-        importe, texto = contract.contract_value - ya, "Contrato completado: todo el importe al cierre"
+        importe, texto = (contract.contract_value - ya,
+                          texto_para(db, "ingresos.contrato_completado", user_id=user_id, org_id=contract.organization_id))
     else:
         tareas = db.query(Task.status).filter(Task.project_id == proj.id).all()
         validas = [t for (t,) in tareas if str(getattr(t, "value", t)) != "cancelled"]
@@ -644,7 +739,8 @@ def _recognize_por_avance(db: Session, contract: RevenueContract, year: int, mon
         hechas = sum(1 for t in validas if str(getattr(t, "value", t)) == "done")
         pct = hechas / len(validas)
         importe = contract.contract_value * pct - ya
-        texto = f"Por avance: {hechas}/{len(validas)} tareas ({pct * 100:.0f} %)"
+        texto = texto_para(db, "ingresos.por_avance", user_id=user_id, org_id=contract.organization_id,
+                           hechas=hechas, total=len(validas), pct=f"{pct * 100:.0f}")
     importe = round(max(importe, 0.0), 2)
     if importe > 0:
         _create_entry(db, contract, EntryType.recognized, importe, year, month, user_id, description=texto)
@@ -745,7 +841,7 @@ def _serialize_entry(e: RevenueEntry) -> dict:
         "period_year": e.period_year,
         "period_month": e.period_month,
         "milestone_id": e.milestone_id,
-        "description": e.description,
+        "description": pintar_campo(e, "description"),
         "reverses_entry_id": e.reverses_entry_id,
         "created_by": e.created_by,
         "created_at": str(e.created_at)[:19] if e.created_at else None,

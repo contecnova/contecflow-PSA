@@ -14,10 +14,12 @@ import io
 import json
 import logging
 from datetime import datetime, timezone
+# Auditoria 2026-11-22 (03, bajos m-p): fechas visibles en la zona del contexto, no la del servidor.
+from app.core.timeutil import now_local
 from typing import Optional
 from sqlalchemy.orm import Session
 from app.models.project import Project
-from app.models.task import Task
+from app.models.task import Task, TaskStatus
 from app.models.mfa import (
     PDFExportJob,
 )
@@ -149,10 +151,10 @@ def generate_pdf(export_type: str, source_id: Optional[str], params: dict, db: S
                     [t("pdfexp.fin_previsto"), formatear_fecha(project.end_date_planned, idioma)],
                 ]
                 tasks = db.query(Task).filter(Task.project_id == source_id).all()
-                done = sum(1 for tarea in tasks if tarea.status == "done")
+                done = sum(1 for tarea in tasks if tarea.status == TaskStatus.done)
                 data.append([t("pdfexp.tareas"), t("pdfexp.tareas_hechas", hechas=done, total=len(tasks))])
-                t = Table(data, colWidths=[60 * mm, 110 * mm])
-                t.setStyle(TableStyle([
+                tabla = Table(data, colWidths=[60 * mm, 110 * mm])
+                tabla.setStyle(TableStyle([
                     ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor(primary_color)),
                     ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
                     ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
@@ -162,7 +164,7 @@ def generate_pdf(export_type: str, source_id: Optional[str], params: dict, db: S
                     ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#D0D7E0")),
                     ("PADDING", (0, 0), (-1, -1), 6),
                 ]))
-                elements.append(t)
+                elements.append(tabla)
 
         else:
             elements.append(Paragraph(f"{t('programado.tipo')}: {_texto(export_type)}", section_style))
@@ -186,7 +188,7 @@ def generate_pdf(export_type: str, source_id: Optional[str], params: dict, db: S
 3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 595 842]/Contents 4 0 R/Resources<</Font<</F1 5 0 R>>>>>>endobj
 4 0 obj<</Length 120>>
 stream
-BT /F1 14 Tf 50 780 Td ({_nombre_seguro(marca)} - {_nombre_seguro(export_type)}) Tj 0 -25 Td /F1 10 Tf ({formatear_fecha(datetime.now().date(), "en")}) Tj ET
+BT /F1 14 Tf 50 780 Td ({_nombre_seguro(marca)} - {_nombre_seguro(export_type)}) Tj 0 -25 Td /F1 10 Tf ({formatear_fecha(now_local().date(), "en")}) Tj ET
 endstream
 endobj
 5 0 obj<</Type/Font/Subtype/Type1/BaseFont/Helvetica>>endobj
@@ -228,7 +230,7 @@ def create_and_run_pdf_export(
         from app.core.constantes import NOMBRE_DEL_PRODUCTO
         filename = (f"{_nombre_seguro(params.get('company_name') or NOMBRE_DEL_PRODUCTO).lower()}_"
                     f"{_nombre_seguro(export_type)}_{_nombre_seguro(source_id)}"
-                    f"_{datetime.now().strftime('%Y%m%d')}.pdf")
+                    f"_{now_local().strftime('%Y%m%d')}.pdf")
         return pdf_bytes, filename
     except Exception as e:
         _logger.exception("PDF generation job failed (export_type=%s source_id=%s)", export_type, source_id)

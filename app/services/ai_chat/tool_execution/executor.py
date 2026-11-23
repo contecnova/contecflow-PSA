@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 
 from app.models.user import User, UserRole
+from app.services.ai_chat.tool_execution.textos import mensaje as _msg
 from app.services.ai_chat.tool_execution import (
     crm,
     delivery,
@@ -55,7 +56,7 @@ def execute_tool(tool_name: str, tool_input: dict, db: Session, user: User) -> d
     try:
         handler = _HANDLERS.get(tool_name)
         if handler is None:
-            return {"error": f"Herramienta desconocida: {tool_name}"}
+            return {"error": _msg(db, user, "herramienta_desconocida", nombre=tool_name)}
         # Segunda auditoría 2026-11: la guarda de rol y la matriz GRC del
         # endpoint REST equivalente (`politica.POLITICAS`), antes de ejecutar.
         from app.services.ai_chat.tool_execution.politica import denegacion

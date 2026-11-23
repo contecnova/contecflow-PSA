@@ -8,7 +8,7 @@ from datetime import datetime
 from typing import Optional, Dict
 import logging
 
-from app.core.deps import get_current_user, get_db, require_any_manager, require_internal_user
+from app.core.deps import get_current_user, get_db, requiere_capacidad
 from app.core.responses import APIResponse, APIListResponse
 from app.models.user import User
 from app.models.resources import ResourceAlertType
@@ -110,7 +110,7 @@ def get_availability_matrix(
     weeks_ahead: int = Query(4, ge=1, le=12),
     project_id: Optional[str] = None,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("recursos.gestionar")),
 ):
     """
     Get availability matrix for team (users × weeks).
@@ -145,7 +145,7 @@ def get_load_scoring(
     max_load_pct: float = Query(200, le=500),
     exclude_contractors: bool = False,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("recursos.gestionar")),
 ):
     """
     Get all users ranked by current load percentage.
@@ -178,7 +178,7 @@ def get_load_scoring(
 @router.get("/team-health", response_model=APIResponse[TeamHealthMetrics], summary="Get team health metrics")
 def get_team_health(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("recursos.gestionar")),
 ):
     """Get team utilization health metrics."""
 
@@ -199,7 +199,7 @@ def get_team_health(
 def get_skill_gaps(
     project_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("recursos.gestionar")),
 ):
     """Analyze required vs available skills in a project."""
     gaps = resource_analytics.get_skill_gaps(db, project_id)
@@ -212,7 +212,7 @@ def get_skill_gaps(
 def get_available_by_skill(
     skill_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("recursos.gestionar")),
 ):
     """Get all users with a skill, ranked by available hours."""
     available = resource_analytics.get_available_users_by_skill(db, skill_id)
@@ -237,7 +237,7 @@ def get_utilization_history(
     user_id: Optional[str] = None,
     weeks_back: int = Query(12, ge=1, le=52),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("recursos.gestionar")),
 ):
     """Get historical resource utilization snapshots."""
     snapshots = _svc_get_utilization_history(db, user_id=user_id, weeks_back=weeks_back)
@@ -292,7 +292,7 @@ def acknowledge_alert(
     alert_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: excepcion revisada: acusar recibo de un aviso
+    _rol: User = Depends(requiere_capacidad("recursos.usar")),  # auditoria 2026-09: excepcion revisada: acusar recibo de un aviso
 ):
     """Acknowledge/dismiss an alert."""
     return APIResponse.ok(data=_svc_acknowledge_alert(db, alert_id, current_user))
@@ -303,7 +303,7 @@ def acknowledge_alert(
 @router.get("/forecast", response_model=APIListResponse[AvailabilityRecord], summary="4-week availability forecast")
 def get_forecast(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("recursos.gestionar")),
 ):
     """Get 4-week forward-looking availability forecast."""
     return get_availability_matrix(weeks_ahead=4, db=db, current_user=current_user)

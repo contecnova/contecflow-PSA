@@ -17,14 +17,24 @@ def _rol(u):
     return str(getattr(getattr(u, "role", None), "value", getattr(u, "role", None)) or "") or None
 
 
-def _inicio(p, m) -> datetime:
-    """Cuándo empiezan: la franja, o el final de su horario, o las 00:00 del día."""
+def _inicio(p, m, zona=timezone.utc) -> datetime:
+    """Cuándo empiezan: la franja, o el final de su horario, o las 00:00 del día.
+
+    M23 (auditoría 22-11-2026): la franja es hora LOCAL de la persona; antes se
+    tomaba como UTC y la antelación salía desplazada de 1 a 8 horas.
+    """
     minutos = 0
     if p.hora_inicio is not None:
         minutos = p.hora_inicio.hour * 60 + p.hora_inicio.minute
     elif m["dia"] is not None and m["dia"].libres:
         minutos = max(t.fin for t in m["dia"].libres)
-    return datetime(p.fecha.year, p.fecha.month, p.fecha.day, tzinfo=timezone.utc) + timedelta(minutes=minutos)
+    local = datetime(p.fecha.year, p.fecha.month, p.fecha.day) + timedelta(minutes=minutos)
+    return local.replace(tzinfo=zona).astimezone(timezone.utc)
+
+
+def _zona(u):
+    from app.core.timeutil import zone_for_user
+    return zone_for_user(u) if u is not None else timezone.utc
 
 
 def contexto(db: Session, p) -> dict:
@@ -54,7 +64,7 @@ def contexto(db: Session, p) -> dict:
         "imputado_del_dia": estado["imputado"], "exceso_imputado": estado["exceso_real"],
         "horas_en_dia": acum["dia"], "horas_en_semana": acum["semana"], "horas_en_mes": acum["mes"],
         "horas_en_anio": acum["anio"], "horas_en_anio_pago": acum["anio_pago"],
-        "antelacion_horas": round((_inicio(p, m) - pedido).total_seconds() / 3600, 2),
+        "antelacion_horas": round((_inicio(p, m, _zona(u)) - pedido).total_seconds() / 3600, 2),
         "descanso_horas": descanso, "dias_seguidos": seguidos, "presupuesto_restante": restante,
         "compensacion": p.compensacion, "factor": float(p.factor or 1.0),
         "proyecto": p.project_id, "ticket": p.ticket_id, "motivo": p.motivo, "sustituto": p.sustituto_id,

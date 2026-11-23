@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   ResponsiveContainer,
   AreaChart,
@@ -18,7 +18,7 @@ import type { OpcionesDeFiltroAnalitico } from '../services/api/tipos-analitica'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { ArrowLeft, BarChart2, Download, FileText, Percent, TrendingDown, TrendingUp, Users } from 'lucide-react'
-import { Button, EmptyState, KpiCard, SelectorDePeriodo, Spinner, Pulsable, TablaSimple } from '../components/ui'
+import { Button, EmptyState, EstadoDeError, KpiCard, SelectorDePeriodo, Spinner, Pulsable, TablaSimple } from '../components/ui'
 import { useAppT } from '../i18n/AppLangContext'
 import { usePeriodo } from '../hooks/usePeriodo'
 import { SIN_HORA, codigoDeErrorDePeriodo, type ParamsPeriodoApi } from '../utils/periodo'
@@ -77,27 +77,27 @@ function downloadCsv(content: string, filename: string): void {
   URL.revokeObjectURL(url)
 }
 
+/**
+ * Imprime solo `node` en la propia página (23-11-2026, auditoría 04 M11 y 05
+ * A.1.8). Antes se abría una ventana y se reescribía con `document.write` el
+ * `outerHTML` del nodo y un `color:#111` fijo: DOM reinyectado y color fuera de
+ * token. Ahora `@media print` (BIProjectDetailPage.css) oculta todo menos el
+ * nodo marcado; el título del documento se cambia durante la impresión.
+ */
 function printNodeInNewWindow(node: HTMLElement | null, title: string): void {
   if (!node) return
-  const w = window.open('', '_blank', 'width=1280,height=900')
-  if (!w) return
-  w.document.write(`
-    <html>
-      <head>
-        <title>${title.replace(/[<>&]/g, '')}</title>
-        <style>
-          body { font-family: -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif; margin: 20px; color: #111; }
-          .sheet { max-width: 1200px; margin: 0 auto; }
-        </style>
-      </head>
-      <body>
-        <div class="sheet">${node.outerHTML}</div>
-      </body>
-    </html>
-  `)
-  w.document.close()
-  w.focus()
-  w.print()
+  const tituloAnterior = document.title
+  node.classList.add('bi-impresion-objetivo')
+  document.body.classList.add('bi-imprimiendo')
+  document.title = title
+  const limpiar = () => {
+    node.classList.remove('bi-impresion-objetivo')
+    document.body.classList.remove('bi-imprimiendo')
+    document.title = tituloAnterior
+    window.removeEventListener('afterprint', limpiar)
+  }
+  window.addEventListener('afterprint', limpiar)
+  window.print()
 }
 
 export default function BIProjectDetailPage(): JSX.Element {
@@ -105,7 +105,6 @@ export default function BIProjectDetailPage(): JSX.Element {
   const t = useAppT() as Translator
   const navigate = useNavigate()
   const { projectId } = useParams<{ projectId: string }>()
-  // TODO type: location.state shape depends on calling pages (Batch F/G2)
   const location = useLocation() as { state?: { projectName?: string; fromFilters?: Record<string, unknown> } }
   const [selectedUserId, setSelectedUserId] = useState<string | number>('')
   // Periodo libre (16-11-2026): antes una ventana de 4/8/12 semanas guardada en
@@ -118,31 +117,31 @@ export default function BIProjectDetailPage(): JSX.Element {
 
   const { data: hoursRows = [], isLoading: hoursLoading, error: errorHoras } = useQuery<AnalyticsRow[]>({
     queryKey: ['bi-project-hours-week', projectId, apiFilters],
-    // Un periodo no válido (422 `periodo.*`) se explica; el resto, vacío como antes.
-    queryFn: () => analyticsApi.query('hours_by_week', apiFilters).then(r => r.data.rows as AnalyticsRow[])
-      .catch((e: unknown) => { if (codigoDeErrorDePeriodo(e)) throw e; return [] }),
+    // Un periodo no válido (422 `periodo.*`) se explica; cualquier otro error se pinta con EstadoDeError
+    // (23-11-2026: antes los `.catch(() => [])` lo escondían como «sin datos»).
+    queryFn: () => analyticsApi.query('hours_by_week', apiFilters).then(r => r.data.rows as AnalyticsRow[]),
     retry: false,
   })
   const errorDePeriodo = codigoDeErrorDePeriodo(errorHoras)
 
-  const { data: costRows = [], isLoading: costLoading } = useQuery<AnalyticsRow[]>({
+  const { data: costRows = [], isLoading: costLoading, error: errorCoste } = useQuery<AnalyticsRow[]>({
     queryKey: ['bi-project-cost-month', projectId, apiFilters],
-    queryFn: () => analyticsApi.query('cost_by_month', apiFilters).then(r => r.data.rows as AnalyticsRow[]).catch(() => []),
+    queryFn: () => analyticsApi.query('cost_by_month', apiFilters).then(r => r.data.rows as AnalyticsRow[]),
   })
 
-  const { data: marginRows = [], isLoading: marginLoading } = useQuery<AnalyticsRow[]>({
+  const { data: marginRows = [], isLoading: marginLoading, error: errorMargen } = useQuery<AnalyticsRow[]>({
     queryKey: ['bi-project-margin', projectId, apiFilters],
-    queryFn: () => analyticsApi.query('margin_by_project', apiFilters).then(r => r.data.rows as AnalyticsRow[]).catch(() => []),
+    queryFn: () => analyticsApi.query('margin_by_project', apiFilters).then(r => r.data.rows as AnalyticsRow[]),
   })
 
-  const { data: membersRows = [], isLoading: membersLoading } = useQuery<AnalyticsRow[]>({
+  const { data: membersRows = [], isLoading: membersLoading, error: errorMiembros } = useQuery<AnalyticsRow[]>({
     queryKey: ['bi-project-members', projectId, apiFilters],
-    queryFn: () => analyticsApi.query('hours_by_person', apiFilters).then(r => r.data.rows as AnalyticsRow[]).catch(() => []),
+    queryFn: () => analyticsApi.query('hours_by_person', apiFilters).then(r => r.data.rows as AnalyticsRow[]),
   })
 
   const { data: filterOptions = {} as FilterOptions } = useQuery<FilterOptions>({
     queryKey: ['bi-filter-options-detail'],
-    queryFn: () => analyticsApi.filterOptions().then(r => r.data).catch((): FilterOptions => ({})),
+    queryFn: () => analyticsApi.filterOptions().then(r => r.data), // sin .catch: avisa el onError global
   })
 
   const marginCard = marginRows?.[0]
@@ -174,16 +173,20 @@ export default function BIProjectDetailPage(): JSX.Element {
     user_id: selectedUserId || undefined,
   }), [apiFilters, selectedUserId])
 
-  const { data: weeklyByPersonRows = [], isLoading: weeklyByPersonLoading } = useQuery<AnalyticsRow[]>({
+  const { data: weeklyByPersonRows = [], isLoading: weeklyByPersonLoading, error: errorSemanaPersona } = useQuery<AnalyticsRow[]>({
     enabled: Boolean(selectedUserId),
     queryKey: ['bi-project-hours-week-person', projectId, weeklyByPersonParams],
-    queryFn: () => analyticsApi.query('hours_by_week', weeklyByPersonParams).then(r => r.data.rows as AnalyticsRow[]).catch(() => []),
+    queryFn: () => analyticsApi.query('hours_by_week', weeklyByPersonParams).then(r => r.data.rows as AnalyticsRow[]),
   })
 
-  const { data: weeklyTeamRows = [], isLoading: weeklyTeamLoading } = useQuery<AnalyticsRow[]>({
+  const { data: weeklyTeamRows = [], isLoading: weeklyTeamLoading, error: errorSemanaEquipo } = useQuery<AnalyticsRow[]>({
     queryKey: ['bi-project-hours-week-team', projectId, apiFilters],
-    queryFn: () => analyticsApi.query('hours_by_week', apiFilters).then(r => r.data.rows as AnalyticsRow[]).catch(() => []),
+    queryFn: () => analyticsApi.query('hours_by_week', apiFilters).then(r => r.data.rows as AnalyticsRow[]),
   })
+
+  // 23-11-2026: un único aviso de error (con reintento) si alguna de las consultas del detalle falla.
+  const qc = useQueryClient()
+  const errorDeCarga = (errorHoras && !errorDePeriodo ? errorHoras : null) ?? errorCoste ?? errorMargen ?? errorMiembros ?? errorSemanaPersona ?? errorSemanaEquipo ?? null
 
   const hoursChart = (hoursRows || []).map((r) => ({
     label: r.label || r.full_label || '',
@@ -261,6 +264,9 @@ export default function BIProjectDetailPage(): JSX.Element {
       </div>
       {errorDePeriodo && (
         <EmptyState title={t(`periodo_err.${errorDePeriodo.motivo}`, errorDePeriodo.params)} />
+      )}
+      {errorDeCarga && (
+        <EstadoDeError error={errorDeCarga} onReintentar={() => { void qc.invalidateQueries({ predicate: q => String(q.queryKey[0]).startsWith('bi-') }) }} />
       )}
 
       <div className="ds-grid-stats bipd-kpis">

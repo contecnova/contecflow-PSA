@@ -17,9 +17,10 @@ import { openConfirmGlobal } from '../../context/ConfirmContext'
 import { extractErr, fmtDateTime } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import { useToast } from '../../context/ToastContext'
-import { useAppT } from '../../i18n/AppLangContext'
+import { useAppLang, useAppT } from '../../i18n/AppLangContext'
+import { useListaDeUsuarios } from '../../hooks/useListas'
 import { Button, Spinner, EmptyState, Modal, StatusBadge, Pulsable, Select, TablaSimple, Checkbox, Input, Textarea } from '../../components/ui'
-import { sdEscalationApi, sdNotificationTemplatesApi, sdGroupsApi, usersApi, type UserListItem } from '../../services/api'
+import { sdEscalationApi, sdNotificationTemplatesApi, sdGroupsApi, type UserListItem } from '../../services/api'
 import type { SdAviso, SdReglaDeEscalado, SdTextoDeAviso, SdVistaPreviaDeAviso } from '../../services/api/tipos-sd'
 import { PRIORITY_LABEL } from './sdUtils'
 import { RuntimeGroupEditor } from '../settings-sections/SettingsAdvancedSections'
@@ -39,7 +40,7 @@ type Persona = UserListItem
 
 function lista(raw?: string | null): string[] {
   if (!raw) return []
-  try { const v = JSON.parse(raw); return Array.isArray(v) ? v.map(String) : [] } catch { return [] }
+  try { const v = JSON.parse(raw); return Array.isArray(v) ? v.map(String) : [] } catch { /* accesorio: lista mal formada en el servidor; se trata como vacía */ return [] }
 }
 
 function Chip({ activo, onClick, children }: { activo: boolean; onClick: () => void; children: React.ReactNode }) {
@@ -64,9 +65,7 @@ export function EscalationConfig() {
   const { data: colas = [] } = useQuery<Cola[]>({
     queryKey: ['sd-groups'], queryFn: () => sdGroupsApi.list().then(r => r.data),
   })
-  const { data: personas = [] } = useQuery({
-    queryKey: ['users'], queryFn: () => usersApi.list().then(r => r.data),
-  })
+  const { data: personas = [] } = useListaDeUsuarios()
   const refrescar = () => { qc.invalidateQueries({ queryKey: ['sd-escalation'] }) }
   const { mutate: guardar, isPending } = useMutation({
     mutationFn: ({ id, ...d }: Record<string, unknown>): Promise<unknown> =>
@@ -272,7 +271,9 @@ export function NotificationsConfig() {
   const t = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
-  const [idioma, setIdioma] = useState('es')
+  const { lang } = useAppLang()
+  // 23-11-2026: el idioma de partida es el del operador (antes 'es' fijo); si el servidor no tiene plantillas en él, el primero disponible.
+  const [idiomaElegido, setIdioma] = useState<string | null>(null)
   const [editando, setEditando] = useState<Aviso | null>(null)
 
   const { data: avisos = [], isLoading } = useQuery({
@@ -292,6 +293,7 @@ export function NotificationsConfig() {
     onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   const idiomas = Object.keys(avisos[0]?.languages ?? { es: 1, en: 1 })
+  const idioma = idiomaElegido && idiomas.includes(idiomaElegido) ? idiomaElegido : idiomas.includes(lang) ? lang : idiomas[0]
   const roles = ['requester', 'agent', 'approver']
 
   return (
@@ -367,6 +369,7 @@ function FormularioAviso({ texto, pendiente, onCancelar, onGuardar, onRestaurar 
     const h = setTimeout(() => {
       sdNotificationTemplatesApi.preview({ subject, body_html: body })
         .then(r => setVista(r.data))
+        // accesorio: la vista previa es opcional y se pide a cada pausa al teclear; si falla se quita (guardar valida en el servidor)
         .catch(() => setVista(null))
     }, SLOW_INPUT_DEBOUNCE_MS)
     return () => clearTimeout(h)

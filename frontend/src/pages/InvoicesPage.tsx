@@ -6,8 +6,10 @@ import type { CSSProperties } from 'react'
 import { extractErr, fmtDate, localeActivo } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
+import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { projectsApi, invoicesApi, accountingApi, clientsApi, unwrapList } from '../services/api'
+import { invoicesApi, accountingApi, clientsApi, unwrapList } from '../services/api'
+import { useListaDeProyectos } from '../hooks/useListas'
 import type { BorradorDeFacturaDesdePartes, Factura } from '../services/api/tipos-finanzas'
 import { Button, Modal, Spinner, EmptyState, ClientSelect, useSort, SortableTH, Toolbar, KpiCard, StatusBadge, IconButton, Pulsable, Select, useErroresDeCampo, Input } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
@@ -61,8 +63,6 @@ interface InvoiceCreateForm {
 
 type InvoiceStatus = 'draft' | 'sent' | 'paid' | 'overdue' | 'cancelled'
 
-const _PALETTE = ['var(--accent)','var(--success)','var(--warning)','var(--danger)','var(--purple)','var(--warning)']
-
 
 // ── Invoices Tab ──────────────────────────────────────────────────────────────
 // 16-11-2026 (pasada de diseño): la cabecera de página va aquí para que la acción
@@ -78,7 +78,7 @@ function InvoicesTab() {
   const [syncProvider, setSyncProvider] = useState('xero')
   const { data: syncStatus = null } = useQuery({
     queryKey: ['accounting-sync-status'],
-    queryFn: () => accountingApi.syncStatus().then(r => r.data).catch(() => null),
+    queryFn: () => accountingApi.syncStatus().then(r => r.data), // 23-11-2026: sin `.catch(() => null)`; avisa el onError global
     staleTime: STALE_DEFAULT_MS,
   })
   // get_sync_status: la última sincronización es por integración (`xero` o `quickbooks`) y
@@ -88,7 +88,7 @@ function InvoicesTab() {
   const { mutate: syncBulk, isPending: syncing } = useMutation({
     mutationFn: () => accountingApi.pushBulk({ provider: syncProvider, limit: ACCOUNTING_PUSH_BATCH_SIZE }),
     onSuccess: (res) => toast.success(t('invoices.sync_success', { count: res.data.synced, provider: syncProvider })),
-    onError: (e: unknown) => toast.error((e as { response?: { data?: { detail?: string } } })?.response?.data?.detail || t('invoices.sync_error')),
+    onError: (e: unknown) => toast.error(extractErr(e, t('invoices.sync_error'))),
   })
   const [showCreate, setShowCreate] = useState(false)
   const campos = useErroresDeCampo()
@@ -108,7 +108,8 @@ function InvoicesTab() {
     queryFn: () => invoicesApi.list({ project_id: selectedProject || undefined, status: statusFilter || undefined }).then(r => r.data),
   })
   const { data: summary = null } = useQuery({ queryKey: ['invoice-summary'], queryFn: () => invoicesApi.summary().then(r => r.data) })
-  const { data: projectsRaw = [] } = useQuery({ queryKey: ['projects'], queryFn: () => projectsApi.list({}).then(unwrapList) })
+  // 23-11-2026 (04 A8): lista compartida de proyectos.
+  const { data: projectsRaw = [] } = useListaDeProyectos()
   const projects = projectsRaw as ProjectItem[]
   const { data: clientsRaw = [] } = useQuery({ queryKey: ['clients'], queryFn: () => clientsApi.list().then(unwrapList) })
   const clients = clientsRaw as ClientItem[]
@@ -144,8 +145,8 @@ function InvoicesTab() {
       document.body.appendChild(a); a.click()
       document.body.removeChild(a); URL.revokeObjectURL(url)
       toast.success(t('invoices.pdf_generated', { number: inv.number }))
-    } catch {
-      toast.error(t('invoices.error_pdf'))
+    } catch (e) {
+      toast.error(extractErr(e, t('invoices.error_pdf')))
     } finally {
       setPdfLoadingId(null)
     }
@@ -235,7 +236,18 @@ function InvoicesTab() {
       {abierta && (
         <FichaDeFactura id={abierta} onClose={() => setAbierta(null)}
           onPdf={() => { const inv = invoices.find(i => String(i.id) === abierta); if (inv) downloadPdf(inv) }}
-          onEstado={st => updateStatus({ id: abierta, status: st as InvoiceStatus })}
+          onEstado={st => {
+            // 23-11-2026: anular una factura es un cambio fiscal que no se deshace: pide confirmación.
+            if (st === 'cancelled') {
+              openConfirmGlobal({
+                title: t('invoices.confirmar_anular_titulo'), message: t('invoices.confirmar_anular_msg'),
+                confirmLabel: t('invoices.ficha_anular'), danger: true,
+                onConfirm: () => updateStatus({ id: abierta, status: 'cancelled' }),
+              })
+              return
+            }
+            updateStatus({ id: abierta, status: st as InvoiceStatus })
+          }}
           etiquetaDeEstado={st => STATUS_CFG[st as InvoiceStatus] || { label: st, color: 'var(--text-2)' }} />
       )}
       {isLoading ? <Spinner /> : invoices.length === 0 ? (

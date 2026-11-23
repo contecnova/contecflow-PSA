@@ -4,7 +4,7 @@ from typing import Optional
 from datetime import date
 
 from app.db.session import get_db
-from app.core.deps import get_current_user, require_any_manager
+from app.core.deps import get_current_user, requiere_capacidad
 from app.core.abac_enforce import enforce_abac
 from app.core.paginacion import Paginacion, lista_paginada, paginacion
 from app.core.responses import APIListResponse, APIResponse
@@ -45,11 +45,13 @@ def list_imputations(
     date_to: Optional[date] = None,
     page: int = Query(1, ge=1),
     page_size: int = Query(100, ge=1, le=500),
+    only_timer: bool = Query(False, description="Solo las que vienen del temporizador (historial de /timer)"),
     response: Response = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    total, items = list_imputations_query(db, current_user, user_id, project_id, task_id, date_from, date_to, page, page_size)
+    total, items = list_imputations_query(db, current_user, user_id, project_id, task_id, date_from, date_to, page, page_size,
+                                          solo_temporizador=only_timer)
     # Permiso por proyecto `can_see_rates = false`: las imputaciones ajenas de ese proyecto, sin coste.
     from app.core.permisos_de_proyecto import proyectos_sin_tarifas
     ocultos = proyectos_sin_tarifas(db, current_user)
@@ -119,7 +121,7 @@ def delete_imputation(
 def approve_imputation(
     imputation_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("partes.gestionar")),
 ):
     approve_imputation_flow(db, imputation_id, current_user)
     return APIResponse.ok(data={"message": "Imputación aprobada"})
@@ -129,7 +131,7 @@ def approve_imputation(
 def reject_imputation(
     imputation_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("partes.gestionar")),
 ):
     reject_imputation_flow(db, imputation_id, current_user)
     return APIResponse.ok(data={"message": "Imputación rechazada"})

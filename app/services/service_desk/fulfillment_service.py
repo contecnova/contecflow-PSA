@@ -17,14 +17,17 @@ a mano tambien tienen padre, y esos no deben cerrar a nadie.
 """
 from __future__ import annotations
 
+import logging
 from typing import Optional
 
 from sqlalchemy.orm import Session, object_session
 
 from app.models.service_desk._enums import ESTADOS_DE_TICKET_CERRADOS
-from app.models.service_desk import AgentGroup, ServiceItem, ServiceItemTask, Ticket
+from app.models.service_desk import AgentGroup, ServiceItem, ServiceItemTask, Ticket, TicketStatus
 from app.models.user import User
 from app.core.codigos_de_error import error
+
+logger = logging.getLogger(__name__)
 
 ORIGEN = "fulfillment"
 _HECHOS = ESTADOS_DE_TICKET_CERRADOS
@@ -132,6 +135,13 @@ def al_terminar_una_tarea(db: Session, tarea: Ticket) -> bool:
         return False
     hermanas = _hijos(db, peticion)
     if any(getattr(h.status, "value", h.status) not in _HECHOS for h in hermanas):
+        return False
+    # Auditoria 2026-11-22 (servicios m-z, 4.3): una tarea cancelada no esta
+    # hecha. Antes contaba como tal y la peticion se resolvia «completada» (o
+    # abria la etapa siguiente) sin haberse hecho el trabajo; ahora la
+    # peticion queda abierta y decide el agente.
+    if any(getattr(h.status, "value", h.status) == TicketStatus.cancelled.value for h in hermanas):
+        logger.info("peticion %s: tareas canceladas; no se resuelve sola", peticion.id)
         return False
     item = db.get(ServiceItem, peticion.service_item_id) if peticion.service_item_id else None
     if item is not None:

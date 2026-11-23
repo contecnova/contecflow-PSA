@@ -1,6 +1,22 @@
 """Respuestas JSON de `/suppliers` (una sola forma por entidad)."""
 from __future__ import annotations
 
+from datetime import date, timedelta
+from typing import Optional
+
+from app.core import timeutil
+
+
+def estado_de_documento(d, hoy: Optional[date] = None, dias_aviso: int = 30) -> str:
+    hoy = hoy or timeutil.today()
+    if d.expires_at is None:
+        return "valid"
+    if d.expires_at < hoy:
+        return "expired"
+    if d.expires_at <= hoy + timedelta(days=dias_aviso):
+        return "expiring"
+    return "valid"
+
 
 def _f(v):
     return str(v) if v is not None else None
@@ -111,7 +127,6 @@ def estado_de_cuenta(s) -> dict:
 
 
 def documento(d, hoy=None) -> dict:
-    from app.services.proveedores.grc import estado_de_documento
     return {
         "id": d.id, "subcontractor_id": d.subcontractor_id, "doc_type": d.doc_type, "reference": d.reference,
         "issuer": d.issuer, "issued_at": _f(d.issued_at), "expires_at": _f(d.expires_at),

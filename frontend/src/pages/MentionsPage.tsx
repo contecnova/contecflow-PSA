@@ -7,7 +7,7 @@ import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { mentionsApi } from '../services/api'
 import type { ComentarioEnHilo, Mencion } from '../services/api/tipos-personas'
-import { Button, Checkbox, Pulsable, Select, Spinner, EmptyState, Input } from '../components/ui'
+import { Button, Checkbox, Pulsable, Select, Spinner, EmptyState, Input, Textarea } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { AtSign, Bell } from 'lucide-react'
@@ -74,7 +74,7 @@ function ThreadedCommentSection({ entityType, entityId, title }: { entityType: s
 
   const { data:comments=[], isLoading } = useQuery({
     queryKey:['comments',entityType,entityId],
-    queryFn:()=>mentionsApi.comments(entityType, entityId).then(r=>r.data).catch(():CommentItem[]=>[]),
+    queryFn:()=>mentionsApi.comments(entityType, entityId).then(r=>r.data),
     enabled:!!entityId,
   })
 
@@ -113,9 +113,9 @@ function ThreadedCommentSection({ entityType, entityId, title }: { entityType: s
         <div className="ment-box-5">{comment.content}</div>
         {replyTo===comment.id&&(
           <div className="ment-box-6">
-            <textarea aria-label={t('mentions.reply_placeholder')} value={replyContent} onChange={e=>setReplyContent(e.target.value)}
+            <Textarea aria-label={t('mentions.reply_placeholder')} value={replyContent} onChange={e=>setReplyContent(e.target.value)}
               placeholder={t('mentions.reply_placeholder')}
-              rows={2} className="mentions-page-e3"/>
+              rows={2} inputClassName="mentions-page-e3"/>
             <div className="u-row-6">
               <Button onClick={()=>addComment({content:replyContent,parent_id:comment.id})} disabled={adding||!replyContent.trim()}>
                 {adding?t('mentions.sending') : t('mentions.reply_btn')}
@@ -140,9 +140,9 @@ function ThreadedCommentSection({ entityType, entityId, title }: { entityType: s
             :comments.map((c) => <CommentNode key={c.id} comment={c}/>)
       )}
       <div className="ment-box-9">
-        <textarea aria-label={t('mentions.comment_placeholder')} value={newContent} onChange={e=>setNewContent(e.target.value)}
+        <Textarea aria-label={t('mentions.comment_placeholder')} value={newContent} onChange={e=>setNewContent(e.target.value)}
           placeholder={t('mentions.comment_placeholder')}
-          rows={2} className="mentions-page-e3"/>
+          rows={2} inputClassName="mentions-page-e3"/>
         <Button onClick={()=>addComment({content:newContent,parent_id:null})} disabled={adding||!newContent.trim()}>
           {adding?t('mentions.sending'):t('mentions.add_comment_btn')}
         </Button>
@@ -163,7 +163,7 @@ export default function MentionsPage() {
 
   const { data:mentions=[], isLoading } = useQuery({
     queryKey:['mentions',onlyUnread],
-    queryFn:()=>mentionsApi.mentions(onlyUnread).then(r=>r.data).catch(():MentionItem[]=>[]),
+    queryFn:()=>mentionsApi.mentions(onlyUnread).then(r=>r.data),
   })
 
   const { mutate:markRead } = useMutation({

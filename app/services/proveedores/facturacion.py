@@ -20,6 +20,7 @@ Lo aprobado que no son horas y tiene proyecto entra en el coste del proyecto
 estan en las imputaciones con la tarifa del proveedor: nunca dos veces.
 """
 from __future__ import annotations
+import logging
 
 from datetime import date, datetime, timezone
 from typing import Optional
@@ -186,8 +187,10 @@ def _gastado_antes(db: Session, contrato, excluir: Optional[str] = None) -> floa
     from sqlalchemy import func
 
     from app.models.proveedores import SupplierStatement
+    # Auditoria 2026-11-22 (03, medios m-p): un estado de cuenta disputado no
+    # es gasto reconocido; antes contaba para el tope y recortaba el siguiente.
     q = db.query(func.coalesce(func.sum(SupplierStatement.expected_amount), 0.0)).filter(
-        SupplierStatement.contract_id == contrato.id)
+        SupplierStatement.contract_id == contrato.id, SupplierStatement.status != "disputed")
     if excluir:
         q = q.filter(SupplierStatement.id != excluir)
     return float(q.scalar() or 0)
@@ -298,6 +301,12 @@ def conciliar(db: Session, st, factura_id: str, actor) -> dict:
                                               SubcontractorInvoice.subcontractor_id == st.subcontractor_id).first()
     if f is None:
         raise error(404, "no_encontrado", detail="Factura no encontrada", que="factura")
+    # Auditoria 2026-11-22 (03, medios m-p): una factura concilia un solo estado
+    # de cuenta; antes la misma se podia conciliar con varios (pago doble).
+    from app.models.proveedores import SupplierStatement
+    if db.query(SupplierStatement.id).filter(SupplierStatement.invoice_id == f.id,
+                                             SupplierStatement.id != st.id).first():
+        raise error(409, "proveedor_factura_ya_conciliada")
     importe = float(f.amount or 0)
     if f.currency and st.currency and f.currency.upper() != st.currency.upper():
         importe *= get_fx_rate(db, f.currency.upper(), st.currency.upper(), f.issue_date)
@@ -502,6 +511,7 @@ def prevision_del_mes(db: Session) -> float:
         try:
             importe = prever(db, c, desde, hasta)["expected_amount"]
         except Exception:  # una prevision rota no tumba el cuadro global
+            logging.getLogger(__name__).debug("prevision_del_mes: excepcion ignorada", exc_info=True)
             continue
         if c.currency and c.currency.upper() != moneda:
             importe *= get_fx_rate(db, c.currency.upper(), moneda, hoy)

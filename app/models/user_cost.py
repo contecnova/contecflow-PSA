@@ -19,6 +19,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
 from app.db.base import Base
+from app.models.money import Money, Rate
 from app.core.config import settings
 
 
@@ -68,14 +69,14 @@ class UserCostProfile(Base):
     currency = Column(String(3), nullable=False, default=lambda: settings.DEFAULT_CURRENCY)
 
     # Inputs
-    gross_annual_salary = Column(Float, nullable=False)              # salary in `currency`
+    gross_annual_salary = Column(Money, nullable=False)              # salary in `currency`
     employer_cost_pct = Column(Float, nullable=False, default=settings.DEFAULT_EMPLOYER_COST_PCT)  # 0.32 = 32%
-    extra_annual_costs = Column(Float, nullable=False, default=0.0)  # bonus, gear, training prorated
+    extra_annual_costs = Column(Money, nullable=False, default=0.0)  # bonus, gear, training prorated
     productive_hours_year = Column(Float, nullable=False, default=settings.DEFAULT_PRODUCTIVE_HOURS_YEAR)
 
     # Derived (cached at write to avoid recomputing on every read)
-    total_annual_cost = Column(Float, nullable=False)
-    cost_per_hour = Column(Float, nullable=False)
+    total_annual_cost = Column(Money, nullable=False)
+    cost_per_hour = Column(Rate, nullable=False)
 
     # Vigency
     valid_from = Column(Date, nullable=False, index=True)
@@ -83,7 +84,7 @@ class UserCostProfile(Base):
 
     notes = Column(Text, nullable=True)
 
-    created_by_user_id = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    created_by_user_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     is_active = Column(Boolean, default=True, nullable=False, server_default="1", index=True)  # audit #36 soft-delete

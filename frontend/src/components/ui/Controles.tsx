@@ -33,6 +33,37 @@ export function BarraDeFiltros({ children, acciones, 'aria-label': ariaLabel, cl
   )
 }
 
+// ── FiltrosDeLista ───────────────────────────────────────────────────────────
+
+export interface FiltrosDeListaProps {
+  /** El `Buscador`: siempre a todo el ancho. */
+  buscador?: ReactNode
+  /** Un `Segmentado` (filtro de 2–4 opciones cortas): a todo el ancho, botones iguales. */
+  segmentado?: ReactNode
+  /** El resto de filtros (`SelectRico`/`Select`): rejilla de 2 columnas iguales. */
+  children?: ReactNode
+  'aria-label'?: string
+  className?: string
+}
+
+/**
+ * Filtros de una lista en una columna o panel estrecho (23-11-2026). Ningún
+ * control se come a los demás: el buscador a todo el ancho, el segmentado a
+ * todo el ancho con botones iguales y los desplegables de dos en dos. Nunca
+ * tres o más desplegables en una fila que no tenga ancho para su texto más
+ * largo. En una barra ancha bajo la cabecera se usa `BarraDeFiltros`.
+ */
+export function FiltrosDeLista({ buscador, segmentado, children, 'aria-label': ariaLabel, className }: FiltrosDeListaProps) {
+  const t = useTextoUi()
+  return (
+    <div role="group" aria-label={ariaLabel ?? t('uikit.barra_de_filtros')} className={`ui-filtros-lista${className ? ` ${className}` : ''}`}>
+      {buscador}
+      {segmentado && <div className="ui-filtros-lista__segmentado">{segmentado}</div>}
+      {children && <div className="ui-filtros-lista__rejilla">{children}</div>}
+    </div>
+  )
+}
+
 // ── Chip ─────────────────────────────────────────────────────────────────────
 
 export interface ChipProps {

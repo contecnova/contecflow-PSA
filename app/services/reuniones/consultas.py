@@ -7,6 +7,7 @@ visible: 404 (no se confirma que exista). Listados, búsqueda, Nexus y
 descargas pasan todos por aquí.
 """
 from __future__ import annotations
+import logging
 
 import json
 from typing import Optional
@@ -24,6 +25,7 @@ def _cap(db: Session, usuario, capacidad: str) -> bool:
     try:
         return tiene(db, usuario, capacidad)
     except Exception:
+        logging.getLogger(__name__).debug("_cap: excepcion ignorada", exc_info=True)
         return False
 
 

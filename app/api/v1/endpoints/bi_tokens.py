@@ -17,8 +17,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
 from typing import Optional, List
 from pydantic import BaseModel
-from app.db.session import get_db
-from app.core.deps import require_admin
+from app.db.session import get_db, sesion_de_sistema
+from app.core.deps import requiere_capacidad
 from app.models.user import User
 from app.core.abac_enforce import enforce_abac
 from app.core.responses import APIListResponse, APIResponse
@@ -47,7 +47,7 @@ def get_bi_token(request: Request) -> Optional[str]:
 @router.get("/bi/tokens", summary="Listar tokens BI")
 def list_bi_tokens(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("bi.administrar")),
 ):
     return APIListResponse.ok(items=_bi.list_bi_tokens(db))
 
@@ -63,7 +63,7 @@ class BITokenCreate(BaseModel):
 def create_bi_token(
     payload: BITokenCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("bi.administrar")),
 ):
     return APIResponse.ok(data=_bi.create_bi_token(payload.model_dump(), current_user.id, db))
 
@@ -72,19 +72,19 @@ def create_bi_token(
 def revoke_bi_token(
     token_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("bi.administrar")),
 ):
     enforce_abac(db, current_user, "bi_token", token_id, action="delete")
     try:
         return APIResponse.ok(data=_bi.revoke_bi_token(token_id, db))
     except ValueError:
-        raise HTTPException(404)
+        raise error_http(404, "no_encontrado", que="token")
 
 
 @router.get("/bi/data/projects", summary="Datos de proyectos para BI")
 def bi_data_projects(
     bi_token: Optional[str] = Depends(get_bi_token),
-    db: Session = Depends(get_db),
+    db: Session = Depends(sesion_de_sistema("bi: token BI")),
 ):
     try:
         # Contrato externo consumido por herramientas BI (PowerBI) vía tokens bi_*:
@@ -105,7 +105,7 @@ def bi_data_timesheets(
     page: int = Query(1, ge=1),
     page_size: int = Query(500, ge=1, le=5000),
     bi_token: Optional[str] = Depends(get_bi_token),
-    db: Session = Depends(get_db),
+    db: Session = Depends(sesion_de_sistema("bi: token BI")),
 ):
     """Periodo libre (16-11-2026): no hay usuario, así que el periodo se
     resuelve DESPUÉS de validar el token (401 antes que 422) y con la zona de
@@ -121,7 +121,7 @@ def bi_data_timesheets(
 @router.get("/bi/data/kpis", summary="KPIs globales para BI")
 def bi_data_kpis(
     bi_token: Optional[str] = Depends(get_bi_token),
-    db: Session = Depends(get_db),
+    db: Session = Depends(sesion_de_sistema("bi: token BI")),
 ):
     try:
         # Contrato externo BI (PowerBI): sin envelope.

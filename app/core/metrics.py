@@ -285,6 +285,8 @@ def _install_metrics_route(app: FastAPI, env_auth_token: Optional[str]) -> None:
             from app.db.session import SessionLocal
             from app.services.settings_service import get_runtime_str
             db = SessionLocal()
+            from app.db.contexto_de_tenant import declarar_sistema as _declarar_sistema
+            _declarar_sistema(db, "métricas: token global")  # auditoría 22-11-2026: TENANT_SESION_SIN_CONTEXTO=cerrar
             try:
                 t = get_runtime_str(db, "METRICS_AUTH_TOKEN")
                 return t if t else env_auth_token

@@ -125,7 +125,7 @@ describe('kit de diseño', () => {
 
 describe('bandeja de aprobaciones y ficha del cliente', () => {
   it('la bandeja conoce el tipo internal_charge', () => {
-    expect(src('pages/ApprovalsPage.tsx')).toMatch(/internal_charge:/)
+    expect(src('pages/aprobaciones/compartido.tsx')).toMatch(/internal_charge:/)
   })
 
   it('la lista de clientes filtra por kind y el formulario lleva los campos internos', () => {
@@ -182,7 +182,7 @@ describe('clientes internos: filtro externos/internos, precio del catálogo y cu
   })
 
   it('el formulario del catálogo pide el precio interno con el Input del kit', () => {
-    const form = src('pages/service-desk/ConfigTab.tsx')
+    const form = src('pages/service-desk/ConfigCatalogo.tsx')
     expect(form).toMatch(/<Input[^>]*label=\{t\('sd_cfg\.svc_internal_price'\)\}/)
     expect(form).toMatch(/internal_price: form\.internal_price\.trim\(\) === '' \? null/)
   })

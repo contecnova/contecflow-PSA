@@ -22,6 +22,7 @@ import EditorDeResultados from './EditorDeResultados'
 import EditorDeExceso from './EditorDeExceso'
 import Simulador from './Simulador'
 import { ListaDeValores, SelectorDeEntidad, useCatalogo, useOpciones, useTextos } from './comun'
+import { Textarea } from '../ui'
 
 const AMBITO_VACIO: AmbitoDePolitica = {
   departamentos: [], equipos: [], roles: [], ubicaciones: [], personas: [], grupos: [], excepto_personas: [], excepto_grupos: [],
@@ -137,8 +138,7 @@ export default function EditorDePolitica({ id, nuevoDominio, onVolver, onAbrir }
               <section key={i} className={`pol-tarjeta${r.activa ? '' : ' pol-tarjeta--inactiva'}`} aria-label={t('pol.regla_n', { n: i + 1 })}>
                 <div className="pol-fila">
                   <span className="pol-conector">{t('pol.regla_n', { n: i + 1 })}</span>
-                  <input className="pol-campo pol-campo--ancho" aria-label={t('pol.nombre_de_la_regla')} placeholder={t('pol.nombre_de_la_regla')}
-                    value={r.nombre} onChange={e => setRegla(i, { ...r, nombre: e.target.value })} />
+                  <Input aria-label={t('pol.nombre_de_la_regla')} placeholder={t('pol.nombre_de_la_regla')} value={r.nombre} onChange={e => setRegla(i, { ...r, nombre: e.target.value })} className="pol-campo--ancho" />
                   <Checkbox className="pol-chip" label={t('pol.activa')} checked={r.activa} onChange={m => setRegla(i, { ...r, activa: m })} />
                   <span title={t('pol.detener_ayuda')}><Checkbox className="pol-chip" label={t('pol.detener')} checked={r.detener} onChange={m => setRegla(i, { ...r, detener: m })} /></span>
                   <Button size="xs" variant="ghost" icon={<ArrowUp size={13} />} disabled={i === 0} onClick={() => mover(i, -1)} title={t('pol.subir')}><span className="u-sr-only">{t('pol.subir')}</span></Button>
@@ -182,8 +182,7 @@ function Definicion({ doc, set, errorDe }: {
     <div className="u-stack-14">
       <div className="pol-grid-2">
         <label><span className="pol-etiqueta">{t('pol.nombre')}</span>
-          <input className="pol-campo pol-campo--ancho" value={doc.nombre} aria-invalid={errorDe('nombre').length > 0}
-            onChange={e => set('nombre', e.target.value)} required /></label>
+          <Input value={doc.nombre} aria-invalid={errorDe('nombre').length > 0} onChange={e => set('nombre', e.target.value)} required className="pol-campo--ancho" /></label>
         <label><span className="pol-etiqueta">{t('pol.prioridad')}</span>
           <Input type="number" value={doc.prioridad} onChange={e => set('prioridad', Number(e.target.value))} inputClassName="pol-campo pol-campo--corto" />
           <span className="pol-ayuda"> {t('pol.prioridad_ayuda')}</span></label>
@@ -194,9 +193,9 @@ function Definicion({ doc, set, errorDe }: {
       </div>
       {errorDe('vigente_hasta').map((e, i) => <p key={i} className="pol-error">{e.mensaje}</p>)}
       <label><span className="pol-etiqueta">{t('pol.descripcion')}</span>
-        <textarea className="pol-campo pol-campo--ancho" rows={2} value={doc.descripcion ?? ''} onChange={e => set('descripcion', e.target.value)} /></label>
+        <Textarea rows={2} value={doc.descripcion ?? ''} onChange={e => set('descripcion', e.target.value)} className="pol-campo--ancho" /></label>
       <label><span className="pol-etiqueta">{t('pol.nota_de_version')}</span>
-        <input className="pol-campo pol-campo--ancho" value={doc.nota_de_version ?? ''} onChange={e => set('nota_de_version', e.target.value)} /></label>
+        <Input value={doc.nota_de_version ?? ''} onChange={e => set('nota_de_version', e.target.value)} className="pol-campo--ancho" /></label>
       <section className="pol-tarjeta" aria-labelledby="pol-ambito">
         <h3 id="pol-ambito" className="pol-titulo">{t('pol.ambito')}</h3>
         <p className="pol-ayuda">{t('pol.ambito_ayuda')}</p>

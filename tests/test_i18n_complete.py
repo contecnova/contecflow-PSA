@@ -105,82 +105,108 @@ def test_no_lang_is_empty_object():
 
 def _extract_all_dotted_keys(filepath: Path) -> set[str]:
     """
-    Extract ALL dotted keys from a MJS lang file that looks like:
-        const lang = {
-          namespace: {
-            key1: 'value',
-            key2: 'value',
-          },
-        }
+    Claves con puntos (`namespace.leaf`) de un fichero MJS de idioma:
+        const lang = { namespace: { key1: 'value', key2: 'value' } }
 
-    Returns keys like "namespace.key1", "namespace.key2", etc.
-    Handles 2-level nesting (namespace.leaf_key) which is the convention in this codebase.
-    Does NOT attempt to parse JS — uses a heuristic line-by-line regex.
+    Antes era una heuristica por sangrado (2-4 espacios) que dejaba fuera los
+    espacios de nombres con sangrado raro --en `en.mjs` hay seis bloques con 8 o
+    14 espacios de sangria que SI son de primer nivel-- y daba cientos de falsos
+    «faltan». Ahora se recorre el texto contando llaves, sin mirar el sangrado:
+    se ignoran comentarios y cadenas (donde caben llaves, p. ej. `{count}`) y se
+    toma como clave de espacio de nombres la de profundidad 1 y como hoja la de
+    profundidad 2.
     """
     text = filepath.read_text(encoding="utf-8")
     keys: set[str] = set()
-    current_ns = None
-    ns_pattern    = re.compile(r"^\s{2,4}(\w+)\s*:\s*\{")
-    leaf_pattern   = re.compile(r"^\s{4,8}(\w+)\s*:")
-
-    for line in text.splitlines():
-        ns_match = ns_pattern.match(line)
-        if ns_match:
-            current_ns = ns_match.group(1)
+    ns_actual: str | None = None
+    profundidad = 0
+    i, n = 0, len(text)
+    ident = re.compile(r"[A-Za-z_$][\w$]*")
+    while i < n:
+        c = text[i]
+        if text.startswith("//", i):
+            i = text.find(chr(10), i)
+            i = n if i < 0 else i
             continue
-        if current_ns:
-            if re.match(r"^\s{2,4}\}", line):
-                # Closing the namespace block
-                current_ns = None
-                continue
-            leaf_match = leaf_pattern.match(line)
-            if leaf_match:
-                keys.add(f"{current_ns}.{leaf_match.group(1)}")
-
+        if text.startswith("/*", i):
+            i = text.find("*/", i)
+            i = n if i < 0 else i + 2
+            continue
+        if c in "'\"`":
+            j = i + 1
+            while j < n and text[j] != c:
+                j += 2 if text[j] == "\\" else 1
+            literal = text[i + 1:j]
+            i = j + 1
+            # Una cadena seguida de `:` es una clave entrecomillada.
+            k = i
+            while k < n and text[k] in " 	":
+                k += 1
+            if k < n and text[k] == ":" and profundidad in (1, 2):
+                _anotar(keys, profundidad, literal, ns_actual)
+                if profundidad == 1:
+                    ns_actual = literal
+            continue
+        if c == "{":
+            profundidad += 1
+        elif c == "}":
+            profundidad -= 1
+            if profundidad == 1:
+                pass
+            elif profundidad == 0:
+                ns_actual = None
+        elif c.isalpha() or c in "_$":
+            m = ident.match(text, i)
+            palabra = m.group(0)
+            i = m.end()
+            k = i
+            while k < n and text[k] in " 	":
+                k += 1
+            if k < n and text[k] == ":" and profundidad in (1, 2):
+                _anotar(keys, profundidad, palabra, ns_actual)
+                if profundidad == 1:
+                    ns_actual = palabra
+            continue
+        i += 1
     return keys
 
 
-@pytest.mark.xfail(
-    reason=(
-        "Known i18n drift: non-English language files are partial (hundreds-to-thousands "
-        "of keys behind en.mjs). This is not user-facing — AppLangContext merges English as "
-        "the base via deepMergeTranslations(english, target), so untranslated keys fall back "
-        "to English at runtime. Full translation parity is tracked as separate i18n debt."
-    ),
-    strict=False,
-)
-def test_all_langs_have_same_keys_as_english():
-    """
-    Deep key-by-key comparison: every language must define the same dotted keys
-    as English (namespace.leaf). Reports missing keys per language.
-    """
-    en_file = LANGS_DIR / "en.mjs"
-    if not en_file.exists():
-        return
+def _anotar(keys: set[str], profundidad: int, clave: str, ns_actual: str | None) -> None:
+    if profundidad == 2 and ns_actual:
+        keys.add(f"{ns_actual}.{clave}")
 
-    en_keys = _extract_all_dotted_keys(en_file)
-    assert len(en_keys) > 10, "English key extraction seems broken — too few keys found"
+
+def test_all_langs_have_same_keys_as_spanish():
+    """
+    Comparacion profunda clave a clave: es.mjs es la fuente de verdad y en/zh
+    deben definir las mismas claves con puntos (namespace.leaf). Informa de las
+    que faltan por idioma.
+    """
+    es_file = LANGS_DIR / "es.mjs"
+    assert es_file.exists(), "Falta la fuente de verdad es.mjs"
+
+    es_keys = _extract_all_dotted_keys(es_file)
+    assert len(es_keys) > 10, "La extraccion de claves de es.mjs parece rota: hay muy pocas"
 
     missing_per_lang: dict[str, list[str]] = {}
 
-    for lang in EXPECTED_LANGS - {"en"}:
+    for lang in sorted(EXPECTED_LANGS - {"es"}):
         lang_file = LANGS_DIR / f"{lang}.mjs"
-        if not lang_file.exists():
-            continue
+        assert lang_file.exists(), f"Falta el fichero de idioma {lang}.mjs"
         lang_keys = _extract_all_dotted_keys(lang_file)
-        absent = sorted(en_keys - lang_keys)
+        absent = sorted(es_keys - lang_keys)
         if absent:
             missing_per_lang[lang] = absent
 
     if missing_per_lang:
         report_lines = []
         for lang, keys in sorted(missing_per_lang.items()):
-            report_lines.append(f"\n  [{lang}] missing {len(keys)} keys:")
+            report_lines.append(f"\n  [{lang}] faltan {len(keys)} claves respecto a es:")
             for k in keys[:20]:
                 report_lines.append(f"    - {k}")
             if len(keys) > 20:
-                report_lines.append(f"    ... and {len(keys) - 20} more")
-        assert not missing_per_lang, "i18n key parity failures:" + "".join(report_lines)
+                report_lines.append(f"    ... y {len(keys) - 20} mas")
+        assert not missing_per_lang, "Fallos de paridad i18n:" + "".join(report_lines)
 
 
 def test_no_lang_has_extra_keys_vs_english():

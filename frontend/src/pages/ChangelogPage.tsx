@@ -5,7 +5,8 @@
 import { useState, useId, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { z } from 'zod'
-import api, { projectsApi } from '../services/api'
+import { changelogApi } from '../services/api'
+import { useListaDeProyectos } from '../hooks/useListas'
 import { Spinner, EmptyState, Button, Modal, Tabs, IconButton, Select, useErroresDeCampo, Input, Textarea } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -21,11 +22,6 @@ import './ChangelogPage.css'
 type EntryType = 'feature' | 'bugfix' | 'improvement' | 'milestone' | 'breaking'
 type TFn = ReturnType<typeof useAppT>
 
-interface ProjectItem {
-  id: string | number
-  code?: string
-  name?: string
-}
 
 interface AuthorInfo {
   full_name?: string
@@ -141,7 +137,7 @@ function ManualEntryModal({ projectId, onClose, onSaved }: { projectId: string; 
   const msg = (k: string) => campos.de(k) ? <div className="u-field-error">{campos.de(k)}</div> : null
   const { mutate: save, isPending } = useMutation({
     onMutate: () => campos.limpiar(),
-    mutationFn: (data: ManualEntryPayload) => api.post(`/projects/${projectId}/changelog`, data),
+    mutationFn: (data: ManualEntryPayload) => changelogApi.crear(projectId, data),
     onSuccess: () => { validation.setErrors({}); onSaved(); onClose() },
     onError: (e: unknown) => { if (!campos.recoger(e)) toast.error(extractErr(e, t('changelog.err_save'))) },
   })
@@ -200,7 +196,7 @@ function GenerateModal({ projectId, onClose, onSaved }: { projectId: string; onC
   const [genResult, setGenResult] = useState<GenerateResult | null>(null)
 
   const { mutate: generate, isPending } = useMutation({
-    mutationFn: ({ weeks: validWeeks, version_tag }: GeneratePayload) => api.post(`/projects/${projectId}/changelog/generate`, { weeks: validWeeks, version_tag: version_tag || null }),
+    mutationFn: ({ weeks: validWeeks, version_tag }: GeneratePayload) => changelogApi.generar(projectId, { weeks: validWeeks, version_tag: version_tag || null }),
     onSuccess: (res) => { setGenResult(res.data as GenerateResult); onSaved() },
     onError: (e: unknown) => toast.error(extractErr(e, t('changelog.err_generate'))),
   })
@@ -255,21 +251,18 @@ export default function ChangelogPage(): JSX.Element {
   const [showManual, setShowManual] = useState(false)
   const [showGenerate, setShowGenerate] = useState(false)
 
-  const { data: projRaw = [] } = useQuery({
-    queryKey: ['projects'],
-    queryFn: () => projectsApi.list({}).then(r => r.data),
-  })
-  const projects = (Array.isArray(projRaw) ? projRaw : []) as ProjectItem[]
+  // 23-11-2026 (04 A8): lista compartida de proyectos.
+  const { data: projects = [] } = useListaDeProyectos()
 
   const { data: changelogRaw, isLoading } = useQuery({
     queryKey: ['changelog', selectedProject],
-    queryFn: () => api.get(`/projects/${selectedProject}/changelog`).then(r => r.data),
+    queryFn: () => changelogApi.listar<ChangelogResponse>(String(selectedProject)).then(r => r.data),
     enabled: !!selectedProject,
   })
   const changelog = (changelogRaw ?? null) as ChangelogResponse | null
 
   const { mutate: deleteEntry } = useMutation({
-    mutationFn: (id: string | number) => api.delete(`/projects/${selectedProject}/changelog/${id}`),
+    mutationFn: (id: string | number) => changelogApi.borrar(String(selectedProject), id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['changelog', selectedProject] }),
     onError: (e: unknown) => toast.error(extractErr(e, t('changelog.err_delete'))),
   })

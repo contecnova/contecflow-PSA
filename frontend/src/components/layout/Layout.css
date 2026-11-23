@@ -615,3 +615,59 @@
 /* Botones con texto pintados con IconButton (aria-expanded, role…): sin el line-height: 0 del botón de icono. */
 .icon-button.layo-row-17,
 .icon-button.layo-row-16 { line-height: inherit; }
+
+/* ── Menú personalizable (23-11-2026) ─────────────────────────────────────── */
+/* Categoría con panel: el nombre (enlace al panel) y la flecha (despliega) son dos controles. */
+.nav-cat {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  border-radius: 5px;
+  color: var(--text-3);
+}
+.nav-cat--activa { color: var(--accent); }
+.nav-cat__enlace {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 4px 6px 8px;
+  border-radius: 5px;
+  color: inherit;
+  text-decoration: none;
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  transition: color 0.1s, background 0.1s;
+}
+.nav-cat__enlace:hover { color: var(--text-1); background: var(--surface-3); }
+.nav-cat__enlace.active { color: var(--accent); }
+.icon-button.nav-cat__flecha { color: inherit; padding: 6px 8px; }
+.icon-button.nav-cat__flecha:hover { color: var(--text-1); background: var(--surface-3); }
+/* Plegado: un icono por categoría. */
+.nav-cat-plegada__icono { justify-content: center; }
+.icon-button.nav-cat-plegada__icono { width: 100%; padding: 7px 9px; line-height: inherit; color: var(--text-2); }
+.nav-cat-plegada__icono svg { width: 15px; height: 15px; }
+/* Modo «Personalizar menú» dentro de la barra lateral. */
+.nav-personalizar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-1) var(--space-3);
+}
+.nav-personalizar__cabecera { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
+.nav-personalizar__titulo { font-size: var(--text-sm); font-weight: 700; color: var(--text-1); }
+.nav-personalizar__pie {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-1);
+  font-size: var(--text-xs);
+  color: var(--text-3);
+}
+/* En la barra (222 px) no cabe la cuenta «n de m visibles». */
+.nav-personalizar .editor-menu__cuenta { display: none; }
+.icon-button.nav-personalizar__abrir { color: var(--text-3); }
+.icon-button.nav-personalizar__abrir:hover,
+.icon-button.nav-personalizar__abrir[aria-pressed="true"] { color: var(--accent); }

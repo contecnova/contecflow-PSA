@@ -1,0 +1,34 @@
+{
+  "codigos": {
+    "cambio_transicion_no_permitida": {
+      "es": "Un cambio no puede pasar de «{desde}» a «{hasta}»",
+      "en": "A change cannot go from '{desde}' to '{hasta}'",
+      "zh": "变更不能从“{desde}”转为“{hasta}”"
+    },
+    "cambio_no_aprobado_para_desplegar": {
+      "es": "Solo se despliega un cambio aprobado o programado (estado actual: {estado})",
+      "en": "Only an approved or scheduled change can be deployed (current status: {estado})",
+      "zh": "只能部署已批准或已排期的变更（当前状态：{estado}）"
+    },
+    "ticket_fusionar_otra_empresa": {
+      "es": "No se pueden fusionar tickets de empresas distintas",
+      "en": "Tickets from different companies cannot be merged",
+      "zh": "不能合并不同公司的工单"
+    },
+    "ticket_fusionar_otro_cliente": {
+      "es": "No se pueden fusionar tickets de clientes distintos",
+      "en": "Tickets from different customers cannot be merged",
+      "zh": "不能合并不同客户的工单"
+    },
+    "aprobacion_sin_aprobador": {
+      "es": "Una aprobación la tiene que decidir una persona",
+      "en": "An approval has to be decided by a person",
+      "zh": "审批必须由人员作出决定"
+    },
+    "aprobacion_rol_requerido": {
+      "es": "Esta aprobación la decide el rol «{rol}»",
+      "en": "This approval is decided by the '{rol}' role",
+      "zh": "此审批由“{rol}”角色决定"
+    }
+  }
+}

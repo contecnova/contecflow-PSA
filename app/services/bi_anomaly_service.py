@@ -52,7 +52,7 @@ def _zscore_anomalies(values: list[float], threshold: float = 2.5) -> list[bool]
 def detect_anomalies(
     *,
     values: list[float],
-    contamination: float = 0.1,
+    contamination: Any = "auto",
     method: str = "auto",
 ) -> dict[str, Any]:
     """
@@ -67,7 +67,12 @@ def detect_anomalies(
     if len(values) < 4:
         from app.core.codigos_de_error import ErrorConCodigo
         raise ErrorConCodigo("anomalias_datos_insuficientes", detail="At least 4 data points required for anomaly detection")
-    contamination = max(0.01, min(0.5, contamination))
+    # Baja (auditoría 22-11-2026): por defecto `contamination="auto"` (umbral
+    # del propio Isolation Forest, Liu et al.); con 0,1 fijo SIEMPRE marcaba el
+    # 10 % de los puntos como anómalos, hubiera anomalías o no. Una cifra
+    # explícita sigue valiendo (acotada a 0,01-0,5).
+    if contamination != "auto":
+        contamination = max(0.01, min(0.5, float(contamination)))
 
     if _SKLEARN_AVAILABLE and method in ("auto", "isolation_forest"):
         X = [[v] for v in values]
@@ -135,76 +140,17 @@ def _sigmoid(x: float) -> float:
     return z / (1.0 + z)
 
 
-def _build_synthetic_churn_dataset(samples: int = 1400) -> tuple[list[list[float]], list[int]]:
-    rng = random.Random(42)
-    X: list[list[float]] = []
-    y: list[int] = []
-    for _ in range(samples):
-        row = {
-            "tickets_last_30d": rng.uniform(0, 18),
-            "response_time_avg_h": rng.uniform(0.5, 20),
-            "nps_score": rng.uniform(1, 10),
-            "contract_renewal_days": rng.uniform(5, 365),
-            "support_escalations": rng.uniform(0, 6),
-            "last_login_days_ago": rng.uniform(0, 80),
-            "active_projects": rng.uniform(0, 12),
-        }
-        logit = (
-            0.13 * row["tickets_last_30d"]
-            + 0.11 * row["response_time_avg_h"]
-            - 0.33 * row["nps_score"]
-            - 0.02 * row["contract_renewal_days"]
-            + 0.29 * row["support_escalations"]
-            + 0.06 * row["last_login_days_ago"]
-            - 0.07 * row["active_projects"]
-            - 0.9
-        )
-        prob = _sigmoid(logit)
-        label = 1 if rng.random() < prob else 0
-        X.append([float(row[k]) for k in CHURN_FEATURES])
-        y.append(label)
-    return X, y
-
-
 def _prepare_churn_model() -> tuple[Any | None, str]:
-    global _CHURN_MODEL, _CHURN_BASELINE, _CHURN_SCALE
-    if not _LGBM_AVAILABLE:
-        return None, "rule_based"
-    if _CHURN_MODEL is not None:
-        return _CHURN_MODEL, "lightgbm_synthetic"
+    """Auditoría 22-11-2026 (A62): no hay modelo entrenado.
 
-    X, y = _build_synthetic_churn_dataset()
-    model = lgb.LGBMClassifier(
-        objective="binary",
-        n_estimators=140,
-        learning_rate=0.08,
-        max_depth=5,
-        num_leaves=31,
-        min_child_samples=20,
-        subsample=0.9,
-        colsample_bytree=0.9,
-        random_state=42,
-        verbosity=-1,
-    )
-    model.fit(X, y)
-    _CHURN_MODEL = model
-
-    baseline: dict[str, float] = {}
-    scale: dict[str, float] = {}
-    for idx, feature in enumerate(CHURN_FEATURES):
-        vals = [float(row[idx]) for row in X]
-        mu = sum(vals) / len(vals)
-        var = sum((v - mu) ** 2 for v in vals) / len(vals)
-        sigma = math.sqrt(var) or 1.0
-        baseline[feature] = mu
-        scale[feature] = sigma
-    _CHURN_BASELINE = baseline
-    _CHURN_SCALE = scale
-    # "lightgbm_synthetic": el modelo se entrena con un dataset SINTÉTICO derivado de
-    # una heurística fija (_build_synthetic_churn_dataset), no con datos históricos
-    # reales del cliente. La etiqueta lo hace explícito en la respuesta (method_used)
-    # para no presentar la predicción como ML entrenado sobre datos reales.
-    return _CHURN_MODEL, "lightgbm_synthetic"
+    Antes se entrenaba un LightGBM con 1.400 filas SINTÉTICAS (`random.Random(42)`)
+    derivadas de una heurística fija y se presentaba como «lightgbm_synthetic»:
+    probabilidades con aspecto de ML sin ninguna base real. No hay histórico de
+    bajas de clientes con sus variables en el tiempo para entrenar uno de verdad,
+    así que la predicción es la HEURÍSTICA transparente (`_rule_based_churn`)
+    sobre los datos reales de cada cliente, y así se rotula (`rule_based`).
+    """
+    return None, "rule_based"
 
 
 def _top_churn_factors(features: dict[str, float], model: Any | None) -> list[str]:

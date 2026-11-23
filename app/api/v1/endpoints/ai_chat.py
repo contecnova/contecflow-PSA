@@ -4,7 +4,7 @@ ai_chat — — Contecflow AI Layer
 ai/chat          — NexusAssist: conversational copilot (streaming SSE)
 ai/conversations — history & management
 ai/agent         — NexusAgent: autonomous multi-step execution
-ai/agent/{id}/approve — human approval gate
+ai/agent/{id}/steps/{step_id}/approve|reject — human approval gate (auditoría 22-11-2026, A7)
 oracle           — NexusOracle: predictions & anomaly detection
 meetings         — Smart Meeting Assistant
 contracts        — AI Contract Intelligence
@@ -28,9 +28,7 @@ import time
 from app.db.session import get_db
 from app.core.deps import (
     get_current_user,
-    require_admin,
-    require_any_manager,
-    require_internal_user,
+    requiere_capacidad,
 )
 from app.models.user import User
 from app.core.abac_enforce import enforce_abac
@@ -154,7 +152,7 @@ def get_conversation(
     try:
         return APIResponse.ok(data=_svc.get_conversation(db, conv_id, current_user.id))
     except ValueError:
-        raise HTTPException(404)
+        raise error_http(404, "no_encontrado", que="conversacion")
 
 
 
@@ -167,7 +165,7 @@ class TextoIn(BaseModel):
 def transformar_texto(
     payload: TextoIn,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_internal_user),
+    current_user: User = Depends(requiere_capacidad("ia.usar")),
 ):
     """Para el editor en línea (/mejorar, /resumir…). Revisión 2026-11.
 
@@ -194,7 +192,7 @@ def chat(
     # 20-11-2026: con guarda de rol, como /ai/texto y la valoración de sus
     # respuestas (antes solo `get_current_user`: la conversación se acota a
     # `current_user.id` en `prepare_chat`, pero la ruta no fijaba quién entra).
-    current_user: User = Depends(require_internal_user),
+    current_user: User = Depends(requiere_capacidad("ia.usar")),
 ):
     t0 = time.time()
 
@@ -329,7 +327,7 @@ class ValoracionIn(BaseModel):
 @router.post("/ai/messages/{message_id}/feedback", summary="Valorar una respuesta del asistente (👍/👎)")
 def valorar_respuesta(message_id: str, payload: ValoracionIn, db: Session = Depends(get_db),
                       current_user: User = Depends(get_current_user),
-                      _rol: User = Depends(require_internal_user)):
+                      _rol: User = Depends(requiere_capacidad("ia.usar"))):
     from app.services.valoracion_de_respuestas import valorar_del_asistente
     try:
         return APIResponse.ok(data=valorar_del_asistente(db, current_user, message_id, payload.helpful, payload.comment))
@@ -347,7 +345,7 @@ def archive_conversation(
     try:
         return APIResponse.ok(data=_svc.archive_conversation(db, conv_id, current_user.id))
     except ValueError:
-        raise HTTPException(404)
+        raise error_http(404, "no_encontrado", que="conversacion")
 
 
 @router.delete("/ai/conversations", summary="Archivar historial de conversaciones")
@@ -378,7 +376,7 @@ def _build_agent_system_prompt(db: Session, current_user) -> str:
 def run_agent(
     payload: AgentPayload,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("ia.gestionar")),
 ):
     # P0-5: Reject prompt injection attempts in agent instructions
     if _check_prompt_injection(payload.instruction):
@@ -402,6 +400,27 @@ def run_agent(
         "execution_id": execution.id,
         "status": "queued",
     })
+
+
+@router.post("/ai/agent/{exec_id}/steps/{step_id}/approve", summary="NexusAgent — aprobar una escritura pendiente")
+def approve_agent_step(
+    exec_id: str, step_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(requiere_capacidad("ia.gestionar")),
+):
+    """Auditoría 22-11-2026 (A7): la aprobación humana que el agente anunciaba y no existía."""
+    from app.services.ai_chat.agent_execution_service import decidir_paso
+    return APIResponse.ok(data=decidir_paso(db, current_user, exec_id, step_id, True))
+
+
+@router.post("/ai/agent/{exec_id}/steps/{step_id}/reject", summary="NexusAgent — rechazar una escritura pendiente")
+def reject_agent_step(
+    exec_id: str, step_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(requiere_capacidad("ia.gestionar")),
+):
+    from app.services.ai_chat.agent_execution_service import decidir_paso
+    return APIResponse.ok(data=decidir_paso(db, current_user, exec_id, step_id, False))
 
 
 @router.get("/ai/agent/{exec_id}/status", summary="NexusAgent — estado de ejecución (polling)")
@@ -644,7 +663,7 @@ def _emitir_eventos_de_agente(*, instruccion: str, auto_approve: bool, usuario, 
 def run_agent_stream(
     payload: AgentPayload,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("ia.gestionar")),
 ):
     """
     Versión streaming del NexusAgent.  Emite eventos SSE en tiempo real,
@@ -742,7 +761,7 @@ def agent_detail(
     try:
         return APIResponse.ok(data=_svc.get_agent_detail_with_steps(db, exec_id, current_user.id))
     except ValueError:
-        raise HTTPException(404)
+        raise error_http(404, "no_encontrado", que="ejecucion")
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -762,7 +781,7 @@ def agent_detail(
 def list_prompts(
     module: Optional[str] = None,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("ia.administrar")),
 ):
     return APIListResponse.ok(items=_svc.list_prompts(db, module=module))
 
@@ -771,19 +790,19 @@ def list_prompts(
 def get_prompt_detail(
     prompt_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("ia.administrar")),
 ):
     try:
         return APIResponse.ok(data=_svc.get_prompt_detail(db, prompt_id))
     except ValueError:
-        raise HTTPException(404)
+        raise error_http(404, "no_encontrado", que="plantilla")
 
 
 @router.post("/governance/prompts", summary="Crear nueva versinnn de prompt IA", status_code=201)
 def create_prompt(
     payload: PromptTemplatePayload,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("ia.administrar")),
 ):
     return APIResponse.ok(data=_svc.create_prompt_template(db, payload, current_user.id))
 
@@ -793,22 +812,22 @@ def toggle_prompt(
     prompt_id: str,
     payload: dict = Body(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("ia.administrar")),
 ):
     try:
         return APIResponse.ok(data=_svc.toggle_prompt_template(db, prompt_id, payload))
     except ValueError:
-        raise HTTPException(404)
+        raise error_http(404, "no_encontrado", que="plantilla")
 
 
 @router.delete("/governance/prompts/{prompt_id}", summary="Eliminar plantilla de prompt")
 def delete_prompt(
     prompt_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("ia.administrar")),
 ):
     enforce_abac(db, current_user, "ai_prompt_template", prompt_id, action="delete")
     try:
         return APIResponse.ok(data=_svc.delete_prompt_template(db, prompt_id))
     except ValueError:
-        raise HTTPException(404)
+        raise error_http(404, "no_encontrado", que="plantilla")

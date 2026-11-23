@@ -11,11 +11,10 @@ import { extractErr } from '../utils/helpers';
 import { Upload, Download, Trash2, Plus, Sparkles, Loader, X, Check, Clock, FileText } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { Button, EmptyState, IconButton, Pulsable, Select, Input } from './ui';
-import { useAppT } from '../hooks/useAppT';
+import { useAppLang } from '../i18n/AppLangContext';
 
 import type { DragEvent } from 'react';
 import './DocumentsPanel.css'
-import { useAppLang } from '../i18n/AppLangContext'
 import { px } from '../utils/estilos'
 
 function fmtBytes(b: number | null | undefined) {
@@ -100,7 +99,7 @@ interface DocumentsPanelProps {
 
 export default function DocumentsPanel({ projectId, taskId, ticketId, _compact = false }: DocumentsPanelProps) {
   const { t: traducir } = useAppLang()
-  const { t } = useAppT();
+  const { t } = useAppLang();
   const toast = useToast();
   const qc = useQueryClient();
   const fileRef = useRef<HTMLInputElement | null>(null);

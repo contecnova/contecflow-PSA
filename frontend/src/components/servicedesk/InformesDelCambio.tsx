@@ -305,7 +305,11 @@ export function InformeMatrizDeRiesgo({ datos }: { datos: FilaDeMatriz[] }) {
 export function InformeVueltaAtras({ datos }: { datos: PlanDeVueltaAtras }) {
   const t = useAppT()
   const pasos = datos.rollback_steps ?? []
-  let acumulado = 0
+  // Minuto en que empieza cada paso (suma de los anteriores), calculado antes del render.
+  const empiezas = pasos.reduce<number[]>((acc, p, i) => {
+    acc.push(i === 0 ? 0 : acc[i - 1] + (pasos[i - 1].estimated_minutes ?? 0))
+    return acc
+  }, [])
   return (
     <div className="u-stack-14">
       <div className="sdp-kpis">
@@ -325,9 +329,8 @@ export function InformeVueltaAtras({ datos }: { datos: PlanDeVueltaAtras }) {
           </tr>
         </thead>
         <tbody>
-          {pasos.map(p => {
-            const empieza = acumulado
-            acumulado += p.estimated_minutes ?? 0
+          {pasos.map((p, i) => {
+            const empieza = empiezas[i]
             return (
               <tr key={p.step}>
                 <td className="sdp-num">{p.step}</td>

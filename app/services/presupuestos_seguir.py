@@ -28,6 +28,7 @@ Lo que hace falta para seguir un presupuesto aprobado mes a mes:
 from __future__ import annotations
 
 import csv
+from app.core.celdas_seguras import neutralizar_formula
 import io
 import json
 from datetime import date, datetime, timezone
@@ -40,8 +41,16 @@ from app.models.mfa import Budget, BudgetClose, BudgetCommitment, BudgetLine, Bu
 from app.services.audit import audit_log
 from app.core.errores import ErrorDeDominio
 from app.core.codigos_de_error import error
+from app.services.textos_de_salida_servicios_m_z import texto_para
 
 METODOS = ("plan", "ritmo", "manual")
+
+from app.services.presupuestos_preparar import APROBADO  # noqa: E402  estado de la version (§6)
+
+# Estados del pedido (`BudgetCommitment.estado`) y sus transiciones.
+PEDIDO_COMPROMETIDO, PEDIDO_FACTURADO, PEDIDO_ANULADO = "comprometido", "facturado", "anulado"
+TRANSICIONES_DE_PEDIDO = {PEDIDO_COMPROMETIDO: (PEDIDO_FACTURADO, PEDIDO_ANULADO),
+                          PEDIDO_FACTURADO: (), PEDIDO_ANULADO: ()}
 
 
 def _aj(db: Session, clave: str, org) -> str:
@@ -58,6 +67,21 @@ def _num(db: Session, clave: str, org) -> float:
 
 def _mes(d) -> str:
     return f"{d.year}-{d.month:02d}"
+
+
+def _anio_mes(mes) -> tuple[int, int]:
+    """`AAAA-MM` -> (anio, mes). Auditoria 2026-11-22 (03, bajos m-p): antes
+    `int(mes[:4])` sin validar daba 500 con un mes mal escrito; ahora 400."""
+    texto = str(mes or "")
+    try:
+        if len(texto) < 7 or texto[4] != "-":
+            raise ValueError
+        y, m = int(texto[:4]), int(texto[5:7])
+        if not 1 <= m <= 12:
+            raise ValueError
+    except ValueError:
+        raise error(400, "mes_formato_no_valido", mes=texto[:20])
+    return y, m
 
 
 def mes_actual() -> str:
@@ -89,12 +113,18 @@ def tipo_de_gasto(db: Session, org, categoria: str) -> str:
 
 # ── Ámbito ────────────────────────────────────────────────────────────────────
 
+# Auditoria 2026-11-22 (A-MP8): las dos consultas iban por NOMBRE de
+# departamento y sin empresa; en el worker (sin filtro de tenant) un
+# departamento «Ventas» de otra empresa sumaba sus centros de coste al
+# presupuesto. Ahora, siempre acotadas a la empresa del presupuesto.
+
 def _departamentos_del_ambito(db: Session, b: Budget) -> list[str]:
     from app.models.settings import Department
     if b.ambito == "departamento":
         return [b.department] if b.department else []
     if b.ambito == "area" and b.area_id:
-        return [n for (n,) in db.query(Department.name).filter(Department.area_id == b.area_id).all()]
+        return [n for (n,) in db.query(Department.name).filter(
+            Department.area_id == b.area_id, Department.organization_id == b.organization_id).all()]
     return []
 
 
@@ -104,8 +134,11 @@ def _centros_de_coste(db: Session, b: Budget) -> list[str]:
     nombres = _departamentos_del_ambito(db, b)
     if not nombres:
         return []
-    deps = [i for (i,) in db.query(Department.id).filter(Department.name.in_(nombres)).all()]
-    return [i for (i,) in db.query(ALMCostCenter.id).filter(ALMCostCenter.department_id.in_(deps or [""])).all()]
+    deps = [i for (i,) in db.query(Department.id).filter(
+        Department.name.in_(nombres), Department.organization_id == b.organization_id).all()]
+    return [i for (i,) in db.query(ALMCostCenter.id).filter(
+        ALMCostCenter.department_id.in_(deps or [""]),
+        ALMCostCenter.organization_id == b.organization_id).all()]
 
 
 # ── Comprometido ──────────────────────────────────────────────────────────────
@@ -122,7 +155,7 @@ def comprometido_mensual(db: Session, b: Budget) -> dict[str, dict[str, float]]:
     from app.services.budgets_service import tipos
     salida: dict[str, dict[str, float]] = {}
     for c in db.query(BudgetCommitment).filter(BudgetCommitment.origen_id == origen(b),
-                                               BudgetCommitment.estado == "comprometido").all():
+                                               BudgetCommitment.estado == PEDIDO_COMPROMETIDO).all():
         _sumar(salida, c.mes, c.tipo, c.importe)
     tipo_alm = _aj(db, "BUDGET_ALM_LINE_TYPE", b.organization_id).strip()
     if tipo_alm not in set(tipos(db, b.organization_id)):
@@ -147,7 +180,7 @@ def comprometido_mensual(db: Session, b: Budget) -> dict[str, dict[str, float]]:
 def real_de_pedidos(db: Session, b: Budget) -> dict[str, dict[str, float]]:
     salida: dict[str, dict[str, float]] = {}
     for c in db.query(BudgetCommitment).filter(BudgetCommitment.origen_id == origen(b),
-                                               BudgetCommitment.estado == "facturado").all():
+                                               BudgetCommitment.estado == PEDIDO_FACTURADO).all():
         if c.fecha_factura:
             _sumar(salida, _mes(c.fecha_factura), c.tipo, c.importe_facturado if c.importe_facturado is not None else c.importe)
     return salida
@@ -230,7 +263,7 @@ def _cargar(db: Session, budget_id: str) -> Budget:
 def cerrar_mes(db: Session, u, budget_id: str, mes: str) -> None:
     _exigir_gestor(db, u)
     b = _cargar(db, budget_id)
-    if b.estado != "aprobado":
+    if b.estado != APROBADO:
         raise error(409, "mes_cierre_solo_aprobado")
     if mes >= mes_actual():
         raise error(400, "mes_no_terminado")
@@ -332,7 +365,7 @@ def detalle_del_real(db: Session, b: Budget, mes: str, tipo: Optional[str] = Non
     from app.models.user import User
     from app.services.budgets_service import _usuarios_del_ambito
     from app.services.gastos_avanzados import COSTE, importe_por_proyecto
-    y, m = int(mes[:4]), int(mes[5:7])
+    y, m = _anio_mes(mes)
     desde, hasta = date(y, m, 1), date(y + (m == 12), 1 if m == 12 else m + 1, 1)
     proyecto = b.project_id if b.ambito in ("proyecto", "proyecto_previsto") else None
     usuarios = _usuarios_del_ambito(db, b)
@@ -374,7 +407,7 @@ def detalle_del_real(db: Session, b: Budget, mes: str, tipo: Optional[str] = Non
                 salida.append({"origen": "subcontrata", "id": log.id, "fecha": log.log_date.isoformat(), "tipo": tipo_sub,
                                "quien": nombre, "concepto": log.description or "", "horas": log.hours,
                                "importe": round(float(log.cost_amount), 2)})
-    for c in db.query(BudgetCommitment).filter(BudgetCommitment.origen_id == origen(b), BudgetCommitment.estado == "facturado",
+    for c in db.query(BudgetCommitment).filter(BudgetCommitment.origen_id == origen(b), BudgetCommitment.estado == PEDIDO_FACTURADO,
                                                BudgetCommitment.fecha_factura >= desde, BudgetCommitment.fecha_factura < hasta).all():
         if tipo in (None, c.tipo):
             salida.append({"origen": "pedido", "id": c.id, "fecha": c.fecha_factura.isoformat(), "tipo": c.tipo,
@@ -394,7 +427,7 @@ def exportar_csv(db: Session, b: Budget) -> str:
     w.writerow(["mes", "tipo", "plan", "real", "comprometido", "prevision", "cerrado"])
     for m in meses:
         for t in tipos:
-            w.writerow([m, t, *(f"{d.get(m, {}).get(t, 0):.2f}" for d in (plan, real, comp, prev)),
+            w.writerow([neutralizar_formula(m), neutralizar_formula(t), *(f"{d.get(m, {}).get(t, 0):.2f}" for d in (plan, real, comp, prev)),
                         "si" if m in cerrados else "no"])
     return buf.getvalue()
 
@@ -407,7 +440,7 @@ def presupuestos_que_cubren(db: Session, *, fecha: date, project_id: Optional[st
     from app.models.settings import Department
     from app.models.user import User
     mes = date(fecha.year, fecha.month, 1)
-    q = db.query(Budget).filter(Budget.estado == "aprobado", Budget.escenario == "base",
+    q = db.query(Budget).filter(Budget.estado == APROBADO, Budget.escenario == "base",
                                 Budget.periodo_desde <= mes, Budget.periodo_hasta >= mes)
     salida = []
     if project_id:
@@ -445,7 +478,7 @@ def crear_pedido(db: Session, u, budget_id: str, datos: dict) -> dict:
     from app.services.budgets_service import tipos
     _exigir_gestor(db, u)
     b = _cargar(db, budget_id)
-    if b.estado != "aprobado":
+    if b.estado != APROBADO:
         raise error(409, "pedido_solo_presupuesto_aprobado")
     tipo = datos.get("tipo")
     if tipo not in tipos(db, b.organization_id):
@@ -454,14 +487,16 @@ def crear_pedido(db: Session, u, budget_id: str, datos: dict) -> dict:
     mes = (datos.get("mes") or "")[:7]
     if importe <= 0 or not mes or not (datos.get("descripcion") or "").strip():
         raise error(400, "pedido_incompleto")
+    anio_mes = _anio_mes(mes)
     avisos = comprobar_disponible(db, b.organization_id, tipo_por_presupuesto=lambda _x: tipo, importe=importe,
-                                  fecha=date(int(mes[:4]), int(mes[5:7]), 1), project_id=b.project_id) \
+                                  fecha=date(*anio_mes, 1), project_id=b.project_id) \
         if b.project_id else _aviso_propio(db, b, tipo, importe)
     c = BudgetCommitment(organization_id=b.organization_id, origen_id=origen(b), tipo=tipo, descripcion=datos["descripcion"],
                          proveedor=datos.get("proveedor"), referencia=datos.get("referencia"), importe=importe, mes=mes,
                          created_by=u.id)
     db.add(c)
-    audit_log(db, u, "CREATE", "budget_commitments", None, datos["descripcion"], new_values={"importe": importe, "mes": mes})
+    db.flush()
+    audit_log(db, u, "CREATE", "budget_commitments", c.id, datos["descripcion"], new_values={"importe": importe, "mes": mes})
     db.commit()
     return {"id": c.id, "avisos": avisos}
 
@@ -486,8 +521,14 @@ def actualizar_pedido(db: Session, u, pedido_id: str, datos: dict) -> dict:
     if c is None:
         raise error(404, "no_encontrado", detail="Pedido no encontrado", que="pedido")
     estado = datos.get("estado")
-    if estado == "facturado":
-        c.estado = "facturado"
+    # Auditoria 2026-11-22 (03, medios m-p): maquina de estados del pedido.
+    # Antes un pedido anulado se podia facturar y uno facturado anular (el real
+    # aparecia y desaparecia). Solo `comprometido` cambia; los otros son finales.
+    if estado in TRANSICIONES_DE_PEDIDO and \
+            estado not in TRANSICIONES_DE_PEDIDO.get(c.estado or PEDIDO_COMPROMETIDO, ()):
+        raise error(409, "transicion_no_permitida", desde=c.estado, hasta=estado)
+    if estado == PEDIDO_FACTURADO:
+        c.estado = PEDIDO_FACTURADO
         c.fecha_factura = date.fromisoformat(str(datos.get("fecha_factura") or timeutil.today().isoformat())[:10])
         c.importe_facturado = float(datos["importe_facturado"]) if datos.get("importe_facturado") is not None else c.importe
     elif estado == "anulado":
@@ -532,7 +573,7 @@ def solicitar_traspaso(db: Session, u, budget_id: str, datos: dict) -> dict:
     from app.services.approval_engine import fuentes
     _exigir_gestor(db, u)
     b = _cargar(db, budget_id)
-    if b.estado != "aprobado":
+    if b.estado != APROBADO:
         raise error(409, "traspaso_solo_presupuesto_aprobado")
     importe = float(datos.get("importe") or 0)
     if importe <= 0 or not (datos.get("motivo") or "").strip():
@@ -554,10 +595,14 @@ def solicitar_traspaso(db: Session, u, budget_id: str, datos: dict) -> dict:
                        hacia_descripcion=datos.get("hacia_descripcion"), importe=importe, motivo=datos["motivo"],
                        solicitante_id=u.id)
     db.add(t)
-    db.commit()
+    # Auditoria 2026-11-22 (03, medios m-p): antes `commit()` y despues el flujo:
+    # si abrir la solicitud fallaba quedaba un traspaso pendiente sin bandeja.
+    db.flush()
     fuentes.abrir(db, "budget_transfer", t.id,
-                  f"{'Ampliación' if not t.desde_linea_id else 'Traspaso'} en {b.name} · {importe:g} {b.currency}", u.id,
+                  texto_para(db, "presupuestos.traspaso.traspaso" if t.desde_linea_id else "presupuestos.traspaso.ampliacion",
+                             user_id=u.id, nombre=b.name, importe=f"{importe:g}", moneda=b.currency), u.id,
                   {"amount": importe, "category": b.ambito, "project_id": b.project_id})
+    db.commit()
     return traspaso_dict(t)
 
 
@@ -578,7 +623,7 @@ def decidir_traspaso(db: Session, u, transfer_id: str, aprobado: bool, motivo: O
     b = _cargar(db, t.budget_id)
     if aprobado:
         _aplicar_traspaso(db, b, t)
-        t.estado = "aprobado"
+        t.estado = APROBADO
     else:
         if not (motivo or "").strip():
             raise error(400, "motivo_de_rechazo_obligatorio")
@@ -638,7 +683,8 @@ def listar_traspasos(db: Session, b: Budget) -> list[dict]:
 
 
 def aplicar_desde_bandeja(db: Session, actor, transfer_id: str, aprobado: bool, nota: Optional[str]) -> None:
-    decidir_traspaso(db, actor, transfer_id, aprobado, nota or "Rechazado en la bandeja de aprobaciones", desde_bandeja=True)
+    decidir_traspaso(db, actor, transfer_id, aprobado, nota or texto_para(db, "presupuestos.rechazado_bandeja", user_id=actor.id),
+                      desde_bandeja=True)
 
 
 # ── El presupuesto aprobado, base del proyecto ────────────────────────────────
@@ -647,7 +693,7 @@ def sincronizar_proyecto(db: Session, b: Budget) -> None:
     """El presupuesto aprobado (escenario base) de un proyecto fija su `budget_amount` y sus horas."""
     from app.models.project import Project
     from app.services.presupuestos_preparar import total_de_gasto
-    if b.estado != "aprobado" or b.escenario != "base" or not b.project_id:
+    if b.estado != APROBADO or b.escenario != "base" or not b.project_id:
         return
     p = db.query(Project).filter(Project.id == b.project_id).first()
     if p is None:
@@ -672,7 +718,10 @@ def revisar_alertas(engine) -> int:
     db = engine.db
     creadas = 0
     ultimas: dict[str, Budget] = {}
-    for b in db.query(Budget).filter(Budget.estado == "aprobado", Budget.escenario == "base").all():
+    # 2026-11-22 (A-MP8): por version ascendente, para que quede la ultima
+    # aprobada de cada cadena (antes, la que devolviera la base).
+    for b in (db.query(Budget).filter(Budget.estado == APROBADO, Budget.escenario == "base")
+              .order_by(Budget.version.asc(), Budget.created_at.asc()).all()):
         ultimas[origen(b)] = b
     for b in ultimas.values():
         s = seguimiento(db, b)
@@ -683,23 +732,38 @@ def revisar_alertas(engine) -> int:
         critica, umbral_c, sev_c = engine._config(AlertType.budget_critical, b.organization_id)
         aviso, umbral_a, sev_a = engine._config(AlertType.budget_exceeded, b.organization_id)
         if critica and consumo >= umbral_c:
-            candidatas.append((AlertType.budget_critical, sev_c, umbral_c, f"Presupuesto consumido al {consumo:.0f} %: {b.name}"))
+            candidatas.append((AlertType.budget_critical, sev_c, umbral_c,
+                               texto_para(db, "presupuestos.alerta.critica", org_id=b.organization_id,
+                                          pct=f"{consumo:.0f}", nombre=b.name),
+                               ("presupuestos.alerta.critica", {"pct": f"{consumo:.0f}", "nombre": b.name})))
         elif aviso and consumo >= umbral_a:
-            candidatas.append((AlertType.budget_exceeded, sev_a, umbral_a, f"Presupuesto al {consumo:.0f} %: {b.name}"))
+            candidatas.append((AlertType.budget_exceeded, sev_a, umbral_a,
+                               texto_para(db, "presupuestos.alerta.excedido", org_id=b.organization_id,
+                                          pct=f"{consumo:.0f}", nombre=b.name),
+                               ("presupuestos.alerta.excedido", {"pct": f"{consumo:.0f}", "nombre": b.name})))
         prevista, umbral_p, sev_p = engine._config(AlertType.budget_forecast_overrun, b.organization_id)
         prevision_pct = s["prevision"] / s["plan"] * 100
         if prevista and prevision_pct > umbral_p:
             candidatas.append((AlertType.budget_forecast_overrun, sev_p, umbral_p,
-                               f"La previsión al cierre llega al {prevision_pct:.0f} % del plan: {b.name}"))
-        for tipo, sev, umbral, titulo in candidatas:
+                               texto_para(db, "presupuestos.alerta.prevision", org_id=b.organization_id,
+                                          pct=f"{prevision_pct:.0f}", nombre=b.name),
+                               ("presupuestos.alerta.prevision", {"pct": f"{prevision_pct:.0f}", "nombre": b.name})))
+        for tipo, sev, umbral, titulo, (t_clave, t_datos) in candidatas:
             clave = f"budget:{origen(b)}:{tipo.value}"[:200]
             if db.query(Alert).filter(Alert.dedup_key == clave, Alert.is_resolved.isnot(True)).first():
                 continue
+            d_datos = {"plan": f"{s['plan']:g}", "real": f"{s['real']:g}",
+                       "comprometido": f"{s['comprometido']:g}", "prevision": f"{s['prevision']:g}"}
+            # Migracion 200: titulo y detalle tambien por clave, para pintarlos en el idioma de quien mira.
             db.add(Alert(alert_type=tipo, severity=sev, title=titulo, organization_id=b.organization_id,
+                         title_key=t_clave, title_params=t_datos,
+                         description_key="presupuestos.alerta.detalle", description_params=d_datos,
                          project_id=b.project_id, value=round(prevision_pct if tipo == AlertType.budget_forecast_overrun else consumo, 2),
                          threshold=umbral, dedup_key=clave,
-                         description=(f"Plan {s['plan']:g}, real {s['real']:g}, comprometido {s['comprometido']:g}, "
-                                      f"previsión {s['prevision']:g}")))
+                         description=texto_para(db, "presupuestos.alerta.detalle", org_id=b.organization_id,
+                                                plan=f"{s['plan']:g}", real=f"{s['real']:g}",
+                                                comprometido=f"{s['comprometido']:g}",
+                                                prevision=f"{s['prevision']:g}")))
             creadas += 1
     db.commit()
     return creadas
@@ -716,7 +780,11 @@ def cuadro(db: Session, u, year: Optional[int] = None) -> list[dict]:
         s = seguimiento(db, b)
         consumo = (s["real"] + s["comprometido"]) / s["plan"] * 100 if s["plan"] else None
         rojo = (consumo is not None and consumo >= 100) or s["prevision"] > s["plan"] + 0.005
-        ambar = (not rojo) and ((consumo or 0) >= 85 or bool(s["desviaciones_sin_explicar"]) or bool(s["meses_por_cerrar"]))
+        # Ronda 2 auditoría 2026-11-22 (§6 Umbrales): el aviso de la métrica
+        # «presupuesto» de la empresa (`UMBRAL_PRESUPUESTO_AVISO_PCT`), no 85 fijo.
+        from app.core.umbrales import cortes
+        aviso_pct = cortes("presupuesto", db, b.organization_id)[0]
+        ambar = (not rojo) and ((consumo or 0) >= aviso_pct or bool(s["desviaciones_sin_explicar"]) or bool(s["meses_por_cerrar"]))
         salida.append({"id": b.id, "name": b.name, "ambito": b.ambito, "estado": b.estado, "version": b.version,
                        "escenario": b.escenario, "currency": b.currency, "plan": s["plan"], "real": s["real"], "comprometido": s["comprometido"],
                        "disponible": s["disponible"], "prevision": s["prevision"],

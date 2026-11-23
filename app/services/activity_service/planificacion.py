@@ -172,6 +172,21 @@ def _resolve_simulation_rate(db: Session, project, tasks) -> float:
     return float(settings.DEFAULT_SIMULATION_HOURLY_RATE)
 
 
+from app.services.settings_service.por_empresa import moneda_de_empresa  # noqa: E402
+
+
+def _coste_hora_del_equipo(db: Session, project, tasks) -> float:
+    """Media del coste por hora (moneda de la empresa) de las personas asignadas."""
+    from app.models.user import User
+    from app.services.cost_service import cost_per_hour
+    ids = {getattr(t, "assignee_id", None) for t in (tasks or [])} - {None}
+    if not ids:
+        return 0.0
+    costes = [c for c in (cost_per_hour(db, u, None, getattr(project, "id", None))
+                          for u in db.query(User).filter(User.id.in_(ids)).all()) if c]
+    return sum(costes) / len(costes) if costes else 0.0
+
+
 def simulate_project_payload(db: Session, project_id: str, payload) -> dict:
 
     tasks = db.query(Task).filter(
@@ -219,7 +234,7 @@ def simulate_project_payload(db: Session, project_id: str, payload) -> dict:
         extra_hours_week = sum(r.get("hours_per_week") or semana for r in payload.add_resources)
         remaining_hours = total_hours * effective_compression
         saved_weeks = (remaining_hours * 0.7) / max(extra_hours_week, 1)
-        saved_days = int(saved_weeks * 5)
+        saved_days = int(saved_weeks * 7)   # M36: semanas → días NATURALES (se restan a una fecha)
         sim_end = sim_end - timedelta(days=saved_days)
         notes.append(f"{len(payload.add_resources)} extra resource(s) added → ~{saved_days} days saved")
 
@@ -242,13 +257,17 @@ def simulate_project_payload(db: Session, project_id: str, payload) -> dict:
     #   1. la tarifa de facturación del propio proyecto
     #   2. la media de las tarifas de los usuarios asignados a sus tareas
     #   3. el valor por defecto configurable de la organización
-    avg_rate = _resolve_simulation_rate(db, project, tasks)
+    # M36 (auditoría 22-11-2026): el impacto en COSTE se valora con el coste
+    # por hora del equipo (`cost_service.cost_per_hour`, en la moneda de la
+    # empresa), no con la tarifa de facturación; la tarifa queda solo de respaldo.
+    avg_rate = _coste_hora_del_equipo(db, project, tasks) or _resolve_simulation_rate(db, project, tasks)
     cost_delta = -sum((t.estimated_hours or 0) * avg_rate for t in tasks if t.id in cut_ids)
     if payload.add_resources:
+        semanas = max((sim_end - timeutil.today()).days, 0) / 7   # M36: días naturales → semanas
         cost_delta += sum(
             (r.get("hours_per_week") or semana) * r.get("rate_per_hour", avg_rate)
             for r in payload.add_resources
-        ) * ((sim_end - timeutil.today()).days / 5)
+        ) * semanas
 
     at_risk = [{
         "id": t.id, "code": t.code, "title": t.title,
@@ -264,7 +283,9 @@ def simulate_project_payload(db: Session, project_id: str, payload) -> dict:
             "days_delta": (sim_end - base_end).days,
             "total_remaining_hours": round(total_hours, 1),
             "effective_remaining_hours": round(total_hours * effective_compression, 1),
-            "cost_delta_eur": round(cost_delta, 2),
+            "cost_delta_eur": round(cost_delta, 2),   # compatibilidad: es `cost_delta` en `currency`
+            "cost_delta": round(cost_delta, 2),
+            "currency": moneda_de_empresa(db, registro=project),
             "deferred_tasks": len(deferred_detail),
             "cut_tasks": len(cut_detail),
             "at_risk_tasks": len(at_risk),

@@ -94,6 +94,27 @@ def generate_scim_token(db: Session, org_id: str) -> str:
     return token
 
 
+def rotar_token_scim(db: Session, org_id: str, actor_id: Optional[str]) -> str:
+    """Genera el token SCIM propio de la empresa y deja rastro (ronda 2, 23-11-2026).
+
+    Antes `generate_scim_token` no tenia llamantes: en produccion solo valia el
+    token global. Lo usa `POST /organizations/{org_id}/scim-token`. El token se
+    devuelve una sola vez; la auditoria no lo guarda.
+    """
+    import json as _json
+
+    from app.models.enterprise import AuditLog
+
+    token = generate_scim_token(db, org_id)
+    db.add(AuditLog(
+        user_id=actor_id, action="SCIM_TOKEN_ROTATE", resource="organizations",
+        resource_id=org_id, metadata_=_json.dumps({"source": "scim"}),
+        organization_id=org_id,
+    ))
+    db.commit()
+    return token
+
+
 def _is_dev_or_test() -> bool:
     from app.core.entorno import ejecutando_pytest, en_pruebas
     if en_pruebas() or ejecutando_pytest():
@@ -155,17 +176,15 @@ def require_scim_token(
         raise error(401, "token_requerido", detail="Token SCIM requerido")
 
     # 1) Per-org token: resolve the org by the presented token's hash.
+    # Ronda 2 (23-11-2026): busqueda directa por hash (antes recorria todas las
+    # empresas con token). Comparar el hash en SQL no filtra el token: el hash
+    # de un secreto aleatorio de 256 bits no se puede adivinar por tiempos.
     token_hash = hash_scim_token(provided)
-    matched = (
+    resolved: Optional[Organization] = (
         db.query(Organization)
-        .filter(Organization.scim_token_hash.isnot(None))
-        .all()
+        .filter(Organization.scim_token_hash == token_hash)
+        .first()
     )
-    resolved: Optional[Organization] = None
-    for org in matched:
-        if hmac.compare_digest(org.scim_token_hash or "", token_hash):
-            resolved = org
-            break
 
     if resolved is not None:
         # Token is valid for SOME org — it must be the one in the path.
@@ -655,9 +674,15 @@ def process_bulk_operations(
     responses = []
     error_count = 0
     for op in operations:
+        # Ronda 2 (23-11-2026): cada operacion en su punto de guardado; si falla,
+        # se deshace solo ella (antes quedaban sus cambios a medias y el commit
+        # final los confirmaba junto a las correctas).
+        punto = db.begin_nested()
         try:
             responses.append(process_bulk_operation(org_id, op, db))
+            punto.commit()
         except Exception as exc:
+            punto.rollback()
             logging.getLogger(__name__).debug("process_bulk_operations: excepcion ignorada", exc_info=True)
             error_count += 1
             responses.append({
@@ -674,14 +699,3 @@ def process_bulk_operations(
                 break
     db.commit()
     return responses
-
-
-# ── Errores de operaciones en bloque ─────────────────────────────────────────
-# Auditoría 2026-08 (hallazgo 22). Esta función vivía en `v238_service.py`, un
-# módulo nombrado por número de versión con seis dominios dentro. SCIM es su
-# dominio y aquí es donde se busca.
-#
-# Aviso honesto: comprobado en todo el repositorio, tiene CERO llamantes. Se
-# conserva porque el aprovisionamiento SCIM en bloque es una funcionalidad
-# declarada de la plataforma, pero nadie la invoca hoy — no asumir que está en
-# uso.

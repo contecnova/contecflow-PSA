@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 from pydantic import BaseModel, Field
 from app.db.session import get_db
-from app.core.deps import get_current_user, require_any_manager
+from app.core.deps import get_current_user, requiere_capacidad
 from app.core.abac_enforce import enforce_abac
 from app.core.paginacion import Paginacion, lista_paginada, paginacion
 from app.core.responses import APIListResponse, APIResponse
@@ -52,7 +52,7 @@ def list_clients(
 
 @router.post("")
 def create_client(data: dict = Body(...), db: Session = Depends(get_db), cu: User = Depends(get_current_user), response: Response = None,
-    _rol: User = Depends(require_any_manager),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
+    _rol: User = Depends(requiere_capacidad("clientes.gestionar")),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
     return APIResponse.ok(data=svc_create_client(data, cu, db))
 
@@ -68,14 +68,14 @@ def get_client(cid: str, db: Session = Depends(get_db), _=Depends(get_current_us
 
 @router.patch("/{cid}")
 def update_client(cid: str, data: dict = Body(...), db: Session = Depends(get_db), cu: User = Depends(get_current_user), response: Response = None,
-    _rol: User = Depends(require_any_manager),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
+    _rol: User = Depends(requiere_capacidad("clientes.gestionar")),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
     return APIResponse.ok(data=_svc.update_client(cid, data, cu, db))
 
 
 @router.delete("/{cid}")
 def delete_client(cid: str, db: Session = Depends(get_db), cu: User = Depends(get_current_user), response: Response = None,
-    _rol: User = Depends(require_any_manager),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
+    _rol: User = Depends(requiere_capacidad("clientes.gestionar")),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
     enforce_abac(db, cu, "client", cid, action="delete")
     return APIResponse.ok(data=_svc.delete_client(cid, cu, db))
@@ -90,35 +90,36 @@ def list_contacts(cid: str, db: Session = Depends(get_db), cu: User = Depends(ge
 
 @router.post("/{cid}/contacts")
 def add_contact(cid: str, data: dict = Body(...), db: Session = Depends(get_db), cu: User = Depends(get_current_user),
-    _rol: User = Depends(require_any_manager),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
+    _rol: User = Depends(requiere_capacidad("clientes.gestionar")),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
     return APIResponse.ok(data=_svc.add_contact(cid, data, db, cu))
 
 
 @router.patch("/{cid}/contacts/{contact_id}")
 def update_contact(cid: str, contact_id: str, data: dict = Body(...),
-    _rol: User = Depends(require_any_manager),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
+    _rol: User = Depends(requiere_capacidad("clientes.gestionar")),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
                    db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
     return APIResponse.ok(data=_svc.update_contact(cid, contact_id, data, db, cu))
 
 
 @router.post("/{cid}/contacts/{contact_id}/primary")
 def set_primary_contact(cid: str, contact_id: str,
-    _rol: User = Depends(require_any_manager),
+    _rol: User = Depends(requiere_capacidad("clientes.gestionar")),
                         db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
     """Marca el contacto como principal del cliente (único) y lo copia en la ficha."""
     return APIResponse.ok(data=_svc.marcar_contacto_principal(cid, contact_id, cu, db))
 
 
 class AccesoAlPortalIn(BaseModel):
-    password: str = Field(..., min_length=8, max_length=128)
+    # 23-11-2026 (M10 del 04b): sin contraseña, se genera y se envía al contacto por correo.
+    password: Optional[str] = Field(None, min_length=8, max_length=128)
     language: Optional[str] = Field(None, min_length=2, max_length=10)
     project_ids: Optional[List[str]] = None
 
 
 @router.post("/{cid}/contacts/{contact_id}/portal-access")
 def give_portal_access(cid: str, contact_id: str, payload: AccesoAlPortalIn,
-    _rol: User = Depends(require_any_manager),
+    _rol: User = Depends(requiere_capacidad("clientes.gestionar")),
                        db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
     """Crea el usuario del portal del contacto con sus datos (mismo alta y tope que la pestaña del portal)."""
     return APIResponse.ok(data=_svc.dar_acceso_al_portal(
@@ -139,7 +140,7 @@ def delete_contact(
     # se destruye poco. Ninguna de las 15 rutas de escritura de este
     # fichero tenia control de rol; queda anotado en el traspaso que el
     # hallazgo real es mas ancho que estos cuatro borrados.
-    _: User = Depends(require_any_manager),
+    _: User = Depends(requiere_capacidad("clientes.gestionar")),
 ):
     enforce_abac(db, cu, "client_contact", contact_id, action="delete")
     return APIResponse.ok(data=_svc.delete_contact(cid, contact_id, db, cu))
@@ -154,7 +155,7 @@ def list_client_licenses(cid: str, db: Session = Depends(get_db), _=Depends(get_
 
 @router.post("/{cid}/licenses")
 def link_license(cid: str, data: dict = Body(...), db: Session = Depends(get_db), cu: User = Depends(get_current_user),
-    _rol: User = Depends(require_any_manager),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
+    _rol: User = Depends(requiere_capacidad("clientes.gestionar")),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
     return APIResponse.ok(data=_svc.link_license(cid, data, db))
 
@@ -173,7 +174,7 @@ def unlink_license(
     # se destruye poco. Ninguna de las 15 rutas de escritura de este
     # fichero tenia control de rol; queda anotado en el traspaso que el
     # hallazgo real es mas ancho que estos cuatro borrados.
-    _: User = Depends(require_any_manager),
+    _: User = Depends(requiere_capacidad("clientes.gestionar")),
 ):
     enforce_abac(db, cu, "client_license_link", link_id, action="delete")
     return APIResponse.ok(data=_svc.unlink_license(cid, link_id, db))
@@ -188,7 +189,7 @@ def list_client_contracts(cid: str, db: Session = Depends(get_db), _=Depends(get
 
 @router.post("/{cid}/contracts")
 def link_contract(cid: str, data: dict = Body(...), db: Session = Depends(get_db), cu: User = Depends(get_current_user),
-    _rol: User = Depends(require_any_manager),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
+    _rol: User = Depends(requiere_capacidad("clientes.gestionar")),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
     return APIResponse.ok(data=_svc.link_contract(cid, data, db))
 
@@ -208,7 +209,7 @@ def unlink_contract(
     # se destruye poco. Ninguna de las 15 rutas de escritura de este
     # fichero tenia control de rol; queda anotado en el traspaso que el
     # hallazgo real es mas ancho que estos cuatro borrados.
-    _: User = Depends(require_any_manager),
+    _: User = Depends(requiere_capacidad("clientes.gestionar")),
 ):
     enforce_abac(db, cu, "client_contract_link", link_id, action="delete")
     return APIResponse.ok(data=_svc.unlink_contract(cid, link_id, db))
@@ -223,7 +224,7 @@ def get_portal_config(cid: str, db: Session = Depends(get_db), _=Depends(get_cur
 
 @router.patch("/{cid}/portal-config")
 def update_portal_config(cid: str, data: dict = Body(...), db: Session = Depends(get_db), cu: User = Depends(get_current_user), response: Response = None,
-    _rol: User = Depends(require_any_manager),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
+    _rol: User = Depends(requiere_capacidad("clientes.gestionar")),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
     return APIResponse.ok(data=_svc.update_portal_config(cid, data, db))
 
@@ -281,7 +282,7 @@ def list_available_projects(cid: str, db: Session = Depends(get_db), _=Depends(g
 
 @router.post("/{cid}/projects/{project_id}/link")
 def link_project(cid: str, project_id: str, db: Session = Depends(get_db), cu: User = Depends(get_current_user), response: Response = None,
-    _rol: User = Depends(require_any_manager),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
+    _rol: User = Depends(requiere_capacidad("clientes.gestionar")),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
     return APIResponse.ok(data=_svc.link_project(cid, project_id, db))
 
@@ -301,7 +302,7 @@ def unlink_project(
     # se destruye poco. Ninguna de las 15 rutas de escritura de este
     # fichero tenia control de rol; queda anotado en el traspaso que el
     # hallazgo real es mas ancho que estos cuatro borrados.
-    _: User = Depends(require_any_manager),
+    _: User = Depends(requiere_capacidad("clientes.gestionar")),
 ):
     enforce_abac(db, cu, "client", cid, action="delete")
     return APIResponse.ok(data=_svc.unlink_project(cid, project_id, db))

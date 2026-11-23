@@ -165,8 +165,7 @@ def test_create_booking_via_api(client, admin_token, db):
         "project_type": "development",
     }, headers=auth(admin_token))
 
-    if proj_res.status_code not in (200, 201):
-        pytest.skip("Project creation unavailable in this test context")
+    assert proj_res.status_code in (200, 201), proj_res.text
 
     proj_id = proj_res.json()["data"]["id"]
 

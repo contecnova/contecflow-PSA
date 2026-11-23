@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_current_user, require_admin
+from app.core.deps import get_current_user, requiere_capacidad
 from app.core.responses import APIResponse, APIListResponse
 from app.db.session import get_db
 from app.models.user import User
@@ -127,7 +127,7 @@ def get_dynamic_forms_public_context_options(
 
 
 @router.put("/dynamic-forms", summary="Guardar configuración de formulario dinámico")
-def put_dynamic_forms(payload: DynamicRulesIn, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+def put_dynamic_forms(payload: DynamicRulesIn, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("sd.administrar"))):
     org_id = getattr(current_user, "organization_id", None)
     rules = _save_rules_with_history(
         db,
@@ -145,7 +145,7 @@ def put_dynamic_forms(payload: DynamicRulesIn, db: Session = Depends(get_db), cu
 
 
 @router.get("/dynamic-forms/history", summary="Historial de configuración de formulario dinámico")
-def get_dynamic_forms_history(db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+def get_dynamic_forms_history(db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("sd.administrar"))):
     org_id = getattr(current_user, "organization_id", None)
     history = _get_json(db, _HISTORY_KEY, org_id, fallback=[])
     if not isinstance(history, list):
@@ -154,7 +154,7 @@ def get_dynamic_forms_history(db: Session = Depends(get_db), current_user: User 
 
 
 @router.post("/dynamic-forms/diff", summary="Comparar dos snapshots de configuración dinámica")
-def diff_dynamic_forms(payload: DiffIn, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+def diff_dynamic_forms(payload: DiffIn, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("sd.administrar"))):
     org_id = getattr(current_user, "organization_id", None)
     history = _get_json(db, _HISTORY_KEY, org_id, fallback=[])
     if not isinstance(history, list):
@@ -219,7 +219,7 @@ def diff_dynamic_forms(payload: DiffIn, db: Session = Depends(get_db), current_u
 
 
 @router.post("/dynamic-forms/rollback", summary="Restaurar una configuración anterior del formulario dinámico")
-def rollback_dynamic_forms(payload: RollbackIn, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+def rollback_dynamic_forms(payload: RollbackIn, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("sd.administrar"))):
     org_id = getattr(current_user, "organization_id", None)
     history = _get_json(db, _HISTORY_KEY, org_id, fallback=[])
     if not isinstance(history, list):
@@ -244,7 +244,7 @@ def rollback_dynamic_forms(payload: RollbackIn, db: Session = Depends(get_db), c
 
 
 @router.post("/dynamic-forms/import/preview", summary="Wizard: previsualizar importación y mapeo de campos dinámicos")
-def preview_dynamic_forms_import(payload: ImportPreviewIn, current_user: User = Depends(require_admin)):
+def preview_dynamic_forms_import(payload: ImportPreviewIn, current_user: User = Depends(requiere_capacidad("sd.administrar"))):
     _ = current_user
     stream = io.StringIO(payload.csv_text)
     try:
@@ -290,7 +290,7 @@ def preview_dynamic_forms_import(payload: ImportPreviewIn, current_user: User = 
 
 
 @router.post("/dynamic-forms/import/apply", summary="Wizard: aplicar importación/mapeo de campos dinámicos")
-def apply_dynamic_forms_import(payload: ImportApplyIn, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+def apply_dynamic_forms_import(payload: ImportApplyIn, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("sd.administrar"))):
     org_id = getattr(current_user, "organization_id", None)
     current = _get_json(db, _RULES_KEY, org_id, fallback=_default_rules())
     if not isinstance(current, dict):

@@ -9,10 +9,11 @@
 import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Plus, ShieldCheck, Trash2, Users } from 'lucide-react'
-import { Button, Card, Confirm, IconButton, Input, Section, StatusBadge, UserSelect } from '../ui'
+import { Button, Card, IconButton, Input, Section, StatusBadge, UserSelect } from '../ui'
 import { useAppT } from '../../i18n/AppLangContext'
 import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
+import { confirmar } from '../../context/ConfirmContext'
 import { extractErr, fmtDateTime } from '../../utils/helpers'
 import { reunionesApi } from '../../services/api/reuniones'
 import type { MetodoConsentimiento, ParticipanteReunion, ReunionDetalle } from '../../services/api/reuniones'
@@ -42,7 +43,6 @@ export default function ParticipantesDeReunion({ reunion }: { reunion: ReunionDe
   const [nombre, setNombre] = useState('')
   const [correo, setCorreo] = useState('')
   const [persona, setPersona] = useState('')
-  const [quitar, setQuitar] = useState<ParticipanteReunion | null>(null)
 
   const refrescar = () => {
     qc.invalidateQueries({ queryKey: CLAVES.detalle(reunion.id) })
@@ -62,7 +62,7 @@ export default function ParticipantesDeReunion({ reunion }: { reunion: ReunionDe
   })
   const borrar = useMutation({
     mutationFn: (pid: string) => reunionesApi.quitarParticipante(reunion.id, pid),
-    onSuccess: () => { setQuitar(null); refrescar() },
+    onSuccess: () => { refrescar() },
     onError: alFallar,
   })
 
@@ -126,7 +126,9 @@ export default function ParticipantesDeReunion({ reunion }: { reunion: ReunionDe
                       </>
                     )}
                     {gestor && (
-                      <IconButton ariaLabel={t('reuniones.quitar')} onClick={() => setQuitar(p)}><Trash2 size={14} aria-hidden /></IconButton>
+                      <IconButton ariaLabel={t('reuniones.quitar')} onClick={async () => {
+                        if (await confirmar({ title: t('reuniones.participantes.quitar_titulo'), message: t('reuniones.participantes.quitar_desc', { nombre: p.name ?? '' }), danger: true })) borrar.mutate(p.id)
+                      }}><Trash2 size={14} aria-hidden /></IconButton>
                     )}
                   </div>
                 </li>
@@ -135,9 +137,6 @@ export default function ParticipantesDeReunion({ reunion }: { reunion: ReunionDe
           </ul>
         )}
       </Section>
-      <Confirm open={!!quitar} title={t('reuniones.participantes.quitar_titulo')}
-        description={t('reuniones.participantes.quitar_desc', { nombre: quitar?.name ?? '' })}
-        loading={borrar.isPending} onCancel={() => setQuitar(null)} onConfirm={() => quitar && borrar.mutate(quitar.id)} />
     </Card>
   )
 }

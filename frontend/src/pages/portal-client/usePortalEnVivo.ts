@@ -72,6 +72,7 @@ async function conectar(gen: number) {
   try {
     ticket = (await CLIENT_API.get('/ws/portal-ticket')).data?.ticket
   } catch {
+    /* accesorio: avisos en vivo; si no hay ticket se reintenta con espera creciente y el portal sigue funcionando por sondeo */
     programarReintento(gen)
     return
   }
@@ -80,6 +81,7 @@ async function conectar(gen: number) {
   try {
     s = new WebSocket(apiWsUrl(`/ws/portal-notifications?ticket=${encodeURIComponent(ticket)}`))
   } catch {
+    /* accesorio: no se pudo abrir el socket; se reintenta como arriba */
     programarReintento(gen)
     return
   }
@@ -91,7 +93,7 @@ async function conectar(gen: number) {
   }
   s.onmessage = (ev: MessageEvent<string>) => {
     let m: MensajeDelPortal
-    try { m = JSON.parse(ev.data) } catch { return }
+    try { m = JSON.parse(ev.data) } catch { /* accesorio: mensaje del socket que no es JSON; se ignora */ return }
     oyentes.forEach(f => { try { f(m) } catch { /* un oyente no tumba a los demás */ } })
   }
   s.onerror = () => { /* llega onclose */ }
@@ -131,7 +133,7 @@ function suscribirEstado(f: () => void) {
 /** Manda un mensaje por el socket del portal; `false` si no está abierto. */
 export function enviarPorElPortal(mensaje: Record<string, unknown>): boolean {
   if (!socket || socket.readyState !== WebSocket.OPEN) return false
-  try { socket.send(JSON.stringify(mensaje)); return true } catch { return false }
+  try { socket.send(JSON.stringify(mensaje)); return true } catch { /* accesorio: presencia/escritura en vivo; el llamador ya recibe false */ return false }
 }
 
 /**

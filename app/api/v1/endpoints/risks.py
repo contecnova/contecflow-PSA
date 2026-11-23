@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from typing import Optional
 
 from app.db.session import get_db
-from app.core.deps import get_current_user, require_admin_or_pm, require_any_manager
+from app.core.deps import get_current_user, requiere_capacidad
 from app.core.abac_enforce import enforce_abac
 from app.core.responses import APIResponse, APIListResponse
 from app.models.user import User, UserRole
@@ -21,7 +21,7 @@ router = APIRouter()
 @router.get("/all/portfolio", response_model=APIListResponse[dict], summary="Riesgos de toda la cartera")
 def get_portfolio_risks(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("proyectos.responsables")),
 ):
     risks = risk_service.get_portfolio_risks(db)
     result = []
@@ -68,10 +68,8 @@ def create_risk(
     payload: RiskIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_admin_or_pm),  # auditoria 2026-09: dominio: riesgos de proyecto
+    _rol: User = Depends(requiere_capacidad("proyectos.dirigir")),  # auditoria 2026-09: dominio: riesgos de proyecto
 ):
-    if current_user.role not in [UserRole.admin, UserRole.pm]:
-        raise error_http(403, "sin_permiso", detail="Acceso denegado")
     risk = risk_service.create_risk(
         db,
         project_id=project_id,
@@ -114,10 +112,8 @@ def update_risk(
     payload: RiskUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_admin_or_pm),  # auditoria 2026-09: dominio: riesgos de proyecto
+    _rol: User = Depends(requiere_capacidad("proyectos.dirigir")),  # auditoria 2026-09: dominio: riesgos de proyecto
 ):
-    if current_user.role not in [UserRole.admin, UserRole.pm]:
-        raise error_http(403, "sin_permiso", detail="Acceso denegado")
     risk = risk_service.get_risk(db, risk_id, project_id)
     if not risk:
         raise error_http(404, "no_encontrado", detail="Riesgo no encontrado", que="riesgo")
@@ -131,10 +127,8 @@ def delete_risk(
     risk_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_admin_or_pm),  # auditoria 2026-09: dominio: riesgos de proyecto
+    _rol: User = Depends(requiere_capacidad("proyectos.dirigir")),  # auditoria 2026-09: dominio: riesgos de proyecto
 ):
-    if current_user.role not in [UserRole.admin, UserRole.pm]:
-        raise error_http(403, "sin_permiso", detail="Acceso denegado")
     risk = risk_service.get_risk(db, risk_id, project_id)
     if not risk:
         raise error_http(404, "no_encontrado", detail="Riesgo no encontrado", que="riesgo")

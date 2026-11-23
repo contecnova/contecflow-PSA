@@ -5,7 +5,7 @@ from typing import Optional, List
 from pydantic import BaseModel
 
 from app.db.session import get_db
-from app.core.deps import get_current_user, require_admin, require_admin_or_hr, requiere_capacidad
+from app.core.deps import get_current_user, requiere_capacidad
 from app.core.abac_enforce import enforce_abac
 from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
@@ -166,21 +166,21 @@ def get_task_types(db: Session = Depends(get_db), _: User = Depends(get_current_
     return APIListResponse.ok(items=_svc.list_task_types(db))
 
 @router.post("/task-types", summary="Crear tipo de tarea", deprecated=True)
-def create_task_type(payload: TaskTypeIn, db: Session = Depends(get_db), _: User = Depends(require_admin)):
+def create_task_type(payload: TaskTypeIn, db: Session = Depends(get_db), _: User = Depends(requiere_capacidad("org.administrar"))):
     try:
         return APIResponse.ok(data=jsonable_encoder(_svc.create_task_type(payload.model_dump(), db)))
     except ValueError as e:
         raise desde_valor(400, e)
 
 @router.patch("/task-types/{type_id}", summary="Actualizar tipo de tarea", deprecated=True)
-def update_task_type(type_id: str, payload: TaskTypeIn, db: Session = Depends(get_db), _: User = Depends(require_admin)):
+def update_task_type(type_id: str, payload: TaskTypeIn, db: Session = Depends(get_db), _: User = Depends(requiere_capacidad("org.administrar"))):
     try:
         return APIResponse.ok(data=jsonable_encoder(_svc.update_task_type(type_id, payload.model_dump(), db)))
     except _svc.NotFoundError as e:
         raise desde_valor(404, e)
 
 @router.delete("/task-types/{type_id}", summary="Eliminar tipo de tarea", deprecated=True)
-def delete_task_type(type_id: str, db: Session = Depends(get_db), user: User = Depends(require_admin)):
+def delete_task_type(type_id: str, db: Session = Depends(get_db), user: User = Depends(requiere_capacidad("org.administrar"))):
     enforce_abac(db, user, "task_type", type_id, action="delete")
     try:
         return APIResponse.ok(data=_svc.delete_task_type(type_id, db))
@@ -213,26 +213,26 @@ def update_alert_config(alert_type: str, payload: AlertConfigUpdate, db: Session
 # proyecto), y `/vacation-policies` edita `vacation_policies`, que tampoco lee
 # nadie. Se mantienen por compatibilidad de la API, marcados `deprecated`.
 @router.get("/rate-tables", summary="Tablas de tarifas", deprecated=True)
-def get_rate_tables(db: Session = Depends(get_db), _: User = Depends(require_admin_or_hr)):
+def get_rate_tables(db: Session = Depends(get_db), _: User = Depends(requiere_capacidad("org.rrhh"))):
     return APIListResponse.ok(items=_svc.list_rate_tables(db))
 
 @router.post("/rate-tables", summary="Crear tabla de tarifas", deprecated=True)
-def create_rate_table(payload: RateTableIn, db: Session = Depends(get_db), _: User = Depends(require_admin)):
+def create_rate_table(payload: RateTableIn, db: Session = Depends(get_db), _: User = Depends(requiere_capacidad("org.administrar"))):
     return APIResponse.ok(data=_svc.create_rate_table(payload.model_dump(), db))
 
 @router.post("/rate-tables/{table_id}/entries", summary="Añadir tarifa", deprecated=True)
-def add_rate_entry(table_id: str, payload: RateEntryIn, db: Session = Depends(get_db), _: User = Depends(require_admin)):
+def add_rate_entry(table_id: str, payload: RateEntryIn, db: Session = Depends(get_db), _: User = Depends(requiere_capacidad("org.administrar"))):
     return APIResponse.ok(data=_svc.add_rate_entry(table_id, payload.model_dump(), db))
 
 @router.patch("/rate-tables/{table_id}/entries/{entry_id}", summary="Actualizar tarifa", deprecated=True)
-def update_rate_entry(table_id: str, entry_id: str, payload: RateEntryIn, db: Session = Depends(get_db), _: User = Depends(require_admin)):
+def update_rate_entry(table_id: str, entry_id: str, payload: RateEntryIn, db: Session = Depends(get_db), _: User = Depends(requiere_capacidad("org.administrar"))):
     try:
         return APIResponse.ok(data=_svc.update_rate_entry(table_id, entry_id, payload.model_dump(), db))
     except _svc.NotFoundError as e:
         raise desde_valor(404, e)
 
 @router.delete("/rate-tables/{table_id}/entries/{entry_id}", summary="Eliminar tarifa", deprecated=True)
-def delete_rate_entry(table_id: str, entry_id: str, db: Session = Depends(get_db), user: User = Depends(require_admin)):
+def delete_rate_entry(table_id: str, entry_id: str, db: Session = Depends(get_db), user: User = Depends(requiere_capacidad("org.administrar"))):
     enforce_abac(db, user, "rate_entry", entry_id, action="delete")
     try:
         return APIResponse.ok(data=_svc.delete_rate_entry(table_id, entry_id, db))
@@ -240,7 +240,7 @@ def delete_rate_entry(table_id: str, entry_id: str, db: Session = Depends(get_db
         raise desde_valor(404, e)
 
 @router.delete("/rate-tables/{table_id}", summary="Eliminar tabla de tarifas", deprecated=True)
-def delete_rate_table(table_id: str, db: Session = Depends(get_db), user: User = Depends(require_admin)):
+def delete_rate_table(table_id: str, db: Session = Depends(get_db), user: User = Depends(requiere_capacidad("org.administrar"))):
     enforce_abac(db, user, "rate_table", table_id, action="delete")
     try:
         return APIResponse.ok(data=_svc.delete_rate_table(table_id, db))
@@ -255,18 +255,18 @@ def get_vacation_policies(db: Session = Depends(get_db), _: User = Depends(requi
     return APIListResponse.ok(items=_svc.list_vacation_policies(db))
 
 @router.post("/vacation-policies", summary="Crear política de vacaciones", deprecated=True)
-def create_vacation_policy(payload: VacationPolicyIn, db: Session = Depends(get_db), _: User = Depends(require_admin)):
+def create_vacation_policy(payload: VacationPolicyIn, db: Session = Depends(get_db), _: User = Depends(requiere_capacidad("org.administrar"))):
     return APIResponse.ok(data=_svc.create_vacation_policy(payload.model_dump(), db))
 
 @router.patch("/vacation-policies/{policy_id}", summary="Actualizar política", deprecated=True)
-def update_vacation_policy(policy_id: str, payload: VacationPolicyIn, db: Session = Depends(get_db), _: User = Depends(require_admin)):
+def update_vacation_policy(policy_id: str, payload: VacationPolicyIn, db: Session = Depends(get_db), _: User = Depends(requiere_capacidad("org.administrar"))):
     try:
         return APIResponse.ok(data=_svc.update_vacation_policy(policy_id, payload.model_dump(), db))
     except _svc.NotFoundError as e:
         raise desde_valor(404, e)
 
 @router.delete("/vacation-policies/{policy_id}", summary="Eliminar política", deprecated=True)
-def delete_vacation_policy(policy_id: str, db: Session = Depends(get_db), user: User = Depends(require_admin)):
+def delete_vacation_policy(policy_id: str, db: Session = Depends(get_db), user: User = Depends(requiere_capacidad("org.administrar"))):
     enforce_abac(db, user, "vacation_policy", policy_id, action="delete")
     try:
         return APIResponse.ok(data=_svc.delete_vacation_policy(policy_id, db))
@@ -334,21 +334,21 @@ def get_custom_fields(entity: Optional[str] = None, db: Session = Depends(get_db
     return APIListResponse.ok(items=_svc.list_custom_fields(entity, db))
 
 @router.post("/custom-fields", summary="Crear campo personalizado")
-def create_custom_field(payload: CustomFieldIn, db: Session = Depends(get_db), _: User = Depends(require_admin)):
+def create_custom_field(payload: CustomFieldIn, db: Session = Depends(get_db), _: User = Depends(requiere_capacidad("org.administrar"))):
     try:
         return APIResponse.ok(data=_svc.create_custom_field(payload.model_dump(), db))
     except ValueError as e:
         raise desde_valor(400, e)
 
 @router.patch("/custom-fields/{field_id}", summary="Actualizar campo")
-def update_custom_field(field_id: str, payload: CustomFieldIn, db: Session = Depends(get_db), _: User = Depends(require_admin)):
+def update_custom_field(field_id: str, payload: CustomFieldIn, db: Session = Depends(get_db), _: User = Depends(requiere_capacidad("org.administrar"))):
     try:
         return APIResponse.ok(data=_svc.update_custom_field(field_id, payload.model_dump(), db))
     except _svc.NotFoundError as e:
         raise desde_valor(404, e)
 
 @router.delete("/custom-fields/{field_id}", summary="Eliminar campo")
-def delete_custom_field(field_id: str, db: Session = Depends(get_db), user: User = Depends(require_admin)):
+def delete_custom_field(field_id: str, db: Session = Depends(get_db), user: User = Depends(requiere_capacidad("org.administrar"))):
     enforce_abac(db, user, "custom_field", field_id, action="delete")
     try:
         return APIResponse.ok(data=_svc.delete_custom_field(field_id, db))
@@ -363,7 +363,7 @@ def get_field_values(entity_id: str, db: Session = Depends(get_db), current_user
 
 @router.post("/custom-fields/values/{entity_id}", summary="Guardar valores de campos")
 def save_field_values(entity_id: str, values: dict, db: Session = Depends(get_db), _: User = Depends(get_current_user),
-    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: configuracion del despliegue
+    _rol: User = Depends(requiere_capacidad("org.administrar")),  # auditoria 2026-09: sensible: configuracion del despliegue
 ):
     return APIResponse.ok(data=_svc.save_custom_field_values(entity_id, values, db))
 
@@ -376,7 +376,7 @@ def get_templates(db: Session = Depends(get_db), current_user: User = Depends(ge
 
 @router.post("/templates", summary="Crear plantilla")
 def create_template(payload: TemplateIn, db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: configuracion del despliegue
+    _rol: User = Depends(requiere_capacidad("org.administrar")),  # auditoria 2026-09: sensible: configuracion del despliegue
 ):
     return APIResponse.ok(data=_svc.create_template(
         payload.model_dump(),
@@ -386,7 +386,7 @@ def create_template(payload: TemplateIn, db: Session = Depends(get_db), current_
     ))
 
 @router.delete("/templates/{template_id}", summary="Eliminar plantilla")
-def delete_template(template_id: str, db: Session = Depends(get_db), user: User = Depends(require_admin)):
+def delete_template(template_id: str, db: Session = Depends(get_db), user: User = Depends(requiere_capacidad("org.administrar"))):
     enforce_abac(db, user, "project_template", template_id, action="delete")
     try:
         return APIResponse.ok(data=_svc.delete_template(template_id, db, user))
@@ -395,7 +395,7 @@ def delete_template(template_id: str, db: Session = Depends(get_db), user: User 
 
 @router.post("/templates/{template_id}/apply/{project_id}", summary="Aplicar plantilla a proyecto")
 def apply_template(template_id: str, project_id: str, start_date: Optional[str] = None,
-    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: configuracion del despliegue
+    _rol: User = Depends(requiere_capacidad("org.administrar")),  # auditoria 2026-09: sensible: configuracion del despliegue
                    db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     return APIResponse.ok(data=_svc.apply_template_to_project(
         template_id, project_id, start_date, str(current_user.id),

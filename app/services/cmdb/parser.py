@@ -168,7 +168,8 @@ def normalize_agent_payload(payload: dict, agent_id: str) -> dict:
         "ip_address": ip,
         "hostname": hostname,
         "version": version,
-        "description": f"On-premise {os_type.upper() if os_type else 'host'} — {os_version}",
+        # Baja (auditoría 22-11-2026): `os_type` puede llegar como no-texto del agente.
+        "description": f"On-premise {str(os_type).upper() if os_type else 'host'} — {os_version}",
         "attributes": json.dumps(attributes),
         "discovery_provider": PROVIDER_AGENT,
         "last_discovered_at": utcnow().isoformat(),

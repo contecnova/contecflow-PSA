@@ -48,7 +48,8 @@ def cargar_presets_de_pais() -> list[dict]:
         return json.load(fichero)
 
 
-DEFAULT_COUNTRY_PRESETS: list[dict] = cargar_presets_de_pais()
+# §5 (auditoría 22-11-2026): `DEFAULT_COUNTRY_PRESETS` (leída al importar y sin
+# uso; quien la necesita relee el ajuste) retirada.
 
 
 # ── Cost computation ─────────────────────────────────────────────────────────
@@ -90,8 +91,9 @@ def get_active_profile(db: Session, user_id: str, on_date: Optional[Date] = None
 
 def _tarifa_de_externo(db: Session, user: User, on_date: Optional[Date], project_id: Optional[str]):
     """(coste/h, moneda) del proveedor si `user` es externo (ver `externos.tarifas`)."""
+    from app.core import timeutil
     from app.services.externos.tarifas import tarifa_vigente
-    return tarifa_vigente(db, user, project_id, on_date or Date.today())
+    return tarifa_vigente(db, user, project_id, on_date or timeutil.today())
 
 
 def cost_per_hour(db: Session, user: User, on_date: Optional[Date] = None,
@@ -105,19 +107,17 @@ def cost_per_hour(db: Session, user: User, on_date: Optional[Date] = None,
     """
     if user is None:
         return None
-    externo = _tarifa_de_externo(db, user, on_date, project_id)
-    if externo:
-        return externo[0]
-    profile = get_active_profile(db, user.id, on_date)
-    if profile is not None:
-        return profile.cost_per_hour
-    if user.hourly_rate and user.hourly_rate > 0:
-        return float(user.hourly_rate)
+    # M7 (auditoría 22-11-2026): en la moneda de la empresa de la persona, como
+    # `cost_amount` (antes devolvía la cifra del perfil en SU moneda y quien la
+    # multiplicaba por horas mezclaba monedas).
+    tarifa = cost_amount(db, user, 1.0, on_date, project_id, redondear=False)
+    if tarifa:
+        return tarifa
     return None
 
 
 def cost_amount(db: Session, user: User, hours: float, on_date: Optional[Date] = None,
-                project_id: Optional[str] = None) -> float:
+                project_id: Optional[str] = None, redondear: bool = True) -> float:
     """Return the cost in the org's default currency for `hours` worked by user.
 
     The active cost profile may be denominated in a foreign currency
@@ -127,7 +127,8 @@ def cost_amount(db: Session, user: User, hours: float, on_date: Optional[Date] =
     """
     if user is None:
         return 0.0
-    on_date = on_date or Date.today()
+    from app.core import timeutil
+    on_date = on_date or timeutil.today()   # M7: el día de la empresa, no el del servidor
     profile = get_active_profile(db, user.id, on_date)
     externo = _tarifa_de_externo(db, user, on_date, project_id)
     if externo:
@@ -149,7 +150,7 @@ def cost_amount(db: Session, user: User, hours: float, on_date: Optional[Date] =
         fx = get_fx_rate(db, src_currency, org_currency, on_date)
         amount *= fx
 
-    return round(amount, 2)
+    return round(amount, 2) if redondear else amount
 
 
 # ── Country preset access ───────────────────────────────────────────────────
@@ -188,6 +189,16 @@ def create_profile(db: Session, *, user_id: str, valid_from: Date,
               .filter(UserCostProfile.user_id == user_id,
                       UserCostProfile.valid_to.is_(None))
               .first())
+    # M7 (auditoría 22-11-2026): sin perfiles solapados. El nuevo cierra el
+    # abierto si empieza después; si cae dentro de un periodo ya cerrado, o
+    # antes o el mismo día que el abierto, dos perfiles valdrían a la vez: 409.
+    solapado = db.query(UserCostProfile.id).filter(
+        UserCostProfile.user_id == user_id,
+        UserCostProfile.valid_from <= valid_from,
+        UserCostProfile.valid_to.isnot(None), UserCostProfile.valid_to >= valid_from).first()
+    if solapado is not None or (prev is not None and prev.valid_from >= valid_from):
+        from app.core.codigos_de_error import error
+        raise error(409, "perfil_de_coste_solapado", desde=str(valid_from))
     if prev and prev.valid_from < valid_from:
         prev.valid_to = valid_from - timedelta(days=1)
 
@@ -208,8 +219,17 @@ def create_profile(db: Session, *, user_id: str, valid_from: Date,
     return profile
 
 
+def _de_la_empresa(db: Session, q):
+    """M7: editar o borrar un perfil, solo de la empresa de la sesión (antes por id a secas)."""
+    info = getattr(db, "info", {}) or {}
+    org = info.get("organization_id")
+    if org and not info.get("is_superadmin"):
+        q = q.filter(UserCostProfile.organization_id == org)
+    return q
+
+
 def update_profile(db: Session, profile_id: str, **fields) -> Optional[UserCostProfile]:
-    p = db.query(UserCostProfile).filter(UserCostProfile.id == profile_id).first()
+    p = _de_la_empresa(db, db.query(UserCostProfile).filter(UserCostProfile.id == profile_id)).first()
     if not p:
         return None
     for k, v in fields.items():
@@ -228,7 +248,7 @@ def update_profile(db: Session, profile_id: str, **fields) -> Optional[UserCostP
 
 
 def delete_profile(db: Session, profile_id: str) -> bool:
-    p = db.query(UserCostProfile).filter(UserCostProfile.id == profile_id).first()
+    p = _de_la_empresa(db, db.query(UserCostProfile).filter(UserCostProfile.id == profile_id)).first()
     if not p:
         return False
     db.delete(p)
@@ -246,11 +266,22 @@ def list_profiles(db: Session, user_id: str) -> list[UserCostProfile]:
 # ── Bulk resolution (for dashboards / lists) ────────────────────────────────
 def cost_per_hour_bulk(db: Session, user_ids: Iterable[str],
                        on_date: Optional[Date] = None) -> dict[str, float]:
-    """Resolve cost-per-hour for many users at once. Returns {user_id: rate}."""
-    on_date = on_date or Date.today()
+    """Resolve cost-per-hour for many users at once. Returns {user_id: rate}.
+
+    M7 (auditoría 22-11-2026): los externos con tarifa de proveedor la usan
+    (antes se ignoraban y salía su `hourly_rate` o nada), como `cost_per_hour`.
+    """
+    from app.core import timeutil
+    on_date = on_date or timeutil.today()
     user_ids = list(user_ids)
     if not user_ids:
         return {}
+    from app.models.user import UserRole
+    externos = {}
+    for u in db.query(User).filter(User.id.in_(user_ids), User.role == UserRole.subcontractor).all():
+        t = _tarifa_de_externo(db, u, on_date, None)
+        if t:
+            externos[u.id] = cost_per_hour(db, u, on_date)
     profiles = (db.query(UserCostProfile)
                   .filter(UserCostProfile.user_id.in_(user_ids),
                           UserCostProfile.valid_from <= on_date,
@@ -273,6 +304,7 @@ def cost_per_hour_bulk(db: Session, user_ids: Iterable[str],
                 out[u.id] = float(u.hourly_rate)
     for uid, p in by_user.items():
         out[uid] = p.cost_per_hour
+    out.update({k: v for k, v in externos.items() if v})
     return out
 
 

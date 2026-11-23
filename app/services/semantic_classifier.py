@@ -1,9 +1,9 @@
 """
 semantic_classifier.py — Contecflow Semantic Assignment Engine
-Equivalente al classifier_engine.py + expert_cache.py + active_learning.py de Ficosa,
+Equivalente al classifier_engine.py + expert_cache.py + active_learning.py del sistema de origen,
 adaptado para asignacion de tickets/tareas en lugar de clasificacion de requerimientos.
 
-Pipeline de 4 niveles (identico a Ficosa):
+Pipeline de 4 niveles (identico al sistema de origen):
   Nivel 1 — Expert Cache exacto (hash SHA-256)          ~20-40% resuelto sin modelo
   Nivel 2 — Expert Cache semantico (coseno >= 0.92)     ~20-30% adicional
   Nivel 3 — Motor semantico (perfiles de usuarios)      ~30% adicional
@@ -19,6 +19,7 @@ import json
 import logging
 import math
 import re
+import threading
 from collections import defaultdict
 from typing import Optional
 
@@ -36,23 +37,27 @@ from app.core import timeutil
 
 logger = logging.getLogger("semantic_classifier")
 
-# ── Modelo singleton (equivalente a ModelRegistry de Ficosa) ─────────────────
+# ── Modelo singleton (equivalente a ModelRegistry del sistema de origen) ─────────────────
 _MODEL_INSTANCE = None
 _MODEL_NAME     = None
 _USE_TRANSFORMER = False
 
 def _get_model(model_name: str | None = None, backend_override: str | None = None):
-    """Singleton del modelo (se carga UNA sola vez, como el ModelRegistry de Ficosa)."""
+    """Singleton del modelo (se carga UNA sola vez, como el ModelRegistry del sistema de origen)."""
     model_name = model_name or settings.EMBEDDING_MODEL_NAME
     global _MODEL_INSTANCE, _MODEL_NAME, _USE_TRANSFORMER
     if _MODEL_INSTANCE is not None and _MODEL_NAME == model_name:
         return _MODEL_INSTANCE, _USE_TRANSFORMER
     backend = (backend_override or settings.SEMANTIC_EMBEDDINGS_BACKEND or "tfidf").strip().lower()
     if backend != "transformer":
-        _MODEL_INSTANCE = TFIDFEncoder()
-        _MODEL_NAME = "tfidf"
-        _USE_TRANSFORMER = False
-        return _MODEL_INSTANCE, _USE_TRANSFORMER
+        # Auditoria 2026-11-22 (A-RZ3): el TF-IDF era un singleton del proceso
+        # que cada empresa re-ajustaba con SU corpus: el vocabulario de una
+        # cambiaba los vectores de otra, los embeddings guardados quedaban en
+        # otro espacio y dos hilos lo reajustaban a la vez. El TF-IDF ya no es
+        # global: cada empresa tiene el suyo (`_encoder_de_empresa`). Aqui se
+        # devuelve uno nuevo y vacio; el transformer si es compartido (sus
+        # pesos no dependen de los datos de nadie).
+        return TFIDFEncoder(), False
     try:
         from sentence_transformers import SentenceTransformer
         _MODEL_INSTANCE = SentenceTransformer(model_name)
@@ -63,10 +68,43 @@ def _get_model(model_name: str | None = None, backend_override: str | None = Non
         # lanza OSError/HTTPError al ir a huggingface.co. Se cae a TF-IDF.
         if not isinstance(exc, ImportError):
             logging.getLogger(__name__).warning("Modelo %s no disponible (%s); uso TF-IDF", model_name, exc)
-        _MODEL_INSTANCE = TFIDFEncoder()
-        _MODEL_NAME     = "tfidf"
-        _USE_TRANSFORMER = False
+        # Sin transformer: TF-IDF de la empresa (no se guarda como singleton).
+        return TFIDFEncoder(), False
     return _MODEL_INSTANCE, _USE_TRANSFORMER
+
+
+#: TF-IDF por empresa (23-11-2026, A-RZ3). Se ajusta una vez por empresa y
+#: proceso con SU corpus; `rebuild_profiles` lo sustituye por uno nuevo (el
+#: cambio de referencia es atomico: quien estaba codificando sigue con el
+#: anterior entero, nunca con uno a medio ajustar).
+_ENCODERS_POR_EMPRESA: dict = {}
+_CERROJO_DE_ENCODERS = threading.Lock()
+
+
+def _encoder_de_empresa(org_id, corpus_de) -> "TFIDFEncoder":
+    """El TF-IDF de `org_id`; si no existe, lo crea y lo ajusta con `corpus_de()`."""
+    clave = org_id or "__sin_empresa__"
+    enc = _ENCODERS_POR_EMPRESA.get(clave)
+    if enc is not None:
+        return enc
+    with _CERROJO_DE_ENCODERS:
+        enc = _ENCODERS_POR_EMPRESA.get(clave)
+        if enc is None:
+            enc = TFIDFEncoder()
+            corpus = corpus_de()
+            if corpus:
+                enc.fit_global(corpus)
+            _ENCODERS_POR_EMPRESA[clave] = enc
+    return enc
+
+
+def _reajustar_encoder_de_empresa(org_id, corpus: list) -> "TFIDFEncoder":
+    enc = TFIDFEncoder()
+    if corpus:
+        enc.fit_global(corpus)
+    with _CERROJO_DE_ENCODERS:
+        _ENCODERS_POR_EMPRESA[org_id or "__sin_empresa__"] = enc
+    return enc
 
 
 # ── TF-IDF fallback (sin dependencias externas) ──────────────────────────────
@@ -154,9 +192,9 @@ def _text_hash(text: str) -> str:
     return hashlib.sha256(normalized.encode()).hexdigest()
 
 
-# ── Estimacion de complejidad (identico a Ficosa) ────────────────────────────
+# ── Estimacion de complejidad (identico al sistema de origen) ────────────────────────────
 def estimate_complexity(text: str, n_skills_required: int = 0) -> str:
-    """Clasifica complejidad en simple/medium/complex igual que el EffortEstimator de Ficosa."""
+    """Clasifica complejidad en simple/medium/complex igual que el EffortEstimator del sistema de origen."""
     n_words = len(text.split())
     score   = 0
     if n_words > 150: score += 2
@@ -209,7 +247,7 @@ MULTI_ROLE_FACTOR = _cfg.SEM_MULTI_ROLE_FACTOR
 class SemanticAssigner(ServiceBase):
     """
     Motor principal de asignacion semantica.
-    Equivalente a RequirementClassifier de Ficosa pero orientado a
+    Equivalente a RequirementClassifier del sistema de origen pero orientado a
     asignar items (tickets/tareas) a personas en lugar de clasificar roles.
 
     Score final = sem_score * (1 - load_weight) + (1 - load_ratio) * load_weight
@@ -301,35 +339,40 @@ class SemanticAssigner(ServiceBase):
         if not self.use_transformer and hasattr(self.model, "fit_global"):
             self._fit_tfidf_global()
 
-    def _fit_tfidf_global(self) -> None:
-        """Construye el corpus de referencia para TF-IDF a partir de
-        perfiles de usuarios + snippets de items resueltos en la caché."""
+    def _empresa(self):
+        """La empresa del clasificador: la de la sesion o la de quien llama."""
+        return (self.db.info.get("organization_id")
+                or getattr(getattr(self, "current_user", None), "organization_id", None))
+
+    def _corpus_de_la_empresa(self) -> list:
+        """Perfiles + snippets de items resueltos, SOLO de la empresa (A-RZ3:
+        antes sin filtro, y en el worker se mezclaban todas)."""
+        org = self._empresa()
         corpus = []
         try:
-            profile_texts = [
-                p.profile_text for p in self.db.query(SemProfile)
-                .filter(SemProfile.profile_text.isnot(None)).limit(500).all()
-                if p.profile_text
-            ]
-            corpus.extend(profile_texts)
+            q = self.db.query(SemProfile).filter(SemProfile.profile_text.isnot(None))
+            if org:
+                q = q.filter(SemProfile.organization_id == org)
+            corpus.extend(p.profile_text for p in q.limit(500).all() if p.profile_text)
         except Exception:
             logger.warning("Failed to load SemProfile texts for TF-IDF corpus", exc_info=True)
         try:
-            cache_texts = [
-                c.text_snippet for c in self.db.query(SemEmbeddingCache)
-                .filter(SemEmbeddingCache.text_snippet.isnot(None)).limit(500).all()
-                if c.text_snippet
-            ]
-            corpus.extend(cache_texts)
+            q = self.db.query(SemEmbeddingCache).filter(SemEmbeddingCache.text_snippet.isnot(None))
+            if org:
+                q = q.filter(SemEmbeddingCache.organization_id == org)
+            corpus.extend(c.text_snippet for c in q.limit(500).all() if c.text_snippet)
         except Exception:
             logger.warning("Failed to load SemEmbeddingCache snippets for TF-IDF corpus", exc_info=True)
-        if corpus:
-            try:
-                self.model.fit_global(corpus)
-            except Exception:
-                # Si falla, el encode() hará bootstrap fit con los textos que
-                # reciba — peor calidad pero no rompe el flujo.
-                logger.warning("TF-IDF fit_global failed, falling back to lazy fit")
+        return corpus
+
+    def _fit_tfidf_global(self) -> None:
+        """El TF-IDF de la empresa, ajustado una vez con su corpus (A-RZ3)."""
+        try:
+            self.model = _encoder_de_empresa(self._empresa(), self._corpus_de_la_empresa)
+        except Exception:
+            # Si falla, el encode() hará bootstrap fit con los textos que
+            # reciba — peor calidad pero no rompe el flujo.
+            logger.warning("TF-IDF fit_global failed, falling back to lazy fit", exc_info=True)
 
     # ── API publica ──────────────────────────────────────────────────────────
 
@@ -351,7 +394,7 @@ class SemanticAssigner(ServiceBase):
                         role_hint: str = "default") -> dict:
         """
         Estima horas de esfuerzo para una tarea.
-        Equivalente al EffortEstimator de Ficosa.
+        Equivalente al EffortEstimator del sistema de origen.
         """
         text       = f"{title}. {description or ''}"
         complexity = estimate_complexity(text)
@@ -369,7 +412,7 @@ class SemanticAssigner(ServiceBase):
     def prioritize_queue(self, items: list) -> list:
         """
         Prioriza una cola de tickets/tareas por valor de aprendizaje.
-        Equivalente al ActiveLearningPrioritizer de Ficosa.
+        Equivalente al ActiveLearningPrioritizer del sistema de origen.
         Puntuacion 0-100: incertidumbre(40) + novedad(30) + urgencia(20) + carga_baja(10)
         """
         if not items: return []
@@ -386,7 +429,7 @@ class SemanticAssigner(ServiceBase):
                         corrected_by: str):
         """
         Guarda una correccion de experto en sem_feedback.
-        Equivalente a guardar en el Expert Cache de Ficosa.
+        Equivalente a guardar en el Expert Cache del sistema de origen.
         """
         h     = _text_hash(item_text)
         emb   = self._encode_single(item_text)
@@ -414,12 +457,17 @@ class SemanticAssigner(ServiceBase):
         Re-fitea el vocabulario TF-IDF antes de regenerar embeddings para
         que todos compartan el mismo espacio vectorial.
         """
-        profiles = self.db.query(SemProfile).all()
-        # Refit con los profile_texts actualizados
+        org = self._empresa()
+        consulta = self.db.query(SemProfile)
+        if org:
+            consulta = consulta.filter(SemProfile.organization_id == org)
+        profiles = consulta.all()
+        # Refit con los profile_texts actualizados: un TF-IDF NUEVO para la
+        # empresa (A-RZ3), nunca el de otra.
         if not self.use_transformer and hasattr(self.model, "fit_global"):
             texts = [p.profile_text for p in profiles if p.profile_text]
             if texts:
-                self.model.fit_global(texts)
+                self.model = _reajustar_encoder_de_empresa(org, texts)
         for p in profiles:
             if p.profile_text:
                 emb = self._encode_single(p.profile_text)
@@ -656,7 +704,7 @@ class SemanticAssigner(ServiceBase):
     def _suggest(self, text: str, item_type: str,
                  candidate_user_ids: list = None,
                  priority: str = "medium") -> dict:
-        """Pipeline de 4 niveles (igual que Ficosa)."""
+        """Pipeline de 4 niveles (igual que el sistema de origen)."""
         modo = self._modo()
 
         # Nivel 1 — Expert Cache exacto (hash SHA-256)
@@ -908,7 +956,7 @@ class SemanticAssigner(ServiceBase):
     def _priority_score(self, item: dict) -> dict:
         """
         Score de prioridad 0-100 para la cola.
-        Identico al ActiveLearningPrioritizer de Ficosa:
+        Identico al ActiveLearningPrioritizer del sistema de origen:
           incertidumbre(40) + novedad(30) + urgencia(20) + carga_baja(10)
         """
         bd = {}

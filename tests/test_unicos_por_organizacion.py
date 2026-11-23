@@ -35,7 +35,6 @@ GLOBALES_A_PROPOSITO = {
     ("cmdb_agent_registrations", ("token_hash",)): _IDENTIDAD,
     ("mfa_challenges", ("token_jti",)): _IDENTIDAD,
     ("oauth_apps", ("client_id",)): _IDENTIDAD,
-    ("oauth_states", ("state",)): _IDENTIDAD,
     ("public_forms", ("token",)): "el token es la URL pública del formulario",
     ("user_sessions", ("refresh_token_jti",)): _IDENTIDAD,
     ("webauthn_credentials", ("credential_id",)): _IDENTIDAD,
@@ -86,6 +85,12 @@ GLOBALES_A_PROPOSITO = {
     ("sd_ola_targets", ("group_id", "priority")): "un objetivo por grupo y prioridad; " + _DEL_PADRE,
     ("sd_ticket_lifecycle_states", ("lifecycle_id", "key")): _DEL_PADRE,
     ("sd_ticket_lifecycle_transitions", ("lifecycle_id", "from_key", "to_key")): _DEL_PADRE,
+    # 23-11-2026 (asistente de reuniones, clientes internos, CMDB de software):
+    # la clave empieza por el UUID de un padre que ya es de una sola organización.
+    ("ai_meeting_translations", ("meeting_id", "language")): "una traducción por reunión e idioma; " + _DEL_PADRE,
+    ("internal_client_roles", ("client_id", "user_id", "role")): "un rol por cliente interno y persona; " + _DEL_PADRE,
+    ("sw_product_licenses", ("product_id", "license_id")): "un vínculo por producto y licencia; " + _DEL_PADRE,
+    ("sw_versions", ("product_id", "version")): "una versión por producto; " + _DEL_PADRE,
     ("bpmn_processes", ("key",)): "índice PARCIAL (`organization_id IS NULL`): solo el catálogo global; "
                                   "las empresas usan uq_bpmn_processes_org_key (organization_id, key)",
 }

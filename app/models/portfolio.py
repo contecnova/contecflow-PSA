@@ -6,6 +6,7 @@ import uuid
 from sqlalchemy import Column, String, Float, Text, Enum, ForeignKey, Date, DateTime, func, Boolean, Integer
 from sqlalchemy.orm import relationship
 from app.db.base import Base
+from app.models.money import Money
 
 
 class PortfolioStatus(str, enum.Enum):
@@ -18,15 +19,15 @@ class Portfolio(Base):
     __tablename__ = "portfolios"
 
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     name        = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
     status      = Column(Enum(PortfolioStatus), default=PortfolioStatus.active, nullable=False)
     is_active   = Column(Boolean, default=True)
 
     # Budget aggregation
-    budget_total   = Column(Float, nullable=True)   # Total budget envelope (€)
-    budget_spent   = Column(Float, nullable=True)   # Snapshot of spent (updated on demand)
+    budget_total   = Column(Money, nullable=True)   # Total budget envelope (€)
+    budget_spent   = Column(Money, nullable=True)   # Snapshot of spent (updated on demand)
 
     # Owner
     owner_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
@@ -48,7 +49,7 @@ class PortfolioProject(Base):
     __tablename__ = "portfolio_projects"
 
     id           = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     portfolio_id = Column(String(36), ForeignKey("portfolios.id", ondelete="CASCADE"), nullable=False, index=True)
     project_id   = Column(String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
 
@@ -117,7 +118,7 @@ class PortfolioProposal(Base):
     requested_by = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     sponsor_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     client_id = Column(String(36), ForeignKey("clients.id", ondelete="SET NULL"), nullable=True, index=True)
-    estimated_budget = Column(Float, nullable=True)
+    estimated_budget = Column(Money, nullable=True)
     estimated_hours = Column(Float, nullable=True)
     wanted_start = Column(Date, nullable=True)
     wanted_end = Column(Date, nullable=True)

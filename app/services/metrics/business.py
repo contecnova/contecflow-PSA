@@ -15,7 +15,8 @@ STAGE_LABELS = {
     "proposal": "Propuesta",
     "negotiation": "Negociación",
     "won": "Ganada",
-    "lost": "Perdida"
+    "lost": "Perdida",
+    "cancelled": "Cancelada",
 }
 
 CONTRACT_STATUS_LABELS = {
@@ -86,13 +87,17 @@ def metric_pipeline_evolution(
 ) -> tuple[list[dict], dict]:
     """Evolución mensual del valor del pipeline."""
     try:
-        from app.models.pipeline import Opportunity
+        from app.models.pipeline import ETAPA_CANCELADA, ETAPA_PERDIDA, Opportunity, etapa_de
 
         monthly = {}
         for opp in db.query(Opportunity).filter(Opportunity.created_at >= d_from).all():
             k = str(opp.created_at)[:7] if opp.created_at else "unknown"
             if k not in monthly:
                 monthly[k] = 0
+            # Auditoria 04b M9: perdidas y canceladas no aportan valor ponderado
+            # aunque conserven una probabilidad manual.
+            if etapa_de(opp.stage) in (ETAPA_PERDIDA, ETAPA_CANCELADA):
+                continue
             weighted = (opp.expected_revenue or 0) * (opp.probability or 0) / 100
             monthly[k] += weighted
 
@@ -152,20 +157,31 @@ def metric_win_rate_evolution(
     project_ids: Optional[list[str]] = None,
     **kwargs
 ) -> tuple[list[dict], dict]:
-    """Tasa de éxito comercial por mes: % ganadas de las cerradas."""
+    """Tasa de éxito comercial por mes: ganadas / (ganadas + perdidas).
+
+    Auditoria 04b M9: las canceladas («sin decisión») no entran en la tasa; se
+    dan aparte en ``cancelled``. Antes se comparaba ``str(opp.stage)`` con
+    "won"/"Stage.won" y, como el enum es ``str, Enum``, ``str()`` devolvía
+    "OpportunityStage.won": no contaba nunca nada y la tasa era siempre 0.
+    """
     try:
-        from app.models.pipeline import Opportunity
+        from app.models.pipeline import (
+            ETAPA_CANCELADA, ETAPA_GANADA, ETAPA_PERDIDA, Opportunity, etapa_de,
+        )
 
         monthly = {}
         for opp in db.query(Opportunity).filter(Opportunity.created_at >= d_from).all():
             k = str(opp.created_at)[:7] if opp.created_at else "unknown"
             if k not in monthly:
-                monthly[k] = {"won": 0, "lost": 0, "total": 0}
+                monthly[k] = {"won": 0, "lost": 0, "cancelled": 0, "total": 0}
             monthly[k]["total"] += 1
-            if str(opp.stage) in ("won", "Stage.won"):
+            etapa = etapa_de(opp.stage)
+            if etapa == ETAPA_GANADA:
                 monthly[k]["won"] += 1
-            elif str(opp.stage) in ("lost", "Stage.lost"):
+            elif etapa == ETAPA_PERDIDA:
                 monthly[k]["lost"] += 1
+            elif etapa == ETAPA_CANCELADA:
+                monthly[k]["cancelled"] += 1
 
         rows = []
         for k in sorted(monthly.keys())[-12:]:
@@ -176,6 +192,8 @@ def metric_win_rate_evolution(
                 "label": k,
                 "value": pct,
                 "won": m["won"],
+                "lost": m["lost"],
+                "cancelled": m["cancelled"],
                 "total": m["total"]
             })
     except ImportError:

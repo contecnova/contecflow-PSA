@@ -33,23 +33,24 @@ from app.core.codigos_de_error import error as error_con_codigo
 
 # ── «Probar»: simulacion ────────────────────────────────────────────────────
 
+# 23-11-2026: las frases salen de `textos_de_salida` (`automatizacion.efecto.<tipo>`), en el idioma de la empresa.
 _EFECTO = {
-    "create_alert": "crearía una alerta «{message}»",
-    "notify_user": "avisaría en la campana a la persona del evento: «{message}»",
-    "notify_role": "avisaría en la campana a {n} usuario(s) con rol {role}",
-    "send_email": "enviaría «{subject}» a {n} destinatario(s)",
-    "call_webhook": "llamaría a {url}",
-    "send_slack_message": "publicaría en Slack: «{message}»",
-    "send_teams_message": "publicaría en Teams: «{message}»",
-    "change_task_status": "pondría la tarea del evento en {status}",
-    "change_task_priority": "pondría la tarea del evento en prioridad {priority}",
-    "create_task": "crearía la tarea «{task_title}» en el proyecto del evento",
-    "change_project_status": "pondría el proyecto del evento en {status}",
-    "escalate_ticket": "escalaría el ticket del evento a {to_level}",
-    "change_ticket_status": "pondría el ticket del evento en {status}",
-    "assign": "asignaría la tarea o el ticket del evento a {to_user}{to_role}",
-    "update_field": "pondría {field} = {value}",
-    "create_approval": "abriría una aprobación sobre el registro del evento",
+    "create_alert": "automatizacion.efecto.create_alert",
+    "notify_user": "automatizacion.efecto.notify_user",
+    "notify_role": "automatizacion.efecto.notify_role",
+    "send_email": "automatizacion.efecto.send_email",
+    "call_webhook": "automatizacion.efecto.call_webhook",
+    "send_slack_message": "automatizacion.efecto.send_slack_message",
+    "send_teams_message": "automatizacion.efecto.send_teams_message",
+    "change_task_status": "automatizacion.efecto.change_task_status",
+    "change_task_priority": "automatizacion.efecto.change_task_priority",
+    "create_task": "automatizacion.efecto.create_task",
+    "change_project_status": "automatizacion.efecto.change_project_status",
+    "escalate_ticket": "automatizacion.efecto.escalate_ticket",
+    "change_ticket_status": "automatizacion.efecto.change_ticket_status",
+    "assign": "automatizacion.efecto.assign",
+    "update_field": "automatizacion.efecto.update_field",
+    "create_approval": "automatizacion.efecto.create_approval",
 }
 
 
@@ -57,16 +58,20 @@ def simular(rule: AutomationRule, db: Session) -> dict:
     """Que haria la regla, sin hacerlo: no escribe, no envia, no llama a nadie."""
     org = rule.organization_id
     ctx = {"organization_id": org}
+    from app.services.formato_regional import idioma_de_salida
+    from app.services.textos_de_salida import texto as _texto_de_salida
+    _idioma = idioma_de_salida(db, org_id=org)
+    _tx = lambda clave, **p: _texto_de_salida(clave, _idioma, **p)  # noqa: E731
     pasos = []
     for a in json.loads(rule.actions) if rule.actions else []:
         tipo = _ALIAS.get(a.get("type"), a.get("type"))
         params = a.get("params") or {}
         if tipo not in CATALOGO_ACCIONES:
-            pasos.append({"action": a.get("type"), "ok": False, "error": "tipo desconocido"})
+            pasos.append({"action": a.get("type"), "ok": False, "error": _tx("automatizacion.tipo_desconocido")})
             continue
         faltan = _faltan(tipo, params)
         if faltan:
-            pasos.append({"action": tipo, "ok": False, "error": f"falta {', '.join(faltan)}"})
+            pasos.append({"action": tipo, "ok": False, "error": _tx("automatizacion.falta", campos=', '.join(faltan))})
             continue
         n = 0
         error = None
@@ -81,12 +86,12 @@ def simular(rule: AutomationRule, db: Session) -> dict:
             clave = "slack_webhook_url" if tipo == "send_slack_message" else "teams_webhook_url"
             integ = IntegrationType.slack if tipo == "send_slack_message" else IntegrationType.teams
             if not (params.get(clave) or params.get("webhook_url") or _webhook_de_la_integracion(db, integ, ctx)):
-                error = "no hay webhook configurado"
+                error = _tx("automatizacion.sin_webhook")
         try:
-            texto = _EFECTO[tipo].format(n=n, **{k: params.get(k, "") for k in
-                                                 ("message", "role", "subject", "url", "status", "priority",
-                                                  "task_title", "to_level", "to_user", "to_role",
-                                                  "field", "value")})
+            texto = _tx(_EFECTO[tipo], n=n, **{k: params.get(k, "") for k in
+                                               ("message", "role", "subject", "url", "status", "priority",
+                                                "task_title", "to_level", "to_user", "to_role",
+                                                "field", "value")})
         except (KeyError, IndexError):
             texto = tipo
         pasos.append({"action": tipo, "ok": error is None, "would": texto, "error": error})
@@ -99,61 +104,66 @@ def simular(rule: AutomationRule, db: Session) -> dict:
     }
 
 
-def get_automation_templates() -> list:
-    """Plantillas: solo disparadores y acciones que el motor sabe hacer."""
+def get_automation_templates(idioma=None) -> list:
+    """Plantillas: solo disparadores y acciones que el motor sabe hacer.
+
+    23-11-2026: nombres, descripciones y mensajes en `idioma` (`textos_de_salida`,
+    claves `plantilla_auto.<id>.*`); antes castellano fijo."""
+    from app.services.textos_de_salida import texto as _texto_de_salida
+    _t = lambda clave: _texto_de_salida(clave, idioma)  # noqa: E731
     plantillas = [
         {
             "id": "budget_alert",
-            "name": "Alerta cuando el presupuesto supera el 85%",
-            "description": "Crea una alerta cuando el coste imputado supera el 85% del presupuesto",
+            "name": _t("plantilla_auto.budget_alert.nombre"),
+            "description": _t("plantilla_auto.budget_alert.descripcion"),
             "trigger_type": "budget_threshold",
             "trigger_conditions": {"field": "budget_pct", "operator": "greater_than", "value": "85"},
-            "actions": [{"type": "create_alert", "params": {"message": "Presupuesto al 85% — revisar consumo del proyecto", "severity": "warning"}}],
+            "actions": [{"type": "create_alert", "params": {"message": _t("plantilla_auto.budget_alert.mensaje"), "severity": "warning"}}],
         },
         {
             "id": "task_overdue_notify",
-            "name": "Avisar al responsable cuando su tarea vence",
+            "name": _t("plantilla_auto.task_overdue_notify.nombre"),
             "trigger_type": "task_overdue",
             "trigger_conditions": None,
-            "actions": [{"type": "notify_user", "params": {"message": "Una tarea tuya ha vencido sin completarse"}}],
+            "actions": [{"type": "notify_user", "params": {"message": _t("plantilla_auto.task_overdue_notify.mensaje")}}],
         },
         {
             "id": "sprint_started_notify",
-            "name": "Notificar al equipo cuando empieza un sprint",
+            "name": _t("plantilla_auto.sprint_started_notify.nombre"),
             "trigger_type": "sprint_started",
             "trigger_conditions": None,
-            "actions": [{"type": "notify_role", "params": {"role": "employee", "message": "Nuevo sprint iniciado — revisa tu backlog"}}],
+            "actions": [{"type": "notify_role", "params": {"role": "employee", "message": _t("plantilla_auto.sprint_started_notify.mensaje")}}],
         },
         {
             "id": "timesheet_reminder",
-            "name": "Recordar el parte de horas sin enviar",
+            "name": _t("plantilla_auto.timesheet_reminder.nombre"),
             "trigger_type": "timesheet_not_submitted",
             "trigger_conditions": None,
-            "actions": [{"type": "notify_user", "params": {"message": "Recuerda enviar tu parte de horas semanal"}}],
+            "actions": [{"type": "notify_user", "params": {"message": _t("plantilla_auto.timesheet_reminder.mensaje")}}],
         },
         {
             "id": "ticket_p1_escalate",
-            "name": "Escalar ticket P1 a L2",
+            "name": _t("plantilla_auto.ticket_p1_escalate.nombre"),
             "trigger_type": "ticket_created",
             "trigger_conditions": {"field": "priority", "operator": "equals", "value": "p1_critical"},
             "actions": [
                 {"type": "escalate_ticket", "params": {"to_level": "l2"}},
-                {"type": "notify_role", "params": {"role": "admin", "message": "Ticket P1 creado — requiere atención inmediata"}},
+                {"type": "notify_role", "params": {"role": "admin", "message": _t("plantilla_auto.ticket_p1_escalate.mensaje")}},
             ],
         },
         {
             "id": "expense_pending",
-            "name": "Notificar al PM de gasto pendiente de aprobación",
+            "name": _t("plantilla_auto.expense_pending.nombre"),
             "trigger_type": "expense_submitted",
             "trigger_conditions": None,
-            "actions": [{"type": "notify_role", "params": {"role": "pm", "message": "Gasto enviado pendiente de aprobación"}}],
+            "actions": [{"type": "notify_role", "params": {"role": "pm", "message": _t("plantilla_auto.expense_pending.mensaje")}}],
         },
         {
             "id": "risk_high",
-            "name": "Alerta de riesgo de alto impacto",
+            "name": _t("plantilla_auto.risk_high.nombre"),
             "trigger_type": "risk_score_high",
             "trigger_conditions": {"field": "risk_score", "operator": "greater_than", "value": "12"},
-            "actions": [{"type": "create_alert", "params": {"message": "Riesgo de alto impacto detectado en el proyecto", "severity": "critical"}}],
+            "actions": [{"type": "create_alert", "params": {"message": _t("plantilla_auto.risk_high.mensaje"), "severity": "critical"}}],
         },
     ]
     for p in plantillas:

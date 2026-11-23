@@ -2,9 +2,10 @@ import { useState, useId } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { projectsApi, customFieldsApi } from '../services/api'
+import { customFieldsApi } from '../services/api'
+import { useListaDeProyectos } from '../hooks/useListas'
 import type { CampoPersonalizado } from '../services/api/tipos-rendimiento'
-import { Button, Spinner, EmptyState, Modal, IconButton, Pulsable, Select, TablaSimple, Checkbox, GrupoDeOpciones, useErroresDeCampo, Input } from '../components/ui'
+import { Button, Spinner, EmptyState, Modal, IconButton, Pulsable, Select, TablaSimple, Checkbox, GrupoDeOpciones, useErroresDeCampo, Input, EstadoDeError } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { Calendar, CheckSquare, Hash, Link2, ListChecks, Pencil, Plus, SlidersHorizontal, Trash2, Type, User, X, type LucideIcon } from 'lucide-react'
@@ -15,11 +16,6 @@ import './CustomFieldsPage.css'
 interface FieldTypeDef {
   value: string
   Icon: LucideIcon
-}
-
-interface ProjectItem {
-  id: string | number
-  name?: string
 }
 
 type CustomField = CampoPersonalizado
@@ -123,7 +119,7 @@ function FieldForm({ field, projectId, onClose }: { field: CustomField | null; p
               ))}
             </div>
             <div className="u-row-8">
-              <input id={`${idCampo}-opcion`} aria-labelledby={`${idCampo}-et-opcion`} className="cfl-input cfl-input--grow" value={optionInput}
+              <Input id={`${idCampo}-opcion`} aria-labelledby={`${idCampo}-et-opcion`} className="u-flex1-min0" inputClassName="cfl-input cfl-input--grow" value={optionInput}
                 onChange={e => setOptionInput(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addOption() } }}
                 placeholder={traducir('customfields.nueva_opcion')} />
@@ -168,15 +164,12 @@ export default function CustomFieldsPage(): JSX.Element {
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<CustomField | null>(null)
 
-  const { data: projectsRaw = [] } = useQuery({
-    queryKey: ['projects'],
-    queryFn: () => projectsApi.list({}).then(r => Array.isArray(r.data) ? r.data : []).catch(() => []),
-  })
-  const projects = projectsRaw as ProjectItem[]
+  // 23-11-2026 (04 A8): lista compartida de proyectos; sin `.catch` que escondía el fallo como lista vacía.
+  const { data: projects = [] } = useListaDeProyectos()
 
-  const { data: fields = [], isLoading } = useQuery({
+  const { data: fields = [], isLoading, error: errorCampos, refetch } = useQuery({
     queryKey: ['custom-fields', selectedProject],
-    queryFn: () => customFieldsApi.list(selectedProject).then(r => r.data).catch((): CustomField[] => []),
+    queryFn: () => customFieldsApi.list(selectedProject).then(r => r.data),
     enabled: !!selectedProject,
   })
 
@@ -218,7 +211,9 @@ export default function CustomFieldsPage(): JSX.Element {
 
       {selectedProject && isLoading && <Spinner />}
 
-      {selectedProject && !isLoading && fields.length === 0 && (
+      {selectedProject && errorCampos && <EstadoDeError error={errorCampos} onReintentar={() => { void refetch() }} />}
+
+      {selectedProject && !isLoading && !errorCampos && fields.length === 0 && (
         <EmptyState icon={<SlidersHorizontal size={28} />} title={traducir('customfields.sin_campos_personalizados')}
           description={traducir('customfields.crea_campos_propios_para_este_proyecto_severidad')}
           action={newFieldButton} />

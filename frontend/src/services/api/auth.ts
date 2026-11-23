@@ -8,6 +8,7 @@ import type { AxiosResponse } from 'axios'
 import api from './_core'
 import type { CreationOptionsJSON, RequestOptionsJSON } from '../../lib/webauthn'
 import type { UserPublic } from './users'
+import type { PoliticaDeContrasena } from './seguridadDeCuentas'
 
 // ── Request / response payloads ──────────────────────────────────────────────
 
@@ -57,6 +58,8 @@ export interface LoginResponse {
 export interface MfaValidatePayload {
   mfa_challenge_token: string
   code: string
+  /** Recordar este dispositivo (si la empresa lo permite: MFA_REMEMBER_DEVICE_DAYS). */
+  remember_device?: boolean
 }
 
 export interface PasskeyStartPayload {
@@ -178,6 +181,9 @@ export const authApi = {
 
   resetPassword: (payload: ResetPasswordPayload): Promise<AxiosResponse<{ ok: boolean }>> =>
     api.post('/auth/password/reset', payload),
+  // 23-11-2026: reglas de la empresa del enlace (no consume el token).
+  resetPasswordPolicy: (token: string): Promise<AxiosResponse<PoliticaDeContrasena>> =>
+    api.post('/auth/password/reset/policy', { token }),
 
   changePassword: (data: ChangePasswordPayload): Promise<AxiosResponse<{ ok: boolean }>> =>
     api.post('/auth/change-password', data),

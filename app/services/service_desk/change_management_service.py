@@ -26,6 +26,12 @@ from app.core.config import settings  # topes de tokens de IA (19-11-2026)
 _log = logging.getLogger(__name__)
 
 
+def _esc(valor) -> str:
+    """Texto escapado para el HTML de los correos (auditoria 2026-11-22, 4.3)."""
+    import html
+    return html.escape(str(valor if valor is not None else ""))
+
+
 def _notify_change_stakeholders(
     db: Session,
     change_id: str,
@@ -57,14 +63,20 @@ def _notify_change_stakeholders(
             if user and user.email:
                 encolar(NotificationService.send_email, to=user.email, subject=subject, html_body=body_html)
 
-        from app.core.config import settings
-        if getattr(settings, "SLACK_WEBHOOK_URL", None):
+        # Auditoria 2026-11-22 (servicios m-z, 4.3): el webhook de Slack de la
+        # empresa del cambio (credencial `slack.webhook_url` o su ajuste
+        # `SLACK_WEBHOOK_URL`), nunca el global: los asuntos de todas las
+        # empresas iban al mismo canal.
+        from app.services.integration_credentials_service import secreto_propio_de_la_organizacion
+        webhook = secreto_propio_de_la_organizacion(
+            db, "slack", "webhook_url", "SLACK_WEBHOOK_URL", change.organization_id)
+        if webhook:
             # Auditoria 2026-11 (hallazgo 23): habia un tercer cliente de Slack,
             # asincrono, en `notification_service`, y este era su unico uso (con
             # un `run_until_complete` que revienta dentro de un bucle en marcha).
             # El de `integrations` es sincrono y pasa la guarda SSRF.
             from app.services.integrations import send_slack_message
-            send_slack_message(settings.SLACK_WEBHOOK_URL, subject)
+            send_slack_message(webhook, subject)
     except Exception as exc:
         _log.warning("Could not send change notification for %s: %s", change_id, exc)
 
@@ -100,6 +112,12 @@ class RiskLevel(str, Enum):
     low = "low"
 
 
+def _t(db, clave: str, **datos) -> str:
+    """Texto de este servicio en el idioma de la empresa del contexto (`db.info`)."""
+    from app.services.textos_de_salida_servicios_m_z import texto_para
+    return texto_para(db, clave, org_id=db.info.get("organization_id"), **datos)
+
+
 def assess_change_risk_ai(
     db: Session,
     title: str,
@@ -107,6 +125,8 @@ def assess_change_risk_ai(
     impact_areas: list[str],
     affected_cis: list[str],
     rollback_plan: str,
+    user_id: str | None = None,
+    organization_id: str | None = None,
 ) -> dict:
     """
     Use IA to assess change risk automatically.
@@ -156,6 +176,9 @@ def assess_change_risk_ai(
         messages=[{"role": "user", "content": change_content}],
         system=system_prompt,
         module="change_management",
+        # Auditoria 2026-11-22 (4.3): usuario y empresa de la llamada.
+        user_id=user_id,
+        organization_id=organization_id,
         max_tokens=settings.AI_BRIEF_ANSWER_MAX_TOKENS,
     )
 
@@ -166,8 +189,8 @@ def assess_change_risk_ai(
         result = {
             "risk_level": "high",
             "risk_score": 50,
-            "factors": ["Cannot assess automatically"],
-            "mitigation_suggestions": ["Manual review required"],
+            "factors": [_t(db, "cambio_rollout.ia.no_evaluable")],
+            "mitigation_suggestions": [_t(db, "cambio_rollout.ia.revision_manual")],
             "recommended_approval_level": "normal",
             "estimated_duration_minutes": 120,
         }
@@ -205,67 +228,67 @@ def create_rollout_plan(
     phases = [
         {
             "phase": 1,
-            "name": "Pre-change validation",
+            "name": _t(db, "cambio_rollout.fase.1.nombre"),
             "duration_minutes": 10,
             "steps": [
-                "Verify all systems online",
-                "Check disk space",
-                "Verify backups completed",
-                "Confirm CAB approval",
+                _t(db, "cambio_rollout.fase.1.paso.1"),
+                _t(db, "cambio_rollout.fase.1.paso.2"),
+                _t(db, "cambio_rollout.fase.1.paso.3"),
+                _t(db, "cambio_rollout.fase.1.paso.4"),
             ],
-            "validation_checks": ["System health", "Connectivity", "Backup verification"],
+            "validation_checks": [_t(db, "cambio_rollout.fase.1.check.1"), _t(db, "cambio_rollout.fase.1.check.2"), _t(db, "cambio_rollout.fase.1.check.3")],
             "rollback_if_fails": True,
         },
         {
             "phase": 2,
-            "name": "Prepare rollback",
+            "name": _t(db, "cambio_rollout.fase.2.nombre"),
             "duration_minutes": 10,
             "steps": [
-                "Create system snapshots",
-                "Export current config",
-                "Document current state",
-                "Test rollback procedure",
+                _t(db, "cambio_rollout.fase.2.paso.1"),
+                _t(db, "cambio_rollout.fase.2.paso.2"),
+                _t(db, "cambio_rollout.fase.2.paso.3"),
+                _t(db, "cambio_rollout.fase.2.paso.4"),
             ],
-            "validation_checks": ["Snapshots created", "Config exported"],
+            "validation_checks": [_t(db, "cambio_rollout.fase.2.check.1"), _t(db, "cambio_rollout.fase.2.check.2")],
             "rollback_if_fails": True,
         },
         {
             "phase": 3,
-            "name": "Apply change",
+            "name": _t(db, "cambio_rollout.fase.3.nombre"),
             "duration_minutes": int(estimated_duration_minutes),
             "steps": [
-                "Execute deployment",
-                "Monitor system resources",
-                "Watch for errors",
-                "Log all activities",
+                _t(db, "cambio_rollout.fase.3.paso.1"),
+                _t(db, "cambio_rollout.fase.3.paso.2"),
+                _t(db, "cambio_rollout.fase.3.paso.3"),
+                _t(db, "cambio_rollout.fase.3.paso.4"),
             ],
-            "validation_checks": ["Deployment completed", "No critical errors"],
+            "validation_checks": [_t(db, "cambio_rollout.fase.3.check.1"), _t(db, "cambio_rollout.fase.3.check.2")],
             "rollback_if_fails": True,
         },
         {
             "phase": 4,
-            "name": "Post-change validation",
+            "name": _t(db, "cambio_rollout.fase.4.nombre"),
             "duration_minutes": 15,
             "steps": [
-                "Verify all services running",
-                "Run health checks",
-                "Validate functionality",
-                "Check performance metrics",
+                _t(db, "cambio_rollout.fase.4.paso.1"),
+                _t(db, "cambio_rollout.fase.4.paso.2"),
+                _t(db, "cambio_rollout.fase.4.paso.3"),
+                _t(db, "cambio_rollout.fase.4.paso.4"),
             ],
-            "validation_checks": ["Services healthy", "Performance acceptable"],
+            "validation_checks": [_t(db, "cambio_rollout.fase.4.check.1"), _t(db, "cambio_rollout.fase.4.check.2")],
             "rollback_if_fails": True,
         },
         {
             "phase": 5,
-            "name": "Communication & closeout",
+            "name": _t(db, "cambio_rollout.fase.5.nombre"),
             "duration_minutes": 5,
             "steps": [
-                "Notify stakeholders",
-                "Update documentation",
-                "Record metrics",
-                "Close change ticket",
+                _t(db, "cambio_rollout.fase.5.paso.1"),
+                _t(db, "cambio_rollout.fase.5.paso.2"),
+                _t(db, "cambio_rollout.fase.5.paso.3"),
+                _t(db, "cambio_rollout.fase.5.paso.4"),
             ],
-            "validation_checks": ["Stakeholders notified"],
+            "validation_checks": [_t(db, "cambio_rollout.fase.5.check.1")],
             "rollback_if_fails": False,
         },
     ]
@@ -290,7 +313,19 @@ def generate_rollback_automation_script(
     Generate bash/Python script for automated rollback.
 
     Returns script content that can be executed.
+
+    Auditoria 2026-11-22 (servicios m-z, 4.3): el numero del cambio iba tal
+    cual dentro de `echo "..."` y de la ruta del log, y el plan de marcha
+    atras (texto libre del cambio) se pegaba como ordenes: un `$(...)` en
+    cualquiera de los dos se ejecutaba al lanzar el script. Ahora el
+    identificador solo admite `[A-Za-z0-9._-]` y el plan sale como
+    comentarios: quien lo ejecuta revisa y activa cada paso.
     """
+    import re
+    change_id = re.sub(r"[^A-Za-z0-9._-]", "_", str(change_id or ""))[:64] or "unknown"
+    rollback_plan = "\n".join(
+        "# " + linea.replace("\r", "") for linea in str(rollback_plan or "").splitlines()
+    ) or "# (no rollback plan)"
     script = f"""#!/bin/bash
 # Auto-generated rollback script for change {change_id}
 # Generated: {datetime.now(timezone.utc).isoformat()}
@@ -312,6 +347,7 @@ echo "🔍 Validating rollback conditions..."
 
 # Step 3: Execute rollback
 echo "⚙️  Executing rollback steps..."
+# Rollback plan from the change record: review each step and uncomment it.
 {rollback_plan}
 
 # Step 4: Validate rollback
@@ -352,20 +388,20 @@ def check_change_suitability_for_automation(
     if risk_level == RiskLevel.critical:
         automation_level = "manual"
         can_automate = False
-        requires_manual_gates.append("Manual approval before each phase")
+        requires_manual_gates.append(_t(db, "cambio_rollout.puerta.critico"))
 
     elif risk_level == RiskLevel.high:
         automation_level = "partial"
-        requires_manual_gates.append("Manual approval before deployment phase")
+        requires_manual_gates.append(_t(db, "cambio_rollout.puerta.alto"))
 
     if change_type == ChangeType.emergency:
-        requires_manual_gates.append("Continuous monitoring during execution")
+        requires_manual_gates.append(_t(db, "cambio_rollout.puerta.emergencia"))
 
     return {
         "can_automate": can_automate,
         "automation_level": automation_level,
         "requires_manual_gates": requires_manual_gates,
-        "reason": f"Risk level: {risk_level.value}, Type: {change_type.value}",
+        "reason": _t(db, "cambio_rollout.motivo_automatizacion", riesgo=risk_level.value, tipo=change_type.value),
     }
 
 
@@ -401,7 +437,7 @@ def _save_rollout_state(db: Session, change_id: str, state: dict) -> None:
         if row:
             row.value = _json.dumps(state)
         else:
-            db.add(AppSetting(key=key, value=_json.dumps(state), description=f"Rollout execution state for change {change_id}"))
+            db.add(AppSetting(key=key, value=_json.dumps(state), description=_t(db, "cambio_rollout.estado_ajuste", cambio=change_id)))
         db.flush()
     except Exception as exc:
         import logging
@@ -420,6 +456,21 @@ def start_rollout_execution(
     """
     import logging
     _log = logging.getLogger(__name__)
+    from app.core.codigos_de_error import error
+    from app.models.service_desk import ITSMChangeRequest, ChangeStatus
+    from app.models.service_desk._enums import ESTADOS_DE_CAMBIO_IMPLANTABLES
+
+    # Auditoria 2026-11-22 (C-SD4): arrancar el despliegue ponia el cambio en
+    # `in_progress` sin mirar su estado (aprobaba de hecho un borrador) y, si el
+    # cambio no existia, guardaba el estado igualmente y devolvia 201. Ahora:
+    # 404 si no existe (en la empresa de la sesion) y 409 si no esta aprobado
+    # o programado. El estado se cambia antes de guardar nada.
+    change = db.query(ITSMChangeRequest).filter(ITSMChangeRequest.id == change_id).first()
+    if change is None:
+        raise error(404, "no_encontrado", detail="Cambio no encontrado", que="cambio")
+    estado = getattr(change.status, "value", change.status)
+    if estado not in ESTADOS_DE_CAMBIO_IMPLANTABLES:
+        raise error(409, "cambio_no_aprobado_para_desplegar", estado=estado)
 
     phases = rollout_plan.get("phases", [])
     execution_phases = [
@@ -449,17 +500,9 @@ def start_rollout_execution(
         "rollback_reason": None,
     }
 
+    change.status = ChangeStatus.in_progress
+    change.actual_start = datetime.now(timezone.utc)
     _save_rollout_state(db, change_id, state)
-
-    # Mark the ITSMChangeRequest as in_progress
-    try:
-        from app.models.service_desk import ITSMChangeRequest, ChangeStatus
-        change = db.query(ITSMChangeRequest).filter(ITSMChangeRequest.id == change_id).first()
-        if change:
-            change.status = ChangeStatus.in_progress
-            change.actual_start = datetime.now(timezone.utc)
-    except Exception as exc:
-        _log.warning("Could not update change status to in_progress: %s", exc)
 
     _log.info("Rollout execution started for change %s by %s", change_id, current_user.id)
     return state
@@ -479,7 +522,7 @@ def _disparar_rollback(db: Session, change_id: str, state: dict, fase: dict,
     Las fases que quedaban por delante pasan a `skipped`, no a `failed`: no
     llegaron a ejecutarse, y decir que fallaron sería falso en el informe.
     """
-    motivo = f"Fase {phase_number} ({fase['name']}) falló: {notes}"
+    motivo = _t(db, "cambio_rollout.rollback.motivo_fase", fase=phase_number, nombre=fase["name"], notas=notes)
     state["overall_status"] = "rolled_back"
     state["rollback_triggered"] = True
     state["rollback_reason"] = motivo
@@ -495,14 +538,10 @@ def _disparar_rollback(db: Session, change_id: str, state: dict, fase: dict,
     _update_change_status_on_rollback(db, change_id)
     _notify_change_stakeholders(
         db, change_id,
-        subject=f"[{NOMBRE_DEL_PRODUCTO}] Automatic rollback triggered for change {change_id}",
-        body_html=(
-            f"<p>An <strong>automatic rollback</strong> has been triggered for change "
-            f"<strong>{change_id}</strong>.</p>"
-            f"<p><strong>Reason:</strong> {motivo}</p>"
-            f"<p><strong>Failed phase:</strong> {fase['name']} (phase {phase_number})</p>"
-            f"<p><strong>Time:</strong> {datetime.now(timezone.utc).isoformat()}</p>"
-        ),
+        subject=_t(db, "cambio_rollout.rollback_auto.asunto", producto=NOMBRE_DEL_PRODUCTO, cambio=change_id),
+        body_html=_t(db, "cambio_rollout.rollback_auto.cuerpo", cambio=_esc(change_id), motivo=_esc(motivo),
+                     fase_nombre=_esc(fase["name"]), fase=phase_number,
+                     hora=datetime.now(timezone.utc).isoformat()),
     )
 
 
@@ -521,13 +560,9 @@ def _avanzar_puntero_y_cerrar(db: Session, change_id: str, state: dict,
     _update_change_status_on_complete(db, change_id)
     _notify_change_stakeholders(
         db, change_id,
-        subject=f"[{NOMBRE_DEL_PRODUCTO}] Change {change_id} implemented successfully",
-        body_html=(
-            f"<p>Change <strong>{change_id}</strong> has been "
-            f"<strong>successfully implemented</strong>.</p>"
-            f"<p>All rollout phases completed at "
-            f"{datetime.now(timezone.utc).isoformat()}.</p>"
-        ),
+        subject=_t(db, "cambio_rollout.completado.asunto", producto=NOMBRE_DEL_PRODUCTO, cambio=change_id),
+        body_html=_t(db, "cambio_rollout.completado.cuerpo", cambio=_esc(change_id),
+                     hora=datetime.now(timezone.utc).isoformat()),
     )
 
 
@@ -639,13 +674,9 @@ def trigger_change_rollback(
     _notify_change_stakeholders(
         db,
         change_id,
-        subject=f"[{NOMBRE_DEL_PRODUCTO}] Rollback triggered for change {change_id}",
-        body_html=(
-            f"<p>A <strong>manual rollback</strong> has been triggered for change <strong>{change_id}</strong>.</p>"
-            f"<p><strong>Reason:</strong> {reason}</p>"
-            f"<p><strong>Triggered by:</strong> {current_user.id}</p>"
-            f"<p><strong>Time:</strong> {datetime.now(timezone.utc).isoformat()}</p>"
-        ),
+        subject=_t(db, "cambio_rollout.rollback_manual.asunto", producto=NOMBRE_DEL_PRODUCTO, cambio=change_id),
+        body_html=_t(db, "cambio_rollout.rollback_manual.cuerpo", cambio=_esc(change_id), motivo=_esc(reason),
+                     quien=_esc(current_user.id), hora=datetime.now(timezone.utc).isoformat()),
     )
     _log.warning("Manual rollback triggered: change=%s reason=%s by=%s", change_id, reason, current_user.id)
     return {"change_id": change_id, "rollback_triggered": True, "reason": reason}
@@ -688,33 +719,40 @@ def fast_track_emergency_cab(
 
     from app.services.approval_engine._base import exigir_que_no_sea_suyo
     exigir_que_no_sea_suyo(db, change.requester_id, current_user, "itsm_change", change.id)
+    # Auditoria 2026-11-22 (A-SD19): el fast-track aprobaba el cambio en el
+    # acto con una sola persona (quien lo pulsaba); `approver_ids` solo se
+    # guardaba en un texto. Ahora es un CAB de emergencia (ECAB): esos
+    # aprobadores (sin el solicitante) votan por la via normal y el cambio
+    # queda en revision hasta que se alcanza el quorum de la empresa.
+    aprobadores = [a for a in dict.fromkeys(approver_ids) if a and a != change.requester_id]
+    if not aprobadores:
+        raise ErrorConCodigo("cambio_emergencia_sin_aprobador", detail="Se requiere al menos un aprobador distinto del solicitante")
+    from app.services.service_desk import cab_workflow_service as cab
     change.change_type = ChangeType.emergency
-    change.status = ChangeStatus.approved
-    change.approved_at = datetime.now(timezone.utc)
-    change.approved_by = current_user.id
-    # Store emergency CAB record in business_justification
+    cab.start_cab_workflow(db, change_id=change.id, requester=current_user, cab_members=aprobadores)
     emergency_record = {
         "fast_track": True,
         "justification": justification,
-        "approver_ids": approver_ids,
-        "approved_by": current_user.id,
-        "approved_at": datetime.now(timezone.utc).isoformat(),
+        "approver_ids": aprobadores,
+        "requested_by": current_user.id,
+        "requested_at": datetime.now(timezone.utc).isoformat(),
     }
     existing_justification = change.business_justification or ""
     change.business_justification = (
         existing_justification
-        + f"\n\n[EMERGENCY CAB FAST-TRACK]\n{_json.dumps(emergency_record, indent=2)}"
+        + f"\n\n{_t(db, 'cambio_rollout.fast_track')}\n{_json.dumps(emergency_record, indent=2)}"
     )
 
     _log.warning(
-        "Emergency CAB fast-track approved: change=%s by=%s approvers=%s",
-        change_id, current_user.id, approver_ids,
+        "Emergency CAB fast-track requested: change=%s by=%s approvers=%s",
+        change_id, current_user.id, aprobadores,
     )
     return {
         "change_id": change_id,
-        "status": "approved",
-        "change_type": "emergency",
-        "approver_ids": approver_ids,
-        "approved_at": emergency_record["approved_at"],
+        "status": getattr(change.status, "value", change.status),
+        "change_type": ChangeType.emergency.value,
+        "approver_ids": aprobadores,
+        "quorum": change.cab_quorum,
+        "requested_at": emergency_record["requested_at"],
     }
 

@@ -33,8 +33,48 @@ def partes_sin_duplicar(db: Session, q):
     from app.models.imputation import Imputation as I
     duplicado = exists().where(and_(
         W.id == TL.worker_id, W.user_id.isnot(None), I.user_id == W.user_id,
-        I.project_id == TL.project_id, I.date == TL.log_date))
+        I.project_id == TL.project_id, I.date == TL.log_date,
+        I.is_active.is_(True)))   # A50 (22-11-2026): una imputación borrada no quita el parte
     return q.filter(~duplicado)
+
+
+def partes_netos(db: Session, filas) -> list[tuple]:
+    """A50 (auditoría 22-11-2026): `[(fila, horas_netas, coste_neto)]` de partes
+    manuales restando SOLO el solape con lo que esa persona ya imputó ese día en
+    ese proyecto (antes, `partes_sin_duplicar` quitaba el parte entero aunque la
+    imputación fuera de una hora y el parte de ocho). El coste se reduce en la
+    misma proporción que las horas. `filas`: partes o tuplas cuyo primer
+    elemento es el parte. Una consulta para todas las imputaciones del solape.
+    """
+    from sqlalchemy import func, tuple_
+    from app.models.enterprise import SubcontractorWorker as W
+    from app.models.imputation import Imputation as I
+    filas = list(filas)
+    if not filas:
+        return []
+    parte = (lambda f: f[0] if isinstance(f, tuple) else f)
+    wids = {parte(f).worker_id for f in filas if parte(f).worker_id}
+    usuario_de = dict(db.query(W.id, W.user_id).filter(W.id.in_(wids), W.user_id.isnot(None)).all()) if wids else {}
+    claves = {(usuario_de[parte(f).worker_id], parte(f).project_id, parte(f).log_date)
+              for f in filas if parte(f).worker_id in usuario_de}
+    imputado: dict = {}
+    if claves:
+        for uid, pid, dia, horas in db.query(I.user_id, I.project_id, I.date, func.sum(I.hours)).filter(
+                I.is_active.is_(True), tuple_(I.user_id, I.project_id, I.date).in_(list(claves))).group_by(
+                I.user_id, I.project_id, I.date).all():
+            imputado[(uid, pid, dia)] = float(horas or 0)
+    salida = []
+    for f in filas:
+        tl = parte(f)
+        horas = float(tl.hours or 0)
+        coste = float(tl.cost_amount or 0)
+        uid = usuario_de.get(tl.worker_id)
+        solape = min(horas, imputado.get((uid, tl.project_id, tl.log_date), 0.0)) if uid else 0.0
+        if solape:
+            imputado[(uid, tl.project_id, tl.log_date)] -= solape   # un mismo solape no se resta dos veces
+        netas = horas - solape
+        salida.append((f, netas, coste * netas / horas if horas else 0.0))
+    return salida
 
 
 def _imputaciones_de(db: Session, a):
@@ -42,7 +82,8 @@ def _imputaciones_de(db: Session, a):
     w = a.worker
     if w is None or not w.user_id:
         return None
-    q = db.query(I).filter(I.user_id == w.user_id, I.project_id == a.project_id)
+    q = db.query(I).filter(I.user_id == w.user_id, I.project_id == a.project_id,
+                           I.is_active.is_(True))   # A50: sin contar las borradas
     if a.start_date:
         q = q.filter(I.date >= a.start_date)
     if a.end_date:
@@ -60,9 +101,13 @@ def consumo(db: Session, a) -> dict:
     if q is not None:
         h_imp, c_imp = q.with_entities(func.coalesce(func.sum(I.hours), 0.0),
                                        func.coalesce(func.sum(I.cost_amount), 0.0)).one()
-    tq = partes_sin_duplicar(db, db.query(TL).filter(TL.assignment_id == a.id, TL.is_active.isnot(False)))
-    h_man, c_man = tq.with_entities(func.coalesce(func.sum(TL.hours), 0.0),
-                                    func.coalesce(func.sum(TL.cost_amount), 0.0)).one()
+    netos = partes_netos(db, db.query(TL).filter(TL.assignment_id == a.id, TL.is_active.isnot(False)).all())
+    h_man = sum(h for _, h, _ in netos)
+    c_man = sum(c for _, _, c in netos)
+    # M18 (auditoría 22-11-2026): el pedido está en la moneda del proveedor; lo
+    # imputado, en la de la empresa. Se pasa lo imputado a la del proveedor (tipo
+    # de hoy) antes de compararlo con el pedido (antes se mezclaban).
+    c_imp = _a_moneda_del_proveedor(db, a, float(c_imp or 0))
     horas = float(h_imp or 0) + float(h_man or 0)
     coste = float(c_imp or 0) + float(c_man or 0)
     pct_h = (horas / a.hours_contracted * 100) if a.hours_contracted else None
@@ -73,6 +118,20 @@ def consumo(db: Session, a) -> dict:
             "hours_pct": round(pct_h, 1) if pct_h is not None else None,
             "po_consumed_pct": round(pct_c, 1) if pct_c is not None else None,
             "consumption_pct": round(max(pcts), 1) if pcts else None}
+
+
+def _a_moneda_del_proveedor(db: Session, a, importe: float) -> float:
+    from app.core import timeutil
+    from app.services.currency_rates_service import tipo_o_aviso
+    from app.services.settings_service.por_empresa import moneda_de_empresa
+    if not importe:
+        return 0.0
+    sub = getattr(a, "subcontractor", None)
+    hacia = ((getattr(sub, "currency", None) if sub else None) or "").upper()
+    desde = moneda_de_empresa(db, registro=a)
+    if not hacia or hacia == desde:
+        return importe
+    return importe * tipo_o_aviso(db, desde, hacia, timeutil.today())
 
 
 def umbral(db: Session, org_id: Optional[str]) -> float:
@@ -87,10 +146,12 @@ def _avisar(db: Session, a, pct: float, nivel: float) -> None:
     w = a.worker
     quien = w.name if w else (a.subcontractor.name if a.subcontractor else "")
     destinatarios = {x for x in ((w.internal_owner_id if w else None), project.pm_id if project else None) if x}
-    titulo = (f"Externo {quien}: asignación consumida al {round(pct)} %" if nivel < 100
-              else f"Externo {quien}: horas contratadas o pedido agotados ({round(pct)} %)")
-    cuerpo = f"Proyecto {project.name if project else a.project_id}. Pedido {a.po_number or '—'}."
+    from app.services.texto_para_usuario import texto_para
     for uid in destinatarios:
+        titulo = texto_para(db, uid, "externos.consumo.titulo" if nivel < 100 else "externos.consumo.titulo_agotado",
+                            quien=quien, pct=round(pct))
+        cuerpo = texto_para(db, uid, "externos.consumo.cuerpo", proyecto=project.name if project else a.project_id,
+                            pedido=a.po_number or "—")
         notify_user(db, uid, "budget_warning", titulo, cuerpo,
                     resource="subcontractor_assignments", resource_id=a.id, action_url="/subcontractors")
 

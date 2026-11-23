@@ -17,10 +17,10 @@ import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Too
 import { BadgeCheck, Database, MessageSquareText, MousePointerClick, Send, ShieldAlert, Sigma } from 'lucide-react'
 import { conectoresApi, mensajeDeConector, apiStream } from '../services/api'
 import type { Metrica, RespuestaCI } from '../services/api'
-import { Button, EmptyState, Page, Spinner, Tabs, Pulsable, Select, TablaSimple } from '../components/ui'
+import { Button, EmptyState, Page, Spinner, Tabs, Pulsable, Select, TablaSimple, Input, Textarea } from '../components/ui'
 import { useAppT } from '../i18n/AppLangContext'
 import { useAuth } from '../context/AuthContext'
-import { localeActivo } from '../utils/helpers'
+import { localeActivo, extractErr } from '../utils/helpers'
 import DateInput from '../components/ui/DateInput'
 import './PreguntarALaEmpresaPage.css'
 import { TOOLTIP_SUPERFICIE_2 } from '../constants/estilosGrafico'
@@ -100,8 +100,8 @@ function Preguntar({ fuentePorDefecto, preguntaInicial }: { fuentePorDefecto: st
         body: { question: q, source_id: fuente || undefined, conversation_id: conversacion },
       })
       if (!resp.ok || !resp.body) {
-        const err = await resp.json().catch(() => ({ detail: '' }))
-        setError(err.detail || t('ci.error')); return
+        const err = await resp.json().catch(() => null)
+        setError(extractErr({ response: { data: err } }, t('ci.error'))); return
       }
       const lector = resp.body.getReader()
       const dec = new TextDecoder()
@@ -115,7 +115,7 @@ function Preguntar({ fuentePorDefecto, preguntaInicial }: { fuentePorDefecto: st
         for (const l of lineas) {
           if (!l.startsWith('data: ')) continue
           let ev: Record<string, unknown>
-          try { ev = JSON.parse(l.slice(6)) } catch { continue }
+          try { ev = JSON.parse(l.slice(6)) } catch { /* accesorio: línea del flujo que no es JSON válido; se salta */ continue }
           const tipo = String(ev.event ?? ev.type ?? '')
           if (tipo === 'token') setTexto(x => x + String(ev.text ?? ''))
           else if (tipo === 'result') {
@@ -150,7 +150,7 @@ function Preguntar({ fuentePorDefecto, preguntaInicial }: { fuentePorDefecto: st
           )}
         </div>
         <div className="u-row-8">
-          <textarea className="pae-campo pae-input" aria-label={t('ci.pregunta')} rows={2} value={pregunta} onChange={e => setPregunta(e.target.value)}
+          <Textarea inputClassName="pae-campo pae-input" aria-label={t('ci.pregunta')} rows={2} value={pregunta} onChange={e => setPregunta(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); enviar() } }}
             placeholder={t('ci.pregunta_placeholder')} />
           <Button type="submit" icon={<Send size={14} />} loading={pensando} disabled={!pregunta.trim()}>{t('ci.preguntar')}</Button>
@@ -310,7 +310,7 @@ function DetalleMetrica({ m }: { m: Metrica }) {
       <div className="pae-stack-3">
         <strong className="u-sm">{t('ci.explicar_cambio')}</strong>
         <div className="u-wrap-center-8">
-          <input className="pae-campo" aria-label={t('ci.columna_fecha')} placeholder={t('ci.columna_fecha')} value={col} onChange={e => setCol(e.target.value)} />
+          <Input inputClassName="pae-campo" aria-label={t('ci.columna_fecha')} placeholder={t('ci.columna_fecha')} value={col} onChange={e => setCol(e.target.value)} />
           <span className="pae-sub">{t('ci.periodo_actual')}</span>
           <DateInput aria-label={t('ci.periodo_actual')} value={actual.start} onChange={e => setActual(v => ({ ...v, start: e.target.value }))} className="pae-campo" />
           <DateInput aria-label={t('ci.periodo_actual')} value={actual.end} onChange={e => setActual(v => ({ ...v, end: e.target.value }))} className="pae-campo" />

@@ -94,8 +94,11 @@ def test_boton_asignarme_actualiza_y_responde_por_response_url(client, admin_tok
     admin = db.query(User).filter(User.username == "admin").one()
     monkeypatch.setattr(integrations, "organizacion_del_workspace_de_slack", lambda db, t: admin.organization_id)
     monkeypatch.setattr(integrations, "secreto_de_firma_de_slack", lambda db, o: "s3cr3t")
-    monkeypatch.setattr(integrations, "find_user_by_slack_name", lambda db, n, t=None: admin)
-    payload = {"team": {"id": "T1"}, "user": {"username": "admin"}, "response_url": "https://hooks.slack.com/actions/x",
+    # 23-11-2026 (A-SD7): por el ID de Slack (users.info), no por el nombre.
+    monkeypatch.setattr(canal_slack, "usuario_de_slack",
+                        lambda db, o, uid: admin if (o, uid) == (admin.organization_id, "U1") else None)
+    payload = {"team": {"id": "T1"}, "user": {"id": "U1", "username": "otro"},
+               "response_url": "https://hooks.slack.com/actions/x",
                "actions": [{"action_id": "sd_assign_me", "value": tid}]}
     cuerpo = urlencode({"payload": json.dumps(payload)}).encode()
     marca = str(int(time.time()))

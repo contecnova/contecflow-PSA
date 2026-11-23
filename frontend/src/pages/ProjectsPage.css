@@ -644,10 +644,6 @@
   min-width: 200px;
 }
 
-.prj-input-4 {
-  padding-left: 32px;
-}
-
 .prj-input-5 {
   flex: 1 1 160px;
   min-width: 140px;
@@ -781,15 +777,6 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-}
-
-.prj-icono-buscar {
-  position: absolute;
-  left: 10px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--text-3);
-  pointer-events: none;
 }
 
 /* Accesibilidad: estos campos quitaban el contorno; se devuelve un foco visible. */

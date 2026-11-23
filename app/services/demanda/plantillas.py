@@ -1,13 +1,20 @@
-"""Plantilla piloto del flujo de demanda (la de la empresa de prueba).
+"""Plantilla OPCIONAL «Nueva funcionalidad con CAB y comité» del flujo de demanda.
 
 Seis fases (docs/FLUJO_DE_DEMANDA.md §2.3): Solicitud con triaje → Estudio →
-CAB de Digital → Normativa (Legal y Compliance en paralelo) → Gobernanza
-(puerta: vía rápida o comité) → Comité de Digitalización.
+CAB → Normativa (Legal y Compliance en paralelo) → Gobernanza (puerta: vía
+rápida o comité) → Comité de dirección.
+
+23-11-2026: antes se llamaba «piloto», llevaba los nombres de un cliente concreto
+(flujo, grupos y comités) y se sembraba en la empresa de demostración y en la migración 195. Ahora es una plantilla de la biblioteca
+(`biblioteca.PLANTILLAS["nueva_funcionalidad"]`) que el administrador elige instalar
+(`POST /demanda/plantillas/...`): no se crea nada por defecto. Los nombres de los
+grupos son genéricos y salen en el idioma de la empresa. La clave antigua
+`piloto_digital` sigue valiendo (alias) para las empresas que ya la instalaron.
 
 `sembrar_plantilla_piloto(db, org_id, usuario_id)` es idempotente: crea los
 grupos aprobadores que falten (vacíos: la empresa pone a las personas), el
-flujo «Demanda Digital (piloto)» si no existe y los tres tipos de solicitud si
-no existen. No commitea: lo hace quien llama.
+flujo si no existe y los tres tipos de solicitud si no existen. No commitea:
+lo hace quien llama.
 """
 from __future__ import annotations
 
@@ -18,20 +25,42 @@ from sqlalchemy.orm import Session
 
 from app.services.formato_regional import IDIOMA_DE_RESPALDO
 
-CLAVE_FLUJO = "piloto_digital"
-
-GRUPOS = {
-    "triaje": ("Triaje Digital", "Service Delivery Manager / Product Owner de Digital: triaje de solicitudes"),
-    "digital": ("Equipo Digital", "Estudio técnico y business case de las solicitudes"),
-    "cab": ("CAB Digital", "Revisión de pares: seguridad, viabilidad y dimensionamiento"),
-    "legal": ("Legal", "Dictamen legal: contratos, licencias, riesgos regulatorios"),
-    "compliance": ("Compliance", "Dictamen de cumplimiento: RGPD, normativa sectorial"),
-    "comite": ("Comité de Digitalización", "Decisión sobre iniciativas por presupuesto, impacto o transversalidad"),
-}
+CLAVE_FLUJO = "nueva_funcionalidad"
+#: Claves con las que una empresa pudo instalarla antes (se reconocen para no duplicarla).
+CLAVES_ANTIGUAS = ("piloto_digital",)
 
 
 def _t(es: str, en: str, zh: str) -> dict:
     return {"es": es, "en": en, "zh": zh}
+
+
+#: clave del grupo → (nombre, descripción) en es/en/zh; se escriben en el idioma de la empresa.
+GRUPOS = {
+    "triaje": (_t("Triaje de solicitudes", "Request triage", "请求分诊"),
+               _t("Responsable de servicio / propietario de producto: triaje de solicitudes",
+                  "Service manager / product owner: request triage", "服务经理 / 产品负责人：请求分诊")),
+    "digital": (_t("Equipo de análisis", "Analysis team", "分析团队"),
+                _t("Estudio técnico y business case de las solicitudes",
+                   "Technical study and business case of the requests", "请求的技术研究与业务案例")),
+    "cab": (_t("CAB", "CAB", "变更顾问委员会"),
+            _t("Revisión de pares: seguridad, viabilidad y dimensionamiento",
+               "Peer review: security, feasibility and sizing", "同行评审：安全、可行性与规模")),
+    "legal": (_t("Legal", "Legal", "法务"),
+              _t("Dictamen legal: contratos, licencias, riesgos regulatorios",
+                 "Legal opinion: contracts, licences, regulatory risks", "法律意见：合同、许可、监管风险")),
+    "compliance": (_t("Compliance", "Compliance", "合规"),
+                   _t("Dictamen de cumplimiento: RGPD, normativa sectorial",
+                      "Compliance opinion: GDPR, sector regulation", "合规意见：GDPR、行业法规")),
+    "comite": (_t("Comité de dirección", "Steering committee", "指导委员会"),
+               _t("Decisión sobre iniciativas por presupuesto, impacto o transversalidad",
+                  "Decision on initiatives by budget, impact or cross-cutting scope", "按预算、影响或跨部门范围决定倡议")),
+}
+
+
+def nombre_de_grupo(clave: str, idioma: Optional[str] = None) -> str:
+    """Nombre del grupo aprobador `clave` en `idioma` (castellano si no hay)."""
+    nombres = GRUPOS[clave][0]
+    return nombres.get(idioma or IDIOMA_DE_RESPALDO) or nombres[IDIOMA_DE_RESPALDO]
 
 
 def _campo(key, es, en, zh, tipo="textarea", owner="client", critical=False, policy=None, options=None) -> dict:
@@ -52,8 +81,8 @@ def _grupo(ids: dict, clave: str, etiqueta: str) -> dict:
     return {"type": "group", "value": ids[clave], "label": etiqueta}
 
 
-def definicion_piloto(ids_de_grupo: dict) -> dict:
-    """La definición JSON del flujo piloto con los ids de sus grupos."""
+def definicion_piloto(ids_de_grupo: dict, idioma: Optional[str] = None) -> dict:
+    """La definición JSON del flujo con los ids de sus grupos (etiquetas de grupo en `idioma`)."""
     impacto = [_opcion("bajo", "Bajo", "Low", "低"), _opcion("medio", "Medio", "Medium", "中"),
                _opcion("alto", "Alto", "High", "高")]
     prioridad = [_opcion("baja", "Baja", "Low", "低"), _opcion("media", "Media", "Medium", "中"),
@@ -94,7 +123,7 @@ def definicion_piloto(ids_de_grupo: dict) -> dict:
         {
             "key": "solicitud", "name": _t("Solicitud", "Request", "申请"), "kind": "intake",
             "steps": [{"key": "triaje", "name": _t("Triaje", "Triage", "分诊"), "mode": "approval",
-                       "assignee": _grupo(ids_de_grupo, "triaje", "Triaje Digital")}],
+                       "assignee": _grupo(ids_de_grupo, "triaje", nombre_de_grupo("triaje", idioma))}],
             "decisions": ["approve", "request_info", "reject"],
             "on_approve": "next", "on_reject": "end:rejected",
             "required_fields": ["descripcion_funcional", "justificacion", "retorno_esperado"],
@@ -107,7 +136,7 @@ def definicion_piloto(ids_de_grupo: dict) -> dict:
             "key": "estudio", "name": _t("Estudio", "Study", "研究"), "kind": "work",
             "steps": [{"key": "estudio_digital", "name": _t("Estudio técnico y business case",
                                                              "Technical study and business case", "技术研究与业务案例"),
-                       "mode": "task", "assignee": _grupo(ids_de_grupo, "digital", "Equipo Digital")}],
+                       "mode": "task", "assignee": _grupo(ids_de_grupo, "digital", nombre_de_grupo("digital", idioma))}],
             "decisions": ["complete", "request_info", "return"],
             "return_targets": ["solicitud"], "on_approve": "next",
             "required_fields": ["viabilidad_tecnica", "arquitectura", "ciberseguridad", "solucion_tecnica",
@@ -117,10 +146,10 @@ def definicion_piloto(ids_de_grupo: dict) -> dict:
             "notify": [{"event": "enter", "to": a_los_responsables}],
         },
         {
-            "key": "cab", "name": _t("CAB de Digital", "Digital CAB", "数字化变更顾问委员会"), "kind": "review",
+            "key": "cab", "name": _t("CAB", "CAB", "变更顾问委员会"), "kind": "review",
             "steps": [{"key": "revision_cab", "name": _t("Revisión de pares", "Peer review", "同行评审"),
                        "mode": "approval", "quorum": "majority",
-                       "assignee": {"type": "committee", "value": ids_de_grupo["cab"], "label": "CAB Digital"}}],
+                       "assignee": {"type": "committee", "value": ids_de_grupo["cab"], "label": nombre_de_grupo("cab", idioma)}}],
             "decisions": ["approve", "reject", "return"],
             "on_approve": "next", "on_reject": "estudio", "return_targets": ["estudio"],
             "lock_client_from_here": True, "client_editable": False,
@@ -147,7 +176,7 @@ def definicion_piloto(ids_de_grupo: dict) -> dict:
             "key": "gobernanza", "name": _t("Gobernanza", "Governance", "治理"), "kind": "gate",
             "steps": [{"key": "decision_gobernanza", "name": _t("¿Requiere comité?", "Committee required?",
                                                                  "是否需要委员会？"),
-                       "mode": "approval", "assignee": _grupo(ids_de_grupo, "digital", "Equipo Digital")}],
+                       "mode": "approval", "assignee": _grupo(ids_de_grupo, "digital", nombre_de_grupo("digital", idioma))}],
             "decisions": ["fast_track", "to_committee"],
             "gate": {"conditions": [{"field": "coste", "op": "gt", "value": 50000},
                                     {"field": "esfuerzo_horas", "op": "gt", "value": 800},
@@ -159,12 +188,12 @@ def definicion_piloto(ids_de_grupo: dict) -> dict:
             "notify": [{"event": "enter", "to": a_los_responsables}],
         },
         {
-            "key": "comite", "name": _t("Comité de Digitalización", "Digitalisation Committee", "数字化委员会"),
+            "key": "comite", "name": _t("Comité de dirección", "Steering committee", "指导委员会"),
             "kind": "committee",
             "steps": [{"key": "resolucion_comite", "name": _t("Resolución del comité", "Committee resolution",
                                                                "委员会决议"),
                        "mode": "approval", "assignee": {"type": "committee", "value": ids_de_grupo["comite"],
-                                                        "label": "Comité de Digitalización"}}],
+                                                        "label": nombre_de_grupo("comite", idioma)}}],
             "decisions": ["approve", "reject", "hold"],
             "on_approve": "end:approved", "on_reject": "end:rejected",
             "committee": {"executive_summary": True},
@@ -189,10 +218,12 @@ TIPOS = (
 )
 
 
-def _grupos(db: Session, org_id: Optional[str], usuario_id: Optional[str]) -> dict:
+def _grupos(db: Session, org_id: Optional[str], usuario_id: Optional[str], idioma: Optional[str] = None) -> dict:
     from app.models.billing_reports import ApprovalGroup
     ids = {}
-    for clave, (nombre_, descripcion) in GRUPOS.items():
+    for clave, (nombres, descripciones) in GRUPOS.items():
+        nombre_ = nombres.get(idioma or IDIOMA_DE_RESPALDO) or nombres[IDIOMA_DE_RESPALDO]
+        descripcion = descripciones.get(idioma or IDIOMA_DE_RESPALDO) or descripciones[IDIOMA_DE_RESPALDO]
         g = db.query(ApprovalGroup).filter(ApprovalGroup.organization_id == org_id,
                                            ApprovalGroup.name == nombre_).first()
         if g is None:
@@ -204,18 +235,28 @@ def _grupos(db: Session, org_id: Optional[str], usuario_id: Optional[str]) -> di
     return ids
 
 
+_PLANTILLA_NOMBRE = _t("Nueva funcionalidad con CAB y comité", "New feature with CAB and committee",
+                       "带 CAB 和委员会的新功能")
+_PLANTILLA_DESCRIPCION = _t(
+    "Solicitud → Estudio → CAB → Normativa (Legal y Compliance) → Gobernanza → Comité de dirección",
+    "Request → Study → CAB → Regulation (Legal and Compliance) → Governance → Steering committee",
+    "请求 → 研究 → CAB → 法规（法务与合规）→ 治理 → 指导委员会")
+
+
 def sembrar_plantilla_piloto(db: Session, org_id: Optional[str], usuario_id: Optional[str] = None) -> dict:
     """Crea (si faltan) grupos, flujo piloto y tipos. Devuelve {flow_id, created}."""
     from app.models.demanda import DemandFlow, DemandRequestType
+    from app.services.formato_regional import idioma_de_salida
     flujo = db.query(DemandFlow).filter(DemandFlow.organization_id == org_id,
-                                        DemandFlow.key == CLAVE_FLUJO).first()
+                                        DemandFlow.key.in_((CLAVE_FLUJO, *CLAVES_ANTIGUAS))).first()
     creado = False
     if flujo is None:
-        ids = _grupos(db, org_id, usuario_id)
-        flujo = DemandFlow(organization_id=org_id, key=CLAVE_FLUJO, name="Demanda Digital (piloto)",
-                           description="Solicitud → Estudio → CAB → Normativa (Legal y Compliance) → "
-                                       "Gobernanza → Comité de Digitalización",
-                           definition=json.dumps(definicion_piloto(ids), ensure_ascii=False), version=1,
+        idioma = idioma_de_salida(db, org_id=org_id)
+        ids = _grupos(db, org_id, usuario_id, idioma)
+        flujo = DemandFlow(organization_id=org_id, key=CLAVE_FLUJO,
+                           name=_PLANTILLA_NOMBRE.get(idioma) or _PLANTILLA_NOMBRE["es"],
+                           description=_PLANTILLA_DESCRIPCION.get(idioma) or _PLANTILLA_DESCRIPCION["es"],
+                           definition=json.dumps(definicion_piloto(ids, idioma), ensure_ascii=False), version=1,
                            is_active=True, created_by=usuario_id)
         db.add(flujo)
         db.flush()

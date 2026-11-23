@@ -2,8 +2,9 @@ import { useState, useId } from 'react'
 import type { ReactElement } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
-import { usersApi, cmdbApi, type UserListItem } from '../services/api'
-import { Spinner, Page, KpiCard, EmptyState, SelectorDePeriodo, Select } from '../components/ui'
+import { cmdbApi } from '../services/api'
+import { useListaDeUsuarios } from '../hooks/useListas'
+import { Spinner, Page, KpiCard, EmptyState, EstadoDeError, SelectorDePeriodo, Select } from '../components/ui'
 import { usePeriodo } from '../hooks/usePeriodo'
 import { CON_HORA, codigoDeErrorDePeriodo, formatearTramo } from '../utils/periodo'
 import { useAppT } from '../i18n/AppLangContext'
@@ -31,17 +32,12 @@ export default function AgentDashboardPage(): JSX.Element {
   // Periodo libre (16-11-2026): antes 7/14/30/60/90 días propios y tendencia siempre por día.
   const periodo = usePeriodo({ defecto: '30d', granularidades: CON_HORA })
 
-  const { data: users = [] } = useQuery({
-    queryKey: ['users'],
-    queryFn: () => usersApi.list({}).then(r => r.data).catch((): UserListItem[] => []),
-  })
-  const { data: dash, isLoading, error } = useQuery({
+  // 23-11-2026 (04 A8): lista compartida de personas (antes `['users']` con `.catch` que guardaba `[]`).
+  const { data: users = [] } = useListaDeUsuarios()
+  const { data: dash, isLoading, error, refetch } = useQuery({
     queryKey: ['agent-dash', agentId, periodo.params],
-    queryFn: () => cmdbApi.agentDashboard(agentId, { ...periodo.params }).then(r => r.data).catch((e: unknown) => {
-      // Los errores de periodo se muestran traducidos; el resto, como antes, sin datos.
-      if (codigoDeErrorDePeriodo(e)) throw e
-      return null
-    }),
+    // Los errores de periodo se muestran traducidos; el resto, con EstadoDeError (antes: «sin datos»).
+    queryFn: () => cmdbApi.agentDashboard(agentId, { ...periodo.params }).then(r => r.data),
     enabled: !!agentId,
   })
   const errorDePeriodo = codigoDeErrorDePeriodo(error)
@@ -98,7 +94,9 @@ export default function AgentDashboardPage(): JSX.Element {
         </div>
       )}
 
-      {agentId && !isLoading && !dash && !errorDePeriodo && (
+      {agentId && error && !errorDePeriodo && <EstadoDeError error={error} onReintentar={() => { void refetch() }} />}
+
+      {agentId && !isLoading && !dash && !error && (
         <div className="ds-card">
           <EmptyState
             icon={<BarChart2 size={28} />}

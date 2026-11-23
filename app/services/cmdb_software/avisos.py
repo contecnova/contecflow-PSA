@@ -28,7 +28,10 @@ from typing import Optional
 
 from sqlalchemy.orm import Session
 
-from app.models.cmdb_software import Vulnerability, VulnerabilityAffect
+from app.core import timeutil
+from app.core.codigos_de_error import error
+from app.models.cmdb_software import Vulnerability, VulnerabilityAffect, VulnerabilitySyncRun
+from app.services.audit import audit_log
 from app.services.cmdb_software import identificadores as ids
 from app.services.cmdb_software.versiones import rango_de_texto
 
@@ -393,3 +396,21 @@ def leer_fichero(contenido: bytes, nombre: Optional[str] = None) -> tuple[str, l
         return "csv", desde_csv(texto)
     from app.core.codigos_de_error import ErrorConCodigo
     raise ErrorConCodigo("sw_formato_no_reconocido", detail="Formato de avisos no reconocido", nombre=nombre or "?")
+
+
+def importar_fichero_de_avisos(db: Session, org, contenido: bytes, nombre: Optional[str], usuario) -> dict:
+    """Lee un fichero de avisos, los guarda, reevalúa y deja la ejecución y la auditoría. No confirma."""
+    from app.services.cmdb_software import correlacion
+    try:
+        formato, lista = leer_fichero(contenido, nombre)
+    except Exception as e:  # noqa: BLE001 - fichero ilegible: 422 con código
+        raise error(422, "sw_formato_no_reconocido", nombre=nombre or type(e).__name__)
+    r = VulnerabilitySyncRun(organization_id=org, source="file", triggered_by="import", created_by=usuario.id)
+    db.add(r)
+    res = guardar_avisos(db, org, lista, "file" if formato not in ("trivy", "grype") else formato)
+    cor = correlacion.reevaluar(db, org, usuario)
+    r.status, r.finished_at = "ok", timeutil.utcnow_aware()
+    r.vulnerabilities, r.findings_new, r.findings_resolved = res["created"] + res["updated"], cor["findings_new"],         cor["findings_resolved"]
+    audit_log(db, usuario, "IMPORT", "sw_vulnerabilities", r.id, nombre,
+              metadata={"format": formato, **res, "findings_new": cor["findings_new"]})
+    return {"format": formato, **res, **{k: v for k, v in cor.items() if k != "new_ids"}}

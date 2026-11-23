@@ -1,5 +1,6 @@
 """Línea de tiempo de la reunión y auditoría (una llamada deja las dos)."""
 from __future__ import annotations
+import logging
 
 import json
 from typing import Optional
@@ -27,7 +28,7 @@ def auditar(db: Session, usuario, accion: str, reunion, metadata: Optional[dict]
         try:
             entrada.organization_id = reunion.organization_id
         except Exception:  # noqa: S110 - modelo sin la columna en algún doble de prueba
-            pass
+            logging.getLogger(__name__).debug("auditar: excepcion ignorada", exc_info=True)
 
 
 def cambiar_estado(db: Session, reunion, estado: str, actor=None, *, error_code: Optional[str] = None) -> None:

@@ -20,7 +20,9 @@ def get_client_documents(project_id: Optional[str], current_client, db: Session)
 
     accessible = current_client.get_project_ids()
     if project_id:
-        if accessible and project_id not in accessible:
+        # Auditoría 22-11-2026 (A15): sin proyectos asignados no ve ninguno
+        # (antes `if accessible and ...` daba acceso a todos los de la empresa).
+        if project_id not in accessible:
             raise ErrorConCodigo("sin_acceso_proyecto")
         q = db.query(ClientDocument).filter(ClientDocument.project_id == project_id)
     elif accessible:
@@ -28,7 +30,7 @@ def get_client_documents(project_id: Optional[str], current_client, db: Session)
     else:
         q = db.query(ClientDocument).filter(ClientDocument.project_id == None)
     docs = q.filter(ClientDocument.is_visible_to_client == True).order_by(ClientDocument.created_at.desc()).all()
-    return [doc_out(d) for d in docs]
+    return [doc_out(d, getattr(current_client, "language", None)) for d in docs]
 
 
 def get_all_documents(project_id: str, db: Session) -> list:
@@ -52,9 +54,11 @@ def _load_signable_document(doc_id: str, current_client, db: Session):
     _acc = current_client.get_project_ids()
     if not _acc:
         raise ErrorConCodigo("sin_proyectos")
+    # Auditoría 22-11-2026 (A17): solo lo que el cliente puede ver se puede firmar.
     doc = db.query(ClientDocument).filter(
         ClientDocument.id == doc_id,
-        ClientDocument.project_id.in_(_acc)
+        ClientDocument.project_id.in_(_acc),
+        ClientDocument.is_visible_to_client == True,  # noqa: E712
     ).first()
     if not doc:
         raise ErrorConCodigo("documento_no_encontrado")
@@ -90,10 +94,12 @@ def _generate_and_store_signature_pdf(
     and return the base64-encoded PDF bytes. Logs (and swallows) generation
     errors but propagates ValueError for explicit invalid-path conditions."""
     try:
-        from app.services.signature_pdf import generate_signed_pdf
+        from app.services.signature_pdf import generate_signed_pdf, huella_del_documento
         from pathlib import Path
         import base64
 
+        # 2026-11-22 (A-RZ5): el codigo del certificado incluye el documento.
+        regional.setdefault("huella_del_documento", huella_del_documento(doc))
         pdf_bytes = generate_signed_pdf(
             document_title=doc.title,
             document_description=doc.description or "",
@@ -127,7 +133,6 @@ def sign_document(doc_id: str, signer_name: str, signer_email: str, signer_job_t
                   ip: str, signature_pdf_path_root: str, current_client, db: Session) -> dict:
     doc = _load_signable_document(doc_id, current_client, db)
     now = datetime.now(timezone.utc)
-    _apply_signature_metadata(doc, signer_name, signer_job_title, ip, now)
     project_name = _resolve_doc_project_name(doc, db)
     # La marca del tenant en el certificado de firma: es lo que recibe el
     # cliente al firmar. Auditoria 2026-08, hallazgo 32. Se resuelve aqui, donde
@@ -151,8 +156,28 @@ def sign_document(doc_id: str, signer_name: str, signer_email: str, signer_job_t
         ip, signature_pdf_path_root, project_name, now,
         paleta=marca.paleta, **regional,
     )
+    # Auditoría 22-11-2026 (A17): antes se marcaba «firmado» ANTES de generar el
+    # certificado y, si el PDF fallaba (`return None`), se confirmaba igual: un
+    # documento firmado sin certificado. Ahora sin PDF no hay firma.
+    if not pdf_b64:
+        db.rollback()
+        raise ErrorConCodigo("firma_sin_certificado")
+    _apply_signature_metadata(doc, signer_name, signer_job_title, ip, now)
+    import base64
+    import hashlib
+    huella = hashlib.sha256(base64.b64decode(pdf_b64)).hexdigest()
+    doc.signed_pdf_sha256 = huella   # migración 196 (A17): la huella en su columna
+    try:
+        from app.services.audit import audit_log
+        audit_log(db, None, "SIGN", "client_documents", doc.id, doc.title,
+                  new_values={"signer_name": signer_name, "signer_email": signer_email, "ip": ip,
+                              "signed_at": str(now), "pdf_sha256": huella,
+                              "client_user_id": getattr(current_client, "id", None)})
+    except Exception:
+        logger.warning("firma de documento %s: no se pudo auditar", doc.id, exc_info=True)
     db.commit()
-    return {"ok": True, "signed_at": str(now)[:16], "signer_name": doc.signed_by_name, "pdf_b64": pdf_b64}
+    return {"ok": True, "signed_at": str(now)[:16], "signer_name": doc.signed_by_name, "pdf_b64": pdf_b64,
+            "pdf_sha256": huella}
 
 
 def download_signed_pdf(doc_id: str, current_client, db: Session) -> bytes:
@@ -173,4 +198,11 @@ def download_signed_pdf(doc_id: str, current_client, db: Session) -> bytes:
     if not os.path.exists(doc.signed_pdf_path):
         raise ErrorConCodigo("archivo_firma_no_encontrado")
     with open(doc.signed_pdf_path, "rb") as f:
-        return f.read(), doc.title
+        contenido = f.read()
+    # Migración 196 (A17): si el fichero no es el que se firmó, no se entrega.
+    if doc.signed_pdf_sha256:
+        import hashlib
+        if hashlib.sha256(contenido).hexdigest() != doc.signed_pdf_sha256:
+            logger.error("PDF firmado %s alterado: su huella no coincide con la guardada", doc.id)
+            raise ErrorConCodigo("pdf_firma_no_disponible")
+    return contenido, doc.title

@@ -41,10 +41,22 @@ def log_grc_entry(
     detail=None,
     ip: Optional[str] = None,
     severity: str = "info",
+    organization_id: Optional[str] = None,
 ) -> None:
-    """Add a GRC audit log entry to the session (no commit)."""
+    """Add a GRC audit log entry to the session (no commit).
+
+    Auditoría 22-11-2026 (A32): la empresa va explícita. Sin ella, la del
+    usuario (y si no, la de la sesión): antes las acciones de superadmin o de
+    trabajos de fondo quedaban con empresa nula, invisibles en su registro.
+    """
+    if organization_id is None and user_id:
+        from app.models.user import User
+        organization_id = db.query(User.organization_id).filter(User.id == user_id).scalar()
+    if organization_id is None:
+        organization_id = db.info.get("organization_id")
     entry = GrcAuditLog(
         id=str(uuid.uuid4()),
+        organization_id=organization_id,
         user_id=user_id,
         action_type=action_type,
         resource_type=resource_type,
@@ -139,6 +151,23 @@ def celdas_vivas(fastapi_app, roles) -> set:
             for a in acciones for r in roles}
 
 
+def _descripcion_de_regla(db: Session, regla: dict, organization_id: Optional[str]) -> str:
+    """La descripción que se guarda: las de serie son claves `sod.*` de `textos_de_salida` y se escriben
+    en el idioma de la empresa (23-11-2026; antes castellano fijo). Una descripción propia se respeta."""
+    d = regla["description"]
+    if not d.startswith("sod."):
+        return d
+    from app.services.formato_regional import idioma_de_salida
+    from app.services.textos_de_salida import texto
+    return texto(d, idioma_de_salida(db, org_id=organization_id))
+
+
+def _clave_de_regla(regla: dict) -> Optional[str]:
+    """La clave `sod.*` de la descripción de serie (migración 200), o None si es propia."""
+    d = regla["description"]
+    return d if d.startswith("sod.") else None
+
+
 def ensure_sod_seeded(db: Session, default_sod_rules: list, organization_id: Optional[str] = None,
                       commit: bool = True) -> None:
     """Siembra las reglas SoD por defecto EN ESA EMPRESA si no tiene ninguna.
@@ -160,7 +189,8 @@ def ensure_sod_seeded(db: Session, default_sod_rules: list, organization_id: Opt
             SodRule(id=str(uuid.uuid4()), organization_id=organization_id,
                     module_a=r["module_a"], action_a=r["action_a"],
                     module_b=r["module_b"], action_b=r["action_b"],
-                    risk=r["risk"], description=r["description"],
+                    risk=r["risk"], description=_descripcion_de_regla(db, r, organization_id),
+                    texto_clave=_clave_de_regla(r),
                     roles_conflict=json.dumps(r["roles_conflict"]))
             for r in default_sod_rules])
         if commit:
@@ -190,7 +220,8 @@ def _anadir_reglas_nuevas_una_vez(db: Session, default_sod_rules: list, organiza
             db.add(SodRule(id=str(uuid.uuid4()), organization_id=organization_id,
                            module_a=r["module_a"], action_a=r["action_a"],
                            module_b=r["module_b"], action_b=r["action_b"],
-                           risk=r["risk"], description=r["description"],
+                           risk=r["risk"], description=_descripcion_de_regla(db, r, organization_id),
+                           texto_clave=_clave_de_regla(r),
                            roles_conflict=json.dumps(r["roles_conflict"])))
     db.add(AppSetting(key=_MARCA_REGLAS_2026_11, value="1", organization_id=organization_id))
     db.commit() if commit else db.flush()
@@ -264,9 +295,17 @@ def reset_permission_matrix(db: Session, default_matrix: dict, organization_id: 
             db.query(RolePermission).filter(RolePermission.organization_id == organization_id).delete()
             db.commit()
             return
+        # Baja (auditoría 22-11-2026): borrar y volver a sembrar en la MISMA
+        # transacción (antes dos commits: entre uno y otro la matriz global
+        # quedaba vacía y cualquier comprobación de permiso la veía así).
         _globales(db).delete()
+        db.bulk_save_objects([
+            RolePermission(id=str(uuid.uuid4()), organization_id=None, role=role, module=module,
+                           action=action, allowed=allowed)
+            for role, modules in default_matrix.items()
+            for module, actions in modules.items()
+            for action, allowed in actions.items()])
         db.commit()
-    ensure_matrix_seeded(db, default_matrix)
 
 
 # ── SoD Rules CRUD ────────────────────────────────────────────────────────────
@@ -383,6 +422,10 @@ def update_sod_rule_db(db: Session, rule, payload: dict) -> None:
                 v = json.dumps(v or [])
             if k == "mitigated_by_workflow_id":
                 v = v or None
+            if k == "description":
+                # Migración 200: un texto escrito a mano deja de ser el de serie.
+                rule.texto_clave = None
+                rule.texto_params = None
             setattr(rule, k, v)
     db.commit()
 
@@ -453,10 +496,11 @@ def list_audit_log_db(
 
 def serialize_sod_rule(r) -> dict:
     import json as _json
+    from app.services.textos_guardados import pintar_campo as _pintar_campo
     return {
         "id": r.id, "module_a": r.module_a, "action_a": r.action_a,
         "module_b": r.module_b, "action_b": r.action_b,
-        "risk": r.risk, "description": r.description,
+        "risk": r.risk, "description": _pintar_campo(r, "description", clave="texto_clave", params="texto_params"),
         "is_active": r.is_active,
         "roles_conflict": _json.loads(r.roles_conflict or "[]"),
         "mitigated_by_workflow_id": r.mitigated_by_workflow_id,

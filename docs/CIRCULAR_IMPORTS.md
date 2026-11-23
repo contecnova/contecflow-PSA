@@ -1,5 +1,7 @@
 # Circular import policy
 
+> **Documento histórico (audit #110, revisado en 2026-07): no refleja necesariamente el código actual; fuente viva: el código de `app/` y las pruebas de arquitectura de `tests/`.**
+
 > Informe histórico (audit #110, revisado en la auditoría 2026-07); puede no reflejar el código actual.
 
 Audit #110 — inventory and architectural recommendations.

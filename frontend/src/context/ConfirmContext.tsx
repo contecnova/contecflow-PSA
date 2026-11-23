@@ -34,8 +34,9 @@ import {
   useRef,
 } from 'react'
 import type { ReactNode } from 'react'
-import { Button, Modal, Textarea } from '../components/ui'
-import { useAppT } from '../hooks/useAppT'
+import { Button, Input, Modal, Textarea } from '../components/ui'
+import { fijarPreguntaDeDescarte } from '../components/ui/useCambiosSinGuardar'
+import { useAppLang } from '../i18n/AppLangContext'
 import './ConfirmContext.estilos.css'
 
 export interface ConfirmOptions {
@@ -45,6 +46,8 @@ export interface ConfirmOptions {
   danger?: boolean
   /** Texto del botón de aceptar. */
   confirmLabel?: string
+  /** Texto del botón de cancelar (por defecto «Cancelar»). */
+  cancelLabel?: string
   /** Si se indica, el botón de aceptar no se habilita hasta teclear esta palabra. */
   palabraConfirmacion?: string
 }
@@ -62,6 +65,7 @@ export interface PromptOptions {
   /** 'password' oculta lo escrito (reautenticacion antes de cambiar el 2FA). */
   inputType?: 'text' | 'number' | 'password'
   confirmLabel?: string
+  cancelLabel?: string
   danger?: boolean
 }
 
@@ -146,6 +150,16 @@ export function ConfirmProvider({ children }: ConfirmProviderProps) {
     return () => { if (_ref === value) _ref = null }
   }, [value])
 
+  // Cambios sin guardar (kit, 23-11-2026): «¿Descartar los cambios?» usa este
+  // mismo diálogo. Los textos llegan ya traducidos (operador o portal).
+  useEffect(() => {
+    fijarPreguntaDeDescarte(textos => confirmarCtx({
+      title: textos.titulo, message: textos.mensaje, danger: true,
+      confirmLabel: textos.descartar, cancelLabel: textos.seguir,
+    }))
+    return () => fijarPreguntaDeDescarte(null)
+  }, [confirmarCtx])
+
   const cerrar = useCallback((resultado: boolean | string | null) => {
     const p = actual.current
     actual.current = null
@@ -174,7 +188,7 @@ function DialogoConfirmacion({ peticion, onResultado }: {
   peticion: Peticion
   onResultado: (r: boolean | string | null) => void
 }) {
-  const { t } = useAppT()
+  const { t } = useAppLang()
   const idCampo = useId()
   const idMensaje = useId()
   const { opts } = peticion
@@ -198,21 +212,15 @@ function DialogoConfirmacion({ peticion, onResultado }: {
     onResultado(peticion.tipo === 'confirm' ? true : texto)
   }
 
-  const estiloCampo = {
-    background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
-    borderRadius: 'var(--radius-md)', padding: '9px 13px',
-    color: 'var(--text-1)', fontSize: 'var(--text-base)',
-    fontFamily: 'var(--font-sans)', width: '100%',
-  } as const
-
   const palabra = peticion.tipo === 'confirm' ? peticion.opts.palabraConfirmacion : undefined
   const necesitaCampo = peticion.tipo === 'prompt' || Boolean(palabra)
   const etiquetaCampo = peticion.tipo === 'prompt'
     ? peticion.opts.label
-    : palabra ? `Escribe ${palabra} para confirmar` : undefined
+    : palabra ? t('confirm_modal.escribe_para_confirmar', { palabra }) : undefined
 
   return (
-    <Modal open onClose={cancelar} title={titulo} size="sm">
+    // Es una confirmación: no pregunta a su vez por cambios sin guardar.
+    <Modal open onClose={cancelar} title={titulo} size="sm" avisarSinGuardar={false}>
       <form
         onSubmit={e => { e.preventDefault(); aceptar() }}
         aria-describedby={idMensaje}
@@ -230,7 +238,7 @@ function DialogoConfirmacion({ peticion, onResultado }: {
             {peticion.tipo === 'prompt' && peticion.opts.multiline ? (
               <Textarea id={idCampo} aria-labelledby={etiquetaCampo ? `${idCampo}-etiqueta` : undefined} autoFocus rows={3} value={texto} placeholder={peticion.opts.placeholder} aria-label={etiquetaCampo ? undefined : (typeof opts.message === 'string' ? opts.message : titulo)} aria-required={peticion.opts.required || undefined} onChange={e => setTexto(e.target.value)} inputClassName="confirm-context-e6" />
             ) : (
-              <input
+              <Input
                 id={idCampo}
                 aria-labelledby={etiquetaCampo ? `${idCampo}-etiqueta` : undefined}
                 autoFocus
@@ -241,13 +249,12 @@ function DialogoConfirmacion({ peticion, onResultado }: {
                 aria-label={etiquetaCampo ? undefined : (typeof opts.message === 'string' ? opts.message : titulo)}
                 aria-required={(peticion.tipo === 'prompt' ? peticion.opts.required : true) || undefined}
                 onChange={e => setTexto(e.target.value)}
-                style={estiloCampo}
               />
             )}
           </div>
         )}
         <div className="u-actions-10">
-          <Button variant="secondary" onClick={cancelar}>{t('common.cancel')}</Button>
+          <Button variant="secondary" onClick={cancelar}>{opts.cancelLabel || t('common.cancel')}</Button>
           <Button type="submit" variant={danger ? 'danger' : 'primary'} disabled={!puedeAceptar}>
             {opts.confirmLabel || t('confirm_modal.default_title')}
           </Button>

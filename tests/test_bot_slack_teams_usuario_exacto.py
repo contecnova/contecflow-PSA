@@ -16,9 +16,15 @@ RUTA = "/api/v1/integrations-hub/slack/commands"
 
 
 def _slack(client, monkeypatch, texto, usuario):
+    """`usuario` es el ID de Slack; 23-11-2026 (A-SD7) se resuelve por ID con
+    `users.info`, que aqui se sustituye: el ID `admin` es el usuario admin."""
     monkeypatch.setattr(settings, "SLACK_SIGNING_SECRET", "sec-test", raising=False)
+    from app.api.v1.endpoints import integrations_hub
+    from app.models.user import User
+    monkeypatch.setattr(integrations_hub, "_usuario_del_comando_de_slack",
+                        lambda db, uid, team: db.query(User).filter(User.username == uid).first())
     from urllib.parse import urlencode
-    cuerpo = urlencode({"text": texto, "user_name": usuario}).encode()
+    cuerpo = urlencode({"text": texto, "user_id": usuario, "user_name": "suplantado"}).encode()
     ts = str(int(time.time()))
     return client.post(RUTA, data=cuerpo.decode(), headers={
         "Content-Type": "application/x-www-form-urlencoded", "X-Slack-Request-Timestamp": ts,

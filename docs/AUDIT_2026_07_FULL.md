@@ -1,5 +1,7 @@
 # Auditoría integral — Contecflow PSA (2026-07-31)
 
+> **Documento histórico (2026-07-31): no refleja necesariamente el código actual; fuente viva: el código, el `README.md` y los informes de `docs/auditoria/`.**
+
 > Informe histórico de 2026-07-31; puede no reflejar el código actual.
 
 Alcance: código, seguridad, arquitectura, funcionalidad y usabilidad.

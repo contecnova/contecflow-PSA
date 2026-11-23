@@ -25,13 +25,14 @@ import {
   AlertTriangle, Briefcase, Building2, CalendarOff, ChevronDown, ChevronRight, Clock, CornerDownRight,
   GitBranch, Info, Network, Pencil, Receipt, Search, ShieldCheck, Tag, UserRound,
 } from 'lucide-react'
-import { Button, Card, DataTable, EmptyState, IconButton, Modal, Pulsable, Section, Select, Spinner, Tabs, Input } from '../components/ui'
+import { Buscador, Button, Card, DataTable, EmptyState, IconButton, Modal, Pulsable, Section, Select, Spinner, Tabs, Input } from '../components/ui'
 import StatusBadge from '../components/ui/StatusBadge'
 import { extractErr } from '../utils/helpers'
 import { useAppT } from '../i18n/AppLangContext'
 import { STALE_LIVE_MS, STALE_SHORT_MS } from '../constants/timings'
 import './OrgChartPage.css'
 import { px } from '../utils/estilos'
+import { useListaDeUsuarios } from '../hooks/useListas'
 
 // ── Colores por rol ───────────────────────────────────────────────────────────
 const ROLE_COLOR: Record<string, string> = {
@@ -275,7 +276,7 @@ function ArbolTab({ nodes, allUsers, isAdmin }: {
       <div className="u-stack-14 u-min0">
         <Card>
           <Section title={<Titulo icon={<Search size={15} />}>{t('pagina_orgc.buscar_persona')}</Titulo>}>
-            <Input aria-label={t('pagina_orgc.buscar_persona_2')} value={search} onChange={e => setSearch(e.target.value)} placeholder={t('pagina_orgc.buscar_persona_2')} />
+            <Buscador aria-label={t('pagina_orgc.buscar_persona_2')} value={search} onChange={setSearch} placeholder={t('pagina_orgc.buscar_persona_2')} />
             {searchResults.length > 0 && (
               <div className="orgc-resultados">
                 {searchResults.map(u => (
@@ -378,8 +379,8 @@ function PosicionesTab({ allUsers, isAdmin }: { allUsers: OrgUser[]; isAdmin: bo
       {/* Filtros */}
       <Card>
         <div className="orgc-filtros">
-          <input aria-label={t('pagina_orgc.buscar_persona_2')} value={search} onChange={e => setSearch(e.target.value)}
-            placeholder={t('pagina_orgc.buscar_persona_2')} className="ds-input orgc-filtros__buscar" />
+          <Buscador aria-label={t('pagina_orgc.buscar_persona_2')} value={search} onChange={setSearch}
+            placeholder={t('pagina_orgc.buscar_persona_2')} className="orgc-filtros__buscar" />
           <Select suelto placeholder={false} value={filterDept} onChange={e => setFilterDept(e.target.value)} className="orgc-filtros__depto"
             aria-label={t('pagina_orgc.departamento')}>
             <option value="">{t('orgchart.todos_los_departamentos')}</option>
@@ -483,8 +484,8 @@ function AprobacionesTab({ allUsers }: { allUsers: OrgUser[] }) {
       {/* Selector de persona */}
       <Card>
         <Section title={<Titulo icon={<UserRound size={15} />}>{t('orgchart.ver_cadena_de_aprobacion')}</Titulo>}>
-          {puedeVerOtras && <input aria-label={t('pagina_orgc.buscar_persona_2')} value={search} onChange={e => setSearch(e.target.value)}
-            placeholder={t('pagina_orgc.buscar_persona_2')} className="ds-input orgc-aprob__buscar" />}
+          {puedeVerOtras && <Buscador aria-label={t('pagina_orgc.buscar_persona_2')} value={search} onChange={setSearch}
+            placeholder={t('pagina_orgc.buscar_persona_2')} inputClassName="orgc-aprob__buscar" />}
           <div className="orgc-aprob__personas">
             <Pulsable onClick={() => setSelectedUserId('')} aria-pressed={!selectedUserId}
               className={`orgc-persona${!selectedUserId ? ' orgc-persona--activa' : ''}`}>
@@ -612,11 +613,8 @@ export default function OrgChartPage() {
     staleTime: STALE_SHORT_MS,
   })
 
-  const { data: allUsers = [] } = useQuery<OrgUser[]>({
-    queryKey: ['users'],
-    queryFn: () => usersApi.list().then(r => r.data),
-    staleTime: STALE_SHORT_MS,
-  })
+  const { data: allUsersRaw = [] } = useListaDeUsuarios()
+  const allUsers = allUsersRaw as unknown as OrgUser[]
 
   const nodes: OrgUser[] = chartData?.nodes || []
 

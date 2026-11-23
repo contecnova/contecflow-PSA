@@ -4,6 +4,7 @@ from typing import Optional
 from pydantic import BaseModel, Field, field_validator
 
 from app.core.config import settings
+from app.schemas._enlaces import EnlaceSeguro  # auditoría 22-11-2026: solo http(s)
 
 
 def _vacio_es_ninguno(v):
@@ -30,7 +31,7 @@ class ExpenseIn(BaseModel):
     city: Optional[str] = Field(None, max_length=120, description="Ciudad donde se hizo el gasto")
     attendees: Optional[int] = Field(None, ge=1, le=1000, description="Asistentes (comidas; incluye a quien paga)")
     trip: Optional[str] = Field(None, max_length=120, description="Viaje al que pertenece el gasto")
-    receipt_url: Optional[str] = Field(None, description="URL del justificante adjunto")
+    receipt_url: EnlaceSeguro = Field(None, description="URL del justificante adjunto")
     status: Optional[str] = Field(None, description="Estado del gasto (draft, submitted, approved, rejected)")
     is_billable: Optional[bool] = Field(None, description="Indica si el gasto es facturable al cliente")
 

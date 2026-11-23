@@ -153,6 +153,16 @@ describe('hook único', () => {
     const conSelector = [
       'pages/ApprovalsPage.tsx', 'pages/WorkflowsPage.tsx', 'pages/DocumentsPage.tsx', 'pages/EnterprisePage.tsx',
       'pages/TeamDashboardPage.tsx', 'pages/SettingsPageSections.tsx', 'pages/ResourcesPage.tsx',
+      // Troceado de EnterprisePage (23-11-2026, auditoría M12).
+      ...['EnterpriseComun', 'EnterpriseWebhooksGdprEmail', 'EnterpriseIntegraciones', 'EnterpriseAuditoriaYClaves',
+        'EnterpriseSso'].map(n => `pages/${n}.tsx`),
+      // Troceado de ApprovalsPage, DocumentsPage y SettingsPageSections (23-11-2026, auditoría M12).
+      ...['aprobaciones/compartido', 'aprobaciones/PasosYDetalle', 'aprobaciones/MisPendientes', 'aprobaciones/Plantillas',
+        'aprobaciones/SimuladorYCuellos', 'aprobaciones/GruposYCarga', 'documentos/compartido', 'documentos/TarjetasDeDocumento',
+        'documentos/SubidaYCompartir', 'documentos/CajonDeDocumento', 'settings-sections/SeccionGeneral',
+        'settings-sections/SeccionUsuariosYRoles', 'settings-sections/SeccionAlertasYMetricas',
+        'settings-sections/SeccionOrganizacion', 'settings-sections/SeccionCamposDeEntidad',
+        'settings-sections/SeccionFirmaElectronica'].map(n => `pages/${n}.tsx`), 'pages/settings-sections/tiposDeAjustes.ts',
       'components/servicedesk/AnalisisDelCambio.tsx', 'context/AuthContext.tsx', 'constants/api.ts', 'utils/helpers.ts',
     ]
     for (const rel of conSelector) {

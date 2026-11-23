@@ -10,9 +10,7 @@ from typing import Optional
 from app.db.session import get_db
 from app.core.deps import (
     get_current_user,
-    require_admin,
-    require_any_manager,
-    require_internal_user,
+    requiere_capacidad,
 )
 from app.core.abac_enforce import enforce_abac
 from app.core.periodo import SEMANA, Periodo, periodo
@@ -44,7 +42,7 @@ def get_booking_conflicts(
     end_date: Optional[date] = None,  # barrido final 2026-11: era str + fromisoformat (500)
     threshold_pct: float = Query(100.0, ge=0, le=100),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("reservas.gestionar")),
 ):
     sd = start_date
     ed = end_date
@@ -56,7 +54,7 @@ def get_gantt_leveling(
     start_date: Optional[date] = None,  # barrido final 2026-11: era str + fromisoformat (500)
     end_date: Optional[date] = None,  # barrido final 2026-11: era str + fromisoformat (500)
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("reservas.gestionar")),
 ):
     sd = start_date
     ed = end_date
@@ -83,7 +81,7 @@ def list_bookings(
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=1000),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("reservas.gestionar")),
 ):
     items = svc.list_bookings_records(user_id, project_id, start_date, end_date,
                                       booking_type, current_user.organization_id, db,
@@ -96,7 +94,7 @@ def bookings_heatmap(weeks: Optional[int] = Query(None, ge=1, le=52, description
                      p: Periodo = Depends(periodo(dias_por_defecto=12 * 7, granularidades=(SEMANA,),
                                                   sentido="futuro")),
                      db: Session = Depends(get_db),
-                     current_user: User = Depends(require_any_manager)):
+                     current_user: User = Depends(requiere_capacidad("reservas.gestionar"))):
     """Mapa de reservas por persona y semana. Periodo libre (16-11-2026):
     horizonte hacia delante con ``desde``/``hasta`` (por semanas, máx. 52);
     sin ellos, las próximas ``weeks`` semanas como antes."""
@@ -109,20 +107,20 @@ def bookings_heatmap(weeks: Optional[int] = Query(None, ge=1, le=52, description
 
 @router.post("")
 def create_booking(payload: BookingCreate, db: Session = Depends(get_db),
-                   current_user: User = Depends(require_any_manager)):
+                   current_user: User = Depends(requiere_capacidad("reservas.gestionar"))):
     return APIResponse.ok(data=svc.create_booking_record(payload, current_user.id, db))
 
 
 @router.patch("/{booking_id}")
 def update_booking(booking_id: str, payload: BookingUpdate,
                    db: Session = Depends(get_db),
-                   current_user: User = Depends(require_any_manager)):
+                   current_user: User = Depends(requiere_capacidad("reservas.gestionar"))):
     return APIResponse.ok(data=svc.update_booking_record(booking_id, payload, db))
 
 
 @router.delete("/{booking_id}")
 def delete_booking(booking_id: str, db: Session = Depends(get_db),
-                   current_user: User = Depends(require_any_manager)):
+                   current_user: User = Depends(requiere_capacidad("reservas.gestionar"))):
     enforce_abac(db, current_user, "resource_booking", booking_id, action="delete")
     return APIResponse.ok(data=svc.delete_booking_record(booking_id, db))
 
@@ -142,13 +140,13 @@ def list_sla_schedules(
 
 @router.post("/sla-schedules")
 def create_sla_schedule(payload: SLAScheduleCreate, db: Session = Depends(get_db),
-                        current_user: User = Depends(require_admin)):
+                        current_user: User = Depends(requiere_capacidad("reservas.administrar"))):
     return APIResponse.ok(data=svc.create_sla_schedule_record(payload, db))
 
 
 @router.post("/sla-schedules/calculate-deadline")
 def calculate_sla_deadline(payload: dict = Body(...), db: Session = Depends(get_db),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: excepcion revisada: calcula una fecha
+    _rol: User = Depends(requiere_capacidad("reservas.usar")),  # auditoria 2026-09: excepcion revisada: calcula una fecha
                            current_user: User = Depends(get_current_user)):
     return APIResponse.ok(data=svc.calculate_sla_deadline_record(payload, db))
 
@@ -156,14 +154,14 @@ def calculate_sla_deadline(payload: dict = Body(...), db: Session = Depends(get_
 @router.post("/sla-schedules/{schedule_id}/holidays")
 def add_holidays(schedule_id: str, payload: dict = Body(...),
                  db: Session = Depends(get_db),
-                 current_user: User = Depends(require_admin)):
+                 current_user: User = Depends(requiere_capacidad("reservas.administrar"))):
     return APIResponse.ok(data=svc.add_holidays_record(schedule_id, payload, db))
 
 
 @router.delete("/sla-schedules/{schedule_id}/holidays/{holiday_id}")
 def delete_holiday(schedule_id: str, holiday_id: str,
                    db: Session = Depends(get_db),
-                   current_user: User = Depends(require_admin)):
+                   current_user: User = Depends(requiere_capacidad("reservas.administrar"))):
     enforce_abac(db, current_user, "booking_sla_holiday", holiday_id, action="delete")
     return APIResponse.ok(data=svc.delete_holiday_record(schedule_id, holiday_id, db))
 
@@ -186,7 +184,7 @@ def list_api_keys(
 
 @router.post("/api-keys")
 def create_api_key(payload: ApiKeyCreate, db: Session = Depends(get_db),
-    _rol: User = Depends(require_any_manager),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
+    _rol: User = Depends(requiere_capacidad("reservas.gestionar")),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
                    current_user: User = Depends(get_current_user)):
     return APIResponse.ok(data=svc.create_api_key_record(payload, current_user.id, db))
 
@@ -209,7 +207,7 @@ def list_recurring(
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=MAX_TAMANO_DE_PAGINA),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("reservas.gestionar")),
 ):
     items = svc.list_recurring_records(db)
     return APIListResponse.ok(items=items, page=page, page_size=page_size)
@@ -217,26 +215,26 @@ def list_recurring(
 
 @router.post("/recurring")
 def create_recurring(payload: RecurringCreate, db: Session = Depends(get_db),
-                     current_user: User = Depends(require_any_manager)):
+                     current_user: User = Depends(requiere_capacidad("reservas.gestionar"))):
     return APIResponse.ok(data=svc.create_recurring_record(payload, current_user.id, db))
 
 
 @router.patch("/recurring/{rec_id}")
 def update_recurring(rec_id: str, payload: dict = Body(...),
                      db: Session = Depends(get_db),
-                     current_user: User = Depends(require_any_manager)):
+                     current_user: User = Depends(requiere_capacidad("reservas.gestionar"))):
     return APIResponse.ok(data=svc.update_recurring_record(rec_id, payload, db))
 
 
 @router.post("/recurring/process-due")
 def process_due_recurring(db: Session = Depends(get_db),
-                          current_user: User = Depends(require_admin)):
+                          current_user: User = Depends(requiere_capacidad("reservas.administrar"))):
     return APIResponse.ok(data=svc.process_due_recurring_records(db, current_user))
 
 
 @router.post("/recurring/{rec_id}/generate-now")
 def generate_recurring_now(rec_id: str, db: Session = Depends(get_db),
-                           current_user: User = Depends(require_any_manager)):
+                           current_user: User = Depends(requiere_capacidad("reservas.gestionar"))):
     return APIResponse.ok(data=svc.generate_recurring_now_record(rec_id, db, current_user))
 
 
@@ -245,13 +243,13 @@ def generate_recurring_now(rec_id: str, db: Session = Depends(get_db),
 @router.post("/pipeline/convert/{opportunity_id}")
 def convert_opportunity_to_project(opportunity_id: str, payload: dict = Body(default={}),
                                    db: Session = Depends(get_db),
-                                   current_user: User = Depends(require_any_manager)):
+                                   current_user: User = Depends(requiere_capacidad("reservas.gestionar"))):
     return APIResponse.ok(data=svc.convert_opportunity_to_project_record(opportunity_id, payload, current_user, db))
 
 
 @router.get("/pipeline/revenue-forecast")
 def pipeline_revenue_forecast(db: Session = Depends(get_db),
-                              current_user: User = Depends(require_any_manager)):
+                              current_user: User = Depends(requiere_capacidad("reservas.gestionar"))):
     return APIResponse.ok(data=svc.get_pipeline_revenue_forecast(db))
 
 
@@ -259,13 +257,13 @@ def pipeline_revenue_forecast(db: Session = Depends(get_db),
 
 @router.get("/itsm/aging")
 def ticket_aging_report(db: Session = Depends(get_db),
-                        current_user: User = Depends(require_any_manager)):
+                        current_user: User = Depends(requiere_capacidad("reservas.gestionar"))):
     return APIResponse.ok(data=svc.get_ticket_aging_report(db))
 
 
 @router.get("/itsm/wallboard")
 def get_wallboard(db: Session = Depends(get_db),
-                  current_user: User = Depends(require_any_manager)):
+                  current_user: User = Depends(requiere_capacidad("reservas.gestionar"))):
     return APIResponse.ok(data=svc.get_wallboard_data(db))
 
 
@@ -280,14 +278,14 @@ def get_wallboard(db: Session = Depends(get_db),
 
 @router.post("/workflows/enqueue")
 def enqueue_workflow(payload: dict = Body(...), db: Session = Depends(get_db),
-    _rol: User = Depends(require_any_manager),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
+    _rol: User = Depends(requiere_capacidad("reservas.gestionar")),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
                      current_user: User = Depends(get_current_user)):
     return APIResponse.ok(data=svc.enqueue_workflow_record(payload, current_user.id, db))
 
 
 @router.post("/workflows/process-queue")
 def process_workflow_queue(db: Session = Depends(get_db),
-                           current_user: User = Depends(require_admin)):
+                           current_user: User = Depends(requiere_capacidad("reservas.administrar"))):
     # Segunda auditoria 2026-11 (n.º 20): cada elemento puede mandar correos o
     # llamar webhooks; la pasada va al worker. Con cola: 202 `{status: "queued"}`.
     from app.core.segundo_plano import EN_COLA, encolar, respuesta_en_cola

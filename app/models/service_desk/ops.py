@@ -14,7 +14,7 @@ class ITSMMetricSnapshot(Base):
     __tablename__ = "sd_itsm_metric_snapshots"
 
     id                  = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     snapshot_at         = Column(DateTime(timezone=True), nullable=False, index=True)
     period_hours        = Column(Integer, default=24)
     tickets_total       = Column(Integer, default=0)
@@ -31,7 +31,7 @@ class ComplianceReport(Base):
     __tablename__ = "sd_compliance_reports"
 
     id           = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     generated_at = Column(DateTime(timezone=True), nullable=False, index=True)
     period_days  = Column(Integer, default=30)
     overall_score = Column(Integer, default=0)   # 0-100
@@ -43,7 +43,7 @@ class StatusPageComponent(Base):
     __tablename__ = "sd_status_components"
 
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     name        = Column(String(255), nullable=False)
     description = Column(String(500), nullable=True)
     group_name  = Column(String(100), nullable=True)     # agrupación (ej: "API", "Frontend")
@@ -52,7 +52,7 @@ class StatusPageComponent(Base):
     is_public   = Column(Boolean, default=True)
 
     # Vínculo con CI (sincroniza el estado automáticamente)
-    ci_id       = Column(String(36), ForeignKey("sd_configuration_items.id"), nullable=True, index=True)
+    ci_id       = Column(String(36), ForeignKey("sd_configuration_items.id", ondelete="SET NULL"), nullable=True, index=True)
 
     uptime_30d_pct = Column(Float, nullable=True)        # calculado periódicamente
     created_at  = Column(DateTime(timezone=True), server_default=func.now())
@@ -67,7 +67,7 @@ class StatusPageIncident(Base):
     __tablename__ = "sd_status_incidents"
 
     id           = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     component_id = Column(String(36), ForeignKey("sd_status_components.id", ondelete="CASCADE"), nullable=False, index=True)
     title        = Column(String(500), nullable=False)
     # JSON: [{time, status, message}] — timeline de actualizaciones
@@ -78,7 +78,7 @@ class StatusPageIncident(Base):
     resolved_at  = Column(DateTime(timezone=True), nullable=True)
 
     # Ticket ITSM vinculado
-    ticket_id    = Column(String(36), ForeignKey("sd_tickets.id"), nullable=True, index=True)
+    ticket_id    = Column(String(36), ForeignKey("sd_tickets.id", ondelete="SET NULL"), nullable=True, index=True)
 
     component = relationship("StatusPageComponent", back_populates="incidents")
     ticket    = relationship("Ticket")
@@ -94,7 +94,7 @@ class MonitoringAlert(Base):
     __tablename__ = "sd_monitoring_alerts"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
     source = Column(String(50), nullable=False)
     dedupe_key = Column(String(255), nullable=False, index=True)
     status = Column(String(20), default="firing", nullable=False, index=True)  # firing | resolved

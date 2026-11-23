@@ -42,8 +42,12 @@ def _next_wo_code(db: Session) -> str:
 
 
 def scope_contract_query(q, db: Session, current_user: User):
-    if current_user.is_superadmin or not current_user.organization_id:
+    if current_user.is_superadmin:
         return q
+    if not current_user.organization_id:
+        # Auditoría 22-11-2026 (A25): sin empresa, ningún contrato (antes, todos).
+        from sqlalchemy import false
+        return q.filter(false())
     return q.join(Project, Project.id == Contract.project_id).filter(
         Project.organization_id == current_user.organization_id
     )
@@ -79,7 +83,7 @@ def update_contract(db: Session, c: Contract, updates: dict) -> Contract:
     # Solo permitir campos válidos
     allowed_fields = {
         "name", "status", "total_amount", "hourly_rate", "hours_bag", "monthly_retainer",
-        "end_date", "signed_date", "payment_terms", "notes"
+        "end_date", "signed_date", "payment_terms", "notes", "currency",
     }
     # Controlar transiciones de estado
     allowed_status_transitions = {
@@ -198,6 +202,15 @@ def horas_usadas(db: Session, contratos) -> dict:
     return salida
 
 
+def moneda_del_contrato(c, db=None) -> str:
+    """`contracts.currency` (migracion 200) o, si no tiene, la moneda de su empresa."""
+    if getattr(c, "currency", None):
+        return str(c.currency).upper()
+    from sqlalchemy.orm import object_session
+    from app.services.settings_service.por_empresa import moneda_de_empresa
+    return moneda_de_empresa(db or object_session(c), getattr(c, "organization_id", None))
+
+
 def serialize_contract(c, horas: Optional[float] = None) -> dict:
     usadas = horas if horas is not None else (c.hours_used or 0)
     hours_pct = None
@@ -211,6 +224,8 @@ def serialize_contract(c, horas: Optional[float] = None) -> dict:
         "contract_type_label": CONTRACT_TYPE_LABELS.get(c.contract_type, c.contract_type),
         "status": c.status,
         "total_amount": c.total_amount,
+        # Migracion 200: moneda del contrato; sin ella, la de la empresa.
+        "currency": moneda_del_contrato(c),
         "hourly_rate": c.hourly_rate,
         "hours_bag": c.hours_bag,
         "hours_used": usadas,

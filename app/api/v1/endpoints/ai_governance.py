@@ -25,10 +25,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_current_user, get_db, require_admin
+from app.core.deps import get_current_user, get_db, requiere_capacidad
 from app.core.periodo import CON_HORA, Periodo, periodo
 from app.core.responses import APIListResponse, APIResponse
-from app.core.security import verify_admin_or_governance_role
 from app.models.user import User
 from app.core.abac_enforce import enforce_abac
 from app.services.ai_governance import (
@@ -46,18 +45,9 @@ from app.core.constantes import MAX_TAMANO_DE_PAGINA
 from app.core.codigos_de_error import error_http
 
 
-def _permiso_de_gobierno(current_user: User = Depends(get_current_user)) -> User:
-    """El permiso, como dependencia que va ANTES del periodo (16-11-2026).
-
-    FastAPI resuelve las dependencias en el orden de la firma y la del periodo
-    valida (y responde 422 ``periodo.<motivo>``) al resolverse: con la
-    comprobación dentro del cuerpo, un usuario sin permiso que mandaba un
-    periodo mal formado recibía 422 en vez de 403 y sabía que la ruta existe y
-    qué acepta. Declarada la primera, el 403 sale antes que cualquier 422 (los
-    errores de validación de la query solo se devuelven al final).
-    """
-    verify_admin_or_governance_role(current_user)
-    return current_user
+# Auditoría 22-11-2026 (M9): `_permiso_de_gobierno` (guarda a mano: admin o superadmin)
+# pasa a la capacidad `ia.administrar` (mismos roles), en la firma y LA PRIMERA,
+# para que el 403 salga antes que el 422 del periodo (16-11-2026).
 
 router = APIRouter(tags=["AI Governance"])
 
@@ -148,9 +138,8 @@ def create_policy(
     body: PolicyIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: politicas y guardrails de IA
+    _rol: User = Depends(requiere_capacidad("ia.administrar")),  # auditoria 2026-09: sensible: politicas y guardrails de IA
 ):
-    verify_admin_or_governance_role(current_user)
     _validate_policy(body)
     policy = svc_create_policy(
         db,
@@ -176,9 +165,8 @@ def create_policy(
 def list_policies(
     active_only: bool = Query(False),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(requiere_capacidad("ia.administrar")),
 ):
-    verify_admin_or_governance_role(current_user)
     policies = svc_list_policies(db, org_id=_org(current_user), active_only=active_only)
     items = [PolicyOut.model_validate(p) for p in policies]
     return APIListResponse.ok(items=items, total=len(items))
@@ -188,9 +176,8 @@ def list_policies(
 def get_policy(
     policy_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(requiere_capacidad("ia.administrar")),
 ):
-    verify_admin_or_governance_role(current_user)
     p = svc_get_policy(db, policy_id=policy_id, org_id=_org(current_user))
     if not p:
         raise error_http(404, "no_encontrado", detail="Policy not found", que="politica")
@@ -203,9 +190,8 @@ def update_policy(
     body: PolicyUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: politicas y guardrails de IA
+    _rol: User = Depends(requiere_capacidad("ia.administrar")),  # auditoria 2026-09: sensible: politicas y guardrails de IA
 ):
-    verify_admin_or_governance_role(current_user)
     p = svc_get_policy(db, policy_id=policy_id, org_id=_org(current_user))
     if not p:
         raise error_http(404, "no_encontrado", detail="Policy not found", que="politica")
@@ -218,9 +204,8 @@ def deactivate_policy(
     policy_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: politicas y guardrails de IA
+    _rol: User = Depends(requiere_capacidad("ia.administrar")),  # auditoria 2026-09: sensible: politicas y guardrails de IA
 ):
-    verify_admin_or_governance_role(current_user)
     enforce_abac(db, current_user, "ai_governance_policy", policy_id, action="delete")
     p = svc_get_policy(db, policy_id=policy_id, org_id=_org(current_user))
     if not p:
@@ -233,7 +218,7 @@ def deactivate_policy(
 
 @router.get("/audit-log", response_model=APIListResponse[Dict[str, Any]])
 def get_audit_log(
-    _permiso: User = Depends(_permiso_de_gobierno),
+    _permiso: User = Depends(requiere_capacidad("ia.administrar")),
     module:       Optional[str] = Query(None),
     scope:        Optional[str] = Query(None),
     action_taken: Optional[str] = Query(None),
@@ -246,7 +231,6 @@ def get_audit_log(
     db: Session        = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    verify_admin_or_governance_role(current_user)
     total, items = svc_get_audit_log(
         db, org_id=_org(current_user), since=p.desde, until=p.hasta,
         module=module, scope=scope, action_taken=action_taken,
@@ -263,13 +247,12 @@ def get_audit_log(
 
 @router.get("/audit-log/stats", summary="PII detection & blocking statistics")
 def audit_stats(
-    _permiso: User = Depends(_permiso_de_gobierno),
+    _permiso: User = Depends(requiere_capacidad("ia.administrar")),
     p: Periodo = Depends(periodo(dias_por_defecto=30, granularidades=CON_HORA, serie=False,
                                  dias_alias_max=365)),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    verify_admin_or_governance_role(current_user)
     stats = svc_get_audit_stats(db, org_id=_org(current_user), since=p.desde, until=p.hasta)
     total = stats["total"]
     return APIResponse.ok(data={
@@ -292,9 +275,8 @@ def test_prompt(
     body: CheckRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: politicas y guardrails de IA
+    _rol: User = Depends(requiere_capacidad("ia.administrar")),  # auditoria 2026-09: sensible: politicas y guardrails de IA
 ):
-    verify_admin_or_governance_role(current_user)
     result = check_prompt(body.text, current_user, body.module, db)
     return APIResponse.ok(data={
         "allowed":      result.allowed,
@@ -311,9 +293,8 @@ def test_output(
     body: CheckRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: politicas y guardrails de IA
+    _rol: User = Depends(requiere_capacidad("ia.administrar")),  # auditoria 2026-09: sensible: politicas y guardrails de IA
 ):
-    verify_admin_or_governance_role(current_user)
     result = check_output(body.text, current_user, body.module, db)
     return APIResponse.ok(data={
         "allowed":      result.allowed,

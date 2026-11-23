@@ -52,7 +52,7 @@ from fastapi import Depends, Request
 from fastapi.security import HTTPAuthorizationCredentials
 from starlette.requests import HTTPConnection
 
-from app.core.credenciales_opcionales import credenciales_opcionales, es_websocket
+from app.core.credenciales_opcionales import credenciales_opcionales, es_websocket, ruta_resuelve_usuario
 from sqlalchemy.orm import Session
 
 from app.core.codigos_de_error import error_http
@@ -78,9 +78,9 @@ def _resolve_user(request: Request, credentials, db: Session):
     token = credentials.credentials if credentials else request.cookies.get("access_token")
     if not token:
         return None
-    from app.core.security import decode_token
+    from app.core.security import decode_token_de_peticion
 
-    payload = decode_token(token)
+    payload = decode_token_de_peticion(request, token)
     if not payload or payload.get("type") != "access":
         return None
     user_id = payload.get("sub")
@@ -142,11 +142,42 @@ def enforce_grc_matrix(
     if accion is None:
         return
 
-    user = _resolve_user(request, credentials, db)
+    if ruta_resuelve_usuario(request):
+        # Auditoría 22-11-2026 (A2): la decide `get_current_user` con el
+        # principal completo (también clave de API y token OAuth) y la empresa
+        # activa (`aplicar_a_principal`).
+        return
+
+    from app.db.contexto_de_tenant import contexto_de_sistema
+    with contexto_de_sistema(db, "identidad"):
+        user = _resolve_user(request, credentials, db)
     if user is None:
         return  # sin usuario: la guarda del endpoint decide
 
-    decision = decidir(db, user, modulo, accion, getattr(request.state, "grc_org", None) or user.organization_id)
+    _denegar_si_prohibe(request, decidir(db, user, modulo, accion,
+                                         getattr(request.state, "grc_org", None) or user.organization_id))
+
+
+def aplicar_a_principal(db: Session, user, request) -> None:
+    """La matriz GRC sobre el principal ya resuelto y la empresa ACTIVA de la sesión.
+
+    Auditoría 22-11-2026 (A2): la llama `get_current_user` (sesión, clave de API
+    y token OAuth) después de publicar la empresa.
+    """
+    if request is None or es_websocket(request):
+        return
+    modulo = module_for_path(request.url.path)
+    if modulo is None:
+        return
+    accion = action_for(request.method, request.url.path)
+    if accion is None:
+        return
+    org = db.info.get("organization_id") or getattr(user, "organization_id", None)
+    _denegar_si_prohibe(request, decidir(db, user, modulo, accion, org))
+
+
+def _denegar_si_prohibe(request, decision: dict) -> None:
+    modulo, accion = decision["module"], decision["action"]
     if decision["denied"]:
         rol = decision["role"]
         logger.info(

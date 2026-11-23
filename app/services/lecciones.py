@@ -123,52 +123,50 @@ def _horas(a, b) -> Optional[float]:
     return round((b - a).total_seconds() / 3600, 1)
 
 
-def _h(etiqueta: str, valor: Any) -> Optional[dict]:
+def _h(clave: str, valor: Any) -> Optional[dict]:
+    """Un hecho medido. `clave` es la de `textos_de_salida` (`leccion.hecho.*`); `hechos_de` pone
+    la `etiqueta` en el idioma de quien mira (23-11-2026: antes castellano fijo en el código)."""
     if valor is None or valor == "" or valor == []:
         return None
-    return {"etiqueta": etiqueta, "valor": valor}
+    return {"clave": clave, "etiqueta": clave, "valor": valor}
 
 
 def _hechos_proyecto(db: Session, usuario, id_: str) -> dict:
-    from app.models.imputation import Imputation
     from app.models.pipeline import Risk
     from app.models.resources import ChangeRequest
     from app.models.sprints import Sprint
-    from app.models.user import User
+    from app.services.margen_de_proyectos import margen_en_bloque
     from app.services.project_service import get_project_scoped_or_404
     p = get_project_scoped_or_404(db, id_, usuario)
-    horas, coste = 0.0, 0.0
-    tarifas = dict(db.query(User.id, User.hourly_rate).all())
-    for i in db.query(Imputation).filter(Imputation.project_id == p.id).all():
-        horas += float(i.hours or 0)
-        if i.cost_amount is not None:
-            coste += float(i.cost_amount)
-        else:
-            coste += float(i.hours or 0) * float(i.hourly_rate_snapshot or tarifas.get(i.user_id) or 0)
+    # M105 (auditoría 22-11-2026): horas y coste del cálculo único (solo
+    # imputaciones activas, convertido, con gastos, subcontrata y ALM); antes
+    # recorría la tabla entera de personas y contaba las borradas.
+    cifras = margen_en_bloque(db, [p])[p.id]
+    horas, coste = float(cifras["hours"]), float(cifras["total_cost"])
     cambios = db.query(ChangeRequest).filter(ChangeRequest.project_id == p.id).all()
     riesgos = db.query(Risk).filter(Risk.project_id == p.id).all()
     materializados = [r.title for r in riesgos if getattr(r.status, "value", r.status) == "materialized"]
     retros = [s for s in db.query(Sprint).filter(Sprint.project_id == p.id).all() if s.to_improve or s.went_well]
     fin = p.end_date_real
     hechos = [
-        _h("Estado", getattr(p.status, "value", p.status)),
-        _h("Inicio", p.start_date and p.start_date.isoformat()),
-        _h("Fin previsto", p.end_date_planned and p.end_date_planned.isoformat()),
-        _h("Fin real", fin and fin.isoformat()),
-        _h("Desvío de plazo (días)", _dias(p.end_date_planned, fin)),
-        _h("Horas presupuestadas", p.budget_hours),
-        _h("Horas imputadas", round(horas, 1)),
-        _h("Desvío de horas (%)", round((horas - p.budget_hours) / p.budget_hours * 100, 1) if p.budget_hours else None),
-        _h("Presupuesto", p.budget_amount),
-        _h("Coste imputado", round(coste, 2)),
-        _h("Desvío de coste (%)", round((coste - p.budget_amount) / p.budget_amount * 100, 1) if p.budget_amount else None),
-        _h("Solicitudes de cambio", len(cambios) or None),
-        _h("Coste de los cambios", round(sum(float(c.cost_impact or 0) for c in cambios), 2) or None),
-        _h("Días añadidos por cambios", sum(int(c.schedule_impact_days or 0) for c in cambios) or None),
-        _h("Riesgos identificados", len(riesgos) or None),
-        _h("Riesgos materializados", materializados),
-        _h("Qué mejorar (retrospectivas)", [s.to_improve for s in retros if s.to_improve]),
-        _h("Qué salió bien (retrospectivas)", [s.went_well for s in retros if s.went_well]),
+        _h("leccion.hecho.estado", getattr(p.status, "value", p.status)),
+        _h("leccion.hecho.inicio", p.start_date and p.start_date.isoformat()),
+        _h("leccion.hecho.fin_previsto", p.end_date_planned and p.end_date_planned.isoformat()),
+        _h("leccion.hecho.fin_real", fin and fin.isoformat()),
+        _h("leccion.hecho.desvio_plazo", _dias(p.end_date_planned, fin)),
+        _h("leccion.hecho.horas_presupuestadas", p.budget_hours),
+        _h("leccion.hecho.horas_imputadas", round(horas, 1)),
+        _h("leccion.hecho.desvio_horas", round((horas - p.budget_hours) / p.budget_hours * 100, 1) if p.budget_hours else None),
+        _h("leccion.hecho.presupuesto", p.budget_amount),
+        _h("leccion.hecho.coste_imputado", round(coste, 2)),
+        _h("leccion.hecho.desvio_coste", round((coste - p.budget_amount) / p.budget_amount * 100, 1) if p.budget_amount else None),
+        _h("leccion.hecho.solicitudes_cambio", len(cambios) or None),
+        _h("leccion.hecho.coste_cambios", round(sum(float(c.cost_impact or 0) for c in cambios), 2) or None),
+        _h("leccion.hecho.dias_cambios", sum(int(c.schedule_impact_days or 0) for c in cambios) or None),
+        _h("leccion.hecho.riesgos_identificados", len(riesgos) or None),
+        _h("leccion.hecho.riesgos_materializados", materializados),
+        _h("leccion.hecho.mejorar_retros", [s.to_improve for s in retros if s.to_improve]),
+        _h("leccion.hecho.bien_retros", [s.went_well for s in retros if s.went_well]),
     ]
     return {"ref": p.code, "titulo": p.name, "texto": f"{p.name}. {p.description or ''}",
             "ambito": {"proyecto_id": p.id, "cliente_id": p.client_id,
@@ -181,12 +179,12 @@ def _hechos_ticket(db: Session, usuario, id_: str) -> dict:
     t = get_scoped_ticket_or_404(db, usuario, id_)
     fin = t.resolved_at or t.closed_at
     hechos = [
-        _h("Tipo", getattr(t.ticket_type, "value", t.ticket_type)),
-        _h("Prioridad", getattr(t.priority, "value", t.priority)),
-        _h("Estado", getattr(t.status, "value", t.status)),
-        _h("Horas hasta resolver", _horas(t.created_at, fin)),
-        _h("SLA de resolución incumplido", True if t.sla_resolution_breached else None),
-        _h("Resolución", t.resolution),
+        _h("leccion.hecho.tipo", getattr(t.ticket_type, "value", t.ticket_type)),
+        _h("leccion.hecho.prioridad", getattr(t.priority, "value", t.priority)),
+        _h("leccion.hecho.estado", getattr(t.status, "value", t.status)),
+        _h("leccion.hecho.horas_resolver", _horas(t.created_at, fin)),
+        _h("leccion.hecho.sla_incumplido", True if t.sla_resolution_breached else None),
+        _h("leccion.hecho.resolucion", t.resolution),
     ]
     cliente = t.client_id
     if not cliente and t.project_id:
@@ -207,12 +205,12 @@ def _hechos_problema(db: Session, usuario, id_: str) -> dict:
         raise error(404, "no_encontrado", detail="Problema no encontrado", que="problema")
     tickets = db.query(func.count(Ticket.id)).filter(Ticket.problem_id == p.id).scalar() or 0
     hechos = [
-        _h("Estado", getattr(p.status, "value", p.status)),
-        _h("Tipo de causa", p.rca_type),
-        _h("Causa raíz", p.root_cause),
-        _h("Solución temporal", p.workaround),
-        _h("Solución definitiva", p.fix_description),
-        _h("Tickets vinculados", tickets or None),
+        _h("leccion.hecho.estado", getattr(p.status, "value", p.status)),
+        _h("leccion.hecho.tipo_causa", p.rca_type),
+        _h("leccion.hecho.causa_raiz", p.root_cause),
+        _h("leccion.hecho.solucion_temporal", p.workaround),
+        _h("leccion.hecho.solucion_definitiva", p.fix_description),
+        _h("leccion.hecho.tickets_vinculados", tickets or None),
     ]
     return {"ref": p.number, "titulo": p.title, "texto": f"{p.title}. {p.description or ''} {p.root_cause or ''}",
             "ambito": {"ci_id": getattr(p, "ci_id", None)}, "hechos": [x for x in hechos if x]}
@@ -221,17 +219,23 @@ def _hechos_problema(db: Session, usuario, id_: str) -> dict:
 def _hechos_incidente_grave(db: Session, usuario, id_: str) -> dict:
     from app.models.service_desk.problems import MajorIncident
     from app.models.service_desk.tickets import Ticket
-    m = db.query(MajorIncident).filter(MajorIncident.id == id_).first()
+    from app.services.service_desk.scoping import empresa_activa
+    # Auditoría 22-11-2026 (baja + A31): con alcance (empresa activa) y solo
+    # para quien trabaja en el centro de servicio (no empleados ni externos).
+    q = db.query(MajorIncident).filter(MajorIncident.id == id_)
+    if not getattr(usuario, "is_superadmin", False):
+        q = q.filter(MajorIncident.organization_id == empresa_activa(usuario))
+    m = q.first() if _rol(usuario) not in _ROLES_SIN_SERVICE_DESK else None
     if m is None:
         raise error(404, "no_encontrado", detail="Incidente grave no encontrado", que="incidente_grave")
     tickets = db.query(func.count(Ticket.id)).filter(Ticket.major_incident_id == m.id).scalar() or 0
     hechos = [
-        _h("Severidad", m.severity),
-        _h("Estado", getattr(m.status, "value", m.status)),
-        _h("Horas hasta resolver", _horas(m.declared_at, m.resolved_at)),
-        _h("Impacto", m.impact_statement),
-        _h("Resolución", m.resolution_summary),
-        _h("Tickets afectados", tickets or None),
+        _h("leccion.hecho.severidad", m.severity),
+        _h("leccion.hecho.estado", getattr(m.status, "value", m.status)),
+        _h("leccion.hecho.horas_resolver", _horas(m.declared_at, m.resolved_at)),
+        _h("leccion.hecho.impacto", m.impact_statement),
+        _h("leccion.hecho.resolucion", m.resolution_summary),
+        _h("leccion.hecho.tickets_afectados", tickets or None),
     ]
     return {"ref": m.number, "titulo": m.title, "texto": f"{m.title}. {m.impact_statement or ''} {m.resolution_summary or ''}",
             "ambito": {}, "hechos": [x for x in hechos if x]}
@@ -245,13 +249,13 @@ def _hechos_sprint(db: Session, usuario, id_: str) -> dict:
         raise error(404, "no_encontrado", detail="Sprint no encontrado", que="sprint")
     p = get_project_scoped_or_404(db, s.project_id, usuario)
     hechos = [
-        _h("Proyecto", p.code),
-        _h("Puntos planificados", s.planned_points),
-        _h("Puntos completados", s.completed_points),
-        _h("Velocidad", s.velocity),
-        _h("Qué salió bien", s.went_well),
-        _h("Qué mejorar", s.to_improve),
-        _h("Acciones acordadas", s.action_items),
+        _h("leccion.hecho.proyecto", p.code),
+        _h("leccion.hecho.puntos_planificados", s.planned_points),
+        _h("leccion.hecho.puntos_completados", s.completed_points),
+        _h("leccion.hecho.velocidad", s.velocity),
+        _h("leccion.hecho.bien", s.went_well),
+        _h("leccion.hecho.mejorar", s.to_improve),
+        _h("leccion.hecho.acciones_acordadas", s.action_items),
     ]
     return {"ref": f"{p.code} · {s.name}", "titulo": s.name, "texto": f"{s.name}. {s.to_improve or ''} {s.went_well or ''}",
             "ambito": {"proyecto_id": p.id, "cliente_id": p.client_id,
@@ -268,13 +272,13 @@ def _hechos_incidente_seguridad(db: Session, usuario, id_: str) -> dict:
     if i is None:
         raise error(404, "no_encontrado", detail="Incidente de seguridad no encontrado", que="incidente_de_seguridad")
     hechos = [
-        _h("Severidad", i.severity),
-        _h("Estado", i.status),
-        _h("Minutos hasta detectar", round(i.mttd_seconds / 60) if i.mttd_seconds else None),
-        _h("Minutos hasta resolver", round(i.mttr_seconds / 60) if i.mttr_seconds else None),
-        _h("Causa raíz", i.root_cause),
-        _h("Remedio", i.remediation_note),
-        _h("Lecciones anotadas en el incidente", i.lessons_learned),
+        _h("leccion.hecho.severidad", i.severity),
+        _h("leccion.hecho.estado", i.status),
+        _h("leccion.hecho.minutos_detectar", round(i.mttd_seconds / 60) if i.mttd_seconds else None),
+        _h("leccion.hecho.minutos_resolver", round(i.mttr_seconds / 60) if i.mttr_seconds else None),
+        _h("leccion.hecho.causa_raiz", i.root_cause),
+        _h("leccion.hecho.remedio", i.remediation_note),
+        _h("leccion.hecho.lecciones_anotadas", i.lessons_learned),
     ]
     return {"ref": f"SEC-{i.id[:8]}", "titulo": i.title, "texto": f"{i.title}. {i.root_cause or ''} {i.lessons_learned or ''}",
             "ambito": {}, "hechos": [x for x in hechos if x]}
@@ -288,7 +292,14 @@ _HECHOS = {"project": _hechos_proyecto, "ticket": _hechos_ticket, "problem": _he
 def hechos_de(db: Session, usuario, origen_tipo: str, origen_id: str) -> dict:
     if origen_tipo not in _HECHOS:
         raise error(400, "valor_no_valido", detail=f"Origen desconocido: {origen_tipo}", valor=origen_tipo)
-    return _HECHOS[origen_tipo](db, usuario, origen_id)
+    from app.services.formato_regional import idioma_de_salida
+    from app.services.textos_de_salida import texto
+    salida = _HECHOS[origen_tipo](db, usuario, origen_id)
+    idioma = idioma_de_salida(db, user_id=getattr(usuario, "id", None),
+                              org_id=getattr(usuario, "organization_id", None))
+    for h in salida.get("hechos", []):
+        h["etiqueta"] = texto(h["clave"], idioma)
+    return salida
 
 
 # ── Borrador ──────────────────────────────────────────────────────────────────
@@ -325,10 +336,12 @@ def borrador(db: Session, usuario, origen_tipo: str, origen_id: str) -> dict:
     base = {"titulo": f"{h['ref']}: {h['titulo']}"[:300], "tipo": "evitar", "categoria": cats[0] if cats else "",
             "severidad": "media", "que_paso": _resumen(h), "causa": "", "impacto": "", "recomendacion": "",
             "etiquetas": h["ambito"].get("etiquetas") or ""}
+    from app.services.textos_de_salida import texto as _tx
+    _id = _idioma_de(db, usuario)
     salida = {"origen_tipo": origen_tipo, "origen_id": origen_id, "origen_ref": h["ref"], "hechos": h["hechos"],
               "ambito": h["ambito"], "propuesta": base, "ia": False, "aviso": None}
     if not _aj(db, "LESSONS_AI_DRAFT_ENABLED", usuario.organization_id, "bool"):
-        salida["aviso"] = "Borrador con IA desactivado (LESSONS_AI_DRAFT_ENABLED)"
+        salida["aviso"] = _tx("leccion.aviso_ia_desactivada", _id)
         return salida
     from app.services.ai_provider_service import call_ai, es_aviso_de_ia
     try:
@@ -338,15 +351,14 @@ def borrador(db: Session, usuario, origen_tipo: str, origen_id: str) -> dict:
                         max_tokens=int(_aj(db, "LESSONS_AI_MAX_TOKENS", usuario.organization_id, "int")))
     except Exception as e:   # presupuesto agotado, proveedor caído…: se sigue sin IA y se dice
         logger.warning("lecciones: borrador sin IA (%s)", e)
-        salida["aviso"] = f"La IA no ha podido proponer: {e}"[:300]
+        salida["aviso"] = _tx("leccion.aviso_ia_fallo", _id, error=e)[:300]
         return salida
     if es_aviso_de_ia(texto):
         salida["aviso"] = texto[:300]
         return salida
     d = _json_de(texto)
     if not d:
-        salida["aviso"] = ("La IA no devolvió una propuesta legible (¿cortada por LESSONS_AI_MAX_TOKENS?); "
-                           "se deja el borrador con los hechos")
+        salida["aviso"] = _tx("leccion.aviso_ia_ilegible", _id)
         return salida
     prop = dict(base)
     for k in ("titulo", "que_paso", "causa", "impacto", "recomendacion"):
@@ -403,6 +415,14 @@ def _dict(db: Session, l: Leccion, usuario=None, detalle: bool = False) -> dict:
     d["usos"] = {v: int(usos.get(v, 0)) for v in VALORES_DE_USO}
     if detalle:
         d["hechos"] = json.loads(l.hechos) if l.hechos else []
+        # M105: la etiqueta de cada hecho se traduce al LEER por su clave (lo
+        # guardado es la clave; la etiqueta guardada era la del idioma del autor).
+        if usuario is not None:
+            from app.services.textos_de_salida import texto as _tx
+            idioma = _idioma_de(db, usuario)
+            for h in d["hechos"]:
+                if isinstance(h, dict) and h.get("clave"):
+                    h["etiqueta"] = _tx(h["clave"], idioma)
         d["acciones"] = [_accion_dict(a) for a in db.query(LeccionAccion).filter(LeccionAccion.leccion_id == l.id)
                          .order_by(LeccionAccion.created_at).all()]
         d["historial_usos"] = [{"valor": u.valor, "contexto_tipo": u.contexto_tipo, "contexto_id": u.contexto_id,
@@ -484,6 +504,10 @@ def cambiar_estado(db: Session, usuario, id_: str, estado: str) -> dict:
             raise error(403, "leccion_rol_no_valida", detail="Validar o archivar es de los roles de LESSONS_VALIDATOR_ROLES")
     elif not puede_editar(db, usuario, l):
         raise error(403, "leccion_sin_permiso")
+    # M104 (auditoría 22-11-2026): cuatro ojos. Quien escribió la lección no la
+    # valida (estándar de las bases de conocimiento con revisión).
+    if estado == "validada" and l.autor_id == usuario.id:
+        raise error(403, "leccion_autovalidacion")
     antes = l.estado
     l.estado = estado
     if estado == "validada":
@@ -504,13 +528,48 @@ def borrar(db: Session, usuario, id_: str) -> None:
 
 
 def detalle(db: Session, usuario, id_: str) -> dict:
-    return _dict(db, _cargar(db, id_), usuario, detalle=True)
+    l = _cargar(db, id_)
+    if not _puede_ver(db, usuario, l):
+        raise error(404, "no_encontrado", detail="Lección no encontrada", que="leccion")
+    return _dict(db, l, usuario, detalle=True)
+
+
+# ── Visibilidad por origen (auditoría 22-11-2026, A31) ────────────────────────
+#
+# Decisión (estándar de mercado de las bases de lecciones aprendidas de PSA e
+# ITSM: una lección hereda la confidencialidad de su origen hasta que se valida
+# y pasa a ser conocimiento de la empresa):
+#   · admin y los roles validadores (LESSONS_VALIDATOR_ROLES): todas;
+#   · las de un incidente de SEGURIDAD: solo admin (en cualquier estado);
+#   · las VALIDADAS (no de seguridad): cualquiera con acceso al módulo;
+#   · las no validadas: su autor y, según el origen, quien puede ver ese
+#     origen: proyecto/sprint → quien no es empleado raso ni externo (los
+#     empleados y externos ven solo lo validado o lo suyo); ticket, problema e
+#     incidente grave → quien trabaja en el centro de servicio (mismos roles).
+_ROLES_SIN_SERVICE_DESK = ("employee", "subcontractor")
+
+
+def _filtro_visibles(qry, db: Session, usuario):
+    from sqlalchemy import and_, or_
+    if getattr(usuario, "is_superadmin", False):
+        return qry
+    rol = _rol(usuario)
+    if rol == "admin":
+        return qry
+    no_seguridad = Leccion.origen_tipo != "security_incident"
+    if puede_validar(db, usuario) or rol not in _ROLES_SIN_SERVICE_DESK:
+        return qry.filter(no_seguridad)
+    return qry.filter(or_(and_(Leccion.estado == "validada", no_seguridad), Leccion.autor_id == usuario.id))
+
+
+def _puede_ver(db: Session, usuario, l: Leccion) -> bool:
+    return _filtro_visibles(db.query(Leccion.id).filter(Leccion.id == l.id), db, usuario).first() is not None
 
 
 def listar(db: Session, usuario, *, q: Optional[str] = None, estado: Optional[str] = None, tipo: Optional[str] = None,
            categoria: Optional[str] = None, origen_tipo: Optional[str] = None, proyecto_id: Optional[str] = None,
            cliente_id: Optional[str] = None, etiqueta: Optional[str] = None, page: int = 1, page_size: int = 50) -> dict:
-    qry = db.query(Leccion)
+    qry = _filtro_visibles(db.query(Leccion), db, usuario)   # A31: alcance del origen
     if estado:
         qry = qry.filter(Leccion.estado == estado)
     else:
@@ -532,8 +591,8 @@ def listar(db: Session, usuario, *, q: Optional[str] = None, estado: Optional[st
 
 def de_origen(db: Session, usuario, origen_tipo: str, origen_id: str) -> list[dict]:
     hechos_de(db, usuario, origen_tipo, origen_id)   # el acceso al origen manda
-    return [_dict(db, l) for l in db.query(Leccion).filter(Leccion.origen_tipo == origen_tipo,
-                                                          Leccion.origen_id == str(origen_id))
+    return [_dict(db, l) for l in _filtro_visibles(db.query(Leccion), db, usuario).filter(
+        Leccion.origen_tipo == origen_tipo, Leccion.origen_id == str(origen_id))
             .order_by(Leccion.created_at.desc()).all()]
 
 
@@ -546,7 +605,15 @@ def pendientes(db: Session, usuario) -> list[dict]:
     from app.models.service_desk.problems import MajorIncident, Problem
     from app.models.sprints import Sprint
     from app.services.service_desk.scoping import scope_problem_query
+    from app.services.service_desk.scoping import empresa_activa
     dias = int(_aj(db, "LESSONS_PENDING_LOOKBACK_DAYS", usuario.organization_id, "int"))
+    # A31: solo lo de la empresa activa y, para empleados y externos, nada
+    # (capturar lecciones de un origen es de quien gestiona ese origen).
+    org = empresa_activa(usuario)
+    if _rol(usuario) in _ROLES_SIN_SERVICE_DESK and not puede_validar(db, usuario):
+        return []
+    de_la_empresa = (lambda q, col: q) if getattr(usuario, "is_superadmin", False) else (
+        lambda q, col: q.filter(col == org))
     desde = datetime.now(timezone.utc) - timedelta(days=dias)
     desde_fecha = desde.date()
     con_leccion = {(t, i) for t, i in db.query(Leccion.origen_tipo, Leccion.origen_id).filter(Leccion.origen_id.isnot(None)).all()}
@@ -557,7 +624,8 @@ def pendientes(db: Session, usuario) -> list[dict]:
             salida.append({"origen_tipo": tipo, "origen_id": str(id_), "ref": ref, "titulo": titulo,
                            "cerrado": cuando.isoformat() if cuando else None})
 
-    for p in db.query(Project).filter(Project.status.in_(("completed", "closed"))).all():
+    for p in de_la_empresa(db.query(Project), Project.organization_id).filter(
+            Project.status.in_(("completed", "closed"))).all():
         cuando = p.end_date_real or (p.updated_at.date() if getattr(p, "updated_at", None) else None)
         if cuando is None or cuando >= desde_fecha:
             poner("project", p.id, p.code, p.name, cuando)
@@ -565,10 +633,12 @@ def pendientes(db: Session, usuario) -> list[dict]:
         cuando = getattr(pr, "resolved_at", None) or getattr(pr, "updated_at", None)
         if cuando is None or _aware(cuando) >= desde:
             poner("problem", pr.id, pr.number, pr.title, cuando)
-    for m in db.query(MajorIncident).filter(MajorIncident.status.in_(ESTADOS_DE_INCIDENTE_MAYOR_RESUELTOS)).all():
+    for m in de_la_empresa(db.query(MajorIncident), MajorIncident.organization_id).filter(
+            MajorIncident.status.in_(ESTADOS_DE_INCIDENTE_MAYOR_RESUELTOS)).all():
         if m.resolved_at is None or _aware(m.resolved_at) >= desde:
             poner("major_incident", m.id, m.number, m.title, m.resolved_at)
-    for s in db.query(Sprint).filter(Sprint.status == "completed").all():
+    for s in de_la_empresa(db.query(Sprint).join(Project, Project.id == Sprint.project_id),
+                           Project.organization_id).filter(Sprint.status == "completed").all():
         if (s.to_improve or s.went_well or s.action_items) and (s.end_date is None or s.end_date >= desde_fecha):
             poner("sprint", s.id, s.name, s.name, s.end_date)
     if _rol(usuario) == "admin":
@@ -602,11 +672,18 @@ def contexto_de(db: Session, usuario, contexto_tipo: str, contexto_id: Optional[
     raise error(400, "valor_no_valido", detail=f"Contexto desconocido: {contexto_tipo}", valor=contexto_tipo)
 
 
-def _frase(l: Leccion) -> str:
-    verbo = "Evita" if l.tipo == "evitar" else "Repite"
+def _idioma_de(db, usuario) -> str:
+    from app.services.formato_regional import idioma_de_salida
+    return idioma_de_salida(db, user_id=getattr(usuario, "id", None), org_id=getattr(usuario, "organization_id", None))
+
+
+def _frase(l: Leccion, idioma=None) -> str:
+    from app.services.textos_de_salida import texto
     pasado = (l.que_paso or "").strip().split("\n")[0][:220]
-    donde = f"en {l.origen_ref}" if l.origen_ref else "en un caso anterior"
-    return f"{verbo}: {l.recomendacion.strip()} — porque {donde} pasó: {pasado}"
+    return texto("leccion.frase", idioma, verbo=texto("leccion.verbo_evita" if l.tipo == "evitar" else "leccion.verbo_repite", idioma),
+                 recomendacion=l.recomendacion.strip(),
+                 donde=texto("leccion.donde_ref", idioma, ref=l.origen_ref) if l.origen_ref
+                 else texto("leccion.donde_otro", idioma), pasado=pasado)
 
 
 def recomendar(db: Session, usuario, contexto_tipo: str, contexto_id: Optional[str] = None,
@@ -617,7 +694,7 @@ def recomendar(db: Session, usuario, contexto_tipo: str, contexto_id: Optional[s
     pesos = {k: float(_aj(db, f"LESSONS_WEIGHT_{k}", org)) for k in ("CLIENT", "PROJECT_TYPE", "TAGS", "CATEGORY", "TEXT")}
     minimo = float(_aj(db, "LESSONS_RECOMMENDATIONS_MIN_SCORE", org))
     maximo = int(_aj(db, "LESSONS_RECOMMENDATIONS_MAX", org, "int"))
-    qry = db.query(Leccion).filter(Leccion.estado != "archivada")
+    qry = _filtro_visibles(db.query(Leccion), db, usuario).filter(Leccion.estado != "archivada")   # A31
     if _aj(db, "LESSONS_ONLY_VALIDATED", org, "bool"):
         qry = qry.filter(Leccion.estado == "validada")
     etiquetas_ctx = _etiquetas(a.get("etiquetas"))
@@ -658,7 +735,7 @@ def recomendar(db: Session, usuario, contexto_tipo: str, contexto_id: Optional[s
             LeccionUso.contexto_tipo == contexto_tipo, LeccionUso.contexto_id == str(contexto_id),
             LeccionUso.user_id == usuario.id).all()}
     return {"evaluadas": len(candidatas), "minimo": minimo, "items": [
-        {**_dict(db, l), "puntuacion": round(p, 3), "motivos": m, "frase": _frase(l), "mi_valoracion": mis_usos.get(l.id)}
+        {**_dict(db, l), "puntuacion": round(p, 3), "motivos": m, "frase": _frase(l, _idioma_de(db, usuario)), "mi_valoracion": mis_usos.get(l.id)}
         for p, l, m in puntuadas[:maximo]]}
 
 
@@ -697,15 +774,24 @@ def crear_accion(db: Session, usuario, leccion_id: str, descripcion: str, respon
     l = _cargar(db, leccion_id)
     if not (puede_editar(db, usuario, l) or puede_validar(db, usuario)):
         raise error(403, "leccion_sin_permiso_acciones")
-    if responsable_id:
-        from app.models.user import User
-        if db.query(User.id).filter(User.id == responsable_id).first() is None:
-            raise error(404, "no_encontrado", detail="Responsable no encontrado", que="responsable")
+    _exigir_responsable(db, usuario, responsable_id)
     a = LeccionAccion(organization_id=usuario.organization_id, leccion_id=l.id, descripcion=descripcion.strip(),
                       responsable_id=responsable_id, fecha_limite=fecha_limite, created_by=usuario.id)
     db.add(a)
     db.commit()
     return _accion_dict(a)
+
+
+def _exigir_responsable(db: Session, usuario, responsable_id: Optional[str]) -> None:
+    """M104: el responsable existe, está activo y es de la empresa de la lección."""
+    if not responsable_id:
+        return
+    from app.models.user import User
+    q = db.query(User.id).filter(User.id == responsable_id, User.is_active.is_(True))
+    if not getattr(usuario, "is_superadmin", False):
+        q = q.filter(User.organization_id == usuario.organization_id)
+    if q.first() is None:
+        raise error(404, "no_encontrado", detail="Responsable no encontrado", que="responsable")
 
 
 def editar_accion(db: Session, usuario, accion_id: str, datos: dict) -> dict:
@@ -720,9 +806,16 @@ def editar_accion(db: Session, usuario, accion_id: str, datos: dict) -> dict:
             raise error(400, "estado_no_valido_valor", estado=datos['estado'])
         a.estado = datos["estado"]
         a.cerrada_en = datetime.now(timezone.utc) if a.estado in ("hecha", "descartada") else None
+    if "responsable_id" in datos:
+        _exigir_responsable(db, usuario, datos["responsable_id"])
+    antes = {k: getattr(a, k) for k in ("descripcion", "resultado", "responsable_id", "fecha_limite", "estado")}
     for k in ("descripcion", "resultado", "responsable_id", "fecha_limite"):
         if k in datos:
             setattr(a, k, datos[k])
+    from app.services.audit import audit_log
+    audit_log(db, usuario, "UPDATE", "lecciones_acciones", a.id, l.codigo,
+              old_values={k: str(v) if v is not None else None for k, v in antes.items()},
+              new_values={k: str(datos[k]) if datos.get(k) is not None else None for k in datos})
     db.commit()
     return _accion_dict(a)
 

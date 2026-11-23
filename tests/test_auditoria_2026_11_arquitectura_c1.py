@@ -204,6 +204,9 @@ def test_el_worker_abre_sesion_propia_con_el_contexto_publicado(monkeypatch):
         return "hecho"
 
     monkeypatch.setattr(sp, "_objetivo_de_prueba", _objetivo, raising=False)
+    # 23-11-2026 (01 M5): el worker solo ejecuta la lista blanca.
+    monkeypatch.setattr(sp, "FUNCIONES_ENCOLABLES",
+                        sp.FUNCIONES_ENCOLABLES | {"app.core.segundo_plano:_objetivo_de_prueba"})
     r = sp._ejecutar_con_contexto("app.core.segundo_plano:_objetivo_de_prueba", "org-a", ["i1"], {"extra": 2})
     assert r == "hecho"
     assert vistos == {"info": {"organization_id": "org-a", "is_superadmin": False},
@@ -241,9 +244,11 @@ def test_20_recuperar_contrasena_encola_el_correo_y_responde_igual(client, cola)
     assert r.status_code == 200, r.text
     assert r.json()["ok"] is True
     rutas = [args[1][0] for _, args in cola]
-    assert "app.services.auth_service.tokens_y_cookies:send_password_reset_email" in rutas
-    _, args = cola[rutas.index("app.services.auth_service.tokens_y_cookies:send_password_reset_email")]
-    destinatario, enlace = args[1][2]
+    # 23-11-2026: el correo sale en el idioma del usuario (`restablecimiento`).
+    ruta = "app.services.seguridad_de_cuentas.restablecimiento:enviar_correo_de_restablecimiento"
+    assert ruta in rutas
+    _, args = cola[rutas.index(ruta)]
+    destinatario, enlace = args[1][2][:2]
     assert destinatario == "admin@contecflow.com" and "reset-password?token=" in enlace
     assert "db" not in args[1][3]  # la sesion la abre el worker
 

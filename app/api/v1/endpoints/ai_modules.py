@@ -9,9 +9,9 @@ from sqlalchemy.orm import Session
 from typing import Optional
 
 from app.db.session import get_db
-from app.core.deps import get_current_user, require_any_manager, require_internal_user
+from app.core.deps import get_current_user, requiere_capacidad
 from app.core.ratelimit import limiter
-from app.core.uploads import UploadProfile, read_and_validate_upload_sync
+from app.core.uploads import UploadProfile, read_and_validate_upload_sync, read_upload_within_limit_sync, validate_audio_upload
 from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
 from app.core.deps import get_current_portal_client
@@ -30,10 +30,10 @@ def _log_action(db, user_id, module, action_type, input_s=None, output_s=None,
 def _openai_key_from_db(db) -> Optional[str]:
     return _svc.openai_key_from_db(db)
 
-def _process_voice_core(transcript: str, db, current_user, confirm: bool = False):
+def _process_voice_core(transcript: str, db, current_user, confirm: bool = False, accion_firmada=None):
     # Auditoria 2026-11: el envoltorio no aceptaba `confirm` y las dos rutas de
     # voz (/voice/command y /voice/transcribe) daban 500 siempre.
-    return _svc.process_voice_core(transcript, db, current_user, confirm=confirm)
+    return _svc.process_voice_core(transcript, db, current_user, confirm=confirm, accion_firmada=accion_firmada)
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # NEXUSORACLE — Predictive Intelligence
@@ -53,7 +53,7 @@ def list_predictions(
 @router.post("/oracle/run", summary="Alertas Inteligentes — ejecutar análisis de alertas", dependencies=[Depends(exigir_modulo_ia("nexusoracle"))])
 def run_oracle(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("ia.gestionar")),
 ):
     return APIResponse.ok(data=_svc.run_oracle_analysis(db, current_user))
 
@@ -63,12 +63,12 @@ def acknowledge_prediction(
     pred_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
+    _rol: User = Depends(requiere_capacidad("ia.usar")),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
 ):
     try:
         return APIResponse.ok(data=_svc.acknowledge_prediction(db, pred_id, current_user.id))
     except ValueError:
-        raise HTTPException(404)
+        raise error_http(404, "no_encontrado", que="prediccion")
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -93,7 +93,7 @@ def process_meeting(
     payload: MeetingProcessPayload,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
+    _rol: User = Depends(requiere_capacidad("ia.usar")),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
 ):
     try:
         return APIResponse.ok(data=_svc.process_meeting(db, payload, current_user))
@@ -109,7 +109,7 @@ def create_tasks_from_meeting(
     payload: dict = Body(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
+    _rol: User = Depends(requiere_capacidad("ia.usar")),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
 ):
     # 19-11-2026: solo quien gestiona la reunión (404 si no la ve, 403 si no la gestiona).
     from app.services.reuniones.consultas import obtener_gestionable
@@ -118,7 +118,7 @@ def create_tasks_from_meeting(
         return APIResponse.ok(data=_svc.create_tasks_from_meeting(db, meeting_id, payload, current_user))
     except ValueError as e:
         err = str(e)
-        if "not_found" in err: raise HTTPException(404)
+        if "not_found" in err: raise error_http(404, "no_encontrado", que="reunion")
         if "project_id_required" in err: raise error_http(400, "campo_obligatorio", detail="Se requiere project_id para crear tareas", campo="project_id")
         raise desde_valor(400, e)
 
@@ -132,7 +132,7 @@ def get_meeting(
     try:
         return APIResponse.ok(data=_svc.get_meeting(db, meeting_id, user=current_user))
     except ValueError:
-        raise HTTPException(404)
+        raise error_http(404, "no_encontrado", que="reunion")
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -143,7 +143,7 @@ def get_meeting(
 def list_ai_contracts(
     project_id: Optional[str] = None,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("ia.gestionar")),
 ):
     return APIListResponse.ok(items=_svc.list_ai_contracts(db, project_id=project_id, current_user=current_user))
 
@@ -152,7 +152,7 @@ def list_ai_contracts(
 def get_ai_contract(
     contract_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("ia.gestionar")),
 ):
     result = _svc.get_ai_contract(db, contract_id, current_user=current_user)
     if result is None:
@@ -167,7 +167,7 @@ from app.schemas.ai_modules import ContractAnalyzePayload
 def analyze_contract(
     payload: ContractAnalyzePayload,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("ia.gestionar")),
 ):
     return APIResponse.ok(data=_svc.analyze_contract(db, payload, current_user))
 
@@ -178,7 +178,7 @@ def analyze_contract_pdf(
     project_id: Optional[str] = Body(None),
     client_name: Optional[str] = Body(None),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("ia.gestionar")),
 ):
     # H22: extracción de texto del PDF y delegación al mismo pipeline de análisis.
     # Limit 10MB — los contratos típicos son <2MB; >10MB suele indicar PDF
@@ -223,12 +223,12 @@ def generate_kb_from_ticket(
     ticket_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
+    _rol: User = Depends(requiere_capacidad("ia.usar")),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
 ):
     try:
         return APIResponse.ok(data=_svc.generate_kb_from_ticket(db, ticket_id, current_user))
     except ValueError:
-        raise HTTPException(404)
+        raise error_http(404, "no_encontrado", que="ticket")
 
 
 @router.post("/kb/search", summary="Búsqueda semántica en KB", dependencies=[Depends(exigir_modulo_ia("knowledge_base"))])
@@ -236,7 +236,7 @@ def search_kb(
     payload: dict = Body(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
+    _rol: User = Depends(requiere_capacidad("ia.usar")),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
 ):
     query = payload.get("query", "")
     if not query: raise error_http(400, "consulta_vacia", detail="query required")
@@ -246,7 +246,7 @@ def search_kb(
 @router.post("/kb/rebuild-embeddings", summary="Reconstruir embeddings de todos los artículos KB")
 def rebuild_kb_embeddings(
     db: Session = Depends(get_db),
-    _: User = Depends(require_any_manager),
+    _: User = Depends(requiere_capacidad("ia.gestionar")),
 ):
     return APIResponse.ok(data=_svc.rebuild_kb_embeddings(db))
 
@@ -256,12 +256,12 @@ def update_kb(
     article_id: str,
     payload: dict = Body(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("ia.gestionar")),
 ):
     try:
         return APIResponse.ok(data=_svc.update_kb(db, article_id, payload, current_user))
     except ValueError:
-        raise HTTPException(404)
+        raise error_http(404, "no_encontrado", que="articulo")
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -315,7 +315,7 @@ def transcribe_voice_audio(
     audio: UploadFile = File(..., description="Archivo de audio (.mp3, .wav, .m4a, .webm, .ogg)"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
+    _rol: User = Depends(requiere_capacidad("ia.usar")),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
 ):
     """Transcribe audio y lo procesa como un comando de voz.
 
@@ -323,7 +323,8 @@ def transcribe_voice_audio(
     `settings.STT_PROVIDER` / `STT_FALLBACK_PROVIDERS`. Por defecto OpenAI, por
     compatibilidad con las configuraciones existentes.
     """
-    audio_bytes = audio.file.read()
+    audio_bytes = read_upload_within_limit_sync(audio, 25 * 1024 * 1024)
+    validate_audio_upload(audio.filename or "", audio_bytes)
     if not audio_bytes:
         raise error_http(400, "fichero_vacio", detail="El archivo de audio está vacío.")
     if len(audio_bytes) > 25 * 1024 * 1024:
@@ -368,11 +369,11 @@ def process_voice_command(
     payload: VoiceCommandPayload,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
+    _rol: User = Depends(requiere_capacidad("ia.usar")),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
 ):
     return APIResponse.ok(data=_process_voice_core(
         payload.transcript.strip(), db, current_user,
-        confirm=bool(payload.confirm),
+        confirm=bool(payload.confirm), accion_firmada=payload.accion_firmada,
     ))
 
 
@@ -435,7 +436,7 @@ def revenue_forecast(
     months_ahead: int = 3,
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
+    _rol: User = Depends(requiere_capacidad("ia.usar")),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
 ):
     return APIResponse.ok(data=_svc.revenue_forecast(db, months_ahead=months_ahead))
 
@@ -450,7 +451,7 @@ def smart_schedule(
     payload: SmartScheduleRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
+    _rol: User = Depends(requiere_capacidad("ia.usar")),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
 ):
     return APIResponse.ok(data=_svc.smart_schedule(db, payload, current_user))
 
@@ -463,7 +464,7 @@ def smart_schedule(
 def overrun_prediction(
     project_id: str = Body(..., embed=True),
     db: Session = Depends(get_db),
-    _: User = Depends(require_any_manager),
+    _: User = Depends(requiere_capacidad("ia.gestionar")),
 ):
     try:
         data = _svc.get_overrun_prediction_data(db, project_id)

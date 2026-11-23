@@ -46,13 +46,6 @@ _JIRA_TO_TICKET_STATUS = _jira.JIRA_A_TICKET_ESTADO
 jira_token_en_claro = _jira.token_en_claro
 
 
-def jira_base_url_segura(config) -> str:
-    """La URL de Jira validada contra SSRF (esquema, hosts locales y redes privadas)."""
-    from app.core.outbound_url import validate_outbound_url
-
-    return validate_outbound_url((config.jira_base_url or "").rstrip("/"), field="jira_base_url")
-
-
 def _jira_client(config: JiraConfig, db=None) -> httpx.Client:
     """El cliente de `jira_service` con las credenciales de la configuracion."""
     from app.services.settings_service import outbound_http_timeout
@@ -67,12 +60,6 @@ def _resolve_priority(config: JiraConfig, ticket_priority: str) -> str:
     pmap = json.loads(config.priority_map_json) if config.priority_map_json else {}
     merged = {**_DEFAULT_PRIORITY_MAP, **pmap}
     return merged.get(ticket_priority, "Medium")
-
-
-def _resolve_status_to_jira(config: JiraConfig, ticket_status: str) -> str:
-    smap = json.loads(config.status_map_json) if config.status_map_json else {}
-    merged = {**_DEFAULT_STATUS_MAP, **smap}
-    return merged.get(ticket_status, "Open")
 
 
 def _resolve_issue_type(config: JiraConfig, ticket_type: str) -> str:
@@ -237,52 +224,6 @@ def empujar_ticket_confirmado(db: Session, config: JiraConfig, ticket: Ticket) -
         raise error_con_codigo(502, "servicio_externo_fallo", servicio="Jira") from exc
 
 
-def push_comment_to_jira(
-    db: Session, config: JiraConfig, sync_map: JiraSyncMap, comment: TicketComment
-) -> None:
-    """Sync a public comment from Contecflow to the linked Jira issue."""
-    if not config.sync_comments:
-        return
-    from app.services.textos_de_salida import nombre_de_marca
-
-    body = {
-        "body": {
-            "type": "doc",
-            "version": 1,
-            "content": [
-                {
-                    "type": "paragraph",
-                    "content": [
-                        # 18-11-2026: el nombre de la empresa (o el del producto), no «Contecflow» fijo.
-                        {"type": "text", "text": f"[{nombre_de_marca(db, getattr(config, 'organization_id', None))}] "
-                                                 f"{comment.body}"}
-                    ],
-                }
-            ],
-        }
-    }
-
-    try:
-        with _jira_client(config, db=db) as client, track_external_call("jira"):
-            resp = client.post(
-                f"/rest/api/3/issue/{sync_map.jira_issue_key}/comment",
-                content=json.dumps(body),
-            )
-            resp.raise_for_status()
-        _write_log(
-            db, config.id, comment.ticket_id, sync_map.jira_issue_key,
-            JiraSyncEventType.comment_synced, JiraSyncDirection.contecflow_to_jira,
-            {"comment_id": comment.id}, None, True,
-        )
-    except Exception as exc:
-        _write_log(
-            db, config.id, comment.ticket_id, sync_map.jira_issue_key,
-            JiraSyncEventType.error, JiraSyncDirection.contecflow_to_jira,
-            {"comment_id": comment.id}, None, False, str(exc),
-        )
-        logger.warning("Failed to push comment to Jira: %s", exc)
-
-
 # ── Pull: Jira → Contecflow ────────────────────────────────────────────────────
 
 
@@ -296,7 +237,7 @@ def pull_jira_issue(
             resp.raise_for_status()
             return resp.json()
     except Exception as exc:
-        logger.warning("Failed to pull Jira issue %s: %s", jira_issue_key, exc)
+        logger.warning("Failed to pull Jira issue %s: %s", jira_issue_key, type(exc).__name__)
         return None
 
 
@@ -323,7 +264,11 @@ def apply_jira_update_to_ticket(
         jira_status = (jira_fields.get("status", {}).get("name") or "").lower()
         mapped = _JIRA_TO_TICKET_STATUS.get(jira_status)
         if mapped and mapped != ticket.status.value:
-            ticket.status = TicketStatus(mapped)
+            # Auditoria 2026-11-22 (servicios m-z, 4.3): por el flujo central
+            # (historial, SLA, resolucion, encuesta y auditoria), no a mano.
+            from app.services.service_desk.ticket_update_service import cambiar_estado_por_automatismo
+            cambiar_estado_por_automatismo(db, ticket, mapped, origen="jira",
+                                           metadatos={"jira_issue_key": sync_map.jira_issue_key})
             changed = True
 
     if config.sync_priority_changes:
@@ -345,12 +290,27 @@ def apply_jira_update_to_ticket(
         _write_log(
             db, config.id, ticket.id, sync_map.jira_issue_key,
             JiraSyncEventType.updated, JiraSyncDirection.jira_to_contecflow,
-            jira_fields, None, True,
+            _campos_para_el_registro(jira_fields), None, True,
         )
         db.flush()
 
 
 # ── Polling loop (called by Celery beat) ──────────────────────────────────────
+
+
+def _campos_para_el_registro(jira_fields: dict) -> dict:
+    """Lo que se guarda del issue en `JiraSyncLog`: estado, prioridad y fecha.
+
+    Auditoria 2026-11-22 (servicios m-z, 4.3): se guardaban todos los campos
+    del issue (informador, asignado con su correo, descripcion, comentarios):
+    datos personales en un registro tecnico sin retencion propia.
+    """
+    f = jira_fields or {}
+    return {
+        "status": (f.get("status") or {}).get("name"),
+        "priority": (f.get("priority") or {}).get("name"),
+        "updated": f.get("updated"),
+    }
 
 
 def run_incremental_sync(db: Session, config_id: str) -> dict:
@@ -383,8 +343,11 @@ def run_incremental_sync(db: Session, config_id: str) -> dict:
             jira_updated_str = jira_data.get("fields", {}).get("updated")
             if jira_updated_str:
                 from dateutil import parser as dtparser
-                jira_updated = dtparser.parse(jira_updated_str)
-                if sm.last_jira_updated_at and jira_updated <= sm.last_jira_updated_at:
+                from app.services.sla_service import aware
+                # Auditoria 2026-11-22 (4.3): las dos con zona; naive frente a
+                # aware lanzaba TypeError y el mapa quedaba en error.
+                jira_updated = aware(dtparser.parse(jira_updated_str))
+                if sm.last_jira_updated_at and jira_updated <= aware(sm.last_jira_updated_at):
                     stats["skipped"] += 1
                     continue
 
@@ -396,9 +359,9 @@ def run_incremental_sync(db: Session, config_id: str) -> dict:
 
             stats["synced"] += 1
         except Exception as exc:
-            logger.exception("Sync error for map %s: %s", sm.id, exc)
+            logger.error("Sync error for map %s: %s", sm.id, type(exc).__name__)
             sm.sync_status = JiraSyncStatus.error
-            sm.sync_error = str(exc)[:500]
+            sm.sync_error = type(exc).__name__[:500]
             stats["errors"] += 1
 
     db.commit()

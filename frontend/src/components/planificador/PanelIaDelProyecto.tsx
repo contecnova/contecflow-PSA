@@ -68,7 +68,7 @@ export default function PanelIaDelProyecto({ projectId }: { projectId: string })
       tasksApi.update(id, cambios),
     onSuccess: (_r, v) => {
       toast.success(t('planificador.ia_aplicada'))
-      if (v.cambios.estimated_hours) iaDeProyectosApi.aceptarEstimacion(v.id, true).catch(() => undefined)
+      if (v.cambios.estimated_hours) iaDeProyectosApi.aceptarEstimacion(v.id, true).catch(() => { /* accesorio: aviso de aprendizaje a la IA; la estimación ya está aplicada */ })
       qc.invalidateQueries({ queryKey: ['tasks'] })
       qc.invalidateQueries({ queryKey: ['plan', projectId] })
     },

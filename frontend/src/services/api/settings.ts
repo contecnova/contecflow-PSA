@@ -111,6 +111,9 @@ export interface IntegrationTestResult {
   ok: boolean
   detail?: string
   status_code?: number
+  /** Incidencia 10 (23-11-2026): código traducible (`err_srv.<code>`) y sus datos. */
+  code?: string
+  params?: Record<string, unknown>
 }
 
 export interface AuditLogParams {

@@ -26,7 +26,7 @@ import json
 import asyncio
 
 from app.db.session import get_db
-from app.core.deps import get_current_user, require_any_manager, require_internal_user, require_worker
+from app.core.deps import get_current_user, requiere_capacidad
 from app.core.responses import APIListResponse, APIResponse
 from app.core.paginacion import Paginacion, lista_paginada, paginacion
 from app.models.user import User
@@ -115,7 +115,7 @@ def parse_mentions(
     payload: ParseMentionIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: excepcion revisada: analiza un texto, no escribe
+    _rol: User = Depends(requiere_capacidad("colaboracion.usar")),  # auditoria 2026-09: excepcion revisada: analiza un texto, no escribe
 ):
     """
     Llamar después de guardar comentarios/descripciones con @mentions. Idempotente por entity_id.
@@ -146,7 +146,7 @@ def mark_mention_read(
     current_user: User = Depends(get_current_user),
     # Externos como internos (16-11-2026): la bandeja del subcontratado; solo una
     # mencion propia (`mark_mention_read_record` filtra por mentioned_user; 404).
-    _rol: User = Depends(require_worker),
+    _rol: User = Depends(requiere_capacidad("colaboracion.trabajar")),
 ):
     return APIResponse.ok(data=mark_mention_read_record(db, mention_id, current_user))
 
@@ -168,7 +168,7 @@ def get_project_health(
 def compute_and_save_health(
     project_id: str,
     db: Session = Depends(get_db),
-    _: User = Depends(require_any_manager),
+    _: User = Depends(requiere_capacidad("colaboracion.gestionar")),
 ):
     return APIResponse.ok(data=save_health_snapshot_record(db, project_id))
 
@@ -176,7 +176,7 @@ def compute_and_save_health(
 @router.get("/projects/health/portfolio", summary="Semáforo de salud de todos los proyectos activos", tags=["Project Health"])
 def portfolio_health(
     db: Session = Depends(get_db),
-    _: User = Depends(require_any_manager),
+    _: User = Depends(requiere_capacidad("colaboracion.gestionar")),
 ):
     """Returns health summary for all active projects — useful for dashboard."""
     return APIListResponse.ok(items=portfolio_health_payload(db))
@@ -217,7 +217,7 @@ def list_recurring_tasks(
 def create_recurring_task(
     payload: RecurringTaskIn,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("colaboracion.gestionar")),
 ):
     return APIResponse.ok(data=create_recurring_task_record(db, payload, current_user))
 
@@ -227,7 +227,7 @@ def update_recurring_task(
     rt_id: str,
     payload: RecurringTaskIn,
     db: Session = Depends(get_db),
-    _: User = Depends(require_any_manager),
+    _: User = Depends(requiere_capacidad("colaboracion.gestionar")),
 ):
     return APIResponse.ok(data=update_recurring_task_record(db, rt_id, payload))
 
@@ -236,7 +236,7 @@ def update_recurring_task(
 def delete_recurring_task(
     rt_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("colaboracion.gestionar")),
 ):
     enforce_abac(db, current_user, "recurring_task", rt_id, action="delete")
     return APIResponse.ok(data=delete_recurring_task_record(db, rt_id))
@@ -246,7 +246,7 @@ def delete_recurring_task(
 def materialize_recurring_tasks(
     dry_run: bool = False,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("colaboracion.gestionar")),
 ):
     """
     Called by cron daily (or manually). Creates concrete Task records
@@ -367,7 +367,7 @@ def get_resource_demand(
     p: Periodo = Depends(periodo(dias_por_defecto=183, granularidades=SIN_HORA, serie=False,
                                  sentido="futuro")),
     db: Session = Depends(get_db),
-    _: User = Depends(require_any_manager),
+    _: User = Depends(requiere_capacidad("colaboracion.gestionar")),
 ):
     """Periodo libre (16-11-2026): horizonte hacia delante con ``desde``/``hasta``;
     sin ellos, ``horizon_months`` (6) meses como antes."""
@@ -379,7 +379,7 @@ def get_resource_demand(
 def create_demand_line(
     payload: DemandLineIn,
     db: Session = Depends(get_db),
-    _: User = Depends(require_any_manager),
+    _: User = Depends(requiere_capacidad("colaboracion.gestionar")),
 ):
     return APIResponse.ok(data=create_demand_line_record(db, payload))
 
@@ -388,7 +388,7 @@ def create_demand_line(
 def delete_demand_line(
     line_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("colaboracion.gestionar")),
 ):
     enforce_abac(db, current_user, "resource_demand_line", line_id, action="delete")
     return APIResponse.ok(data=delete_demand_line_record(db, line_id))
@@ -424,7 +424,7 @@ def add_vendor_score(
     vendor_id: str,
     payload: VendorScoreIn,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("colaboracion.gestionar")),
 ):
     return APIResponse.ok(data=add_vendor_score_record(db, vendor_id, payload, current_user))
 
@@ -432,7 +432,7 @@ def add_vendor_score(
 @router.get("/alm/vendors/scorecard/ranking", summary="Ranking de todos los proveedores por composite score", tags=["Vendor Scorecard"])
 def vendor_scorecard_ranking(
     db: Session = Depends(get_db),
-    _: User = Depends(require_any_manager),
+    _: User = Depends(requiere_capacidad("colaboracion.gestionar")),
 ):
     """Returns the latest composite score for every vendor that has been evaluated."""
     return APIListResponse.ok(items=vendor_scorecard_ranking_payload(db))
@@ -457,7 +457,7 @@ def simulate_project(
     payload: SimulationIn,
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
-    _rol: User = Depends(require_any_manager),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
+    _rol: User = Depends(requiere_capacidad("colaboracion.gestionar")),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
     """
     Pure read-only simulation — nothing is persisted.

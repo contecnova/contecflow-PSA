@@ -119,7 +119,10 @@ def generar(db, org: str) -> dict:
         revocadas = db.query(UserSession).filter(
             UserSession.user_id.in_(ids or [""]),
             UserSession.revoke_reason.in_(("password_change", "password_reset"))).count()
-        controles.append(_control("session_revocation", "pass" if mecanismo else "attention",
+        # M99 (auditoría 22-11-2026): «pass» solo con EVIDENCIA de uso (sesiones
+        # revocadas de verdad); que la función exista (`hasattr`) era tautológico.
+        controles.append(_control("session_revocation",
+                                  "attention" if not mecanismo else ("pass" if revocadas else "info"),
                                   {"on_password_change": mecanismo, "on_password_reset": mecanismo,
                                    "sessions_revoked_by_password_events": revocadas},
                                   "auth_service.revocar_sesiones_del_usuario + user_sessions.revoke_reason",
@@ -171,7 +174,9 @@ def generar(db, org: str) -> dict:
                                   "pg_roles + pg_class (RLS)", ("ISO27001 A.8.3", "SOC2 CC6.1")))
         kms = (settings.KMS_PROVIDER or "").lower() == "aws" and bool(getattr(settings, "AWS_KMS_KEY_ID", ""))
         rotacion = bool(get_runtime_bool(db, "KEY_ROTATION_ENABLED", org))
-        controles.append(_control("secrets_encryption", "pass" if rotacion else "attention",
+        # M99: «pass» exige clave en KMS y rotación; con clave local es «attention»
+        # (antes bastaba con la rotación activada).
+        controles.append(_control("secrets_encryption", "pass" if (rotacion and kms) else "attention",
                                   {"kms": kms, "local_key": not kms, "key_rotation_enabled": rotacion},
                                   "KMS_PROVIDER, KEY_ROTATION_ENABLED", ("ISO27001 A.8.24",)))
         plazo = int(_umbral(db, "COMPLIANCE_GDPR_MAX_DAYS", org))
@@ -240,6 +245,10 @@ def generar(db, org: str) -> dict:
         # justificación e integridad del log de transiciones).
         from app.services.demanda.cumplimiento import controles as controles_de_demanda
         controles.extend(controles_de_demanda(db, org, _control))
+        # 23-11-2026: políticas de cuenta (MFA por política, contraseñas caducadas,
+        # privilegios, recertificación, bypass, inmutabilidad del registro...).
+        from app.services.seguridad_de_cuentas.cumplimiento import controles as controles_de_cuentas
+        controles.extend(controles_de_cuentas(db, org, _control))
         controles.append(_control("backups", "not_measurable", {},
                                   "las copias se hacen fuera de la aplicación (base de datos y almacenamiento)",
                                   ("ISO27001 A.8.13", "SOC2 A1.2")))
@@ -253,11 +262,21 @@ def generar(db, org: str) -> dict:
 
 
 def firmar(doc: dict) -> dict:
-    """Añade la clave pública y la firma Ed25519 (la misma que la cadena de auditoría)."""
+    """Añade la clave pública y la firma Ed25519 (la misma que la cadena de auditoría).
+
+    M99 (auditoría 22-11-2026): la clave que viaja en el documento no prueba
+    nada por sí sola (quien falsifica el informe pone la suya). Se añade su
+    huella (`public_key_sha256`) y dónde está la publicada
+    (`GET /enterprise/audit-log/chain/public-key`): se verifica contra ESA. Y ya
+    no se usa la API privada de `cadena_auditoria` (baja).
+    """
     from app.db import cadena_auditoria
     doc = {**doc, "public_key_pem": cadena_auditoria.clave_publica_pem(),
-           "signature_alg": "Ed25519 over the canonical JSON of this document without «signature»"}
-    doc["signature"] = base64.b64encode(cadena_auditoria._clave_de_firma().sign(cadena_auditoria._canon(doc))).decode()
+           "public_key_sha256": cadena_auditoria.huella_de_clave_publica(),
+           "public_key_source": "GET /api/v1/enterprise/audit-log/chain/public-key",
+           "signature_alg": "Ed25519 over the canonical JSON of this document without «signature»; "
+                            "verify with the PUBLISHED key (its SHA-256 must match public_key_sha256)"}
+    doc["signature"] = base64.b64encode(cadena_auditoria.firmar_bytes(cadena_auditoria.canonico(doc))).decode()
     return doc
 
 

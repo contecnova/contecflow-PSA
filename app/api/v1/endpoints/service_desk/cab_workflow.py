@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_current_user, require_any_manager, require_internal_user
+from app.core.deps import get_current_user, requiere_capacidad
 from app.core.responses import APIResponse
 from app.db.session import get_db
 from app.models.user import User
@@ -43,7 +43,7 @@ def start_workflow(
     change_id: str,
     payload: CABStartIn,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("sd.gestionar")),
 ):
     try:
         state = svc.start_cab_workflow(
@@ -77,7 +77,7 @@ def schedule_meeting(
     change_id: str,
     payload: CABMeetingIn,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("sd.gestionar")),
 ):
     try:
         state = svc.schedule_cab_meeting(
@@ -99,7 +99,7 @@ def cast_vote(
     payload: CABVoteIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: excepcion revisada: vota el miembro del CAB designado, y el endpoint comprueba que lo eres
+    _rol: User = Depends(requiere_capacidad("sd.completo")),  # auditoria 2026-09: excepcion revisada: vota el miembro del CAB designado, y el endpoint comprueba que lo eres
 ):
     try:
         state = svc.cast_cab_vote(
@@ -120,7 +120,7 @@ def assign_executor(
     change_id: str,
     payload: CABExecutorIn,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("sd.gestionar")),
 ):
     try:
         state = svc.assign_executor(

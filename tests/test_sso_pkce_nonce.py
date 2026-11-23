@@ -128,7 +128,9 @@ def test_el_callback_verifica_el_nonce_y_manda_el_verificador():
     assert "compare_digest" in src, (
         "la comparación del nonce debe ser en tiempo constante"
     )
-    assert 'raise HTTPException(400, "Nonce inválido' in src, (
+    # Auditoría 22-11-2026: el rechazo pasa a un error con código
+    # (`error_http(400, "sso_nonce_no_valido", ...)`); sigue siendo un 400.
+    assert 'raise error_http(400, "sso_nonce_no_valido"' in src, (
         "un nonce que no coincide debe rechazar la autenticación"
     )
     assert '_token_params["code_verifier"] = code_verifier' in src, (

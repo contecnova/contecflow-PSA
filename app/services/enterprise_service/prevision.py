@@ -36,26 +36,39 @@ def serialize_forecast(f) -> dict:
 def get_portfolio_forecast(db: Session, year: int) -> dict:
     """Aggregate revenue forecast across all projects for a given year."""
 
+    import calendar
+    from datetime import date
+
+    from app.services.currency_rates_service import TablaDeTipos, TiposQueFaltan, tipo_o_aviso
+    from app.services.settings_service.por_empresa import moneda_de_empresa
+
     forecasts = db.query(RevenueForecast).options(
         joinedload(RevenueForecast.project)
     ).filter(RevenueForecast.year == year).all()
 
+    # M9 (auditoría 22-11-2026): cada previsión está en la moneda de su
+    # proyecto; la cartera se suma en la de la empresa, al tipo del último día
+    # del mes (antes se sumaban monedas distintas tal cual).
+    moneda = moneda_de_empresa(db)
+    importes = ("revenue_planned", "revenue_actual", "revenue_forecast", "cost_planned", "cost_actual")
     by_month: dict = {}
-    for f in forecasts:
-        m = f.month
-        if m not in by_month:
-            by_month[m] = {
-                "month": m, "revenue_planned": 0, "revenue_actual": 0,
-                "revenue_forecast": 0, "cost_planned": 0, "cost_actual": 0,
-                "hours_planned": 0, "hours_actual": 0,
-            }
-        by_month[m]["revenue_planned"] += f.revenue_planned or 0
-        by_month[m]["revenue_actual"] += f.revenue_actual or 0
-        by_month[m]["revenue_forecast"] += f.revenue_forecast or 0
-        by_month[m]["cost_planned"] += f.cost_planned or 0
-        by_month[m]["cost_actual"] += f.cost_actual or 0
-        by_month[m]["hours_planned"] += f.hours_planned or 0
-        by_month[m]["hours_actual"] += f.hours_actual or 0
+    with TiposQueFaltan() as faltan, TablaDeTipos(db):
+        for f in forecasts:
+            m = f.month
+            if m not in by_month:
+                by_month[m] = {
+                    "month": m, "revenue_planned": 0, "revenue_actual": 0,
+                    "revenue_forecast": 0, "cost_planned": 0, "cost_actual": 0,
+                    "hours_planned": 0, "hours_actual": 0,
+                }
+            de = ((getattr(f.project, "currency", None) if f.project else None) or moneda).upper()
+            tipo = 1.0
+            if de != moneda:
+                tipo = tipo_o_aviso(db, de, moneda, date(year, m, calendar.monthrange(year, m)[1]))
+            for k in importes:
+                by_month[m][k] += float(getattr(f, k) or 0) * tipo
+            by_month[m]["hours_planned"] += f.hours_planned or 0
+            by_month[m]["hours_actual"] += f.hours_actual or 0
 
     monthly = [by_month[m] for m in sorted(by_month.keys())]
     total_forecast = sum(m["revenue_forecast"] for m in monthly)
@@ -73,6 +86,8 @@ def get_portfolio_forecast(db: Session, year: int) -> dict:
             "margin_pct": total_margin,
         },
         "projects": len(set(f.project_id for f in forecasts)),
+        "currency": moneda,
+        "fx_warnings": sorted(faltan),
     }
 
 

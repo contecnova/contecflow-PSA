@@ -130,7 +130,7 @@ def test_sin_jornada_especial_la_capacidad_es_la_de_siempre(ctx):
 
 def test_recordatorio_de_imputaciones_sigue_su_horario(ctx, monkeypatch):
     from app.core import timeutil
-    from app.services.trabajos_de_fondo import imputaciones_pendientes_de_hoy
+    from app.services.trabajos_de_fondo import personas_sin_imputar_hoy
 
     db = ctx
     sab = _persona(db, "sabadista2")
@@ -139,11 +139,11 @@ def test_recordatorio_de_imputaciones_sigue_su_horario(ctx, monkeypatch):
     sabado = LUNES + timedelta(days=5)
 
     monkeypatch.setattr(timeutil, "today", lambda: sabado)
-    faltan = imputaciones_pendientes_de_hoy(db, ORG)["users"]
+    faltan = personas_sin_imputar_hoy(db, ORG)
     assert sab.email in faltan and lun.email not in faltan
 
     monkeypatch.setattr(timeutil, "today", lambda: LUNES)
-    faltan = imputaciones_pendientes_de_hoy(db, ORG)["users"]
+    faltan = personas_sin_imputar_hoy(db, ORG)
     assert lun.email in faltan and sab.email not in faltan
 
 
@@ -219,15 +219,15 @@ def test_por_defecto_las_horas_son_las_de_antes():
 
 def test_en_festivo_de_la_empresa_no_hay_recordatorio_de_imputaciones(ctx, monkeypatch):
     from app.core import timeutil
-    from app.services.trabajos_de_fondo import imputaciones_pendientes_de_hoy
+    from app.services.trabajos_de_fondo import personas_sin_imputar_hoy
 
     db = ctx
     u = _persona(db, "festiva")
     monkeypatch.setattr(timeutil, "today", lambda: LUNES)
-    assert u.email in imputaciones_pendientes_de_hoy(db, ORG)["users"]
+    assert u.email in personas_sin_imputar_hoy(db, ORG)
     db.add(Holiday(id=str(uuid.uuid4()), organization_id=ORG, name="Lunes festivo", date=LUNES))
     db.commit()
-    assert u.email not in imputaciones_pendientes_de_hoy(db, ORG)["users"]
+    assert u.email not in personas_sin_imputar_hoy(db, ORG)
 
 
 def test_los_recordatorios_de_desempeno_van_a_la_hora_local(db, monkeypatch, seed_multitenant):

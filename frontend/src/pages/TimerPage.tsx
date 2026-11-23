@@ -21,12 +21,10 @@ import { useToast } from '../context/ToastContext'
 import { useAppT } from '../i18n/AppLangContext'
 import { useOnlineStatus } from '../hooks/useOnlineStatus'
 import { DEFAULT_PAGE_SIZE, LARGE_PAGE_SIZE, NOTIFICATIONS_POLL_MS, STALE_5_MIN_MS, POLL_DEFAULT_MS, CLOCK_TICK_MS } from '../constants/timings'
-import { fmtDate, formateadorDeFecha } from '../utils/helpers'
+import { fmtDate, formateadorDeFecha, extractErr } from '../utils/helpers'
 import './TimerPage.css'
 
 type TimerData = SesionDeCronometro
-
-type ApiErr = { response?: { data?: { detail?: string } } }
 
 type TimerHistoryItem = Imputacion
 
@@ -208,8 +206,8 @@ export default function TimerPage() {
   // Solo las suyas: sin `user_id`, a un responsable `GET /imputations` le devuelve las de todos.
   const { data: timerHistory = [] } = useQuery<TimerHistoryItem[]>({
     queryKey: ['timer-history', user?.id],
-    queryFn: () => imputationsApi.list({ page_size: DEFAULT_PAGE_SIZE, user_id: user?.id })
-      .then((r) => r.data.filter((imp) => imp.timer_session_id)),
+    // Auditoría 04b (B4), 23-11-2026: el servidor filtra las del temporizador (`only_timer`).
+    queryFn: () => imputationsApi.list({ page_size: DEFAULT_PAGE_SIZE, user_id: user?.id, only_timer: true }).then((r) => r.data),
     enabled: !!user?.id,
     refetchInterval: POLL_DEFAULT_MS,
   })
@@ -228,17 +226,17 @@ export default function TimerPage() {
   const startMutation = useMutation({
     mutationFn: (p: Record<string, unknown>) => imputationsApi.timerStart(p).then(r => r.data),
     onSuccess: (data) => { toast.success(t('timer.toast_iniciado')); qc.setQueryData(['timer-current'], data); setShowStart(false) },
-    onError: (e: ApiErr) => toast.error(e?.response?.data?.detail || t('timer.error_iniciar')),
+    onError: (e: unknown) => toast.error(extractErr(e, t('timer.error_iniciar'))),
   })
   const pauseMutation = useMutation({
     mutationFn: () => imputationsApi.timerPause().then(r => r.data),
     onSuccess: (data) => { toast.success(t('timer.toast_pausado')); qc.setQueryData(['timer-current'], data) },
-    onError: (e: ApiErr) => toast.error(e?.response?.data?.detail || t('timer.error_pausar')),
+    onError: (e: unknown) => toast.error(extractErr(e, t('timer.error_pausar'))),
   })
   const resumeMutation = useMutation({
     mutationFn: () => imputationsApi.timerResume().then(r => r.data),
     onSuccess: (data) => { toast.success(t('timer.toast_reanudado')); qc.setQueryData(['timer-current'], data) },
-    onError: (e: ApiErr) => toast.error(e?.response?.data?.detail || t('timer.error_reanudar')),
+    onError: (e: unknown) => toast.error(extractErr(e, t('timer.error_reanudar'))),
   })
   const cancelMutation = useMutation({
     mutationFn: () => imputationsApi.timerCancel().then(r => r.data),
@@ -248,7 +246,7 @@ export default function TimerPage() {
       setShowStop(false)
       setElapsed(0)
     },
-    onError: (e: ApiErr) => toast.error(e?.response?.data?.detail || t('timer.error_cancelar')),
+    onError: (e: unknown) => toast.error(extractErr(e, t('timer.error_cancelar'))),
   })
   const stopMutation = useMutation({
     mutationFn: (p: Record<string, unknown>) => imputationsApi.timerStop(p).then(r => r.data),
@@ -264,10 +262,7 @@ export default function TimerPage() {
       qc.invalidateQueries({ queryKey: ['timesheets-team'] })
       setShowStop(false); setElapsed(0)
     },
-    onError: (e: ApiErr) => {
-      const detail = e?.response?.data?.detail || t('timer.error_detener')
-      toast.error(detail)
-    },
+    onError: (e: unknown) => toast.error(extractErr(e, t('timer.error_detener'))),
   })
 
   const isPaused  = !!currentTimer?.paused_at

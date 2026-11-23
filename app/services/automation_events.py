@@ -36,6 +36,12 @@ import app.services.service_desk.ticket_events  # noqa: F401,E402
 logger = logging.getLogger(__name__)
 
 _PENDIENTES = "automatizaciones_pendientes"
+#: Migración 196 (23-11-2026, A58): marca de la transacción y claves ya
+#: anotadas en ella. Un mismo cambio visto en dos flushes de la misma
+#: transacción no se anota dos veces (`automation_events.idempotency_key`,
+#: única por empresa).
+_TRANSACCION = "automatizaciones_tx"
+_CLAVES = "automatizaciones_claves"
 #: Profundidad de la cadena mientras se ejecutan las acciones de una regla.
 PROFUNDIDAD = "automatizacion_profundidad"
 
@@ -284,20 +290,35 @@ def _antes_de_guardar(session, flush_context, instances) -> None:
         ).all()
     con_regla = {(o, t) for o, t in filas}
     profundidad = session.info.get(PROFUNDIDAD, 0)
+    import hashlib
+    import uuid
+    marca = session.info.setdefault(_TRANSACCION, uuid.uuid4().hex)
+    claves = session.info.setdefault(_CLAVES, set())
     anotados = 0
     for org, disparador, ctx in eventos:
         if (org, disparador) not in con_regla:
             continue
+        contexto = json.dumps({**ctx, "event_type": disparador}, default=str, sort_keys=True)
+        clave = hashlib.sha256(f"{marca}|{org}|{disparador}|{profundidad}|{contexto}".encode()).hexdigest()
+        if (org, clave) in claves:
+            continue
+        claves.add((org, clave))
         session.add(AutomationEvent(
             organization_id=org, trigger_type=disparador, depth=profundidad,
-            context=json.dumps({**ctx, "event_type": disparador}, default=str),
+            context=contexto, idempotency_key=clave,
         ))
         anotados += 1
     if anotados:
         session.info[_PENDIENTES] = True
 
 
+def _olvidar_transaccion(session) -> None:
+    session.info.pop(_TRANSACCION, None)
+    session.info.pop(_CLAVES, None)
+
+
 def _tras_confirmar(session) -> None:
+    _olvidar_transaccion(session)
     if not session.info.pop(_PENDIENTES, False):
         return
     try:
@@ -309,6 +330,7 @@ def _tras_confirmar(session) -> None:
 
 def _tras_deshacer(session) -> None:
     session.info.pop(_PENDIENTES, None)
+    _olvidar_transaccion(session)
 
 
 # ── Proceso ─────────────────────────────────────────────────────────────────
@@ -357,9 +379,26 @@ def procesar_pendientes(db, limite: Optional[int] = None) -> dict:
     from app.services.settings_service import get_runtime_int
 
     limite = limite or get_runtime_int(db, "AUTOMATIONS_EVENT_BATCH_SIZE") or 200
+    reglas = 0
+    if db.get_bind().dialect.name == "postgresql":
+        # Migración 196 (A58): con varios workers, cada evento se reclama de uno
+        # en uno con `FOR UPDATE SKIP LOCKED`; el bloqueo dura hasta el commit
+        # de `procesar_evento`, así que nadie más lo ejecuta (ni duplica correos
+        # o webhooks). Antes todos leían el mismo lote de pendientes.
+        vistos: list = []   # un fallido vuelve a «pending»: en esta pasada no se repite
+        while len(vistos) < limite:
+            q = db.query(AutomationEvent).filter(AutomationEvent.status == "pending")
+            if vistos:
+                q = q.filter(AutomationEvent.id.notin_(vistos))
+            ev = q.order_by(AutomationEvent.created_at).with_for_update(skip_locked=True).first()
+            if ev is None:
+                break
+            vistos.append(ev.id)
+            r = procesar_evento(db, ev)
+            reglas += len(r.get("rules", [])) if isinstance(r, dict) else 0
+        return {"events": len(vistos), "rules_run": reglas}
     pendientes = db.query(AutomationEvent).filter(AutomationEvent.status == "pending").order_by(
         AutomationEvent.created_at).limit(limite).all()
-    reglas = 0
     for ev in pendientes:
         r = procesar_evento(db, ev)
         reglas += len(r.get("rules", [])) if isinstance(r, dict) else 0

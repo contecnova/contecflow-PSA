@@ -14,7 +14,7 @@ import type { CSSProperties } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Bar, CartesianGrid, Legend, Line, ComposedChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { Pencil, Trash2, MessageSquareText, AlertTriangle } from 'lucide-react'
-import { presupuestosApi, projectsApi } from '../../services/api'
+import { presupuestosApi } from '../../services/api'
 import type { ComparacionDePresupuestos, FichaPresupuesto, Partida } from '../../services/api'
 import { Button, Modal, Spinner, Tabs, Select, TablaSimple, Pulsable } from '../ui'
 import { useAppT } from '../../i18n/AppLangContext'
@@ -28,6 +28,10 @@ import { useFormatoMoneda } from '../../hooks/useFormatoMoneda'
 import { useTono } from '../../hooks/useOrgSettings'
 import './FichaDePresupuesto.css'
 import { TOOLTIP_SUPERFICIE_2 } from '../../constants/estilosGrafico'
+import { Input } from '../ui'
+import { Textarea } from '../ui'
+import { useListaDeProyectos } from '../../hooks/useListas'
+import { confirmar } from '../../context/ConfirmContext'
 
 
 export function colorDeEstado(e: string) {
@@ -46,7 +50,7 @@ export default function FichaDePresupuesto({ id, onClose, onAbrir }: { id: strin
   const [ocupado, setOcupado] = useState<string | null>(null)
   const [motivo, setMotivo] = useState('')
   const [vincular, setVincular] = useState('')
-  const proyectos = useQuery({ queryKey: ['projects'], queryFn: () => projectsApi.list().then(r => r.data) })
+  const proyectos = useListaDeProyectos()
   const p = q.data
   const dinero: Dinero = n => fmtMoneda(n ?? 0, { moneda: p?.currency, decimales: 0 })
   const accion = async (clave: string, f: () => Promise<FichaPresupuesto>) => {
@@ -91,7 +95,7 @@ export default function FichaDePresupuesto({ id, onClose, onAbrir }: { id: strin
           {p.motivo_rechazo && <div role="alert" className="fidepr-txt-2">{t('pres.rechazado_por')}: {p.motivo_rechazo}</div>}
           {p.puedo_aprobar && (
             <div className="ficha-de-presupuesto-e4">
-              <input aria-label={t('pres.motivo')} placeholder={t('pres.motivo_ayuda')} value={motivo} onChange={e => setMotivo(e.target.value)} className={`${CLASE_CAMPO} fodepa-campo--flex1`} />
+              <Input aria-label={t('pres.motivo')} placeholder={t('pres.motivo_ayuda')} value={motivo} onChange={e => setMotivo(e.target.value)} className="fodepa-campo--flex1" />
               <Button size="sm" variant="danger" disabled={!motivo.trim()} loading={ocupado === 'rechazar'} onClick={() => accion('rechazar', () => presupuestosApi.decidir(p.id, false, motivo))}>{t('pres.rechazar')}</Button>
               <Button size="sm" loading={ocupado === 'aprobar'} onClick={() => accion('aprobar', () => presupuestosApi.decidir(p.id, true))}>{t('pres.aprobar')}</Button>
             </div>
@@ -153,7 +157,8 @@ function Partidas({ p, dinero, onCambio }: { p: FichaPresupuesto; dinero: Dinero
       if (lid) setEditando(null); else setNueva(n => n + 1)
     } catch (e) { toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) } finally { setGuardando(false) }
   }
-  const quitar = async (lid: string) => { try { onCambio(await presupuestosApi.borrarPartida(p.id, lid)) } catch (e) { toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) } }
+  // 23-11-2026: quitar una partida pide confirmación.
+  const quitar = async (lid: string) => { if (!(await confirmar({ message: t('pres.confirmar_quitar_partida'), danger: true, confirmLabel: t('pres.quitar') }))) return; try { onCambio(await presupuestosApi.borrarPartida(p.id, lid)) } catch (e) { toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) } }
   const grupos: { titulo: string; lineas: Partida[] }[] = [
     { titulo: t('pres.gastos'), lineas: p.lineas.filter(l => l.sentido !== 'ingreso') },
     { titulo: t('pres.ingresos'), lineas: p.lineas.filter(l => l.sentido === 'ingreso') },
@@ -331,9 +336,9 @@ function Escenarios({ p, dinero, onAbrir, accion, ocupado }: {
       </div>
       <div className="fidepr-caja2">
         <label className="fidepr-box-10"><span className="u-text3-xs">{t('pres.escenario_nuevo')}</span>
-          <input aria-label={t('pres.escenario_nuevo')} value={nombre} onChange={e => setNombre(e.target.value)} placeholder={t('pres.escenario_ejemplo')} className={CLASE_CAMPO} /></label>
+          <Input aria-label={t('pres.escenario_nuevo')} value={nombre} onChange={e => setNombre(e.target.value)} placeholder={t('pres.escenario_ejemplo')} /></label>
         <label className="fidepr-box-11"><span className="u-text3-xs">{t('pres.inflacion')}</span>
-          <input aria-label={t('pres.inflacion')} type="number" step="any" value={inflacion} onChange={e => setInflacion(e.target.value)} placeholder={String(p.supuestos.inflacion_pct ?? 0)} className={CLASE_CAMPO} /></label>
+          <Input aria-label={t('pres.inflacion')} type="number" step="any" value={inflacion} onChange={e => setInflacion(e.target.value)} placeholder={String(p.supuestos.inflacion_pct ?? 0)} /></label>
         <Button size="sm" disabled={!nombre.trim()} loading={ocupado === 'escenario'}
           onClick={() => accion('escenario', () => presupuestosApi.escenario(p.id, nombre.trim(), inflacion === '' ? undefined : { ...p.supuestos, inflacion_pct: Number(inflacion) }))}>{t('pres.crear_escenario')}</Button>
       </div>
@@ -365,9 +370,9 @@ function SupuestosDelPresupuesto({ p, accion, ocupado }: { p: FichaPresupuesto; 
   return (
     <div className="fidepr-stack-3">
       <label><span className="u-text3-xs">{t('pres.inflacion')}</span>
-        <input aria-label={t('pres.inflacion')} type="number" step="any" value={inflacion} disabled={!p.puedo_editar} onChange={e => setInflacion(e.target.value)} className={CLASE_CAMPO} /></label>
+        <Input aria-label={t('pres.inflacion')} type="number" step="any" value={inflacion} disabled={!p.puedo_editar} onChange={e => setInflacion(e.target.value)} /></label>
       <label><span className="u-text3-xs">{t('pres.supuestos_notas')}</span>
-        <textarea aria-label={t('pres.supuestos_notas')} rows={4} value={notas} disabled={!p.puedo_editar} onChange={e => setNotas(e.target.value)} className={`${CLASE_CAMPO} fodepa-campo--vertical`} /></label>
+        <Textarea aria-label={t('pres.supuestos_notas')} rows={4} value={notas} disabled={!p.puedo_editar} onChange={e => setNotas(e.target.value)} inputClassName="fodepa-campo--vertical" /></label>
       <div className="u-text3-xs">{t('pres.supuestos_ayuda')}</div>
       {p.puedo_editar && <div><Button size="sm" loading={ocupado === 'supuestos'}
         onClick={() => accion('supuestos', () => presupuestosApi.editar(p.id, { supuestos: { ...p.supuestos, inflacion_pct: inflacion === '' ? 0 : Number(inflacion), notas } }))}>{t('pres.guardar')}</Button></div>}

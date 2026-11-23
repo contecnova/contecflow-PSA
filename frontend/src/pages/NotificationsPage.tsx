@@ -5,7 +5,7 @@
 import { useAppLang } from '../i18n/AppLangContext'
 import { type CSSProperties, useState, useEffect, useRef, useCallback } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import api, { alertsApi } from '../services/api'
+import { alertsApi } from '../services/api'
 import type { Alerta } from '../services/api/tipos-documentos'
 import { Button, Pulsable, Spinner, EmptyState, KpiCard, Tabs } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
@@ -67,6 +67,8 @@ const NOTIF_LABEL: Record<string, string> = {
   sprint_ending:      'pagina_notif.sprint_termina',
   expense_approved:   'pagina_notif.gasto_aprobado',
   expense_rejected:   'pagina_notif.gasto_rechazado',
+  milestone_approved: 'pagina_notif.hito_aprobado',
+  milestone_rejected: 'pagina_notif.hito_rechazado',
   ticket_assigned:    'pagina_notif.ticket_asignado',
   ticket_replied:     'pagina_notif.respuesta_ticket',
   ticket_resolved:    'pagina_notif.ticket_resuelto',
@@ -206,15 +208,13 @@ export default function NotificationsPage({ embedded = false }: { embedded?: boo
 
   const { data, isLoading } = useQuery<NotificationsResponse>({
     queryKey: ['notifications-page', filter],
-    queryFn: () => api.get('/enterprise/notifications', {
-      params: { page_size: DEFAULT_PAGE_SIZE, ...(filter !== 'all' && { is_read: filter === 'read' }) }
-    }).then(r => r.data).catch(() => ({ notifications:[], unread_count:0 })),
+    queryFn: () => avisosApi.listar<NotificationsResponse>({ page_size: DEFAULT_PAGE_SIZE, ...(filter !== 'all' && { is_read: filter === 'read' }) }),
     refetchInterval: POLL_DEFAULT_MS,
   })
 
   const { data: alertsRaw = [], isLoading: alertsLoading } = useQuery({
     queryKey: ['alerts-count'],
-    queryFn: () => alertsApi.list({ resolved: false }).then(r => r.data).catch((): AlertItem[] => []),
+    queryFn: () => alertsApi.list({ resolved: false }).then(r => r.data),
     refetchInterval: POLL_DEFAULT_MS,
     enabled: puede('alertas.ver'),
   })
@@ -238,7 +238,7 @@ export default function NotificationsPage({ embedded = false }: { embedded?: boo
   const unreadCount = (data?.unread_count || 0) + alertsRaw.filter((a: AlertItem) => !a.is_read).length
 
   const { mutate: markRead } = useMutation({
-    mutationFn: (id: string | number) => api.post(`/enterprise/notifications/${id}/read`),
+    mutationFn: (id: string | number) => avisosApi.marcarLeido(id),
     // La campana y la pestaña cuentan lo mismo: se refrescan con la bandeja.
     onSuccess: () => refrescarAvisos(qc),
   })

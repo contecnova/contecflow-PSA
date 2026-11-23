@@ -1,7 +1,9 @@
 """Configuración de horas extra por empresa y presupuestos de horas (18-11-2026).
 
-Sin fila de configuración el módulo está DESACTIVADO: nadie puede pedir y la
-imputación se comporta exactamente como antes (tope semanal incluido). Todo
+Sin fila de configuración vale `DEFECTO`: el módulo ACTIVO con control
+«avisar» (decisión del 18-11-2026; M28, auditoría 22-11-2026: el texto decía lo
+contrario). El tope legal anual (`OVERTIME_LEGAL_ANNUAL_CAP_HOURS`, A49) se
+aplica con cualquier control. Todo
 cambio se audita (`audit_log`, recurso `overtime_config` / `overtime_budget`)
 con los valores de antes y de después.
 """
@@ -15,6 +17,7 @@ from sqlalchemy.orm import Session
 
 from app.core.codigos_de_error import error as error_con_codigo
 from app.models.horas_extra import ConfigDeHorasExtra, PresupuestoDeHorasExtra
+from app.models.project import Project
 
 CONTROLES = ("ninguno", "avisar", "regularizar", "bloquear")
 COMPENSACIONES = ("pago", "bolsa", "ninguna")
@@ -148,7 +151,8 @@ def _validar_presupuesto(db: Session, datos: dict) -> dict:
             errores.append("proyecto")
     try:
         horas = float(datos.get("horas"))
-        if horas < 0:
+        import math
+        if horas < 0 or not math.isfinite(horas):   # M28: `nan` e `inf` ya no pasan
             errores.append("horas")
     except (TypeError, ValueError):
         horas = 0.0
@@ -196,3 +200,8 @@ def borrar_presupuesto(db: Session, usuario, presupuesto_id: str) -> None:
     audit_log(db, usuario, "DELETE", "overtime_budget", p.id, p.valor or p.ambito, old_values=presupuesto_dict(p))
     db.delete(p)
     db.commit()
+
+
+def nombres_de_proyectos(db: Session) -> dict:
+    """Nombre de cada proyecto por id."""
+    return dict(db.query(Project.id, Project.name).all())

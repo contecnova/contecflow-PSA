@@ -109,10 +109,13 @@ def _guardar_analisis(db: Session, meeting, data: dict, current_user) -> None:
 
 def _crear_reunion(db: Session, payload, current_user) -> AIMeeting:
     """Crea la reunión en estado `processing`, con la transcripción recortada."""
+    from app.services.formato_regional import idioma_de_salida
+    from app.services.textos_de_salida import texto
+    idioma = idioma_de_salida(db, user_id=current_user.id, org_id=getattr(current_user, "organization_id", None))
     completa = payload.transcript or ""
     meeting = AIMeeting(
         project_id=payload.project_id,
-        title=payload.title or "Reunión procesada por IA",
+        title=payload.title or texto("reunion.titulo_por_defecto", idioma),
         platform=payload.platform,
         duration_min=payload.duration_min,
         participants=json.dumps(payload.participants or []),
@@ -123,11 +126,8 @@ def _crear_reunion(db: Session, payload, current_user) -> AIMeeting:
     # La truncación queda anotada aunque luego se sobrescriba con el resumen:
     # deja rastro en el registro de que la transcripción guardada no es entera.
     if len(completa) > _TOPE_DE_TRANSCRIPCION:
-        meeting.summary = (
-            f"[TRUNCADO: transcripción original {len(completa)} chars, "
-            f"guardados primeros {_TOPE_DE_TRANSCRIPCION}. "
-            "Para audit completo consulta el original.]"
-        )
+        meeting.summary = texto("reunion.transcripcion_truncada", idioma,
+                                total=len(completa), guardados=_TOPE_DE_TRANSCRIPCION)
     if payload.meeting_date:
         try:
             meeting.meeting_date = datetime.fromisoformat(payload.meeting_date)
@@ -209,8 +209,21 @@ def process_meeting(db: Session, payload, current_user) -> dict:
     }
 
 def create_tasks_from_meeting(db: Session, meeting_id: str, payload: dict, current_user) -> dict:
+    """Crea las tareas de las acciones de una reunión.
 
-    meeting = db.query(AIMeeting).options(joinedload(AIMeeting.actions)).filter(
+    Auditoría 22-11-2026 (A5): la reunión se buscaba sin `visibles()` y el
+    `project_id` del payload no se comprobaba, así que se creaban tareas en
+    cualquier proyecto con `Task(...)` directa. Ahora la reunión tiene que ser
+    visible, el proyecto accesible para quien pide (`project_for_user`) y cada
+    tarea pasa por `task_service.create_task_record` (pertenencia, tipo,
+    asignación y numeración del dominio).
+    """
+    from app.services.reuniones.consultas import visibles
+    from app.services.task_service import project_for_user
+    from app.schemas.tasks import TaskCreate
+    from app.services.task_service import create_task_record
+
+    meeting = visibles(db, current_user).options(joinedload(AIMeeting.actions)).filter(
         AIMeeting.id == meeting_id
     ).first()
     if not meeting:
@@ -218,20 +231,14 @@ def create_tasks_from_meeting(db: Session, meeting_id: str, payload: dict, curre
     project_id = payload.get("project_id") or meeting.project_id
     if not project_id:
         raise ValueError("project_id_required")
+    if not project_for_user(db, project_id, current_user):
+        raise ValueError("not_found")
     action_ids = payload.get("action_ids", [a.id for a in meeting.actions])
     created = []
     for action in meeting.actions:
         if action.id not in action_ids or action.is_created: continue
-        # Auditoria 2026-11: sin codigo la insercion fallaba (NOT NULL) y daba 500.
-        from app.services.numbering import next_numbered_code
-        task = Task(
-            code=next_numbered_code(db, "task", prefix="TSK", padding=5),
-            project_id=project_id, title=action.description[:255],
-            status="todo", priority="medium",
-            assignee_id=action.assignee_id, created_by=current_user.id,
-            reporter_id=current_user.id,
-        )
-        db.add(task); db.flush()
+        task = create_task_record(db, TaskCreate(project_id=project_id, title=action.description[:255],
+                                                 assignee_id=action.assignee_id), current_user)
         action.task_id = task.id
         action.is_created = True
         created.append({"action_id": action.id, "task_id": task.id, "title": task.title})

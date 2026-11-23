@@ -8,36 +8,6 @@ from tests.conftest import auth
 
 
 @pytest.fixture()
-def admin_no_org_token(client, db):
-    """Admin user with no organization_id — must get 400 on org-scoped endpoints."""
-    from app.models.user import User, UserRole, UserStatus
-    from app.core.security import get_password_hash
-    from tests.conftest import TEST_PASSWORD
-    # Audit #37: users.organization_id es NOT NULL. Este "no-org admin" se
-    # crea con la default org para preservar el escenario de test del
-    # endpoint org-scoped (que sigue devolviendo 400 si NO se pasa
-    # X-Organization-Id explícito en el request).
-    no_org_admin = User(
-        id="admin-no-org-id",
-        username="admin_no_org",
-        email="noorge@contecflow.com",
-        full_name="No Org Admin",
-        role=UserRole.admin,
-        status=UserStatus.active,
-        is_active=True,
-        hashed_password=get_password_hash(TEST_PASSWORD),
-        organization_id="00000000-0000-0000-0000-000000000001",
-    )
-    db.add(no_org_admin)
-    db.commit()
-    res = client.post("/api/v1/auth/login", json={"username": "admin_no_org", "password": TEST_PASSWORD})
-    assert res.status_code == 200
-    token = res.cookies.get("access_token")
-    assert token
-    return token
-
-
-@pytest.fixture()
 def admin_with_org(admin_token, db, client):
     """Ensures admin test user has an organization_id for org-scoped endpoints."""
     from app.models.mfa import Organization
@@ -101,17 +71,6 @@ class TestABACAdminDashboard:
         assert res.status_code == 200
         data = res.json()["data"]
         assert "total" in data
-
-    @pytest.mark.skip(
-        reason="Audit #37: users.organization_id es NOT NULL — el escenario "
-               "'admin sin org' ya no puede ocurrir en BD. El endpoint sigue "
-               "devolviendo 400 si el contexto no resuelve la org."
-    )
-    def test_overview_no_org_returns_400(self, client, admin_no_org_token):
-        """Admin without org_id returns 400 from org-scoped endpoint."""
-        res = client.get("/api/v1/abac/admin/overview", headers=auth(admin_no_org_token))
-        assert res.status_code == 400
-
 
 # ── ABAC enforcement: timesheets ─────────────────────────────────────────────
 
@@ -222,34 +181,6 @@ class TestEnforceABACHelper:
 
         # Should NOT raise — superadmin bypass
         enforce_abac(db, su, "timesheet", action="read")
-
-    @pytest.mark.skip(
-        reason="Audit #37: users.organization_id es NOT NULL — el escenario "
-               "'user con organization_id=None' ya no puede ocurrir. El bypass "
-               "de fail-open por falta de org se mantiene en abac_enforce.py "
-               "como safety net (`if not org_id: return`) pero ya no es "
-               "alcanzable en runtime con datos válidos."
-    )
-    def test_no_org_user_bypasses_abac(self, db):
-        from app.core.abac_enforce import enforce_abac
-        from app.models.user import User, UserRole, UserStatus
-
-        noorg = User(
-            id="noorg-test",
-            username="noorg_user",
-            email="noorg@test.com",
-            full_name="No Org",
-            role=UserRole.pm,
-            status=UserStatus.active,
-            is_active=True,
-            organization_id=None,
-            hashed_password="x",
-        )
-        db.add(noorg)
-        db.commit()
-
-        # No org_id → fail-open, no exception
-        enforce_abac(db, noorg, "expense", action="read")
 
     def test_user_with_org_no_deny_policy_allowed(self, db):
         from app.core.abac_enforce import enforce_abac

@@ -60,13 +60,16 @@ def _try_fallback_providers(
 
     # Orden de respaldo configurable (`priority`), estable por fecha.
     query = query.order_by(AIProvider.priority.asc(), AIProvider.created_at.asc())
-    if not is_superadmin and organization_id:
+    if organization_id:
         # Try org-specific first, then shared
         org_providers = query.filter(AIProvider.organization_id == organization_id).all()
         shared_providers = query.filter(AIProvider.organization_id.is_(None)).all()
         all_providers = org_providers + shared_providers
     else:
-        all_providers = query.all()
+        # M44 (auditoría 22-11-2026): sin empresa (job, superadmin) solo los
+        # proveedores de plataforma; antes se probaban los de TODAS las empresas
+        # (con sus claves y su gasto).
+        all_providers = query.filter(AIProvider.organization_id.is_(None)).all()
 
     # Try each provider in order
     for provider in all_providers:
@@ -318,14 +321,21 @@ def call_ai(
     Antes los guardrails sólo se aplicaban en ``ai_chat.py`` → 54% del
     tráfico IA bypasaba policies.
     """
-    governance_user = _resolver_usuario_de_gobernanza(db, user_id, skip_guardrails)
+    org_de_la_llamada = _org_de_la_llamada(db, organization_id, user_id)
+    # 23-11-2026 (C-SD2): sin usuario, las politicas de la empresa de la llamada.
+    governance_user = _resolver_usuario_de_gobernanza(
+        db, user_id, skip_guardrails, organization_id or org_de_la_llamada)
 
     bloqueo = _aplicar_guardrail_de_entrada(
         db, messages, governance_user, module, skip_guardrails
     )
     if bloqueo:
         return bloqueo
-    org_de_la_llamada = _org_de_la_llamada(db, organization_id, user_id)
+    # A8 (auditoría 22-11-2026): el contexto del sistema (datos del tenant que
+    # monta el asistente) pasa por la misma redacción.
+    if system and governance_user and not skip_guardrails:
+        from app.services.ai_provider_service.gobernanza import redactar_contexto
+        system = redactar_contexto(db, system, governance_user, module)
     _exigir_presupuesto(db, org_de_la_llamada)
     # Revisión 2026-11: el proveedor se elige con la empresa de la llamada (la de
     # la sesión o la del usuario) y no como superadministrador por defecto. Antes
@@ -368,6 +378,9 @@ def call_ai(
     if error_msg == SIN_PROVEEDOR:
         return AVISO_SIN_PROVEEDOR
     if error_msg is not None:
-        return f"⚠️ AI provider error: {error_msg[:200]}"
+        # M45 (auditoría 22-11-2026): al usuario solo el tipo de error (p. ej.
+        # «Gemini 400»), no el cuerpo remoto; el detalle queda en el log.
+        _logger.warning("AI provider error: %s", error_msg[:500])
+        return f"⚠️ AI provider error: {str(error_msg).split(':', 1)[0][:80]}"
 
     return final_text

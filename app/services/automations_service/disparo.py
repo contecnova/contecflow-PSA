@@ -16,7 +16,7 @@ from app.models.user import User
 
 from app.services.automations_service.catalogo import CATALOGO_DISPARADORES, check_conditions
 from app.services.automations_service.acciones import (
-    _TAREA_ABIERTA,
+    _TAREA_TERMINADA,
     _contexto_publico,
     execute_actions,
 )
@@ -121,7 +121,7 @@ def _contexto_de_tarea(t: Task) -> dict:
 def _barrer_tareas_vencidas(db: Session, org: str, hoy) -> int:
     n = 0
     for t in db.query(Task).filter(Task.organization_id == org, Task.is_active.is_(True),
-                                   Task.due_date < hoy, Task.status.notin_(_TAREA_ABIERTA)):
+                                   Task.due_date < hoy, Task.status.notin_(_TAREA_TERMINADA)):
         r = disparar(db, "task_overdue", {**_contexto_de_tarea(t), "days_overdue": (hoy - t.due_date).days},
                      org, clave=f"task_overdue:{t.id}:{t.due_date}")
         n += len(r["rules"])
@@ -135,7 +135,7 @@ def _barrer_tareas_que_vencen(db: Session, org: str, hoy) -> int:
     n = 0
     for t in db.query(Task).filter(Task.organization_id == org, Task.is_active.is_(True),
                                    Task.due_date >= hoy, Task.due_date <= hoy + timedelta(days=dias),
-                                   Task.status.notin_(_TAREA_ABIERTA)):
+                                   Task.status.notin_(_TAREA_TERMINADA)):
         r = disparar(db, "task_deadline_approaching",
                      {**_contexto_de_tarea(t), "days_left": (t.due_date - hoy).days},
                      org, clave=f"task_deadline:{t.id}:{t.due_date}")

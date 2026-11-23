@@ -92,15 +92,17 @@ def graph_falso(monkeypatch):
 
     pedidas = []
 
-    async def _get(path):
+    async def _get(path, **k):
         pedidas.append(path)
         return {"value": [], "id": path}
 
-    async def _post(path, payload):
+    async def _post(path, payload, **k):
         pedidas.append((path, payload))
         return {"value": []}
 
-    monkeypatch.setattr(m365_service, "m365_configured", lambda: True)
+    # 23-11-2026 (03 A-MP3): credencial de Graph por empresa.
+    monkeypatch.setattr(m365_service, "credenciales_de_graph", lambda db, org_id: {
+        "tenant_id": "t", "client_id": "c", "client_secret": "s", "origen": "empresa"})
     monkeypatch.setattr(m365, "_graph_get", _get)
     monkeypatch.setattr(m365, "_graph_post", _post)
     return pedidas
@@ -258,16 +260,37 @@ def test_23_el_logout_del_portal_revoca_el_token(client, db, contacto_portal):
 
 # ── 24. Secretos de webhooks de colaboracion ─────────────────────────────────
 
-def test_24_solo_un_administrador_ve_el_secreto_del_webhook(client, admin_token, dev_token, db):
+def test_24_el_secreto_del_webhook_solo_se_ve_al_crearlo(client, admin_token, dev_token, db):
+    """23-11-2026: el secreto sale entero solo en el alta; nadie (tampoco un
+    administrador) lo vuelve a ver, en la base solo queda su huella y la máscara,
+    y la entrega sigue funcionando por la huella."""
+    from app.models.collaboration import CollaborationWebhook
+    from app.services.collaboration.webhooks import huella_del_secreto
     r = client.post("/api/v1/collaboration/webhooks", headers=auth(admin_token),
                     json={"direction": "incoming", "name": "ci", "events": []})
     assert r.status_code == 200, r.text
     secreto = r.json()["data"]["secret_token"]
     assert len(secreto) > 20
-    del_dev = client.get("/api/v1/collaboration/webhooks", headers=auth(dev_token)).json()["items"]
-    assert del_dev and del_dev[0]["secret_token"].startswith("••••") and secreto not in json.dumps(del_dev)
-    del_admin = client.get("/api/v1/collaboration/webhooks", headers=auth(admin_token)).json()["items"]
-    assert del_admin[0]["secret_token"] == secreto
+    for token in (dev_token, admin_token):
+        items = client.get("/api/v1/collaboration/webhooks", headers=auth(token)).json()["items"]
+        assert items and items[0]["secret_token"].startswith("••••") and secreto not in json.dumps(items)
+    fila = db.query(CollaborationWebhook).filter(CollaborationWebhook.id == r.json()["data"]["id"]).one()
+    assert fila.secret_token == "••••" + secreto[-4:]
+    assert fila.secret_token_hash == huella_del_secreto(secreto)
+
+
+def test_24_un_webhook_antiguo_deja_de_guardar_el_secreto_en_claro(client, admin_token, db):
+    from app.models.collaboration import CollaborationWebhook
+    from app.services.collaboration.webhooks import huella_del_secreto
+    r = client.post("/api/v1/collaboration/webhooks", headers=auth(admin_token),
+                    json={"direction": "incoming", "name": "antiguo", "events": []})
+    fila = db.query(CollaborationWebhook).filter(CollaborationWebhook.id == r.json()["data"]["id"]).one()
+    fila.secret_token, fila.secret_token_hash = "secreto-antiguo-en-claro-0123456789", None   # como antes de la 196
+    db.commit()
+    client.get("/api/v1/collaboration/webhooks", headers=auth(admin_token))
+    db.refresh(fila)
+    assert fila.secret_token == "••••6789"
+    assert fila.secret_token_hash == huella_del_secreto("secreto-antiguo-en-claro-0123456789")
 
 
 # ── 26. OAuth con `state` firmado, de un uso y ligado ────────────────────────

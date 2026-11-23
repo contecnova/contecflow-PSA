@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 
 from app.api.descargas import respuesta_de_descarga
 from app.core.abac_enforce import enforce_abac
-from app.core.deps import require_admin_or_pm, get_current_user, get_db, require_internal_user
+from app.core.deps import get_current_user, get_db, requiere_capacidad
 from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
 import app.services.report_builder_service as _svc
@@ -55,7 +55,7 @@ class ReportTemplate(BaseModel):
 # ── Routes ────────────────────────────────────────────────────────────────────
 
 @router.get("/schema", summary="Obtener esquema de entidades disponibles")
-def get_schema(_: User = Depends(require_admin_or_pm), db: Session = Depends(get_db)):
+def get_schema(_: User = Depends(requiere_capacidad("informes.gestionar")), db: Session = Depends(get_db)):
     return APIResponse.ok(data={
         "entities":  _svc.entidades(db, _.organization_id),
         "operators": _svc.OPERATORS,
@@ -75,8 +75,8 @@ def preview_report(
     q: ReportQuery,
     request: Request,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin_or_pm),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
+    current_user: User = Depends(requiere_capacidad("informes.gestionar")),
+    _rol: User = Depends(requiere_capacidad("informes.usar")),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
 ):
     if q.entity not in _svc.ENTITIES:
         raise error_http(400, "entidad_desconocida", detail=f"Entidad '{q.entity}' desconocida", entidad=q.entity)
@@ -101,8 +101,8 @@ def export_report(
     page: Optional[int] = Query(None, ge=1, description="Página; sin ella se exporta todo (hasta REPORT_EXPORT_MAX_ROWS)"),
     page_size: int = Query(2000, ge=1, le=10000, description="Tamaño de página para exportación paginada"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin_or_pm),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
+    current_user: User = Depends(requiere_capacidad("informes.gestionar")),
+    _rol: User = Depends(requiere_capacidad("informes.usar")),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
 ):
     if q.entity not in _svc.ENTITIES:
         raise error_http(400, "entidad_desconocida", detail=f"Entidad '{q.entity}' desconocida", entidad=q.entity)
@@ -122,7 +122,7 @@ def export_report(
 @router.get("/templates", summary="Listar plantillas de informes")
 def list_templates(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin_or_pm),
+    current_user: User = Depends(requiere_capacidad("informes.gestionar")),
 ):
     return APIListResponse.ok(items=_svc.load_user_templates(str(current_user.id), db))
 
@@ -131,7 +131,7 @@ def list_templates(
 def save_template(
     tpl: ReportTemplate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin_or_pm),
+    current_user: User = Depends(requiere_capacidad("informes.gestionar")),
 ):
     if tpl.query.entity not in _svc.ENTITIES:
         raise error_http(400, "entidad_desconocida", detail=f"Entidad '{tpl.query.entity}' desconocida", entidad=tpl.query.entity)
@@ -147,7 +147,7 @@ def save_template(
 def delete_template(
     template_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin_or_pm),
+    current_user: User = Depends(requiere_capacidad("informes.gestionar")),
 ):
     enforce_abac(db, current_user, "report_template", template_id, action="delete")
     templates = _svc.load_user_templates(str(current_user.id), db)

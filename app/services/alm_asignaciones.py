@@ -220,6 +220,14 @@ def _limite_de_asientos(lic: ALMLicense) -> Optional[int]:
 
 def _comprobar_licencia(db: Session, lic: ALMLicense, holder_type: str, mode: str, quantity: int,
                         padre: Optional[ALMAsignacion], holder_id: str) -> None:
+    # M89 (auditoría 22-11-2026): la licencia (y la bolsa) se bloquean hasta el
+    # commit: dos asignaciones a la vez ya no pasan las dos el recuento de
+    # asientos (sobreasignación).
+    from app.db.session import is_postgres
+    if is_postgres():
+        db.refresh(lic, with_for_update=True)
+        if padre is not None:
+            db.refresh(padre, with_for_update=True)
     if _valor(lic.status) in ("cancelled", "expired"):
         raise ErrorDeDominio(409, "alm_licencia_no_asignable")
     if lic.expiry_date and lic.expiry_date < timeutil.today():

@@ -1,5 +1,6 @@
 import * as React from 'react'
-import { useDialogo } from './useDialogo'
+import { useDialogoEditable } from './useDialogo'
+import { SinGuardarContext } from './useCambiosSinGuardar'
 import './Drawer.css'
 import type { CSSProperties } from 'react'
 
@@ -17,6 +18,10 @@ import type { CSSProperties } from 'react'
  *  - `flotante`: separado 12px del borde, con esquinas redondeadas y alto
  *    ajustado al contenido.
  *  - `borde`: pegado al borde derecho, alto completo.
+ *
+ * Cambios sin guardar (23-11-2026): el fondo, Esc y la X preguntan antes de
+ * cerrar si el usuario ha tocado algo. La X la pone quien usa el Drawer: debe
+ * llevar `data-cierra-dialogo` para que el kit la reconozca.
  */
 interface DrawerProps {
   /** Por defecto abierto: muchos paneles se montan solo cuando se muestran. */
@@ -37,21 +42,25 @@ interface DrawerProps {
   /** Estilos extra del panel; ganan sobre los de la variante. */
   style?: React.CSSProperties
   children?: React.ReactNode
+  /** false en paneles de solo lectura: no preguntan por cambios sin guardar. */
+  avisarSinGuardar?: boolean
+  /** Controlado por la pantalla: manda sobre la deteccion automatica. */
+  cambiosSinGuardar?: boolean
 }
 
 export function Drawer({
   open = true, onClose, ariaLabel, ariaLabelledby, width = 480,
   variant = 'flotante', zIndex = 'var(--z-drawer)', backdrop = 'var(--overlay-scrim-soft)',
-  className, style, children,
+  className, style, children, avisarSinGuardar = true, cambiosSinGuardar,
 }: DrawerProps) {
-  const ref = useDialogo<HTMLDivElement>(open, onClose)
+  const { ref, pedirCierre, sinGuardar } = useDialogoEditable<HTMLDivElement>(open, onClose, { avisarSinGuardar, cambiosSinGuardar })
   if (!open) return null
   return (
     <>
       {/* El fondo es un atajo de raton; la via accesible es Esc o el boton de cerrar. */}
       <div className="uidraw-box-1 drawer-e1"
         role="presentation"
-        onMouseDown={onClose}
+        onMouseDown={e => { e.preventDefault(); pedirCierre() }}
         style={{ '--drawer-z-index': zIndex, '--drawer-background': backdrop } as CSSProperties}
       />
       <div
@@ -64,7 +73,7 @@ export function Drawer({
         className={`drawer drawer--${variant}${className ? ` ${className}` : ''}`}
         style={{ '--drawer-width': typeof width === 'number' ? `${width}px` : width, '--drawer-z-index': zIndex, ...style } as CSSProperties}
       >
-        {children}
+        <SinGuardarContext.Provider value={sinGuardar}>{children}</SinGuardarContext.Provider>
       </div>
     </>
   )

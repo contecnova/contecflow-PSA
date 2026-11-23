@@ -108,12 +108,39 @@ def _ordered_providers(db=None, org_id=None) -> Iterable[STTProvider]:
             logger.info("STT provider '%s' configurado pero sin credenciales — skip", name)
 
 
-def _apuntar_uso(db, org_id, proveedor: str, resultado, error) -> None:
+# Bytes por segundo con los que se estima la duracion cuando el proveedor no la
+# devuelve: 16 kB/s (128 kbit/s). Un WAV de 16 kHz mono (32 kB/s) sale por el
+# doble de su duracion: la estimacion peca de cara, nunca de gratis.
+BYTES_POR_SEGUNDO_ESTIMADOS = 16_000
+
+
+def coste_estimado_usd(audio_bytes: Optional[bytes], resultado=None, db=None, org_id=None) -> float:
+    """Coste de una transcripcion (ronda 2 auditoria 2026-11-22).
+
+    Antes la voz costaba 0 y el tope diario de gasto en IA no la frenaba.
+    Minutos = `duration_ms` del proveedor o, sin el, el tamano del audio a
+    `BYTES_POR_SEGUNDO_ESTIMADOS`; precio = `STT_COSTE_USD_POR_MINUTO`.
+    """
+    try:
+        precio = float(_setting("STT_COSTE_USD_POR_MINUTO", "", db=db, org_id=org_id)
+                       or getattr(settings, "STT_COSTE_USD_POR_MINUTO", 0.006))
+    except (TypeError, ValueError):
+        precio = float(getattr(settings, "STT_COSTE_USD_POR_MINUTO", 0.006))
+    ms = getattr(resultado, "duration_ms", None)
+    if ms:
+        segundos = ms / 1000.0
+    else:
+        segundos = len(audio_bytes or b"") / BYTES_POR_SEGUNDO_ESTIMADOS
+    return round(max(0.0, precio) * segundos / 60.0, 6)
+
+
+def _apuntar_uso(db, org_id, proveedor: str, resultado, error, audio_bytes: Optional[bytes] = None) -> None:
     if db is None or not org_id:
         return
     from app.services.ai_provider_service import _registrar_uso
+    coste = coste_estimado_usd(audio_bytes, resultado, db=db, org_id=org_id) if resultado is not None else 0
     _registrar_uso(db, None, {"model": getattr(resultado, "model", None) or proveedor, "tokens_in": 0,
-                              "tokens_out": 0, "cost_usd": 0},
+                              "tokens_out": 0, "cost_usd": coste},
                    user_id=None, module="voice", latency=0, error_msg=error[:500] if error else None,
                    organization_id=org_id)
 
@@ -134,8 +161,8 @@ def transcribe_audio(
     last_error: STTError | None = None
     attempted = 0
     # Revisión 2026-11: con empresa, la transcripción respeta su tope diario de
-    # gasto en IA y queda apuntada en `ai_usage_logs` (módulo `voice`). El coste
-    # va a 0: ningún proveedor devuelve la duración del audio y no se estima.
+    # gasto en IA y queda apuntada en `ai_usage_logs` (módulo `voice`). Ronda 2
+    # (23-11-2026): el coste se estima (`coste_estimado_usd`), antes iba a 0.
     if db is not None and org_id:
         from app.services.ai_provider_service import _exigir_presupuesto
         _exigir_presupuesto(db, org_id)
@@ -143,7 +170,7 @@ def transcribe_audio(
         attempted += 1
         try:
             resultado = provider.transcribe(audio_bytes, filename, content_type, language=language)
-            _apuntar_uso(db, org_id, provider.name, resultado, None)
+            _apuntar_uso(db, org_id, provider.name, resultado, None, audio_bytes)
             return resultado
         except STTError as exc:
             _apuntar_uso(db, org_id, provider.name, None, str(exc))

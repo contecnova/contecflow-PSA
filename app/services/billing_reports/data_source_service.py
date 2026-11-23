@@ -71,12 +71,24 @@ def run_pipeline_report(db: Session, filters: dict, org_id=None) -> dict:
         by_stage[stage]["count"] += 1
         by_stage[stage]["amount"] += r["amount"]
         by_stage[stage]["weighted"] += r["weighted_amount"]
+    # Auditoria 04b M9: el ponderado del total es solo de abiertas (antes sumaba
+    # ganadas al 100 % y perdidas/canceladas con probabilidad manual); win rate
+    # sin canceladas, que van aparte.
+    from app.services.pipeline_service import resumir_pipeline
+    resumen = resumir_pipeline(opps)
     return {
         "rows": rows,
         "by_stage": list(by_stage.values()),
         "totals": {
             "total_amount": round(sum(r["amount"] for r in rows), 2),
-            "weighted_amount": round(sum(r["weighted_amount"] for r in rows), 2),
+            "weighted_amount": resumen["weighted_value"],
+            "open_amount": resumen["open_value"],
             "count": len(rows),
+            "open_count": resumen["open_count"],
+            "won_count": resumen["won_count"],
+            "lost_count": resumen["lost_count"],
+            "cancelled_count": resumen["cancelled_count"],
+            "cancelled_amount": resumen["cancelled_value"],
+            "win_rate": resumen["win_rate"],
         },
     }

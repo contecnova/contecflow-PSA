@@ -9,11 +9,7 @@ from datetime import date
 from app.db.session import get_db
 from app.core.deps import (
     get_current_user,
-    require_admin,
-    require_admin_or_pm,
-    require_any_manager,
-    require_internal_user,
-    require_worker,
+    requiere_capacidad,
 )
 from app.core.abac_enforce import enforce_abac
 from app.core.uploads import UploadProfile, read_and_validate_upload
@@ -99,7 +95,7 @@ def pending_expenses(
     response: Response = None,
     pagina: Paginacion = Depends(paginacion),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("gastos.responsables")),
 ):
     enforce_abac(db, current_user, "expense", action="read")
     resultado = svc_list_pending_expenses(db, project_id, pagina=pagina, category=category, texto=q,
@@ -114,7 +110,7 @@ def pending_expenses_totals(
     category: Optional[str] = Query(None, max_length=30),
     q: Optional[str] = Query(None, max_length=200),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("gastos.responsables")),
 ):
     enforce_abac(db, current_user, "expense", action="read")
     from app.services.expense_service import query_pending_expenses, totales_de_lista
@@ -145,7 +141,7 @@ def team_expenses(
     response: Response = None,
     pagina: Paginacion = Depends(paginacion),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("gastos.responsables")),
 ):
     """Los totales son de todos los gastos filtrados, no solo de la pagina."""
     enforce_abac(db, current_user, "expense", action="read")
@@ -166,7 +162,7 @@ def team_expenses(
 def project_expense_summary(
     project_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("gastos.responsables")),
 ):
     # Revisión 2026-11: con reparto entre proyectos cuenta la parte de este proyecto.
     from app.services.gastos_avanzados import gastos_de_proyecto
@@ -194,7 +190,7 @@ def create_expense(
     current_user: User = Depends(get_current_user),
     # Externos como internos (16-11-2026): presentar un gasto propio, tambien el
     # subcontratado (proyecto suyo, `acotar_gasto_del_externo`).
-    _rol: User = Depends(require_worker),
+    _rol: User = Depends(requiere_capacidad("gastos.trabajar")),
 ):
     acotar_gasto_del_externo(db, payload, current_user)
     expense = svc_create_expense(db, payload, current_user.id, _next_code(db))
@@ -206,7 +202,7 @@ def update_expense_admin(
     expense_id: str,
     payload: ExpenseIn,
     db: Session = Depends(get_db),
-    cu: User = Depends(require_admin_or_pm),
+    cu: User = Depends(requiere_capacidad("gastos.dirigir")),
 ):
     e = svc_admin_update_expense(db, expense_id, payload)
     return APIResponse.ok(data=_expense_out(e))
@@ -245,7 +241,7 @@ def review_expense(
     expense_id: str,
     payload: ReviewPayload,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("gastos.responsables")),
 ):
     enforce_abac(db, current_user, "expense", expense_id, action="approve")
     return APIResponse.ok(data=svc_review_expense(expense_id, payload.approved, payload.rejection_reason, current_user, db))
@@ -255,10 +251,10 @@ def review_expense(
 def reimburse_expense(
     expense_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("gastos.responsables")),
 ):
     enforce_abac(db, current_user, "expense", expense_id, action="approve")
-    return APIResponse.ok(data=svc_reimburse_expense(db, expense_id))
+    return APIResponse.ok(data=svc_reimburse_expense(db, expense_id, current_user))   # M88
 
 
 @router.delete("/my/{expense_id}", summary="Eliminar gasto en borrador")
@@ -277,10 +273,10 @@ def export_expenses(
     status:    Optional[str]  = None,
     category:  Optional[str]  = None,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("gastos.responsables")),
 ):
     from app.api.descargas import respuesta_de_descarga
-    return respuesta_de_descarga(export_expenses_excel(date_from, date_to, status, category, db))
+    return respuesta_de_descarga(export_expenses_excel(date_from, date_to, status, category, db, current_user))
 
 
 # ── OCR receipt scanning (v24) ────────────────────────────────────────────────
@@ -289,7 +285,7 @@ async def ocr_receipt(
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: excepcion revisada: escanear el recibo del gasto propio
+    _rol: User = Depends(requiere_capacidad("gastos.usar")),  # auditoria 2026-09: excepcion revisada: escanear el recibo del gasto propio
 ):
     # Auditoría 2026-08 (P1-8): aquí sólo se comprobaba `file.content_type`, que
     # es un valor que elige el cliente — renombrar la cabecera bastaba para
@@ -324,12 +320,12 @@ class TipoDeDocumentoIn(BaseModel):
 
 @router.get("/{expense_id}/policy-preview",
             summary="Qué pasará al enviar el gasto: políticas, niveles, avisos y documentos (sin efectos)")
-def policy_preview(expense_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_internal_user)):
+def policy_preview(expense_id: str, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("gastos.usar"))):
     return APIResponse.ok(data=gastos_politicas.previsualizar(db, current_user, expense_id))
 
 
 @router.get("/{expense_id}/attachments", summary="Justificantes y documentos del gasto")
-def list_attachments(expense_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_worker)):
+def list_attachments(expense_id: str, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("gastos.trabajar"))):
     # Externos como internos (16-11-2026): justificantes del gasto propio
     # (`gastos_avanzados._gasto`: el dueño o un gestor; si no, 404).
     return APIResponse.ok(data={"items": gav.adjuntos(db, current_user, expense_id)})
@@ -338,7 +334,7 @@ def list_attachments(expense_id: str, db: Session = Depends(get_db), current_use
 @router.post("/{expense_id}/attachments", summary="Adjuntar un justificante o documento (con su tipo de documento)")
 async def add_attachment(expense_id: str, file: UploadFile = File(...),
                          document_type: Optional[str] = Form(None, max_length=40), db: Session = Depends(get_db),
-                         current_user: User = Depends(require_worker)):
+                         current_user: User = Depends(requiere_capacidad("gastos.trabajar"))):
     # Externos como internos (16-11-2026): solo sobre el gasto propio en borrador (`_gasto(editar=True)`).
     contenido = await read_and_validate_upload(file, UploadProfile.RECEIPT)
     from app.core.async_db import run_db
@@ -348,30 +344,30 @@ async def add_attachment(expense_id: str, file: UploadFile = File(...),
 
 @router.patch("/attachments/{attachment_id}", summary="Cambiar el tipo de documento de un justificante")
 def set_attachment_type(attachment_id: str, body: TipoDeDocumentoIn, db: Session = Depends(get_db),
-                        current_user: User = Depends(require_worker)):
+                        current_user: User = Depends(requiere_capacidad("gastos.trabajar"))):
     # Externos como internos (16-11-2026): solo sobre el gasto propio en borrador.
     return APIResponse.ok(data=gav.tipar_adjunto(db, current_user, attachment_id, body.document_type))
 
 
 @router.get("/attachments/{attachment_id}/url", summary="URL firmada y de corta vida para ver el justificante")
-def attachment_url(attachment_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_worker)):
+def attachment_url(attachment_id: str, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("gastos.trabajar"))):
     # Externos como internos (16-11-2026): solo de un gasto propio.
     return APIResponse.ok(data={"url": gav.url_de_adjunto(db, current_user, attachment_id)})
 
 
 @router.delete("/attachments/{attachment_id}", summary="Quitar un justificante")
-def delete_attachment(attachment_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_worker)):
+def delete_attachment(attachment_id: str, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("gastos.trabajar"))):
     # Externos como internos (16-11-2026): solo sobre el gasto propio en borrador.
     gav.borrar_adjunto(db, current_user, attachment_id)
     return APIResponse.ok(data={"ok": True})
 
 
 @router.get("/{expense_id}/allocations", summary="Reparto del gasto entre proyectos")
-def get_allocations(expense_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_internal_user)):
+def get_allocations(expense_id: str, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("gastos.usar"))):
     return APIResponse.ok(data={"items": gav.reparto(db, current_user, expense_id)})
 
 
 @router.put("/{expense_id}/allocations", summary="Repartir el gasto entre proyectos (suma 100 %; vacío lo quita)")
 def put_allocations(expense_id: str, body: list[ParteIn], db: Session = Depends(get_db),
-                    current_user: User = Depends(require_internal_user)):
+                    current_user: User = Depends(requiere_capacidad("gastos.usar"))):
     return APIResponse.ok(data={"items": gav.repartir(db, current_user, expense_id, [p.model_dump() for p in body])})

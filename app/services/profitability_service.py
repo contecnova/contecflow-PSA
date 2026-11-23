@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from datetime import date
 from typing import Optional
 
-from sqlalchemy import func, case
+from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 
 from app.services.settings_service import por_empresa as _pe
@@ -45,17 +45,11 @@ def get_fx_rate(
     key = (from_currency, to_currency, as_of)
     if _cache is not None and key in _cache:
         return _cache[key]
-    row = (
-        db.query(ExchangeRate)
-        .filter(
-            ExchangeRate.from_currency == from_currency,
-            ExchangeRate.to_currency == to_currency,
-            ExchangeRate.effective_date <= as_of,
-        )
-        .order_by(ExchangeRate.effective_date.desc(), ExchangeRate.organization_id.is_(None))
-        .first()
-    )
-    rate = row.rate if row else 1.0
+    # Auditoría 22-11-2026 (A41): un solo resolutor (directo, inverso o cruzado
+    # por EUR). Sin tipo ya no es 1,0 en silencio: se anota en
+    # `currency_rates_service.TiposQueFaltan` y la respuesta lo avisa.
+    from app.services.currency_rates_service import tipo_o_aviso
+    rate = tipo_o_aviso(db, from_currency, to_currency, as_of)
     if _cache is not None:
         _cache[key] = rate
     return rate
@@ -90,55 +84,6 @@ def get_fx_rate(
 from app.services.evm_service import PESO_DE_PROGRESO_POR_ESTADO as _PESO_DE_PROGRESO  # noqa: E402
 
 
-def _totales_de_imputacion(
-    project: Project,
-    db: Session,
-    imputation_totals: Optional[dict],
-    project_currency: str,
-    org_currency: str,
-    desde=None,
-    hasta=None,
-) -> tuple[float, float, float]:
-    """Horas totales, horas facturables y coste interno en moneda de la organizacion.
-
-    Se recalcula desde las imputaciones —en vez de usar los totales que llegan
-    ya sumados— cuando no llegan, o cuando la moneda del proyecto no es la de la
-    organizacion: en ese caso los totales precalculados vendrian sin convertir y
-    el coste saldria en la moneda equivocada, que es un error silencioso de los
-    caros.
-    """
-    if imputation_totals is not None and project_currency == org_currency:
-        return (
-            float(imputation_totals.get("total_hours") or 0),
-            float(imputation_totals.get("billable_hours") or 0),
-            float(imputation_totals.get("internal_cost") or 0),
-        )
-
-    # Cache local a la llamada: nunca compartida entre peticiones concurrentes.
-    _local_fx_cache: dict = {}
-    imps = get_project_imputations(db, project.id, desde, hasta)
-    total_hours = sum(i.hours for i in imps)
-    billable_hours = sum(i.hours for i in imps if i.is_billable)
-
-    # Se cargan los usuarios de golpe para poder leer su moneda al convertir.
-    user_ids = {i.user_id for i in imps if i.user_id}
-    if user_ids:
-        user_currency_map = {
-            u.id: (getattr(u, "currency", None) or org_currency)
-            for u in db.query(User).filter(User.id.in_(user_ids)).all()
-        }
-    else:
-        user_currency_map = {}
-
-    internal_cost = 0.0
-    for i in imps:
-        internal_cost += coste_de_imputacion_en_moneda(
-            db, i.cost_amount, user_currency_map.get(i.user_id, org_currency), project_currency, org_currency,
-            i.date, _local_fx_cache)
-
-    return total_hours, billable_hours, internal_cost
-
-
 def coste_de_imputacion_en_moneda(db: Session, coste, moneda_usuario: Optional[str], moneda_proyecto: str,
                                   moneda_org: str, fecha, cache: dict) -> float:
     """Coste de una imputacion en la moneda de la organizacion: por la moneda de
@@ -162,49 +107,16 @@ def _hay_tarifas(db: Session, project: Project) -> bool:
                                          RateTable.organization_id == project.organization_id).first() is not None
 
 
-def _ingreso_facturable(
-    project: Project,
-    db: Session,
-    billable_hours: float,
-    billed_milestones_total: Optional[float],
-    desde=None,
-    hasta=None,
-) -> float:
-    """Ingreso reconocido: por tarifa/hora, o por hitos facturados.
-
-    El orden importa y es el original: si el proyecto tiene tarifa por hora y
-    horas facturables, manda la tarifa. Los hitos solo entran en los proyectos a
-    precio cerrado (`contract_amount`).
-    """
-    if billable_hours and _hay_tarifas(db, project):
-        # Revisión 2026-11: con tablas de tarifas, cada hora a la tarifa con la que se factura
-        # (perfil, excepción de proyecto o cliente, vigencia), como las líneas de factura.
-        from app.services.rate_card_service import tarifa_de_facturacion
-        cache: dict = {}
-        total = sum(i.hours * tarifa_de_facturacion(db, i.user, project, i.date, cache)
-                    for i in get_project_imputations(db, project.id, desde, hasta) if i.is_billable and i.user)
-        if total:
-            return total
-    if project.billing_rate and billable_hours:
-        return project.billing_rate * billable_hours
-    if project.contract_amount:
-        if billed_milestones_total is None:
-            milestones = get_billed_milestones(db, project.id, desde, hasta)
-            return sum(m.billing_amount or 0 for m in milestones)
-        return float(billed_milestones_total or 0)
-    return 0
-
-
 def partidas_de_ingreso(db: Session, project: Project, imputaciones: list, hitos: list,
-                        hay_tarifas: Optional[bool] = None) -> list[tuple]:
-    """El ingreso de `_ingreso_facturable` repartido por fecha: ``[(fecha, importe)]``.
+                        hay_tarifas: Optional[bool] = None, tarifa=None) -> list[tuple]:
+    """El ingreso de un proyecto repartido por fecha: ``[(fecha, importe)]``.
 
     Misma regla y mismo orden, decididos con las imputaciones y los hitos que se
     pasan (los del periodo): con tablas de tarifas, cada hora facturable a su
     tarifa de facturacion; si no sale nada, ``billing_rate`` por hora
     facturable; si no, en proyectos a precio cerrado (`contract_amount`), los
-    hitos facturados en su ``billed_at``. Sumadas, dan lo mismo que
-    `_ingreso_facturable` sobre ese periodo. ``imputaciones``: objetos con
+    hitos facturados en su ``billed_at``. Sumadas, son el ingreso del periodo
+    (`margen_de_proyectos`, el cálculo único). ``imputaciones``: objetos con
     ``date``, ``hours``, ``is_billable`` y ``user`` (la persona, para la tarifa).
     """
     facturables = [i for i in imputaciones if i.is_billable and i.hours]
@@ -212,9 +124,13 @@ def partidas_de_ingreso(db: Session, project: Project, imputaciones: list, hitos
         if hay_tarifas is None:
             hay_tarifas = _hay_tarifas(db, project)
         if hay_tarifas:
-            from app.services.rate_card_service import tarifa_de_facturacion
-            cache: dict = {}
-            partidas = [(i.date, i.hours * tarifa_de_facturacion(db, i.user, project, i.date, cache))
+            if tarifa is None:   # `tarifa`: la precargada del cálculo en bloque (misma regla)
+                from app.services.rate_card_service import tarifa_de_facturacion
+                cache: dict = {}
+
+                def tarifa(u, pr, f):
+                    return tarifa_de_facturacion(db, u, pr, f, cache)
+            partidas = [(i.date, i.hours * tarifa(i.user, project, i.date))
                         for i in facturables if i.user]
             if sum(v for _, v in partidas):
                 return partidas
@@ -314,26 +230,40 @@ def calc_project_profitability(
     billed_milestones_total: Optional[float] = None,
     desde=None,
     hasta=None,
+    cifras: Optional[dict] = None,
 ) -> dict:
-    """Calculate full P&L for a project (en el rango `desde`–`hasta` si se da).
+    """La cuenta de resultados y, en `fx_warnings`, los tipos de cambio que
+    faltaron (auditoría 22-11-2026, A41: antes se contaban 1:1 en silencio).
 
-    Costs are normalised to the company currency (`DEFAULT_CURRENCY` of the
-    project's organisation, 18-11-2026) using the exchange rate effective on the
-    imputation date.
+    Auditoría 22-11-2026 (§7.2): ingreso, horas y costes salen del cálculo
+    único (`margen_de_proyectos.margen_en_bloque`), el mismo del panel, la
+    evolución del margen, el EVM y el BI. Para una lista, quien llama calcula
+    el bloque una vez y pasa `cifras` de cada proyecto (sin consultas por
+    proyecto para el dinero). `imputation_totals` y `billed_milestones_total`
+    se aceptan por compatibilidad y ya no se usan: venían sin convertir.
     """
-    org_currency = _pe.moneda_de_empresa(db, registro=project)
+    from app.services.currency_rates_service import TiposQueFaltan
+    with TiposQueFaltan() as faltan:
+        if cifras is None:
+            from app.services.margen_de_proyectos import margen_en_bloque
+            cifras = margen_en_bloque(db, [project], desde, hasta)[project.id]
+        res = _calc_project_profitability(project, db, cifras)
+    res["fx_warnings"] = sorted(set(faltan) | set(cifras.get("fx_warnings") or ()))
+    return res
+
+
+def _calc_project_profitability(project: Project, db: Session, cifras: dict) -> dict:
+    """Calculate full P&L for a project from the shared figures (`cifras`)."""
+    org_currency = cifras.get("currency") or _pe.moneda_de_empresa(db, registro=project)
     project_currency = getattr(project, "currency", org_currency) or org_currency
 
-    total_hours, billable_hours, internal_cost = _totales_de_imputacion(
-        project, db, imputation_totals, project_currency, org_currency, desde, hasta
-    )
-    billing_revenue = _ingreso_facturable(
-        project, db, billable_hours, billed_milestones_total, desde, hasta
-    )
-    # Revisión 2026-11: el coste es personal + gastos + subcontrata (antes, sólo personal).
-    from app.services.costes_de_proyecto import costes_externos
-    externos = costes_externos(db, project.id, org_currency, desde, hasta)
-    total_cost = internal_cost + externos["gastos"] + externos["subcontrata"] + externos.get("alm", 0.0)
+    total_hours = float(cifras["hours"])
+    billable_hours = float(cifras["billable_hours"])
+    internal_cost = float(cifras["internal_cost"])
+    billing_revenue = float(cifras["revenue"])
+    externos = {"gastos": cifras["expenses_cost"], "subcontrata": cifras["subcontract_cost"],
+                "alm": cifras["alm_cost"]}
+    total_cost = float(cifras["total_cost"])
 
     gross_margin = billing_revenue - total_cost
     margin_pct = (gross_margin / billing_revenue * 100) if billing_revenue > 0 else 0
@@ -400,57 +330,6 @@ def calc_project_profitability(
 
 # ── Imputation queries ─────────────────────────────────────────────────────────
 
-def _en_rango_imp(q, desde=None, hasta=None):
-    """Auditoria 2026-11: el selector de periodo del panel de finanzas no hacia
-    nada; el rango llega ahora hasta las imputaciones (por su fecha)…"""
-    if desde:
-        q = q.filter(Imputation.date >= desde)
-    if hasta:
-        q = q.filter(Imputation.date <= hasta)
-    return q
-
-
-def _en_rango_hito(q, desde=None, hasta=None):
-    """…y hasta los hitos facturados (por la fecha en que se facturaron)."""
-    if desde:
-        q = q.filter(ProjectMilestone.billed_at >= desde)
-    if hasta:
-        q = q.filter(ProjectMilestone.billed_at <= hasta)
-    return q
-
-
-def get_project_imputations(db: Session, project_id: str, desde=None, hasta=None) -> list:
-    return _en_rango_imp(
-        db.query(Imputation).filter(Imputation.project_id == project_id, Imputation.is_active == True),
-        desde, hasta,
-    ).all()
-
-
-def get_imputation_totals_by_project(db: Session, project_ids: list, desde=None, hasta=None) -> dict:
-    if not project_ids:
-        return {}
-    rows = (
-        db.query(
-            Imputation.project_id.label("project_id"),
-            func.sum(Imputation.hours).label("total_hours"),
-            func.sum(case((Imputation.is_billable == True, Imputation.hours), else_=0)).label("billable_hours"),
-            func.sum(Imputation.cost_amount).label("internal_cost"),
-        )
-        .filter(Imputation.project_id.in_(project_ids), Imputation.is_active == True,
-                *([Imputation.date >= desde] if desde else []), *([Imputation.date <= hasta] if hasta else []))
-        .group_by(Imputation.project_id)
-        .all()
-    )
-    return {
-        r.project_id: {
-            "total_hours": r.total_hours,
-            "billable_hours": r.billable_hours,
-            "internal_cost": r.internal_cost,
-        }
-        for r in rows
-    }
-
-
 def get_imputations_by_person(db: Session, project_id: str) -> list:
     return (
         db.query(
@@ -481,38 +360,6 @@ def get_imputations_by_day(db: Session, project_id: str) -> list:
 
 
 # ── Milestone queries ──────────────────────────────────────────────────────────
-
-def get_billed_milestones(db: Session, project_id: str, desde=None, hasta=None) -> list:
-    return _en_rango_hito(
-        db.query(ProjectMilestone).filter(
-            ProjectMilestone.project_id == project_id,
-            ProjectMilestone.is_active == True,
-            ProjectMilestone.is_billed == True,
-        ),
-        desde, hasta,
-    ).all()
-
-
-def get_billed_milestones_total_by_project(db: Session, project_ids: list, desde=None, hasta=None) -> dict:
-    if not project_ids:
-        return {}
-    rows = (
-        db.query(
-            ProjectMilestone.project_id.label("project_id"),
-            func.sum(ProjectMilestone.billing_amount).label("billing_revenue"),
-        )
-        .filter(
-            ProjectMilestone.project_id.in_(project_ids),
-            ProjectMilestone.is_active == True,
-            ProjectMilestone.is_billed == True,
-            *([ProjectMilestone.billed_at >= desde] if desde else []),
-            *([ProjectMilestone.billed_at <= hasta] if hasta else []),
-        )
-        .group_by(ProjectMilestone.project_id)
-        .all()
-    )
-    return {r.project_id: r.billing_revenue for r in rows}
-
 
 def list_milestones(db: Session, project_id: str) -> list:
     return (

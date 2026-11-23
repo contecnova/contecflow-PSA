@@ -21,9 +21,11 @@ from app.core.deps import get_current_user, requiere_capacidad
 from app.core.modulos_ia import exigir_modulo_ia
 from app.core.ratelimit import limiter
 from app.core.responses import APIListResponse, APIResponse
-from app.db.session import get_db
+from app.core.uploads import read_upload_within_limit_sync, validate_audio_upload, safe_filename
+from app.db.session import get_db, sesion_de_sistema
 from app.models.user import User
 from app.services.reuniones import config as cfg_mod
+from app.services.reuniones.transaccion import confirmar as _confirmar
 from app.services.reuniones import consultas, servicio
 
 router = APIRouter()
@@ -42,14 +44,6 @@ def _detalle(db: Session, usuario: User, reunion, idioma: Optional[str] = None) 
     destino = idioma or idioma_de_salida(db, user_id=usuario.id, org_id=_org(usuario))
     traducido = traducir_reunion(db, reunion, destino, usuario)
     return consultas.detalle(db, usuario, reunion, traducido)
-
-
-def _confirmar(db: Session) -> None:
-    try:
-        db.commit()
-    except Exception:
-        db.rollback()
-        raise
 
 
 def _hacer(db: Session, funcion, *args, **kw):
@@ -204,7 +198,8 @@ def subir_audio(request: Request, meeting_id: str, file: UploadFile = File(...),
                 offset_ms: int = Form(0), db: Session = Depends(get_db),
                 current_user: User = Depends(requiere_capacidad("reuniones.usar"))):
     reunion = consultas.obtener_gestionable(db, current_user, meeting_id)
-    datos = file.file.read(servicio.MAX_TROZO_MB * 1024 * 1024 + 1)
+    datos = read_upload_within_limit_sync(file, servicio.MAX_TROZO_MB * 1024 * 1024)
+    validate_audio_upload(file.filename or "", datos)
     r = _hacer(db, servicio.subir_audio, db, current_user, reunion, datos, file.content_type or "audio/webm",
                seq, offset_ms)
     return APIResponse.ok(data=r)
@@ -506,7 +501,7 @@ def rgpd_suprimir(body: PersonaIn, db: Session = Depends(get_db), current_user: 
 
 @router_webhooks.post("/recall/{org_id}", summary="Avisos del proveedor de bots (firma Svix)")
 @limiter.limit("600/minute")
-async def aviso_recall(request: Request, org_id: str, db: Session = Depends(get_db)):
+async def aviso_recall(request: Request, org_id: str, db: Session = Depends(sesion_de_sistema("reuniones: firma Svix"))):
     from app.core.async_db import run_db
     from app.services.reuniones import webhooks
     cuerpo = await request.body()
@@ -515,7 +510,7 @@ async def aviso_recall(request: Request, org_id: str, db: Session = Depends(get_
 
 @router_webhooks.post("/zoom/{org_id}", summary="Avisos de Zoom (x-zm-signature)")
 @limiter.limit("600/minute")
-async def aviso_zoom(request: Request, org_id: str, db: Session = Depends(get_db)):
+async def aviso_zoom(request: Request, org_id: str, db: Session = Depends(sesion_de_sistema("reuniones: firma de Zoom"))):
     from app.core.async_db import run_db
     from app.services.reuniones import webhooks
     cuerpo = await request.body()
@@ -525,7 +520,7 @@ async def aviso_zoom(request: Request, org_id: str, db: Session = Depends(get_db
 @router_webhooks.post("/teams/{org_id}", summary="Avisos de Microsoft Graph (clientState)")
 @limiter.limit("600/minute")
 async def aviso_teams(request: Request, org_id: str, validationToken: Optional[str] = Query(None),  # noqa: N803
-                      db: Session = Depends(get_db)):
+                      db: Session = Depends(sesion_de_sistema("reuniones: clientState de Graph"))):
     from app.core.async_db import run_db
     from app.services.reuniones import webhooks
     cuerpo = b"" if validationToken else await request.body()

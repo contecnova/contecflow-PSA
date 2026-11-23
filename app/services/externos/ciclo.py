@@ -92,7 +92,13 @@ def crear_usuario(db: Session, sub, datos: dict, actor, con_acceso: bool):
     from app.models.user import User, UserRole, UserStatus
     username = _usuario_unico(db, datos["name"], sub.code)
     email = datos.get("email")
-    if not email or db.query(User).filter(User.email == email).first():
+    # M102 (auditoría 22-11-2026): un correo que ya usa otra persona es un error
+    # (antes se sustituía en silencio por uno inventado y quedaban dos fichas de
+    # la misma persona, una sin poder recibir avisos). Sin correo, el técnico.
+    if email and db.query(User).filter(User.email == email).first():
+        from app.core.codigos_de_error import error
+        raise error(409, "email_ya_registrado")
+    if not email:
         email = f"{username}@subcontractor.internal"
     partes = datos["name"].strip().split(" ", 1)
     temporal = secrets.token_urlsafe(12) if con_acceso else None
@@ -106,6 +112,9 @@ def crear_usuario(db: Session, sub, datos: dict, actor, con_acceso: bool):
         phone=datos.get("phone"), is_active=True, organization_id=actor.organization_id,
         manager_id=datos.get("internal_owner_id"),
         hashed_password=get_password_hash(temporal) if temporal else None,
+        # M102: la contraseña temporal se cambia al primer acceso (estándar de
+        # alta de cuentas: la que viaja en la respuesta no sirve más que una vez).
+        password_must_change=bool(temporal),
     )
     db.add(user)
     db.flush()
@@ -121,16 +130,15 @@ def dar_acceso(db: Session, worker) -> Optional[str]:
         return None
     temporal = secrets.token_urlsafe(12)
     user.hashed_password = get_password_hash(temporal)
+    user.password_must_change = True   # M102
     return temporal
 
 
 def revocar_sesiones(db: Session, user_id: str) -> int:
-    from app.models.sessions import UserSession
-    ahora = datetime.now(timezone.utc)
-    filas = db.query(UserSession).filter(UserSession.user_id == user_id, UserSession.revoked_at.is_(None)).all()
-    for s in filas:
-        s.revoked_at = ahora
-    return len(filas)
+    """M102 (auditoría 22-11-2026): la revocación común
+    (`auth_service.revocar_sesiones_del_usuario`, con motivo), no una copia."""
+    from app.services.auth_service.tokens_y_cookies import revocar_sesiones_del_usuario
+    return revocar_sesiones_del_usuario(db, user_id, "external_access_revoked")
 
 
 def al_dar_de_alta(db: Session, user, actor) -> None:

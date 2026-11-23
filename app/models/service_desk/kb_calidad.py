@@ -19,7 +19,7 @@ class KBCorrection(Base):
     __tablename__ = "sd_kb_corrections"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
     question = Column(Text, nullable=False)
     answer = Column(Text, nullable=False)
     question_vec = Column(Text, nullable=True)       # JSON; vacío sin modelo de frases (se compara por palabras)
@@ -38,7 +38,7 @@ class KBGap(Base):
     __table_args__ = (Index("uq_sd_kb_gaps_org_key", "organization_id", "question_key", unique=True),)
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
     question_key = Column(String(255), nullable=False)    # la pregunta normalizada (agrupa repeticiones)
     question = Column(Text, nullable=False)               # la última forma en que se preguntó
     source = Column(String(30), nullable=False)           # portal_chat | portal_bot | assistant
@@ -56,7 +56,7 @@ class KBFinding(Base):
     __table_args__ = (Index("uq_sd_kb_findings_org_key", "organization_id", "dedupe_key", unique=True),)
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
     kind = Column(String(20), nullable=False, index=True)        # stale | contradiction
     article_id = Column(String(36), ForeignKey("sd_kb_articles.id", ondelete="CASCADE"), nullable=False, index=True)
     other_article_id = Column(String(36), ForeignKey("sd_kb_articles.id", ondelete="CASCADE"), nullable=True, index=True)

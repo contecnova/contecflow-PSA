@@ -254,46 +254,30 @@ def review_absence(db: Session, absence: Absence, *, approved: bool, approver_id
 
 # ── Label constants ─────────────────────────────────────────────────────────────
 
-TYPE_LABELS = {
-    "vacation": "Vacaciones", "sick": "Baja médica", "personal": "Asunto personal",
-    "training": "Formación", "maternity": "Maternidad", "paternity": "Paternidad", "other": "Otro",
-}
-STATUS_CFG = {
-    "pending": {"label": "Pendiente", "color": "#ffb800"},
-    "approved": {"label": "Aprobada", "color": "#00e5a0"},
-    "rejected": {"label": "Rechazada", "color": "#ff4757"},
-    "cancelled": {"label": "Cancelada", "color": "#7a8aaa"},
-    "waitlisted": {"label": "En lista de espera", "color": "#4f8cff"},
-}
+_TIPOS_DE_AUSENCIA = ("vacation", "sick", "personal", "training", "maternity", "paternity", "other")
+_COLORES_DE_ESTADO = {"pending": "#ffb800", "approved": "#00e5a0", "rejected": "#ff4757",
+                      "cancelled": "#7a8aaa", "waitlisted": "#4f8cff"}
 
 
-def count_working_days(start, end, holidays: list, dias_laborables=frozenset({1, 2, 3, 4, 5})) -> float:
-    """Count working days between two dates excluding weekends and holidays.
+def etiqueta_de_tipo(tipo: str, idioma: Optional[str] = None) -> str:
+    """Nombre del tipo de ausencia de serie en `idioma` (23-11-2026: antes castellano fijo)."""
+    from app.services.textos_de_salida import texto
+    return texto(f"ausencia.tipo.{tipo}", idioma) if tipo in _TIPOS_DE_AUSENCIA or tipo == "private" else tipo
 
-    19-11-2026: `dias_laborables` (ISO, 1 = lunes) son los de la empresa
-    (`planificador.calendario.interpretar_dias_laborables(PLANNING_WORKDAYS)`);
-    por defecto L-V. Las ausencias cuentan sus días con el horario efectivo de
-    la persona (`horario.efectivo`); esta función queda de utilidad sin llamadas.
-    """
-    holiday_dates = set()
-    for h in holidays:
-        if isinstance(h, date):
-            holiday_dates.add(h)
-        elif hasattr(h, "date"):
-            holiday_dates.add(h.date)
-        elif isinstance(h, str):
-            try:
-                holiday_dates.add(date.fromisoformat(h))
-            # intentional: best-effort fallback, log noise outweighs diagnostic value
-            except Exception:
-                logger.debug("count_working_days: fallo best-effort ignorado", exc_info=True)
-    count = 0
-    current = start
-    while current <= end:
-        if current.isoweekday() in dias_laborables and current not in holiday_dates:
-            count += 1
-        current += timedelta(days=1)
-    return float(count)
+
+def etiqueta_de_estado(estado: str, idioma: Optional[str] = None) -> str:
+    from app.services.textos_de_salida import texto
+    return texto(f"ausencia.estado.{estado}", idioma) if estado in _COLORES_DE_ESTADO else estado
+
+
+#: Por compatibilidad: etiquetas en el idioma de respaldo (castellano); lo que sale a una
+#: persona se pide con `etiqueta_de_tipo` / `etiqueta_de_estado` en su idioma.
+TYPE_LABELS = {t: etiqueta_de_tipo(t) for t in _TIPOS_DE_AUSENCIA}
+STATUS_CFG = {e: {"label": etiqueta_de_estado(e), "color": c} for e, c in _COLORES_DE_ESTADO.items()}
+
+
+# Auditoría 22-11-2026 (§5): `count_working_days` retirada (sin uso; el cómputo de
+# días es `horario.efectivo`).
 
 
 def serialize_absence(a, viewer=None, db=None) -> dict:
@@ -303,19 +287,33 @@ def serialize_absence(a, viewer=None, db=None) -> dict:
     acceso especial; y su motivo no se enseña."""
     st = getattr(a.status, "value", a.status)
     t = getattr(a, "absence_type", None)
-    oculto = viewer is not None and db is not None and not puede_ver_tipo(db, viewer, a)
+    idioma = None
+    if db is not None and viewer is not None:
+        from app.services.formato_regional import idioma_de_salida
+        idioma = idioma_de_salida(db, user_id=getattr(viewer, "id", None),
+                                  org_id=getattr(viewer, "organization_id", None))
+    # M47 (auditoría 22-11-2026): falla cerrado. Sin quien mira, solo se enseña
+    # un tipo visible para todos (antes, sin `viewer`, se enseñaba todo, también
+    # una baja médica: dato de salud, art. 9 RGPD).
+    if viewer is None or db is None:
+        oculto = getattr(t, "visibilidad", "equipo") != "todos"
+    else:
+        oculto = not puede_ver_tipo(db, viewer, a)
+    # El MOTIVO (texto libre, puede llevar el diagnóstico) solo lo ven la persona,
+    # RR. HH., administración y el acceso especial; no el PM ni el team lead.
+    motivo_visible = not oculto and viewer is not None and db is not None and puede_ver_motivo(db, viewer, a)
     return {
         "id": a.id,
         "user_id": a.user_id,
         "user_name": a.user.full_name if a.user else "—",
         "type": "private" if oculto else a.type,
-        "type_label": "Ausencia" if oculto else (t.nombre if t else TYPE_LABELS.get(a.type, a.type)),
+        "type_label": etiqueta_de_tipo("private", idioma) if oculto else (t.nombre if t else etiqueta_de_tipo(a.type, idioma)),
         "absence_type_id": None if oculto else a.absence_type_id,
         "type_color": "#7a8aaa" if oculto or t is None else t.color,
         "type_icon": "circle" if oculto or t is None else t.icono,
         "status": st,
-        "status_label": STATUS_CFG.get(st, {}).get("label", st),
-        "status_color": STATUS_CFG.get(st, {}).get("color", "#7a8aaa"),
+        "status_label": etiqueta_de_estado(st, idioma),
+        "status_color": _COLORES_DE_ESTADO.get(st, "#7a8aaa"),
         "start_date": str(a.start_date),
         "end_date": str(a.end_date),
         "working_days": a.working_days,
@@ -328,14 +326,24 @@ def serialize_absence(a, viewer=None, db=None) -> dict:
         "half_day_start": bool(a.half_day_start), "half_day_end": bool(a.half_day_end),
         "shift_id": a.shift_id, "substitute_id": a.substitute_id,
         "substitute_name": a.substitute.full_name if getattr(a, "substitute", None) else None,
-        "reason": None if oculto else a.reason,
+        "reason": a.reason if motivo_visible else None,
         "approved_by": a.approver.full_name if a.approver else None,
         "approved_at": str(a.approved_at)[:10] if a.approved_at else None,
-        "rejection_reason": None if oculto else a.rejection_reason,
+        "rejection_reason": a.rejection_reason if motivo_visible else None,
         "created_at": str(a.created_at)[:10] if a.created_at else None,
         "requested_at": a.requested_at.isoformat() if a.requested_at else None,
         "private": oculto,
     }
+
+
+def puede_ver_motivo(db: Session, viewer, a) -> bool:
+    """M47: el motivo de una ausencia, solo la persona, RR. HH., admin y el acceso especial."""
+    if viewer.id == a.user_id or getattr(viewer, "is_superadmin", False):
+        return True
+    if str(getattr(viewer.role, "value", viewer.role)) in ("admin", "hr"):
+        return True
+    from app.services.ausencias.catalogo import tiene_acceso_especial
+    return tiene_acceso_especial(db, viewer)
 
 
 def puede_ver_tipo(db: Session, viewer, a) -> bool:

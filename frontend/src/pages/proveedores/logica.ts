@@ -8,7 +8,7 @@
  */
 import type {
   AlcanceDePaquete, AQuienSeAsigna, CicloDeVida, CriterioDeRiesgo, EstadoDeContratoProveedor, EstadoDeCuentaProveedor,
-  EstadoDeCumplimiento, EstadoDePaquete, MetaDeProveedores, ModeloDeCobro, ModoDeRelacion, NivelDeAcceso,
+  EstadoDeCumplimiento, EstadoDePaquete, ModeloDeCobro, ModoDeRelacion, NivelDeAcceso,
   NivelDeRiesgoProveedor, PeriodoDeCobro, TipoDeContratoProveedor, TipoDeDocumentoProveedor, TipoDeProveedor,
   AgregacionDeMedicion, CuentaDeMedicion, FuenteDeMedicion, TipoDeInforme,
 } from '../../services/api/tipos-proveedores'
@@ -16,24 +16,16 @@ import type { StatusBadgeKind } from '../../components/ui/StatusBadge'
 
 export const TIPOS: TipoDeProveedor[] = ['freelance', 'company']
 export const MODOS: ModoDeRelacion[] = ['staff_augmentation', 'outsourcing', 'managed_services']
-export const CICLO: CicloDeVida[] = ['onboarding', 'active', 'suspended', 'offboarded']
 export const MODELOS: ModeloDeCobro[] = ['per_resource', 'fixed_price', 'per_unit', 'subscription', 'expense', 'bonus']
 export const PERIODOS: PeriodoDeCobro[] = ['monthly', 'quarterly', 'annual', 'one_time']
 export const TIPOS_DE_CONTRATO: TipoDeContratoProveedor[] = ['msa', 'sow', 'service', 'framework', 'freelance']
-export const ESTADOS_DE_CONTRATO: EstadoDeContratoProveedor[] = ['draft', 'active', 'suspended', 'expired', 'terminated']
 export const ALCANCES: AlcanceDePaquete[] = ['project', 'phase', 'milestone', 'deliverable', 'tasks']
-export const ESTADOS_DE_PAQUETE: EstadoDePaquete[] = ['planned', 'in_progress', 'delivered', 'accepted', 'rejected', 'cancelled']
 export const TIPOS_DE_DOCUMENTO: TipoDeDocumentoProveedor[] = [
   'dpa_art28', 'nda', 'iso27001', 'soc2', 'ens', 'insurance_liability', 'insurance_cyber',
   'security_questionnaire', 'due_diligence', 'tax_certificate', 'social_security_certificate', 'other',
 ]
 export const NIVELES_DE_ACCESO: NivelDeAcceso[] = ['read', 'write', 'admin']
 export const CRITERIOS: CriterioDeRiesgo[] = ['data_access', 'criticality', 'dependency', 'financial', 'location', 'security']
-export const NIVELES_DE_RIESGO: NivelDeRiesgoProveedor[] = ['low', 'medium', 'high', 'critical']
-/** Unidades de cobro del sistema (catálogo `supplier-billing-units`, filas globales). */
-export const UNIDADES_DEL_SISTEMA = ['hour', 'day', 'month', 'ticket', 'incident', 'request', 'device_month', 'user_month', 'call', 'expense']
-/** Tipos de servicio gestionado del sistema (catálogo `supplier-service-types`, filas globales). */
-export const TIPOS_DE_SERVICIO_DEL_SISTEMA = ['soc', 'service_desk', 'infrastructure', 'network', 'cloud_ops', 'backup', 'payroll', 'helpdesk_l1', 'development', 'other']
 export const FRECUENCIAS = ['weekly', 'monthly', 'quarterly'] as const
 
 // ── Migración 191 ────────────────────────────────────────────────────────────
@@ -90,13 +82,7 @@ export function filasDeRecuento(textoPegado: string, servicios: { id: string; na
   return { filas, malas }
 }
 
-/** Meta por defecto mientras `/suppliers/meta` no ha llegado (o falla). */
-export const META_POR_DEFECTO: MetaDeProveedores = {
-  kinds: TIPOS, modes: MODOS, lifecycle: CICLO, contract_types: TIPOS_DE_CONTRATO, contract_statuses: ESTADOS_DE_CONTRATO,
-  pricing_models: MODELOS, periods: PERIODOS, scope_types: ALCANCES, work_package_statuses: ESTADOS_DE_PAQUETE,
-  document_types: TIPOS_DE_DOCUMENTO, access_levels: NIVELES_DE_ACCESO, risk_criteria: CRITERIOS,
-  risk_levels: NIVELES_DE_RIESGO, auto_units: ['hour', 'day', 'month', 'ticket', 'incident', 'request'],
-}
+// 23-11-2026: fuera `META_POR_DEFECTO` (sin uso desde que se quitó `useMetaProveedores`; auditoría 04b).
 
 // ── Tonos de las insignias ───────────────────────────────────────────────────
 export const TONO_CICLO: Record<CicloDeVida, StatusBadgeKind> = { onboarding: 'info', active: 'success', suspended: 'warning', offboarded: 'neutral' }

@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from typing import Optional
 
 from app.db.session import get_db
-from app.core.deps import get_current_user, require_any_manager, require_internal_user, requiere_capacidad
+from app.core.deps import get_current_user, requiere_capacidad
 from app.core.abac_enforce import enforce_abac
 from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User, UserRole
@@ -73,14 +73,14 @@ def list_enrollments(user_id: Optional[str] = None, course_id: Optional[str] = N
 
 @router.post("/enrollments", summary="Crear inscripción", status_code=201)
 def create_enrollment(payload: EnrollmentIn, db: Session = Depends(get_db),
-                      cu: User = Depends(require_any_manager), response: Response = None):
+                      cu: User = Depends(requiere_capacidad("formacion.responsables")), response: Response = None):
     e = training_service.create_enrollment(db, payload.model_dump())
     return APIResponse.ok(data={"id": e.id})
 
 
 @router.patch("/enrollments/{enroll_id}", summary="Actualizar inscripción")
 def update_enrollment(enroll_id: str, payload: EnrollmentIn, db: Session = Depends(get_db),
-                      cu: User = Depends(require_any_manager), response: Response = None):
+                      cu: User = Depends(requiere_capacidad("formacion.responsables")), response: Response = None):
     e = training_service.get_enrollment(db, enroll_id)
     if not e:
         raise error_http(404, "no_encontrado", detail="Inscripción no encontrada", que="inscripcion")
@@ -90,7 +90,7 @@ def update_enrollment(enroll_id: str, payload: EnrollmentIn, db: Session = Depen
 
 @router.delete("/enrollments/{enroll_id}", summary="Eliminar inscripción")
 def delete_enrollment(enroll_id: str, db: Session = Depends(get_db),
-                      cu: User = Depends(require_any_manager), response: Response = None):
+                      cu: User = Depends(requiere_capacidad("formacion.responsables")), response: Response = None):
     e = training_service.get_enrollment(db, enroll_id)
     if not e:
         raise error_http(404, "no_encontrado", detail="Inscripción no encontrada", que="inscripcion")
@@ -116,7 +116,7 @@ def list_certifications(user_id: Optional[str] = None, expiring_days: Optional[i
 
 @router.post("/certifications", summary="Crear certificación", status_code=201)
 def create_certification(payload: CertificationIn, db: Session = Depends(get_db),
-    _rol: User = Depends(require_internal_user),
+    _rol: User = Depends(requiere_capacidad("formacion.usar")),
                          cu: User = Depends(get_current_user), response: Response = None):
     # Revisión 2026-11: cada uno registra los suyos (ya podía editarlos y borrarlos); admin y RRHH,
     # los de cualquiera. Antes crear era sólo de admin y RRHH.

@@ -36,46 +36,46 @@ def _avisar(m):
     return {"tipo": "warn", "mensaje": m}
 
 
-NOMBRE_LIMITES = "Horas extra: límites legales y de empresa (ejemplo)"
-NOMBRE_COMPENSACION = "Horas extra: compensación y aprobación (ejemplo)"
+# 23-11-2026: nombres, descripciones y mensajes salen de `textos_de_salida` (`horas_extra.ej.*`), en el
+# idioma de quien carga los ejemplos; antes eran castellano fijo. Las cifras siguen siendo editables.
+NOMBRE_LIMITES = "horas_extra.ej.limites.nombre"
+NOMBRE_COMPENSACION = "horas_extra.ej.compensacion.nombre"
 
 
-def politicas() -> list[dict]:
+def politicas(idioma=None) -> list[dict]:
+    from app.services.textos_de_salida import texto as _texto
+
+    def t(clave):
+        return _texto(f"horas_extra.ej.{clave}", idioma)
+
     ambito = {"departamentos": [], "equipos": [], "roles": [], "ubicaciones": [], "personas": []}
     return [
-        {"nombre": NOMBRE_LIMITES, "prioridad": 200, "ambito": ambito,
-         "descripcion": "Ejemplo editable. El máximo legal español de horas extraordinarias es 80 al año "
-                        "(art. 35.2 del Estatuto de los Trabajadores); no cuentan las compensadas con descanso, "
-                        "por eso la regla mira las pagadas. El resto de cifras son de empresa.",
+        {"nombre": t("limites.nombre"), "prioridad": 200, "ambito": ambito,
+         "descripcion": t("limites.descripcion"),
          "reglas": [
-             _regla("Máximo legal: 80 h/año pagadas", _y(_c("horas_en_anio_pago", "gt", 80)),
-                    _bloquear("Superaría el máximo legal de 80 horas extra pagadas al año")),
-             _regla("Como mucho 4 h en un día", _y(_c("horas_en_dia", "gt", 4)),
-                    _bloquear("Como mucho 4 horas extra en un día")),
-             _regla("Aviso a partir de 10 h en la semana", _y(_c("horas_en_semana", "gt", 10)),
-                    _avisar("Más de 10 horas extra en la semana")),
-             _regla("Descanso mínimo de 12 h entre jornadas", _y(_c("descanso_horas", "lt", 12)),
-                    _bloquear("No respeta el descanso mínimo de 12 horas entre jornadas")),
-             _regla("Como mucho 6 días seguidos", _y(_c("dias_seguidos", "gt", 6)),
-                    _bloquear("Más de 6 días seguidos de trabajo")),
-             _regla("Antelación de 24 h", _y(_c("origen", "eq", "previa"), _c("antelacion_horas", "lt", 24)),
-                    _avisar("Pedida con menos de 24 horas de antelación")),
-             _regla("Presupuesto agotado: un nivel más", _y(_c("presupuesto_restante", "lt", 0)),
+             _regla(t("l1.nombre"), _y(_c("horas_en_anio_pago", "gt", 80)), _bloquear(t("l1.mensaje"))),
+             _regla(t("l2.nombre"), _y(_c("horas_en_dia", "gt", 4)), _bloquear(t("l2.mensaje"))),
+             _regla(t("l3.nombre"), _y(_c("horas_en_semana", "gt", 10)), _avisar(t("l3.mensaje"))),
+             _regla(t("l4.nombre"), _y(_c("descanso_horas", "lt", 12)), _bloquear(t("l4.mensaje"))),
+             _regla(t("l5.nombre"), _y(_c("dias_seguidos", "gt", 6)), _bloquear(t("l5.mensaje"))),
+             _regla(t("l6.nombre"), _y(_c("origen", "eq", "previa"), _c("antelacion_horas", "lt", 24)),
+                    _avisar(t("l6.mensaje"))),
+             _regla(t("l7.nombre"), _y(_c("presupuesto_restante", "lt", 0)),
                     {"tipo": "add_approval_levels", "niveles": 1}),
          ]},
-        {"nombre": NOMBRE_COMPENSACION, "prioridad": 150, "ambito": ambito,
-         "descripcion": "Ejemplo editable: factores de pago por tipo de día, guardias y niveles de aprobación.",
+        {"nombre": t("compensacion.nombre"), "prioridad": 150, "ambito": ambito,
+         "descripcion": t("compensacion.descripcion"),
          "reglas": [
-             _regla("Festivo: factor 1,75 y un nivel más", _y(_c("clase_dia", "eq", "festivo")),
+             _regla(t("c1.nombre"), _y(_c("clase_dia", "eq", "festivo")),
                     {"tipo": "set_field", "campo": "factor", "valor": 1.75},
                     {"tipo": "add_approval_levels", "niveles": 1}),
-             _regla("Día no laborable: factor 1,5", _y(_c("clase_dia", "eq", "no_laborable")),
+             _regla(t("c2.nombre"), _y(_c("clase_dia", "eq", "no_laborable")),
                     {"tipo": "set_field", "campo": "factor", "valor": 1.5}),
-             _regla("La guardia se paga", _y(_c("tipo", "eq", "guardia")),
+             _regla(t("c3.nombre"), _y(_c("tipo", "eq", "guardia")),
                     {"tipo": "set_field", "campo": "compensacion", "valor": "pago"}),
-             _regla("La guardia necesita sustituto", _y(_c("tipo", "eq", "guardia"), _c("sustituto", "empty")),
-                    _bloquear("Una guardia necesita sustituto")),
-             _regla("Motivo a partir de 2 h", _y(_c("horas", "gt", 2)),
-                    {"tipo": "require_justification", "mensaje": "Explica el motivo de más de 2 horas extra"}),
+             _regla(t("c4.nombre"), _y(_c("tipo", "eq", "guardia"), _c("sustituto", "empty")),
+                    _bloquear(t("c4.mensaje"))),
+             _regla(t("c5.nombre"), _y(_c("horas", "gt", 2)),
+                    {"tipo": "require_justification", "mensaje": t("c5.mensaje")}),
          ]},
     ]

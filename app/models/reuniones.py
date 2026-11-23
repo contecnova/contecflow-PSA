@@ -20,7 +20,7 @@ def _id():
 
 
 def _org():
-    return Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)
+    return Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
 
 
 def _reunion():
@@ -124,7 +124,10 @@ class AIMeetingEvent(Base):
 class AIMeetingUserPrefs(Base):
     """Preferencias de cada persona: recoger sus reuniones y mandar el bot."""
     __tablename__ = "ai_meeting_user_prefs"
-    __table_args__ = (UniqueConstraint("user_id", name="uq_ai_meeting_user_prefs_user"),)
+    # 23-11-2026: única POR empresa (una persona puede pertenecer a varias y
+    # cada una tiene sus preferencias; la global daba 500 al guardar en la
+    # segunda). Requiere migración: uq_ai_meeting_user_prefs_user -> _org_user.
+    __table_args__ = (UniqueConstraint("organization_id", "user_id", name="uq_ai_meeting_user_prefs_org_user"),)
 
     id = Column(String(36), primary_key=True, default=_id)
     organization_id = _org()

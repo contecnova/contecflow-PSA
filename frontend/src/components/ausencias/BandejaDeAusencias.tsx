@@ -13,6 +13,7 @@ import type { ElementoDeBandeja } from '../../services/api/tipos-ausencias'
 import { Button, EmptyState, Spinner, TablaSimple, Pulsable } from '../ui'
 import { AvisoDeError } from './admin/comun'
 import { TipoChip, cantidad, fecha, useTa, useTurnos } from './comun'
+import { Input } from '../ui'
 
 export default function BandejaDeAusencias({ onAbrir }: { onAbrir: (id: string) => void }) {
   const { ta } = useTa()
@@ -74,8 +75,7 @@ function Elemento({ x, onAbrir }: { x: ElementoDeBandeja; onAbrir: (id: string) 
       )}
       {faltan.length > 0 && <p className="aus-aviso" role="status">{ta('dejaria_sin_cobertura', { n: faltan.length })}</p>}
       <div className="aus-fila">
-        <input className="aus-campo aus-campo--ancho" aria-label={ta('nota')} placeholder={ta('nota_opcional')} value={nota}
-          onChange={e => setNota(e.target.value)} />
+        <Input aria-label={ta('nota')} placeholder={ta('nota_opcional')} value={nota} onChange={e => setNota(e.target.value)} className="aus-campo--ancho" />
         <Button size="sm" icon={<Check size={13} />} loading={decidir.isPending && decidir.variables === true} onClick={() => decidir.mutate(true)}>{ta('aprobar')}</Button>
         <Button size="sm" variant="danger" icon={<X size={13} />} loading={decidir.isPending && decidir.variables === false} onClick={() => decidir.mutate(false)}>{ta('rechazar')}</Button>
       </div>

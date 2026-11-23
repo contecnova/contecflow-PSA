@@ -37,7 +37,7 @@ from sqlalchemy.orm import Session
 from typing import Optional
 
 from app.db.session import get_db
-from app.core.deps import get_current_user, require_any_manager
+from app.core.deps import get_current_user, requiere_capacidad
 from app.models.user import User
 from app.core.abac_enforce import enforce_abac
 from app.core.paginacion import Pagina, Paginacion, lista_paginada, paginacion
@@ -65,7 +65,7 @@ def list_contracts(
 def create_contract(
     payload: dict = Body(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("finanzas.responsables")),
 ):
     c = svc.create_contract(db, organization_id=current_user.organization_id, data=payload)
     return APIResponse.ok(data=svc._serialize_contract(c))
@@ -86,7 +86,7 @@ def update_contract(
     contract_id: str,
     payload: dict = Body(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("finanzas.responsables")),
 ):
     c = svc.update_contract(db, contract_id, payload)
     return APIResponse.ok(data=svc._serialize_contract(c))
@@ -96,7 +96,7 @@ def update_contract(
 def delete_contract(
     contract_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("finanzas.responsables")),
 ):
     enforce_abac(db, current_user, "revenue_contract", contract_id, action="delete")
     svc.delete_contract(db, contract_id)
@@ -120,7 +120,7 @@ def create_obligation(
     contract_id: str,
     payload: dict = Body(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("finanzas.responsables")),
 ):
     ob = svc.create_obligation(db, contract_id, payload)
     return APIResponse.ok(data=svc._serialize_obligation(ob))
@@ -131,7 +131,7 @@ def update_obligation(
     obligation_id: str,
     payload: dict = Body(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("finanzas.responsables")),
 ):
     ob = svc.update_obligation(db, obligation_id, payload)
     return APIResponse.ok(data=svc._serialize_obligation(ob))
@@ -141,7 +141,7 @@ def update_obligation(
 def delete_obligation(
     obligation_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("finanzas.responsables")),
 ):
     enforce_abac(db, current_user, "revenue_obligation", obligation_id, action="delete")
     svc.delete_obligation(db, obligation_id)
@@ -169,7 +169,7 @@ def list_entries(
 def reverse_entry(
     entry_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("finanzas.responsables")),
 ):
     rev = svc.reverse_entry(db, entry_id, current_user.id)
     return APIResponse.ok(data=svc._serialize_entry(rev))
@@ -190,7 +190,7 @@ def list_period_closes(
 def close_period(
     payload: dict = Body(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("finanzas.responsables")),
 ):
     year = payload.get("year")
     month = payload.get("month")
@@ -207,10 +207,10 @@ def reopen_period(
     year: int,
     month: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("finanzas.responsables")),
 ):
     enforce_abac(db, current_user, "revenue_period_close", f"{year}-{month}", action="delete")
-    svc.reopen_period(db, current_user.organization_id, year, month)
+    svc.reopen_period(db, current_user.organization_id, year, month, current_user.id)
     return APIResponse.ok(data={"ok": True})
 
 
@@ -220,7 +220,7 @@ def reopen_period(
 def run_monthly(
     payload: dict = Body(default={}),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("finanzas.responsables")),
 ):
     today = timeutil.today()
     year  = int(payload.get("year",  today.year))

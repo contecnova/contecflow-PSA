@@ -228,6 +228,9 @@ def predict_overrun_ml(
         "confidence":            confidence,
         "signals":               signals,
         "recommendation":        _recomendacion(cost_prob, sched_prob),
+        # Baja (auditoría 22-11-2026): se dice qué es: reglas de umbral, no un
+        # modelo entrenado (el nombre de la función decía «ml»).
+        "method":                "rule_based",
     }
 
 

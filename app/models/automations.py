@@ -2,7 +2,7 @@
 Automation engine — no-code rule builder for Contecflow.
 Rules: IF trigger(conditions) THEN action(params)
 """
-from sqlalchemy import Column, String, DateTime, ForeignKey, Text, Boolean, Integer, Enum
+from sqlalchemy import Column, String, DateTime, ForeignKey, Text, Boolean, Integer, Enum, Index
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import enum
@@ -94,12 +94,12 @@ class AutomationRule(Base):
     __tablename__ = "automation_rules"
 
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     name        = Column(String(255), nullable=False)
     description = Column(String(500), nullable=True)
 
     # Scope
-    project_id  = Column(String(36), ForeignKey("projects.id"), nullable=True, index=True)  # None = global
+    project_id  = Column(String(36), ForeignKey("projects.id", ondelete="SET NULL"), nullable=True, index=True)  # None = global
     is_active   = Column(Boolean, default=True)
     is_global   = Column(Boolean, default=False)  # Applies to all projects
 
@@ -120,7 +120,7 @@ class AutomationRule(Base):
     last_run_at   = Column(DateTime(timezone=True), nullable=True)
     last_error    = Column(String(500), nullable=True)
 
-    created_by    = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    created_by    = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at    = Column(DateTime(timezone=True), server_default=func.now())
     updated_at    = Column(DateTime(timezone=True), onupdate=func.now())
 
@@ -139,7 +139,7 @@ class AutomationExecution(Base):
     __tablename__ = "automation_executions"
 
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     rule_id     = Column(String(36), ForeignKey("automation_rules.id", ondelete="CASCADE"), nullable=False, index=True)
     trigger_context = Column(Text, nullable=True)   # JSON: what triggered it
     actions_taken   = Column(Text, nullable=True)   # JSON: what was done
@@ -164,9 +164,14 @@ class AutomationEvent(Base):
     el evento tambien; y las acciones (correo, webhooks) no alargan la peticion.
     """
     __tablename__ = "automation_events"
+    # Migración 196 (23-11-2026, A58): una misma clave no se anota dos veces en
+    # la empresa (NULL no cuenta: los eventos sin clave no se deduplican).
+    __table_args__ = (
+        Index("uq_automation_events_org_idempotency", "organization_id", "idempotency_key", unique=True),
+    )
 
     id              = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
     trigger_type    = Column(String(64), nullable=False)
     context         = Column(Text, nullable=True)       # JSON
     depth           = Column(Integer, nullable=False, default=0)
@@ -175,3 +180,4 @@ class AutomationEvent(Base):
     error           = Column(String(500), nullable=True)
     created_at      = Column(DateTime(timezone=True), server_default=func.now(), index=True)
     processed_at    = Column(DateTime(timezone=True), nullable=True)
+    idempotency_key = Column(String(64), nullable=True)   # sha256 del evento en su transacción

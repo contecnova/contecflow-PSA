@@ -13,11 +13,11 @@ This README is the complete functional and technical documentation of the soluti
 | Menu entries (screens reachable from the sidebar) | 97, plus the client portal and public forms (2026-11-03) |
 | HTTP API routes | 2,195 (2,189 under `/api/v1`, 6 outside, docs routes excluded) and 6 WebSockets (2026-11-16, from `app.routes`) |
 | Mapped database models | 435 (434 scoped by organization, 1 exempt) (2026-11-16) |
-| Alembic migrations | 123, one linear chain, head `169_bpmn_decisiones_y_codigos_de_error` (2026-11-16) |
+| Alembic migrations | 153, one linear chain, head `201_cadena_colaboracion_y_cronometro` (2026-11-23) |
 | Backend tests | 465 `test_*.py` files (2026-11-16). The whole suite was last run on 2026-11-04 (4,139 passed, 22 skipped, 1 xfailed); since then each change runs the tests of what it touches |
 | Frontend tests | 55 files, about 158 test cases counted statically (2026-11-16; not run for this count). Last recorded run: 40 files, 130 tests, all passing (2026-11-03) |
-| Celery beat entries | 42 (one task each, `app/worker.py`, 2026-11-16); `setup.sh`, `setup.bat` and Docker run them with Celery beat (APScheduler off) |
-| Runtime settings (editable in Admin) | 256 keys in 24 groups (`settings_service/_catalogo.py`, 2026-11-16) |
+| Celery beat entries | 53 (one task each, `app/worker.py`, 2026-11-23); `setup.sh`, `setup.bat` and Docker run them with Celery beat (APScheduler off) |
+| Runtime settings (editable in Admin) | 428 keys in 32 groups (`settings_service/_catalogo.py`, 2026-11-23) |
 | UI languages | Spanish, English, Chinese |
 
 ## How to read this document
@@ -275,7 +275,7 @@ Task status values must still be one of the `TaskStatus` enum values; the Pydant
 
   An empty week cannot be submitted. Approving marks the week's entries `is_approved`.
 
-Rules enforced in `imputation_service.py`:
+Rules enforced in `app/services/imputation_service/` (package):
 - You can only log time on projects where you are PM, a member, or assignee of the task.
 - At most 24 h per day.
 - No dates older than the lockout cutoff.
@@ -828,7 +828,7 @@ It drives the planner calendar of each person (CPM, per-person load, levelling: 
    - Close with *Cerrar: Aprobada / Rechazada* (`POST /cab/changes/{id}/close`).
    - Maintenance windows are listed from `/cab/windows`.
 
-**Configuration.** None verified for project CRs. `SD_CAB_APPROVAL_RULE` and `SD_CAB_GROUP_ID` (runtime group `service_desk`) are read by the Service Desk CAB workflow (`app/services/service_desk/cab_workflow_service.py`), not by the project CR board (`cab_service.py`).
+**Configuration.** None verified for project CRs. `SD_CAB_APPROVAL_RULE` and `SD_CAB_GROUP_ID` (runtime group `service_desk`) are read by the Service Desk CAB workflow (`app/services/service_desk/cab_workflow_service.py`), not by the project CR board (`app/services/cab_service/`, package).
 
 **Technical notes.** `/api/v1/changes/{project_id}`, `…/{cr_id}`, `…/submit`, `…/review`, `…/implement`, `/changes/all/pending`, `/api/v1/cab/changes`, `/cab/windows`, `/cab/changes/{id}/vote`, `/cab/changes/{id}/close`. Tables: `change_requests`, `cab_votes`, `maintenance_windows`, `change_request_windows`.
 
@@ -980,7 +980,7 @@ Two separate planning stores coexist and are easy to confuse: **capacity plans**
 - **Onboarding** only through the supplier (`POST /enterprise/subcontractors/{id}/workers`, also from Resources › New external); `POST /users` with role subcontractor answers 400. Internal owner required (`internal_owner_id`, becomes the user's manager). `has_access`: with login (temporary password shown once) or a plannable resource without credentials. `access_until` (default `available_until`): login, password reset and every request (`deps.get_current_user`) reject an external without access or past it. Daily job `externos_caducidad`: warns the external and the owner `EXTERNOS_AVISO_CADUCIDAD_DIAS` before, removes access and revokes sessions after, and closes expired assignments. ALM kit on creation (`alm_personas.al_crear`); deactivation = ends assignments, ALM offboarding (`al_desactivar`: licences, returns), user inactive. BPM processes `subcontractor_onboarding` / `subcontractor_invoice` start when the organisation has them published.
 - **Assignment = membership.** `POST /enterprise/subcontractors/{id}/assignments` with `worker_id`, `rate_id` (must belong to the supplier), `member_role`, `allocation_pct` creates/reactivates the `ProjectMember` with the assignment dates; `POST /enterprise/subcontractors/assignments/{id}/end` ends it and deactivates the membership. Only active members can log time (`_assert_project_membership`), and an external is never allowed by task assignment alone.
 - **Hours in one place.** The external logs time like everyone; the imputation cost is the supplier rate in force on that date (`externos.tarifas`, used by `cost_service.cost_per_hour/cost_amount(project_id=...)`). `hours_logged` of the assignment is recomputed from imputations + manual timesheets on every commit that touches them (session hooks registered by `app/services/externos/horas.py`, imported from `app/main.py` and `app/worker.py`). Warning to the owner and the PM when consumption (hours contracted or PO amount) reaches `EXTERNOS_UMBRAL_CONSUMO_PCT` and 100 %. The manual timesheet (`subcontractor_timelogs`) is only for externals without access (400 `externo_con_acceso_imputa` otherwise) and never counts twice: a timelog is ignored when that person has an imputation on that project and day (`externos.horas.partes_sin_duplicar`, also in `costes_de_proyecto`).
-- **Skills** live in `user_skills` (migration 178 copied `subcontractor_worker_skills`, kept only for downgrade), so SmartMatch, analytics and forecast find externals.
+- **Skills** live in `user_skills` (migration 178 copied `subcontractor_worker_skills`; migration 196 dropped that table), so SmartMatch, analytics and forecast find externals.
 - **Availability.** `available_from/until` and remaining contracted hours limit bookings (`comprobar_capacidad`), planner calendars (CPM, workload, leveling, portfolio: days outside the window are non-working), weekly capacity (`get_user_week_hours`: `out_of_contract_hours` counted as absence for heatmap and forecast) and SmartMatch availability.
 - **Profitability.** `GET /enterprise/subcontractors/{id}/reconciliation`: each supplier invoice against the hours imputed in its period × rate, with the difference.
 - People pickers show «External · supplier» (`external_company` in user cards and project members).
@@ -1007,7 +1007,7 @@ Two separate planning stores coexist and are easy to confuse: **capacity plans**
 Mismatches found:
 - `team_lead` gets no sidebar link to `/skills` or `/training`, but can open both by URL.
 - `hr` gets no sidebar link to `/resource-forecast` or `/resource-scheduler`, and the routes refuse hr, even though the backend would accept hr.
-- `employee` and `team_lead` can't open `/performance-reviews`, yet that page is the only place to fill in a review assigned to them. The assignment notification, the assignment e-mail and the daily reminder all send them there (`action_url="/performance-reviews"` in `performance_service.py` and `perf_reminder_service.py`), and the route redirects them to `/403`. The e-mail link is also relative (`href='/performance-reviews'`), so it won't open from a mail client. **Practical effect: only admin/pm/hr can complete self, peer or upward reviews from the UI.**
+- `employee` and `team_lead` can't open `/performance-reviews`, yet that page is the only place to fill in a review assigned to them. The assignment notification, the assignment e-mail and the daily reminder all send them there (`action_url="/performance-reviews"` in `app/services/performance_service/campanas_360.py` and `perf_reminder_service.py`), and the route redirects them to `/403`. The e-mail link is also relative (`href='/performance-reviews'`), so it won't open from a mail client. **Practical effect: only admin/pm/hr can complete self, peer or upward reviews from the UI.**
 - The frontend `Role` type also lists `finance`, `sales` and `client`, which the backend `UserRole` doesn't have.
 
 **Custom roles and module access** (`app/core/modulos.py`).
@@ -1101,7 +1101,7 @@ There are no actions on this page.
 - **`burnout_risk_snapshots` is written but never read**: the only references are the upsert in `raci_service.py` (`compute_and_save_burnout_snapshots`).
 - Thresholds are code constants, not settings:
   - Burnout points/levels: `_SENALES_DE_AGOTAMIENTO`, `_NIVELES_DE_AGOTAMIENTO`.
-  - Heatmap 20/85/100 %: `bookings_service.py`.
+  - Heatmap 20/85/100 %: `app/services/bookings_service/reservas.py` (`get_bookings_heatmap`).
   - Card thresholds 60/85/100 %: frontend.
 - SmartMatch's "role" filters on `users.role` (admin/pm/…), not on job title.
 
@@ -1809,7 +1809,7 @@ General notes that apply to every module here:
 
 **Technical notes.**
 - **Endpoints:** `/api/v1/enterprise/subcontractors*`, `/enterprise/subcontractors-dashboard`, `/enterprise/subcontractors/workers/*`. `POST/DELETE /enterprise/subcontractors/{id}/rates` has no UI.
-- **Tables:** `subcontractors`, `subcontractor_rates`, `subcontractor_workers`, `subcontractor_worker_skills`, `subcontractor_assignments`, `subcontractor_timelogs`, `subcontractor_invoices`.
+- **Tables:** `subcontractors`, `subcontractor_rates`, `subcontractor_workers`, `subcontractor_assignments`, `subcontractor_timelogs`, `subcontractor_invoices`.
 
 - **Their cost reaches the project:** the cost of logged hours (hours × cost rate, in the subcontractor's currency) counts in Profitability, in EVM's AC and in the project budget's actuals (`tests/test_coste_real_del_proyecto_2026_11.py`).
 
@@ -1876,6 +1876,7 @@ General notes that apply to every module here:
    - Endpoint: `POST /api/v1/portal/auth/login`, rate-limited to 5 per minute.
    - It sets the httpOnly cookie `portal_access_token`, a JWT signed with `CLIENT_PORTAL_SECRET` that lasts `CLIENT_TOKEN_EXPIRE_HOURS` (default 72).
    - The idle timeout comes from `GET /portal/auth/session-config` (the `idle_timeout_*` app settings; disabled and 30 minutes by default).
+   - **Mandatory password change (23-11-2026).** A password generated by the system (new contact without a password, or staff's *Resend access*, `POST /portal/clients/{id}/send-access`) sets `client_users.must_change_password`. Login and `GET /portal/auth/me` return it; until the client changes it (`PATCH /portal/auth/me` with `current_password`, which must differ from the new one), every other portal route answers 403 `portal_cambio_de_contrasena_obligatorio` (translated in the 8 portal languages) except `/portal/auth/me`, `/portal/auth/session-config`, `/portal/auth/logout` and `/portal/branding`. The portal shows only the change screen (`CambioDeContrasenaObligatorio.tsx`). The mandatory change is allowed even if the client's portal config disables password changes. A password typed by staff through the API does not set the flag.
 2. **Sections** (from the `PortalUI.tsx` navigation):
    - **Dashboard**: `GET /portal/dashboard`.
    - **Roadmap**: `GET /portal/project`.
@@ -2350,7 +2351,7 @@ Without any policy, the clock follows `SLA_BUSINESS_HOURS_ONLY` / `_START_HOUR` 
 **Rules** (`change_service._aplicar_estado`):
 
 - Setting `submitted` or `cab_review` scores the risk (`change_impact_service`).
-  - A `standard` change with `auto_risk_score ≤ SD_CHANGE_AUTO_APPROVE_MAX_RISK` (default 30) is approved automatically.
+  - A `standard` change is approved automatically only if it references an approved, in-force model of the **standard change catalogue** (`sd_standard_change_models`, `/sd/standard-changes`, audit 2026-11-22 A-SD19) whose scope and maximum risk cover it, and its `auto_risk_score ≤ SD_CHANGE_AUTO_APPROVE_MAX_RISK` (default 30). The server sets the type: `standard` without a fitting model is rejected (422/409) and a model that stops fitting (suspended, review expired) sends the change to the CAB as `normal`. Models are proposed with `sd.gestionar`, approved by a CAB member or admin who did not propose them, suspended automatically above `SD_STANDARD_CHANGE_MAX_FAILURE_PCT`; see docs/SERVICE_DESK.md.
   - Any other change starts the CAB workflow. Without `SD_CAB_GROUP_ID` the API returns 409.
 - `approved` cannot be set by editing (409). Approval comes from:
   - CAB voting (below);
@@ -2712,10 +2713,15 @@ The `sla` group also has `SLA_PREDICTION_HOURS_*` and `SLA_PREDICTION_SEVERITY_*
 | `SD_INBOUND_ADDRESS` | "" | Support address: identifies the organisation for webhooks; Reply-To |
 | `SD_REOPEN_ON_REPLY` | true | A reply reopens a resolved ticket |
 | `SD_CHANNEL_TICKET_TYPE` | `incident` | Type of tickets opened by email or SMS |
+| `SD_INBOUND_REQUIRE_SENDER_AUTH` | true | An inbound email acts as its `From` person (comments as them, changes the status) only if SPF/DKIM/DMARC passed for that domain in `Authentication-Results`; otherwise it comments as an external sender (audit 2026-11-22, A-SD6) |
+| `SD_INBOUND_AUTHSERV_ID` | "" | Mail server (authserv-id) whose `Authentication-Results` header is trusted; empty: the top header |
 | `SD_MAIL_MAX_PER_RUN` / `SD_MAIL_MAX_ATTACHMENT_MB` | 50 / 15 | Mailbox batch size and attachment limit |
 | `SD_CAB_GROUP_ID` | "" | Queue acting as the CAB; required for normal and emergency changes |
 | `SD_CAB_APPROVAL_RULE` | `majority` | `majority`, `all` or `any` |
 | `SD_CHANGE_AUTO_APPROVE_MAX_RISK` | 30 | Standard changes up to this risk score approve themselves |
+| `SD_STANDARD_CHANGE_MAX_FAILURE_PCT` | 20 | A standard change model whose failure rate goes above this % is suspended (its changes go back to the CAB) |
+| `SD_STANDARD_CHANGE_MIN_CLOSURES` | 5 | Closures a standard change model needs before its failure rate counts |
+| `SD_STANDARD_CHANGE_REVIEW_DAYS` | 365 | Days a standard change model stays approved before its periodic review |
 | `SD_AUTONOMOUS_AGENT_ENABLED` | false | Autonomous agent scans new tickets every 5 min (comments publicly and may resolve) |
 | `SD_AUTONOMY_RESOLVE_THRESHOLD` / `SD_AUTONOMY_SUGGEST_THRESHOLD` | 0.80 / 0.50 | Confidence to resolve on its own / to post the playbook comment |
 | `SD_EVENT_SEVERITY_MAP` | JSON (see Monitoring) | Alert severity → priority |
@@ -3082,7 +3088,7 @@ If the chosen provider fails, every other active provider is tried once. If none
 
 **Configuration.**
 - Email uses `SMTP_HOST`, `SMTP_PORT` (587), `SMTP_USER`, `SMTP_PASS` and `SMTP_FROM` (`app/core/config.py`). These come from the environment only; they are not runtime settings.
-- **Single sender (2026-11 audit):** only `app/services/notification_service.py` opens SMTP (`ServidorSmtp`, `entregar`, `enviar_correo`); `tests/test_correo_un_solo_emisor.py` fails if `smtplib` appears anywhere else. One TLS policy: port 465 → `SMTP_SSL`; otherwise STARTTLS when offered; with credentials and no STARTTLS (and port ≠ 25) the mail is **refused** instead of sending the password in clear. Login only when user and password are set; 30 s timeout. Per-organization SMTP (Service Desk, password reset) is kept.
+- **Single sender (2026-11 audit):** only `app/services/notification_service.py` opens SMTP (`ServidorSmtp`, `entregar`, `enviar_correo`); `tests/test_correo_un_solo_emisor.py` fails if `smtplib` appears anywhere else. One TLS policy: port 465 → `SMTP_SSL`; otherwise STARTTLS when offered; with credentials and no STARTTLS (and port ≠ 25) the mail is **refused** instead of sending the password in clear. Login only when user and password are set; 30 s timeout. The server certificate and host name are verified (`SMTP_TLS_VERIFY`, default true; false only for an internal self-signed relay; 2026-11-22 audit). Per-organization SMTP (Service Desk, password reset) is kept.
 - An optional Slack webhook can be set per scheduled report.
 
 **Technical notes.**
@@ -3497,6 +3503,7 @@ There are no filters.
 
 **How to use it.**
 - **GDPR panel:** tabs DSR / Consentimiento / Máscaras / Estadísticas.
+  - This panel uses the `/bi/gdpr/*` circuit, which is **separate** from Enterprise → GDPR (`/gdpr/requests`): see *Enterprise → GDPR* for how the two relate.
 - **Governance panel:** tabs Políticas / Auditoría / Overview.
 - **Auditoría y linaje:** Auditoría de accesos, Linaje de datos, Clasificación de campos.
 - **Compartir y colaborar**, Bookmarks.
@@ -3512,6 +3519,7 @@ There are no filters.
   - BI access audit: `audit_logs` rows with `resource = bi:<type>` (with the tamper-evident chain)
   - tables `dashboard_comments`, `dashboard_versions`, `dashboard_shares`, `dashboard_notifications`
 - **Erasure** (`execute_erasure`, and Enterprise → GDPR, the same code: `app/services/supresion_service.py`): the user row gets a pseudonymous email and username, «[ERASED]» as name and empty contact fields, and is deactivated without a password (its id stays, so hours, expenses and invoices still add up); every text column of every table holding exactly their email, full name or username (in their companies) is replaced, except `audit_logs` (it is the chained evidence; rewriting `user_name` broke the chain); their sessions, MFA, passkeys, tokens, API keys and push subscriptions are deleted; their `dim_user` row in the analytics store is deleted (the report says so if it could not be). Ticket requester fields are cleared too. The portability export is real: profile, tickets and consent.
+- **Permanent user deletion anonymizes when there is history** (migration 196, 2026-11-23): `DELETE /users/{id}/permanent` (`user_service.delete_user_record`) first looks for rows that hold the person through a foreign key to `users.id` without `CASCADE`/`SET NULL` (`historial_que_retiene`: the 8 `RESTRICT` authorships —approval decisions and requests, performance reviews (reviewer and reviewee), CAB votes, ticket time logs, development plans, 360 campaigns— plus any other key without `ondelete`). If there are any, the person is **anonymized** with the same erasure (`suprimir_persona`; 409 under legal hold) instead of deleted, and the audit log records `anonimizar_en_vez_de_borrar` with the tables found; the response says `modo: anonimizado`. Without such history the row is deleted (`modo: borrado`) and is audited too. The other 163 keys to `users.id` are `SET NULL` (159, nullable authorship/assignment columns) or `CASCADE` (4: AI agent executions, voice commands, login anomalies, ABAC attributes).
 - **Governance checks are plain rules:**
   - DuckDB file missing
   - DuckDB file older than 26 h
@@ -4028,13 +4036,18 @@ This section covers every screen an administrator uses to configure contecflow-P
 *Code:* `app/db/session.py`, `app/core/tenancy.py`, `app/core/deps.py::get_current_user`
 
 - **Tenant context.** `get_current_user` writes `db.info["organization_id"]` = the **active** company (the token's `org` claim, re-validated by `entrada_service.organizacion_de_la_peticion`; the user's own record otherwise) and `db.info["is_superadmin"]`. Superadmins get `organization_id=None` and `is_superadmin=True`, which bypasses the filter. API keys and developer-portal tokens work in the company they were created in, and the background agent in the company of its execution (2026-11b), not in the owner's home company.
-- **Automatic read filter.** A `do_orm_execute` listener on `SessionLocal` adds a `with_loader_criteria` to every ORM **SELECT**, for every mapped model that has an `organization_id` column: `organization_id == <org>`.
+- **Automatic filter.** A `do_orm_execute` listener on `SessionLocal` adds a `with_loader_criteria` to every ORM **SELECT, bulk UPDATE and bulk DELETE** (`Query.update/delete`, `update(Model)`/`delete(Model)`; Core `update(Model.__table__)` gets the same WHERE), for every mapped model that has an `organization_id` column: `organization_id == <org>`. Audit 2026-11-22: bulk writes used to pass unfiltered (234 occurrences in 152 files of `app/`, all covered here at once).
   - Models flagged `_tenant_filter_include_global = True` (for example `AppSetting`, `CustomProjectType`) use `organization_id == <org> OR organization_id IS NULL`. The NULL rows are global defaults shared by all tenants.
   - A regular user with **no** organization gets a `false` criterion and sees zero rows.
   - The filter is skipped for:
     - relationship loads;
     - sessions with `bypass_tenant_filter=True` (the context manager `sin_filtro_de_tenant`);
-    - uninitialised sessions, i.e. background jobs and tests (`is_superadmin is None`).
+    - a **declared system context** with its reason (`contexto_de_sistema(db, motivo)` for one session, `trabajo_de_sistema(motivo)` for everything inside; every Celery task declares `tarea:<name>` through `app.worker.TareaDeSistema`, also when APScheduler calls it). Identity resolution in `get_current_user` / portal dependencies runs as `identidad` until the company is published.
+  - **Sessions with no context at all** (no company, no superadmin, nothing declared) are no longer silent (audit 2026-11-22, `app/db/contexto_de_tenant.py`): `TENANT_SESION_SIN_CONTEXTO=cerrar` (default since 23-11-2026) raises `TenantIsolationError` and RLS returns no rows; `avisar` lets them through and logs one WARNING per call site (`SITIOS_SIN_CONTEXTO` counts them), only to locate an undeclared site.
+  - **Anonymous routes** (93 routes without `get_current_user`/portal: login, webhooks, SCIM, public forms, WebSockets...) verify their own credential and declare their context: their session is `Depends(sesion_de_sistema("<reason>"))` while they look up the credential, and `publicar_empresa(db, org)` as soon as the signature/token/slug gives the company. Hand-made sessions (`SessionLocal()` in WebSockets, threads, background tasks, scripts, `setup.*`) call `declarar_sistema(db, reason)` or `fijar_contexto(db, org, reason)`. Table route → credential → how the company is resolved: [docs/seguridad/rutas_anonimas.md](docs/seguridad/rutas_anonimas.md); guard: `tests/test_rutas_anonimas_contexto_2026_11.py`.
+  - **Capability guards everywhere (23-11-2026, audit 01 M9).** No API route is guarded by role any more: the 1,425 role-only (method, path) pairs and the hand-made guards (`_require_admin`, `verify_admin_or_governance_role`, `_permiso_de_gobierno`, body `if role not in …: 403`) now use `requiere_capacidad("<area>.<action>")` with exactly the same roles (new capabilities have no `modulo`, so they never close more than the old guard; the superadmin passes). Codemod `scripts/codemods/guardas_a_capacidades.py`; measurement, mapping and table in [docs/seguridad/guardas_por_capacidad.md](docs/seguridad/guardas_por_capacidad.md); guard: `tests/test_auditoria_2026_11_22_ronda2_nucleo.py`. GRC/privileges: what the permission screen shows is now what the API enforces on every route.
+  - **Per-company jobs:** `con_empresa(db, org)` (one per iteration; refuses `None`), used by `trabajos_de_fondo.en_cada_organizacion`.
+  - `ServiceBase._scoped` without a company returns no rows unless the user is superadmin or the session is in a declared system context.
 - **Query/execute layers.** `TenantSession.query()` and `.execute()` resolve models without `organization_id` through, in order: `org_id`, `project_id` (subquery on `projects`), `user_id` / `actor_id` (subquery on `users`). A model with none of these that is not declared `_tenant_exempt = True` raises `TenantIsolationError` (fail-closed). `Organization` is the only declared exempt model.
 - **Automatic stamping on insert.** A flush listener copies the session's `organization_id` into new rows whose `organization_id` is None.
 - **Kill switches (env, read at import):** `TENANT_AUTO_FILTER_GLOBAL` (default `1`) and `TENANT_AUTO_STAMP_ON_INSERT` (default `1`). Setting either to `0` disables that protection for the whole process.
@@ -4065,13 +4078,15 @@ This section covers every screen an administrator uses to configure contecflow-P
 
 - **Database isolation (RLS).** A second barrier under the ORM filter, in PostgreSQL itself (`app/db/rls.py`).
   - **Policies:** one per table with `organization_id` or `org_id` (400 tables), generated from the models with the same meaning as the ORM filter: strict; global rows (`NULL`) for `_tenant_filter_include_global`; home company or membership for users. Every `alembic upgrade` rebuilds them (`alembic/env.py`), so a new table never stays without one. Inserting a row of another company is rejected; a row without company is allowed.
-  - **Context:** before each statement and each flush, the session sets `app.tenant` (transaction-local) to its company, or to empty where the ORM does not filter either (superadmin, background jobs, `sin_filtro_de_tenant`).
+  - **Context:** before each statement and each flush, the session sets `app.tenant` (transaction-local) to its company, or to empty where the ORM does not filter either (superadmin, declared system context, `sin_filtro_de_tenant`). A regular user without company, and a context-less session with `TENANT_SESION_SIN_CONTEXTO=cerrar`, get `-` (matches no company: no rows).
   - **Application role:** policies only act if the application does not connect as the schema owner.
     - `setup.sh` creates `APP_DB_USER` (default `contecflow_app`, no superuser, no BYPASSRLS), generates `APP_DB_PASSWORD` in `.env` and points `DATABASE_URL` at it. Migrations keep the owner in `DATABASE_MIGRATIONS_URL`. `CONTECFLOW_DB_APP_ROLE=0` skips this.
-    - In docker compose, the `migrate` service runs `python -m app.db.rls`, and the app uses `APP_DB_USER` when it is defined (otherwise the owner).
+    - `setup.bat` does the same (`:prepare_app_role`) through the shared `scripts/rol_de_aplicacion.py`, which `setup.sh` also calls (audit 2026-11-22, A1).
+    - In docker compose, `setup docker` (`scripts/docker_stack.py`) generates `APP_DB_USER`/`APP_DB_PASSWORD` in `.env`, the `migrate` service runs `python -m app.db.rls`, and api/worker/beat connect as `APP_DB_USER`. The compose no longer falls back to the superuser: without `APP_DB_PASSWORD` the app does not connect.
+    - Boot refuses to start with RLS unarmed in staging/production (`RLS_REQUIRED`, unset = on there).
   - **Checking it:**
     - *Admin → Estado sistema* (`GET /api/v1/settings/db-isolation`, admin) shows whether it is armed: connection role, and tables with RLS out of those expected.
-    - The API logs a warning at startup when it is not armed.
+    - The API logs a warning at startup when it is not armed (development), and refuses to start in staging/production (`RLS_REQUIRED`).
   - **Measured on a copy with the application role:**
     - 97 menu routes and 2268 API calls with 0 errors.
     - The 179 GET endpoints the screens call return the same counts as with the owner, so RLS hides nothing the application shows.
@@ -4221,7 +4236,7 @@ Values are cached in-process for **60 s** (`_CACHE_TTL_SECONDS`). A write invali
 - Every write appends to `settings_audit_log` with scope `runtime`. **The old and new values are stored in plaintext**, because runtime keys are treated as non-secret; that includes `METRICS_AUTH_TOKEN`.
 
 **Limitations (measured).**
-- **Platform settings vs company settings.** `AJUSTES_DE_PLATAFORMA` (`settings_service.py`) lists the keys read in their global row: key rotation and tokens, proxies, metrics token, server timeouts, company deletion and impersonation, default limits of a new company (`ORG_DEFAULT_MAX_*`), worker event queues, AI provider cooldown and the semantic engine, and `PROJECT_NAME` (platform name, the fallback when a company has no branding; `app.core.constantes.NOMBRE_DEL_PRODUCTO` is its value from the environment, used in prompts, Slack/Teams texts, emails and PDFs). Only the superadmin changes them, always in the global row; other admins see them read-only. Every other key is read with the company. The guard `tests/test_ajustes_de_plataforma_2026_11.py` measures the reads in `app/` and fails if a key is read only globally without being a platform setting.
+- **Platform settings vs company settings.** `AJUSTES_DE_PLATAFORMA` (`app/services/settings_service/runtime.py`) lists the keys read in their global row: key rotation and tokens, proxies, metrics token, server timeouts, company deletion and impersonation, default limits of a new company (`ORG_DEFAULT_MAX_*`), worker event queues, AI provider cooldown and the semantic engine, and `PROJECT_NAME` (platform name, the fallback when a company has no branding; `app.core.constantes.NOMBRE_DEL_PRODUCTO` is its value from the environment, used in prompts, Slack/Teams texts, emails and PDFs). Only the superadmin changes them, always in the global row; other admins see them read-only. Every other key is read with the company. The guard `tests/test_ajustes_de_plataforma_2026_11.py` measures the reads in `app/` and fails if a key is read only globally without being a platform setting.
 - **Many call sites use `get_runtime_int(...) or settings.X`,** so a value of `0` falls back to the env value.
 - **Every key of the catalogue has a runtime reader** (re-measured 2026-11-16), except `BPMN_MAX_XML_BYTES`, added that day. Some are read at runtime only in part of the code (for example `DEFAULT_CURRENCY`, `DEFAULT_WEEKLY_CAPACITY_HOURS`, `MAX_FILE_SIZE_MB`), and the login lockout keys only in their global row; the "Consumer" column says which.
 
@@ -4281,7 +4296,7 @@ Values are cached in-process for **60 s** (`_CACHE_TTL_SECONDS`). A write invali
 
 ### Runtime settings reference
 
-The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service/`: **31 groups, 392 keys**. "Default" is the code default in `Settings` (`app/core/config.py` plus `config_groups/*`); a `.env` value overrides it. Measured example: the local `.env` sets `ACCESS_TOKEN_EXPIRE_MINUTES=60`.
+The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service/`: **32 groups, 432 keys**. "Default" is the code default in `Settings` (`app/core/config.py` plus `config_groups/*`); a `.env` value overrides it. Measured example: the local `.env` sets `ACCESS_TOKEN_EXPIRE_MINUTES=60`.
 
 "Consumer" is what a grep of `app/` found:
 - **rt**: read at runtime through `get_runtime_*`, so a UI change takes effect within 60 s.
@@ -4317,12 +4332,17 @@ The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service/`: **31 gr
 | service_desk | SD_INBOUND_ADDRESS | str | `''` | Support address; identifies the org and is the Reply-To | rt |
 | service_desk | TWILIO_PHONE_NUMBERS | str | `''` | Twilio numbers of the company (E.164, CSV); an incoming call or SMS to one of them belongs to it, and a call to a number no company declares is rejected | per-org row (`sms_service.organizacion_del_numero_de_twilio`) |
 | service_desk | SD_REOPEN_ON_REPLY | bool | true | Inbound reply reopens a resolved ticket | rt |
+| service_desk | SD_INBOUND_REQUIRE_SENDER_AUTH | bool | true | Inbound email acts as its sender only with SPF/DKIM/DMARC passed (`Authentication-Results`) | rt (`inbound_mail.remitente_fiable`) |
+| service_desk | SD_INBOUND_AUTHSERV_ID | str | `''` | authserv-id of the mail server whose `Authentication-Results` is trusted (empty: top header) | rt |
 | service_desk | SD_CHANNEL_TICKET_TYPE | str | `incident` | Ticket type for new inbound emails (incident, service_request, question) | rt |
 | service_desk | SD_MAIL_MAX_PER_RUN | int | 50 | Inbound emails read per run | rt |
 | service_desk | SD_MAIL_MAX_ATTACHMENT_MB | int | 15 | Max inbound attachment size (MB) | rt |
 | service_desk | SD_CAB_GROUP_ID | str | `''` | Queue (group id) acting as CAB | rt |
 | service_desk | SD_CAB_APPROVAL_RULE | str | `majority` | CAB rule: majority, all, any | rt |
 | service_desk | SD_CHANGE_AUTO_APPROVE_MAX_RISK | int | 30 | Standard changes up to this risk score self-approve | rt |
+| service_desk | SD_STANDARD_CHANGE_MAX_FAILURE_PCT | int | 20 | Standard change model suspended above this failure rate (%) | rt |
+| service_desk | SD_STANDARD_CHANGE_MIN_CLOSURES | int | 5 | Closures before a standard model's failure rate counts | rt |
+| service_desk | SD_STANDARD_CHANGE_REVIEW_DAYS | int | 365 | Days a standard model stays approved before review | rt |
 | service_desk | CHANGE_CANARY_RAMP_PCT | str | `1,5,25,50,100` | Changes — canary rollout: % of users per phase (CSV, increasing, ends in 100; 2-10 phases, 1-100) | rt (`/org-defaults` → `propuestas` → ChangeRolloutPanel; `valores_de_negocio`, 19-11-2026) |
 | service_desk | CHANGE_CANARY_FIRST_MINUTES | int | 30 | Changes — canary rollout: minutes of the first phase (5-1440) | rt (`/org-defaults` → ChangeRolloutPanel) |
 | service_desk | CHANGE_CANARY_STEP_MINUTES | int | 45 | Changes — canary rollout: minutes of each middle phase (5-1440) | rt (`/org-defaults` → ChangeRolloutPanel) |
@@ -4429,9 +4449,35 @@ The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service/`: **31 gr
 | password_policy | PASSWORD_REQUIRE_LOWERCASE | bool | true | Require lowercase | rt |
 | password_policy | PASSWORD_REQUIRE_DIGIT | bool | true | Require a digit | rt |
 | password_policy | PASSWORD_REQUIRE_SPECIAL | bool | true | Require a special character | rt |
-| password_policy | LOGIN_MAX_ATTEMPTS | int | 5 | Failed logins before lockout | rt, **global row only** (`auth_service/estado_efimero._politica_de_bloqueo`, own 60 s cache; no company is passed, so a company row is ignored) |
-| password_policy | LOGIN_ATTEMPT_WINDOW_SECONDS | int | 900 | Counting window (s) | rt, global row only (same) |
-| password_policy | LOGIN_LOCKOUT_SECONDS | int | 900 | Lockout duration (s) | rt, global row only (same) |
+| password_policy | LOGIN_MAX_ATTEMPTS | int | 5 | Failed logins before lockout | rt, by company since 23-11-2026 (`auth_service/estado_efimero._politica_de_bloqueo(org_id)`, own 60 s cache; the user|IP bucket before the user is known uses the global row) |
+| password_policy | LOGIN_ATTEMPT_WINDOW_SECONDS | int | 900 | Counting window (s) | rt, by company (same) |
+| password_policy | LOGIN_LOCKOUT_SECONDS | int | 900 | Lockout duration (s) | rt, by company (same) |
+| password_policy | PASSWORD_MAX_LENGTH | int | 128 | Max length | rt, by company (`seguridad_de_cuentas/politica.leer`); written only by `PUT /security/policy` |
+| password_policy | PASSWORD_BLOCK_COMMON | bool | true | Reject common passwords (local list) | rt, by company (`seguridad_de_cuentas/politica.leer`); written only by `PUT /security/policy` |
+| password_policy | PASSWORD_BLOCK_PERSONAL | bool | true | Reject passwords containing the username, e-mail or name | rt, by company (`seguridad_de_cuentas/politica.leer`); written only by `PUT /security/policy` |
+| password_policy | PASSWORD_HISTORY_COUNT | int | 5 | Last N passwords cannot be reused (0 = off) | rt, by company (`seguridad_de_cuentas/politica.leer`); written only by `PUT /security/policy` |
+| password_policy | PASSWORD_MIN_AGE_HOURS | int | 0 | Minimum hours between changes (0 = off) | rt, by company (`seguridad_de_cuentas/politica.leer`); written only by `PUT /security/policy` |
+| password_policy | PASSWORD_EXPIRY_DAYS | int | 0 | Password expiry (days, 0 = never) | rt, by company (`seguridad_de_cuentas/politica.leer`); written only by `PUT /security/policy` |
+| password_policy | PASSWORD_EXPIRY_WARNING_DAYS | int | 14 | Warn before expiry (days) | rt, by company (`seguridad_de_cuentas/politica.leer`); written only by `PUT /security/policy` |
+| password_policy | TEMP_PASSWORD_EXPIRY_HOURS | int | 72 | Temporary password validity (hours) | rt, by company (`seguridad_de_cuentas/politica.leer`); written only by `PUT /security/policy` |
+| password_policy | LOGIN_LOCKOUT_NOTIFY_USER | bool | true | Notify the user when locked out | rt, by company (`seguridad_de_cuentas/politica.leer`); written only by `PUT /security/policy` |
+| account_security | MFA_REQUIRED_ROLES | str | `admin` | MFA required for these base roles (CSV) | rt, by company (`seguridad_de_cuentas/politica.leer`); written only by `PUT /security/policy` |
+| account_security | MFA_REQUIRED_FOR_SENSITIVE | bool | true | MFA required for sensitive capabilities | rt, by company (`seguridad_de_cuentas/politica.leer`); written only by `PUT /security/policy` |
+| account_security | MFA_ALLOWED_METHODS | str | `totp,webauthn` | Allowed second factors (CSV: totp, webauthn) | rt, by company (`seguridad_de_cuentas/politica.leer`); written only by `PUT /security/policy` |
+| account_security | MFA_GRACE_DAYS | int | 7 | MFA grace period (days) | rt, by company (`seguridad_de_cuentas/politica.leer`); written only by `PUT /security/policy` |
+| account_security | MFA_REMEMBER_DEVICE_DAYS | int | 0 | Remember device for MFA (days, 0 = off) | rt, by company (`seguridad_de_cuentas/politica.leer`); written only by `PUT /security/policy` |
+| account_security | SESSION_MAX_HOURS | int | 0 | Session absolute maximum (hours, 0 = no cap) | rt, by company (`seguridad_de_cuentas/politica.leer`); written only by `PUT /security/policy` |
+| account_security | SESSION_MAX_CONCURRENT | int | 0 | Concurrent sessions per user (0 = unlimited) | rt, by company (`seguridad_de_cuentas/politica.leer`); written only by `PUT /security/policy` |
+| account_security | ACCESS_IP_ALLOWLIST | str | (empty) | Allowed IPs/CIDRs (CSV, empty = any) | rt, by company (`seguridad_de_cuentas/politica.leer`); written only by `PUT /security/policy` |
+| account_security | ACCESS_HOURS | str | (empty) | Allowed time window HH:MM-HH:MM (empty = any) | rt, by company (`seguridad_de_cuentas/politica.leer`); written only by `PUT /security/policy` |
+| account_security | ACCESS_DAYS | str | `1,2,3,4,5,6,7` | Allowed ISO weekdays (CSV) | rt, by company (`seguridad_de_cuentas/politica.leer`); written only by `PUT /security/policy` |
+| account_security | ACCESS_HOURS_EXEMPT_ROLES | str | `admin` | Roles exempt from the time window (CSV) | rt, by company (`seguridad_de_cuentas/politica.leer`); written only by `PUT /security/policy` |
+| account_security | ACCESS_BLOCKED_COUNTRIES | str | (empty) | Blocked countries ISO-3166 alpha-2 (CSV) | rt, by company (`seguridad_de_cuentas/politica.leer`); written only by `PUT /security/policy` |
+| account_security | ACCOUNT_INACTIVE_DISABLE_DAYS | int | 0 | Deactivate accounts without sign-in for N days (0 = off) | rt, by company (`seguridad_de_cuentas/politica.leer`); written only by `PUT /security/policy` |
+| account_security | SECURITY_SOD_TWO_ADMINS | bool | false | Security changes need a second administrator | rt, by company (`seguridad_de_cuentas/politica.leer`); written only by `PUT /security/policy` |
+| account_security | SECURITY_ALERT_FAILED_LOGINS | int | 20 | Alert after N failed sign-ins in 15 min (0 = off) | rt, by company (`seguridad_de_cuentas/politica.leer`); written only by `PUT /security/policy` |
+| account_security | SECURITY_ALERT_NEW_IP | bool | true | Alert on sign-in from a new IP | rt, by company (`seguridad_de_cuentas/politica.leer`); written only by `PUT /security/policy` |
+| account_security | ACCESS_REVIEW_INTERVAL_DAYS | int | 90 | Access review required every N days (0 = off) | rt, by company (`seguridad_de_cuentas/politica.leer`); written only by `PUT /security/policy` |
 | locale | DEFAULT_TIMEZONE | str | `Europe/Madrid` | Default timezone | rt (`/org-defaults`, SLA, SD); many static reads too |
 | locale | DEFAULT_LANGUAGE | str | `es` | Default language | rt (`/org-defaults`, SD mail); static elsewhere |
 | locale | DEFAULT_CURRENCY | str | `EUR` | Default currency | rt in `/org-defaults` plus 1 site; static `settings.DEFAULT_CURRENCY` in ~44 files |
@@ -4440,6 +4486,10 @@ The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service/`: **31 gr
 | locale | CURRENCY_SYMBOLS | str | `EUR:€,USD:$,GBP:£` | Currency symbols on documents (CODE:symbol, CSV); a currency without one shows its code | rt (invoice PDF) |
 | locale | DEFAULT_TAX_RATE | float | 21.0 | Default tax rate (%) | rt **only** in `/org-defaults`; invoice/booking column defaults use the value loaded at process start |
 | locale | TAX_NAME | str | '' | Tax name on invoices; empty = the usual one for the invoice language | rt in `invoice_pdf.nombre_del_impuesto` |
+| locale | INVOICE_ISSUER_NAME | str | '' | Invoice issuer — legal name printed on invoices | rt in `invoice_pdf.datos_del_emisor` |
+| locale | INVOICE_ISSUER_TAX_ID | str | '' | Invoice issuer — tax ID (NIF/VAT) printed on invoices | rt in `invoice_pdf.datos_del_emisor` |
+| locale | INVOICE_ISSUER_ADDRESS | str | '' | Invoice issuer — registered address printed on invoices | rt in `invoice_pdf.datos_del_emisor` |
+| locale | INVOICE_ISSUER_IBAN | str | '' | Invoice issuer — IBAN for payment printed on invoices | rt in `invoice_pdf.datos_del_emisor` |
 | locale | COMPANY_SECTOR | str | '' | Company sector for AI narratives | rt in `bi_storytelling` |
 | locale | DEFAULT_WORKING_HOURS_PER_DAY | float | 8.0 | Working hours per day | rt (`/org-defaults`, SD ticket ops); static elsewhere |
 | locale | DEFAULT_WEEKLY_CAPACITY_HOURS | float | 40.0 | Weekly capacity (h) | rt only in `/org-defaults`; static in ~25 files (e.g. `alert_service`) |
@@ -4499,6 +4549,7 @@ The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service/`: **31 gr
 | ai | MCP_WRITE_MODE | str | `off` | MCP — tools that write: off (hidden), approval (a human approves each call) or direct | rt |
 | audit | AUDIT_EXPORT_MAX_ROWS | int | 100000 | Audit log — maximum rows in the signed export (the most recent) | rt |
 | audit | COMPLIANCE_GDPR_MAX_DAYS | int | 30 | GDPR request deadline (DSR) and the compliance-report check | rt (`bi_gdpr_service`, `informe_de_cumplimiento`) |
+| audit | COMPLIANCE_GDPR_EXPORT_TTL_DAYS | int | 30 | GDPR access/portability copy — days it is kept (encrypted) after completion; then the daily retention run erases it | rt (`cab_service/gdpr`) |
 | audit | COMPLIANCE_MFA_MIN_COVERAGE_PCT | float | 100.0 | Compliance report — minimum % of active users with a second factor | rt |
 | audit | COMPLIANCE_MIN_PASSWORD_LENGTH | int | 12 | Compliance report — minimum password length the policy must require | rt |
 | audit | COMPLIANCE_STALE_ACCOUNT_DAYS | int | 90 | Compliance report — an active account without sign-in for more days is flagged | rt |
@@ -4905,7 +4956,7 @@ A `viewer` (or higher) row also makes the project appear in the list of a PM or 
 **Purpose.** Microsoft Graph (app-only, client credentials) for calendar events and milestones, Teams notifications by incoming webhook, Planner task sync, and user presence.
 
 **How to use it.**
-1. **Set env vars:** `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET` and optionally `TEAMS_WEBHOOK_URL`, then restart. The status card shows which of them are present.
+1. **Store the company's credential** (2026-11-23, audit 03 A-MP3): Settings → Integrations → *Microsoft 365 / Graph* (tenant, client id, client secret; secret encrypted) and optionally the Teams webhook. Each company uses its own Azure app and its own cached token. The global `AZURE_*` are a *platform* credential used only for a company without its own when `M365_PLATFORM_CREDENTIALS_ENABLED=true`. The status card shows the company's fields and `credential_source` (`empresa`/`plataforma`); *Test connection* gets the token and reads `/organization`.
 2. **Pull calendar:** enter a user UPN and a number of days. This calls `GET /users/{upn}/calendarView`.
 3. **Sync milestones** to a calendar.
 4. **Teams notify:** title, text and color, posted to the webhook given in the body or to `TEAMS_WEBHOOK_URL`.
@@ -5005,10 +5056,10 @@ A `viewer` (or higher) row also makes the project appear in the list of a PM or 
 5. **Audit log.** GRC events.
 
 **Retención y bloqueo legal.** GRC tab (admin). Collaboration chat keeps its own retention (Colaboración → Cumplimiento).
-- **Retention per record type.** For each type, how many days it is kept: closed tickets (from `closed_at`), archived documents (from their last change), AI conversations, the AI usage log, notifications, connector calls (`connector_calls`), webhook deliveries (`webhook_deliveries`), the email log (`email_logs`, from `sent_at` or, if never sent, `created_at`) and the activity feed (`activity_events`). **Calcular** shows how many records the policy would delete today and how many a legal hold saves; policies start **off**, and none may keep fewer than `RETENTION_MIN_DAYS` (30). A daily job (02:55, Celery beat and APScheduler) applies the active ones, record by record so the ORM cascades run; **Aplicar ahora** runs it at once. Each run is written to the audit log (`RETENTION_PURGE`, deleted per type) and the row shows the last run.
-- **Not retained, on purpose:** the audit log (it is the evidence, and deleting would break its chain) and financial data, which the law requires to keep.
+- **Retention per record type.** `app/db/bloqueo_legal.py::TIPOS` declares **38 retainable types** (measured 2026-11-23, after migration 199; the screen lists them from there, one row each). For each type, how many days it is kept. The first nine are: closed tickets (from `closed_at`), archived documents (from their last change), AI conversations, the AI usage log, notifications, connector calls (`connector_calls`), webhook deliveries (`webhook_deliveries`), the email log (`email_logs`, from `sent_at` or, if never sent, `created_at`) and the activity feed (`activity_events`). The other 29 are: `absence_documents`, `client_contacts`, `overtime_requests`, `meetings`, `supplier_documents`, `supplier_access_grants`, `sw_config_snapshots`, `sw_findings`, `internal_satisfaction`, `internal_client_roles`, `internal_charges`, `sw_risk_snapshots`, `sw_exploit_events`, `sw_risk_alert_log`, `demand_requests`, `public_form_submissions`, `user_sessions`, `security_events`, `security_detections`, `login_anomalies`, `document_access_logs`, `ai_action_logs`, `collaboration_audit_events`, `jira_sync_logs`, `expense_attachments`, `password_history`, `trusted_devices`, `security_change_requests` and `access_review_campaigns`. **Calcular** shows how many records the policy would delete today and how many a legal hold saves; policies start **off**, and none may keep fewer than `RETENTION_MIN_DAYS` (30). A daily job (02:55, Celery beat and APScheduler) applies the active ones, record by record so the ORM cascades run; **Aplicar ahora** runs it at once. Each run is written to the audit log (`RETENTION_PURGE`, deleted per type) and the row shows the last run.
+- **Not retained, on purpose:** the audit log (it is the evidence, and deleting would break its chain; it has no entry in `TIPOS` on purpose: it is kept for the life of the company, GDPR art. 17.3.b/e, and leaves only in the signed export or with the tenant purge after its quarantine; since migration 199 the database rejects `UPDATE`/`DELETE` on it, see §7.4 and `docs/seguridad/politicas_de_cuenta.md` §10) and financial data, which the law requires to keep.
 - **Legal hold.** A hold is a case reference plus `type (or all) · field = value`, for example all records whose `client_id` is the client in a lawsuit. Fields allowed per type: tickets `id, client_id, project_id, requester_user_id, created_by_user_id`; documents `id, client_id, project_id, created_by`; AI conversations, AI usage and notifications `id, user_id`; connector calls `id, user_id, producto`; webhook deliveries `id, webhook_id, event`; email log `id, to_address, source, source_id`; activity feed `id, actor_id, entity_type, entity_id, target_id`. While active, matching records are deleted **neither by retention nor by hand**: any ORM deletion of a held record answers **409** (a `before_flush` guard), and the permanent deletion of a company with an active hold is refused (it stays in quarantine until the hold is released). Placing and releasing holds is audited (`LEGAL_HOLD`, `LEGAL_HOLD_RELEASED`). A GDPR erasure of a person is refused with **409** listing the case references when an active hold of one of their companies has their id, email or username as value; nothing is rewritten. The erasure never rewrites `audit_logs` (GDPR art. 17.3.b/e, and its hash chain).
-- **Measured (copy of the real database, Postgres).** All its data is from November, so with the 30-day minimum nothing expires (preview 0 everywhere, correct). After ageing the 8 notifications of the company to 100 days and holding one person's 4: preview 8 expired / 4 held / 4 to delete; the run deleted exactly 4, the 4 held ones remain, the run is in the audit log and the audit chain still verifies. Bulk deletes (`query(...).delete()`) bypass the ORM guard: none exists today for these five types (searched); `clear-old` notifications only hides them (`is_active = false`).
+- **Measured (copy of the real database, Postgres).** All its data is from November, so with the 30-day minimum nothing expires (preview 0 everywhere, correct). After ageing the 8 notifications of the company to 100 days and holding one person's 4: preview 8 expired / 4 held / 4 to delete; the run deleted exactly 4, the 4 held ones remain, the run is in the audit log and the audit chain still verifies. Bulk deletes (`query(...).delete()`) bypass the ORM guard: none existed for the first five types when this was searched, and it has not been searched again for the 28 added since; `clear-old` notifications only hides them (`is_active = false`).
 - **«Not held» filter:** each comparison is wrapped in `COALESCE(…, false)`, so records without that field (for example without a client) are not excluded.
 - **Endpoints** (`require_admin`): `GET /api/v1/governance/retention/policies`, `PUT /api/v1/governance/retention/policies/{type}`, `GET /api/v1/governance/retention/preview?entity=&keep_days=`, `POST /api/v1/governance/retention/run`, `GET/POST /api/v1/governance/legal-holds`, `POST /api/v1/governance/legal-holds/{id}/release`. Migration 140. Tests: `tests/test_retencion_y_bloqueo_legal_2026_11.py` (validated by disabling the manual-deletion guard and by not excluding held records: both caught).
 
@@ -5060,7 +5111,7 @@ A `viewer` (or higher) row also makes the project appear in the list of a PM or 
 - `GET|POST /grc/sod-rules`, `PATCH|DELETE /grc/sod-rules/{id}`
 - `GET /grc/sod-check`, `GET /grc/violations`, `PATCH /grc/violations/{id}/resolve`, `GET /grc/audit-log`
 - Tables `grc_role_permissions`, `grc_sod_rules`, `grc_sod_violations`, `grc_audit_log`.
-- Enforcement is in `app/core/grc_enforce.py::enforce_grc_matrix`, a router-level dependency:
+- Enforcement: `app/core/grc_enforce.py::aplicar_a_principal`, called by `get_current_user` once the principal (session JWT, API key or OAuth token) and the **active** company are known (audit 2026-11-22, A2: API keys and OAuth tokens used to skip it). The router-level dependency `enforce_grc_matrix` only decides on routes that do not resolve the user through `get_current_user`:
   - `allowed=false` → 403.
   - `allowed=true` or no row → the other checks continue.
   - Superadmins are never blocked.
@@ -5117,8 +5168,9 @@ A `viewer` (or higher) row also makes the project appear in the list of a PM or 
 
 **GDPR.**
 - Create requests (erasure, access / portability, rectification) and process or reject them (rejection with a reason).
-- Endpoints: `GET|POST /api/v1/gdpr/requests`, `POST /gdpr/requests/{id}/process`, `POST /gdpr/requests/{id}/reject`, `GET /gdpr/requests/{id}/export` (the data copy; process, reject and export are `require_admin`).
+- Endpoints: `GET|POST /api/v1/gdpr/requests`, `POST /gdpr/requests/{id}/process`, `POST /gdpr/requests/{id}/reject`, `GET /gdpr/requests/{id}/export` (the data copy). **All five require an admin** (`require_admin` in `cab.py`: list, create, process, reject and export), so a data subject cannot file a request on their own: an administrator records it for them.
 - Erasure runs the same erasure as Data Governance (`supresion_service`) and stores what it touched, without the original email; portability exports the user's data as JSON.
+- **Second GDPR circuit, `/bi/gdpr/*` (`app/api/v1/endpoints/bi_gdpr.py`, service `bi_gdpr_service`).** The code has two separate registers of data-subject requests, and the auditor must read both: `/gdpr/requests` (this tab, table `gdpr_requests`, `cab.py`) and `/bi/gdpr/*`, the **GDPR panel of Data Governance** (`/data-governance`, tabs DSR, Consentimiento, Máscaras, Estadísticas; see that section), whose requests (DSR) and deadlines (`COMPLIANCE_GDPR_MAX_DAYS`) live in `app_settings`. Routes, all `require_admin`: `POST|GET /bi/gdpr/consent`, `GET /bi/gdpr/consent/{user_id}` and `/history`, `GET /bi/gdpr/consents`, `GET /bi/gdpr/stats`, `POST|GET /bi/gdpr/dsr`, `GET /bi/gdpr/dsr/{id}`, `PATCH /bi/gdpr/dsr/{id}` and `/resolve`, `POST /bi/gdpr/dsr/{id}/erasure-execute`, `POST /bi/gdpr/dsr/{id}/portability-export`, `POST|GET /bi/gdpr/field-masks`. Both circuits end in the same erasure code (`supresion_service`), so the legal-hold refusal (409) and the exclusion of `audit_logs` apply to both, but **a request filed in one does not appear in the other**: the compliance report's check «GDPR requests on time» reads `gdpr_requests` only. Unifying them is pending (audit 2026-11-22, B.1); until then, review both lists.
 
 **Email.**
 - Send an email, manage templates, view logs.
@@ -5147,7 +5199,7 @@ A `viewer` (or higher) row also makes the project appear in the list of a PM or 
 
 **Auditoría.** `GET /api/v1/enterprise/audit-log`. The UI shows the general log and password-reset events.
 
-**Auditoría → Cadena de integridad (tamper-evident log).** Each `audit_logs` row is chained to the previous row **of its company**, so a change, a deletion or a forged entry made directly in the database is detected.
+**Auditoría → Cadena de integridad (tamper-evident log).** Each `audit_logs` row is chained to the previous row **of its company**, so a change, a forged entry or the deletion of an entry that has later ones is detected (a hole in `seq` or a broken link). **Deleting the newest entries is not detected by the chain alone**, only by comparing with an earlier export (below). Since migration 199 (23-11-2026) the database also **prevents** it: triggers in PostgreSQL (`plpgsql`, also `TRUNCATE`) and SQLite (`RAISE(ABORT)`) reject `UPDATE` and `DELETE` on `audit_logs` (`app/db/auditoria_inmutable.py`). Exceptions: `user_id` may become NULL (FK `ON DELETE SET NULL`, not part of the hash), rows without `seq` may be chained once, and the tenant purge after its quarantine deletes its own rows with a one-transaction permit (`audit_log_purge_permits`). A database superuser can still drop the trigger: the chain and the signed export remain the evidence. The compliance report measures it (`audit_log_immutable`).
 - **How to use it.** *Verificar* walks the company's whole chain and says how many entries it checked, the last one (number and hash) and, if broken, where and why: *modified*, *does not link to the previous one*, *an entry before this one is missing*, *signed with an unknown key*. *Exportar firmado* downloads the chain as JSON signed with Ed25519 (and records an `EXPORT audit_chain` entry). *Comparar con una exportación…* loads an earlier export and checks that its last entry is still there unchanged: that is what reveals deleting the **newest** entries, which the chain alone cannot see.
 - **How it works.** Columns `seq` (1, 2, 3… per company, no gaps), `prev_hash`, `entry_hash` (HMAC-SHA256 of the row's fields plus `seq` and `prev_hash`) and `chain_key_id`. The HMAC key is derived from `SECRET_KEY` and is not in the database: someone with database access can change a row but cannot recompute its hash. Hashed fields: company, user name, IP, user agent, action, resource, resource id and name, old/new values, metadata, time. **`user_id` is not hashed**: deleting a user sets it to NULL (`ON DELETE SET NULL`), legitimately. The chain is computed in the `before_insert` event of `AuditLog`, so every writer is covered (`audit_log()`, SCIM, organisations). A per-company Postgres lock (`pg_advisory_xact_lock`) plus a unique index on (company, `seq`) keep concurrent writers from forking it.
 - **Key rotation.** Rows signed with an earlier `SECRET_KEY` keep verifying while it is listed in `SECRET_KEY_PREVIOUS`; otherwise they show as *unknown key*, not as modified.
@@ -5455,7 +5507,7 @@ This section is for developers and operators who install, run, configure, extend
            │              ▲
    ┌───────┴──────────────┴──────────┐      DuckDB file (OLAP, nightly ETL)
    │ Celery worker  (app.worker)     │      OpenSearch / NATS / LiveKit / ClamAV
-   │ Celery beat    (42 schedules)   │      (collaboration, opt-in via env)
+   │ Celery beat    (53 schedules)   │      (collaboration, opt-in via env)
    └─────────────────────────────────┘
 ```
 
@@ -5497,7 +5549,7 @@ Python code size: `app/` ≈ 221,200 lines (2026-11-16).
 
 17 runtime and 25 dev dependencies (2026-11-16). `frontend/src` has 308 `.tsx` and 154 `.ts` files, 0 `.js/.jsx`; 240 entries under `src/pages`; `App.tsx` has 132 lines with `<Route` and 117 with `lazy(`. TypeScript strictness is partial: `strict: false`, `noImplicitAny: false`; `tsconfig.json` records `strictNullChecks` (226 errors) and `noImplicitAny` (387 errors) as pending. Node in the frontend image: `node:20-alpine`. Vite 7 needs Node ≥ 20.19 (upstream requirement — **not verified** here); `setup.sh` only warns below Node 18.
 
-The axios client (`src/services/api/_core.ts`) uses `baseURL = VITE_API_URL || '/api/v1'`, `withCredentials: true`, a 30 s timeout, echoes the `csrf_token` cookie as `X-CSRF-Token` on unsafe methods, and refreshes through `POST /auth/refresh` on 401.
+The axios client (`src/services/api/_core.ts`) uses `baseURL = VITE_API_URL || '/api/v1'`, `withCredentials: true`, a 30 s timeout, echoes the `csrf_token` cookie as `X-CSRF-Token` on unsafe methods, and refreshes through `POST /auth/refresh` on 401 (the refresh call uses plain axios and sends `X-CSRF-Token` itself since 2026-11-22).
 
 #### 1.4 Storage
 
@@ -5525,7 +5577,7 @@ There is no dedicated search engine for the core domain. Measured:
 | Path | Content | Count |
 |---|---|---|
 | `app/main.py` | App factory, middlewares, router guards, `/health`, `/ready`, `/status`, widgets, lifespan (schema preflight, key management, schedulers) | 1,070 lines |
-| `app/worker.py` | Celery app, 46 tasks, 42 beat entries | 715 lines |
+| `app/worker.py` | Celery app, 57 tasks, 53 beat entries | 911 lines |
 | `app/api/v1/endpoints/` | Endpoint modules (131 top-level files + 42 in 4 sub-packages: `collaboration`, `integrations`, `projects`, `service_desk`) | 173 `.py` |
 | `app/api/v1/routers/` | 5 domain aggregators (`core`, `delivery`, `ai_domain`, `platform`, `framework`) + auth routers (`auth_core`, `auth_mfa`, `auth_saml`, `auth_sessions`, `auth_sso`) | 10 modules |
 | `app/services/` | Business logic (168 top-level modules + 31 sub-packages, e.g. `service_desk`, `collaboration`, `approval_engine`, `cmdb`, `olap`, `stt`, `ai_chat`, `settings_service`) | 544 `.py` |
@@ -5533,7 +5585,7 @@ There is no dedicated search engine for the core domain. Measured:
 | `app/schemas/` | Pydantic schemas | 49 files |
 | `app/core/` | Config, security, CSRF, ABAC/GRC enforcement, tenancy, encryption, metrics, rate limiter, uploads, timezone context, proxy trust (`network.py`) | 43 files + `config_groups/` (10 mixins) |
 | `app/db/` | `session.py` (engine, `TenantSession`, tenant hooks), `seed.py` + `seed_parts/` (11 files, 2,004 lines) | — |
-| `alembic/versions/` | Migrations, single linear chain, head `169_bpmn_decisiones_y_codigos_de_error` | 123 revisions |
+| `alembic/versions/` | Migrations, single linear chain, head `198_cambios_estandar_y_portal` | 150 revisions |
 | `tests/` | Backend pytest suite | 465 `test_*.py` |
 | `tests_e2e/` | Python Playwright E2E | 13 test files + `conftest.py`, `pytest.ini` |
 | `frontend/` | Vite + React SPA, `nginx.frontend.conf`, i18n checkers in `scripts/` | see §1.3 |
@@ -5569,7 +5621,7 @@ Ports: backend **8000**, frontend **3000** (hard-coded in the script), Postgres 
 | `stop` | Kills the PIDs and anything on `BACKEND_PORT`/`FRONTEND_PORT` (8000/3000 unless set in the environment); Docker keeps running. |
 | `update` | `setup_backend` + `setup_frontend`, no start. |
 | `docker-stop` | `docker compose down` (data kept). |
-| `docker-clean` | `docker compose down -v`. The message says "borra todos los datos", but `postgres_data` and `s3_data` are `external: true`, so only `redis_data`/`prometheus_data` are removed. |
+| `docker-clean` | `docker compose --profile app --profile s3 --profile observability --profile host-metrics down -v --remove-orphans` (23-11-2026, audit 01 B3). Removes the regenerable volumes (Redis, Prometheus, Alertmanager, Grafana) and says so: `postgres_data` and `s3_data` are `external: true` and are kept; the message prints the `docker volume rm` to delete them on purpose. |
 | *(no argument)* | Prints usage and exits 1. |
 
 What `setup_backend` does, step by step:
@@ -5650,9 +5702,9 @@ Commands: `docker compose up -d` (infra only) · `docker compose --profile s3 up
 #### 4.1 Two layers
 
 1. **Environment (`.env` → `app.core.config.Settings`, pydantic-settings, `extra="ignore"`).** 475 fields (measured 2026-11-16): 244 in `config.py` and 231 in ten mixins under `app/core/config_groups/` (`ai_config` 41, `sla_config` 20, `health_config` 25, `semantic_config` 10, `service_desk_config` 36, `automations_config` 13, `proceso_config` 74, `escalas_config` 5, `empresa_config` 4, `politicas_config` 3). Read once at import, so a change needs a restart. Validators stop the boot on: weak or placeholder `SECRET_KEY`; a `JWT_ALGORITHM` other than HS256/HS384/HS512; an `ENVIRONMENT` outside `{development, test, staging, production}`; placeholder `DEFAULT_USER_PASSWORD`, `CLIENT_PORTAL_SECRET` or `SUPERADMIN_PASSWORD`. In staging/production they also require `WEBHOOK_SECRET`/`INBOUND_EMAIL_SECRET` (≥ 24 characters) and reject localhost in `ALLOWED_ORIGINS`, `FRONTEND_URL`, `BACKEND_URL`, `BASE_URL`, `WEBAUTHN_ORIGIN` and `WEBAUTHN_RP_ID`.
-2. **Runtime settings (DB table `app_settings`, edited in Settings).** `app/services/settings_service/`::RUNTIME_FLAG_GROUPS declares **256 keys in 24 groups** (measured 2026-11-16 in `_catalogo.py`): `sla`, `service_desk`, `automations`, `tenants`, `audit`, `risk`, `health`, `semantic`, `password_policy`, `locale`, `tokens`, `key_rotation`, `ai`, `conectores`, `lecciones`, `gastos`, `politicas`, `presupuestos`, `feature_flags`, `storage`, `security_network`, `ui_branding`, `observability`, `timeouts`. Two keys exist only there and have no `Settings` field: `SLACK_TEAM_ID` and `TEAMS_TENANT_ID` (they link a Slack workspace or Teams tenant to one company). Resolution is **organisation row → global row (`organization_id IS NULL`) → `settings.<KEY>` from env**. Reads are cached in-process for 60 s; writes invalidate locally and across workers via Redis pub/sub (`app/core/settings_pubsub.py`, a no-op without `REDIS_URL`). Not every env variable has a runtime override: only the keys listed there are editable.
+2. **Runtime settings (DB table `app_settings`, edited in Settings).** `app/services/settings_service/`::RUNTIME_FLAG_GROUPS declares **428 keys in 32 groups** (measured 2026-11-23 in `_catalogo.py`): `sla`, `service_desk`, `automations`, `tenants`, `audit`, `risk`, `health`, `proyectos`, `semantic`, `password_policy`, `account_security`, `locale`, `tokens`, `key_rotation`, `ai`, `conectores`, `lecciones`, `gastos`, `licencias_uso`, `licencias_integracion`, `politicas`, `presupuestos`, `alm`, `traduccion`, `feature_flags`, `storage`, `security_network`, `ui_branding`, `observability`, `informes`, `timeouts`, `semaforos`. Two keys exist only there and have no `Settings` field: `SLACK_TEAM_ID` and `TEAMS_TENANT_ID` (they link a Slack workspace or Teams tenant to one company). Resolution is **organisation row → global row (`organization_id IS NULL`) → `settings.<KEY>` from env**. Reads are cached in-process for 60 s; writes invalidate locally and across workers via Redis pub/sub (`app/core/settings_pubsub.py`, a no-op without `REDIS_URL`). Not every env variable has a runtime override: only the keys listed there are editable.
 
-#### 4.2 Settings fields (`Settings`, 634)
+#### 4.2 Settings fields (`Settings`, 684)
 
 Defaults are the code defaults, never values from `.env`. Meanings are taken from the field name, its inline comment and the code that reads it; behaviour described in bold was checked in the code that consumes the variable.
 
@@ -5760,6 +5812,10 @@ Defaults are the code defaults, never values from `.env`. Meanings are taken fro
 | `CURRENCY_SYMBOLS` | `'EUR:€,USD:$,GBP:£'` | Currency symbols on documents. |
 | `DEFAULT_TAX_RATE` | `21.0` | Fallback VAT %. |
 | `TAX_NAME` | `''` | Tax name on invoices (VAT, IVA, GST...); empty = the usual one for the invoice language (18-11-2026). |
+| `INVOICE_ISSUER_NAME` | `''` | Invoice issuer — legal name printed on invoices (22-11-2026 audit, A54). |
+| `INVOICE_ISSUER_TAX_ID` | `''` | Invoice issuer — tax ID (NIF/VAT) printed on invoices (22-11-2026 audit, A54). |
+| `INVOICE_ISSUER_ADDRESS` | `''` | Invoice issuer — registered address printed on invoices (22-11-2026 audit, A54). |
+| `INVOICE_ISSUER_IBAN` | `''` | Invoice issuer — IBAN for payment printed on invoices (22-11-2026 audit, A54). |
 | `COMPANY_SECTOR` | `''` | Company sector for the BI AI narrative; empty = none assumed (18-11-2026). |
 | `MIN_PASSWORD_LENGTH` | `8` | Password policy. |
 | `BCRYPT_ROUNDS` | `12` | bcrypt cost. |
@@ -5788,6 +5844,7 @@ Defaults are the code defaults, never values from `.env`. Meanings are taken fro
 | `AZURE_TENANT_ID` | `None` | M365/Azure AD app (Graph). |
 | `AZURE_CLIENT_ID` | `None` | M365 app id. |
 | `AZURE_CLIENT_SECRET` | `None` | M365 app secret. |
+| `M365_PLATFORM_CREDENTIALS_ENABLED` | `False` | Let a company without its own *Microsoft 365 / Graph* credential use the platform `AZURE_*` (single-company installs). Off: each company stores its own Azure app (2026-11-23, audit 03 A-MP3). |
 | `M365_CALENDAR_SYNC_ENABLED` | `False` | Enable calendar sync. |
 | `M365_TEAMS_NOTIFICATIONS_ENABLED` | `False` | Enable Teams notifications. |
 | `TEAMS_WEBHOOK_URL` | `None` | Teams incoming webhook. |
@@ -5802,6 +5859,12 @@ Defaults are the code defaults, never values from `.env`. Meanings are taken fro
 | `TWILIO_ACCOUNT_SID` | `None` | Twilio (SMS/voice). |
 | `TWILIO_AUTH_TOKEN` | `None` | Twilio token. |
 | `OUTBOUND_PRIVATE_HOSTS_ALLOWED` | `""` | Internal hosts (comma separated) that outbound calls may reach even if they resolve to a private network (e.g. an on-premise Jira). See `app/core/outbound_url.py`. |
+| `MAX_REQUEST_BODY_MB` | `110` | Hard cap (MB) on any request body: Content-Length and streamed bytes, 413 above it (`app/core/limite_de_cuerpo.py`). Keep >= MAX_FILE_SIZE_MB plus form overhead. 0 disables. |
+| `CMDB_DISCOVERY_ALLOW_PLATFORM_CREDENTIALS` | `False` | Let CMDB discovery fall back to the server's own cloud credentials (boto3 chain, local/in-cluster kubeconfig, DefaultAzureCredential, GCP ADC/file). Off: explicit per-company credentials only. |
+| `JWT_KEYRING_CACHE_SECONDS` | `60` | Per-process cache of the JWT key ring; an unknown `kid` also forces a reload, so a rotation done by Celery reaches the web workers. 0 = until restart. |
+| `MIGRATION_BACKUP_MODE` | `'destructive'` | Backup before `scripts/migrar.py` migrates: `destructive` (pending revision drops/deletes data), `always` or `off`. SQLite file copy; pg_dump if on PATH, else a warning. |
+| `MIGRATION_BACKUP_DIR` | `'backups'` | Folder for pre-migration backups (personal data: same access and retention as the database). |
+| `REDIS_PASSWORD` | `None` | Redis `requirepass` (docker-compose); injected into REDIS_URL when it carries no credentials. Generated by setup. |
 | `COUNTRY_EMPLOYER_COSTS_PATH` | `""` | JSON file that replaces the employer social-cost presets per country (`app/core/country_employer_costs.json`). |
 | `TWILIO_FROM_NUMBER` | `None` | Twilio sender. |
 | `CLIENT_TOKEN_EXPIRE_HOURS` | `72` | Client-portal token TTL. |
@@ -5823,10 +5886,15 @@ Defaults are the code defaults, never values from `.env`. Meanings are taken fro
 | `STT_FALLBACK_PROVIDERS` | `''` | Comma list of fallbacks. |
 | `AZURE_SPEECH_KEY` | `''` | Azure STT key. |
 | `AZURE_SPEECH_REGION` | `'westeurope'` | Azure STT region. |
+| `ML_FACTOR_DE_SOBRECOSTE` | `1.10` | Modelo de sobrecoste (`ml_features`): coste real > presupuesto × factor = sobrecoste (23-11-2026; antes fijo). Cambiarlo cambia las etiquetas: reentrenar. |
+| `STT_COSTE_USD_POR_MINUTO` | `0.006` | Coste estimado de la voz por minuto de audio (23-11-2026): cuenta para el tope diario de gasto en IA; sin duración del proveedor se estima por tamaño (16 kB/s). |
 | `AZURE_STT_LANGUAGE` | `''` | Azure STT language. Vacío (19-11-2026) = idioma del usuario o de la empresa; un valor fija la variante regional. |
 | `GOOGLE_STT_API_KEY` | `''` | Google STT key. |
 | `GOOGLE_STT_LANGUAGE` | `''` | Google STT language. Vacío (19-11-2026) = idioma del usuario o de la empresa. |
 | `SLACK_API_BASE` | `'https://slack.com/api'` | Slack API base. |
+| `SALESFORCE_API_VERSION` | `'v57.0'` | Versión de la API REST de Salesforce (23-11-2026; antes fija en la URL). |
+| `WEBHOOK_OUTBOUND_PER_MIN` | `120` | Entregas de webhooks salientes por webhook y minuto (23-11-2026; antes fijo en `webhooks.py`). |
+| `SLACK_CANAL_POR_DEFECTO` | `'#contecflow-alerts'` | Canal de Slack si la configuración de la empresa no fija uno (23-11-2026; antes `#general`/`#contecflow-alerts` fijos). Sin token ni webhook, el envío falla (`slack_sin_configurar`), ya no «simula» éxito. |
 | `SLACK_SIGNING_SECRET` | `''` | Slack request signature secret. |
 | `TEAMS_BOT_APP_ID` | `''` | Teams bot app id. |
 | `TEAMS_BOT_OPENID_METADATA_URL` | `'https://login.botframework.com/v1/.well-known/openidconfiguration'` | Bot Framework OpenID metadata. |
@@ -5841,6 +5909,41 @@ Defaults are the code defaults, never values from `.env`. Meanings are taken fro
 | `CELERY_AGENT_TASK_SOFT_TIME_LIMIT` | `280` | Soft limit (s). |
 | `OUTBOUND_HTTP_TIMEOUT_SECONDS` | `10.0` | Default outbound HTTP timeout (runtime-overridable). |
 | `OUTBOUND_AI_TIMEOUT_SECONDS` | `60.0` | Outbound AI call timeout (runtime-overridable). |
+
+**Account policies (`app/core/config_groups/seguridad_de_cuentas_config.py`, 23-11-2026) — 26 variables**
+
+| Name | Default | Meaning |
+|---|---|---|
+| `PASSWORD_MAX_LENGTH` | `128` | Password policy — maximum length (NIST: allow at least 64). Per company (`account_security`/`password_policy`), docs/seguridad/politicas_de_cuenta.md. |
+| `PASSWORD_BLOCK_COMMON` | `True` | Password policy — reject common/breached passwords from the LOCAL list (nothing is sent to third parties). Per company (`account_security`/`password_policy`), docs/seguridad/politicas_de_cuenta.md. |
+| `PASSWORD_BLOCK_PERSONAL` | `True` | Password policy — reject passwords containing the username, the e-mail local part or the name. Per company (`account_security`/`password_policy`), docs/seguridad/politicas_de_cuenta.md. |
+| `PASSWORD_HISTORY_COUNT` | `5` | Password policy — the last N passwords cannot be reused (bcrypt hashes kept). 0 = no history. Per company (`account_security`/`password_policy`), docs/seguridad/politicas_de_cuenta.md. |
+| `PASSWORD_MIN_AGE_HOURS` | `0` | Password policy — hours before a password can be changed again (stops cycling the history). 0 = off. Per company (`account_security`/`password_policy`), docs/seguridad/politicas_de_cuenta.md. |
+| `PASSWORD_EXPIRY_DAYS` | `0` | Password policy — days until a password expires and must be changed at sign-in. 0 = never (NIST recommendation). Per company (`account_security`/`password_policy`), docs/seguridad/politicas_de_cuenta.md. |
+| `PASSWORD_EXPIRY_WARNING_DAYS` | `14` | Password policy — warn this many days before the password expires. Per company (`account_security`/`password_policy`), docs/seguridad/politicas_de_cuenta.md. |
+| `TEMP_PASSWORD_EXPIRY_HOURS` | `72` | Password policy — hours a temporary password set by an administrator stays valid. Per company (`account_security`/`password_policy`), docs/seguridad/politicas_de_cuenta.md. |
+| `LOGIN_LOCKOUT_NOTIFY_USER` | `True` | Account lockout — notify the user when their account gets locked. Per company (`account_security`/`password_policy`), docs/seguridad/politicas_de_cuenta.md. |
+| `MFA_REQUIRED_ROLES` | `'admin'` | MFA — base roles that must use a second factor (CSV). Empty = none (the company-wide switch still applies). Per company (`account_security`/`password_policy`), docs/seguridad/politicas_de_cuenta.md. |
+| `MFA_REQUIRED_FOR_SENSITIVE` | `True` | MFA — required for anyone holding a sensitive capability (administration, costs, people, security). Per company (`account_security`/`password_policy`), docs/seguridad/politicas_de_cuenta.md. |
+| `MFA_ALLOWED_METHODS` | `'totp,webauthn'` | MFA — allowed second factors (CSV of totp, webauthn). Per company (`account_security`/`password_policy`), docs/seguridad/politicas_de_cuenta.md. |
+| `MFA_GRACE_DAYS` | `7` | MFA — days a user newly required to use MFA may still sign in without it. Per company (`account_security`/`password_policy`), docs/seguridad/politicas_de_cuenta.md. |
+| `MFA_REMEMBER_DEVICE_DAYS` | `0` | MFA — days a device may skip the MFA challenge after a successful one. 0 = off. Per company (`account_security`/`password_policy`), docs/seguridad/politicas_de_cuenta.md. |
+| `SESSION_MAX_HOURS` | `0` | Sessions — absolute maximum length since sign-in (hours). 0 = no cap (NIST AAL2: 24). Per company (`account_security`/`password_policy`), docs/seguridad/politicas_de_cuenta.md. |
+| `SESSION_MAX_CONCURRENT` | `0` | Sessions — maximum concurrent sessions per user; the oldest is closed. 0 = unlimited. Per company (`account_security`/`password_policy`), docs/seguridad/politicas_de_cuenta.md. |
+| `ACCESS_IP_ALLOWLIST` | `''` | Access — IPs/CIDRs allowed to sign in and use the API (CSV). Empty = any. The platform superadmin is exempt. Per company (`account_security`/`password_policy`), docs/seguridad/politicas_de_cuenta.md. |
+| `ACCESS_HOURS` | `''` | Access — allowed time window HH:MM-HH:MM in the company time zone (may cross midnight). Empty = any time. Per company (`account_security`/`password_policy`), docs/seguridad/politicas_de_cuenta.md. |
+| `ACCESS_DAYS` | `'1,2,3,4,5,6,7'` | Access — allowed ISO weekdays (1 = Monday) when ACCESS_HOURS is set. Per company (`account_security`/`password_policy`), docs/seguridad/politicas_de_cuenta.md. |
+| `ACCESS_HOURS_EXEMPT_ROLES` | `'admin'` | Access — base roles exempt from the time window (CSV). Per company (`account_security`/`password_policy`), docs/seguridad/politicas_de_cuenta.md. |
+| `ACCESS_BLOCKED_COUNTRIES` | `''` | Access — ISO-3166 alpha-2 countries blocked (CSV). Only acts when the country is known (trusted proxy header or GEOIP_LOOKUP_ENABLED). Per company (`account_security`/`password_policy`), docs/seguridad/politicas_de_cuenta.md. |
+| `ACCOUNT_INACTIVE_DISABLE_DAYS` | `0` | Accounts — the daily job deactivates accounts without sign-in for this many days. 0 = off. Per company (`account_security`/`password_policy`), docs/seguridad/politicas_de_cuenta.md. |
+| `SECURITY_SOD_TWO_ADMINS` | `False` | Segregation of duties — security policy changes and MFA resets need a second administrator. Per company (`account_security`/`password_policy`), docs/seguridad/politicas_de_cuenta.md. |
+| `SECURITY_ALERT_FAILED_LOGINS` | `20` | Alerts — failed sign-ins in 15 minutes in the company that alert the administrators. 0 = off. Per company (`account_security`/`password_policy`), docs/seguridad/politicas_de_cuenta.md. |
+| `SOC_FUERZA_BRUTA_VENTANA_MIN` | `10` | SOC (`security_observability`) — ventana en minutos de fallos de login por IP (23-11-2026: antes constante). |
+| `SOC_FUERZA_BRUTA_FALLOS` | `5` | SOC — fallos por IP en la ventana que abren una detección de fuerza bruta. |
+| `SOC_CRED_STUFFING_USUARIOS` | `3` | SOC — usuarios distintos atacados por una IP que la convierten en credential stuffing (antes `CRED_STUFFING_THRESHOLD`=20 sin usar y `3` fijo). |
+| `SOC_MFA_FALLOS` | `3` | SOC — fallos de MFA de una persona en 15 min que abren una detección. |
+| `SECURITY_ALERT_NEW_IP` | `True` | Alerts — alert the administrators when a user signs in from an IP never seen for them. Per company (`account_security`/`password_policy`), docs/seguridad/politicas_de_cuenta.md. |
+| `ACCESS_REVIEW_INTERVAL_DAYS` | `90` | Access review — a campaign must be closed at least every this many days (compliance report). 0 = not required. Per company (`account_security`/`password_policy`), docs/seguridad/politicas_de_cuenta.md. |
 
 **AI (`config_groups/ai_config.py`) — 26 variables**
 
@@ -5963,6 +6066,8 @@ Defaults are the code defaults, never values from `.env`. Meanings are taken fro
 | `SD_NOTIFY_REQUESTER_ON_RESOLVE` | `True` | Service desk mail toggle. |
 | `SD_NOTIFY_AGENTS_BY_EMAIL` | `True` | Service desk mail toggle. |
 | `SD_INBOUND_ADDRESS` | `''` | Support mailbox address. |
+| `SD_INBOUND_REQUIRE_SENDER_AUTH` | `True` | An inbound email acts as its `From` person only if SPF/DKIM/DMARC passed in `Authentication-Results`; otherwise it comments as an external sender (audit 2026-11-22, A-SD6). Hot (`service_desk`). |
+| `SD_INBOUND_AUTHSERV_ID` | `''` | Mail server (authserv-id) whose `Authentication-Results` header is trusted; empty: the top header. Hot (`service_desk`). |
 | `TWILIO_PHONE_NUMBERS` | `''` | Twilio numbers of an organisation (E.164, CSV), set per organisation; the env value does not route. |
 | `SD_REOPEN_ON_REPLY` | `True` | Reopen resolved ticket on reply. |
 | `SD_CHANNEL_TICKET_TYPE` | `'incident'` | Ticket type for channel-created tickets. |
@@ -5971,6 +6076,9 @@ Defaults are the code defaults, never values from `.env`. Meanings are taken fro
 | `SD_CAB_GROUP_ID` | `''` | CAB approver group. |
 | `SD_CAB_APPROVAL_RULE` | `'majority'` | `majority`/… CAB rule. |
 | `SD_CHANGE_AUTO_APPROVE_MAX_RISK` | `30` | Auto-approve changes at/below this risk. |
+| `SD_STANDARD_CHANGE_MAX_FAILURE_PCT` | `20` | Suspend a standard change model above this failure rate (%). |
+| `SD_STANDARD_CHANGE_MIN_CLOSURES` | `5` | Closures before the failure rate of a standard model counts. |
+| `SD_STANDARD_CHANGE_REVIEW_DAYS` | `365` | Days a standard change model stays approved (periodic review). |
 | `SD_EVENT_SEVERITY_MAP` | `JSON map (see code)` | JSON map monitoring severity → priority. |
 | `SD_EVENT_AUTO_RESOLVE` | `True` | Auto-resolve on recovery event. |
 | `SD_ONCALL_PRIORITIES` | `'p1_critical,p2_high'` | Priorities that page on-call. |
@@ -6090,6 +6198,7 @@ Defaults are the code defaults, never values from `.env`. Meanings are taken fro
 | `AUDIT_EXPORT_MAX_ROWS` | `100000` | Audit log — maximum rows in the signed export (the most recent) |
 | `COMPLIANCE_STALE_ACCOUNT_DAYS` | `90` | Compliance report — an active account without sign-in for more days is flagged |
 | `COMPLIANCE_GDPR_MAX_DAYS` | `30` | GDPR request deadline (DSR) and the compliance-report check |
+| `COMPLIANCE_GDPR_EXPORT_TTL_DAYS` | `30` | GDPR access/portability copy — days it is kept (encrypted) after completion |
 | `COMPLIANCE_MFA_MIN_COVERAGE_PCT` | `100.0` | Compliance report — minimum % of active users with a second factor |
 | `COMPLIANCE_MIN_PASSWORD_LENGTH` | `12` | Compliance report — minimum password length the policy must require |
 | `RETENTION_MIN_DAYS` | `30` | Retention — no policy may keep a record type for fewer days than this |
@@ -6262,6 +6371,9 @@ Until the second 2026-11 audit (finding 16) these were read with `os.getenv`/`os
 | `ENABLE_SUPERADMIN_BYPASS` | `False` | Dev-only login bypass (development + SQLite only). |
 | `TENANT_AUTO_FILTER_GLOBAL` | `True` | Global ORM tenant filter (read at import). |
 | `TENANT_AUTO_STAMP_ON_INSERT` | `True` | Stamp organization_id on new rows (read at import). |
+| `TENANT_SESION_SIN_CONTEXTO` | `'cerrar'` | Session with no tenant, no superadmin and no declared system context: `cerrar` (default since 23-11-2026: TenantIsolationError + RLS returns no rows) \| `avisar` (no filter, one WARNING per call site; only to locate an undeclared site). See docs/seguridad/rutas_anonimas.md. |
+
+| `RLS_REQUIRED` | `None` | Abort boot if Postgres RLS is not armed (app role without BYPASSRLS); unset = on in staging/production. |
 | `REDIS_RECONNECT_BACKOFF_SECONDS` | `30.0` | Wait before retrying Redis after a failure. |
 | `PREDICTIVE_STATS_MAX_TICKETS` | `200` | Tickets analysed per predictive-stats request. |
 | `CHANGE_BATCH_SCORE_MAX` | `100` | Changes scored per CAB batch pass. |
@@ -6324,7 +6436,7 @@ Until the second 2026-11 audit (finding 16) these were read with `os.getenv`/`os
 | `WHISPER_LOCAL_BIN` | `''` | STT provider binary (wins over WHISPER_BIN). |
 | `WHISPER_LOCAL_MODEL` | `''` | STT provider model (wins over WHISPER_MODEL). |
 | `WHISPER_LOCAL_LANGUAGE` | `'es'` | STT provider default language. |
-| `GEOIP_LOOKUP_ENABLED` | `True` | Send the public IP of each sign-in/refresh to GEOIP_LOOKUP_URL (on by product decision 2026-11-14; set false to keep IPs in-house). |
+| `GEOIP_LOOKUP_ENABLED` | `False` | Send the public IP of each sign-in/refresh to GEOIP_LOOKUP_URL (third party; off by default since 2026-11-23 for GDPR: needs legal basis, record of processing and a processor agreement). |
 | `GEOIP_LOOKUP_URL` | `'https://ipapi.co/{ip}/json/'` | Geo-IP service; `{ip}` is replaced. |
 | `GEOIP_CACHE_TTL_SECONDS` | `86400` | Per-IP cache of geo-IP answers (s). |
 
@@ -6360,7 +6472,7 @@ Compose-only variables (consumed by `docker-compose.yml`, not by Python): `POSTG
 ### 5. Database and migrations
 
 - **Alembic is the schema path.** `setup.sh`, the compose `migrate` service and `make migrate` run `alembic upgrade head`; `setup.bat` does too on a database with users, but builds a new SQLite with `create_all` + `alembic stamp head` (§3.3). The app never migrates at startup. Its lifespan only compares `alembic_version` with the script heads and logs, or with `FAIL_ON_SCHEMA_DRIFT=1` aborts. `alembic/env.py` takes the URL from `settings.DATABASE_URL`.
-- **Chain:** 123 revision files, linear, **single head `169_bpmn_decisiones_y_codigos_de_error`** (measured 2026-11-16 by reading `revision`/`down_revision` of every file; `alembic heads` must agree). There are two naming styles: legacy `NNN_name` and Alembic UUID ids (`alembic/NAMING_CONVENTION.md`; history is frozen and never renamed).
+- **Chain:** 150 revision files, linear, **single head `198_cambios_estandar_y_portal`** (measured 2026-11-23 by parsing `revision`/`down_revision` of every file in `alembic/versions/`; `scripts/migrar.py` refuses to run with two heads). 196 adds the audit columns, drops 6 unused tables and sets `ondelete` on the 171 foreign keys to `users.id`; 197 moves 79 money columns from `Float` to `Numeric`; 198 adds the standard-change catalogue and the portal's forced password change (see docs/DESPLIEGUE.md, B.2). There are two naming styles: legacy `NNN_name` and Alembic UUID ids (`alembic/NAMING_CONVENTION.md`; history is frozen and never renamed).
 - **Commands:**
   ```bash
   python -m alembic upgrade head        # idempotent
@@ -6375,7 +6487,7 @@ Compose-only variables (consumed by `docker-compose.yml`, not by Python): `POSTG
   - `python -m app.db.seed` (used by `setup.sh demo`) runs `seed()` → `seed_service_desk` → `seed_v10` → `seed_itsm_v2` → `seed_alm` → `seed_enterprise` → `seed_v12` → `seed_v13` → `seed_v14/15/16`. The core part creates the organisation **"Consultora Contecflow SL"** (slug `contecflow-demo`, plan enterprise), app settings, 8 departments, Spanish national holidays for 2025–2026, the 9 users of `seed_users_data.json`, and the clients of `seed_clients_data.json` (2 entries), followed by projects, service-desk, ITSM, ALM, enterprise and configuration data. The seed is idempotent per record (lookups before insert).
   - `python scripts/seed_full_data.py` (what `make seed` and `DOCS.md` call) is a different, heavier generator: 15 extra users, 8 clients, 15 projects, ~2,500 time entries Jan 2025–Mar 2027, ~150 tickets, ~35 invoices, sprints, UAT, and so on.
   - `python scripts/reset_to_admin_only.py` (`setup.sh clean`) truncates all data and keeps or creates only `admin` and the default organisation.
-  - Both refuse to run (exit 2) unless `ENVIRONMENT` is development, dev, local, test, testing or demo (`app/core/entorno.py`). Every path goes through them: `setup.sh`, `setup.bat`, `scripts/start.sh`. `setup.sh docker-clean` has the same gate.
+  - Both refuse to run (exit 2) unless `ENVIRONMENT` is development, dev, local, test, testing or demo (`app/core/entorno.py`). Every path goes through them: `setup.sh` and `setup.bat` (the old `scripts/start.sh`/`start.bat`, `clean_and_start.sh`, `test_and_report.sh`, `update_endpoints_table.sh` and `smoke_test_simple.py` were retired on 23-11-2026, audit 01 §4: they duplicated `setup.*` with different behaviour and only the docs cited them). `setup.sh docker-clean` has the same gate.
 - **Backups:** `scripts/backup.sh` copies the database (`pg_dump -Fc` from the `postgres` container, checked with `pg_restore --list`) and the files (the `contecflow_s3_data` volume, as tar.gz) into `backups/contecflow-<date>/`, with a `MANIFIESTO` holding the SHA-256 of each piece and the Alembic revision. It keeps the last `BACKUP_KEEP` copies (14). Schedule it with the host's cron.
   - `scripts/restore.sh <folder> --borra-lo-que-hay` checks the manifest (a tampered copy is refused), stops api/worker/beat, restores the database and the files, and starts them again.
   - Measured on a separate compose project: data and a file deleted after the copy came back, a copy with one altered byte was refused, and retention kept 2 of 3 with `BACKUP_KEEP=2`.
@@ -6414,11 +6526,11 @@ The remaining 97 segments have ≤ 18 routes each. `/api/v1` responses carry `x-
 
 - **Staff:** `get_current_user` (`app/core/deps.py`) accepts `Authorization: Bearer <JWT>` **or** the `access_token` cookie. It requires `type=access` and an active user. JWTs are HS256 with a `kid` header from a DB keyring (`app/services/key_management.py`: active key plus grace keys, rotated every `JWT_KEY_ROTATION_DAYS`, `JWT_KEY_RETENTION_COUNT` kept).
 - **Cookies** (set by `auth_service.set_auth_cookies`): `access_token` (httpOnly, SameSite=Lax, `max_age` = `ACCESS_TOKEN_EXPIRE_MINUTES`); `refresh_token` (httpOnly, SameSite=**Strict**, `path=/api/v1/auth/refresh`); `csrf_token` (JS-readable). `Secure` is set in staging/production.
-- **CSRF** (`app/core/csrf.py`): for POST/PUT/PATCH/DELETE **that use cookie auth and no `Authorization` header**, `Origin` (or `Referer`) must be in `ALLOWED_ORIGINS`, otherwise 403. A missing Origin is also rejected. `CSRF_DOUBLE_SUBMIT=1` adds a header/cookie match (constant-time). Exempt prefixes: webhooks, SCIM, `/health`, `/status`, `/metrics`. API clients that send a Bearer token are unaffected. The exempt prefixes (`_DEFAULT_EXEMPT_PREFIXES`) match the real routes since the 2026-11 review (`integrations-hub/slack|teams`, `esign/webhooks/`, `sd/voice/webhook/twilio`, `sd/multichannel/inbound/`, `invoices/stripe/webhook`, `m365/webhook`, `scim/`, `collaboration/bots/`, `client-errors`…).
+- **CSRF** (`app/core/csrf.py`): for POST/PUT/PATCH/DELETE **that use cookie auth (`access_token`, `refresh_token` or, since the audit of 2026-11-22, the client portal's `portal_access_token`) and no `Authorization` header**, `Origin` (or `Referer`) must be in `ALLOWED_ORIGINS`, otherwise 403. A missing Origin is also rejected. `CSRF_DOUBLE_SUBMIT=1` adds a header/cookie match (constant-time). Exempt prefixes: webhooks, SCIM, `/health`, `/status`, `/metrics`. API clients that send a Bearer token are unaffected. The exempt prefixes (`_DEFAULT_EXEMPT_PREFIXES`) match the real routes since the 2026-11 review (`integrations-hub/slack|teams`, `esign/webhooks/`, `sd/voice/webhook/twilio`, `sd/multichannel/inbound/`, `invoices/stripe/webhook`, `m365/webhook`, `scim/`, `collaboration/bots/`, `client-errors`…).
 - **Login endpoints:** `POST /api/v1/auth/login` (5/min), `/auth/refresh`, `/auth/logout`, `/auth/me`; SSO (`auth_sso`: OIDC with JWKS, PKCE S256, one-time HMAC `state`, `nonce`, issuer and clock skew — see Enterprise → SSO); passkey sign-in without password (`/auth/passkey/login/*`); `auth_saml` only serves a metadata stub, SAML sign-in is not implemented; session management (`auth_sessions`).
 - **MFA:** TOTP and WebAuthn under `/api/v1/auth/mfa/*` (QR returned as a `data:` PNG); the SPA's MFA page uses them (the older `/api/v1/mfa/*` set was removed in 2026-11). Per-org enforcement exists (`074_org_require_mfa`).
 - **Roles:** `UserRole` = `admin` (tenant admin), `pm`, `team_lead`, `hr`, `employee`, `subcontractor`; `is_superadmin` is a separate platform flag. Shortcuts: `require_admin`, `require_admin_or_hr`, `require_admin_or_pm`, `require_any_manager`, `require_internal_user`, `require_superadmin`.
-- **Client portal:** separate JWTs (`CLIENT_PORTAL_SECRET`, `JWT_ALGORITHM`, cookie `portal_access_token`, `get_current_client`).
+- **Client portal:** separate JWTs (`CLIENT_PORTAL_SECRET`, `JWT_ALGORITHM`, cookie `portal_access_token`, `get_current_client`). The cookie uses the staff `COOKIE_OPTS` (httpOnly, SameSite=Lax, `Secure` in staging and production; before 2026-11-22 only in production) and the portal login also issues the `csrf_token` cookie for double submit.
 - **API keys:** `X-API-Key` (keys from `/api/v1/bookings/api-keys`) and developer-portal bearer tokens authenticate on the whole API as their owner, cut down by scope (see Enterprise → API Keys). Other domain-specific tokens: BI embed tokens, the SCIM bearer (`SCIM_BEARER_TOKEN`, `/api/v1/scim/v2/{org_id}/…`), OAuth apps in the developer portal (`MAX_APPS_PER_USER`), and the client-portal widget token (`/widget/ticket.js`).
 
 #### 6.4 Response envelope
@@ -6470,6 +6582,8 @@ Applied as router dependencies to **all** `/api/v1` routes, HTTP and WebSocket, 
 2. `apply_abac_for_route` (`app/core/abac_dependency.py`): route-prefix ABAC as a dependency. ABAC is **fail-open**: without active policies it restricts nothing. There are also explicit `enforce_abac(...)` calls in endpoints (`tests/test_abac_coverage.py`).
 3. `enforce_grc_matrix` (`app/core/grc_enforce.py`): the admin-editable GRC matrix, **additive deny only**. Module and action are derived from the path and method (`grc_catalog.py`); a row with `allowed=False` returns 403.
 
+Audit 2026-11-22 (A2, M1): on routes that depend on `get_current_user` (almost all), 2 and 3 are applied **inside** `get_current_user` (`_aplicar_politicas`, next to role modules and project permissions), on the resolved principal — session JWT, API key (`X-API-Key`/`Bearer nxpm_…`) or developer-portal OAuth token — and with the **active** company already set. The router dependencies keep deciding only for routes that do not resolve the user that way (`credenciales_opcionales.ruta_resuelve_usuario`), and there ABAC also uses the token's validated company.
+
 On top of these: per-endpoint role dependencies (§6.3). `tests/test_guardas_de_rol.py` requires every write route to carry a role guard or a written exemption, and `tests/test_route_auth_coverage.py` requires every `/api` route to declare authentication as a dependency or be explicitly public. Segregation of duties: requesters cannot approve their own request (`approval_engine/requests.py`). Admin-defined SoD rules are only partially evaluated (`tests/test_grc_coverage.py`).
 
 **Least privilege inside a company** (details in Part 1, *Roles and permissions* and *NexusAgent*):
@@ -6485,7 +6599,9 @@ On top of these: per-endpoint role dependencies (§6.3). `tests/test_guardas_de_
 
 #### 7.4 Audit logging
 
-`app/services/audit.py::audit_log()` writes `AuditLog` rows (user, action, resource, old/new values, IP, UA). It is **opt-in per call site**: about 100 `audit_log(` calls in `app/` (grep, 2026-11-16), not a global hook. Settings changes have their own audit (`settings_audit_service.py`).
+**Account policies (23-11-2026, migration 199, `docs/seguridad/politicas_de_cuenta.md`).** Per company, in Settings › Security › Account security (capability `seguridad.administrar`): password length/blocklist (local list)/personal data/history/minimum age/optional expiry with forced change at sign-in, temporary passwords that expire; lockout per company with persistent `users.locked_until`, user notice and admin unlock; MFA required company-wide, by role or by sensitive capability, allowed methods, grace period, trusted devices, admin reset; sessions checked on every request through the `sid` claim (revocation is immediate, idle timeout, maximum length, concurrent limit, all closed on password change, deactivation, MFA reset); IP/CIDR allowlist, access hours and blocked countries (superadmin exempt; country only when known, GeoIP off by default); security alerts to admins; segregation of duties (`SECURITY_SOD_TWO_ADMINS`: a second administrator applies policy changes and MFA resets); access-review campaigns per manager with evidence (`seguridad.recertificar`), exportable; daily job `seguridad-de-cuentas-diario`. Every action goes to `audit_log` with actor, IP, user agent and company. `ENABLE_SUPERADMIN_BYPASS` is off by default, logs CRITICAL at boot when on and each use is audited (`SUPERADMIN_BYPASS_LOGIN`). Retention types: `password_history`, `trusted_devices`, `security_change_requests`, `access_review_campaigns`; the GDPR copy includes the account-security data (never hashes) and erasure deletes password history and trusted devices.
+
+`app/services/audit.py::audit_log()` writes `AuditLog` rows (user, action, resource, old/new values, IP, UA). It is **opt-in per call site**: 338 `audit_log(` occurrences in `app/` outside its definition, in 124 files (grep, 2026-11-23), not a global hook. Settings changes have their own audit (`settings_audit_service.py`).
 
 #### 7.5 Secrets and key rotation
 
@@ -6509,7 +6625,7 @@ On top of these: per-endpoint role dependencies (§6.3). `tests/test_guardas_de_
 - **Timezone:** `celery_app.conf.timezone = DEFAULT_TIMEZONE` (Europe/Madrid by default) and `BackgroundScheduler(timezone=DEFAULT_TIMEZONE)`. All hours below are in `DEFAULT_TIMEZONE`. Monthly revenue recognition runs daily and acts on each organisation on its own day 1, in its own zone.
 - Broker and result backend: `REDIS_URL`. Without it Celery cannot enqueue. `run_agent_task` uses `CELERY_AGENT_TASK_TIME_LIMIT`/`SOFT`.
 
-#### 8.2 Celery beat schedule (`app/worker.py`, 42 entries, 46 tasks, measured 2026-11-16; `deliver_webhook_task`, `ejecutar_en_segundo_plano`, `run_agent_task` and `sync_connector_data` are on-demand only)
+#### 8.2 Celery beat schedule (`app/worker.py`, 53 entries, 57 tasks, measured 2026-11-23 by parsing `beat_schedule` and counting `@celery_app.task`; `deliver_webhook_task`, `ejecutar_en_segundo_plano`, `run_agent_task` and `sync_connector_data` are on-demand only)
 
 | Entry | Task | Cadence | Purpose |
 |---|---|---|---|
@@ -6556,6 +6672,17 @@ On top of these: per-endpoint role dependencies (§6.3). `tests/test_guardas_de_
 | kedb-effectiveness-scan | kedb_effectiveness_scan | daily 07:00 | Recompute KEDB effectiveness |
 | alert-correlation-scan | alert_correlation_scan | every 30 min | Correlate alerts into Problems |
 | bi-connector-sync | sincronizar_conectores_etl | hourly at :01 | Launches `sync_connector_data` for each active ETL connector and REST source, per company |
+| evm-curva-s-diaria | guardar_puntos_de_curva_s | daily 02:25 | One point a day of the earned-value S-curve (PV, EV, AC) per active project (migration 173) |
+| externos-caducidad | externos_caducidad | daily 06:30 | External people: end-of-access notice, expired access and expired assignments (migration 178) |
+| seguridad-de-cuentas-diario | seguridad_de_cuentas_diario | daily 06:40 | Account policies (migration 199): deactivates accounts inactive for `ACCOUNT_INACTIVE_DISABLE_DAYS`, password expiry warnings, expires trusted devices |
+| alm-altas-y-bajas | alm_altas_y_bajas | daily 06:50 | Licences and hardware, phase 4: scheduled leavers and contract ends, licences after leaving, returns |
+| alm-daily | alm_daily | daily 07:10 | Licences and hardware: expire assignments, apply renewals (`auto_renew`, decisions), renewal and loan notices |
+| alm-uso-sincronizar | alm_uso_sincronizar | hourly :35 | Licences phase 2: read each active usage source whose interval (`ALM_USAGE_SYNC_INTERVAL_HOURS`) is due |
+| alm-uso-pasada-diaria | alm_uso_pasada_diaria | daily 07:40 | Licences phase 2: uncontrolled software in expenses and reclaim of unused licences |
+| reuniones-sondeo | reuniones_sondeo | every 15 min | Meeting assistant: collect finished Teams/Meet meetings, send calendar bots, renew the Graph subscription |
+| reuniones-retencion | reuniones_retencion | daily 03:40 | Meeting assistant: delete expired audio and transcripts (legal hold respected) |
+| cmdb-software-diario | cmdb_software_diario | daily 04:20 | Software CMDB: notices (if `auto_sync`), re-evaluate findings and SLA, expire exceptions, automatic ticket |
+| demanda-plazos | demanda_plazos | hourly :10 | Demand flow: notices when each phase deadline approaches and when it passes (migration 195) |
 
 The collaboration module also has its own in-process scheduler (`app/services/collaboration/_scheduler.py`, started in the lifespan, skipped when `TESTING=1`).
 
@@ -6583,7 +6710,7 @@ The collaboration module also has its own in-process scheduler (`app/services/co
 
 Things that do not work as written (measured):
 
-- `npm run test:e2e` runs `playwright test` but the frontend has no `playwright.config.*` and no `*.spec.ts`. The working E2E suite is the Python `tests_e2e/`.
+- The frontend has no Playwright TS suite: the `test:e2e*` npm scripts (which pointed to no config or spec) were removed on 2026-11-23. The working E2E suite is the Python `tests_e2e/`.
 - `make test-fast` passes `--timeout=10`, but `pytest-timeout` is not installed in the venv (`ModuleNotFoundError`).
 - `ruff` is not installed in the venv, so the first blocking gate of `scripts/ci_local.sh` (`python -m ruff check`) fails until you `pip install ruff`.
 - `make init-admin` calls `init_admin.sh`, which does not exist. Use `python scripts/reset_to_admin_only.py` (destructive).

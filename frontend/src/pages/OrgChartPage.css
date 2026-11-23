@@ -185,8 +185,7 @@
   align-items: center;
   gap: 10px;
 }
-.orgc-filtros__buscar.ds-input { flex: 1 1 240px; width: auto; }
-.orgc-filtros__depto.ds-input { flex: 0 1 240px; width: auto; }
+.orgc-filtros__buscar { flex: 1 1 240px; min-width: min(100%, 200px); }
 .orgc-filtros__total {
   font-size: var(--text-sm);
   color: var(--text-2);

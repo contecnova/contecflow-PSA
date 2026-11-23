@@ -42,10 +42,8 @@ from app.services.sla_service import aware, calendario_sla, estado_sla, sumar_ho
 
 logger = logging.getLogger(__name__)
 
-ESTADOS_ABIERTOS = (
-    TicketStatus.new, TicketStatus.assigned, TicketStatus.in_progress,
-    TicketStatus.pending_client, TicketStatus.pending_third,
-)
+#: Auditoria 2026-11-22 (§6): la del modelo, no una copia.
+from app.models.service_desk._enums import ESTADOS_DE_TICKET_ABIERTOS as ESTADOS_ABIERTOS  # noqa: E402
 _GRAVEDAD = {"ok": 0, "paused": 0, "at_risk": 1, "breached": 2}
 
 
@@ -111,7 +109,7 @@ def evaluar_ticket(db: Session, ticket: Ticket, cal, aviso_pct: float, ahora: da
         setattr(ticket, campo, SLAStatus(nuevo))
         cambios += 1
         if not pausado:
-            _transicion(db, ticket, tipo_sla, antes, nuevo, vencimiento_efectivo(due, ticket.sla_pause_minutes))
+            _transicion(db, ticket, tipo_sla, antes, nuevo, vencimiento_efectivo(due, ticket.sla_pause_minutes, cal))
     return cambios
 
 
@@ -129,7 +127,7 @@ def evaluar_ola(db: Session, ticket: Ticket, grupo: AgentGroup, cal, ahora: date
     if ticket.sla_paused_at is not None:
         return False
     pausa_en_cola = max(0, (ticket.sla_pause_minutes or 0) - (ticket.ola_pause_base or 0))
-    efectivo = vencimiento_efectivo(due, pausa_en_cola)
+    efectivo = vencimiento_efectivo(due, pausa_en_cola, cal)
     if ahora <= efectivo:
         return False
     ticket.ola_breached = True

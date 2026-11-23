@@ -10,6 +10,9 @@ from app.core.codigos_de_error import error as error_con_codigo
 
 logger = logging.getLogger(__name__)
 
+#: Escala de la encuesta de satisfaccion (`TicketCsatIn.score`, 1-5).
+CSAT_MIN, CSAT_MAX = 1, 5
+
 
 def submit_ticket_csat(
     db: Session, ticket_id: str, client_id: str, score: int, comment: str = None,
@@ -18,6 +21,10 @@ def submit_ticket_csat(
     # cliente solicitante puede puntuar su propio ticket. Sin este filtro cualquier
     # cliente autenticado podría puntuar —y cerrar— el ticket de otro (IDOR).
     # 404 en lugar de 403 para no revelar la existencia del ticket ajeno.
+    # Auditoria 2026-11-22 (servicios m-z, 4.3): la puntuacion va de 1 a 5;
+    # antes se guardaba cualquier entero y descuadraba las medias de CSAT.
+    if not isinstance(score, int) or isinstance(score, bool) or not CSAT_MIN <= score <= CSAT_MAX:
+        raise error_con_codigo(422, "interno_puntuacion_fuera_de_rango", min=CSAT_MIN, max=CSAT_MAX)
     ticket = (
         db.query(Ticket)
         .filter(Ticket.id == ticket_id, Ticket.requester_client_id == client_id)

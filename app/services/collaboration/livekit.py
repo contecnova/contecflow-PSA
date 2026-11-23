@@ -47,7 +47,13 @@ def issue_access_token(
 ) -> str:
     """Build a LiveKit JWT (HS256) — same structure as livekit-server-sdk."""
     if not CONFIG.api_key or not CONFIG.api_secret:
-        # dev fallback
+        # Baja (auditoría 22-11-2026): el token «dev:» solo en desarrollo. En
+        # cualquier otro entorno sin credenciales se falla cerrado (antes se
+        # entregaba un token inservible y la llamada «arrancaba» sin vídeo).
+        if settings.ENVIRONMENT != "development":
+            from app.core.codigos_de_error import error_http
+            raise error_http(503, "integracion_no_configurada",
+                             detail="LiveKit sin LIVEKIT_API_KEY/LIVEKIT_API_SECRET", nombre="LiveKit")
         return f"dev:{room}:{identity}:{int(time.time()) + ttl_seconds}"
     now = int(time.time())
     grants = {

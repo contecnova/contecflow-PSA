@@ -137,19 +137,23 @@ def test_admin_de_empresa_no_ve_las_claves_de_api_de_otros(client, admin_token, 
 
 
 def test_verificacion_admin_sin_rol_governance():
+    """23-11-2026 (M9): la guarda a mano `verify_admin_or_governance_role` se retiró;
+    las rutas de gobierno exigen `gobierno.administrar` (admin; el superadmin pasa).
+    Un rol inventado («governance», «superadmin» como rol) o el PM no pasan."""
     import pytest
-    from app.core.errores import ErrorDeDominio
-    from app.core.security import verify_admin_or_governance_role
+    from app.core.deps import requiere_capacidad
 
     class _U:
         def __init__(self, role, sa=False):
             self.role, self.is_superadmin = role, sa
 
-    verify_admin_or_governance_role(_U(UserRole.admin))
-    verify_admin_or_governance_role(_U(UserRole.employee, sa=True))
+    guarda = requiere_capacidad("gobierno.administrar")
+    guarda(current_user=_U(UserRole.admin), db=None)
+    guarda(current_user=_U(UserRole.employee, sa=True), db=None)
     for rol in ("governance", "superadmin", UserRole.pm):
-        with pytest.raises(ErrorDeDominio):
-            verify_admin_or_governance_role(_U(rol))
+        with pytest.raises(Exception) as e:
+            guarda(current_user=_U(rol), db=None)
+        assert getattr(e.value, "status_code", None) == 403
 
 
 # ── Gastos: un solo criterio de gestor ───────────────────────────────────────

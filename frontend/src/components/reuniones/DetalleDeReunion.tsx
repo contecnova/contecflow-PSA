@@ -17,10 +17,11 @@ import {
   History, Languages, Lock, Pencil, RefreshCw, Send, ShieldAlert, Sparkles, Trash2,
 } from 'lucide-react'
 import {
-  Button, Card, ClientSelect, Confirm, FormField, Input, Modal, ProjectSelect, Section, Select, Spinner,
+  Button, Card, ClientSelect, FormField, Input, Modal, ProjectSelect, Section, Select, Spinner,
 } from '../ui'
 import { useAppLang } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
+import { confirmar } from '../../context/ConfirmContext'
 import { downloadBlob, extractErr, fmtDate, fmtDateTime } from '../../utils/helpers'
 import { LANGUAGES } from '../../i18n/portalTranslations'
 import { reunionesApi } from '../../services/api/reuniones'
@@ -112,7 +113,6 @@ export default function DetalleDeReunion({ id, segmentoResaltado, onBorrada }: P
   const qc = useQueryClient()
   const [idioma, setIdioma] = useState<string>(lang)
   const [editar, setEditar] = useState(false)
-  const [borrar, setBorrar] = useState(false)
 
   const { data: r, isLoading } = useQuery({
     queryKey: [...CLAVES.detalle(id), idioma],
@@ -131,7 +131,7 @@ export default function DetalleDeReunion({ id, segmentoResaltado, onBorrada }: P
   const sacarBot = useMutation({ mutationFn: () => reunionesApi.sacarBot(id), onSuccess: refrescar, onError: alFallar })
   const eliminar = useMutation({
     mutationFn: () => reunionesApi.borrar(id),
-    onSuccess: () => { setBorrar(false); toast.success(t('reuniones.detalle.borrada')); qc.invalidateQueries({ queryKey: CLAVES.lista }); onBorrada?.() },
+    onSuccess: () => { toast.success(t('reuniones.detalle.borrada')); qc.invalidateQueries({ queryKey: CLAVES.lista }); onBorrada?.() },
     onError: alFallar,
   })
   const descargar = useMutation({
@@ -201,7 +201,8 @@ export default function DetalleDeReunion({ id, segmentoResaltado, onBorrada }: P
             </>
           )}
           {gestor && (
-            <Button size="sm" variant="danger" icon={<Trash2 size={14} />} disabled={r.legal_hold} onClick={() => setBorrar(true)}
+            <Button size="sm" variant="danger" icon={<Trash2 size={14} />} disabled={r.legal_hold} loading={eliminar.isPending}
+              onClick={async () => { if (await confirmar({ title: t('reuniones.detalle.borrar_titulo'), message: t('reuniones.detalle.borrar_desc', { titulo: r.title }), danger: true })) eliminar.mutate() }}
               title={r.legal_hold ? t('reuniones.detalle.bloqueo_legal') : undefined}>
               {t('reuniones.detalle.borrar')}
             </Button>
@@ -259,8 +260,6 @@ export default function DetalleDeReunion({ id, segmentoResaltado, onBorrada }: P
       )}
 
       {editar && <ModalEditar reunion={r} onClose={() => setEditar(false)} />}
-      <Confirm open={borrar} title={t('reuniones.detalle.borrar_titulo')} description={t('reuniones.detalle.borrar_desc', { titulo: r.title })}
-        loading={eliminar.isPending} onCancel={() => setBorrar(false)} onConfirm={() => eliminar.mutate()} />
     </div>
   )
 }

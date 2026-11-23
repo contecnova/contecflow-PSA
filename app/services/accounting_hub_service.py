@@ -142,15 +142,28 @@ def enviar_facturas_pendientes(db: Session, provider: str, cfg: dict, limit: int
         if inv.internal_notes and f"[{provider.upper()} sync" in inv.internal_notes:
             results.append({"invoice_number": inv.number, "status": "already_synced"})
             continue
+        # M21 (auditoría 22-11-2026): las líneas reales de la factura (antes
+        # `lines: []` y una sola línea por el subtotal) y sin cliente inventado:
+        # una factura sin cliente no se envía (el proveedor la rechazaría o la
+        # asignaría a «Cliente»). Moneda y correo para el alta del cliente.
+        if not inv.client_name:
+            results.append({"invoice_number": inv.number, "status": "error", "error": "sin_cliente"})
+            continue
+        from app.models.billing_reports import InvoiceLine
+        lineas = db.query(InvoiceLine).filter(InvoiceLine.invoice_id == inv.id).order_by(InvoiceLine.order).all()
         inv_data = {
-            "number":      inv.number,
-            "client_name": inv.client_name or "Cliente",
-            "issue_date":  str(inv.issue_date) if inv.issue_date else "",
-            "due_date":    str(inv.due_date)   if inv.due_date   else "",
-            "subtotal":    inv.subtotal or 0,
-            "total":       inv.total    or 0,
-            "notes":       inv.notes    or "",
-            "lines":       [],
+            "number":       inv.number,
+            "client_name":  inv.client_name,
+            "client_email": inv.client_email,
+            "currency":     inv.currency,
+            "issue_date":   str(inv.issue_date) if inv.issue_date else "",
+            "due_date":     str(inv.due_date)   if inv.due_date   else "",
+            "subtotal":     inv.subtotal or 0,
+            "total":        inv.total    or 0,
+            "notes":        inv.notes    or "",
+            "lines": [{"description": li.description, "quantity": li.quantity or 1,
+                       "unit_price": round(float(li.amount or 0) / float(li.quantity or 1), 2)
+                       if li.amount is not None else (li.unit_price or 0)} for li in lineas],
         }
         r = push_fn(cfg, inv_data)
         if r.get("ok"):

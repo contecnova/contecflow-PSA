@@ -6,10 +6,12 @@ Todo de solo lectura y acotado a la empresa.
 from __future__ import annotations
 
 import csv
+from app.core.celdas_seguras import fila_segura
 import io
 import json
 import re
-from datetime import date, timedelta
+from datetime import timedelta
+from app.core import timeutil
 from typing import Optional
 
 from sqlalchemy import func, or_
@@ -52,7 +54,7 @@ class _Ciclos:
 
     def __init__(self, db, org, avisar_dias: int = 90):
         self.db, self.org, self.memo = db, org, {}
-        self.hoy = date.today()
+        self.hoy = timeutil.today()
         self.limite = self.hoy + timedelta(days=avisar_dias)
 
     def estado(self, product_id: str, version: Optional[str]) -> dict:
@@ -798,11 +800,11 @@ def exportar_hallazgos_csv(db: Session, org) -> str:
                 "ticket", "change", "problem", "task"])
     for f in _q(db, VulnerabilityFinding, org).order_by(VulnerabilityFinding.priority_score.desc().nullslast()):
         d = serializar(db, f, org=org)
-        w.writerow([d["vuln_id"], d["severity"], d["priority_score"], d["status"], d["kev"], d["cvss_score"],
+        w.writerow(fila_segura([d["vuln_id"], d["severity"], d["priority_score"], d["status"], d["kev"], d["cvss_score"],
                     d["epss_score"], d["product_name"], d["affected_version"], d["fixed_version"],
                     f"{d['parent_product_name'] or ''} {d['parent_version'] or ''}".strip(), d["ci_name"],
                     d["environment"], d["first_seen_at"], d["sla_due_at"], d["sla_breached"], d["ticket_id"],
-                    d["change_id"], d["problem_id"], d["task_id"]])
+                    d["change_id"], d["problem_id"], d["task_id"]]))
     return salida.getvalue()
 
 
@@ -819,13 +821,13 @@ def exportar_inventario_csv(db: Session, org) -> str:
         p = prods.get(i.product_id)
         c = cis.get(i.ci_id)
         e = ciclos.estado(i.product_id, i.version)
-        w.writerow([p.name if p else "", p.vendor_name if p else "", p.category if p else "", p.origin if p else "",
+        w.writerow(fila_segura([p.name if p else "", p.vendor_name if p else "", p.category if p else "", p.origin if p else "",
                     i.version or "", ids.construir_purl(p.purl_type, p.purl_namespace, p.purl_name, i.version)
                     if p and p.purl_name else "", ids.construir_cpe(p.cpe_vendor, p.cpe_product, i.version)
                     if p and p.cpe_vendor else "", c.name if c else "", c.hostname if c else "",
                     c.ip_address if c else "", i.environment, i.status, i.install_path or "", i.config_path or "",
                     " ".join(str(x) for x in json.loads(i.ports or "[]")), i.exposure, e["lifecycle"] or "",
-                    e["eol_date"] or ""])
+                    e["eol_date"] or ""]))
     return salida.getvalue()
 
 

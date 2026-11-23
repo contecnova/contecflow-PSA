@@ -1,8 +1,10 @@
 import type { CSSProperties } from 'react'
 import { PRODUCT_NAME } from '../constants/brand'
-import { useMemo, useState, useId } from 'react'
+import { useEffect, useMemo, useState, useId } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { authApi } from '../services/api'
+import type { PoliticaDeContrasena } from '../services/api/seguridadDeCuentas'
+import { extractErr } from '../utils/helpers'
 import { useAppT } from '../i18n/AppLangContext'
 import LangSelector from '../components/LangSelector'
 import { REDIRECT_AFTER_SUCCESS_MS } from '../constants/timings'
@@ -28,13 +30,25 @@ export default function ResetPasswordPage() {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
 
-  const token = searchParams.get('token') || ''
+  // 23-11-2026: el token se lee una vez y se quita de la barra de direcciones
+  // (historial, capturas, cabecera Referer).
+  const [token] = useState(() => searchParams.get('token') || '')
+  const [politica, setPolitica] = useState<PoliticaDeContrasena | null>(null)
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [showPwd, setShowPwd] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    if (!token) return
+    window.history.replaceState(null, '', window.location.pathname)
+    // Reglas de la empresa del enlace; un token no válido se avisa ya, no al final.
+    authApi.resetPasswordPolicy(token)
+      .then(r => setPolitica(r.data))
+      .catch(e => setError(extractErr(e, t('reset_password.invalid_token_error'))))
+  }, [token])  // eslint-disable-line react-hooks/exhaustive-deps
 
   const score = useMemo(() => strengthScore(password), [password])
   const strengthLabels = [
@@ -50,14 +64,16 @@ export default function ResetPasswordPage() {
     if (!token) { setError(t('reset_password.invalid_token_error')); return }
     if (!password) { setError(t('reset_password.new_password_required')); return }
     if (password !== confirmPassword) { setError(t('reset_password.passwords_dont_match')); return }
+    if (politica && (password.length < politica.MIN_PASSWORD_LENGTH || password.length > politica.PASSWORD_MAX_LENGTH)) {
+      setError(t('seguridad_cuentas.regla_longitud', { min: politica.MIN_PASSWORD_LENGTH, max: politica.PASSWORD_MAX_LENGTH })); return
+    }
     setLoading(true); setError(''); setSuccess('')
     try {
-      const { data } = await authApi.resetPassword({ token, new_password: password })
-      setSuccess((data as { ok: boolean; message?: string })?.message || t('reset_password.success_message'))
+      await authApi.resetPassword({ token, new_password: password })
+      setSuccess(t('reset_password.success_message'))
       setTimeout(() => navigate('/login'), REDIRECT_AFTER_SUCCESS_MS)
     } catch (e: unknown) {
-      const raw = (e as { response?: { data?: { detail?: string | Array<{ msg: string }> } } })?.response?.data?.detail
-      setError(Array.isArray(raw) ? raw.map(d => d.msg).join(', ') : ((raw as string) || t('reset_password.generic_error')))
+      setError(extractErr(e, t('reset_password.generic_error')))
     } finally {
       setLoading(false)
     }
@@ -89,6 +105,17 @@ export default function ResetPasswordPage() {
           {t('reset_password.brand_subtitle')}
         </p>
 
+        {politica && (
+          <ul className="rpw-reglas">
+            <li>{t('seguridad_cuentas.regla_longitud', { min: politica.MIN_PASSWORD_LENGTH, max: politica.PASSWORD_MAX_LENGTH })}</li>
+            {(politica.PASSWORD_REQUIRE_UPPERCASE || politica.PASSWORD_REQUIRE_LOWERCASE || politica.PASSWORD_REQUIRE_DIGIT || politica.PASSWORD_REQUIRE_SPECIAL)
+              && <li>{t('seguridad_cuentas.regla_composicion')}</li>}
+            {politica.PASSWORD_BLOCK_COMMON && <li>{t('seguridad_cuentas.regla_comunes')}</li>}
+            {politica.PASSWORD_BLOCK_PERSONAL && <li>{t('seguridad_cuentas.regla_personales')}</li>}
+            {politica.PASSWORD_HISTORY_COUNT > 0 && <li>{t('seguridad_cuentas.regla_historial', { n: politica.PASSWORD_HISTORY_COUNT })}</li>}
+          </ul>
+        )}
+
         <div className="u-stack-16">
           {/* New password */}
           <div>
@@ -96,7 +123,7 @@ export default function ResetPasswordPage() {
               {t('reset_password.new_password_placeholder')}
             </label>
             <div className="rpw-box-2">
-              <input className="rpw-input"
+              <Input inputClassName="rpw-input"
                 id={`${idCampo}-pwd`}
                 aria-labelledby={`${idCampo}-etpwd`}
                 type={showPwd ? 'text' : 'password'}

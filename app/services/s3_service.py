@@ -90,10 +90,13 @@ class LocalFileStorage:
 class S3Service:
     """AWS S3 file storage service.
 
-    Initial config comes from env vars; if a Settings → Credenciales → AWS S3
-    entry is set, calling ``reload_from_db(db, org_id)`` rebuilds the boto3
-    client with those values. Call it from endpoints/services before the first
-    S3 op of the request lifecycle (cheap thanks to the 60s creds cache).
+    La configuracion sale del entorno (`AWS_*`): un unico almacen para todas
+    las empresas. Ronda 2 auditoria 2026-11-22: se retira `reload_from_db`, que
+    no tenia llamantes y, de llamarse, cambiaba el cliente del objeto GLOBAL
+    (`file_storage`) para todas las peticiones en curso de otras empresas. El
+    S3 por empresa queda pendiente: exige guardar en cada fichero en que
+    almacen se escribio (columna nueva, migracion) para poder seguir leyendo
+    los ya subidos, y una instancia por empresa en vez de mutar la global.
     """
 
     def __init__(self):
@@ -117,7 +120,7 @@ class S3Service:
     def _build_client(self):
         """Construye el cliente boto3. ÚNICO sitio donde se hace.
 
-        Antes había dos bloques idénticos (aquí y en `reload_from_db`) y añadir
+        Antes había dos bloques idénticos (aquí y en el antiguo `reload_from_db`) y añadir
         un parámetro en uno y olvidarlo en el otro dejaba el cliente recargado
         con una configuración distinta a la inicial — el tipo de divergencia que
         sólo se manifiesta después de cambiar credenciales en caliente.
@@ -153,43 +156,6 @@ class S3Service:
         )
 
         return boto3.client("s3", **kwargs)
-
-    def reload_from_db(self, db, org_id=None) -> None:
-        """Re-read credentials from `app_settings` + integration_credentials registry.
-
-        Falls back to env values when the DB row is absent. Safe to call on
-        every request — the underlying lookup is cached.
-        """
-        try:
-            from app.services.integration_credentials_service import get_provider_config
-            from app.services.settings_service import get_runtime_int
-            cfg = get_provider_config(db, "aws_s3", org_id=org_id)
-            new_bucket = cfg.get("bucket") or settings.AWS_S3_BUCKET
-            new_region = cfg.get("region") or settings.AWS_REGION
-            new_access = cfg.get("access_key") or settings.AWS_ACCESS_KEY
-            new_secret = cfg.get("secret_key") or settings.AWS_SECRET_KEY
-            self.url_expiration_hours = get_runtime_int(db, "S3_URL_EXPIRATION_HOURS", org_id) or settings.S3_URL_EXPIRATION_HOURS
-
-            # El endpoint entra en la comparación: si sólo cambiara él, el
-            # early-return dejaría el cliente apuntando al almacén anterior.
-            new_endpoint = cfg.get("endpoint_url") or settings.AWS_S3_ENDPOINT_URL
-            if (new_bucket, new_region, new_access, new_secret, new_endpoint) == (
-                self.bucket, self.region, self._access_key, self._secret_key,
-                getattr(self, "_endpoint_url", None),
-            ):
-                return  # sin cambios, se conserva el cliente actual
-            self.bucket, self.region = new_bucket, new_region
-            self._access_key, self._secret_key = new_access, new_secret
-            # El endpoint también puede venir de la configuración por
-            # organización: un cliente puede tener su propio almacén S3.
-            self._endpoint_url = new_endpoint
-            self.client = self._build_client()
-            logger.info(
-                "S3Service reloaded: bucket=%s, region=%s, endpoint=%s",
-                self.bucket, self.region, self._endpoint_url or "AWS",
-            )
-        except Exception as exc:
-            logger.warning("S3Service reload failed: %s", exc)
 
     def is_available(self) -> bool:
         return (

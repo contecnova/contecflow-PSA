@@ -18,9 +18,9 @@ def get_jwt_signing_key():
     return _clave()
 
 
-def get_jwt_verification_keys():
+def get_jwt_verification_keys(kid=None):
     from app.services.key_management import get_jwt_verification_keys as _claves
-    return _claves()
+    return _claves(kid) if kid else _claves()
 
 
 ALGORITHM = settings.JWT_ALGORITHM
@@ -161,6 +161,10 @@ def decode_token(token: str) -> Optional[dict]:
             logger.warning("decode_token: excepcion ignorada", exc_info=True)
             kid = None
 
+        if kid and kid not in keys:
+            # 23-11-2026 (02 A37): kid que no está en la caché = lo acaba de
+            # rotar otro proceso; se recarga el llavero una vez.
+            keys = get_jwt_verification_keys(kid=kid)
         if kid and kid in keys:
             return jwt.decode(token, keys[kid], algorithms=[ALGORITHM])
 
@@ -179,6 +183,30 @@ def decode_token(token: str) -> Optional[dict]:
     except jwt.PyJWTError as e:
         logger.warning(f"JWT decode failed: {e}")
         return None
+
+
+def decode_token_de_peticion(request, token: str) -> Optional[dict]:
+    """`decode_token` una sola vez por petición (memo en `request.state`).
+
+    Auditoría 22-11-2026 (01 B11): el límite de peticiones, la zona horaria, las
+    guardas globales (GRC/ABAC residuales), `get_current_user` y la pista del log
+    decodificaban el mismo JWT hasta cinco veces por petición. El memo vive en la
+    petición: no sobrevive a ella, así que una clave retirada o un token caducado
+    no se aceptan por caché en la petición siguiente. Devuelve una copia.
+    """
+    estado = getattr(request, "state", None)
+    memo = getattr(estado, "_jwt_memo", None) if estado is not None else None
+    if memo is None:
+        memo = {}
+        if estado is not None:
+            try:
+                estado._jwt_memo = memo
+            except Exception:  # noqa: S110 - un estado sin atributos: sin memo
+                pass
+    if token not in memo:
+        memo[token] = decode_token(token)
+    datos = memo[token]
+    return dict(datos) if isinstance(datos, dict) else datos
 
 
 def verify_client_token(token: str, db):
@@ -207,17 +235,5 @@ def verify_client_token(token: str, db):
         return None
 
 
-def verify_admin_or_governance_role(user) -> None:
-    """Exige superadmin (flag `is_superadmin`) o rol `admin`. Si no, ErrorDeDominio(403).
-
-    18-11-2026: el rol `governance` no existe en `UserRole`; se quita en vez de
-    dejar una puerta a un valor que nadie puede tener. El nombre se conserva
-    porque lo importan los endpoints de ABAC.
-    """
-    from app.models.user import UserRole
-
-    if getattr(user, 'is_superadmin', False):
-        return
-    if getattr(user, 'role', None) == UserRole.admin:
-        return
-    raise error(403, "solo_admin", detail="Admin role required")
+# Auditoría 22-11-2026 (01 §4, M9): se retira la guarda a mano de los endpoints de ABAC
+# (`verify_admin_or_governance_role`): esas rutas exigen `gobierno.administrar` en la firma.

@@ -1,5 +1,7 @@
 # Auditoría integral — 2ª pasada (2026-08-02)
 
+> **Documento histórico (2026-08-02): no refleja necesariamente el código actual; fuente viva: el código, el `README.md` y los informes de `docs/auditoria/`.**
+
 > Informe histórico de 2026-08-02; puede no reflejar el código actual.
 
 Alcance: calidad de código, seguridad, arquitectura, usabilidad y funcionalidad.

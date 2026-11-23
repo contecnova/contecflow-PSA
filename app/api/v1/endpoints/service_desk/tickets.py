@@ -6,7 +6,7 @@ from typing import Optional
 from pydantic import BaseModel, Field
 
 from app.db.session import get_db
-from app.core.deps import get_current_user, require_any_manager, require_internal_user, require_worker
+from app.core.deps import get_current_user, requiere_capacidad
 from app.models.user import User
 from app.core.abac_enforce import enforce_abac
 from app.core.responses import APIResponse, APIListResponse
@@ -164,7 +164,7 @@ def get_ticket(ticket_id: str, db: Session = Depends(get_db), current_user: User
 def create_ticket(payload: TicketCreateIn, db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
     # Externos como internos (16-11-2026): tambien el subcontratado, acotado por
     # `acotar_alta_del_externo` (proyecto suyo, sin datos comerciales ajenos).
-    _rol: User = Depends(require_worker),
+    _rol: User = Depends(requiere_capacidad("sd.trabajar")),
 ):
     acotar_alta_del_externo(db, payload, current_user)
     ticket = build_internal_ticket(db, payload, current_user.id)
@@ -199,12 +199,14 @@ def update_ticket(
         organization_id=getattr(current_user, "organization_id", None),
     )
     _commit_or_rollback(db); db.refresh(ticket)
+    # M8 / informe 03: las tareas de fondo trabajan en la empresa del ticket.
+    _org_del_ticket = getattr(ticket, "organization_id", None)
     if effects["refresh_profile"]:
-        enqueue_profile_refresh(background_tasks, ticket.assigned_to_user_id)
+        enqueue_profile_refresh(background_tasks, ticket.assigned_to_user_id, org_id=_org_del_ticket)
     if effects["reassigned"]:
-        enqueue_reassign_feedback(background_tasks, ticket_id, "ticket")
+        enqueue_reassign_feedback(background_tasks, ticket_id, "ticket", org_id=_org_del_ticket)
     if effects.get("record_routing_outcome"):
-        enqueue_routing_outcome(background_tasks, ticket_id)
+        enqueue_routing_outcome(background_tasks, ticket_id, org_id=_org_del_ticket)
     return APIResponse.ok(data=_ticket_out(ticket))
 
 
@@ -214,7 +216,7 @@ def add_comment(
     authorization: Optional[str] = Header(None),
     db: Session = Depends(get_db), current_user: Optional[User] = Depends(get_current_user),
     # Externos como internos (16-11-2026): solo en tickets de su alcance (`scope_ticket_query`).
-    _rol: User = Depends(require_worker),
+    _rol: User = Depends(requiere_capacidad("sd.trabajar")),
 ):
     ticket = get_scoped_ticket_for_comment_or_404(db, current_user, ticket_id)
     comment = add_internal_comment(db, ticket, ticket_id, payload.body, payload.is_public, current_user,
@@ -249,7 +251,7 @@ class AprobacionIn(BaseModel):
 def decide_approval(
     ticket_id: str, payload: AprobacionIn,
     db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-11: decide el aprobador, que es un usuario
+    _rol: User = Depends(requiere_capacidad("sd.completo")),  # auditoria 2026-11: decide el aprobador, que es un usuario
 ):
     from app.services.service_desk import catalog_approval_service as aprobacion
     ticket = get_scoped_ticket_or_404(db, current_user, ticket_id)
@@ -260,7 +262,7 @@ def decide_approval(
 
 @router.get("/approvals/mine", summary="Peticiones del catálogo pendientes de mi aprobación")
 def my_pending_approvals(db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
-                         _rol: User = Depends(require_internal_user)):
+                         _rol: User = Depends(requiere_capacidad("sd.completo"))):
     from app.services.service_desk import catalog_approval_service as aprobacion
     return APIListResponse.ok(items=aprobacion.mis_pendientes(db, current_user))
 
@@ -269,7 +271,7 @@ def my_pending_approvals(db: Session = Depends(get_db), current_user: User = Dep
 def log_time(ticket_id: str, payload: TimeLogIn, db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
     # Externos como internos (16-11-2026): ticket de su alcance; el paso a partes
     # valida la pertenencia al proyecto (`validate_and_create_imputation`).
-    _rol: User = Depends(require_worker),
+    _rol: User = Depends(requiere_capacidad("sd.trabajar")),
 ):
     ticket = get_scoped_ticket_for_ops_or_404(db, current_user, ticket_id)
     result = add_ticket_time(db, ticket, ticket_id, current_user, payload.minutes, payload.description,
@@ -283,7 +285,7 @@ def restore_pending(
     ticket_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_worker),  # externos como internos (16-11-2026): ticket de su alcance
+    _rol: User = Depends(requiere_capacidad("sd.trabajar")),  # externos como internos (16-11-2026): ticket de su alcance
 ):
     ticket = get_scoped_ticket_for_ops_or_404(db, current_user, ticket_id)
     result = restore_pending_snapshot(db, ticket, current_user.id)
@@ -295,7 +297,7 @@ def restore_pending(
 def escalate_ticket(
     ticket_id: str, to_level: str = Query(...), reason: Optional[str] = Query(None),
     db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_worker),  # externos como internos (16-11-2026): ticket de su alcance
+    _rol: User = Depends(requiere_capacidad("sd.trabajar")),  # externos como internos (16-11-2026): ticket de su alcance
 ):
     ticket = get_scoped_ticket_for_ops_or_404(db, current_user, ticket_id)
     result = escalate_ticket_level(db, ticket, ticket_id, to_level, reason, current_user.id)
@@ -321,7 +323,7 @@ def get_ticket_links(ticket_id: str, db: Session = Depends(get_db), current_user
 
 @router.post("/tickets/{ticket_id}/links", summary="Vincular tickets")
 def link_tickets(ticket_id: str, payload: dict = Body(...), db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: excepcion revisada: vincular tickets, reversible
+    _rol: User = Depends(requiere_capacidad("sd.completo")),  # auditoria 2026-09: excepcion revisada: vincular tickets, reversible
 ):
     lk = create_ticket_link_record(db, ticket_id, payload, current_user.id)
     _commit_or_rollback(db)
@@ -344,7 +346,7 @@ def delete_ticket_link(
     # hacer romperia el trabajo diario del service desk. Lo que si
     # hay que impedir es que un subcontratista toque la relacion
     # entre tickets de la organizacion.
-    _: User = Depends(require_internal_user),
+    _: User = Depends(requiere_capacidad("sd.completo")),
 ):
     enforce_abac(db, current_user, "sd_ticket_link", link_id, action="delete")
     delete_ticket_link_svc(db, link_id)
@@ -356,7 +358,7 @@ def delete_ticket_link(
 def pause_sla(ticket_id: str, payload: dict = Body(default={}), db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
     # Externos como internos (16-11-2026). El servicio busca el ticket sin acotar:
     # se exige aqui que este en el alcance de quien llama (404 si no).
-    _rol: User = Depends(require_worker),
+    _rol: User = Depends(requiere_capacidad("sd.trabajar")),
 ):
     get_scoped_ticket_for_ops_or_404(db, current_user, ticket_id)
     result = pause_ticket_sla_from_payload(db, ticket_id, current_user.id, payload)
@@ -366,7 +368,7 @@ def pause_sla(ticket_id: str, payload: dict = Body(default={}), db: Session = De
 
 @router.post("/tickets/{ticket_id}/sla/resume", summary="Reanudar SLA")
 def resume_sla(ticket_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_worker),  # externos como internos (16-11-2026): ticket de su alcance
+    _rol: User = Depends(requiere_capacidad("sd.trabajar")),  # externos como internos (16-11-2026): ticket de su alcance
 ):
     get_scoped_ticket_for_ops_or_404(db, current_user, ticket_id)
     result = resume_ticket_sla(db, ticket_id, current_user.id)
@@ -387,7 +389,7 @@ def get_watchers(ticket_id: str, db: Session = Depends(get_db), current_user: Us
 @router.post("/tickets/{ticket_id}/watch", summary="Seguir ticket", status_code=201)
 def watch_ticket(ticket_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
     # Externos como internos (16-11-2026): el servicio no acota; se exige aqui.
-    _rol: User = Depends(require_worker),
+    _rol: User = Depends(requiere_capacidad("sd.trabajar")),
 ):
     get_scoped_ticket_for_ops_or_404(db, current_user, ticket_id)
     result = watch_ticket_command(db, ticket_id, current_user.id)
@@ -397,7 +399,7 @@ def watch_ticket(ticket_id: str, db: Session = Depends(get_db), current_user: Us
 
 @router.delete("/tickets/{ticket_id}/watch", summary="Dejar de seguir ticket")
 def unwatch_ticket(ticket_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_worker),  # externos como internos (16-11-2026): ticket de su alcance
+    _rol: User = Depends(requiere_capacidad("sd.trabajar")),  # externos como internos (16-11-2026): ticket de su alcance
 ):
     enforce_abac(db, current_user, "sd_ticket", ticket_id, action="delete")
     get_scoped_ticket_for_ops_or_404(db, current_user, ticket_id)
@@ -407,14 +409,14 @@ def unwatch_ticket(ticket_id: str, db: Session = Depends(get_db), current_user: 
 
 
 @router.post("/tickets/{ticket_id}/merge", summary="Fusionar ticket duplicado en éste")
-def merge_ticket(ticket_id: str, payload: MergeIn, db: Session = Depends(get_db), current_user: User = Depends(require_any_manager)):
+def merge_ticket(ticket_id: str, payload: MergeIn, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("sd.gestionar"))):
     result = merge_ticket_command(db, ticket_id, payload.merged_ticket_id, payload.reason, current_user.id)
     _commit_or_rollback(db)
     return APIResponse.ok(data=result)
 
 
 @router.post("/tickets/{ticket_id}/split", summary="Dividir ticket en ticket hijo")
-def split_ticket(ticket_id: str, payload: SplitTicketIn, db: Session = Depends(get_db), current_user: User = Depends(require_any_manager)):
+def split_ticket(ticket_id: str, payload: SplitTicketIn, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("sd.gestionar"))):
     result = split_ticket_command(db=db, ticket_id=ticket_id, payload=payload, current_user_id=current_user.id)
     _commit_or_rollback(db); db.refresh(result["child"])
     return APIResponse.ok(data={"ok": True, "parent": result["parent"].number, "child": result["child"].number, "child_id": result["child"].id})
@@ -422,13 +424,13 @@ def split_ticket(ticket_id: str, payload: SplitTicketIn, db: Session = Depends(g
 
 @router.post("/tickets/{ticket_id}/ai-suggest", summary="Sugerir respuesta IA para ticket")
 def suggest_ticket_response_ai(ticket_id: str, payload: Optional[dict] = Body(default=None), db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
+    _rol: User = Depends(requiere_capacidad("sd.completo")),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
 ):
     return APIResponse.ok(data=build_ai_ticket_suggestion(db, ticket_id, payload, current_user))
 
 
 @router.post("/tickets/{ticket_id}/auto-assign", summary="Auto-asignar ticket al agente con menos carga del grupo")
-def auto_assign_ticket(ticket_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_any_manager)):
+def auto_assign_ticket(ticket_id: str, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("sd.gestionar"))):
     result = auto_assign_ticket_ml_command(db, ticket_id, current_user.id)
     _commit_or_rollback(db)
     return APIResponse.ok(data=result)
@@ -438,7 +440,7 @@ def auto_assign_ticket(ticket_id: str, db: Session = Depends(get_db), current_us
 def routing_candidates(
     ticket_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("sd.gestionar")),
 ):
     """Return ranked agents for this ticket with full score breakdown.
 
@@ -452,7 +454,7 @@ def routing_candidates(
 def smart_assign_ticket(
     ticket_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("sd.gestionar")),
 ):
     """Assign ticket to the ML-predicted best available agent and return score explanation."""
     result = auto_assign_ticket_ml_command(db, ticket_id, current_user.id)
@@ -473,7 +475,7 @@ def get_merges(ticket_id: str, db: Session = Depends(get_db), _: User = Depends(
 
 @router.post("/tickets/{ticket_id}/to-kb", summary="Convertir resolución de ticket en artículo KB")
 def ticket_to_kb(ticket_id: str, title: str = Query(...), db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_internal_user),  # auditoria 2026-09: excepcion revisada: el agente escribe la base de conocimiento
+    _rol: User = Depends(requiere_capacidad("sd.completo")),  # auditoria 2026-09: excepcion revisada: el agente escribe la base de conocimiento
 ):
     a = create_kb_from_ticket(db, ticket_id, title, current_user.id)
     _commit_or_rollback(db); db.refresh(a)

@@ -110,8 +110,13 @@ def _autorizar_consulta_de_anomalias(db: Session, user_id: str, current_user) ->
     if not objetivo:
         raise error(404, "no_encontrado", detail="User not found", que="usuario")
     organizacion = getattr(current_user, "organization_id", None)
-    if organizacion and getattr(objetivo, "organization_id", None) != organizacion:
+    if not organizacion or getattr(objetivo, "organization_id", None) != organizacion:
         raise error(404, "no_encontrado", detail="User not found", que="usuario")
+    # Auditoría 22-11-2026 (A3): las de un compañero solo las ve quien gestiona
+    # partes de horas del equipo (antes, cualquiera de la empresa: perfilado, RGPD).
+    from app.core import capacidades as _capacidades
+    if not _capacidades.tiene(db, current_user, "partes.equipo"):
+        raise error(403, "capacidad_requerida", capacidad="partes.equipo")
 
 
 def _umbral_de_horas(horas_por_dia: dict) -> tuple[float, str]:

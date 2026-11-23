@@ -76,7 +76,9 @@ def logged_in_context(browser):
     page = context.new_page()
     if not _try_login(page):
         context.close()
-        pytest.skip("E2E login unavailable (frontend not ready or login selectors changed)")
+        # Auditoría 05 (C.3), 23-11-2026: con contraseña configurada, un login roto es un
+        # fallo, no un salto silencioso de toda la suite.
+        pytest.fail("E2E: el login no funciona (frontend no arrancado o selectores cambiados)")
     yield context
     context.close()
 

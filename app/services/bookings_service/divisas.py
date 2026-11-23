@@ -43,7 +43,10 @@ def get_exchange_rates_data(base: str, db) -> dict:
 def upsert_exchange_rate_record(payload: dict, db) -> dict:
     import re as _re
     from_currency = (payload.get("from_currency") or _pe.moneda_de_empresa(db)).upper()  # 18-11-2026
-    to_currency   = payload.get("to_currency", "USD").upper()
+    # Auditoría 22-11-2026 (baja): sin "USD" por defecto; la moneda destino es obligatoria.
+    to_currency   = (payload.get("to_currency") or "").upper()
+    if not to_currency:
+        raise error(422, "campo_obligatorio", campo="to_currency")
     _iso3 = _re.compile(r"^[A-Z]{3}$")
     if not _iso3.match(from_currency) or not _iso3.match(to_currency):
         raise error(422, "moneda_codigo_no_valido", detail="Currency codes must be 3-letter ISO codes (e.g. EUR, USD)")
@@ -57,7 +60,7 @@ def upsert_exchange_rate_record(payload: dict, db) -> dict:
     # empresa: global); antes actualizaba el que hubiera, también el global.
     from app.services.exchange_rate_service import org_de_la_sesion, solo_de
     org = org_de_la_sesion(db)
-    for idx, (fc, tc, r) in enumerate([(from_currency, to_currency, rate_value), (to_currency, from_currency, round(1 / rate_value, 6))]):
+    for idx, (fc, tc, r) in enumerate([(from_currency, to_currency, rate_value), (to_currency, from_currency, 1 / rate_value)]):   # M5: inverso sin redondear a 6 decimales
         existing = solo_de(db.query(ExchangeRate), org).filter(
             ExchangeRate.from_currency == fc,
             ExchangeRate.to_currency == tc,
@@ -93,17 +96,16 @@ def convert_currency_amount(payload: dict, db) -> dict:
     on_date   = date.fromisoformat(payload.get("date", str(timeutil.today()))) if payload.get("date") else timeutil.today()
     if from_curr == to_curr:
         return {"converted_amount": amount, "amount": amount, "from_currency": from_curr, "to_currency": to_curr, "rate": 1.0}
-    rate_row = db.query(ExchangeRate).filter(
-        ExchangeRate.from_currency == from_curr,
-        ExchangeRate.to_currency == to_curr,
-        ExchangeRate.effective_date <= on_date,
-    ).order_by(ExchangeRate.effective_date.desc(), ExchangeRate.organization_id.is_(None)).first()
-    if not rate_row:
+    # Auditoría 23-11-2026 (§7.3): era un quinto resolutor (solo directo). Ahora
+    # el único: directo → inverso → cruzado por EUR; sin tipo, 404 con código.
+    from app.services.currency_rates_service import resolve_rate_with_snapshot
+    snap = resolve_rate_with_snapshot(db, from_curr, to_curr, on_date)
+    if snap["rate"] is None:
         raise error(404, "tipo_de_cambio_no_configurado", desde=from_curr, hasta=to_curr)
-    converted = round(amount * rate_row.rate, 2)
+    converted = round(amount * float(snap["rate"]), 2)
     return {
         "converted_amount": converted, "amount": amount,
         "from_currency": from_curr, "to_currency": to_curr,
-        "rate": rate_row.rate, "converted": converted,
-        "effective_date": str(rate_row.effective_date),
+        "rate": snap["rate"], "converted": converted,
+        "effective_date": snap["rate_date"], "source": snap["source"],
     }

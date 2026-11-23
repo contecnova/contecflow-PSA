@@ -186,7 +186,9 @@ def aprobadores_del_paso(request, step, db: Session) -> set:
         try:
             ids |= set(json.loads(grupo.member_ids or "[]")) if grupo else set()
         except ValueError:
-            pass
+            # §5 (auditoría 22-11-2026): grupo con miembros ilegibles → se anota
+            # (antes `pass` mudo: el paso se quedaba sin aprobadores sin rastro).
+            logger.warning("grupo de aprobación %s con member_ids ilegible", step.approver_group_id)
     return ids
 
 

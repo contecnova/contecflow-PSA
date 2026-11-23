@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from typing import Optional
 
 from app.db.session import get_db
-from app.core.deps import get_current_user, require_admin, require_admin_or_pm
+from app.core.deps import get_current_user, requiere_capacidad
 from app.core.abac_enforce import enforce_abac
 from app.core.responses import APIResponse, APIListResponse
 from app.models.user import User, UserRole
@@ -142,7 +142,7 @@ def get_project(
 def create_project(
     payload: ProjectCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin_or_pm),
+    current_user: User = Depends(requiere_capacidad("proyectos.dirigir")),
 ):
     project = save_new_project(db, payload, current_user)
     return APIResponse.ok(data=ProjectOut.model_validate(project))
@@ -153,7 +153,7 @@ def update_project(
     project_id: str,
     payload: ProjectUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin_or_pm),
+    current_user: User = Depends(requiere_capacidad("proyectos.dirigir")),
 ):
     project = get_project_by_id(db, project_id)
     if not project:
@@ -170,7 +170,7 @@ def update_project(
 def delete_project(
     project_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("proyectos.administrar")),
 ):
     enforce_abac(db, current_user, "project", project_id, action="delete")
     try:
@@ -185,7 +185,7 @@ def add_phase(
     project_id: str,
     payload: ProjectPhaseCreate,
     db: Session = Depends(get_db),
-    _: User = Depends(require_admin_or_pm),
+    _: User = Depends(requiere_capacidad("proyectos.dirigir")),
 ):
     phase = add_project_phase_record(db, project_id, payload)
     return APIResponse.ok(data=phase)
@@ -214,7 +214,7 @@ def list_members(project_id: str, db: Session = Depends(get_db),
 
 @router.post("/{project_id}/members", summary="Añadir miembro al equipo")
 def add_member(project_id: str, data: dict, db: Session = Depends(get_db),
-               current_user: User = Depends(require_admin_or_pm)):
+               current_user: User = Depends(requiere_capacidad("proyectos.dirigir"))):
     m = add_member_record(db, project_id, data)
     return APIResponse.ok(data={"id": m.id, "user_id": m.user_id, "role": m.role,
             "allocation_pct": m.allocation_pct})
@@ -223,7 +223,7 @@ def add_member(project_id: str, data: dict, db: Session = Depends(get_db),
 @router.patch("/{project_id}/members/{member_id}", summary="Actualizar miembro")
 def update_member(project_id: str, member_id: str, data: dict,
                   db: Session = Depends(get_db),
-                  current_user: User = Depends(require_admin_or_pm)):
+                  current_user: User = Depends(requiere_capacidad("proyectos.dirigir"))):
     m = get_member_or_404(db, project_id, member_id)
     m = update_member_record(db, m, data)
     return APIResponse.ok(data={"id": m.id, "role": m.role, "allocation_pct": m.allocation_pct})
@@ -231,7 +231,7 @@ def update_member(project_id: str, member_id: str, data: dict,
 
 @router.delete("/{project_id}/members/{member_id}", summary="Eliminar miembro del equipo")
 def remove_member(project_id: str, member_id: str, db: Session = Depends(get_db),
-                  current_user: User = Depends(require_admin_or_pm)):
+                  current_user: User = Depends(requiere_capacidad("proyectos.dirigir"))):
     m = get_member_or_404(db, project_id, member_id)
     enforce_abac(db, current_user, "project_member", member_id, action="delete")
     remove_member_record(db, m)
@@ -250,6 +250,6 @@ def get_evm(project_id: str, db: Session = Depends(get_db),
 
 @router.get("/evm/portfolio", summary="EVM de toda la cartera activa")
 def get_evm_portfolio(db: Session = Depends(get_db),
-                      current_user: User = Depends(require_admin_or_pm)):
+                      current_user: User = Depends(requiere_capacidad("proyectos.dirigir"))):
     return APIListResponse.ok(items=calculate_evm_portfolio(db))
 

@@ -48,8 +48,8 @@ def partidas_externas(db: Session, project_ids: list[str], moneda: str, desde=No
     from app.models.enterprise import Subcontractor, SubcontractorTimeLog
     from app.models.expenses import Expense, ExpenseAllocation
     from app.services.alm_conciliacion import gastos_conciliados
-    from app.services.externos.horas import partes_sin_duplicar
-    from app.services.gastos_avanzados import COSTE, importe_por_proyecto
+    from app.services.externos.horas import partes_netos
+    from app.services.gastos_avanzados import COSTE, importe_por_proyectos
     from app.services.profitability_service import get_fx_rate
     if not project_ids:
         return []
@@ -72,21 +72,22 @@ def partidas_externas(db: Session, project_ids: list[str], moneda: str, desde=No
         q = q.filter(Expense.id.notin_(conciliados))
     gastos = q.all()
     salida: list[tuple] = []
-    for pid in ids:
-        for g, imp in importe_por_proyecto(db, gastos, pid):
-            salida.append((pid, g.expense_date, "gastos", convertir(imp, g.currency, g.expense_date)))
+    for pid, g, imp in importe_por_proyectos(db, gastos, ids):
+        salida.append((pid, g.expense_date, "gastos", convertir(imp, g.currency, g.expense_date)))
 
     t = db.query(SubcontractorTimeLog, Subcontractor.currency).join(
         Subcontractor, Subcontractor.id == SubcontractorTimeLog.subcontractor_id).filter(
         SubcontractorTimeLog.project_id.in_(ids), SubcontractorTimeLog.is_active.isnot(False),
         SubcontractorTimeLog.cost_amount.isnot(None))
-    t = partes_sin_duplicar(db, t)
     if desde:
         t = t.filter(SubcontractorTimeLog.log_date >= desde)
     if hasta:
         t = t.filter(SubcontractorTimeLog.log_date <= hasta)
-    for log, cur in t.all():
-        salida.append((log.project_id, log.log_date, "subcontrata", convertir(log.cost_amount, cur, log.log_date)))
+    # A50 (auditoría 22-11-2026): del parte se descuenta solo el solape con lo
+    # que la persona ya imputó ese día (antes se quitaba el parte entero).
+    for (log, cur), _horas, coste in partes_netos(db, [tuple(f) for f in t.all()]):
+        if coste:
+            salida.append((log.project_id, log.log_date, "subcontrata", convertir(coste, cur, log.log_date)))
     # Migracion 189: estados de cuenta aprobados de proveedores, lo que no son horas
     # (precio cerrado, por unidad, cuota, creditos, bonus, gastos) con proyecto.
     from app.services.proveedores.facturacion import partidas as partidas_de_proveedores

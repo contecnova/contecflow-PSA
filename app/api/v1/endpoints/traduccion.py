@@ -24,7 +24,7 @@ from fastapi import APIRouter, Depends, Path
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_current_user, require_admin, require_internal_user
+from app.core.deps import get_current_user, requiere_capacidad
 from app.core.errores import ErrorDeDominio
 from app.core.responses import APIResponse
 from app.db.session import get_db
@@ -150,7 +150,7 @@ def traducir_texto(payload: TextoIn, db: Session = Depends(get_db), current_user
 
 @router.post("/outbound/preview", summary="Traducción: vista previa de una respuesta en el idioma del cliente")
 def vista_previa(payload: VistaPreviaIn, db: Session = Depends(get_db),
-                 current_user: User = Depends(require_internal_user)):
+                 current_user: User = Depends(requiere_capacidad("traduccion.usar"))):
     return APIResponse.ok(data=salida.vista_previa(db, current_user, payload.context_type, payload.context_id,
                                                    payload.text, payload.target_language))
 
@@ -158,24 +158,24 @@ def vista_previa(payload: VistaPreviaIn, db: Session = Depends(get_db),
 # ── Glosario ─────────────────────────────────────────────────────────────────
 
 @router.get("/glossary", summary="Traducción: glosario de la empresa")
-def listar_glosario(db: Session = Depends(get_db), current_user: User = Depends(require_internal_user)):
+def listar_glosario(db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("traduccion.usar"))):
     return APIResponse.ok(data={"items": glosario.listar(db, _exigir_empresa(current_user))})
 
 
 @router.post("/glossary", summary="Traducción: nuevo término del glosario (admin)")
-def crear_termino(payload: TerminoIn, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+def crear_termino(payload: TerminoIn, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("traduccion.administrar"))):
     return APIResponse.ok(data=glosario.crear(db, current_user, payload.model_dump()))
 
 
 @router.patch("/glossary/{termino_id}", summary="Traducción: cambiar un término del glosario (admin)")
 def cambiar_termino(termino_id: str, payload: TerminoIn, db: Session = Depends(get_db),
-                    current_user: User = Depends(require_admin)):
+                    current_user: User = Depends(requiere_capacidad("traduccion.administrar"))):
     return APIResponse.ok(data=glosario.actualizar(db, current_user, termino_id,
                                                    payload.model_dump(exclude_unset=True)))
 
 
 @router.delete("/glossary/{termino_id}", summary="Traducción: borrar un término del glosario (admin)")
-def borrar_termino(termino_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+def borrar_termino(termino_id: str, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("traduccion.administrar"))):
     glosario.borrar(db, current_user, termino_id)
     return APIResponse.ok(data={"ok": True})
 
@@ -183,12 +183,12 @@ def borrar_termino(termino_id: str, db: Session = Depends(get_db), current_user:
 # ── Administracion ───────────────────────────────────────────────────────────
 
 @router.get("/usage", summary="Traducción: cache, mensajes traducidos y gasto de hoy (admin)")
-def uso(db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+def uso(db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("traduccion.administrar"))):
     return APIResponse.ok(data=servicio.uso_de_la_empresa(db, _exigir_empresa(current_user)))
 
 
 @router.post("/test", summary="Traducción: probar el proveedor con un texto (admin)")
-def probar(payload: PruebaIn, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+def probar(payload: PruebaIn, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("traduccion.administrar"))):
     org = _exigir_empresa(current_user)
     return APIResponse.ok(data=servicio.probar(db, org, payload.provider or ajustes.proveedor(db, org),
                                                payload.target_language, payload.text))
@@ -198,31 +198,31 @@ def probar(payload: PruebaIn, db: Session = Depends(get_db), current_user: User 
 
 @router.get("/kb/{article_id}", summary="Traducción: versiones de un artículo en los idiomas del portal")
 def versiones_kb(article_id: str, db: Session = Depends(get_db),
-                 current_user: User = Depends(require_internal_user)):
+                 current_user: User = Depends(requiere_capacidad("traduccion.usar"))):
     return APIResponse.ok(data=kb.listar(db, current_user, article_id))
 
 
 @router.post("/kb/{article_id}/generate", summary="Traducción: generar las versiones (quedan en revisión)")
 def generar_kb(article_id: str, payload: GenerarIn, db: Session = Depends(get_db),
-               current_user: User = Depends(require_internal_user)):
+               current_user: User = Depends(requiere_capacidad("traduccion.usar"))):
     return APIResponse.ok(data=kb.generar(db, current_user, article_id, payload.languages))
 
 
 @router.patch("/kb/{article_id}/{language}", summary="Traducción: corregir una versión (vuelve a revisión)")
 def editar_kb(article_id: str, language: str, payload: VersionIn, db: Session = Depends(get_db),
-              current_user: User = Depends(require_internal_user)):
+              current_user: User = Depends(requiere_capacidad("traduccion.usar"))):
     return APIResponse.ok(data=kb.editar(db, current_user, article_id, language, payload.model_dump()))
 
 
 @router.post("/kb/{article_id}/{language}/review", summary="Traducción: publicar o rechazar una versión")
 def revisar_kb(article_id: str, language: str, payload: RevisionIn, db: Session = Depends(get_db),
-               current_user: User = Depends(require_internal_user)):
+               current_user: User = Depends(requiere_capacidad("traduccion.usar"))):
     return APIResponse.ok(data=kb.revisar(db, current_user, article_id, language, payload.publish, payload.comment))
 
 
 @router.delete("/kb/{article_id}/{language}", summary="Traducción: borrar una versión")
 def borrar_kb(article_id: str, language: str, db: Session = Depends(get_db),
-              current_user: User = Depends(require_internal_user)):
+              current_user: User = Depends(requiere_capacidad("traduccion.usar"))):
     kb.borrar(db, current_user, article_id, language)
     return APIResponse.ok(data={"ok": True})
 
@@ -237,24 +237,24 @@ def editor_de_contenido(db: Session = Depends(get_db), current_user: User = Depe
     """Guarda de las versiones de avisos y catalogo: usuario interno y editor
     (admin o revisor). En la firma, para que el 403 se vea desde fuera (el
     explicador de accesos no lo da por permitido); el servicio lo repite.
-    20-11-2026: cada ruta lleva además `require_internal_user` explícito en su
-    firma (`_rol`), para que la guarda de rol se vea en el inventario de
+    20-11-2026: cada ruta lleva además su guarda de rol explícita en su
+    firma (`_rol`; 23-11-2026: `traduccion.usar`), para que la guarda de rol se vea en el inventario de
     `tests/test_guardas_de_rol.py` y en `test_guardas_deniegan.py`."""
-    require_internal_user(current_user)
+    requiere_capacidad("traduccion.usar")(current_user=current_user, db=db)  # M9: antes require_internal_user
     versiones.exigir_editor(db, current_user)
     return current_user
 
 
 @router.get("/portal-content", summary="Traducción: avisos y catálogo con sus versiones (pantalla de revisión)")
 def resumen_de_contenido(db: Session = Depends(get_db), current_user: User = Depends(editor_de_contenido),
-        _rol: User = Depends(require_internal_user)):
+        _rol: User = Depends(requiere_capacidad("traduccion.usar"))):
     return APIResponse.ok(data=versiones.resumen(db, current_user))
 
 
 @router.get("/portal-content/{tipo}/{content_id}", summary="Traducción: versiones de un aviso o elemento del catálogo")
 def versiones_de_contenido(tipo: str = Path(..., pattern=_TIPO), content_id: str = Path(..., max_length=36),
                            db: Session = Depends(get_db), current_user: User = Depends(editor_de_contenido),
-        _rol: User = Depends(require_internal_user)):
+        _rol: User = Depends(requiere_capacidad("traduccion.usar"))):
     return APIResponse.ok(data=versiones.listar(db, current_user, tipo, content_id))
 
 
@@ -262,7 +262,7 @@ def versiones_de_contenido(tipo: str = Path(..., pattern=_TIPO), content_id: str
 def generar_contenido(payload: GenerarIn, tipo: str = Path(..., pattern=_TIPO),
                       content_id: str = Path(..., max_length=36),
                       db: Session = Depends(get_db), current_user: User = Depends(editor_de_contenido),
-        _rol: User = Depends(require_internal_user)):
+        _rol: User = Depends(requiere_capacidad("traduccion.usar"))):
     return APIResponse.ok(data=versiones.generar(db, current_user, tipo, content_id, payload.languages))
 
 
@@ -270,7 +270,7 @@ def generar_contenido(payload: GenerarIn, tipo: str = Path(..., pattern=_TIPO),
 def editar_contenido(payload: VersionDeContenidoIn, tipo: str = Path(..., pattern=_TIPO),
                      content_id: str = Path(..., max_length=36), language: str = Path(..., max_length=16),
                      db: Session = Depends(get_db), current_user: User = Depends(editor_de_contenido),
-        _rol: User = Depends(require_internal_user)):
+        _rol: User = Depends(requiere_capacidad("traduccion.usar"))):
     return APIResponse.ok(data=versiones.editar(db, current_user, tipo, content_id, language, payload.fields))
 
 
@@ -278,7 +278,7 @@ def editar_contenido(payload: VersionDeContenidoIn, tipo: str = Path(..., patter
 def revisar_contenido(payload: RevisionIn, tipo: str = Path(..., pattern=_TIPO),
                       content_id: str = Path(..., max_length=36), language: str = Path(..., max_length=16),
                       db: Session = Depends(get_db), current_user: User = Depends(editor_de_contenido),
-        _rol: User = Depends(require_internal_user)):
+        _rol: User = Depends(requiere_capacidad("traduccion.usar"))):
     return APIResponse.ok(data=versiones.revisar(db, current_user, tipo, content_id, language, payload.publish,
                                                  payload.comment))
 
@@ -287,6 +287,6 @@ def revisar_contenido(payload: RevisionIn, tipo: str = Path(..., pattern=_TIPO),
 def borrar_contenido(tipo: str = Path(..., pattern=_TIPO), content_id: str = Path(..., max_length=36),
                      language: str = Path(..., max_length=16),
                      db: Session = Depends(get_db), current_user: User = Depends(editor_de_contenido),
-        _rol: User = Depends(require_internal_user)):
+        _rol: User = Depends(requiere_capacidad("traduccion.usar"))):
     versiones.borrar(db, current_user, tipo, content_id, language)
     return APIResponse.ok(data={"ok": True})

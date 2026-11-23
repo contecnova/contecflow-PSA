@@ -195,7 +195,14 @@ def smartmatch(payload: dict, db: Session) -> dict:
         if v is None:
             return None
         por_dia = {d: x.horas for d, x in (planes_ext.get(user.id) or {}).items()}
-        return horas_disponibles(v, ini, fin, capacidad_semanal(db, user), por_dia if por_dia else None)
+        from app.services.planificador.calendario import interpretar_dias_laborables
+        from app.services.settings_service import get_runtime_str
+        try:
+            laborables = interpretar_dias_laborables(get_runtime_str(db, "PLANNING_WORKDAYS", user.organization_id))
+        except ValueError:
+            laborables = None
+        return horas_disponibles(v, ini, fin, capacidad_semanal(db, user), por_dia if por_dia else None,
+                                 dias_laborables=laborables)
 
     resultados = [
         _puntuar_candidato(

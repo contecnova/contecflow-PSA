@@ -10,7 +10,7 @@ from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_current_user, require_any_manager, require_internal_user
+from app.core.deps import get_current_user, requiere_capacidad
 from app.core.responses import APIListResponse, APIResponse
 from app.db.session import get_db
 from app.models.user import User
@@ -38,18 +38,18 @@ class VersionIn(BaseModel):
 
 @router.get("/change-calendar", summary="Cambios, versiones y congelaciones de un periodo, con choques")
 def calendario(desde: datetime = Query(...), hasta: datetime = Query(...), db: Session = Depends(get_db),
-               _: User = Depends(get_current_user), _rol: User = Depends(require_internal_user)):
+               _: User = Depends(get_current_user), _rol: User = Depends(requiere_capacidad("sd.completo"))):
     return APIResponse.ok(data=svc.calendario(db, desde, hasta))
 
 
 @router.get("/change-blackouts", summary="Ventanas de congelación")
 def congelaciones(db: Session = Depends(get_db), _: User = Depends(get_current_user),
-                  _rol: User = Depends(require_internal_user)):
+                  _rol: User = Depends(requiere_capacidad("sd.completo"))):
     return APIListResponse.ok(items=svc.listar_congelaciones(db))
 
 
 @router.post("/change-blackouts", summary="Crear ventana de congelación", status_code=201)
-def crear_congelacion(payload: CongelacionIn, db: Session = Depends(get_db), _: User = Depends(require_any_manager)):
+def crear_congelacion(payload: CongelacionIn, db: Session = Depends(get_db), _: User = Depends(requiere_capacidad("sd.gestionar"))):
     b = svc.guardar_congelacion(db, payload.model_dump())
     _commit_or_rollback(db)
     return APIResponse.ok(data=svc.serializar_congelacion(b))
@@ -57,14 +57,14 @@ def crear_congelacion(payload: CongelacionIn, db: Session = Depends(get_db), _: 
 
 @router.put("/change-blackouts/{blackout_id}", summary="Editar ventana de congelación")
 def editar_congelacion(blackout_id: str, payload: CongelacionIn, db: Session = Depends(get_db),
-                       _: User = Depends(require_any_manager)):
+                       _: User = Depends(requiere_capacidad("sd.gestionar"))):
     b = svc.guardar_congelacion(db, payload.model_dump(), blackout_id)
     _commit_or_rollback(db)
     return APIResponse.ok(data=svc.serializar_congelacion(b))
 
 
 @router.delete("/change-blackouts/{blackout_id}", summary="Quitar ventana de congelación")
-def borrar_congelacion(blackout_id: str, db: Session = Depends(get_db), _: User = Depends(require_any_manager)):
+def borrar_congelacion(blackout_id: str, db: Session = Depends(get_db), _: User = Depends(requiere_capacidad("sd.gestionar"))):
     svc.borrar_congelacion(db, blackout_id)
     _commit_or_rollback(db)
     return APIResponse.ok(data={"ok": True})
@@ -72,12 +72,12 @@ def borrar_congelacion(blackout_id: str, db: Session = Depends(get_db), _: User 
 
 @router.get("/releases", summary="Versiones y sus cambios")
 def versiones(db: Session = Depends(get_db), _: User = Depends(get_current_user),
-              _rol: User = Depends(require_internal_user)):
+              _rol: User = Depends(requiere_capacidad("sd.completo"))):
     return APIListResponse.ok(items=svc.listar_versiones(db))
 
 
 @router.post("/releases", summary="Crear versión", status_code=201)
-def crear_version(payload: VersionIn, db: Session = Depends(get_db), _: User = Depends(require_any_manager)):
+def crear_version(payload: VersionIn, db: Session = Depends(get_db), _: User = Depends(requiere_capacidad("sd.gestionar"))):
     r = svc.guardar_version(db, payload.model_dump())
     _commit_or_rollback(db)
     return APIResponse.ok(data=svc.serializar_version(r, db))
@@ -85,14 +85,14 @@ def crear_version(payload: VersionIn, db: Session = Depends(get_db), _: User = D
 
 @router.put("/releases/{release_id}", summary="Editar versión")
 def editar_version(release_id: str, payload: VersionIn, db: Session = Depends(get_db),
-                   _: User = Depends(require_any_manager)):
+                   _: User = Depends(requiere_capacidad("sd.gestionar"))):
     r = svc.guardar_version(db, payload.model_dump(), release_id)
     _commit_or_rollback(db)
     return APIResponse.ok(data=svc.serializar_version(r, db))
 
 
 @router.delete("/releases/{release_id}", summary="Quitar versión")
-def borrar_version(release_id: str, db: Session = Depends(get_db), _: User = Depends(require_any_manager)):
+def borrar_version(release_id: str, db: Session = Depends(get_db), _: User = Depends(requiere_capacidad("sd.gestionar"))):
     svc.borrar_version(db, release_id)
     _commit_or_rollback(db)
     return APIResponse.ok(data={"ok": True})

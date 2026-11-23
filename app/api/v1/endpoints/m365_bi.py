@@ -18,7 +18,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_current_user, require_admin
+from app.core.deps import get_current_user, requiere_capacidad
 from app.core.responses import APIResponse
 from app.db.session import get_db
 from app.models.user import User
@@ -63,7 +63,7 @@ def configure_teams_tab(
     payload: TeamsTabRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: credenciales de Microsoft 365
+    _rol: User = Depends(requiere_capacidad("integraciones.administrar")),  # auditoria 2026-09: sensible: credenciales de Microsoft 365
 ):
     """Genera la configuración de una pestaña Teams que embebe un dashboard BI.
 
@@ -74,7 +74,8 @@ def configure_teams_tab(
     Siempre devuelve `content_url`, `embed_token` y `tab_config` para
     configuración manual desde el botón + en Teams.
     """
-    org_id = str(current_user.organization_id or "global")
+    # 23-11-2026 (03 A-MP3): la empresa activa (su credencial de Graph y sus tableros).
+    org_id = _empresa(current_user) or str(current_user.organization_id or "global")
     user_id = str(current_user.id)
     return svc.generate_teams_tab_config(
         db,
@@ -98,7 +99,7 @@ def post_teams_bi_card(
     payload: TeamsCardRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: credenciales de Microsoft 365
+    _rol: User = Depends(requiere_capacidad("integraciones.administrar")),  # auditoria 2026-09: sensible: credenciales de Microsoft 365
 ):
     """Publica un Adaptive Card 1.5 con KPIs del dashboard BI en el canal indicado.
 
@@ -106,7 +107,8 @@ def post_teams_bi_card(
       (requiere `ChannelMessage.Send` application permission).
     - Si no, hace fallback a `TEAMS_WEBHOOK_URL` con formato MessageCard.
     """
-    org_id = str(current_user.organization_id or "global")
+    # 2026-11-22 (A-MP4): la empresa activa (antes la de la ficha, o "global").
+    org_id = _empresa(current_user)
     user_id = str(current_user.id)
     return svc.post_bi_card_to_teams_channel(
         db,
@@ -135,7 +137,8 @@ def get_sharepoint_webpart(
     El campo `embed_url` puede usarse directamente en el campo URL del web part.
     El token expira en `ttl_minutes` minutos — renovar antes de `expires_at`.
     """
-    org_id = str(current_user.organization_id or "global")
+    # 23-11-2026 (03 A-MP3): la empresa activa (su credencial de Graph y sus tableros).
+    org_id = _empresa(current_user) or str(current_user.organization_id or "global")
     user_id = str(current_user.id)
     return svc.get_sharepoint_webpart_config(
         db,
@@ -156,7 +159,7 @@ def create_sharepoint_bi_page(
     payload: SharePointPageRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: credenciales de Microsoft 365
+    _rol: User = Depends(requiere_capacidad("integraciones.administrar")),  # auditoria 2026-09: sensible: credenciales de Microsoft 365
 ):
     """Crea (o actualiza) una página en SharePoint Online con el dashboard BI incrustado.
 
@@ -167,7 +170,8 @@ def create_sharepoint_bi_page(
     `{hostname},{siteId},{webId}` — p.ej. `contoso.sharepoint.com,abc-123,def-456`
     o simplemente el GUID del site si el tenant está configurado.
     """
-    org_id = str(current_user.organization_id or "global")
+    # 23-11-2026 (03 A-MP3): la empresa activa (su credencial de Graph y sus tableros).
+    org_id = _empresa(current_user) or str(current_user.organization_id or "global")
     user_id = str(current_user.id)
     return svc.create_sharepoint_page_with_bi(
         db,
@@ -196,6 +200,8 @@ def export_excel(
     user_upn: Optional[str] = Query(None, description="UPN del usuario en OneDrive (requerido si upload_to_onedrive=True)"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    # 2026-11-22 (A-MP2): ingresos, costes y margenes: quien ve la analitica.
+    _cap: User = Depends(requiere_capacidad("analitica.ver")),
 ):
     """Genera un workbook Excel con:
     - Hoja *Resumen*: histórico de revenue/coste/horas
@@ -206,7 +212,7 @@ def export_excel(
     Si `upload_to_onedrive=True` sube el archivo a OneDrive y devuelve la URL
     de descarga en lugar del binario.
     """
-    org_id = str(current_user.organization_id or "global") if current_user.organization_id else None
+    org_id = _empresa(current_user)
     buf = svc.export_dashboard_excel(
         db,
         dashboard_id=dashboard_id,
@@ -221,7 +227,9 @@ def export_excel(
             raise error_http(400, "campo_obligatorio_si", detail="user_upn requerido cuando upload_to_onedrive=True", campo="user_upn", condicion="upload_to_onedrive=True")
         file_bytes = buf.read()
         filename = f"contecflow-bi-{dashboard_id}.xlsx"
-        return svc.upload_to_onedrive(file_bytes, filename=filename, user_upn=user_upn)
+        return svc.upload_to_onedrive(file_bytes, filename=filename,
+                                      user_upn=_onedrive_permitido(db, current_user, user_upn),
+                                      db=db, org_id=_empresa(current_user))
 
     filename = f"contecflow-bi-{dashboard_id}.xlsx"
     return StreamingResponse(
@@ -229,6 +237,27 @@ def export_excel(
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+def _onedrive_permitido(db: Session, current_user: User, user_upn: str) -> str:
+    """El UPN de destino si es de la empresa y quien exporta puede usarlo.
+
+    Auditoria 2026-11-22 (A-MP2): el UPN llegaba libre y solo hacia falta
+    sesion: cualquiera subia el Excel de BI (ingresos y costes) al OneDrive de
+    cualquier persona del tenant de Azure. Ahora solo buzones de la empresa
+    (`buzon_de_la_organizacion`), y quien no administra solo el suyo.
+    """
+    from app.services.m365_service import buzon_de_la_organizacion
+    es_admin = getattr(current_user, "is_superadmin", False) or \
+        getattr(current_user.role, "value", current_user.role) == "admin"
+    if not es_admin and (user_upn or "").strip().lower() != (current_user.email or "").strip().lower():
+        raise error_http(403, "buzon_de_otra_empresa", detail="Solo puedes subirlo a tu propio OneDrive")
+    return buzon_de_la_organizacion(db, current_user, user_upn)
+
+
+def _empresa(current_user: User):
+    from app.services.service_desk.scoping import empresa_activa
+    return empresa_activa(current_user)
 
 
 # ── Word export ───────────────────────────────────────────────────────────────
@@ -244,6 +273,7 @@ def export_word(
     user_upn: Optional[str] = Query(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _cap: User = Depends(requiere_capacidad("analitica.ver")),  # 2026-11-22 (A-MP2)
 ):
     """Genera un documento RTF (abre nativamente en Word/LibreOffice/Docs) con:
     - KPIs del último mes
@@ -253,7 +283,7 @@ def export_word(
 
     Si `upload_to_onedrive=True` sube el archivo a OneDrive y devuelve la URL.
     """
-    org_id = str(current_user.organization_id or "global") if current_user.organization_id else None
+    org_id = _empresa(current_user)
     buf = svc.export_dashboard_word(db, dashboard_id=dashboard_id, org_id=org_id)
 
     if upload_to_onedrive:
@@ -261,7 +291,9 @@ def export_word(
             raise error_http(400, "campo_obligatorio_si", detail="user_upn requerido cuando upload_to_onedrive=True", campo="user_upn", condicion="upload_to_onedrive=True")
         file_bytes = buf.read()
         filename = f"contecflow-bi-{dashboard_id}.rtf"
-        return svc.upload_to_onedrive(file_bytes, filename=filename, user_upn=user_upn)
+        return svc.upload_to_onedrive(file_bytes, filename=filename,
+                                      user_upn=_onedrive_permitido(db, current_user, user_upn),
+                                      db=db, org_id=_empresa(current_user))
 
     filename = f"contecflow-bi-{dashboard_id}.rtf"
     return StreamingResponse(
@@ -283,12 +315,14 @@ def m365_bi_status(
 ):
     """Devuelve qué capacidades están disponibles según la configuración actual."""
     from app.services.m365_service import m365_configured
-    from app.core.config import settings as _s
-    from app.services.m365_bi_embed_service import _frontend_base
+    from app.services.integration_credentials_service import secreto_propio_de_la_organizacion
+    from app.services.m365_bi_embed_service import _frontend_base, webhook_de_teams_de_la_empresa
 
-    graph_ok = m365_configured()
-    webhook_ok = bool(_s.TEAMS_WEBHOOK_URL)
-    sp_site = getattr(_s, "SHAREPOINT_SITE_ID", None)
+    # 23-11-2026 (03 A-MP3): todo de la empresa activa, nunca del entorno global.
+    org = _empresa(current_user)
+    graph_ok = m365_configured(db, org)
+    webhook_ok = bool(webhook_de_teams_de_la_empresa(db, org))
+    sp_site = secreto_propio_de_la_organizacion(db, "ms_graph", "sharepoint_site_id", "SHAREPOINT_SITE_ID", org)
     frontend = _frontend_base(db, getattr(current_user, "organization_id", None))
 
     return APIResponse.ok(data={

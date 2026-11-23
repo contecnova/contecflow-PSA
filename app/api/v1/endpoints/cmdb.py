@@ -10,8 +10,6 @@ from app.db.session import get_db
 from app.core.config import settings
 from app.core.deps import (
     get_current_user,
-    require_admin_or_pm,
-    require_internal_user,
     requiere_capacidad,
 )
 from app.core.abac_enforce import enforce_abac
@@ -45,26 +43,26 @@ def list_tags(space_id: str, db: Session = Depends(get_db),
 
 @router.post("/wiki-tags/{space_id}")
 def create_tag(space_id: str, p: WikiTagIn,
-               db: Session = Depends(get_db), cu: User = Depends(require_admin_or_pm)):
+               db: Session = Depends(get_db), cu: User = Depends(requiere_capacidad("cmdb.gestionar"))):
     return APIResponse.ok(data=svc.create_wiki_tag(space_id, p.name, p.color, cu.id, db))
 
 
 @router.patch("/wiki-tags/{tag_id}")
 def update_tag(tag_id: str, p: WikiTagIn,
-               db: Session = Depends(get_db), cu: User = Depends(require_admin_or_pm)):
+               db: Session = Depends(get_db), cu: User = Depends(requiere_capacidad("cmdb.gestionar"))):
     return APIResponse.ok(data=svc.update_wiki_tag(tag_id, p.name, p.color, db))
 
 
 @router.delete("/wiki-tags/{tag_id}")
 def delete_tag(tag_id: str, db: Session = Depends(get_db),
-               cu: User = Depends(require_admin_or_pm)):
+               cu: User = Depends(requiere_capacidad("cmdb.gestionar"))):
     enforce_abac(db, cu, "wiki_tag", tag_id, action="delete")
     return APIResponse.ok(data=svc.delete_wiki_tag(tag_id, db))
 
 
 @router.post("/wiki-pages/{page_id}/tags/{tag_id}")
 def add_page_tag(page_id: str, tag_id: str,
-    _rol: User = Depends(require_admin_or_pm),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
+    _rol: User = Depends(requiere_capacidad("cmdb.gestionar")),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
                  db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
     return APIResponse.ok(data=svc.add_page_tag(page_id, tag_id, db))
 
@@ -83,7 +81,7 @@ def remove_page_tag(
     # exacta, reversible en un clic. Restringir solo el quitar
     # dejaria etiquetas puestas por error que nadie salvo un PM
     # podria limpiar. Se excluye al subcontratista y ya.
-    _: User = Depends(require_internal_user),
+    _: User = Depends(requiere_capacidad("cmdb.usar")),
 ):
     enforce_abac(db, cu, "wiki_page_tag", tag_id, action="delete")
     return APIResponse.ok(data=svc.remove_page_tag(page_id, tag_id, db))
@@ -129,7 +127,7 @@ def pages_by_tag(space_id: str, tag_id: str,
 def agent_dashboard(agent_id: str,
                     p: Periodo = Depends(periodo(dias_por_defecto=30, granularidades=CON_HORA, serie=True,
                                                  alias_dias=("days",))),
-                    db: Session = Depends(get_db), cu: User = Depends(require_admin_or_pm)):
+                    db: Session = Depends(get_db), cu: User = Depends(requiere_capacidad("cmdb.gestionar"))):
     # Periodo libre (16-11-2026): tickets con instante (resolved_at) -> admite hora.
     # Auditoria 2026-11: admin y PM, como la pantalla (antes cualquier usuario
     # leia el rendimiento de cualquier agente). Se calcula sobre los tickets;
@@ -141,11 +139,10 @@ def agent_dashboard(agent_id: str,
 # 5. WIKI EXPORT
 # ══════════════════════════════════════════════════════════════════════════════
 
-@router.post("/wiki-export/{page_id}")
-def export_wiki_page(page_id: str, db: Session = Depends(get_db),
-    _rol: User = Depends(require_admin_or_pm),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
-                     cu: User = Depends(get_current_user)):
-    return APIResponse.ok(data=svc.create_wiki_export_job(page_id, cu.id, db))
+# Auditoría 22-11-2026 (M108, fantasma 7): `POST /cmdb/wiki-export/{page_id}`
+# RETIRADA. Creaba filas `WikiExportJob` «pending» que ningún worker procesaba
+# (prometía «procesando en segundo plano» y no salía nada) y ninguna pantalla la
+# llamaba. La tabla `wiki_export_jobs` la borra la migración 196 (23-11-2026).
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -175,27 +172,27 @@ def get_kanban_config(project_id: str, db: Session = Depends(get_db),
 @router.post("/kanban/{project_id}")
 def upsert_kanban_config(project_id: str, p: KanbanConfigIn,
                          db: Session = Depends(get_db),
-                         cu: User = Depends(require_admin_or_pm)):
+                         cu: User = Depends(requiere_capacidad("cmdb.gestionar"))):
     return APIResponse.ok(data=svc.upsert_kanban_config(project_id, p.swimlane_by, p.show_subtasks, p.card_fields, db))
 
 
 @router.post("/kanban/{project_id}/columns")
 def add_kanban_column(project_id: str, p: KanbanColumnIn,
                       db: Session = Depends(get_db),
-                      cu: User = Depends(require_admin_or_pm)):
+                      cu: User = Depends(requiere_capacidad("cmdb.gestionar"))):
     return APIResponse.ok(data=svc.add_kanban_column(project_id, p.status, p.label, p.wip_limit, p.color, p.sort_order, db))
 
 
 @router.patch("/kanban/columns/{column_id}")
 def update_kanban_column(column_id: str, p: KanbanColumnIn,
                          db: Session = Depends(get_db),
-                         cu: User = Depends(require_admin_or_pm)):
+                         cu: User = Depends(requiere_capacidad("cmdb.gestionar"))):
     return APIResponse.ok(data=svc.update_kanban_column(column_id, p.label, p.wip_limit, p.color, p.sort_order, db))
 
 
 @router.delete("/kanban/columns/{column_id}")
 def delete_kanban_column(column_id: str, db: Session = Depends(get_db),
-                         cu: User = Depends(require_admin_or_pm)):
+                         cu: User = Depends(requiere_capacidad("cmdb.gestionar"))):
     enforce_abac(db, cu, "kanban_column", column_id, action="delete")
     return APIResponse.ok(data=svc.delete_kanban_column(column_id, db))
 
@@ -221,7 +218,7 @@ class SprintPlanIn(BaseModel):
 
 @router.post("/sprint-plans/generate")
 def generate_sprint_plan(p: SprintPlanIn, db: Session = Depends(get_db),
-                         cu: User = Depends(require_admin_or_pm)):
+                         cu: User = Depends(requiere_capacidad("cmdb.gestionar"))):
     from app.services.settings_service.por_empresa import capacidad_semanal_de_empresa
     capacidad = p.team_capacity if p.team_capacity is not None else int(capacidad_semanal_de_empresa(db))
     return APIResponse.ok(data=svc.generate_sprint_plan(
@@ -238,13 +235,13 @@ def list_sprint_plans(project_id: str, db: Session = Depends(get_db),
 @router.patch("/sprint-plans/{plan_id}/status")
 def update_plan_status(plan_id: str, status: str,
                        db: Session = Depends(get_db),
-                       cu: User = Depends(require_admin_or_pm)):
+                       cu: User = Depends(requiere_capacidad("cmdb.gestionar"))):
     return APIResponse.ok(data=svc.update_sprint_plan_status(plan_id, status, db))
 
 
 @router.delete("/sprint-plans/{plan_id}")
 def delete_sprint_plan(plan_id: str, db: Session = Depends(get_db),
-                       cu: User = Depends(require_admin_or_pm)):
+                       cu: User = Depends(requiere_capacidad("cmdb.gestionar"))):
     enforce_abac(db, cu, "sprint_plan", plan_id, action="delete")
     return APIResponse.ok(data=svc.delete_sprint_plan(plan_id, db))
 

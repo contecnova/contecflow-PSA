@@ -61,9 +61,30 @@ const CODIGOS: readonly string[] = APP_LANGUAGES.map((l) => l.code)
 const cargadores = CARGADORES_DE_IDIOMA as Record<string, () => Promise<{ default: unknown }>>
 const mezclados = new Map<string, DiccionarioDeIdioma>()
 
-/** El código si se ofrece; si no, castellano. */
+/**
+ * Idioma que se MUESTRA cuando no hay preferencia del usuario, ni de la
+ * empresa, ni un idioma del navegador que se ofrezca (incidencia 5 de usuarios,
+ * 23-11-2026): inglés. No confundir con el idioma FUENTE de las traducciones,
+ * que sigue siendo el castellano (`es.mjs`, chunk inicial y último respaldo).
+ */
+export const IDIOMA_DE_RESPALDO = 'en'
+
+/** El código si se ofrece; si no, el de respaldo (inglés). */
 export function idiomaSoportado(code: string | null | undefined): string {
-  return code && CODIGOS.includes(code) ? code : 'es'
+  return code && CODIGOS.includes(code) ? code : IDIOMA_DE_RESPALDO
+}
+
+/**
+ * Orden de resolución del idioma de la interfaz cuando el usuario y la empresa
+ * no han elegido: el del navegador si se ofrece; si no, inglés.
+ */
+export function idiomaDelNavegador(): string {
+  const preferidos = [...(globalThis.navigator?.languages ?? []), globalThis.navigator?.language]
+  for (const l of preferidos) {
+    const code = (l || '').slice(0, 2).toLowerCase()
+    if (code && CODIGOS.includes(code)) return code
+  }
+  return IDIOMA_DE_RESPALDO
 }
 
 /**
@@ -117,7 +138,7 @@ export async function loadLanguage(code: string): Promise<DiccionarioDeIdioma> {
 
 /** Igual, resolviendo antes el idioma del navegador. */
 export function loadAutoLanguage(): Promise<DiccionarioDeIdioma> {
-  return loadLanguage((globalThis.navigator?.language || 'es').slice(0, 2))
+  return loadLanguage(idiomaDelNavegador())
 }
 
 /** Claves planas de un diccionario (por defecto, el castellano). */

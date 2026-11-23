@@ -6,6 +6,7 @@ y orquestación de jobs de descubrimiento.
 """
 import json
 import logging
+from contextvars import ContextVar
 from datetime import timedelta
 from typing import Any
 from uuid import uuid4
@@ -21,6 +22,36 @@ from app.services.cmdb.models import reconcile_cis
 from app.core.codigos_de_error import ErrorConCodigo
 
 logger = logging.getLogger(__name__)
+
+# Auditoría 22-11-2026 (C2): cada barrido tragaba sus errores y devolvía una
+# lista vacía o a medias; `reconcile_cis` retiraba entonces todos los CIs que
+# «faltaban» y el job quedaba «ok». Ahora cada fallo se anota aquí y
+# `run_discovery_for_provider` solo retira con un inventario COMPLETO.
+_ERRORES_DEL_BARRIDO: ContextVar[list | None] = ContextVar("cmdb_errores_del_barrido", default=None)
+
+#: Si un barrido trae menos de esta fracción de los CIs activos del proveedor
+#: (con al menos `_MINIMO_PARA_ANOMALIA` activos), se trata como anómalo: no retira.
+_FRACCION_ANOMALA = 0.5
+_MINIMO_PARA_ANOMALIA = 10
+
+
+def _exigir_credenciales_explicitas(proveedor: str, que_falta: str) -> None:
+    """Auditoría 22-11-2026 (02 A18, «confused deputy»): sin credenciales propias,
+    el discovery caía en las del SERVIDOR (cadena por defecto de boto3, kubeconfig
+    local o in-cluster, `DefaultAzureCredential`, ADC de GCP o un fichero del
+    disco) y una empresa inventariaba la nube de la plataforma. Solo se permite
+    con `CMDB_DISCOVERY_ALLOW_PLATFORM_CREDENTIALS=1` (despliegue de una sola
+    empresa que lo decide a propósito)."""
+    from app.core.config import settings
+    if not getattr(settings, "CMDB_DISCOVERY_ALLOW_PLATFORM_CREDENTIALS", False):
+        raise ErrorConCodigo("cmdb_credenciales_explicitas", proveedor=proveedor, falta=que_falta)
+
+
+def _anotar_error(que: str, exc: BaseException) -> None:
+    logger.warning("%s discovery error: %s", que, exc)
+    errores = _ERRORES_DEL_BARRIDO.get()
+    if errores is not None:
+        errores.append(f"{que}: {type(exc).__name__}")
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -50,6 +81,8 @@ def discover_aws(provider_config: dict[str, Any]) -> list[dict[str, Any]]:
     if provider_config.get("aws_access_key_id"):
         session_kwargs["aws_access_key_id"] = provider_config["aws_access_key_id"]
         session_kwargs["aws_secret_access_key"] = provider_config.get("aws_secret_access_key", "")
+    else:
+        _exigir_credenciales_explicitas("AWS", "aws_access_key_id / aws_secret_access_key")
 
     boto_session = boto3.Session(**session_kwargs)
     discovered: list[dict] = []
@@ -85,7 +118,8 @@ def discover_aws(provider_config: dict[str, Any]) -> list[dict[str, Any]]:
                 "last_discovered_at": utcnow().isoformat(),
             })
     except Exception as exc:
-        logger.warning("AWS EC2 discovery error: %s", exc)
+        logger.warning("discover_aws: excepcion ignorada", exc_info=True)
+        _anotar_error("AWS EC2", exc)
 
     # RDS instances
     try:
@@ -113,7 +147,8 @@ def discover_aws(provider_config: dict[str, Any]) -> list[dict[str, Any]]:
                     "last_discovered_at": utcnow().isoformat(),
                 })
     except Exception as exc:
-        logger.warning("AWS RDS discovery error: %s", exc)
+        logger.warning("discover_aws: excepcion ignorada", exc_info=True)
+        _anotar_error("AWS RDS", exc)
 
     logger.info("AWS discovery: %d activos encontrados", len(discovered))
     return discovered
@@ -127,8 +162,18 @@ def _cargar_kubeconfig(provider_config: dict[str, Any]) -> None:
     """Carga la configuración de acceso al cluster, por cualquiera de las tres vías."""
     from kubernetes import config as k8s_config
 
+    # 22-11-2026 (02 A18): `kubeconfig` (el YAML en la propia configuración,
+    # cifrada) es la vía de una empresa; in-cluster, una ruta del disco o el
+    # kubeconfig del servidor son credenciales de la plataforma.
+    contenido = provider_config.get("kubeconfig")
+    if not contenido:
+        _exigir_credenciales_explicitas("Kubernetes", "kubeconfig")
     try:
-        if provider_config.get("in_cluster"):
+        if contenido:
+            import yaml
+            k8s_config.load_kube_config_from_dict(
+                contenido if isinstance(contenido, dict) else yaml.safe_load(contenido))
+        elif provider_config.get("in_cluster"):
             k8s_config.load_incluster_config()
         elif provider_config.get("kubeconfig_path"):
             k8s_config.load_kube_config(config_file=provider_config["kubeconfig_path"])
@@ -224,7 +269,8 @@ def discover_kubernetes(provider_config: dict[str, Any]) -> list[dict[str, Any]]
         try:
             descubiertos += [convertir(item) for item in listar().items]
         except Exception as exc:
-            logger.warning("K8s %s discovery error: %s", que, exc)
+            logger.debug("discover_kubernetes: excepcion ignorada", exc_info=True)
+            _anotar_error(f"K8s {que}", exc)
 
     logger.info("K8s discovery: %d activos encontrados", len(descubiertos))
     return descubiertos
@@ -319,10 +365,11 @@ def discover_vsphere(provider_config: dict[str, Any]) -> list[dict[str, Any]]:
         container.Destroy()
         Disconnect(si)
 
-    except ImportError:
-        logger.warning("pyVmomi no instalado — vSphere discovery no disponible")
+    except ImportError as exc:
+        _anotar_error("vSphere (pyVmomi no instalado)", exc)
     except Exception as exc:
-        logger.error("vSphere discovery error: %s", exc)
+        logger.debug("discover_vsphere: excepcion ignorada", exc_info=True)
+        _anotar_error("vSphere", exc)
 
     logger.info("vSphere discovery: %d activos encontrados", len(discovered))
     return discovered
@@ -358,6 +405,7 @@ def discover_azure(provider_config: dict[str, Any]) -> list[dict[str, Any]]:
                 client_secret=client_secret,
             )
         else:
+            _exigir_credenciales_explicitas("Azure", "tenant_id / client_id / client_secret")
             credential = DefaultAzureCredential()
 
         compute_client = ComputeManagementClient(credential, subscription_id)
@@ -402,7 +450,8 @@ def discover_azure(provider_config: dict[str, Any]) -> list[dict[str, Any]]:
                 "last_discovered_at": utcnow().isoformat(),
             })
     except Exception as exc:
-        logger.error("Azure discovery error: %s", exc)
+        logger.warning("discover_azure: excepcion ignorada", exc_info=True)
+        _anotar_error("Azure", exc)
 
     logger.info("Azure discovery: %d activos encontrados", len(discovered))
     return discovered
@@ -430,10 +479,18 @@ def discover_gcp(provider_config: dict) -> list[dict]:
 
     try:
         service_account_file = provider_config.get("service_account_file")
-        if service_account_file:
+        cuenta = provider_config.get("service_account_json")
+        if cuenta:
+            # 22-11-2026 (02 A18): la clave JSON viaja en la configuración cifrada.
+            info = cuenta if isinstance(cuenta, dict) else json.loads(cuenta)
+            creds = service_account.Credentials.from_service_account_info(info)
+            instances_client = compute_v1.InstancesClient(credentials=creds)
+        elif service_account_file:
+            _exigir_credenciales_explicitas("GCP", "service_account_json")
             creds = service_account.Credentials.from_service_account_file(service_account_file)
             instances_client = compute_v1.InstancesClient(credentials=creds)
         else:
+            _exigir_credenciales_explicitas("GCP", "service_account_json")
             instances_client = compute_v1.InstancesClient()
 
         for instance in instances_client.aggregated_list(project=project_id):
@@ -465,7 +522,8 @@ def discover_gcp(provider_config: dict) -> list[dict]:
                     "last_discovered_at": utcnow().isoformat(),
                 })
     except Exception as exc:
-        logger.error("GCP discovery error: %s", exc)
+        logger.warning("discover_gcp: excepcion ignorada", exc_info=True)
+        _anotar_error("GCP", exc)
 
     logger.info("GCP discovery: %d activos encontrados", len(discovered))
     return discovered
@@ -596,20 +654,29 @@ def _sondear_snmp(
             "SNMP discovery requiere: pip install pysnmp"
         ) from exc
 
-    community = provider_config.get("community", "public")
+    # M73 (auditoría 22-11-2026): sin valores por defecto inseguros. Ni la
+    # comunidad «public» (v2c) ni usuario «admin» con claves vacías (v3): sin
+    # credenciales configuradas el sondeo no se hace (error explícito).
+    community = provider_config.get("community")
+    version = provider_config.get("version", "v2c")
+    if version == "v3":
+        if not (provider_config.get("v3_user") and provider_config.get("v3_auth_key")
+                and provider_config.get("v3_priv_key")):
+            raise ErrorConCodigo("campo_obligatorio", campo="v3_user/v3_auth_key/v3_priv_key")
+    elif not community:
+        raise ErrorConCodigo("campo_obligatorio", campo="community")
     port = int(provider_config.get("port", 161))
     timeout = int(provider_config.get("timeout", 2))
     retries = int(provider_config.get("retries", 1))
-    version = provider_config.get("version", "v2c")
 
     host_ips = _expandir_hosts(provider_config.get("hosts", []))
 
     def _auth_data():
         if version == "v3":
             return UsmUserData(
-                provider_config.get("v3_user", "admin"),
-                authKey=provider_config.get("v3_auth_key", ""),
-                privKey=provider_config.get("v3_priv_key", ""),
+                provider_config["v3_user"],
+                authKey=provider_config["v3_auth_key"],
+                privKey=provider_config["v3_priv_key"],
                 authProtocol=usmHMACSHAAuthProtocol,
                 privProtocol=usmAesCfb128Protocol,
             )
@@ -640,9 +707,11 @@ def _sondear_snmp(
                 "sys_contact": valores.get("sys_contact", ""),
                 "sys_objectid": valores.get("sys_objectid", ""),
                 "snmp_version": version,
-                # La comunidad SNMPv2c es un secreto compartido, asi que se
-                # guarda; en v3 no hay comunidad y se anota el modo en su lugar.
-                "community": community if version == "v2c" else "(SNMPv3)",
+                # 22-11-2026 (02 A19): la comunidad SNMPv2c es un secreto
+                # compartido y se guardaba EN CLARO en los atributos del CI
+                # (visible a cualquiera que lea la CMDB). Ya vive cifrada en la
+                # configuración del proveedor; aquí solo el modo.
+                "snmp_auth": "community" if version == "v2c" else "usm",
             }
 
             if escanear_interfaces:
@@ -768,18 +837,25 @@ def jobs_de_un_proveedor(
     return filas, total
 
 
-def run_discovery_for_provider(db: Session, provider: CMDBDiscoveryProvider) -> CMDBDiscoveryJob:
-    """Ejecuta discovery completo para un proveedor y registra el job."""
+def run_discovery_for_provider(db: Session, provider: CMDBDiscoveryProvider,
+                               triggered_by: str = "scheduler") -> CMDBDiscoveryJob:
+    """Ejecuta discovery completo para un proveedor y registra el job.
+
+    M73: `triggered_by` dice cómo se lanzó (`scheduler` o `manual` desde la
+    pantalla); antes siempre «scheduler».
+    """
     job = CMDBDiscoveryJob(
         id=str(uuid4()),
         provider_id=provider.id,
         status="running",
         started_at=utcnow(),
-        triggered_by="scheduler",
+        triggered_by=(triggered_by or "scheduler")[:20],
     )
     db.add(job)
     db.commit()
 
+    errores: list[str] = []
+    marca = _ERRORES_DEL_BARRIDO.set(errores)
     try:
         config = load_config(provider)
 
@@ -808,9 +884,18 @@ def run_discovery_for_provider(db: Session, provider: CMDBDiscoveryProvider) -> 
         else:
             raise ErrorConCodigo("proveedor_no_soportado", proveedor=provider.provider_type)
 
-        stats = reconcile_cis(db, discovered, provider.provider_type, provider=provider)
+        motivo = _motivo_para_no_retirar(db, provider, discovered, errores)
+        stats = reconcile_cis(db, discovered, provider.provider_type, provider=provider,
+                              retirar_ausentes=motivo is None)
 
-        job.status = "ok"
+        # C2: solo «ok» con inventario completo; con fallos, «partial» si algo
+        # se leyó y «error» si nada. En los dos casos no se retira ningún CI.
+        if motivo is None:
+            job.status = "ok"
+        else:
+            job.status = "partial" if discovered else "error"
+            job.error_message = motivo[:2000]
+            stats["retirada_omitida"] = motivo
         job.cis_created = stats["created"]
         job.cis_updated = stats["updated"]
         job.cis_deactivated = stats["deactivated"]
@@ -821,6 +906,7 @@ def run_discovery_for_provider(db: Session, provider: CMDBDiscoveryProvider) -> 
         job.status = "error"
         job.error_message = str(exc)[:2000]
     finally:
+        _ERRORES_DEL_BARRIDO.reset(marca)
         job.finished_at = utcnow()
         provider.last_run_at = job.finished_at
         provider.last_run_status = job.status
@@ -829,6 +915,25 @@ def run_discovery_for_provider(db: Session, provider: CMDBDiscoveryProvider) -> 
         db.commit()
 
     return job
+
+
+def _motivo_para_no_retirar(db: Session, provider, discovered: list, errores: list[str]):
+    """None si el inventario es completo y válido; si no, el motivo (C2)."""
+    if errores:
+        return "barrido con errores, no se retira ningún CI: " + "; ".join(errores)
+    if not discovered:
+        return "inventario vacío: no se retira ningún CI"
+    from app.models.service_desk import ConfigurationItem
+    from app.services.cmdb.models import _RETIRADO
+    activos = db.query(ConfigurationItem.id).filter(
+        ConfigurationItem.discovery_provider_id == provider.id,
+        ConfigurationItem.is_discovered.is_(True),
+        ConfigurationItem.status != _RETIRADO,
+    ).count()
+    if activos >= _MINIMO_PARA_ANOMALIA and len(discovered) < activos * _FRACCION_ANOMALA:
+        return (f"inventario anómalo ({len(discovered)} de {activos} CIs activos): "
+                "no se retira ningún CI")
+    return None
 
 
 def run_all_active_discoveries(db: Session) -> list[dict]:

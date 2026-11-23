@@ -41,9 +41,9 @@ def _rate_limit_key(request):
         cabecera = request.headers.get("authorization", "")
         token = cabecera[7:] if cabecera.lower().startswith("bearer ") else None
     if token:
-        from app.core.security import decode_token
+        from app.core.security import decode_token_de_peticion
         try:
-            datos = decode_token(token)
+            datos = decode_token_de_peticion(request, token)
         except Exception:  # un token malo no da identidad: cuenta por IP
             _logger.debug("_rate_limit_key: excepcion ignorada", exc_info=True)
             datos = None

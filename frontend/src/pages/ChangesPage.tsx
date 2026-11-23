@@ -4,10 +4,11 @@ import { openConfirmGlobal, pedirTexto } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { z } from 'zod'
-import { projectsApi, projectChangesApi, cabApi } from '../services/api'
+import { projectChangesApi, cabApi } from '../services/api'
+import { useListaDeProyectos } from '../hooks/useListas'
 import type { CambioEnCab } from '../services/api/tipos-cambios'
 import type { SolicitudDeCambio } from '../services/api/tipos-proyectos'
-import { Button, Modal, Spinner, EmptyState, Tabs, KpiCard, IconButton, Select, useErroresDeCampo, Textarea } from '../components/ui'
+import { Button, Modal, Spinner, EmptyState, Tabs, KpiCard, IconButton, Select, useErroresDeCampo, Textarea, Input } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { ArrowLeftRight, CalendarClock, Check, Coins, FolderOpen, Hourglass, ListChecks, MessageSquare, Pencil, Plus, ThumbsDown, ThumbsUp, Trash2, User, Users, Wrench, X, Zap } from 'lucide-react'
@@ -24,12 +25,6 @@ import { useFormatoMoneda } from '../hooks/useFormatoMoneda'
 import './ChangesPage.css'
 type ChangeStatus = 'draft' | 'submitted' | 'under_review' | 'approved' | 'rejected' | 'implemented' | string
 type ChangesTab = 'project' | 'pending' | 'cab'
-
-type ProjectPick = {
-  id: string | number
-  code?: string
-  name?: string
-}
 
 type TFn = (key: string, params?: Record<string, unknown>) => string
 
@@ -139,18 +134,15 @@ function CRFormModal({ cr, projectId, onClose }: { cr?: SolicitudDeCambio | null
       <div className="u-grid2-14">
         <div className="u-col-full">
           <label htmlFor={`${idPrefix}-title`} className="chg-label">{t('changes.titulo')}</label>
-          <input id={`${idPrefix}-title`} value={form.title} onChange={set('title')} className="chg-input" {...err('title')} placeholder={t('changes.titulo_de_la_solicitud')} />{msg('title')}
-          {errMsg('title')}
+          <Input id={`${idPrefix}-title`} value={form.title} onChange={set('title')} inputClassName="chg-input" error={validation.errors.title} placeholder={t('changes.titulo_de_la_solicitud')} />{msg('title')}
         </div>
         <div className="u-col-full">
           <label htmlFor={`${idPrefix}-description`} className="chg-label">{t('changes.descripcion')}</label>
-          <textarea id={`${idPrefix}-description`} value={form.description} onChange={set('description')} rows={3} className="chg-input" {...err('description')} placeholder={t('changes.describe_el_cambio_solicitado')} />{msg('description')}
-          {errMsg('description')}
+          <Textarea id={`${idPrefix}-description`} value={form.description} onChange={set('description')} rows={3} inputClassName="chg-input" error={validation.errors.description} placeholder={t('changes.describe_el_cambio_solicitado')} />{msg('description')}
         </div>
         <div className="u-col-full">
           <label htmlFor={`${idPrefix}-justification`} className="chg-label">{t('changes.justificacion')}</label>
-          <textarea id={`${idPrefix}-justification`} value={form.justification} onChange={set('justification')} rows={2} className="chg-input" {...err('justification')} placeholder={t('changes.justificacion_del_cambio')} />{msg('justification')}
-          {errMsg('justification')}
+          <Textarea id={`${idPrefix}-justification`} value={form.justification} onChange={set('justification')} rows={2} inputClassName="chg-input" error={validation.errors.justification} placeholder={t('changes.justificacion_del_cambio')} />{msg('justification')}
         </div>
         <div>
           <label htmlFor={`${idPrefix}-impact`} className="chg-label">{t('changes.impact')}</label>
@@ -161,18 +153,15 @@ function CRFormModal({ cr, projectId, onClose }: { cr?: SolicitudDeCambio | null
         </div>
         <div>
           <label htmlFor={`${idPrefix}-cost-impact`} className="chg-label">{t('changes.cost_impact_label', { symbol: fmtMoneda.simbolo })}</label>
-          <input id={`${idPrefix}-cost-impact`} type="number" value={form.cost_impact} onChange={set('cost_impact')} className="chg-input" {...err('cost_impact')} placeholder={t('changes.cost_impact_ph')} />{msg('cost_impact')}
-          {errMsg('cost_impact')}
+          <Input id={`${idPrefix}-cost-impact`} type="number" value={form.cost_impact} onChange={set('cost_impact')} inputClassName="chg-input" error={validation.errors.cost_impact} placeholder={t('changes.cost_impact_ph')} />{msg('cost_impact')}
         </div>
         <div>
           <label htmlFor={`${idPrefix}-schedule-impact`} className="chg-label">{t('changes.impacto_en_plazo_dias')}</label>
-          <input id={`${idPrefix}-schedule-impact`} type="number" value={form.schedule_impact_days} onChange={set('schedule_impact_days')} className="chg-input" {...err('schedule_impact_days')} placeholder={t('changes.extra_days_ph')} />{msg('schedule_impact_days')}
-          {errMsg('schedule_impact_days')}
+          <Input id={`${idPrefix}-schedule-impact`} type="number" value={form.schedule_impact_days} onChange={set('schedule_impact_days')} inputClassName="chg-input" error={validation.errors.schedule_impact_days} placeholder={t('changes.extra_days_ph')} />{msg('schedule_impact_days')}
         </div>
         <div>
           <label htmlFor={`${idPrefix}-scope-impact`} className="chg-label">{t('changes.scope_impact_label')}</label>
-          <input id={`${idPrefix}-scope-impact`} value={form.scope_impact} onChange={set('scope_impact')} className="chg-input" {...err('scope_impact')} placeholder={t('changes.impacto_en_el_alcance')} />{msg('scope_impact')}
-          {errMsg('scope_impact')}
+          <Input id={`${idPrefix}-scope-impact`} value={form.scope_impact} onChange={set('scope_impact')} inputClassName="chg-input" error={validation.errors.scope_impact} placeholder={t('changes.impacto_en_el_alcance')} />{msg('scope_impact')}
         </div>
         <div className="chg-form-actions">
           <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
@@ -366,7 +355,7 @@ export default function ChangesPage(): JSX.Element {
   const [reviewing, setReviewing] = useState<SolicitudDeCambio | null>(null)
   const [tab, setTab] = useState<ChangesTab>('project')
 
-  const { data: projects = [] } = useQuery<ProjectPick[]>({ queryKey: ['projects'], queryFn: () => projectsApi.list({}).then(r => (r.data ?? []) as ProjectPick[]) })
+  const { data: projects = [] } = useListaDeProyectos() // 23-11-2026 (04 A8): lista compartida
 
   const { data: changesData, isLoading } = useQuery({
     queryKey: ['changes', selectedProject],

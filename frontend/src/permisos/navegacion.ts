@@ -13,6 +13,12 @@
  * Una ruta sin capacidad aquí la abre cualquier persona con sesión. El bloqueo
  * por módulo del rol personalizado (`blocked_routes`) se sigue aplicando aparte
  * (`canOpen`).
+ *
+ * Auditoría 22-11-2026 (M16), 23-11-2026: cada ruta pide la capacidad que exige
+ * la API que carga (`app/core/capacidades.py` + guardas de los endpoints):
+ * /bpm → `bpm.usar`, /agent-dashboard → `cmdb.gestionar`, /portfolio/intake →
+ * `cartera.usar`; /reports se queda en `colaboracion.ver` (API abierta a
+ * cualquiera con sesión).
  */
 import { matchPath } from 'react-router-dom'
 import type { Capacidad } from './capacidades'
@@ -31,8 +37,14 @@ export const RUTAS: RutaDeclarada[] = [
   ...con('proyectos.ver', ['/projects', '/projects/:id']),
   ...con('colaboracion.ver', [
     '/chat', '/chat/call/:callId', '/calendar', '/documents', '/wiki', '/search', '/ask-company', '/approvals',
-    '/portfolio/intake', '/skills', '/training', '/reports',
+    '/skills', '/training',
+    // M16 (23-11-2026): /reports se queda aquí a propósito: su API (`/analytics/catalogue|query`) la abre
+    // cualquiera con sesión y `colaboracion.ver` (internos) dice «…informes». La pestaña de programados
+    // se ve solo con `informes.programar` (ReportsPage).
+    '/reports',
   ]),
+  // M16: la API del intake de cartera es `cartera.usar` (proponer) / `cartera.gestionar` (decidir).
+  ...con('cartera.usar', ['/portfolio/intake']),
   ...con('gastos.ver', ['/expenses']),
   // Flujo de demanda (22-11-2026): «Mis solicitudes» es para cualquiera con sesión; las vistas de gestión las acota el servidor (demanda.ver).
   ...con(undefined, ['/demand']),
@@ -45,7 +57,9 @@ export const RUTAS: RutaDeclarada[] = [
   ...con('proyectos.gobierno', ['/deliverables', '/changes', '/risks', '/git', '/esign']),
   ...con('equipo.ver', ['/team-dashboard', '/resources/planning', '/alm/altas-y-bajas']),
   ...con('recursos.ver', ['/resources', '/capacity', '/org-chart', '/okrs', '/performance-reviews']),
-  ...con('recursos.prevision', ['/resource-forecast', '/resource-scheduler', '/bpm']),
+  ...con('recursos.prevision', ['/resource-forecast', '/resource-scheduler']),
+  // M16: la API de procesos e instancias BPMN es `bpm.usar` (catálogo, bandeja) / `bpm.gestionar` (editar).
+  ...con('bpm.usar', ['/bpm']),
   ...con('finanzas.ver', [
     '/finance-dashboard', '/clients', '/pipeline', '/contracts', '/invoices', '/milestone-billing', '/profitability',
     '/revenue', '/budgets', '/scenarios', '/nps', '/client-portal',
@@ -60,7 +74,9 @@ export const RUTAS: RutaDeclarada[] = [
   ...con('soporte.panel', ['/support-dashboard']),
   ...con('sd.ver', ['/service-desk']),
   ...con('sd.disenar_flujos', ['/sd/workflow-designer']),
-  ...con('cmdb.ver', ['/cmdb', '/agent-dashboard']),
+  ...con('cmdb.ver', ['/cmdb']),
+  // M16: `GET /cmdb/agent-dashboard/{id}` exige `cmdb.gestionar`; con `cmdb.ver` la pantalla abría y daba 403.
+  ...con('cmdb.gestionar', ['/agent-dashboard']),
   ...con('alm.ver', ['/alm']),
   ...con('analitica.ver', [
     '/executive', '/data-explorer', '/report-builder', '/predictions', '/evm', '/portfolio', '/sprint-charts',

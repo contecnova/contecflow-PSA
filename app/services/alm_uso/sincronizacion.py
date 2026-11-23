@@ -172,15 +172,23 @@ def registrar_picos(db: Session, org: str) -> int:
     from app.services import alm_asignaciones
     desde = ahora() - timedelta(days=1)
     n = 0
-    for lic in db.query(ALMLicense).filter(ALMLicense.organization_id == org, ALMLicense.is_active.is_(True),
-                                           ALMLicense.metric == "concurrent").all():
-        titulares = {(e.titular_tipo, e.user_id or e.titular_externo) for e in db.query(ALMUsoEvidencia).filter(
-            ALMUsoEvidencia.organization_id == org, ALMUsoEvidencia.license_id == lic.id,
-            ALMUsoEvidencia.ultimo_uso_at >= desde)}
-        hay_datos = db.query(ALMUsoEvidencia.id).filter(ALMUsoEvidencia.organization_id == org,
-                                                        ALMUsoEvidencia.license_id == lic.id).first() is not None
-        if not hay_datos:
+    licencias = [lic.id for lic in db.query(ALMLicense.id).filter(
+        ALMLicense.organization_id == org, ALMLicense.is_active.is_(True), ALMLicense.metric == "concurrent")]
+    if not licencias:
+        return 0
+    # Baja (auditoría 22-11-2026): dos consultas para todas las licencias (antes
+    # dos por licencia).
+    con_datos = {lid for (lid,) in db.query(ALMUsoEvidencia.license_id).filter(
+        ALMUsoEvidencia.organization_id == org, ALMUsoEvidencia.license_id.in_(licencias)).distinct()}
+    titulares: dict = {}
+    for lid, tipo, uid, externo in db.query(ALMUsoEvidencia.license_id, ALMUsoEvidencia.titular_tipo,
+                                            ALMUsoEvidencia.user_id, ALMUsoEvidencia.titular_externo).filter(
+            ALMUsoEvidencia.organization_id == org, ALMUsoEvidencia.license_id.in_(licencias),
+            ALMUsoEvidencia.ultimo_uso_at >= desde):
+        titulares.setdefault(lid, set()).add((tipo, uid or externo))
+    for lid in licencias:
+        if lid not in con_datos:
             continue
-        alm_asignaciones.registrar_pico(db, lic.id, len(titulares), fuente="usage", commit=False)
+        alm_asignaciones.registrar_pico(db, lid, len(titulares.get(lid, ())), fuente="usage", commit=False)
         n += 1
     return n

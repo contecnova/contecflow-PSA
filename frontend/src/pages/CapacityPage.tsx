@@ -9,7 +9,8 @@ import { extractErr, fmtNumber, fmtHours, formateadorDeFecha } from '../utils/he
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { projectsApi, usersApi, capacityApi, unwrapList, esFichaCompleta } from '../services/api'
+import { usersApi, capacityApi, esFichaCompleta } from '../services/api'
+import { useListaDeProyectos } from '../hooks/useListas'
 import type { PlanDeCapacidad } from '../services/api/tipos-personas'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -32,13 +33,6 @@ type UserItem = {
   department?: string | null
   weekly_capacity_hours?: number | null
   is_active?: boolean
-}
-
-type ProjectItem = {
-  id: string | number
-  name: string
-  code?: string
-  status?: string
 }
 
 type CapacityPlan = PlanDeCapacidad
@@ -119,10 +113,9 @@ function AssignModal({ prefill, onClose }: { prefill: AssignPrefill | null; onCl
     queryKey: ['users', 'capacidad'],
     queryFn: () => usersApi.list({}).then(r => r.data.filter(esFichaCompleta).filter((u) => u.is_active)),
   })
-  const { data: projects = [] } = useQuery<ProjectItem[]>({
-    queryKey: ['projects'],
-    queryFn: () => projectsApi.list({}).then(r => (unwrapList(r) as ProjectItem[]).filter((p) => p.status === 'active')),
-  })
+  // 23-11-2026 (04 A8): solo proyectos activos, pasado como parámetro (entra en la clave de la lista
+  // compartida; antes este filtro cliente guardaba bajo `['projects']` una lista distinta de la de las demás pantallas).
+  const { data: projects = [] } = useListaDeProyectos({ status: 'active' })
 
   const campos = useErroresDeCampo()
   const msg = (k: string) => campos.de(k) ? <div className="u-field-error">{campos.de(k)}</div> : null

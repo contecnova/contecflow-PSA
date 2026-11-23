@@ -24,7 +24,7 @@ from fastapi import APIRouter, Body, Depends, Query
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_current_user, require_any_manager
+from app.core.deps import get_current_user, requiere_capacidad
 from app.core.responses import APIListResponse, APIResponse
 from app.db.session import get_db
 from app.models.user import User
@@ -62,7 +62,7 @@ class DriftSnapshotIn(BaseModel):
 @router.get("/governance/ai/evaluations", summary="Listar evaluaciones offline de IA Service Desk")
 def list_ai_evaluations(
     limit: int = Query(50, ge=1, le=MAX_TAMANO_DE_PAGINA),
-    db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
+    db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("sd.gestionar")),
 ):
     items = svc.listar_evaluaciones(db, current_user, limit=limit)
     return APIListResponse.ok(items=[
@@ -83,7 +83,7 @@ def list_ai_evaluations(
 @router.post("/governance/ai/evaluations", summary="Registrar evaluación offline de IA")
 def create_ai_evaluation(
     payload: EvalRunIn,
-    db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
+    db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("sd.gestionar")),
 ):
     row = svc.registrar_evaluacion(db, current_user, {
         "model_name": payload.model_name,
@@ -100,7 +100,7 @@ def create_ai_evaluation(
 def list_ai_drift(
     model_name: str | None = Query(None),
     limit: int = Query(50, ge=1, le=MAX_TAMANO_DE_PAGINA),
-    db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
+    db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("sd.gestionar")),
 ):
     items = svc.listar_deriva(
         db, current_user, model_name=model_name, limit=limit)
@@ -121,7 +121,7 @@ def list_ai_drift(
 @router.post("/governance/ai/drift", summary="Registrar snapshot de deriva")
 def create_ai_drift_snapshot(
     payload: DriftSnapshotIn,
-    db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
+    db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("sd.gestionar")),
 ):
     row = svc.registrar_deriva(db, current_user, {
         "model_name": payload.model_name,
@@ -139,7 +139,7 @@ def get_metrics_catalog(current_user: User = Depends(get_current_user)):
 
 @router.get("/governance/quality-contract", summary="Contrato de calidad por release")
 def get_quality_contract(
-    db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
+    db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("sd.gestionar")),
 ):
     return APIResponse.ok(data=svc.contrato_de_calidad(db, current_user))
 
@@ -147,7 +147,7 @@ def get_quality_contract(
 @router.put("/governance/quality-contract", summary="Actualizar contrato de calidad por release")
 def put_quality_contract(
     payload: dict = Body(...),
-    db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
+    db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("sd.gestionar")),
 ):
     svc.guardar_contrato_de_calidad(db, current_user, payload)
     return APIResponse.ok(data={"ok": True})

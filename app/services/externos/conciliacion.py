@@ -18,14 +18,15 @@ from sqlalchemy.orm import Session
 def _esperado(db: Session, sub_id: str, asignaciones: list, desde, hasta) -> tuple[float, float, float]:
     from app.models.enterprise import SubcontractorTimeLog as TL
     from app.models.imputation import Imputation as I
-    from app.services.externos.horas import partes_sin_duplicar
+    from app.services.externos.horas import partes_netos
     h_imp = coste = 0.0
     for a in asignaciones:
         w = a.worker
         if w is None or not w.user_id:
             continue
         q = db.query(func.coalesce(func.sum(I.hours), 0.0), func.coalesce(func.sum(I.cost_amount), 0.0)).filter(
-            I.user_id == w.user_id, I.project_id == a.project_id, I.date <= hasta)
+            I.user_id == w.user_id, I.project_id == a.project_id, I.date <= hasta,
+            I.is_active.is_(True))   # A50: sin las imputaciones borradas
         if desde:
             q = q.filter(I.date >= desde)
         if a.start_date:
@@ -39,13 +40,19 @@ def _esperado(db: Session, sub_id: str, asignaciones: list, desde, hasta) -> tup
                              TL.assignment_id.in_([a.id for a in asignaciones]) if asignaciones else TL.id.is_(None))
     if desde:
         tq = tq.filter(TL.log_date >= desde)
-    tq = partes_sin_duplicar(db, tq)
-    h_man, c_man = tq.with_entities(func.coalesce(func.sum(TL.hours), 0.0),
-                                    func.coalesce(func.sum(TL.cost_amount), 0.0)).one()
+    netos = partes_netos(db, tq.all())   # A50: solo se resta el solape con lo imputado
+    h_man = sum(h for _, h, _ in netos)
+    c_man = sum(c for _, _, c in netos)
     return h_imp, float(h_man or 0), coste + float(c_man or 0)
 
 
 def conciliar(db: Session, sub_id: str) -> list[dict]:
+    """M18 (auditoría 22-11-2026): los tipos de cambio que falten se anotan en el
+    `TiposQueFaltan` de quien llama (antes el resolutor podía devolver None)."""
+    return _conciliar(db, sub_id)
+
+
+def _conciliar(db: Session, sub_id: str) -> list[dict]:
     from app.models.enterprise import SubcontractorAssignment, SubcontractorInvoice
     facturas = db.query(SubcontractorInvoice).filter(
         SubcontractorInvoice.subcontractor_id == sub_id, SubcontractorInvoice.status != "rejected",

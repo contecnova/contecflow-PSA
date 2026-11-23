@@ -39,6 +39,7 @@ from typing import Callable, Optional
 from sqlalchemy.orm import Session
 
 from app.core.codigos_de_error import ErrorConCodigo, error
+from app.core.config import settings
 from app.services.audit import audit_log
 
 logger = logging.getLogger(__name__)
@@ -468,6 +469,7 @@ def aplicar(db: Session, org, fuente: str, detecciones: list[dict], crear_cis: b
                 f.sla_due_at = vencimiento(conf, v, f.first_seen_at or momento)
             db.flush()
         except Exception as e:  # noqa: BLE001 - una detección mala no tumba el resto
+            logger.warning("aplicar: excepcion ignorada", exc_info=True)
             r["errors"].append({"row": n, "error": getattr(e, "codigo", None) or getattr(e, "code", None)
                                 or type(e).__name__})
     if completa:
@@ -507,9 +509,12 @@ def importar_fichero(db: Session, org, fuente: str, contenido: bytes, crear_cis:
 def _http_real(metodo: str, url: str, *, headers: Optional[dict] = None, params: Optional[dict] = None,
                json_: Optional[dict] = None, data: Optional[dict] = None, auth: Optional[tuple] = None,
                timeout: float = 30):
-    import httpx
-    r = httpx.request(metodo, url, headers=headers, params=params, json=json_, data=data, auth=auth,
-                      timeout=timeout, follow_redirects=True)
+    # SSRF: la URL es de la conexión (empresa) o del proveedor; `peticion` valida URL, redirecciones e IP
+    # conectada. Con credenciales (cabeceras que no sean Accept, auth o cuerpo) no se siguen redirecciones.
+    from app.core.outbound_url import peticion
+    con_credenciales = bool(auth or data or any(k.lower() != "accept" for k in (headers or {})))
+    r = peticion(metodo, url, field="url", headers=headers, params=params, json=json_, data=data, auth=auth,
+                 timeout=timeout, follow_redirects=not con_credenciales)
     r.raise_for_status()
     tipo = r.headers.get("content-type", "")
     return r.json() if "json" in tipo else r.text
@@ -535,6 +540,17 @@ def _base(conf: dict, tipo: str) -> str:
     return url
 
 
+def _siguiente(base: str, sig, fuente: str):
+    """URL de la página siguiente solo si es del mismo origen que la configurada (si no, se corta)."""
+    from app.core.outbound_url import mismo_origen
+    if not isinstance(sig, str) or not sig.startswith(("http://", "https://")):
+        return None
+    if not mismo_origen(base, sig):
+        logger.warning("paginación de %s: la página siguiente es de otro origen; se detiene", fuente)
+        return None
+    return sig
+
+
 def recoger_trendmicro(conf: dict) -> list[dict]:
     if not conf.get("token"):
         raise ErrorConCodigo("sw_conexion_incompleta", campo="token")
@@ -545,7 +561,8 @@ def recoger_trendmicro(conf: dict) -> list[dict]:
         datos = _llamar("trendmicro", "GET", url, headers=cab, timeout=float(conf.get("timeout") or 30))
         salida += desde_trendmicro(datos)
         paginas += 1
-        url = datos.get("nextLink") if isinstance(datos, dict) else None
+        url = _siguiente(_base(conf, "sw_vm_trendmicro"), datos.get("nextLink") if isinstance(datos, dict) else None,
+                         "trendmicro")
     return salida
 
 
@@ -555,7 +572,7 @@ def recoger_defender(conf: dict) -> list[dict]:
             raise ErrorConCodigo("sw_conexion_incompleta", campo=campo)
     base = _base(conf, "sw_vm_defender")
     t = float(conf.get("timeout") or 30)
-    token = _llamar("defender", "POST", f"https://login.microsoftonline.com/{conf['tenant_id']}/oauth2/v2.0/token",
+    token = _llamar("defender", "POST", f"{settings.MICROSOFT_OAUTH_BASE.rstrip('/')}/{conf['tenant_id']}/oauth2/v2.0/token",
                     data={"client_id": conf["client_id"], "client_secret": conf["client_secret"],
                           "grant_type": "client_credentials", "scope": f"{base}/.default"}, timeout=t)
     cab = {"Authorization": f"Bearer {token.get('access_token')}", "Accept": "application/json"}
@@ -564,12 +581,12 @@ def recoger_defender(conf: dict) -> list[dict]:
         datos = _llamar("defender", "GET", url, headers=cab, timeout=t)
         for m in datos.get("value") or []:
             maquinas[m.get("id")] = m
-        url, paginas = datos.get("@odata.nextLink"), paginas + 1
+        url, paginas = _siguiente(base, datos.get("@odata.nextLink"), "defender"), paginas + 1
     salida, url, paginas = [], f"{base}/api/vulnerabilities/machinesVulnerabilities", 0
     while url and paginas < int(conf.get("max_pages") or 20):
         datos = _llamar("defender", "GET", url, headers=cab, timeout=t)
         salida += desde_defender(datos, maquinas)
-        url, paginas = datos.get("@odata.nextLink"), paginas + 1
+        url, paginas = _siguiente(base, datos.get("@odata.nextLink"), "defender"), paginas + 1
     return salida
 
 
@@ -581,17 +598,47 @@ def recoger_qualys(conf: dict) -> list[dict]:
     t = float(conf.get("timeout") or 60)
     cab = {"X-Requested-With": "contecflow"}
     auth = (conf["username"], conf["password"])
-    texto = _llamar("qualys", "POST", f"{base}/api/2.0/fo/asset/host/vm/detection/", headers=cab, auth=auth,
-                    data={"action": "list", "show_results": 0, "status": "New,Active,Re-Opened,Fixed",
-                          "truncation_limit": 1000}, timeout=t)
+    # A22 (auditoría 22-11-2026): paginación documentada de la API VM de Qualys
+    # (v2 «host list detection»): una respuesta truncada trae
+    # `<WARNING><CODE>1980</CODE><URL>…&id_min=N</URL></WARNING>`; se pide la
+    # siguiente con ese `id_min` hasta que no haya aviso (o `max_pages`). Antes
+    # solo se leía la primera página (1.000 hosts).
+    datos = {"action": "list", "show_results": 0, "status": "New,Active,Re-Opened,Fixed", "truncation_limit": 1000}
+    paginas: list[str] = []
+    for _ in range(int(conf.get("max_pages") or 50)):
+        texto = _llamar("qualys", "POST", f"{base}/api/2.0/fo/asset/host/vm/detection/", headers=cab, auth=auth,
+                        data=datos, timeout=t)
+        paginas.append(texto)
+        siguiente = _id_min_siguiente_qualys(texto)
+        if not siguiente:
+            break
+        datos = {**datos, "id_min": siguiente}
+    else:
+        raise ErrorConCodigo("sw_respuesta_truncada", fuente="qualys")
     kb = {}
     if conf.get("with_kb", True):
-        qids = sorted({q.text for q in _xml(texto).iter("QID") if q.text})
-        if qids:
+        qids = sorted({q.text for texto in paginas for q in _xml(texto).iter("QID") if q.text})
+        for i in range(0, len(qids), 1000):
             texto_kb = _llamar("qualys", "POST", f"{base}/api/2.0/fo/knowledge_base/vuln/", headers=cab, auth=auth,
-                               data={"action": "list", "ids": ",".join(qids[:1000])}, timeout=t)
-            kb = base_de_conocimiento_qualys(texto_kb)
-    return desde_qualys(texto, kb)
+                               data={"action": "list", "ids": ",".join(qids[i:i + 1000])}, timeout=t)
+            kb.update(base_de_conocimiento_qualys(texto_kb))
+    salida: list[dict] = []
+    for texto in paginas:
+        salida += desde_qualys(texto, kb)
+    return salida
+
+
+def _id_min_siguiente_qualys(texto: str) -> Optional[str]:
+    """El `id_min` de la página siguiente si la respuesta viene truncada (aviso 1980)."""
+    from urllib.parse import parse_qs, urlparse
+    raiz = _xml(texto)
+    for aviso in raiz.iter("WARNING"):
+        url = _t(aviso, "URL")
+        if url:
+            valores = parse_qs(urlparse(url).query).get("id_min")
+            if valores:
+                return valores[0]
+    return None
 
 
 def recoger_tenable(conf: dict) -> list[dict]:
@@ -604,10 +651,20 @@ def recoger_tenable(conf: dict) -> list[dict]:
     exp = _llamar("tenable", "POST", f"{base}/vulns/export", headers=cab, json_={"num_assets": 500}, timeout=t)
     uuid_ = exp.get("export_uuid")
     estado = {}
+    # A22 (auditoría 22-11-2026): la exportación de Tenable.io es asíncrona
+    # (`QUEUED`/`PROCESSING` → `FINISHED`); se espera entre consultas con
+    # retroceso (`poll_seconds`, hasta 30 s) y, si no termina o falla, error:
+    # antes se consultaba sin espera y se seguía con los trozos que hubiera.
+    import time as _time
+    espera = float(conf.get("poll_seconds") or 2)
     for _ in range(int(conf.get("max_pages") or 30)):
         estado = _llamar("tenable", "GET", f"{base}/vulns/export/{uuid_}/status", headers=cab, timeout=t)
         if estado.get("status") in ("FINISHED", "ERROR", "CANCELLED"):
             break
+        _time.sleep(espera)
+        espera = min(espera * 2, 30.0)
+    if estado.get("status") != "FINISHED":
+        raise ErrorConCodigo("sw_respuesta_truncada", fuente="tenable")
     salida = []
     for trozo in estado.get("chunks_available") or []:
         salida += desde_tenable(_llamar("tenable", "GET", f"{base}/vulns/export/{uuid_}/chunks/{trozo}", headers=cab,
@@ -647,8 +704,24 @@ def recoger_rapid7(conf: dict) -> list[dict]:
     return desde_rapid7(activos)
 
 
+def ruta_json(datos, ruta: Optional[str]):
+    """Valor de una ruta con puntos (``data.devices``) en un JSON."""
+    if not ruta:
+        return datos
+    actual = datos
+    for parte in ruta.split("."):
+        if isinstance(actual, dict):
+            actual = actual.get(parte)
+        elif isinstance(actual, list) and parte.isdigit() and int(parte) < len(actual):
+            actual = actual[int(parte)]
+        else:
+            return None
+    return actual
+
+
+
+
 def recoger_siem(conf: dict) -> list[dict]:
-    from app.services.cmdb_software.escaneos import _ruta
     url = conf.get("url")
     if not url:
         raise ErrorConCodigo("sw_conexion_incompleta", campo="url")
@@ -661,19 +734,19 @@ def recoger_siem(conf: dict) -> list[dict]:
     while url and paginas < int(conf.get("max_pages") or 10):
         datos = _llamar("siem", "GET", url, headers=cab, params={"days": conf.get("days") or 7} if paginas == 0 else None,
                         timeout=float(conf.get("timeout") or 30))
-        lista = _ruta(datos, conf.get("list_path")) if conf.get("list_path") else datos
+        lista = ruta_json(datos, conf.get("list_path")) if conf.get("list_path") else datos
         for e in lista if isinstance(lista, list) else []:
             if not isinstance(e, dict):
                 continue
-            filas.append({"cve": _ruta(e, conf.get("cve_field") or "cve"), "host": _ruta(e, conf.get("host_field") or "host"),
-                          "ip": _ruta(e, conf.get("ip_field") or "ip"),
-                          "observed_at": _ruta(e, conf.get("time_field") or "timestamp"),
-                          "action": _ruta(e, conf.get("action_field") or "action"),
-                          "count": _ruta(e, conf.get("count_field") or "count"),
-                          "id": _ruta(e, conf.get("id_field") or "id")})
+            filas.append({"cve": ruta_json(e, conf.get("cve_field") or "cve"), "host": ruta_json(e, conf.get("host_field") or "host"),
+                          "ip": ruta_json(e, conf.get("ip_field") or "ip"),
+                          "observed_at": ruta_json(e, conf.get("time_field") or "timestamp"),
+                          "action": ruta_json(e, conf.get("action_field") or "action"),
+                          "count": ruta_json(e, conf.get("count_field") or "count"),
+                          "id": ruta_json(e, conf.get("id_field") or "id")})
         paginas += 1
-        sig = _ruta(datos, conf.get("next_path")) if conf.get("next_path") else None
-        url = sig if isinstance(sig, str) and sig.startswith(("http://", "https://")) else None
+        sig = ruta_json(datos, conf.get("next_path")) if conf.get("next_path") else None
+        url = _siguiente(conf.get("url"), sig, "siem")
     return filas
 
 
@@ -692,7 +765,9 @@ def ejecutar_conexion(db: Session, c, usuario=None, disparo: str = "manual") -> 
     fuente = TIPO_A_FUENTE[c.provider_type]
     detecciones = RECOGEDORES[c.provider_type](conf)
     r = aplicar(db, c.organization_id, fuente, detecciones, bool(conf.get("create_cis", True)),
-                bool(conf.get("complete", True)), usuario, c, conf.get("environment") or None)
+                # Auditoría 22-11-2026 (A22): por defecto NO es inventario completo; una
+                # respuesta truncada ya no marca «resueltos» en masa los hallazgos ausentes.
+                bool(conf.get("complete", False)), usuario, c, conf.get("environment") or None)
     return {"hosts": len({(d.get("host"), d.get("ip")) for d in detecciones}), "errors": r["errors"],
             "cis_created": r["cis_created"], "findings_new": r["findings_new"],
             "findings_resolved": r["findings_resolved"], "import": r, "trigger": disparo}
@@ -707,4 +782,5 @@ def probar_conexion(c) -> dict:
         n = len(RECOGEDORES[c.provider_type]({**conf, "max_pages": 1}))
         return {"ok": True, "devices": n}
     except Exception as e:  # noqa: BLE001
+        logger.debug("probar_conexion: excepcion ignorada", exc_info=True)
         return {"ok": False, "error": getattr(e, "codigo", None) or getattr(e, "code", None) or type(e).__name__}

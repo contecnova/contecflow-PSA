@@ -14,7 +14,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
 from app.core.async_db import run_db
-from app.core.deps import get_current_user, require_internal_user
+from app.core.deps import get_current_user, requiere_capacidad
 from app.db.session import get_db
 from app.models.user import User
 from app.services import mcp_service
@@ -24,7 +24,7 @@ router = APIRouter()
 
 @router.post("/mcp", summary="Servidor MCP: herramientas de Contecflow para agentes externos")
 async def mcp(request: Request, db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
-              _rol: User = Depends(require_internal_user)) -> Response:
+              _rol: User = Depends(requiere_capacidad("ia.usar"))) -> Response:
     try:
         mensaje: Any = await request.json()
     except Exception:

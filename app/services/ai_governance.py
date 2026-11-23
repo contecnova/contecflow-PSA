@@ -143,6 +143,51 @@ def _dni_checksum_valid(value: str) -> bool:
     return False
 
 
+def _luhn(valor: str, *_a) -> bool:
+    digitos = [int(c) for c in valor if c.isdigit()]
+    if len(digitos) < 13:
+        return False
+    suma = 0
+    for i, d in enumerate(reversed(digitos)):
+        if i % 2:
+            d *= 2
+            if d > 9:
+                d -= 9
+        suma += d
+    return suma % 10 == 0
+
+
+def _iban_valido(valor: str, *_a) -> bool:
+    v = "".join(valor.split()).upper()
+    if len(v) < 15 or len(v) > 34:
+        return False
+    num = "".join(str(int(c, 36)) for c in v[4:] + v[:4])
+    return int(num) % 97 == 1
+
+
+def _ip_valida(valor: str, texto: str, inicio: int) -> bool:
+    if any(int(x) > 255 for x in valor.split(".")):
+        return False
+    previo = texto[max(0, inicio - 9):inicio].lower()
+    return not (previo.endswith("v") or "version" in previo or "versión" in previo)
+
+
+#: Palabras capitalizadas corrientes que no son nombres (inicio de frase, meses, días).
+_NO_NOMBRES = {
+    "el", "la", "los", "las", "un", "una", "en", "de", "del", "por", "para", "con", "the", "this", "that",
+    "enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre",
+    "noviembre", "diciembre", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo",
+}
+
+
+def _parece_nombre(valor: str, *_a) -> bool:
+    return not any(p.lower() in _NO_NOMBRES for p in valor.split())
+
+
+_VALIDADORES = {"credit_card": _luhn, "iban": _iban_valido, "ip_address": _ip_valida,
+                "full_name_hint": _parece_nombre}
+
+
 def detect_pii(text: str) -> List[PIIMatch]:
     """Return all PII matches found in text, ordered by position."""
     matches: List[PIIMatch] = []
@@ -153,6 +198,14 @@ def detect_pii(text: str) -> List[PIIMatch]:
             # Esto elimina ~96% de falsos positivos (IDs internos con la
             # misma forma 8 dígitos + letra).
             if label == "dni_nie" and not _dni_checksum_valid(value):
+                continue
+            # M46 (auditoría 22-11-2026): dígitos de control y contexto para
+            # quitar falsos positivos: tarjeta por Luhn, IBAN por módulo 97, IP
+            # con octetos 0-255 y no precedida de «v»/«versión» (números de
+            # versión), nombre de tres palabras no al empezar frase con
+            # palabras corrientes (lo valida `_parece_nombre`).
+            validar = _VALIDADORES.get(label)
+            if validar is not None and not validar(value, text, m.start()):
                 continue
             matches.append(PIIMatch(entity_type=label, value=value, start=m.start(), end=m.end()))
     matches.sort(key=lambda x: x.start)
@@ -295,9 +348,15 @@ class AIGuardrailEngine:
                 )
                 for r in rows
             ]
+            self._carga_fallida = False
         except Exception as exc:
-            logger.warning("Could not load guardrail policies: %s", exc)
+            # Auditoría 22-11-2026 (A8): antes, sin poder leer las políticas, la
+            # lista quedaba vacía y TODO pasaba sin guardarraíles (fail-open).
+            # Ahora se marca y `evaluate` bloquea (fail-closed) y no se cachea.
+            logger.error("Could not load guardrail policies (fail-closed): %s", exc)
             self._policies_cache = []
+            self._carga_fallida = True
+            return self._policies_cache
         import time as _time
         self._policies_cache_at = _time.monotonic()
         return self._policies_cache
@@ -334,6 +393,12 @@ class AIGuardrailEngine:
         """
         policies = [p for p in self._policies_for(role, module)
                     if p.scope in ("both", scope)]
+
+        if getattr(self, "_carga_fallida", False):
+            result = GuardrailResult(allowed=False, redacted_text=None, blocked_by="guardrail_policies_unavailable",
+                                     action_taken="blocked")
+            self._audit(user_id, scope, module, text, result, None, request_id)
+            return result
 
         if not policies:
             # No policy → always allow but still detect PII for audit
@@ -618,7 +683,8 @@ def check_prompt(
     engine = AIGuardrailEngine(db=db, org_id=str(user.organization_id))
     role   = user.role.value if hasattr(user.role, "value") else str(user.role or "employee")
     return engine.evaluate(text, role=role, module=module, scope="prompt",
-                           user_id=str(user.id), request_id=request_id)
+                           user_id=str(user.id) if getattr(user, "id", None) else None,
+                           request_id=request_id)
 
 
 def check_output(
@@ -634,7 +700,8 @@ def check_output(
     engine = AIGuardrailEngine(db=db, org_id=str(user.organization_id))
     role   = user.role.value if hasattr(user.role, "value") else str(user.role or "employee")
     return engine.evaluate(text, role=role, module=module, scope="output",
-                           user_id=str(user.id), request_id=request_id)
+                           user_id=str(user.id) if getattr(user, "id", None) else None,
+                           request_id=request_id)
 
 
 # ── Tenant helpers ─────────────────────────────────────────────────────────

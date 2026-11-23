@@ -65,6 +65,8 @@ def main() -> int:
     args = parser.parse_args()
 
     db = SessionLocal()
+    from app.db.contexto_de_tenant import declarar_sistema as _declarar_sistema
+    _declarar_sistema(db, "script: auditoría de secretos cifrados")  # auditoría 22-11-2026: TENANT_SESION_SIN_CONTEXTO=cerrar
     try:
         findings: list[str] = []
         touched = [0]

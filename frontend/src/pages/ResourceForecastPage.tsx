@@ -20,7 +20,7 @@ import { forecastApi } from '../services/api'
 import type { MapaDeCarga, ProyeccionDePersona, ResumenDeCapacidad } from '../services/api/tipos-personas'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
-import { Card, EmptyState, KpiCard, RejillaPersonaDia, SelectorDePeriodo, Tabs, columnasDeSemanas, TablaSimple } from '../components/ui'
+import { Card, EmptyState, KpiCard, RejillaPersonaDia, SelectorDePeriodo, Tabs, columnasDeSemanas, TablaSimple, Input } from '../components/ui'
 import type { TonoDeRejilla } from '../components/ui'
 import { fmtNumber } from '../utils/helpers'
 import { usePeriodo } from '../hooks/usePeriodo'
@@ -225,7 +225,7 @@ export default function ResourceForecastPage() {
         />
         <div className="ds-toolbar__spacer" />
         <SelectorDePeriodo {...periodo.selector} presets={presetsHorizonte} sinGranularidad />
-        <input className="ds-input rfc-input-2"
+        <Input inputClassName="rfc-input-2"
           aria-label={t('prevision_recursos_ui.departamento')}
           placeholder={t('prevision_recursos_ui.departamento_ph')}
           value={department}

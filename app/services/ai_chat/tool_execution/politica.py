@@ -6,7 +6,8 @@ los contratos o las imputaciones de toda la empresa, y se cambiaba el estado de
 cualquier proyecto o ticket. Ahora cada herramienta declara su **endpoint REST
 equivalente** y hereda sus dos guardas de entrada:
 
-- el rol (la misma dependencia `RequireRole` que la ruta; `None` = cualquier sesión);
+- la capacidad (`app/core/capacidades.py`; 23-11-2026, M9: antes la `RequireRole`
+  de la ruta, ahora la capacidad con esos mismos roles; `None` = cualquier sesión);
 - la matriz GRC: el módulo sale de la ruta (`grc_catalog.module_for_path`), como
   en `enforce_grc_matrix`, y la acción es la del método.
 
@@ -25,20 +26,13 @@ from typing import Optional
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
-from app.core.deps import (
-    RequireRole,
-    require_admin_or_hr,
-    require_admin_or_pm,
-    require_any_manager,
-    require_internal_user,
-)
 
 
 @dataclass(frozen=True)
 class Politica:
     metodo: str                   #: método HTTP del endpoint equivalente
     ruta: str                     #: su ruta bajo /api/v1, tal como está registrada
-    roles: Optional[RequireRole]  #: su guarda de rol; None = cualquier sesión
+    capacidad: Optional[str]      #: su capacidad (antes su guarda de rol); None = cualquier sesión
 
 
 _GET, _POST, _PATCH = "GET", "POST", "PATCH"
@@ -47,54 +41,54 @@ POLITICAS: dict[str, Politica] = {
     # Proyectos
     "get_project_status":    Politica(_GET, "/projects/{project_id}", None),
     "search_projects":       Politica(_GET, "/projects", None),
-    "get_dashboard_summary": Politica(_GET, "/dashboard/projects-health", require_any_manager),
-    "get_budget_status":     Politica(_GET, "/dashboard/projects-health", require_any_manager),
-    "update_project_status": Politica(_PATCH, "/projects/{project_id}", require_admin_or_pm),
+    "get_dashboard_summary": Politica(_GET, "/dashboard/projects-health", "panel.gestionar"),
+    "get_budget_status":     Politica(_GET, "/dashboard/projects-health", "panel.gestionar"),
+    "update_project_status": Politica(_PATCH, "/projects/{project_id}", "proyectos.dirigir"),
     # Riesgos
     "get_project_risks":     Politica(_GET, "/risks/{project_id}", None),
-    "get_all_risks":         Politica(_GET, "/risks/all/portfolio", require_any_manager),
-    "create_risk":           Politica(_POST, "/risks/{project_id}", require_admin_or_pm),
+    "get_all_risks":         Politica(_GET, "/risks/all/portfolio", "proyectos.responsables"),
+    "create_risk":           Politica(_POST, "/risks/{project_id}", "proyectos.dirigir"),
     # Tareas
     "get_overdue_tasks":     Politica(_GET, "/tasks", None),
-    "create_task":           Politica(_POST, "/tasks", require_internal_user),
+    "create_task":           Politica(_POST, "/tasks", "tareas.usar"),
     "update_task":           Politica(_PATCH, "/tasks/{task_id}", None),
     # Service desk
     "get_open_tickets":      Politica(_GET, "/sd/tickets", None),
     "update_ticket_status":  Politica(_PATCH, "/sd/tickets/{ticket_id}", None),
-    "reassign_tickets":      Politica(_PATCH, "/sd/tickets/{ticket_id}", require_any_manager),
+    "reassign_tickets":      Politica(_PATCH, "/sd/tickets/{ticket_id}", "sd.gestionar"),
     # Entrega
     "get_milestones":        Politica(_GET, "/milestones/project/{project_id}", None),
     "get_change_requests":   Politica(_GET, "/changes/{project_id}", None),
-    "get_contracts":         Politica(_GET, "/contracts", require_any_manager),
+    "get_contracts":         Politica(_GET, "/contracts", "contratos.gestionar"),
     "get_deliverables":      Politica(_GET, "/deliverables/{project_id}", None),
     "get_sprints":           Politica(_GET, "/sprints/{project_id}/sprints", None),
     # Finanzas
-    "get_expenses":          Politica(_GET, "/expenses/team", require_any_manager),
-    "get_invoices":          Politica(_GET, "/invoices", require_any_manager),
-    "get_profitability":     Politica(_GET, "/profitability/projects", require_admin_or_pm),
-    "get_approvals":         Politica(_GET, "/approvals/stats", require_any_manager),
-    "get_pipeline":          Politica(_GET, "/pipeline", require_any_manager),
+    "get_expenses":          Politica(_GET, "/expenses/team", "gastos.responsables"),
+    "get_invoices":          Politica(_GET, "/invoices", "facturacion.gestionar"),
+    "get_profitability":     Politica(_GET, "/profitability/projects", "finanzas.gestionar"),
+    "get_approvals":         Politica(_GET, "/approvals/stats", "aprobaciones.gestionar"),
+    "get_pipeline":          Politica(_GET, "/pipeline", "comercial.gestionar"),
     "get_clients":           Politica(_GET, "/clients", None),
     # OKRs
     "get_okrs":              Politica(_GET, "/okrs", None),
     # Personas y recursos
-    "get_resource_availability": Politica(_GET, "/resources/availability-matrix", require_any_manager),
-    "get_users_list":        Politica(_GET, "/users", require_internal_user),
+    "get_resource_availability": Politica(_GET, "/resources/availability-matrix", "recursos.gestionar"),
+    "get_users_list":        Politica(_GET, "/users", "personas.usar"),
     "get_imputations":       Politica(_GET, "/imputations", None),
     "get_absences":          Politica(_GET, "/absences", None),
-    "get_timesheets":        Politica(_GET, "/timesheets/team", require_any_manager),
-    "get_skills":            Politica(_GET, "/skills/matrix", require_admin_or_hr),
-    "get_capacity_plans":    Politica(_GET, "/capacity/plans", require_any_manager),
+    "get_timesheets":        Politica(_GET, "/timesheets/team", "partes.gestionar"),
+    "get_skills":            Politica(_GET, "/skills/matrix", "competencias.gestionar"),
+    "get_capacity_plans":    Politica(_GET, "/capacity/plans", "recursos.gestionar"),
     # Transversales
     "get_alerts":            Politica(_GET, "/alerts", None),
     "search_all":            Politica(_GET, "/global-search", None),
     # Sin ruta REST propia: solo existe como acción del agente (`POST /ai/agent`).
-    "send_notification":     Politica(_POST, "/ai/agent", require_any_manager),
+    "send_notification":     Politica(_POST, "/ai/agent", "ia.gestionar"),
     "get_git_activity":      Politica(_GET, "/git/pull-requests", None),
     # Asistente de reuniones (19-11-2026): solo las reuniones visibles (consultas.visibles).
-    "search_meetings":       Politica(_GET, "/meeting-assistant/search", require_internal_user),
+    "search_meetings":       Politica(_GET, "/meeting-assistant/search", "reuniones.usar"),
     # CMDB de software (19-11-2026): solo lectura, la guarda de `/cmdb/software/where-used`.
-    "search_software_inventory": Politica(_GET, "/cmdb/software/where-used", require_admin_or_pm),
+    "search_software_inventory": Politica(_GET, "/cmdb/software/where-used", "software.ver"),
 }
 
 
@@ -151,8 +145,10 @@ def codigo_de_denegacion(db: Session, user, herramienta: str) -> Optional[tuple[
         return "politica.herramienta_sin_politica", {"herramienta": herramienta}
     if getattr(user, "is_superadmin", False):
         return None
-    if politica.roles is not None and getattr(user, "role", None) not in politica.roles.roles:
-        return "politica.herramienta_rol", {"herramienta": herramienta}
+    if politica.capacidad is not None:
+        from app.core import capacidades as _capacidades
+        if not _capacidades.tiene(db, user, politica.capacidad):
+            return "politica.herramienta_rol", {"herramienta": herramienta}
     from app.core.grc_catalog import action_for, module_for_path
     from app.core.grc_enforce import decidir
     ruta = "/api/v1" + politica.ruta

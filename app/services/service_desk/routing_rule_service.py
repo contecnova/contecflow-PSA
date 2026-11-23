@@ -111,7 +111,18 @@ def _momento(ticket) -> datetime:
     Un ticket sin `created_at` es un ticket que se está creando: usar el momento
     actual es lo que hacía el original y lo que espera una regla horaria.
     """
-    return ticket.created_at or datetime.now(timezone.utc)
+    momento = ticket.created_at or datetime.now(timezone.utc)
+    if momento.tzinfo is None:
+        momento = momento.replace(tzinfo=timezone.utc)
+    # Auditoria 2026-11-22 (4.3): la hora y el dia, en la zona de la empresa
+    # (`DEFAULT_TIMEZONE`), no en UTC: «09:00-18:00» en Madrid no es en UTC.
+    from sqlalchemy.orm import object_session
+    from app.services.formato_regional import zona_horaria
+    try:
+        sesion = object_session(ticket)
+    except Exception:  # objeto no mapeado (pruebas, simulaciones)
+        sesion = None
+    return momento.astimezone(zona_horaria(sesion, getattr(ticket, "organization_id", None)))
 
 
 def _rango_horario(valor) -> Optional[tuple]:
@@ -205,7 +216,11 @@ def _cond_time_of_day(ticket, valor) -> bool:
     if rango is None:
         return True  # forma no reconocible: no restringe
     inicio, fin = rango
-    return inicio <= _momento(ticket).time() <= fin
+    hora = _momento(ticket).time().replace(tzinfo=None)
+    if inicio <= fin:
+        return inicio <= hora <= fin
+    # Rango que cruza la medianoche («22:00-06:00»): antes no casaba nunca.
+    return hora >= inicio or hora <= fin
 
 
 def _cond_day_of_week(ticket, valor) -> bool:
@@ -246,20 +261,46 @@ _CONDICIONES = {
 
 # ── Las cuatro acciones ──────────────────────────────────────────────────────
 
-def _accion_assign_group(ticket, valor) -> None:
-    ticket.assigned_group_id = valor
+# Auditoria 2026-11-22 (A-SD4/A-SD5): las acciones no se validaban. Un enum
+# invalido daba 500 en el flush y se aceptaban ids de grupo o de agente de otra
+# empresa. Ahora cada accion comprueba su valor contra la empresa del ticket y,
+# si no vale, se ignora con un aviso en el log (la regla no rompe el alta).
+
+def _accion_assign_group(db, ticket, valor, org_id) -> None:
+    from app.models.service_desk import AgentGroup
+    if db.query(AgentGroup.id).filter(AgentGroup.id == valor,
+                                      AgentGroup.organization_id == org_id).first():
+        ticket.assigned_group_id = valor
+    else:
+        logger.warning("routing: grupo %r ajeno o inexistente; se ignora", valor)
 
 
-def _accion_assign_user(ticket, valor) -> None:
-    ticket.assigned_to_user_id = valor
+def _accion_assign_user(db, ticket, valor, org_id) -> None:
+    from app.models.service_desk import AgentGroup, AgentGroupMember
+    es_agente = (db.query(AgentGroupMember.id)
+                 .join(AgentGroup, AgentGroup.id == AgentGroupMember.group_id)
+                 .filter(AgentGroupMember.user_id == valor, AgentGroup.organization_id == org_id)
+                 .first())
+    if es_agente:
+        ticket.assigned_to_user_id = valor
+    else:
+        logger.warning("routing: agente %r ajeno o inexistente; se ignora", valor)
 
 
-def _accion_set_priority(ticket, valor) -> None:
-    ticket.priority = valor
+def _accion_set_priority(db, ticket, valor, org_id) -> None:
+    from app.models.service_desk._enums import TicketPriority
+    try:
+        ticket.priority = TicketPriority(_norm_enum(valor)).value
+    except ValueError:
+        logger.warning("routing: prioridad %r no valida; se ignora", valor)
 
 
-def _accion_set_support_level(ticket, valor) -> None:
-    ticket.support_level = valor
+def _accion_set_support_level(db, ticket, valor, org_id) -> None:
+    from app.models.service_desk._enums import SupportLevel
+    try:
+        ticket.support_level = SupportLevel(_norm_enum(valor)).value
+    except ValueError:
+        logger.warning("routing: nivel de soporte %r no valido; se ignora", valor)
 
 
 _ACCIONES = {
@@ -287,14 +328,14 @@ def _regla_coincide(ticket, conditions: dict) -> bool:
     return True
 
 
-def _aplicar_acciones(ticket, actions: dict) -> None:
+def _aplicar_acciones(db, ticket, actions: dict, org_id) -> None:
     """Aplica las acciones de la regla que ha coincidido."""
     for clave, valor in actions.items():
         aplicar = _ACCIONES.get(clave)
         if aplicar is None:
             logger.debug("routing: acción no reconocida %r, se ignora", clave)
             continue
-        aplicar(ticket, valor)
+        aplicar(db, ticket, valor, org_id)
 
 
 def apply_routing_rules(ticket: Ticket, db: Session) -> bool:
@@ -304,15 +345,22 @@ def apply_routing_rules(ticket: Ticket, db: Session) -> bool:
     miran, así que el orden de `priority` es el que decide el resultado cuando
     varias reglas encajan.
     """
+    # Auditoria 2026-11-22 (A-SD5): sin filtro explicito, en el worker o en un
+    # canal sin empresa (sesion sin filtro de tenant) se aplicaban las reglas de
+    # TODAS las empresas. Sin empresa no hay reglas que aplicar.
+    org_id = ticket.organization_id or db.info.get("organization_id")
+    if not org_id:
+        return False
     rules = db.query(RoutingRule).filter(
-        RoutingRule.is_active == True
+        RoutingRule.is_active == True,  # noqa: E712
+        RoutingRule.organization_id == org_id,
     ).order_by(RoutingRule.priority).all()
 
     for rule in rules:
         conditions = json.loads(rule.conditions or "{}")
         if not _regla_coincide(ticket, conditions):
             continue
-        _aplicar_acciones(ticket, json.loads(rule.actions or "{}"))
+        _aplicar_acciones(db, ticket, json.loads(rule.actions or "{}"), org_id)
         return True
 
     return False

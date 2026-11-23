@@ -217,22 +217,33 @@ export default [
       'no-console': 'off',
       'no-empty': 'off',
 
-      // Accessibility baseline (WCAG-focused)
-      'jsx-a11y/aria-props': 'warn',
-      'jsx-a11y/aria-proptypes': 'warn',
-      'jsx-a11y/aria-unsupported-elements': 'warn',
-      'jsx-a11y/role-has-required-aria-props': 'warn',
-      'jsx-a11y/role-supports-aria-props': 'warn',
-      'jsx-a11y/alt-text': 'warn',
+      // Accessibility baseline (WCAG-focused).
+      // 23-11-2026 (auditoría 05, A.6): de `warn` a `error`. Medido antes con
+      // estas reglas: 25 avisos reales en 20 ficheros (10 cabeceras <th /> vacías,
+      // 1 treeitem sin aria-selected, 4 etiquetas que envuelven el Checkbox del
+      // kit, 10 celdas <td> con botones del kit y 2 <option> de <datalist>).
+      // Arreglados los primeros; `td` y `option` se ignoran (una celda no es un
+      // control: se vigilan los botones que contiene; la opción de un datalist
+      // se nombra por su `value`) y el Checkbox/Input/Select del kit cuentan
+      // como control dentro de un <label>.
+      'jsx-a11y/aria-props': 'error',
+      'jsx-a11y/aria-proptypes': 'error',
+      'jsx-a11y/aria-unsupported-elements': 'error',
+      'jsx-a11y/role-has-required-aria-props': 'error',
+      'jsx-a11y/role-supports-aria-props': 'error',
+      'jsx-a11y/alt-text': 'error',
       // 2026-11: opciones del propio plugin (config recomendada). Sin ellas la regla
       // marcaba inputs con <label htmlFor> como sin etiqueta; esos los vigila
       // label-has-associated-control.
-      'jsx-a11y/control-has-associated-label': ['warn', {
-        ignoreElements: ['audio', 'canvas', 'embed', 'input', 'textarea', 'tr', 'video'],
+      'jsx-a11y/control-has-associated-label': ['error', {
+        ignoreElements: ['audio', 'canvas', 'embed', 'input', 'textarea', 'tr', 'td', 'option', 'video'],
         ignoreRoles: ['grid', 'listbox', 'menu', 'menubar', 'radiogroup', 'row', 'tablist', 'toolbar', 'tree', 'treegrid'],
         includeRoles: ['alert', 'dialog'],
       }],
-      'jsx-a11y/label-has-associated-control': 'warn',
+      'jsx-a11y/label-has-associated-control': ['error', {
+        controlComponents: ['Checkbox', 'Input', 'Select', 'Textarea', 'DateInput', 'Switch'],
+        depth: 3,
+      }],
       'jsx-a11y/click-events-have-key-events': 'error',
       'jsx-a11y/no-static-element-interactions': 'error',
 

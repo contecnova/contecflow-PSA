@@ -8,10 +8,9 @@
  * e icono (antes texto gris suelto); textos sin anglicismos («solución
  * temporal», «error conocido»). Sin estilos en línea con valores fijos.
  */
-import { useAppT } from "../../hooks/useAppT";
 import DocumentosDeFicha from '../../components/conectores/DocumentosDeFicha'
 import { useId, useState } from 'react'
-import { useAppT as useAppTSimple } from '../../i18n/AppLangContext'
+import { useAppLang, useAppT as useAppTSimple } from '../../i18n/AppLangContext'
 import type { ChangeEvent } from 'react'
 import { openConfirmGlobal } from '../../context/ConfirmContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -30,7 +29,7 @@ import { useToast } from '../../context/ToastContext'
 import { useAuth } from '../../context/AuthContext'
 import { sdKbApi, problemsApi } from '../../services/api'
 import type { SdArticuloKb, SdArticuloKbDetalle, SdCalidadKb, SdErrorConocido, SdTicketDeErrorConocido } from '../../services/api/tipos-sd'
-import { Button, Checkbox, Spinner, EmptyState, Modal, Select, StatusBadge, Tabs, IconButton, useErroresDeCampo, Input, Textarea } from '../../components/ui'
+import { Buscador, Button, Checkbox, Spinner, EmptyState, Modal, Select, StatusBadge, Tabs, IconButton, useErroresDeCampo, Input, Textarea } from '../../components/ui'
 import type { StatusBadgeKind } from '../../components/ui/StatusBadge'
 import MarkdownText from '../../components/ui/MarkdownText'
 import { etiquetaSd, PBadge, PRIORITY_LABEL, SBadge } from './sdUtils'
@@ -71,10 +70,10 @@ const KIND_PROBLEMA: Record<string, StatusBadgeKind> = {
 const KIND_KB: Record<string, StatusBadgeKind> = { published: 'success', draft: 'warning', in_review: 'accent', archived: 'neutral' }
 
 function KELinkedTickets({ kedbId }: { kedbId: string | number }) {
-  const { t } = useAppT()
+  const { t } = useAppLang()
   const { data: tickets, isLoading } = useQuery<LinkedTicket[]>({
     queryKey: ['sd-ke-tickets', kedbId],
-    queryFn: () => sdKbApi.knownErrorTickets(kedbId).then(r => r.data).catch(() => []),
+    queryFn: () => sdKbApi.knownErrorTickets(kedbId).then(r => r.data),
     staleTime: STALE_SHORT_MS,
   })
   if (isLoading) return <div className="itk-linked-loading"><Spinner /></div>
@@ -100,7 +99,7 @@ function KELinkedTickets({ kedbId }: { kedbId: string | number }) {
 }
 
 function KnownErrors() {
-  const { t } = useAppT()
+  const { t } = useAppLang()
   const qc = useQueryClient()
   const toast = useToast()
   const [showNew, setShowNew] = useState(false)
@@ -184,7 +183,7 @@ function KnownErrors() {
                 qc.invalidateQueries({ queryKey: ['sd-kedb'] })
                 setShowNew(false)
                 toast.success(t('itsmknowledge.ke_creado'))
-              }).catch(e => toast.error(e?.response?.data?.detail || t('itsmknowledge.error')))
+              }).catch(e => toast.error(extractErr(e, t('itsmknowledge.error'))))
             }
           }}
         />
@@ -200,7 +199,7 @@ type KEDBModalProps = {
 }
 
 function KEDBModal({ item, onClose, onSaved }: KEDBModalProps) {
-  const { t } = useAppT()
+  const { t } = useAppLang()
   const idPrefix = useId()
   const isEdit = !!item
   const [form, setForm] = useState({
@@ -237,7 +236,7 @@ function KEDBModal({ item, onClose, onSaved }: KEDBModalProps) {
 }
 
 function Problems() {
-  const { t } = useAppT()
+  const { t } = useAppLang()
   const qc = useQueryClient()
   const toast = useToast()
   const [showModal, setShowModal] = useState(false)
@@ -379,7 +378,7 @@ type ProblemModalProps = {
 }
 
 function ProblemModal({ item, onClose, onSaved, isPending }: ProblemModalProps) {
-  const { t } = useAppT()
+  const { t } = useAppLang()
   const idPrefix = useId()
   const isEdit = !!item
   const [form, setForm] = useState({
@@ -415,7 +414,7 @@ function ProblemModal({ item, onClose, onSaved, isPending }: ProblemModalProps) 
 }
 
 function KB() {
-  const { t } = useAppT()
+  const { t } = useAppLang()
   const qc = useQueryClient()
   const toast = useToast()
   const [search, setSearch] = useState('')
@@ -462,7 +461,7 @@ function KB() {
     <div className="u-stack-16">
       <SelectorDeVista vista={vista} setVista={setVista} />
       <div className="itk-search-row">
-        <input placeholder={t('itsmknowledge.buscar_articulos')} aria-label={t('itsmknowledge.buscar_articulos')} value={search} onChange={e => setSearch(e.target.value)} className="ds-input itk-input--search" />
+        <Buscador placeholder={t('itsmknowledge.buscar_articulos')} aria-label={t('itsmknowledge.buscar_articulos')} value={search} onChange={setSearch} className="itk-input--search" />
         {nuevo}
       </div>
       {isLoading ? <Spinner /> :
@@ -525,7 +524,7 @@ type KBArticleModalProps = {
 
 function KBArticleModal({ article, onClose, onSaved, inicial }: KBArticleModalProps) {
   const idCampo = useId()
-  const { t } = useAppT()
+  const { t } = useAppLang()
   const idPrefix = useId()
   const toast = useToast()
   const isEdit = !!article
@@ -580,7 +579,7 @@ function useCalidad() {
 }
 
 function SelectorDeVista({ vista, setVista }: { vista: string; setVista: (v: 'articulos' | 'calidad') => void }) {
-  const { t } = useAppT()
+  const { t } = useAppLang()
   const { data } = useCalidad()
   const pendientes = (data?.counts.gaps ?? 0) + (data?.counts.findings ?? 0)
   return (
@@ -597,7 +596,7 @@ function SelectorDeVista({ vista, setVista }: { vista: string; setVista: (v: 'ar
 }
 
 function CalidadKB() {
-  const { t } = useAppT()
+  const { t } = useAppLang()
   const qc = useQueryClient()
   const toast = useToast()
   const { data, isLoading } = useCalidad()

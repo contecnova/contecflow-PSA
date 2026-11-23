@@ -32,10 +32,12 @@ import app.models  # noqa: F401 — registra todos los modelos
 from app.db.base import Base
 from app.db.session import _is_tenant_exempt
 
-# Las seis vías que `_tenant_filter_for_model` prueba, en su orden de precedencia.
+# Las vías que `_tenant_filter_for_model` prueba, en su orden de precedencia.
 # Se replican como NOMBRES de atributo, no como lógica: el test comprueba que el
 # modelo ofrece al menos una, que es lo que la función necesita para filtrar.
-VIAS = ("organization_id", "org_id", "project_id", "user_id", "actor_id")
+# 23-11-2026 (auditoría 01 §4): fuera `project_id`, `user_id` y `actor_id`, código
+# muerto (ningún modelo llegaba) que filtraba por la empresa de ficha.
+VIAS = ("organization_id", "org_id")
 
 PREFIJO_MODELOS_DE_TEST = "_test_"
 

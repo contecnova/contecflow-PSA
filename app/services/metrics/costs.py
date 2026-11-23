@@ -231,65 +231,35 @@ def metric_margin_by_project(
     project_ids: Optional[list[str]] = None,
     **kwargs
 ) -> tuple[list[dict], dict]:
+    """Margen por proyecto: (ingreso − coste) / ingreso.
+
+    Auditoría 22-11-2026 (§7.2): el cálculo ÚNICO y en bloque
+    (`margen_de_proyectos.margen_en_bloque`), el mismo que rentabilidad, el
+    panel, la evolución del margen y el EVM. Antes era horas × `billing_rate`
+    contra `cost_amount` sin convertir, sin gastos, subcontrata ni ALM.
     """
-    Margen por proyecto: (Revenue - Cost) / Revenue.
-    OPTIMIZED: Single GROUP BY query instead of per-project loop (was N+1).
-    """
-    # Revenue is estimated from billable imputations using project billing_rate.
-    revenue_expr = Imputation.hours * func.coalesce(Project.billing_rate, 0.0)
-
-    revenue_q = db.query(
-        Imputation.project_id,
-        func.sum(revenue_expr).label("revenue")
-    ).join(
-        Project,
-        Project.id == Imputation.project_id
-    ).filter(
-        Imputation.date.between(d_from, d_to),
-        Project.is_billable.is_(True),
-        Project.billing_rate.isnot(None)
-    )
+    from app.services.margen_de_proyectos import margen_en_bloque
+    q = db.query(Project)
     if project_ids is not None:
-        revenue_q = revenue_q.filter(Imputation.project_id.in_(project_ids))
-    revenue_q = revenue_q.group_by(Imputation.project_id)
-
-    # Cost: Sum of imputation costs (full cost to org)
-    cost_q = db.query(
-        Imputation.project_id,
-        func.sum(Imputation.cost_amount).label("cost")
-    ).filter(
-        Imputation.date.between(d_from, d_to),
-        Imputation.cost_amount.isnot(None)
-    )
-    if project_ids is not None:
-        cost_q = cost_q.filter(Imputation.project_id.in_(project_ids))
-    cost_q = cost_q.group_by(Imputation.project_id)
-
-    # Build lookup dicts for O(1) join
-    revenue_by_proj = {r.project_id: r.revenue or 0 for r in revenue_q.all()}
-    cost_by_proj = {r.project_id: r.cost or 0 for r in cost_q.all()}
-
-    # Join with Project to get names
-    projects = db.query(Project).filter(Project.id.in_(list(revenue_by_proj.keys())))
-    if project_ids is not None:
-        projects = projects.filter(Project.id.in_(project_ids))
-    projects = projects.limit(top_n).all()
-
+        q = q.filter(Project.id.in_(project_ids))
+    if project_id:
+        q = q.filter(Project.id == project_id)
+    proyectos = q.all()
+    cifras = margen_en_bloque(db, proyectos, d_from, d_to)
     rows = []
-    for p in projects:
-        rev = revenue_by_proj.get(p.id, 0)
-        cost = cost_by_proj.get(p.id, 0)
-        margin = round((rev - cost) / rev * 100, 1) if rev > 0 else 0
+    for p in proyectos:
+        c = cifras[p.id]
+        if c["revenue"] <= 0:
+            continue
         rows.append({
             "label": f"{p.code}",
-            "revenue": round(rev, 0),
-            "cost": round(cost, 0),
-            "margin": margin,
-            "value": margin
+            "revenue": round(c["revenue"], 0),
+            "cost": round(c["total_cost"], 0),
+            "margin": c["margin_pct"],
+            "value": c["margin_pct"],
         })
-
     rows.sort(key=lambda x: x["value"], reverse=True)
-    return rows, {}
+    return rows[:top_n], {"fx_warnings": next(iter(cifras.values()))["fx_warnings"] if cifras else []}
 
 
 @register_metric("margin_evolution")

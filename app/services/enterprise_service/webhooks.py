@@ -5,10 +5,7 @@ sin cambiar el codigo. El paquete reexporta todos los nombres.
 """
 from __future__ import annotations
 
-import ipaddress
 import logging
-import socket
-import urllib.parse as _urlparse
 from sqlalchemy.orm import Session
 from app.core.encryption import encrypt_value
 from app.models.enterprise import Webhook
@@ -27,86 +24,31 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger("app.services.enterprise_service")
 
-# Networks that must never be reachable from an outbound webhook delivery.
-# Covers: loopback, RFC 1918, link-local (incl. AWS/GCP/Azure metadata),
-# CGN (RFC 6598), documentation, IPv6 ULA, IPv6 link-local.
-_BLOCKED_NETWORKS: list[ipaddress.IPv4Network | ipaddress.IPv6Network] = [
-    ipaddress.ip_network("10.0.0.0/8"),
-    ipaddress.ip_network("172.16.0.0/12"),
-    ipaddress.ip_network("192.168.0.0/16"),
-    ipaddress.ip_network("127.0.0.0/8"),
-    ipaddress.ip_network("169.254.0.0/16"),   # link-local / AWS+GCP metadata
-    ipaddress.ip_network("100.64.0.0/10"),    # CGN (RFC 6598)
-    ipaddress.ip_network("192.0.2.0/24"),     # TEST-NET-1 (RFC 5737)
-    ipaddress.ip_network("198.51.100.0/24"),  # TEST-NET-2
-    ipaddress.ip_network("203.0.113.0/24"),   # TEST-NET-3
-    ipaddress.ip_network("::1/128"),          # IPv6 loopback
-    ipaddress.ip_network("fc00::/7"),         # IPv6 ULA
-    ipaddress.ip_network("fe80::/10"),        # IPv6 link-local
-]
-_BLOCKED_HOSTNAMES: frozenset[str] = frozenset({
-    "169.254.169.254",           # AWS/GCP/Azure IMDS
-    "metadata.google.internal",
-    "metadata.google",
-    "metadata",
-})
+# Auditoría 22-11-2026 (01 M7, 02 A27): aquí había un segundo validador SSRF con
+# su propia lista de redes, divergente del central. Ahora delega en
+# `app.core.outbound_url` (un único guardia: IP global, metadatos de nube, CGN,
+# NAT64...). Los nombres se conservan porque el paquete los reexporta.
+from app.core.outbound_url import es_red_prohibida as _es_red_prohibida
+from app.core.outbound_url import ConexionBloqueada
+from app.core.outbound_url import validar_url_o_valueerror as _validar_url
+
+_BLOCKED_NETWORKS: list = []      # obsoleto: la política vive en outbound_url
+_BLOCKED_HOSTNAMES: frozenset[str] = frozenset()
 
 
 def _rechazar_si_es_interna(ip_str: str) -> None:
-    """Levanta si esta IP es interna, reservada o está en la lista de bloqueo.
-
-    Una cadena que no sea una IP se ignora en silencio: `getaddrinfo` puede
-    devolver formas que `ip_address` no entiende, y eso no es un destino
-    peligroso, es una entrada que no sabemos leer.
-    """
-    try:
-        ip = ipaddress.ip_address(ip_str)
-    except ValueError:
-        return
-
-    if ip.is_loopback or ip.is_link_local or ip.is_private or ip.is_reserved or ip.is_unspecified:
-        raise ErrorConCodigo("url_red_no_permitida", detail=f"Destino bloqueado — IP interna/reservada: {ip_str}", campo="Webhook")
-    for red in _BLOCKED_NETWORKS:
-        if ip in red:
-            raise ErrorConCodigo("url_red_no_permitida", detail=f"Destino bloqueado — red interna {red}: {ip_str}", campo="Webhook")
+    """Levanta si esta IP no es un destino saliente aceptable (delegado)."""
+    if _es_red_prohibida(ip_str):
+        raise ErrorConCodigo("url_red_no_permitida", campo="Webhook")
 
 
 def _validate_webhook_url(url: str) -> None:
-    """Levanta `ValueError` si *url* no es un destino seguro para un webhook.
+    """Levanta `ErrorConCodigo` (un `ValueError`) si *url* no es un destino seguro.
 
-    Comprueba:
-    - que el esquema sea https,
-    - que el nombre no sea un punto de metadatos conocido,
-    - que **ninguna** de las direcciones a las que resuelve caiga en un rango
-      privado, de bucle local, link-local o reservado (prevención de SSRF).
-
-    Se comprueban todas las direcciones y no sólo la primera: un nombre puede
-    resolver a varias, y bastaría con que una fuera interna.
-
-    Raises:
-        ValueError: con un motivo legible; quien llama debe registrarlo.
+    HTTPS obligatorio y el guardia central (`validate_outbound_url`). La entrega
+    usa además `cliente_httpx`, que comprueba la IP conectada (DNS rebinding).
     """
-    try:
-        parsed = _urlparse.urlparse(url)
-    except Exception as exc:
-        raise ErrorConCodigo("url_no_valida", detail=f"URL malformada: {url!r}") from exc
-
-    if parsed.scheme != "https":
-        raise ErrorConCodigo("url_debe_ser_https", detail="Solo se permiten destinos HTTPS en webhooks", campo="Webhook")
-
-    hostname = (parsed.hostname or "").lower()
-    if not hostname:
-        raise ErrorConCodigo("url_sin_host", detail="URL de webhook sin hostname", campo="Webhook")
-    if hostname in _BLOCKED_HOSTNAMES:
-        raise ErrorConCodigo("url_red_no_permitida", detail=f"Hostname de metadata bloqueado: {hostname!r}", campo="Webhook")
-
-    try:
-        direcciones = socket.getaddrinfo(hostname, None)
-    except socket.gaierror as exc:
-        raise ErrorConCodigo("url_host_no_resuelto", detail=f"No se pudo resolver el hostname {hostname!r}: {exc}", host=hostname) from exc
-
-    for *_ignorado, sockaddr in direcciones:
-        _rechazar_si_es_interna(sockaddr[0])
+    _validar_url(url, field="Webhook", require_https=True)
 
 
 # ── Serializers ───────────────────────────────────────────────────────────────
@@ -118,6 +60,10 @@ def serialize_webhook(h) -> dict:
         "has_secret": bool(h.secret),
         "events": json.loads(h.events) if h.events else [],
         "is_active": h.is_active,
+        # Auditoría 22-11-2026 (A44): suspendido por el cortacircuitos (no borrado).
+        "suspended": bool(not h.is_active and getattr(h, "suspended_at", None)),
+        "suspended_at": str(h.suspended_at)[:16] if getattr(h, "suspended_at", None) else None,
+        "consecutive_failures": getattr(h, "consecutive_failures", 0) or 0,
         "project_id": h.project_id,
         "project_name": h.project.name if h.project else None,
         "total_deliveries": h.total_deliveries or 0,
@@ -159,7 +105,8 @@ def test_webhook_delivery(hook, current_user) -> dict:
     try:
         body = json.dumps({"event": "test", "data": test_payload}, default=str)
         start = time.time()
-        with httpx.Client(timeout=outbound_http_timeout(default=10.0)) as client:
+        from app.core.outbound_url import cliente_httpx
+        with cliente_httpx(timeout=outbound_http_timeout(default=10.0)) as client:
             resp = client.post(
                 hook.url,
                 content=body,
@@ -171,7 +118,6 @@ def test_webhook_delivery(hook, current_user) -> dict:
         return {
             "ok": resp.status_code < 400,
             "status_code": resp.status_code,
-            "response": resp.text[:200],
             "duration_ms": int((time.time() - start) * 1000),
         }
     except httpx.TimeoutException as exc:
@@ -179,16 +125,45 @@ def test_webhook_delivery(hook, current_user) -> dict:
         return {"ok": False, "error": "Timeout al conectar con el destino del webhook"}
     except httpx.RequestError as exc:
         logger.warning("Webhook delivery network error: url=%r error=%s", hook.url, exc)
-        return {"ok": False, "error": f"Error de red: {exc}"}
+        return {"ok": False, "error": "Error de red al conectar con el destino del webhook"}
+    except ConexionBloqueada as exc:
+        logger.warning("Webhook SSRF blocked at connect: url=%r error=%s", hook.url, exc)
+        return {"ok": False, "blocked": True, "error": "URL no permitida: el destino resuelve a una red interna"}
 
 
 # ── Webhooks ──────────────────────────────────────────────────────────────────
 
+def _vivo():
+    """Activo o suspendido por el cortacircuitos (A44): borrado = inactivo SIN `suspended_at`.
+
+    Antes el cortacircuitos ponía `is_active=False` y la lista y la edición
+    filtraban `is_active == True`: un webhook suspendido desaparecía y no se
+    podía reactivar ni borrar."""
+    from sqlalchemy import or_
+    return or_(Webhook.is_active == True, Webhook.suspended_at.isnot(None))  # noqa: E712
+
+
 def list_webhooks(db: Session) -> list:
     hooks = db.query(Webhook).options(joinedload(Webhook.project)).filter(
-        Webhook.is_active == True
+        _vivo()
     ).order_by(Webhook.created_at.desc()).all()
     return [serialize_webhook(h) for h in hooks]
+
+
+def reactivar_webhook(hook_id: str, current_user, db: Session) -> dict:
+    """Reactiva un webhook suspendido por el cortacircuitos (A44): contador a 0."""
+    hook = db.query(Webhook).filter(Webhook.id == hook_id, _vivo()).first()
+    if not hook:
+        raise ValueError("not_found")
+    antes = {"is_active": bool(hook.is_active), "suspended_at": str(hook.suspended_at) if hook.suspended_at else None,
+             "consecutive_failures": hook.consecutive_failures}
+    hook.is_active = True
+    hook.suspended_at = None
+    hook.consecutive_failures = 0
+    audit_log(db, current_user, "REACTIVATE", "webhooks", hook.id, hook.name, old_values=antes,
+              new_values={"is_active": True})
+    db.commit()
+    return serialize_webhook(hook)
 
 
 def create_webhook(payload, current_user, db: Session) -> dict:
@@ -211,7 +186,7 @@ def create_webhook(payload, current_user, db: Session) -> dict:
 
 def update_webhook(hook_id: str, payload, current_user, db: Session) -> dict:
     import json as _json
-    hook = db.query(Webhook).filter(Webhook.id == hook_id, Webhook.is_active == True).first()
+    hook = db.query(Webhook).filter(Webhook.id == hook_id, _vivo()).first()
     if not hook:
         raise ValueError("not_found")
     data = payload.model_dump(exclude_unset=True)
@@ -221,18 +196,23 @@ def update_webhook(hook_id: str, payload, current_user, db: Session) -> dict:
         data["events"] = _json.dumps(data["events"])
     if "secret" in data and data["secret"]:
         data["secret"] = encrypt_value(data["secret"])
+    # M85 (auditoría 22-11-2026): el cambio queda auditado (sin el secreto).
+    antes = {k: (getattr(hook, k, None) if k != "secret" else "***") for k in data}
     for k, v in data.items():
         setattr(hook, k, v)
+    audit_log(db, current_user, "UPDATE", "webhooks", hook.id, getattr(hook, "name", None) or hook.url,
+              old_values=antes, new_values={k: (v if k != "secret" else "***") for k, v in data.items()})
     db.commit()
     return serialize_webhook(hook)
 
 
 def delete_webhook(hook_id: str, current_user, db: Session) -> dict:
-    hook = db.query(Webhook).filter(Webhook.id == hook_id, Webhook.is_active == True).first()
+    hook = db.query(Webhook).filter(Webhook.id == hook_id, _vivo()).first()
     if not hook:
         raise ValueError("not_found")
     audit_log(db, current_user, "DELETE", "webhooks", hook.id, hook.name)
     hook.is_active = False
+    hook.suspended_at = None   # borrado, no suspendido
     db.commit()
     return {"ok": True, "message": "Webhook eliminado correctamente"}
 

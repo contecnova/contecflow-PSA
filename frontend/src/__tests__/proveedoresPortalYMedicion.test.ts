@@ -36,7 +36,7 @@ describe('rutas y menú de proveedores', () => {
   })
 
   it('la bandeja de aprobaciones conoce el tipo supplier_statement', () => {
-    expect(src('pages/ApprovalsPage.tsx')).toMatch(/supplier_statement:/)
+    expect(src('pages/aprobaciones/compartido.tsx')).toMatch(/supplier_statement:/)
   })
 })
 

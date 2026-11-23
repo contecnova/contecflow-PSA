@@ -77,13 +77,9 @@ class Evaluador:
             return 1.0
         clave = (desde, hacia, fecha)
         if clave not in self._tipos:
-            from app.services.currency_rates_service import get_rate, get_rate_inverse
-            fila = get_rate(self.db, desde, hacia, fecha)
-            if fila and fila.rate:
-                self._tipos[clave] = float(fila.rate)
-            else:
-                inversa = get_rate_inverse(self.db, desde, hacia, fecha)
-                self._tipos[clave] = (1.0 / float(inversa.rate)) if inversa and inversa.rate else None
+            # Auditoría 22-11-2026 (A41): el resolutor único (también cruzado por EUR).
+            from app.services.currency_rates_service import tipo_de_cambio
+            self._tipos[clave] = tipo_de_cambio(self.db, desde, hacia, fecha)
         if self._tipos[clave] is None:
             raise Indeterminado(f"sin tipo de cambio {desde}→{hacia} a {fecha.isoformat()}")
         return self._tipos[clave]

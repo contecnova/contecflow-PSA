@@ -3,7 +3,7 @@
 //   - con contactos: se elige uno existente o «Nuevo contacto…»;
 //   - sin contactos (alta): directamente los campos del nuevo contacto.
 // `datosDeContactoPrincipal` traduce la elección al cuerpo del POST/PATCH.
-import { Select } from '../../components/ui'
+import { Input, Select } from '../../components/ui'
 import { useAppLang } from '../../i18n/AppLangContext'
 
 export const NUEVO_CONTACTO = '__nuevo__'
@@ -49,10 +49,8 @@ export function SelectorContactoPrincipal({ idBase, contactos, valor, onCambiar,
     return (
       <div>
         <label id={`${id}-et`} htmlFor={id} className="cli-label">{etiqueta}</label>
-        <input id={id} aria-labelledby={`${id}-et`} type={tipo} value={nuevo[clave]} className="cli-input"
-          aria-invalid={err ? true : undefined} aria-describedby={err ? `${id}-err` : undefined}
-          onChange={e => onCambiarNuevo(clave, e.target.value)} />
-        {err && <div id={`${id}-err`} className="u-field-error">{err}</div>}
+        <Input id={id} aria-labelledby={`${id}-et`} type={tipo} value={nuevo[clave]} inputClassName="cli-input"
+          error={err} onChange={e => onCambiarNuevo(clave, e.target.value)} />
       </div>
     )
   }

@@ -116,8 +116,36 @@ def _leer_meta(uid: str) -> Optional[dict]:
 
 
 def _escribir_meta(uid: str, datos: dict) -> None:
-    with open(_ruta_meta(uid), "w", encoding="utf-8") as f:
+    """M78 (auditoría 22-11-2026): escritura atómica (temporal + `os.replace`):
+    una lectura a la vez ya no ve un JSON a medio escribir."""
+    ruta = _ruta_meta(uid)
+    tmp = f"{ruta}.{uuid.uuid4().hex}.tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
         json.dump(datos, f)
+    os.replace(tmp, ruta)
+
+
+def purgar_caducadas(horas: Optional[float] = None) -> int:
+    """M78: borra las subidas a medias más viejas que `COLLAB_TUS_TTL_HOURS`
+    (antes los `.tus` no se limpiaban nunca). Se llama al abrir cada subida."""
+    import time
+    if horas is None:
+        horas = float(getattr(settings, "COLLAB_TUS_TTL_HOURS", 24) or 24)
+    limite = time.time() - horas * 3600
+    n = 0
+    try:
+        nombres = os.listdir(_directorio())
+    except OSError:
+        return 0
+    for nombre in nombres:
+        ruta = os.path.join(_directorio(), nombre)
+        try:
+            if os.path.isfile(ruta) and os.path.getmtime(ruta) < limite:
+                os.remove(ruta)
+                n += 1
+        except OSError:
+            _log.warning("TUS: no se pudo borrar %s", ruta, exc_info=True)
+    return n
 
 
 def _borrar_temporales(uid: str) -> None:
@@ -174,6 +202,7 @@ def crear_sesion(db: Session, user, *, upload_length: int, upload_metadata: str)
         raise error(400, "subida_sin_conversacion", detail="Upload-Metadata debe incluir 'conversationId'")
     assert_conversation_access(db, user, conversation_id)
 
+    purgar_caducadas()
     uid = str(uuid.uuid4())
     _escribir_meta(uid, {
         "user_id": user.id,

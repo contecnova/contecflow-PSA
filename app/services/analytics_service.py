@@ -226,7 +226,8 @@ def _horas_reservadas(db: Session, user_id, desde, hasta, project_ids) -> float:
         ResourceBooking.start_date <= hasta,
         ResourceBooking.end_date >= desde,
     )
-    if project_ids:
+    # Auditoría 22-11-2026 (A11): `[]` (proyecto ajeno o inexistente) es «ninguno», no «todos».
+    if project_ids is not None:
         q = q.filter(ResourceBooking.project_id.in_(project_ids))
 
     horas = 0.0
@@ -252,7 +253,7 @@ def _fila_de_utilizacion(db: Session, usuario, *, period_start, period_end,
         Imputation.date >= period_start,
         Imputation.date <= period_end,
     )
-    if project_ids:
+    if project_ids is not None:   # A11
         horas_q = horas_q.filter(Imputation.project_id.in_(project_ids))
     horas_reales = float(horas_q.scalar() or 0.0)
 

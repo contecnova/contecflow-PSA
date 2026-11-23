@@ -18,7 +18,7 @@ import { fmtDate, fmtDateTime } from '../../../../utils/helpers'
 import { cmdbRiesgoApi } from '../../../../services/api/cmdbRiesgo'
 import type { ControlCompensatorio } from '../../../../services/api/cmdbRiesgo'
 import type { StatusBadgeKind } from '../../../ui'
-import { Button, Checkbox, EmptyState, Input, Modal, Section, Segmentado, Select, Spinner, StatusBadge, TablaSimple, Textarea } from '../../../ui'
+import { Buscador, Button, Checkbox, EmptyState, Input, Modal, Section, Segmentado, Select, Spinner, StatusBadge, TablaSimple, Textarea } from '../../../ui'
 import Pagination from '../../../ui/Pagination'
 import { BotonFichero, SeveridadBadge, useErr } from '../comun'
 import DetalleDeHallazgo from '../DetalleDeHallazgo'
@@ -120,7 +120,8 @@ export function ControlModal({ inicial, onClose, onSaved }: { inicial: HallazgoB
   const [reduccion, setReduccion] = useState('')
   const [caduca, setCaduca] = useState(enDias(30))
   const tipos = meta.data?.control_types ?? []
-  useEffect(() => { if (!tipo && tipos.length) setTipo(tipos[0]) }, [tipo, tipos])
+  const primerTipo = tipos[0]
+  useEffect(() => { if (!tipo && primerTipo) setTipo(primerTipo) }, [tipo, primerTipo])
   const porDefecto = tipo ? meta.data?.control_reductions?.[tipo] : undefined
   const candidatos = useQuery({
     queryKey: ['swr', 'candidatos-control', buscar],
@@ -149,7 +150,7 @@ export function ControlModal({ inicial, onClose, onSaved }: { inicial: HallazgoB
                 label={`${h.vuln_id ?? '—'} · ${h.product_name ?? ''}${h.ci_name ? ` · ${h.ci_name}` : ''}`} />
             ))}</div>
           )}
-          <Input label={t('swr.buscar_hallazgos')} value={buscar} placeholder={t('swr.buscar_hallazgos_ph')} onChange={ev => setBuscar(ev.target.value)} />
+          <Buscador label={t('swr.buscar_hallazgos')} value={buscar} placeholder={t('swr.buscar_hallazgos_ph')} onChange={setBuscar} />
           {candidatos.isFetching ? <Spinner size={16} /> : (candidatos.data?.items ?? []).filter(h => !ids.has(h.id)).slice(0, 10).map(h => (
             <Checkbox key={h.id} checked={false} onChange={() => setElegidos([...elegidos, { id: h.id, vuln_id: h.vuln_id, product_name: h.product_name, ci_name: h.ci_name }])}
               label={<span>{h.vuln_id ?? '—'} <SeveridadBadge s={h.severity} /> <span className="u-text3-xs">{h.product_name ?? ''}{h.ci_name ? ` · ${h.ci_name}` : ''}</span></span>} />

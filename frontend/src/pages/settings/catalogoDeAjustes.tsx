@@ -96,6 +96,8 @@ export const SECCIONES_DE_AJUSTES: SeccionDeAjustes[] = [
   // Personas y jornada
   { id: 'users', grupo: 'personas', capacidad: 'personas.config', componente: seccionDe('UsersSection') },
   { id: 'roles', grupo: 'personas', capacidad: ADMIN, componente: seccionDe('RolesSection') },
+  // 23-11-2026 (menú personalizable): orden de categorías y pestañas ocultas del menú lateral por rol (auditado).
+  { id: 'menu-por-defecto', grupo: 'personas', capacidad: ADMIN, envolver: true, componente: pagina(() => import('../settings-sections/MenuPorDefectoSection')) },
   { id: 'ausencias', grupo: 'personas', capacidad: 'ausencias.config', envolver: true, componente: pagina(() => import('../../components/ausencias/admin/AdminDeAusencias')) },
   // 19-11-2026: también el máximo asignable (VACATION_MAX_DAYS_ENTITLED, grupo locale; sólo admin lo edita).
   { id: 'vacations', grupo: 'personas', capacidad: 'personas.config', componente: seccionDe('VacationSection') },
@@ -121,6 +123,8 @@ export const SECCIONES_DE_AJUSTES: SeccionDeAjustes[] = [
   { id: 'sd-agente', grupo: 'servicedesk', capacidad: 'sd.administrar', envolver: true, componente: pagina(() => import('../../components/servicedesk/ConfigAgenteAutonomo')) },
   { id: 'sd-autorresolucion', grupo: 'servicedesk', capacidad: 'sd.administrar', envolver: true, componente: pagina(() => import('../../components/servicedesk/ConfigAutoResolucion')) },
   { id: 'sd-voz', grupo: 'servicedesk', capacidad: 'sd.administrar', envolver: true, componente: pagina(() => import('../../components/servicedesk/ConfigAgenteDeVoz')) },
+  // 23-11-2026 (A-SD19): catálogo de cambios estándar preaprobados por el CAB.
+  { id: 'sd-cambios-estandar', grupo: 'servicedesk', capacidad: 'sd.gestionar', envolver: true, componente: pagina(() => import('../../components/servicedesk/CatalogoDeCambiosEstandar')) },
   // 19-11-2026: CMDB de software y vulnerabilidades (fuentes de avisos, credenciales, plazos, licencias).
   { id: 'cmdb-software', grupo: 'servicedesk', capacidad: 'software.config', envolver: true, componente: pagina(() => import('../../components/cmdb/software/ConfigSoftware')) },
 
@@ -151,6 +155,9 @@ export const SECCIONES_DE_AJUSTES: SeccionDeAjustes[] = [
   // Integraciones
   { id: 'integrations', grupo: 'integraciones', capacidad: ADMIN, componente: seccionDe('IntegrationCredentialsSection') },
   { id: 'esign', grupo: 'integraciones', capacidad: ADMIN, componente: seccionDe('ESignSettingsSection') },
+  // 23-11-2026 (A4 del 04b): las fuentes de uso de licencias (credenciales, prueba,
+  // sincronización, mapeo) estaban dentro de ALM → Uso real; la configuración vive aquí.
+  { id: 'alm-fuentes', grupo: 'integraciones', capacidad: ADMIN, envolver: true, componente: pagina(() => import('../alm/uso/FuentesPanel')) },
   { id: 'm365', grupo: 'integraciones', capacidad: ADMIN, rutaAntigua: '/m365', componente: pagina(() => import('../M365Page')) },
   // 19-11-2026: antes pestaña «Configuración» del panel Office 365 de la Plataforma de datos.
   // No se unifica con `m365`: aquella usa variables de entorno de la instalación (calendario, Teams);
@@ -165,7 +172,11 @@ export const SECCIONES_DE_AJUSTES: SeccionDeAjustes[] = [
   { id: 'import', grupo: 'integraciones', capacidad: 'integraciones.desarrollo', rutaAntigua: '/import', componente: pagina(() => import('../ImportPage')) },
 
   // Seguridad y GRC
-  { id: 'session', grupo: 'seguridad', capacidad: ADMIN, componente: seccionDe('SessionSecuritySection') },
+  // 23-11-2026 (docs/seguridad/politicas_de_cuenta.md): políticas de cuenta (contraseñas, bloqueo, MFA,
+  // sesiones —incluida la inactividad, que era la sección «session»—, acceso), usuarios, sesiones,
+  // aprobaciones con segundo administrador y campañas de recertificación.
+  { id: 'seguridad-cuentas', grupo: 'seguridad', capacidad: 'seguridad.administrar', componente: pagina(() => import('../settings-sections/SeguridadDeCuentasSection')) },
+  { id: 'recertificacion', grupo: 'seguridad', capacidad: 'seguridad.recertificar', componente: pagina(() => import('../settings-sections/RecertificacionSection')) },
   { id: 'mfa', grupo: 'seguridad', rutaAntigua: '/mfa', componente: pagina(() => import('../MFAPage')) },
   { id: 'grc', grupo: 'seguridad', capacidad: ADMIN, rutaAntigua: '/grc', componente: pagina(() => import('../GrcPage')) },
   // 19-11-2026: también los meses de retención propuestos (CHAT_RETENTION_PROPOSED_MONTHS, grupo audit).
@@ -199,6 +210,8 @@ export const IDS_ANTIGUOS: Record<string, string> = {
   'email-inbound': 'sd?sub=mail',
   fields: 'custom-fields',
   'workflows': 'project-workflows',
+  // 23-11-2026: la inactividad vive en Seguridad de cuentas › Sesiones.
+  session: 'seguridad-cuentas',
 }
 
 /** Clave i18n de una sección (`ajustes.s_<id>`). */

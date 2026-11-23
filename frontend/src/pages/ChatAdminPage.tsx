@@ -7,15 +7,16 @@ import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
-  ShieldCheck, Scale, Plug, ScrollText, Webhook, Search, Plus, RefreshCcw, X, Download,
+  ShieldCheck, Scale, Plug, ScrollText, Webhook, Search, Plus, RefreshCcw, X, Download, ClipboardCopy,
   type LucideIcon,
 } from 'lucide-react'
 import { useToast } from '../context/ToastContext'
 import { collabApi } from '../services/collaborationApi'
 import { apiUrl } from '../services/api'
 import { useAppT } from '../i18n/AppLangContext'
-import { Table, Pulsable, Select, Tabs, Input, Textarea } from '../components/ui'
+import { Table, Pulsable, Select, Tabs, Input, Textarea, Spinner, EstadoDeError } from '../components/ui'
 import DateInput from '../components/ui/DateInput'
+import { openConfirmGlobal } from '../context/ConfirmContext'
 import { POLL_FREQUENT_MS } from '../constants/timings'
 import { CHAT_AUDIT_LIMIT } from '../constants/pagination'
 import { fmtDate, fmtDateTime } from '../utils/helpers'
@@ -201,7 +202,8 @@ function RetentionTab() {
   const t = useAppT() as (key: string, params?: Record<string, unknown>) => string
   const qc = useQueryClient()
   const toast = useToast()
-  const { data = [] } = useQuery<RetentionPolicy[]>({ queryKey: ['retention'], queryFn: () => collabApi.listRetention() as Promise<RetentionPolicy[]> })
+  const q = useQuery<RetentionPolicy[]>({ queryKey: ['retention'], queryFn: () => collabApi.listRetention() as Promise<RetentionPolicy[]> })
+  const data = q.data ?? []
   // 19-11-2026: los meses propuestos son el ajuste de la empresa (CHAT_RETENTION_PROPOSED_MONTHS,
   // antes 24 fijos), que el servidor ya deja dentro del mínimo de retención y del tope del chat.
   const propuestos = usePropuestas().chat_retention_proposed_months
@@ -230,9 +232,13 @@ function RetentionTab() {
       <Card>
         <div className="cadm-card-head">
           <h3 className="cadm-h3">{t('chat_admin.retention_policies')}</h3>
-          <Btn variant="secondary" icon={RefreshCcw} onClick={() => run.mutate()}>{t('chat_admin.run_sweep')}</Btn>
+          {/* 23-11-2026: la purga borra mensajes de forma irreversible: pide confirmación. */}
+          <Btn variant="secondary" icon={RefreshCcw} onClick={() => openConfirmGlobal({
+            title: t('chat_admin.confirm_purge_title'), message: t('chat_admin.confirm_purge_msg'),
+            confirmLabel: t('chat_admin.run_sweep'), danger: true, onConfirm: () => run.mutate(),
+          })}>{t('chat_admin.run_sweep')}</Btn>
         </div>
-        {data.length === 0 ? <Empty text={t('chat_admin.no_policies_hint')} /> : (
+        {q.isLoading || q.isError ? <EstadoDeConsulta q={q} /> : data.length === 0 ? <Empty text={t('chat_admin.no_policies_hint')} /> : (
           <Table
             data={data}
             columns={[
@@ -277,7 +283,8 @@ function LegalHoldTab() {
   const t = useAppT() as (key: string, params?: Record<string, unknown>) => string
   const qc = useQueryClient()
   const toast = useToast()
-  const { data = [] } = useQuery<LegalHoldCase[]>({ queryKey: ['legal-holds'], queryFn: () => collabApi.listLegalHolds() as Promise<LegalHoldCase[]> })
+  const q = useQuery<LegalHoldCase[]>({ queryKey: ['legal-holds'], queryFn: () => collabApi.listLegalHolds() as Promise<LegalHoldCase[]> })
+  const data = q.data ?? []
   const [form, setForm] = useState<LegalHoldFormState>({ case_reference: '', description: '', custodian_user_ids: '', channel_ids: '' })
   const create = useMutation({
     mutationFn: () => collabApi.createLegalHold({
@@ -303,7 +310,7 @@ function LegalHoldTab() {
     <div className="cadm-split">
       <Card>
         <h3 className="cadm-h3">{t('chat_admin.legal_hold_cases')} ({data.length})</h3>
-        {data.length === 0 ? <Empty text={t('chat_admin.no_holds')} /> : (
+        {q.isLoading || q.isError ? <EstadoDeConsulta q={q} /> : data.length === 0 ? <Empty text={t('chat_admin.no_holds')} /> : (
           <div className="u-stack-10">
             {data.map((h) => (
               <div key={h.id} className="cadm-item">
@@ -312,7 +319,10 @@ function LegalHoldTab() {
                     <div className="cadm-item__name">{h.case_reference}</div>
                     <div className="u-text3-xs">{h.description}</div>
                   </div>
-                  {h.is_active && <Btn variant="danger" icon={X} onClick={() => release.mutate(h.id)}>{t('chat_admin.release')}</Btn>}
+                  {h.is_active && <Btn variant="danger" icon={X} onClick={() => openConfirmGlobal({
+                    title: t('chat_admin.confirm_release_title'), message: t('chat_admin.confirm_release_msg', { case: h.case_reference }),
+                    confirmLabel: t('chat_admin.release'), danger: true, onConfirm: () => release.mutate(h.id),
+                  })}>{t('chat_admin.release')}</Btn>}
                 </div>
                 <div className="cadm-item__meta">
                   {t('chat_admin.started_label')}: {fmtDate(h.started_at)} {h.ended_at && `· ${t('chat_admin.closed_label')}: ${fmtDate(h.ended_at)}`}
@@ -340,19 +350,21 @@ function IntegrationsTab() {
   const t = useAppT() as (key: string, params?: Record<string, unknown>) => string
   const qc = useQueryClient()
   const toast = useToast()
-  const { data = [] } = useQuery<IntegrationItem[]>({ queryKey: ['integrations'], queryFn: () => collabApi.listIntegrations() as Promise<IntegrationItem[]> })
+  // 23-11-2026 (04 A8): clave propia; `['integrations']` la compartía con otras pantallas con otra forma de datos.
+  const q = useQuery<IntegrationItem[]>({ queryKey: ['chat-admin', 'integraciones'], queryFn: () => collabApi.listIntegrations() as Promise<IntegrationItem[]> })
+  const data = q.data ?? []
   const [form, setForm] = useState<IntegrationFormState>({ kind: 'jira', name: '', config: '{}' })
   const create = useMutation({
     mutationFn: () => collabApi.createIntegration({ kind: form.kind, name: form.name, config: tryJson(form.config) }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['integrations'] })
+      qc.invalidateQueries({ queryKey: ['chat-admin', 'integraciones'] })
       toast.success(t('chat_admin.integration_created'))
     },
   })
   const remove = useMutation({
     mutationFn: (id: string | number) => collabApi.deleteIntegration(id),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['integrations'] })
+      qc.invalidateQueries({ queryKey: ['chat-admin', 'integraciones'] })
       toast.success(t('chat_admin.deleted'))
     },
   })
@@ -360,7 +372,7 @@ function IntegrationsTab() {
     <div className="cadm-split">
       <Card>
         <h3 className="cadm-h3">{t('chat_admin.integrations')} ({data.length})</h3>
-        {data.length === 0 ? <Empty text={t('chat_admin.no_integrations')} /> : (
+        {q.isLoading || q.isError ? <EstadoDeConsulta q={q} /> : data.length === 0 ? <Empty text={t('chat_admin.no_integrations')} /> : (
           <div className="u-stack-10">
             {data.map((it) => (
               <div key={it.id} className="cadm-item cadm-item--row">
@@ -368,7 +380,10 @@ function IntegrationsTab() {
                   <div className="cadm-item__name">{it.name}</div>
                   <div className="u-text3-xs">{it.kind}{!it.is_enabled && ` · ${t('chat_admin.disabled')}`}</div>
                 </div>
-                <Btn variant="danger" icon={X} onClick={() => remove.mutate(it.id)}>{t('chat_admin.delete')}</Btn>
+                <Btn variant="danger" icon={X} onClick={() => openConfirmGlobal({
+                  title: t('chat_admin.confirm_delete_integration_title'), message: t('chat_admin.confirm_delete_integration_msg', { name: it.name ?? '' }),
+                  confirmLabel: t('chat_admin.delete'), danger: true, onConfirm: () => remove.mutate(it.id),
+                })}>{t('chat_admin.delete')}</Btn>
               </div>
             ))}
           </div>
@@ -384,7 +399,7 @@ function IntegrationsTab() {
               <option value="gitlab">GitLab</option>
               <option value="google_calendar">Google Calendar</option>
               <option value="microsoft_365">Microsoft 365</option>
-              <option value="service_desk">Service Desk</option>
+              <option value="service_desk">{t('chat_admin.integracion_service_desk')}</option>
               <option value="nexus_ai">Nexus AI</option>
               <option value="custom_webhook">{t('chat_admin.custom_webhook')}</option>
             </Select>
@@ -402,7 +417,13 @@ function WebhooksTab() {
   const t = useAppT() as (key: string, params?: Record<string, unknown>) => string
   const qc = useQueryClient()
   const toast = useToast()
-  const { data = [] } = useQuery<WebhookItem[]>({ queryKey: ['webhooks'], queryFn: () => collabApi.listWebhooks() as Promise<WebhookItem[]> })
+  // 23-11-2026: clave con prefijo de módulo (antes ['webhooks'], genérica; medido: sin colisión real).
+  const q = useQuery<WebhookItem[]>({ queryKey: ['chat-admin', 'webhooks'], queryFn: () => collabApi.listWebhooks() as Promise<WebhookItem[]> })
+  const data = q.data ?? []
+  // El secreto solo llega entero en la respuesta del alta: se enseña una vez y no se guarda.
+  const [recienCreado, setRecienCreado] = useState<WebhookItem | null>(null)
+  const copiar = (texto: string) => navigator.clipboard.writeText(texto)
+    .then(() => toast.success(t('chat_admin.webhook_copiado')), () => toast.error(t('chat_admin.webhook_error_copiar')))
   const [form, setForm] = useState<WebhookFormState>({ direction: 'incoming', name: '', url: '', target_channel_id: '', events: '' })
   const create = useMutation({
     mutationFn: () => collabApi.createWebhook({
@@ -412,8 +433,9 @@ function WebhooksTab() {
       target_channel_id: form.target_channel_id || null,
       events: form.events.split(',').map((s) => s.trim()).filter(Boolean),
     }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['webhooks'] })
+    onSuccess: (creado) => {
+      setRecienCreado(creado as WebhookItem)
+      qc.invalidateQueries({ queryKey: ['chat-admin', 'webhooks'] })
       toast.success(t('chat_admin.webhook_created'))
     },
   })
@@ -421,13 +443,25 @@ function WebhooksTab() {
     <div className="cadm-split">
       <Card>
         <h3 className="cadm-h3">{t('chat_admin.tab_webhooks')} ({data.length})</h3>
-        {data.length === 0 ? <Empty text={t('chat_admin.no_webhooks')} /> : (
+        {recienCreado?.secret_token && (
+          <div className="cadm-secreto" role="status">
+            <div className="cadm-item__name">{t('chat_admin.webhook_secreto_una_vez', { nombre: recienCreado.name ?? '' })}</div>
+            <code className="cadm-item__url">{`POST ${apiUrl(`/collaboration/webhooks/incoming/${recienCreado.secret_token}`)}`}</code>
+            <div className="u-row-center-6">
+              <Btn icon={ClipboardCopy} onClick={() => copiar(apiUrl(`/collaboration/webhooks/incoming/${recienCreado.secret_token}`))}>{t('chat_admin.webhook_copiar_url')}</Btn>
+              <Btn icon={X} onClick={() => setRecienCreado(null)}>{t('chat_admin.webhook_ya_lo_guarde')}</Btn>
+            </div>
+          </div>
+        )}
+        {q.isLoading || q.isError ? <EstadoDeConsulta q={q} /> : data.length === 0 ? <Empty text={t('chat_admin.no_webhooks')} /> : (
           <div className="u-stack-10">
             {data.map((w) => (
               <div key={w.id} className="cadm-item">
                 <div className="cadm-item__name">{w.name} <span className="u-text3-xs">({w.direction === 'incoming' ? t('chat_admin.direction_in_short') : w.direction === 'outgoing' ? t('chat_admin.direction_out_short') : w.direction})</span></div>
                 <div className="cadm-item__url">
-                  {w.direction === 'incoming' ? `POST ${apiUrl(`/collaboration/webhooks/incoming/${w.secret_token}`)}` : (w.url || '—')}
+                  {w.direction === 'incoming'
+                    ? `POST ${apiUrl('/collaboration/webhooks/incoming/')}${w.secret_token ?? '••••'} · ${t('chat_admin.webhook_secreto_oculto')}`
+                    : (w.url || '—')}
                 </div>
                 <div className="u-hint">
                   {t('chat_admin.events_label')}: {w.events?.join(', ') || '—'}
@@ -443,7 +477,8 @@ function WebhooksTab() {
           <Field label={t('chat_admin.direction_label')}>
             <Select suelto placeholder={false} className={INPUT} value={form.direction} onChange={(e) => setForm({ ...form, direction: e.target.value as WebhookDirection })}>
               <option value="incoming">{t('chat_admin.direction_incoming')}</option>
-              <option value="outgoing">{t('chat_admin.direction_outgoing')}</option>
+              {/* Auditoría 22-11-2026: los salientes del chat no se entregaban; se retiran
+                  (los avisos a URL externa: Integraciones → Webhooks de la empresa). */}
             </Select>
           </Field>
           <Field label={t('chat_admin.col_name')}><Input aria-label={t('chat_admin.col_name')} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} inputClassName="cadm-input" /></Field>
@@ -459,7 +494,8 @@ function WebhooksTab() {
 
 function AuditTab() {
   const t = useAppT() as (key: string, params?: Record<string, unknown>) => string
-  const { data = [] } = useQuery<AuditEventItem[]>({ queryKey: ['audit'], queryFn: () => collabApi.listAudit(CHAT_AUDIT_LIMIT) as Promise<AuditEventItem[]>, refetchInterval: POLL_FREQUENT_MS })
+  const q = useQuery<AuditEventItem[]>({ queryKey: ['chat-admin', 'auditoria'], queryFn: () => collabApi.listAudit(CHAT_AUDIT_LIMIT) as Promise<AuditEventItem[]>, refetchInterval: POLL_FREQUENT_MS })
+  const data = q.data ?? []
   const verify = useMutation<AuditVerifyResult>({
     mutationFn: () => collabApi.verifyAudit() as Promise<AuditVerifyResult>,
   })
@@ -476,7 +512,7 @@ function AuditTab() {
             : t('chat_admin.chain_broken', { breaks: verify.data.breaks?.length || 0 })}
         </div>
       )}
-      <Table
+      {q.isLoading || q.isError ? <EstadoDeConsulta q={q} /> : <Table
         data={data}
         columns={[
           { key: 'created_at', label: t('chat_admin.col_date'), render: (_v, e) => <span className="cadm-mono-xs">{fmtDateTime(e.created_at)}</span> },
@@ -485,7 +521,7 @@ function AuditTab() {
           { key: 'entity_id', label: t('chat_admin.col_entity'), render: (_v, e) => <span className="ds-codigo cadm-mono-xs" title={e.entity_id}>{e.entity_id?.slice(0, 8) || '—'}</span> },
           { key: 'actor_user_id', label: t('chat_admin.col_actor'), render: (_v, e) => <span className="u-xs" title={e.actor_user_id}>{e.actor_user_id?.slice(0, 8) || '—'}</span> },
         ]}
-      />
+      />}
     </Card>
   )
 }
@@ -540,4 +576,11 @@ function tryJson(s: string): Record<string, unknown> {
 
 function Empty({ text }: { text: string }) {
   return <div className="cadm-empty">{text}</div>
+}
+
+/** Carga / error de una consulta (auditoría 23-11-2026, 04 A5: las 6 consultas no tenían ninguno de los dos). */
+function EstadoDeConsulta({ q }: { q: { isLoading: boolean; isError: boolean; error: unknown; refetch: () => unknown } }) {
+  if (q.isError) return <EstadoDeError error={q.error} onReintentar={() => { void q.refetch() }} />
+  if (q.isLoading) return <Spinner />
+  return null
 }

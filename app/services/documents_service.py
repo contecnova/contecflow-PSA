@@ -24,12 +24,15 @@ def query_documents(db: Session, current_user, category=None, tags=None, search=
             from app.models.documents import DocumentTag
             q = q.filter(Document.tags.any(DocumentTag.tag_name.in_(nombres)))
     if search:
-        q = q.filter(or_(Document.title.ilike(f"%{search}%"), Document.description.ilike(f"%{search}%")))
+        from app.services.service_desk.ticket_query_service import escapar_like
+        patron = f"%{escapar_like(search)}%"
+        q = q.filter(or_(Document.title.ilike(patron, escape="\\"), Document.description.ilike(patron, escape="\\")))
     if current_user.role != UserRole.admin:
         q = q.filter(or_(Document.created_by == current_user.id, Document.permissions.any(DocumentPermission.user_id == current_user.id)))
-    if not current_user.is_superadmin and current_user.organization_id:
-        org_user_ids = db.query(User.id).filter(User.organization_id == current_user.organization_id).scalar_subquery()
-        q = q.filter(or_(Document.created_by.in_(org_user_ids), Document.permissions.any(DocumentPermission.user_id.in_(org_user_ids))))
+    # M82 (auditoría 22-11-2026): la empresa es la del documento (`organization_id`),
+    # la misma regla que al abrir uno (`get_document_or_404`); antes el listado la
+    # deducía del autor o de cualquiera con permiso y no coincidía con el acceso.
+    q = _de_la_empresa(db, q, current_user)
     total = q.count()
     return q.order_by(Document.created_at.desc()), total
 
@@ -118,6 +121,39 @@ from app.core.uploads import (  # noqa: F401 — re-export por compatibilidad
 
 # ── Document access helpers ───────────────────────────────────────────────────
 
+def _de_la_empresa(db, q, current_user):
+    """M82: documentos de la empresa de quien mira: por `Document.organization_id`
+    y, en filas antiguas sin empresa, por la del autor. Sin empresa (y sin ser
+    superadmin), ninguno."""
+    if current_user is None or getattr(current_user, "is_superadmin", False):
+        return q
+    org = getattr(current_user, "organization_id", None)
+    if not org:
+        return q.filter(Document.id.is_(None))
+    org_user_ids = db.query(User.id).filter(User.organization_id == org).scalar_subquery()
+    return q.filter(or_(Document.organization_id == org,
+                        and_(Document.organization_id.is_(None), Document.created_by.in_(org_user_ids))))
+
+
+def _validar_vinculos(db, current_user, **ids) -> None:
+    """M82: proyecto, cliente, tarea y ticket vinculados existen y son de la empresa."""
+    from app.models.clients import Client
+    from app.models.project import Project
+    from app.models.service_desk import Ticket
+    from app.models.task import Task
+    modelos = {"project_id": Project, "client_id": Client, "task_id": Task, "ticket_id": Ticket}
+    org = getattr(current_user, "organization_id", None)
+    for campo, valor in ids.items():
+        if not valor or campo not in modelos:
+            continue
+        m = modelos[campo]
+        q = db.query(m.id).filter(m.id == valor)
+        if org and not getattr(current_user, "is_superadmin", False) and hasattr(m, "organization_id"):
+            q = q.filter(m.organization_id == org)
+        if q.first() is None:
+            raise error(404, "no_encontrado", detail=f"{campo} not found", que=campo.replace("_id", ""))
+
+
 def get_document_or_404(db, doc_id: str, current_user=None):
     """Fetch a document by id.
 
@@ -126,12 +162,7 @@ def get_document_or_404(db, doc_id: str, current_user=None):
     User.organization_id). Returns 404 (not 403) for cross-tenant access
     attempts to avoid leaking existence.
     """
-    q = db.query(Document).filter(Document.id == doc_id)
-    if current_user is not None and not getattr(current_user, "is_superadmin", False) and getattr(current_user, "organization_id", None):
-        org_user_ids = db.query(User.id).filter(
-            User.organization_id == current_user.organization_id
-        ).scalar_subquery()
-        q = q.filter(Document.created_by.in_(org_user_ids))
+    q = _de_la_empresa(db, db.query(Document).filter(Document.id == doc_id), current_user)
     doc = q.first()
     if not doc:
         raise error(404, "no_encontrado", detail="Document not found", que="documento")
@@ -712,7 +743,9 @@ def _auto_create_approval_request(db, doc, current_user):
 # ── CRUD service functions ────────────────────────────────────────────────────
 
 def create_document(db, payload, current_user):
+    _validar_vinculos(db, current_user, project_id=payload.project_id, client_id=payload.client_id)
     doc = Document(
+        organization_id=getattr(current_user, "organization_id", None),
         title=payload.title,
         description=payload.description,
         category=payload.category,
@@ -751,7 +784,8 @@ def archive_document(db, doc):
     db.commit()
 
 
-def create_document_version(db, doc, doc_id: str, file: object, content: bytes, change_note, current_user, s3_key: str, file_size: int):
+def create_document_version(db, doc, doc_id: str, file: object, change_note, current_user, s3_key: str, file_size: int):
+    # Auditoría 22-11-2026 (§5): fuera el argumento `content` (no se usaba).
     version_num = max([v.version_num for v in doc.versions], default=0) + 1
     version = DocumentVersion(
         document_id=doc_id,
@@ -813,6 +847,12 @@ def add_document_permission(db, doc_id: str, payload, current_user):
         expires_at=payload.expires_at,
     )
     db.add(perm)
+    db.flush()
+    # M82 (auditoría 22-11-2026): dar o quitar acceso a un documento queda auditado.
+    from app.services.audit import audit_log
+    audit_log(db, current_user, "GRANT", "document_permissions", doc_id, None,
+              new_values={"user_id": payload.user_id, "role": payload.role, "department": payload.department,
+                          "access_level": getattr(payload.access_level, "value", payload.access_level)})
     db.commit()
     db.refresh(perm)
     return perm, user
@@ -843,7 +883,7 @@ def list_document_permissions(db, doc_id: str):
     return out
 
 
-def remove_document_permission(db, doc_id: str, perm_id: str):
+def remove_document_permission(db, doc_id: str, perm_id: str, current_user=None):
     perm = db.query(DocumentPermission).filter(
         and_(
             DocumentPermission.id == perm_id,
@@ -852,6 +892,9 @@ def remove_document_permission(db, doc_id: str, perm_id: str):
     ).first()
     if not perm:
         raise error(404, "no_encontrado", detail="Permission not found", que="permiso")
+    from app.services.audit import audit_log
+    audit_log(db, current_user, "REVOKE", "document_permissions", doc_id, None,
+              old_values={"user_id": perm.user_id, "role": perm.role, "department": perm.department})
     db.delete(perm)
     db.commit()
 
@@ -923,7 +966,16 @@ def create_and_upload_document(db, current_user, file, content: bytes, title: st
         cat_enum = DocumentCategory(category)
     except ValueError:
         cat_enum = DocumentCategory.other
+    # M82: vínculos de la empresa; si algo falla, el fichero ya subido se borra
+    # (antes quedaba huérfano en el almacén).
+    try:
+        _validar_vinculos(db, current_user, project_id=project_id, client_id=client_id,
+                          task_id=task_id, ticket_id=ticket_id)
+    except Exception:
+        _borrar_fichero(s3_key)
+        raise
     doc = Document(
+        organization_id=getattr(current_user, "organization_id", None),
         title=title,
         description=description,
         category=cat_enum,
@@ -952,9 +1004,23 @@ def create_and_upload_document(db, current_user, file, content: bytes, title: st
             db.add(DocumentTag(document_id=doc.id, tag_name=tag))
     if requires_approval:
         _auto_create_approval_request(db, doc, current_user)
-    db.commit()
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        _borrar_fichero(s3_key)
+        raise
     db.refresh(doc)
     return serialize_document(db, doc, current_user)
+
+
+def _borrar_fichero(clave) -> None:
+    if not clave:
+        return
+    try:
+        file_storage.delete_file(clave)
+    except Exception:
+        logger.warning("documentos: no se pudo borrar el fichero huérfano %s", clave, exc_info=True)
 
 
 def resolve_file_access_token(token: str, file_key: str) -> bool:

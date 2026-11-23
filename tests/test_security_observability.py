@@ -334,22 +334,15 @@ class TestSOCEndpoints:
     """Light smoke tests — verify routing and auth guards work."""
 
     def _auth_headers(self, db: Session) -> dict:
-        uid = str(int(time.time() * 1000))
-        org = Organization(id=f"api-org-{uid}", name="API Org", slug=f"api-{uid}")
-        db.add(org)
-        db.commit()
-        response = client.post("/api/v1/auth/register", json={
-            "email":    f"soc-api-{uid}@test.com",
-            "password": "TestPass123!",
-            "username": f"soc-api-{uid}",
-            "full_name":"SOC API User",
-            "organization_id": org.id,
-        })
-        if response.status_code not in (200, 201):
-            pytest.skip("Auth register unavailable in test environment")
-        token = response.json().get("access_token")
-        if not token:
-            pytest.skip("No token returned from register")
+        """Cabeceras de un admin de la organizacion de test (login real)."""
+        from tests.conftest import TEST_PASSWORD
+        response = client.post(
+            "/api/v1/auth/login",
+            json={"username": "admin", "password": TEST_PASSWORD},
+        )
+        assert response.status_code == 200, response.text
+        token = response.cookies.get("access_token")
+        assert token, "el login no devolvio cookie access_token"
         return {"Authorization": f"Bearer {token}"}
 
     def test_soc_overview_unauthorized(self):

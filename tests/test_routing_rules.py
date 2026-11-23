@@ -56,13 +56,21 @@ class _Consulta:
     def order_by(self, *a, **k):
         return self
 
+    def join(self, *a, **k):
+        return self
+
     def all(self):
         return list(self._reglas)
+
+    def first(self):
+        # Validacion de grupo/agente de la empresa (23-11-2026): existe.
+        return ("id",)
 
 
 class _DBFalsa:
     def __init__(self, reglas):
         self._reglas = reglas
+        self.info = {}
 
     def query(self, _modelo):
         return _Consulta(self._reglas)
@@ -82,6 +90,7 @@ def _ticket(**kw):
         tags="urgente,portal",
         client_id="cli1",
         sla_policy_id="sla1",
+        organization_id="org1",
     )
     base.update(kw)
     return _Obj(**base)
@@ -290,12 +299,26 @@ def test_el_cliente_se_toma_del_solicitante_si_el_ticket_no_lo_trae():
 def test_cada_accion_escribe_su_campo():
     _, tk = _aplica({}, acciones={
         "assign_group": "g1", "assign_user": "u1",
-        "set_priority": "critical", "set_support_level": "L3",
+        "set_priority": "p1_critical", "set_support_level": "l3",
     })
     assert tk.assigned_group_id == "g1"
     assert tk.assigned_to_user_id == "u1"
-    assert tk.priority == "critical"
-    assert tk.support_level == "L3"
+    assert tk.priority == "p1_critical"
+    assert tk.support_level == "l3"
+
+
+def test_una_prioridad_o_nivel_invalidos_se_ignoran():
+    """Auditoria 2026-11-22 (A-SD4): antes se escribian y el flush daba 500."""
+    _, tk = _aplica({}, acciones={"set_priority": "critical", "set_support_level": "L9"})
+    assert tk.priority == "high"
+    assert tk.support_level is None
+
+
+def test_sin_empresa_no_se_aplica_ninguna_regla():
+    """Auditoria 2026-11-22 (A-SD5): sin empresa se aplicaban las de todas."""
+    coincide, tk = _aplica({}, ticket=_ticket(organization_id=None), acciones={"assign_group": "g1"})
+    assert coincide is False
+    assert tk.assigned_group_id is None
 
 
 def test_las_acciones_no_se_aplican_si_la_regla_no_coincide():

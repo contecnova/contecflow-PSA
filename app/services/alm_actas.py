@@ -248,15 +248,30 @@ def _documento_y_firma(db: Session, acta: ALMActa, actor) -> None:
             acta.document_id = guardar_documento(
                 db, actor, contenido, f"acta-{acta.kind}-{acta.asset.asset_tag or acta.asset_id[:8]}.pdf",
                 "application/pdf", f"{acta.kind} · {acta.asset.name}", categoria="legal", validar=False)
-    except Exception:
+    except Exception as exc:
+        # M90 (auditoría 22-11-2026): el fallo ya no se traga: queda como evento
+        # del activo (historial visible) además del log; el acta existe y se
+        # puede regenerar.
         logger.exception("acta %s: no se pudo generar o guardar el PDF", acta.id)
+        _anotar_fallo(db, acta, actor, "act_pdf_failed", exc)
         return
     if acta.signer_user_id and acta.document_id:
         try:
             with db.begin_nested():
                 _pedir_firma(db, acta, actor)
-        except Exception:
+        except Exception as exc:
             logger.exception("acta %s: no se pudo crear la solicitud de firma", acta.id)
+            _anotar_fallo(db, acta, actor, "act_signature_failed", exc)
+
+
+def _anotar_fallo(db: Session, acta: ALMActa, actor, evento: str, exc: Exception) -> None:
+    from app.services.alm_asignaciones import registrar_evento
+    try:
+        registrar_evento(db, evento=evento, resource_type="asset", asignacion=acta.assignment,
+                         actor_id=getattr(actor, "id", None),
+                         datos={"act_id": acta.id, "error": type(exc).__name__})
+    except Exception:
+        logger.warning("acta %s: no se pudo anotar el fallo", acta.id, exc_info=True)
 
 
 def _pedir_firma(db: Session, acta: ALMActa, actor) -> None:
@@ -327,8 +342,13 @@ def _acta(db: Session, acta_id: str) -> ALMActa:
     return acta
 
 
-def sincronizar(db: Session, acta: ALMActa) -> ALMActa:
-    """El estado del sobre manda: si el proveedor la completó, el acta queda firmada."""
+def sincronizar(db: Session, acta: ALMActa, confirmar: bool = True) -> ALMActa:
+    """El estado del sobre manda: si el proveedor la completó, el acta queda firmada.
+
+    M90 (auditoría 22-11-2026): con `confirmar=False` (las LECTURAS, `serializar`)
+    no se confirma nada: un GET ya no hace commit; el estado se refleja en la
+    respuesta y lo guarda la siguiente escritura o el aviso del proveedor.
+    """
     if acta.status != "pending_signature" or not acta.envelope_id:
         return acta
     from app.models.esign import ESignEnvelope, ESignStatus
@@ -342,10 +362,12 @@ def sincronizar(db: Session, acta: ALMActa) -> ALMActa:
         from app.services.alm_asignaciones import registrar_evento
         registrar_evento(db, evento="act_signed", resource_type="asset", asignacion=acta.assignment,
                          actor_id=acta.signer_user_id, datos={"act_id": acta.id, "provider": getattr(sobre.provider, "value", sobre.provider)})
-        db.commit()
+        if confirmar:
+            db.commit()
     elif estado in (ESignStatus.voided.value, ESignStatus.declined.value):
         acta.status = "void"
-        db.commit()
+        if confirmar:
+            db.commit()
     return acta
 
 
@@ -458,7 +480,7 @@ def adjuntos(db: Session, *, asset_id=None, act_id=None, invoice_id=None) -> lis
 # ── Lectura ───────────────────────────────────────────────────────────────────
 
 def serializar(db: Session, acta: ALMActa, con_url: bool = True) -> dict:
-    sincronizar(db, acta)
+    sincronizar(db, acta, confirmar=False)   # M90: una lectura no confirma
     from app.services.alm_asignaciones import nombre_de_titular
     a = acta.assignment
     try:

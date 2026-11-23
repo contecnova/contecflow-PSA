@@ -23,6 +23,12 @@ from app.services.traffic_control_service import consume_quota
 logger = logging.getLogger(__name__)
 
 
+
+def _salientes_por_minuto() -> int:
+    """Tope de entregas por webhook y minuto (`WEBHOOK_OUTBOUND_PER_MIN`)."""
+    from app.core.config import settings
+    return int(getattr(settings, "WEBHOOK_OUTBOUND_PER_MIN", 120) or 120)
+
 def _sign_payload(secret: str, payload: str) -> str:
     """Generate HMAC-SHA256 signature for webhook payload."""
     return "sha256=" + hmac.new(
@@ -75,7 +81,8 @@ def fire_webhook(
             scope="integrations.webhook.outbound",
             tenant_id=hook.organization_id,
             subject=hook.id,
-            limit=120,
+            # Ronda 2 auditoría 2026-11-22 (§6): ajuste, antes 120 fijo.
+            limit=_salientes_por_minuto(),
             window_seconds=60,
         )
         if not quota["allowed"]:

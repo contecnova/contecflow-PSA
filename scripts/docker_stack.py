@@ -11,7 +11,7 @@ Python 3.8+ (el del sistema o el de .venv), sin instalar dependencias.
 `arrancar`:
   1. Comprueba Docker y, si el daemon está parado, intenta encenderlo.
   2. Completa el .env con lo que el compose exige y falta (credenciales de
-     Postgres/S3, METRICS_AUTH_TOKEN, usuario y contraseña de Grafana, el origen
+     Postgres/S3, rol de aplicación APP_DB_USER/APP_DB_PASSWORD, METRICS_AUTH_TOKEN, usuario y contraseña de Grafana, el origen
      de la web en ALLOWED_ORIGINS). Los secretos se GENERAN una vez y se guardan
      en .env; nunca se escriben en el repositorio. Lo que ya tiene valor no se toca.
   3. Crea los volúmenes persistentes si faltan (contecflow_postgres_data,
@@ -217,6 +217,22 @@ def asegurar_env() -> Env:
                 env.poner(clave, _secreto())
                 aviso(f"{clave} no estaba definida; se generó y se guardó en .env")
 
+    # Auditoría 22-11-2026 (A1): la API, el worker y el beat conectan con un rol
+    # sin superusuario ni BYPASSRLS (RLS armado), igual que setup.sh; el
+    # servicio `migrate` lo crea o actualiza con el dueño (`python -m app.db.rls`).
+    # El compose ya no cae al superusuario si faltan.
+    if not env.leer("APP_DB_USER"):
+        env.poner("APP_DB_USER", "contecflow_app")
+    if not env.leer("APP_DB_PASSWORD"):
+        env.poner("APP_DB_PASSWORD", _secreto())
+        aviso("APP_DB_PASSWORD no estaba definida; se generó y se guardó en .env (rol de aplicación, RLS)")
+
+    # Auditoría 22-11-2026 (M5): Redis con contraseña (requirepass en el compose;
+    # la app la inyecta en REDIS_URL). No depende de ningún volumen.
+    if not env.leer("REDIS_PASSWORD"):
+        env.poner("REDIS_PASSWORD", _secreto())
+        aviso("REDIS_PASSWORD no estaba definida; se generó y se guardó en .env (Redis con contraseña)")
+
     if not env.leer("ENVIRONMENT"):
         env.poner("ENVIRONMENT", "development")
     if not env.leer("METRICS_AUTH_TOKEN"):
@@ -302,9 +318,10 @@ def _sembrar(modo: str) -> None:
 
 def _hay_usuarios() -> bool:
     r = compose("exec", "-T", "api", "python", "-c",
-                "from app.db.session import SessionLocal\n"
+                "from app.db.session import SessionLocal, declarar_sistema\n"
                 "from app.models.user import User\n"
-                "db=SessionLocal()\n"
+                "db=declarar_sistema(SessionLocal(), 'setup: comprobar usuarios')\n"
+
                 "print(db.query(User).filter(User.hashed_password.isnot(None)).count())\n"
                 "db.close()", capturar=True)
     try:

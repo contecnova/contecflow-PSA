@@ -91,7 +91,7 @@ function Tabla({ id, onVolver, onCreada }: { id: string | null; onVolver: () => 
       </div>
       <section className="pol-tarjeta pol-grid-2" aria-label={t('pol.cabecera_de_tabla')}>
         <label><span className="pol-etiqueta">{t('pol.nombre')}</span>
-          <input className="pol-campo pol-campo--ancho" required value={cab.nombre ?? ''} onChange={e => setCab({ ...cab, nombre: e.target.value })} /></label>
+          <Input required value={cab.nombre ?? ''} onChange={e => setCab({ ...cab, nombre: e.target.value })} className="pol-campo--ancho" /></label>
         <label><span className="pol-etiqueta">{t('pol.tipo_de_valor')}</span>
           <Select suelto className="pol-campo" value={cab.tipo_de_valor} onChange={e => setCab({ ...cab, tipo_de_valor: e.target.value as 'importe' | 'numero' })} placeholder={false}>
             <option value="importe">{t('pol.valor_importe')}</option><option value="numero">{t('pol.valor_numero')}</option>
@@ -113,7 +113,7 @@ function Tabla({ id, onVolver, onCreada }: { id: string | null; onVolver: () => 
           )
         })()}
         <label className="u-col-full"><span className="pol-etiqueta">{t('pol.descripcion')}</span>
-          <input className="pol-campo pol-campo--ancho" value={cab.descripcion ?? ''} onChange={e => setCab({ ...cab, descripcion: e.target.value })} /></label>
+          <Input value={cab.descripcion ?? ''} onChange={e => setCab({ ...cab, descripcion: e.target.value })} className="pol-campo--ancho" /></label>
         <div className="pol-fila-fin u-col-full"><Button icon={<Save size={14} />} loading={guardarCab.isPending} onClick={() => guardarCab.mutate()}>{t('pol.guardar_cabecera')}</Button></div>
       </section>
       {id && (

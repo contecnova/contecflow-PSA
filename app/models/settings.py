@@ -50,7 +50,7 @@ class CustomProjectType(Base):
 
     __tablename__ = "custom_project_types"
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     value = Column(String(50), nullable=False)
     label = Column(String(100), nullable=False)
     color = Column(String(20), default="#7a8aaa")
@@ -71,7 +71,7 @@ class CustomClientIndustry(Base):
 
     __tablename__ = "custom_client_industries"
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
     value = Column(String(50), nullable=False)
     label = Column(String(100), nullable=False)
     color = Column(String(20), default="#7a8aaa")
@@ -91,7 +91,7 @@ class CustomExpenseCategory(Base):
 
     __tablename__ = "custom_expense_categories"
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
     value = Column(String(50), nullable=False)
     label = Column(String(100), nullable=False)
     color = Column(String(20), default="#7a8aaa")
@@ -110,7 +110,7 @@ class CustomSupplierServiceType(Base):
 
     __tablename__ = "custom_supplier_service_types"
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
     value = Column(String(50), nullable=False)
     label = Column(String(100), nullable=False)
     color = Column(String(20), default="#7a8aaa")
@@ -130,7 +130,7 @@ class CustomSupplierBillingUnit(Base):
 
     __tablename__ = "custom_supplier_billing_units"
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
     value = Column(String(50), nullable=False)
     label = Column(String(100), nullable=False)
     color = Column(String(20), default="#7a8aaa")
@@ -157,7 +157,7 @@ class CustomProjectStatus(Base):
 
     __tablename__ = "custom_project_statuses"
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     value = Column(String(50), nullable=False)
     label = Column(String(100), nullable=False)
     color = Column(String(20), default="#7a8aaa")
@@ -185,7 +185,7 @@ class CustomTaskStatus(Base):
 
     __tablename__ = "custom_task_statuses"
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     value = Column(String(50), nullable=False)
     label = Column(String(100), nullable=False)
     color = Column(String(20), default="#7a8aaa")
@@ -199,10 +199,10 @@ class Area(Base):
     """Un área agrupa departamentos (revisión 2026-11): la base de su presupuesto."""
     __tablename__ = "areas"
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
     name = Column(String(120), nullable=False)
     description = Column(String(255), nullable=True)
-    manager_id = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    manager_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
@@ -210,11 +210,11 @@ class Area(Base):
 class Department(Base):
     __tablename__ = "departments"
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     area_id = Column(String(36), ForeignKey("areas.id", ondelete="SET NULL"), nullable=True, index=True)
     name = Column(String(100), nullable=False)
     description = Column(String(255), nullable=True)
-    manager_id = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
+    manager_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
@@ -222,7 +222,7 @@ class Department(Base):
 class Holiday(Base):
     __tablename__ = "holidays"
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     name = Column(String(100), nullable=False)
     date = Column(Date, nullable=False)
     type = Column(String(20), default="public")

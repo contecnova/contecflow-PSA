@@ -24,31 +24,70 @@ from sqlalchemy.orm import Session
 from app.core.errores import ErrorDeDominio
 from app.core.codigos_de_error import error
 
-# (key, expires_at) → bool
-_MEMBERSHIP_CACHE: dict[str, tuple[float, bool]] = {}
+# (key, expires_at, época) → bool
+_MEMBERSHIP_CACHE: dict[str, tuple[float, bool, int]] = {}
 _TTL = 30.0
+
+#: M79 (auditoría 22-11-2026): una revocación se propaga a TODOS los procesos.
+#: `invalidate_membership` sube una «época» en Redis (`collab:perm:epoch`); cada
+#: proceso la relee como mucho cada `_EPOCA_CADA` segundos y descarta lo que
+#: guardó con una época anterior. Antes la caché positiva vivía 30 s por proceso
+#: y quien perdía el acceso seguía leyendo en los demás workers. Sin Redis, como
+#: antes (un solo proceso).
+_CLAVE_EPOCA = "collab:perm:epoch"
+_EPOCA_CADA = 2.0
+_epoca_leida: list = [0, 0.0]   # [época, cuándo se leyó]
+
+
+def _redis():
+    try:
+        from app.services.auth_service.estado_efimero import get_sso_redis
+        return get_sso_redis()
+    except Exception:
+        return None
+
+
+def _epoca() -> int:
+    ahora = time.monotonic()
+    if ahora - _epoca_leida[1] >= _EPOCA_CADA:
+        r = _redis()
+        if r is not None:
+            try:
+                _epoca_leida[0] = int(r.get(_CLAVE_EPOCA) or 0)
+            except Exception:
+                pass
+        _epoca_leida[1] = ahora
+    return _epoca_leida[0]
 
 
 def _cache_get(key: str) -> Optional[bool]:
     rec = _MEMBERSHIP_CACHE.get(key)
     if not rec:
         return None
-    expires_at, value = rec
-    if expires_at < time.monotonic():
+    expires_at, value, epoca = rec
+    if expires_at < time.monotonic() or epoca != _epoca():
         _MEMBERSHIP_CACHE.pop(key, None)
         return None
     return value
 
 
 def _cache_set(key: str, value: bool) -> None:
-    _MEMBERSHIP_CACHE[key] = (time.monotonic() + _TTL, value)
+    _MEMBERSHIP_CACHE[key] = (time.monotonic() + _TTL, value, _epoca())
 
 
 def invalidate_membership(user_id: str) -> None:
-    """Borra todas las entradas de cache que mencionan al usuario."""
+    """Borra todas las entradas de cache que mencionan al usuario (aquí y, por la
+    época de Redis, en los demás procesos)."""
     keys = [k for k in _MEMBERSHIP_CACHE if user_id in k]
     for k in keys:
         _MEMBERSHIP_CACHE.pop(k, None)
+    r = _redis()
+    if r is not None:
+        try:
+            _epoca_leida[0] = int(r.incr(_CLAVE_EPOCA))
+            _epoca_leida[1] = time.monotonic()
+        except Exception:
+            pass
 
 from app.models.collaboration import (
     CollaborationChannel, CollaborationChannelMember,

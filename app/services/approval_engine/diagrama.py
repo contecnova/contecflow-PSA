@@ -67,7 +67,10 @@ def diagrama_de(db: Session, workflow_id: str) -> dict:
         try:
             return {**base, **json.loads(wf.diagrama), "generado": False}
         except ValueError:
-            pass
+            # §5 (auditoría 22-11-2026): ya no es un `pass` mudo: se anota y se
+            # genera desde los pasos.
+            import logging
+            logging.getLogger(__name__).warning("diagrama de aprobación %s ilegible; se genera desde los pasos", wf.id)
     return {**base, **_desde_pasos(list(wf.steps or [])), "generado": True}
 
 

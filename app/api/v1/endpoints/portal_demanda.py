@@ -21,9 +21,10 @@ from app.api.v1.endpoints.client_portal import get_current_client
 from app.api.v1.endpoints.demanda import _descarga, _ip, idioma_de
 from app.core.codigos_de_error import error
 from app.core.responses import APIResponse
+from app.core.uploads import UploadProfile, read_and_validate_upload_sync, safe_filename
 from app.db.session import get_db
 from app.models.client_portal import ClientUser
-from app.services.demanda import entrada
+from app.services.demanda import config, entrada
 from app.services.demanda.acceso import de_cliente
 
 router = APIRouter()
@@ -75,8 +76,7 @@ def _puede_pedir(cliente: ClientUser) -> None:
 def tipos(request: Request, db: Session = Depends(get_db), cliente: ClientUser = Depends(get_current_client)):
     proyectos = [{"id": p.id, "name": p.name} for p in (cliente.projects or [])]
     if cliente.project_id and all(p["id"] != cliente.project_id for p in proyectos):
-        from app.models.project import Project
-        p = db.query(Project).filter(Project.id == cliente.project_id).first()
+        p = config.proyecto_por_id(db, cliente.project_id)
         if p:
             proyectos.insert(0, {"id": p.id, "name": p.name})
     lista = entrada.tipos_del_canal(db, CANAL, cliente.organization_id, _idioma(request, cliente)) \
@@ -142,8 +142,9 @@ def subir(req_id: str, request: Request, file: UploadFile = File(...), tag: Opti
           personal_data: bool = Form(False), db: Session = Depends(get_db),
           cliente: ClientUser = Depends(get_current_client)):
     actor = de_cliente(cliente)
-    entrada.adjuntar(db, actor, req_id, nombre=file.filename or "", content_type=file.content_type or "",
-                     contenido=file.file.read(), etiqueta=tag, datos_personales=personal_data, ip=_ip(request))
+    contenido = read_and_validate_upload_sync(file, UploadProfile.DOCUMENT)
+    entrada.adjuntar(db, actor, req_id, nombre=safe_filename(file.filename), content_type=file.content_type or "",
+                     contenido=contenido, etiqueta=tag, datos_personales=personal_data, ip=_ip(request))
     return APIResponse.ok(data=entrada.detalle(db, actor, req_id, _idioma(request, cliente)))
 
 

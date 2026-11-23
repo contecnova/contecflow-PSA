@@ -55,7 +55,7 @@ function Configurar({ c, onClose }: { c: Conexion; onClose: () => void }) {
                 <label key={f.clave} className="almu-campo">{etiquetaCodigo(t, 'alm_uso.credencial', f.clave, f.etiqueta)}
                   {f.clave === 'service_account_json'
                     ? <Textarea rows={4} autoComplete="off" placeholder={f.configurado ? t('alm_uso.configurado_sin_cambios') : ''} value={creds[f.clave] ?? ''} onChange={e => setCreds({ ...creds, [f.clave]: e.target.value })} inputClassName="ds-codigo alm-input alm-input--mono ds-campo-codigo" />
-                    : <input className="alm-input" type={f.secreto ? 'password' : 'text'} autoComplete="off"
+                    : <Input aria-label={etiquetaCodigo(t, 'alm_uso.credencial', f.clave, f.etiqueta)} inputClassName="alm-input" type={f.secreto ? 'password' : 'text'} autoComplete="off"
                         placeholder={f.secreto && f.configurado ? t('alm_uso.configurado_sin_cambios') : ''}
                         value={creds[f.clave] ?? (f.secreto ? '' : (f.valor ?? ''))}
                         onChange={e => setCreds({ ...creds, [f.clave]: e.target.value })} />}
