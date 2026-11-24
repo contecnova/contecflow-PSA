@@ -146,10 +146,27 @@ def _auto_assign_task_on_create(db: Session, task: Task) -> None:
         return
 
     task.assignee_id = suggested
+    # 23-11-2026: se registra (pendiente) cuando la tarea ya tiene id (`create_task_record`).
+    task._sugerencia_semantica = suggestion
 
 
 
 
+
+
+def _registrar_sugerencia_de_alta(db: Session, task: Task, current_user) -> None:
+    """La IA asignó la tarea al darla de alta: `SemAssignment` pendiente (best-effort)."""
+    sugerencia = getattr(task, "_sugerencia_semantica", None)
+    if not sugerencia or task.assignee_id != sugerencia.get("suggested_user_id"):
+        return
+    try:
+        from app.services.semantic_engine_service import registrar_sugerencia_automatica
+        registrar_sugerencia_automatica(db, item_type="task", item_id=task.id, item_title=task.title,
+                                        sugerencia=sugerencia, created_by=getattr(current_user, "id", None))
+        db.commit()
+    except Exception:
+        db.rollback()
+        logger.warning("No se pudo registrar la sugerencia de la IA de la tarea %s", task.id, exc_info=True)
 
 
 # ── Cascade reschedule (BFS) ───────────────────────────────────────────────────
@@ -293,6 +310,7 @@ def create_task_record(db: Session, payload, current_user):
         db.rollback()
         raise error_con_codigo(409, "conflicto_concurrente", detail="Código de tarea duplicado. Inténtalo de nuevo.")
     db.refresh(task)
+    _registrar_sugerencia_de_alta(db, task, current_user)
     from app.core.events import emit, EventType
     emit(db, EventType.TASK_CREATED,
          {"title": task.title, "status": str(task.status), "assignee_id": task.assignee_id,
@@ -643,8 +661,14 @@ def bulk_update_dates_record(db: Session, updates: list, current_user=None) -> d
 
 # ── Background task helpers ────────────────────────────────────────────────────
 
-def record_reassign_feedback_bg(background_tasks, db, item_id: str, item_type: str):
-    """Record reassignment as implicit negative feedback for the previous assignee."""
+def record_reassign_feedback_bg(background_tasks, db, item_id: str, item_type: str,
+                                nuevo_user_id: Optional[str] = None):
+    """Reasignación: rechaza la sugerencia de la IA si la nueva persona no es la sugerida.
+
+    23-11-2026: antes solo se tocaba si `was_accepted` era None (una sugerencia
+    ya confirmada seguía contando como acierto) y se marcaba False aunque se
+    volviera a la persona sugerida (`semantic_engine_service.resolver_por_reasignacion`).
+    """
     # Auditoría 22-11-2026 (M8): la tarea corre tras la petición; en su empresa.
     from app.db.contexto_de_tenant import fijar_contexto
     org_id = (getattr(db, "info", None) or {}).get("organization_id")
@@ -652,16 +676,33 @@ def record_reassign_feedback_bg(background_tasks, db, item_id: str, item_type: s
     def _run():
         _db = fijar_contexto(SessionLocal(), org_id, "retroalimentación semántica en segundo plano (por id)")
         try:
-            from app.models.semantic_engine import SemAssignment
-            assignment = _db.query(SemAssignment).filter(
-                SemAssignment.item_id == item_id,
-                SemAssignment.item_type == item_type,
-            ).order_by(SemAssignment.created_at.desc()).first()
-            if assignment and assignment.was_accepted is None:
-                assignment.was_accepted = False
+            from app.services.semantic_engine_service import resolver_por_reasignacion
+            if resolver_por_reasignacion(_db, item_type, item_id, nuevo_user_id) is not None:
                 _db.commit()
         except Exception:
             logging.getLogger(__name__).warning("Failed to mark SemAssignment rejection for item=%s type=%s", item_id, item_type, exc_info=True)
+        finally:
+            _db.close()
+
+    background_tasks.add_task(_run)
+
+
+def cierre_semantico_bg(background_tasks, db, task_id: str) -> None:
+    """Tarea terminada: historial del nivel 3 y veredicto de la sugerencia de la IA (en su empresa)."""
+    from app.db.contexto_de_tenant import fijar_contexto
+    org_id = (getattr(db, "info", None) or {}).get("organization_id")
+
+    def _run():
+        _db = fijar_contexto(SessionLocal(), org_id, "historial semántico en segundo plano (por id)")
+        try:
+            from app.services.semantic_engine_service import _item_de_la_empresa, cerrar_item, texto_del_item
+            tarea = _item_de_la_empresa(_db, "task", task_id)
+            if tarea is not None:
+                cerrar_item(_db, "task", task_id, texto=texto_del_item(tarea), user_id=tarea.assignee_id)
+                _db.commit()
+        except Exception:
+            _db.rollback()
+            logging.getLogger(__name__).warning("cierre semántico fallido para la tarea %s", task_id, exc_info=True)
         finally:
             _db.close()
 

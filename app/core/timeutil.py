@@ -120,8 +120,27 @@ def zone_for_user(user, organization=None) -> timezone | ZoneInfo:
     propia = getattr(user, "timezone", None) if user is not None else None
     if propia:
         return resolve_zone(propia)
-    org_tz = getattr(organization, "timezone", None) if organization is not None else None
-    return resolve_zone(org_tz)
+    return _zona_de_empresa_o_por_defecto(user, organization)
+
+
+def _zona_de_empresa_o_por_defecto(sujeto, organization=None) -> timezone | ZoneInfo:
+    """Zona de la empresa (la pasada o la del propio sujeto) y, si no hay, DEFAULT_TIMEZONE.
+
+    24-11-2026: antes, sin `organization` explícita se caía a UTC aunque la
+    instalación dijera `DEFAULT_TIMEZONE=Europe/Madrid`. En España, entre las 00:00
+    y la 01:00 (02:00 en verano) «hoy» era todavía ayer y no se podía imputar el
+    día en curso (lo destapó la suite al pasar medianoche).
+    """
+    org = organization
+    if org is None and sujeto is not None:
+        # Solo si la relación ya está cargada: nunca se dispara una consulta aquí.
+        estado = getattr(sujeto, "__dict__", {})
+        org = estado.get("organization")
+    org_tz = getattr(org, "timezone", None) if org is not None else None
+    if org_tz:
+        return resolve_zone(org_tz)
+    from app.core.config import settings
+    return resolve_zone(getattr(settings, "DEFAULT_TIMEZONE", None))
 
 
 def zone_for_client(client, organization=None) -> timezone | ZoneInfo:
@@ -132,8 +151,7 @@ def zone_for_client(client, organization=None) -> timezone | ZoneInfo:
     propia = getattr(client, "timezone", None) if client is not None else None
     if propia:
         return resolve_zone(propia)
-    org_tz = getattr(organization, "timezone", None) if organization is not None else None
-    return resolve_zone(org_tz)
+    return _zona_de_empresa_o_por_defecto(client, organization)
 
 
 # ── "Hoy", según para quién ───────────────────────────────────────────────────
@@ -160,7 +178,7 @@ def today_for_client(client, organization=None) -> date:
 def today_for_organization(organization) -> date:
     """El día de HOY para la organización. Cuando no hay usuario ni cliente en
     contexto (tareas programadas de ámbito de la organización)."""
-    return today_in(resolve_zone(getattr(organization, "timezone", None)))
+    return today_in(_zona_de_empresa_o_por_defecto(None, organization))
 
 
 # ── Cortes de periodo ─────────────────────────────────────────────────────────

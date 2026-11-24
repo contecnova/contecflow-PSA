@@ -27,6 +27,7 @@ import { semanticApi } from '../services/api'
 import type { EstadisticasDelMotorSemantico, PerfilSemantico, SugerenciaDeAsignacionDeTicket } from '../services/api/tipos-analitica'
 import { Button, EmptyState, KpiCard, Modal, Tabs, Input, Textarea } from '../components/ui'
 import { ENGINE_MODES } from '../components/asignacion-ia/ConfigMotorSemantico'
+import ColaDeRevision from '../components/asignacion-ia/ColaDeRevision'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { AlertTriangle, BarChart3, Brain, CheckCircle2, CheckSquare, FlaskConical, Info, Layers, Pencil, RefreshCw, Sparkles, Target, Ticket, UserCheck, Users, Wand2, XCircle, Zap } from 'lucide-react'
@@ -201,6 +202,7 @@ export default function SemanticEnginePage() {
   // Configurar el motor (perfiles, modo, embeddings) es de admin y hr en el
   // servidor; pm entra a probar sugerencias (revisión 2026-11: veía los botones y le daban 403).
   const puedeEditar = useAuth().puede('ia.asignacion_config')
+  const puedeRevisar = useAuth().puede('ia.asignacion')
 
   useEffect(() => {
     if (!opStatus.startedAt) {
@@ -303,6 +305,8 @@ export default function SemanticEnginePage() {
           { id: 'profiles', label: traducir('semanticengine.tab_perfiles'), icon: <Users size={14} /> },
           { id: 'test', label: traducir('semanticengine.tab_probar'), icon: <FlaskConical size={14} /> },
           { id: 'stats', label: traducir('semanticengine.tab_estadisticas'), icon: <BarChart3 size={14} /> },
+          // 23-11-2026: casos dudosos para que un experto los etiquete (ActiveLearningPrioritizer).
+          ...(puedeRevisar ? [{ id: 'revisar', label: traducir('bucle_ia.cola'), icon: <UserCheck size={14} /> }] : []),
         ]}
         active={tab}
         onChange={setTab}
@@ -351,6 +355,8 @@ export default function SemanticEnginePage() {
 
       {/* TEST TAB */}
       {tab === 'test' && <TestPanel />}
+
+      {tab === 'revisar' && <ColaDeRevision />}
 
       {/* STATS TAB */}
       {tab === 'stats' && (

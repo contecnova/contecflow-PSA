@@ -1,6 +1,6 @@
 """
 Semantic Assignment Engine — Contecflow
-Motor de asignación semántica inspirado en el clasificador Ficosa.
+Motor de asignación semántica inspirado en el clasificador del sistema de origen.
 Funciona de forma standalone (sin dependencias externas pesadas) o
 con sentence-transformers si está instalado.
 
@@ -79,7 +79,12 @@ def perfil_semantico(db, user_id, *, crear: bool = False):
 
 
 class SemEmbeddingCache(Base):
-    """Embeddings de ítems ya procesados (tickets/tareas) — equivalente al Expert Cache de Ficosa."""
+    """Embeddings de ítems ya resueltos (tickets/tareas) y quién los resolvió.
+
+    Es el historial del nivel 3 (puntuación con decaimiento temporal). Se
+    alimenta al resolver o cerrar un ticket o una tarea (23-11-2026,
+    `semantic_engine_service.cerrar_item`) y al corregir una asignación.
+    """
     __tablename__ = "sem_embedding_cache"
     # Unico por organizacion (revision multitenant 2026-11): antes era global y
     # una segunda empresa no podia repetir el codigo/nombre de otra.
@@ -125,7 +130,13 @@ class SemAssignment(Base):
 
 
 class SemFeedback(Base):
-    """Correcciones de experto — equivalente al Expert Cache de Ficosa (nivel 2A/2B)."""
+    """Correcciones de experto — la caché de experto del sistema de origen (niveles 1 y 2).
+
+    23-11-2026: `corrected_by` es SIEMPRE el id de quien corrige (FK a
+    `users.id`); el tipo de corrección va en `correction_kind`. Antes se
+    guardaba `"manager_confirm:<uuid>"` (52 caracteres en un `String(36)` con
+    FK): fallaba en Postgres y rompía la FK en SQLite.
+    """
     __tablename__ = "sem_feedback"
 
     id              = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
@@ -136,6 +147,9 @@ class SemFeedback(Base):
     item_type       = Column(String(20), nullable=False)
     correct_user_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     corrected_by    = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    # Migración 207: correccion (alguien eligió otra persona) | confirmacion_responsable
+    # (un responsable confirmó la propuesta del modelo de lenguaje).
+    correction_kind = Column(String(30), nullable=True)
     times_used      = Column(Integer, default=1)
     created_at      = Column(DateTime(timezone=True), server_default=func.now())
 
@@ -147,7 +161,7 @@ class SemConfig(Base):
     id              = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
     engine_mode     = Column(Enum(SemEngineMode), default=SemEngineMode.hybrid)
-    # Umbrales (equivalente a thresholds.json de Ficosa)
+    # Umbrales (equivalentes a los del sistema de origen)
     threshold_ticket = Column(Float, default=0.55)   # score mínimo para auto-asignar ticket
     threshold_task   = Column(Float, default=0.60)   # score mínimo para auto-asignar tarea
     threshold_expert_cache = Column(Float, default=0.92)  # similitud para usar expert cache

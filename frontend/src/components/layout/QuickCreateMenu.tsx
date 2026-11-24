@@ -147,9 +147,9 @@ export default function QuickCreateMenu({ onClose }: { onClose: () => void }) {
           <>
             <div className="qucrme-row-1">
               <span>{t('quickcreatemenu.crear_nuevo')}</span>
-              <Pulsable onClick={pedirCierre} aria-label={t('common.close')} className="qucrme-row-2">
+              <IconButton variante="caja" onClick={pedirCierre} ariaLabel={t('common.close')}>
                 <X size={13} />
-              </Pulsable>
+              </IconButton>
             </div>
             <div role="menu" aria-label={t('quickcreatemenu.crear_nuevo')} className="qucrme-stack-2">
               {acciones.map(({ id, icon: Icon, color }) => { const label = t(`quickcreatemenu.accion_${id}`); return (

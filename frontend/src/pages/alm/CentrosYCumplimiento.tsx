@@ -7,7 +7,7 @@ import { openConfirmGlobal } from '../../context/ConfirmContext'
 import { useToast } from '../../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { almExtApi } from '../../services/api'
-import { Button, Spinner, EmptyState, KpiCard, Pulsable, Input } from '../../components/ui'
+import { Button, Spinner, EmptyState, KpiCard, Input, IconButton } from '../../components/ui'
 import { Briefcase, Plus, Pencil, Trash2, CheckCircle2, XCircle, RefreshCw, ShieldAlert } from 'lucide-react'
 import { fmtCurrency, extractErr } from '../../utils/helpers'
 import { useAppT } from '../../i18n/AppLangContext'
@@ -73,10 +73,9 @@ export function CostCentersTab() {
                   <span className="alm-cc__code">{c.code}</span>
                   <div className="alm-cc__name">{c.name}</div>
                 </div>
-                <div className="u-row-6">
-                  <Pulsable type="button" aria-label={t('alm.aria_edit_cost_center', { name: c.name })} onClick={() => openEdit(c)} className="alm-icon-btn alm-icon-btn--xs"><Pencil size={13} aria-hidden="true" /></Pulsable>
-                  <Pulsable type="button" aria-label={t('alm.aria_delete_cost_center', { name: c.name })} onClick={() => { openConfirmGlobal({ message: t('alm.cost_centers_delete_confirm', { name: c.name }), onConfirm: () => del(c.id), danger: true }) }}
-                    className="alm-icon-btn alm-icon-btn--xs alm-icon-btn--danger"><Trash2 size={13} aria-hidden="true" /></Pulsable>
+                <div className="ui-acciones">
+                  <IconButton variante="caja" ariaLabel={t('alm.aria_edit_cost_center', { name: c.name })} onClick={() => openEdit(c)}><Pencil size={13} aria-hidden="true" /></IconButton>
+                  <IconButton variante="caja" tono="peligro" ariaLabel={t('alm.aria_delete_cost_center', { name: c.name })} onClick={() => { openConfirmGlobal({ message: t('alm.cost_centers_delete_confirm', { name: c.name }), onConfirm: () => del(c.id), danger: true }) }}><Trash2 size={13} aria-hidden="true" /></IconButton>
                 </div>
               </div>
               {c.budget_annual && <div className="alm-cc__budget">{fmtCurrency(c.budget_annual)}{t('alm.ano')}</div>}

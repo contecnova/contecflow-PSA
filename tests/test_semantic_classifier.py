@@ -707,103 +707,49 @@ class TestMejora1WeightedLoadBlend:
 
 
 # ── Mejora 5: confirm LLM via feedback endpoint ───────────────────────────────
+#
+# 23-11-2026: estos tests fijaban el FALLO (`corrected_by = "manager_confirm:<uuid>"`,
+# 52 caracteres en una columna String(36) con FK a users.id). Ahora `corrected_by`
+# es el id y el tipo va en `correction_kind`; los tests de servicio con base real
+# están en tests/test_conectores_y_semantico_2026_11_23.py. Aquí queda el cableado.
 
 class TestMejora5FeedbackEndpointLLMConfirm:
-    """POST /feedback with original_engine_mode=llm + confirmed=True persists as expert."""
+    """POST /feedback delega en `semantic_engine_service.corregir_asignacion`."""
 
-    def test_llm_confirmation_uses_manager_confirm_prefix(self):
-        """When confirming an LLM suggestion, corrected_by gets 'manager_confirm:' prefix."""
+    def test_el_endpoint_delega_con_el_usuario_y_el_cuerpo(self):
         from fastapi.testclient import TestClient
         from app.main import app
         from app.db.session import get_db
-        from app.core.deps import get_current_user
-        from app.models.user import User
-
-        # Build a minimal db mock
-        db = _make_db()
-
-        fake_user = MagicMock(spec=User)
-        fake_user.id       = "manager-001"
-        fake_user.role     = "admin"
-        fake_user.is_active = True
-
-        captured_corrected_by = {}
-
-        def fake_record_feedback(item_id, item_type, item_text, correct_user_id, corrected_by):
-            captured_corrected_by["value"] = corrected_by
-
-        from app.services.semantic_classifier import SemanticAssigner
-        mock_assigner = MagicMock(spec=SemanticAssigner)
-        mock_assigner.record_feedback.side_effect = fake_record_feedback
-
-        with patch("app.api.v1.endpoints.semantic_engine._get_assigner", return_value=mock_assigner), \
-             patch("app.api.v1.endpoints.semantic_engine._cache_item_embedding"):
-            with TestClient(app) as client:
-                previous_overrides = dict(app.dependency_overrides)
-                app.dependency_overrides[get_db]           = lambda: db
-                app.dependency_overrides[get_current_user] = lambda: fake_user
-
-                resp = client.post("/api/v1/semantic/feedback", json={
-                    "item_id":              "ticket-123",
-                    "item_type":            "ticket",
-                    "item_text":            "Deploy kubernetes to prod",
-                    "correct_user_id":      "u-devops-001",
-                    "original_engine_mode": "llm",
-                    "confirmed":            True,
-                })
-
-                app.dependency_overrides = previous_overrides
-
-        assert resp.status_code == 200
-        body = resp.json()["data"]
-        assert body["ok"] is True
-        assert body["persisted_as_expert"] is True
-        assert captured_corrected_by.get("value", "").startswith("manager_confirm:"), (
-            "Confirmed LLM suggestions must be tagged with 'manager_confirm:' prefix"
-        )
-
-    def test_correction_without_confirm_flag_uses_manager_id(self):
-        """When confirmed=False (human correction), corrected_by is just the manager id."""
-        from fastapi.testclient import TestClient
-        from app.main import app
-        from app.db.session import get_db
-        from app.core.deps import get_current_user
+        from app.core.deps import get_current_user, requiere_capacidad
         from app.models.user import User
 
         db = _make_db()
         fake_user = MagicMock(spec=User)
-        fake_user.id = "manager-002"
+        fake_user.id = "manager-001"
         fake_user.role = "admin"
         fake_user.is_active = True
+        visto = {}
 
-        captured_corrected_by = {}
+        def falso(db_, usuario, data):
+            visto.update(usuario=usuario.id, data=data)
+            return {"ok": True, "persisted_as_expert": True, "correction_kind": "confirmacion_responsable",
+                    "was_accepted": True}
 
-        def fake_record_feedback(item_id, item_type, item_text, correct_user_id, corrected_by):
-            captured_corrected_by["value"] = corrected_by
-
-        from app.services.semantic_classifier import SemanticAssigner
-        mock_assigner = MagicMock(spec=SemanticAssigner)
-        mock_assigner.record_feedback.side_effect = fake_record_feedback
-
-        with patch("app.api.v1.endpoints.semantic_engine._get_assigner", return_value=mock_assigner), \
-             patch("app.api.v1.endpoints.semantic_engine._cache_item_embedding"):
+        with patch("app.services.semantic_engine_service.corregir_asignacion", side_effect=falso):
             with TestClient(app) as client:
-                previous_overrides = dict(app.dependency_overrides)
-                app.dependency_overrides[get_db]           = lambda: db
+                previos = dict(app.dependency_overrides)
+                app.dependency_overrides[get_db] = lambda: db
                 app.dependency_overrides[get_current_user] = lambda: fake_user
-
+                app.dependency_overrides[requiere_capacidad("ia.asignacion")] = lambda: fake_user
                 resp = client.post("/api/v1/semantic/feedback", json={
-                    "item_text":       "Some ticket",
-                    "correct_user_id": "u-corrected-001",
-                    "confirmed":       False,
+                    "item_id": "ticket-123", "item_type": "ticket", "item_text": "Deploy kubernetes to prod",
+                    "correct_user_id": "u-devops-001", "original_engine_mode": "llm", "confirmed": True,
                 })
-                app.dependency_overrides = previous_overrides
+                app.dependency_overrides = previos
 
         assert resp.status_code == 200
-        assert resp.json()["data"]["persisted_as_expert"] is False
-        assert captured_corrected_by.get("value") == "manager-002", (
-            "Human correction (confirmed=False) should use plain manager id"
-        )
+        assert resp.json()["data"]["correction_kind"] == "confirmacion_responsable"
+        assert visto["usuario"] == "manager-001" and visto["data"]["correct_user_id"] == "u-devops-001"
 
 
 # ── Mejora 6: diversity penalty ───────────────────────────────────────────────

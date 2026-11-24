@@ -41,7 +41,23 @@ export const SIN_REFRESCO: RegExp[] = [
   /\/ai\/(texto|chat)\b/,
   /\/estimate\b/,
   /\/validation\b/,
+  // «Mi cuaderno» (migración 202): el guardado automático y el estado de los chips
+  // no cambian lo que se ve en otras pantallas (y refrescar con cada guardado sobra).
+  /\/notebook\/pages\/[^/]+\/content\b/,
+  /\/notebook\/chips\/resolve\b/,
+  // 23-11-2026: las predicciones se piden con POST desde useQuery (ProjectRiskBadge en
+  // cada tarjeta). Refrescar tras ellas volvía a pedirlas: bucle de cientos de
+  // peticiones por minuto que agotó el pool de conexiones del backend.
+  /\/predictions\//,
 ]
+
+/**
+ * Freno general contra bucles: una petición hecha DURANTE un refresco (las
+ * consultas que se vuelven a pedir) no dispara otro. Una lectura con POST que
+ * no esté en `SIN_REFRESCO` ya no puede encadenar refrescos sin fin.
+ */
+export const VENTANA_TRAS_REFRESCO_MS = 1500
+let refrescandoHasta = 0
 
 /** Lo registra main.tsx con el QueryClient de la aplicación. */
 export function registrarClienteDeConsultas(qc: QueryClient): void {
@@ -58,9 +74,11 @@ export function debeRefrescar(metodo: string | undefined, url: string | undefine
 /** Llamado por el interceptor tras una respuesta 2xx. */
 export function trasEscritura(metodo: string | undefined, url: string | undefined): void {
   if (!cliente || !debeRefrescar(metodo, url)) return
+  if (Date.now() < refrescandoHasta) return
   if (pendiente) clearTimeout(pendiente)
   pendiente = setTimeout(() => {
     pendiente = null
+    refrescandoHasta = Date.now() + VENTANA_TRAS_REFRESCO_MS
     // `active`: solo se vuelve a pedir lo que está en pantalla; el resto queda obsoleto.
     void cliente?.invalidateQueries({ refetchType: 'active' })
   }, AGRUPAR_ESCRITURAS_MS)

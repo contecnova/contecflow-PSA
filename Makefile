@@ -3,8 +3,16 @@
 # Uso: make <target>
 # ══════════════════════════════════════════════════════════════════════════════
 
-.PHONY: help install dev docs smoke health test test-fast test-coverage test-e2e \
-        build build-frontend lint migrate seed clean
+.PHONY: help install install-e2e dev dev-backend dev-frontend docs smoke health \
+        test test-serial test-fast test-smoke test-module test-coverage test-e2e \
+        quality-coverage-75 quality-types-75 quality-p3 build build-frontend \
+        migrate migrate-create seed seed-full init-admin backup restore clean \
+        pip-audit audit audit-fast audit-info rotate-keys \
+        regression-backend regression-e2e regression-all
+
+# ── Puertos (23-11-2026: estaban fijos) — make dev BACKEND_PORT=8010 ─────────
+BACKEND_PORT  ?= 8000
+FRONTEND_PORT ?= 3000
 
 # ── Python interpreter — prefers venv, falls back to python3 ─────────────────
 PYTHON := $(shell \
@@ -29,21 +37,19 @@ help: ## Muestra esta ayuda
 # ── Instalación ────────────────────────────────────────────────────────────────
 install: ## Instala todas las dependencias (backend + frontend)
 	@echo "$(YELLOW)Instalando dependencias Python...$(RESET)"
-	pip install -r requirements.txt
-	pip install pytest pytest-asyncio httpx coverage pytest-html
+	$(PYTHON) -m pip install -r requirements.txt
 	@echo "$(YELLOW)Instalando dependencias frontend...$(RESET)"
 	cd frontend && npm install
 	@echo "$(GREEN)✅ Instalación completa$(RESET)"
 
-install-e2e: ## Instala Playwright para tests E2E
-	pip install playwright pytest-playwright
-	playwright install chromium firefox
+install-e2e: ## Instala los navegadores de Playwright para tests E2E
+	$(PYTHON) -m playwright install chromium firefox
 	@echo "$(GREEN)✅ Playwright instalado$(RESET)"
 
 # ── Desarrollo ─────────────────────────────────────────────────────────────────
 dev: ## Inicia backend y frontend en modo desarrollo
 	@echo "$(CYAN)Iniciando Contecflow PSA en modo desarrollo...$(RESET)"
-	@make -j2 dev-backend dev-frontend
+	@$(MAKE) -j2 dev-backend dev-frontend
 
 dev-backend: ## Solo el backend
 	@if [ -x .venv/bin/python ]; then \
@@ -54,19 +60,19 @@ dev-backend: ## Solo el backend
 		PY=python3; \
 	fi; \
 	echo "$(CYAN)Backend con $$PY$(RESET)"; \
-	$$PY -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+	$$PY -m uvicorn app.main:app --reload --host 127.0.0.1 --port $(BACKEND_PORT)
 
 dev-frontend: ## Solo el frontend
-	cd frontend && npm run dev -- --host 127.0.0.1 --port 3000
+	cd frontend && API_URL=http://localhost:$(BACKEND_PORT) npm run dev -- --host 127.0.0.1 --port $(FRONTEND_PORT)
 
 docs: ## Verifica Swagger /api/v1/docs (HTTP 200 + CSP compatible)
 	@echo "$(CYAN)Verificando documentación OpenAPI...$(RESET)"
-	@status=$$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8000/api/v1/docs || echo "000"); \
+	@status=$$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:$(BACKEND_PORT)/api/v1/docs || echo "000"); \
 	if [ "$$status" != "200" ]; then \
 		echo "$(YELLOW)⚠ /api/v1/docs no responde (HTTP $$status). Arranca backend primero.$(RESET)"; \
 		exit 1; \
 	fi; \
-	csp=$$(curl -i -s http://127.0.0.1:8000/api/v1/docs | awk -F': ' 'tolower($$1)=="content-security-policy"{print $$2}' | tr -d '\r'); \
+	csp=$$(curl -i -s http://127.0.0.1:$(BACKEND_PORT)/api/v1/docs | awk -F': ' 'tolower($$1)=="content-security-policy"{print $$2}' | tr -d '\r'); \
 	echo "$(GREEN)✅ /api/v1/docs responde 200$(RESET)"; \
 	if echo "$$csp" | grep -qi "cdn.jsdelivr.net"; then \
 		echo "$(GREEN)✅ CSP docs permite assets de Swagger$(RESET)"; \
@@ -78,8 +84,8 @@ docs: ## Verifica Swagger /api/v1/docs (HTTP 200 + CSP compatible)
 
 smoke: ## Verificación integral: health + docs + login + ticket sin cliente
 	@echo "$(CYAN)Ejecutando smoke integral...$(RESET)"
-	@curl -sf http://127.0.0.1:8000/health >/dev/null || { echo "$(YELLOW)⚠ Backend no responde en /health$(RESET)"; exit 1; }
-	@status=$$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8000/api/v1/docs || echo "000"); \
+	@curl -sf http://127.0.0.1:$(BACKEND_PORT)/health >/dev/null || { echo "$(YELLOW)⚠ Backend no responde en /health$(RESET)"; exit 1; }
+	@status=$$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:$(BACKEND_PORT)/api/v1/docs || echo "000"); \
 	if [ "$$status" != "200" ]; then \
 		echo "$(YELLOW)⚠ /api/v1/docs no responde (HTTP $$status)$(RESET)"; \
 		exit 1; \
@@ -94,8 +100,8 @@ test: ## Ejecuta todos los tests de API (en paralelo con xdist)
 test-serial: ## Igual que test, pero en un solo proceso (para depurar)
 	$(PYTHON) -m pytest tests/ -v --tb=short
 
-test-fast: ## Tests rápidos (excluye los lentos)
-	$(PYTHON) -m pytest tests/ -v --tb=short -m "not slow" --timeout=10
+test-fast: ## Tests rápidos (excluye los lentos; en paralelo)
+	$(PYTHON) -m pytest tests/ -n auto --tb=short -m "not slow"
 
 test-smoke: ## Solo smoke tests (sanidad básica)
 	$(PYTHON) -m pytest tests/ -v --tb=short -m "smoke or auth"
@@ -105,15 +111,15 @@ test-module: ## Tests de un módulo específico: make test-module M=test_okrs
 
 test-coverage: ## Tests con reporte de cobertura HTML
 	@echo "$(CYAN)Ejecutando tests con cobertura...$(RESET)"
-	coverage run -m pytest tests/ -v --tb=short
-	coverage report
-	coverage html
+	$(PYTHON) -m coverage run -m pytest tests/ -v --tb=short
+	$(PYTHON) -m coverage report
+	$(PYTHON) -m coverage html
 	@echo "$(GREEN)✅ Reporte en htmlcov/index.html$(RESET)"
 
 quality-coverage-75: ## Puerta local de cobertura backend >= 75% (sin CI)
 	@echo "$(CYAN)Validando cobertura backend >= 75%...$(RESET)"
-	coverage run -m pytest tests/ -q
-	coverage report --fail-under=75
+	$(PYTHON) -m coverage run -m pytest tests/ -q
+	$(PYTHON) -m coverage report --fail-under=75
 
 quality-types-75: ## Puerta local de type coverage frontend >= 75% (sin CI)
 	@echo "$(CYAN)Validando type coverage frontend >= 75%...$(RESET)"
@@ -139,30 +145,43 @@ build-frontend: ## Build del frontend (Vite)
 	@echo "$(GREEN)✅ Frontend build OK$(RESET)"
 
 # ── Base de datos ──────────────────────────────────────────────────────────────
-migrate: ## Aplica las migraciones de Alembic
-	alembic upgrade head
+# Igual que setup.sh/setup.bat: scripts/migrar.py (copia previa si hay
+# revisiones destructivas) y comprobación del esquema real.
+migrate: ## Aplica las migraciones (con copia previa si hay destructivas)
+	$(PYTHON) scripts/migrar.py
+	$(PYTHON) scripts/comprobar_esquema.py
 
 migrate-create: ## Crea una migración nueva: make migrate-create MSG="descripcion"
-	alembic revision --autogenerate -m "$(MSG)"
+	$(PYTHON) -m alembic revision --autogenerate -m "$(MSG)"
 
-seed: ## Carga datos de ejemplo
+seed: ## Carga los datos demo (lo mismo que setup demo; solo development/test)
+	$(PYTHON) -m app.db.seed
+
+seed-full: ## Datos masivos 2025-2027 sobre la demo (solo development/test)
 	$(PYTHON) scripts/seed_full_data.py
 
-init-admin: ## Crea el usuario admin inicial
-	bash init_admin.sh
+# 23-11-2026: llamaba a un init_admin.sh que no existía.
+init-admin: ## Crea o restablece el admin con SUPERADMIN_EMAIL/PASSWORD del .env (no borra nada)
+	$(PYTHON) scripts/reset_to_admin_only.py --solo-admin
+
+backup: ## Copia local: base (SQLite o PostgreSQL) + uploads/ en backups/
+	$(PYTHON) scripts/copia_local.py backup
+
+restore: ## Restaura una copia local: make restore COPIA=backups/contecflow-local-...
+	@test -n "$(COPIA)" || { echo "Uso: make restore COPIA=backups/contecflow-local-..."; exit 1; }
+	$(PYTHON) scripts/copia_local.py restore "$(COPIA)"
 
 # ── Limpieza ───────────────────────────────────────────────────────────────────
 clean: ## Limpia archivos temporales y caches
 	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
 	find . -type f -name "*.pyc" -delete 2>/dev/null || true
-	find . -name "*.db" -not -name "contecflow.db" -delete 2>/dev/null || true
-	rm -rf htmlcov/ .coverage coverage.xml test-results/ dist/
+	rm -rf htmlcov/ .coverage coverage.xml test-results/ dist/ .pytest_cache/
 	@echo "$(GREEN)✅ Limpieza completa$(RESET)"
 
 # ── Seguridad ────────────────────────────────────────────────────────────────
 pip-audit: ## Analiza dependencias Python en busca de vulnerabilidades
-	pip install pip-audit
-	pip-audit
+	$(PYTHON) -m pip install pip-audit
+	$(PYTHON) -m pip_audit -r requirements.txt
 
 # ── Auditoría local completa ─────────────────────────────────────────────────
 # Envoltorios finos sobre scripts/ci_local.sh, que es la ÚNICA implementación.
@@ -180,13 +199,11 @@ audit-info: ## Solo los gates informativos (deuda conocida, no bloquean)
 	@bash scripts/ci_local.sh --info
 
 # ── Rotación de claves ───────────────────────────────────────────────────────
-rotate-keys: ## Recordatorio/manual para rotar claves y secretos
-	@echo "Recuerda rotar periódicamente las claves y secretos de API, JWT, OAuth y webhooks."
-	@echo "Actualiza los valores en .env, Azure, GitHub Secrets y otros orígenes seguros."
-	@echo "Puedes usar scripts/rotate_keys.sh para automatizar la rotación si está disponible."
+rotate-keys: ## Rota SECRET_KEY y re-cifra lo guardado (scripts/rotate_keys.sh)
+	PY_BIN=$(PYTHON) bash scripts/rotate_keys.sh
 # ── Health check ───────────────────────────────────────────────────────────────
 health: ## Verifica que el backend responde
-	@curl -sf http://localhost:8000/health && \
+	@curl -sf http://localhost:$(BACKEND_PORT)/health && \
 		echo "$(GREEN)✅ Backend OK$(RESET)" || \
 		echo "$(YELLOW)⚠ Backend no responde$(RESET)"
 

@@ -10,6 +10,7 @@ import { fmtCurrency, fmtDate, extractErr } from '../../utils/helpers'
 import { etiquetaCodigo } from '../../i18n/etiquetaCodigo'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import { CredencialesDelPortal } from './PortalUsersTab'
+import { AccionesDeUsuarioDelPortal, SeccionContrasenaInicial, contrasenaInicialPorDefecto, datosDeContrasenaInicial, type ContrasenaInicial } from './AccionesUsuarioPortal'
 import { ModalEditarContacto } from './ModalEditarContacto'
 import { invalidarContactosDelCliente, rolesDeContacto } from './contactosCliente'
 import { useAppLang } from '../../i18n/AppLangContext'
@@ -133,6 +134,8 @@ export function ContactsTab({ cid }: { cid: string }) {
   const [accesoPara, setAccesoPara] = useState<ClientContact | null>(null)
   // 23-11-2026 (M10 del 04b): el servidor genera la contraseña y la envía al contacto.
   const [credenciales, setCredenciales] = useState<{ email: string; enviado: boolean | null } | null>(null)
+  // 23-11-2026 (portal_usuarios): o se pone a mano al dar el acceso.
+  const [inicialAcceso, setInicialAcceso] = useState<ContrasenaInicial>(contrasenaInicialPorDefecto)
 
   const { data: contacts = [], isLoading } = useQuery<ClientContact[]>({
     queryKey: ['client-contacts', cid],
@@ -162,10 +165,11 @@ export function ContactsTab({ cid }: { cid: string }) {
   })
   const { mutate: darAcceso, isPending: dandoAcceso } = useMutation({
     onMutate: () => camposAcceso.limpiar(),
-    mutationFn: ({ ct }: { ct: ClientContact }) => clientExtApi.givePortalAccess(cid, ct.id, {}).then(r => r.data),
+    mutationFn: ({ ct }: { ct: ClientContact }) => clientExtApi.givePortalAccess(cid, ct.id, datosDeContrasenaInicial(inicialAcceso)).then(r => r.data),
     onSuccess: (r, { ct }) => {
       invalidar()
       setAccesoPara(null)
+      setInicialAcceso(contrasenaInicialPorDefecto())
       setCredenciales({ email: r.email || ct.email || '', enviado: r.credenciales_enviadas ?? null })
     },
     onError: (e: unknown) => { if (!camposAcceso.recoger(e)) toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) },
@@ -194,7 +198,7 @@ export function ContactsTab({ cid }: { cid: string }) {
               <div className="u-md-700">{ct.full_name}
                 {ct.is_primary && <span className="clpata-box-7">{traducir('clicontactos.principal')}</span>}
                 {ct.portal_active === true && <span className="clpata-portal">{traducir('clicontactos.portal')}</span>}
-                {ct.portal_active === false && <span className="clpata-portal clpata-portal--off">{traducir('clicontactos.portal_desactivado')}</span>}
+                {ct.portal_active === false && <span className="clpata-portal clpata-portal--off">{ct.portal_archived ? traducir('portalacc.portal_archivado') : traducir('clicontactos.portal_desactivado')}</span>}
               </div>
               <div className="u-text2-sm">{ct.job_title} {ct.email && `· ${ct.email}`}</div>
             </div>
@@ -204,17 +208,22 @@ export function ContactsTab({ cid }: { cid: string }) {
               {roles.find(r => r.id === ct.role)?.label || ct.role}
             </span>
             {ct.phone && <span className="u-text2-sm clpata-ico"><Phone size={13} aria-hidden="true" />{ct.phone}</span>}
-            <IconButton onClick={() => setEditando(ct)} ariaLabel={traducir('clicontactos.editar_contacto_de', { nombre: ct.full_name || '' })}><Pencil size={14} /></IconButton>
+            <IconButton variante="caja" onClick={() => setEditando(ct)} ariaLabel={traducir('clicontactos.editar_contacto_de', { nombre: ct.full_name || '' })}><Pencil size={14} /></IconButton>
             {!ct.is_primary && (
               <IconButton onClick={() => marcarPrincipal(ct)} ariaLabel={traducir('clicontactos.marcar_principal_de', { nombre: ct.full_name || '' })}
                 title={traducir('clicontactos.marcar_principal')}><Star size={14} /></IconButton>
             )}
             {!ct.portal_user_id && ct.email && (
-              <Button size="sm" variant="secondary" icon={<Globe size={14} />} onClick={() => { camposAcceso.limpiar(); setAccesoPara(ct) }}>
+              <Button size="sm" variant="secondary" icon={<Globe size={14} />} onClick={() => { camposAcceso.limpiar(); setInicialAcceso(contrasenaInicialPorDefecto()); setAccesoPara(ct) }}>
                 {traducir('clicontactos.dar_acceso_portal')}
               </Button>
             )}
-            <IconButton className="clpata-del" ariaLabel={traducir('clicontactos.desactivar_contacto', { nombre: ct.full_name || '' })}
+            {ct.portal_user_id && (
+              <AccionesDeUsuarioDelPortal
+                usuario={{ id: ct.portal_user_id, full_name: ct.full_name || '', email: ct.email || '', archived_at: ct.portal_archived ? 'archivado' : null }}
+                onCambio={invalidar} onAcceso={setCredenciales} />
+            )}
+            <IconButton variante="caja" tono="peligro" ariaLabel={traducir('clicontactos.desactivar_contacto', { nombre: ct.full_name || '' })}
               onClick={() => openConfirmGlobal({ message: traducir('clicontactos.confirmar_desactivar', { nombre: ct.full_name || '' }), onConfirm: () => remove(ct.id), danger: true })}>
               <Trash2 size={14} />
             </IconButton>
@@ -225,12 +234,15 @@ export function ContactsTab({ cid }: { cid: string }) {
       {accesoPara && (
         <Modal open title={traducir('clicontactos.dar_acceso_titulo', { nombre: accesoPara.full_name })} onClose={() => setAccesoPara(null)} width={460}>
           <form onSubmit={e => { e.preventDefault(); darAcceso({ ct: accesoPara }) }}>
-            <div className="u-text2-sm u-mb-16">{traducir('clicontactos.dar_acceso_ayuda_envio', { email: accesoPara.email || '' })}</div>
+            {inicialAcceso.modo === 'generar' && <div className="u-text2-sm u-mb-16">{traducir('clicontactos.dar_acceso_ayuda_envio', { email: accesoPara.email || '' })}</div>}
             {camposAcceso.de('email') && <div className="u-field-error u-mb-16">{camposAcceso.de('email')}</div>}
+            <div className="u-mb-16">
+              <SeccionContrasenaInicial valor={inicialAcceso} onChange={c => { camposAcceso.limpiar('password'); setInicialAcceso(c) }} email={accesoPara.email || ''} error={camposAcceso.de('password')} />
+            </div>
             <div className="u-actions-8">
               <Button variant="secondary" onClick={() => setAccesoPara(null)}>{traducir('clicontactos.cancelar')}</Button>
               <Button type="submit" loading={dandoAcceso}
-                disabled={dandoAcceso}>
+                disabled={dandoAcceso || (inicialAcceso.modo === 'manual' && !inicialAcceso.password)}>
                 {dandoAcceso ? traducir('clicontactos.creando') : traducir('clicontactos.crear_acceso')}
               </Button>
             </div>

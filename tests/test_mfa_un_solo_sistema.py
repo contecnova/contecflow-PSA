@@ -22,8 +22,8 @@ from tests.conftest import _TEST_PASSWORD, auth
 RAIZ = Path(__file__).resolve().parents[1]
 
 
-def _entrar(client):
-    return client.post("/api/v1/auth/login", json={"username": "admin", "password": _TEST_PASSWORD})
+def _entrar(client, usuario="admin"):
+    return client.post("/api/v1/auth/login", json={"username": usuario, "password": _TEST_PASSWORD})
 
 
 def _activar_como_la_pantalla(client, token):
@@ -65,13 +65,15 @@ def test_EL_HALLAZGO_activar_en_la_pantalla_exige_el_segundo_factor_al_entrar(cl
     assert r.status_code == 401
 
 
-def test_desactivar_en_la_pantalla_deja_entrar_sin_codigo_y_borra_los_de_respaldo(client, admin_token):
-    secreto, _ = _activar_como_la_pantalla(client, admin_token)
-    r = client.post("/api/v1/auth/mfa/disable", headers=auth(admin_token),
+def test_desactivar_en_la_pantalla_deja_entrar_sin_codigo_y_borra_los_de_respaldo(client, pm_token):
+    # Con un jefe de proyecto: a los administradores la política les EXIGE MFA
+    # (con gracia) y quitar su único factor da 409 `mfa_obligatorio_no_desactivable`.
+    secreto, _ = _activar_como_la_pantalla(client, pm_token)
+    r = client.post("/api/v1/auth/mfa/disable", headers=auth(pm_token),
                     json={"code": pyotp.TOTP(secreto).now()})
     assert r.status_code == 200, r.text
-    assert not _entrar(client).json().get("mfa_required")
-    estado = client.get("/api/v1/auth/mfa/status", headers=auth(admin_token)).json()
+    assert not _entrar(client, "pm_test").json().get("mfa_required")
+    estado = client.get("/api/v1/auth/mfa/status", headers=auth(pm_token)).json()
     assert (estado["enabled"], estado["backup_codes_remaining"]) == (False, 0)
 
 

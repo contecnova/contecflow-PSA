@@ -24,6 +24,14 @@ vi.mock('../services/api', () => ({
     } }),
     cancel: () => cancel(),
     complete: (...a: unknown[]) => complete(...a),
+    metrics: () => Promise.resolve({ data: {
+      days: 30, by_status: { running: 1 }, started: 1, duration_hours: { count: 0, avg: null, p50: null, p90: null },
+      bottlenecks: [], stuck: [], stuck_count: 0, overdue_tasks: 0, stuck_hours: 72,
+    } }),
+  },
+  bpmnProcessesApi: {
+    version: () => Promise.resolve({ data: { id: 'v', process_id: 'p', version: 2, bpmn_xml: '' } }),
+    versions: () => Promise.resolve({ data: [] }),
   },
 }))
 // Las claves de códigos (tipo, rol, motivo) se «traducen» entre corchetes; el
@@ -94,6 +102,42 @@ describe('BpmRunPanel', () => {
     fireEvent.click(await screen.findByText('bpm.ver'))
     expect(await screen.findByText('[bpm.error_no_route:Importe]')).toBeTruthy()
     expect(screen.queryByText('texto del backend')).toBeNull()
-    expect(screen.getByText('[bpm.tipo_userTask] · [bpm.rol_hr]')).toBeTruthy()
+    // 23-11-2026: el tipo va en su columna; el rol (o la persona) en «Quién» mientras está pendiente.
+    expect(screen.getByText('[bpm.tipo_userTask]')).toBeTruthy()
+  })
+
+  it('una tarea de aprobación se aprueba o rechaza con un botón (manda `aprobado`)', async () => {
+    bandeja = [
+      { id: 's3', instance_id: 'i1', element_id: 'A', name: 'Aprobar compra', candidate_role: 'pm', wait_kind: 'task',
+        approval: true, process_name: 'Compras', variables: {}, created_at: '2026-11-04T10:00:00Z' },
+    ]
+    montar(<BpmInbox />)
+    fireEvent.click(await screen.findByText('bpm.completar'))
+    fireEvent.click(await screen.findByText('bpm.rechazar'))
+    await waitFor(() => expect(complete).toHaveBeenCalledWith('i1', 's3', { variables: { aprobado: false } }))
+  })
+
+  it('el formulario de la tarea manda los campos con su tipo', async () => {
+    bandeja = [
+      { id: 's4', instance_id: 'i1', element_id: 'F', name: 'Datos', candidate_role: null, wait_kind: 'task',
+        process_name: 'Compras', variables: {}, created_at: '2026-11-04T10:00:00Z',
+        form: [{ name: 'importe', label: 'Importe', type: 'number', required: true }] },
+    ]
+    montar(<BpmInbox />)
+    fireEvent.click(await screen.findByText('bpm.completar'))
+    fireEvent.change(await screen.findByLabelText(/Importe/), { target: { value: '1200' } })
+    fireEvent.click(screen.getAllByText('bpm.completar').at(-1)!)
+    await waitFor(() => expect(complete).toHaveBeenCalledWith('i1', 's4', { variables: { importe: 1200 } }))
+  })
+
+  it('una tarea fuera de plazo se marca en la bandeja', async () => {
+    bandeja = [
+      { id: 's5', instance_id: 'i1', element_id: 'V', name: 'Vencida', candidate_role: null, wait_kind: 'task',
+        process_name: 'Compras', variables: {}, created_at: '2026-11-04T10:00:00Z',
+        sla_due_at: '2026-11-05T10:00:00Z', overdue: true },
+    ]
+    montar(<BpmInbox />)
+    const celda = await screen.findByText((_c, el) => !!el && el.tagName === 'TD' && el.className.includes('bpm-vencida'))
+    expect(celda).toBeTruthy()
   })
 })

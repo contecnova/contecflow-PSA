@@ -152,16 +152,6 @@
   text-decoration: none;
 }
 .prof-enlace:hover { text-decoration: underline; }
-.prof-icono-borrar {
-  display: inline-flex;
-  padding: 4px;
-  border: none;
-  border-radius: var(--radius-sm);
-  background: none;
-  color: var(--text-3);
-  cursor: pointer;
-}
-.prof-icono-borrar:hover { color: var(--danger); background: var(--surface-3); }
 .prof-total {
   display: flex;
   justify-content: space-between;

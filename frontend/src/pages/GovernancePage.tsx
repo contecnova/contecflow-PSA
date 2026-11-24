@@ -11,7 +11,7 @@ import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { governanceApi, aiProvidersApi } from '../services/api'
 import {
-  AudioLines, BarChart3, BookOpen, Bot, ClipboardList, Cpu, FileText, Globe, MessageSquare, Mic, Plug,
+  AudioLines, BarChart3, BookOpen, Bot, ClipboardList, Cpu, FileText, GitPullRequest, Globe, MessageSquare, Mic, Plug,
   Settings, Shield, Sparkles, TrendingUp, Type, Zap,
 } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
@@ -31,6 +31,7 @@ const MODULE_CFG: Record<string, { icon: ReactNode; labelKey: string; descKey: s
   portal_ai:            { icon: <Globe size={18} />,         labelKey: 'governance.portal_ai_label',             descKey: 'governance.portal_ai_desc' },
   voice:                { icon: <AudioLines size={18} />,    labelKey: 'governance.voice_label',                 descKey: 'governance.voice_desc' },
   mcp:                  { icon: <Plug size={18} />,          labelKey: 'governance.mcp_label',                   descKey: 'governance.mcp_desc' },
+  ticket_pr:            { icon: <GitPullRequest size={18} />, labelKey: 'governance.ticket_pr_label',            descKey: 'governance.ticket_pr_desc' },
 }
 
 const COLORES_BARRA = ['var(--accent)', 'var(--success)', 'var(--warning)', 'var(--purple)', 'var(--orange)', 'var(--danger)']

@@ -23,7 +23,7 @@ import {
   Spinner,
   MarcaExterno,
   useErroresDeCampo,
-  type ErroresDeCampo,
+  type ErroresDeCampo, IconButton,
 } from '../../components/ui'
 import { Pencil, Trash2, Plus, Pause, Play, KeyRound } from 'lucide-react'
 import { useAppLang } from '../../i18n/AppLangContext'
@@ -378,7 +378,7 @@ export function RolesSection() {
             </div>
             {r.is_system && <span className="set-chip">{t('settings_sections.sistema')}</span>}
             <Pulsable onClick={() => setEditRole(r)} className="set-btn-edit"><Pencil size={13} aria-hidden /> {t('common.edit')}</Pulsable>
-            {!r.is_system && <Pulsable onClick={() => openConfirmGlobal({ title: t('settings_sections.eliminar_x', { nombre: r.name }), message: t('settings_sections.confirmar_eliminar_x', { nombre: r.name }), danger: true, onConfirm: () => deleteRole(r.id) })} className="set-btn-delete" aria-label={t('settings_sections.eliminar_x', { nombre: r.name })} title={t('common.delete')}><Trash2 size={14} aria-hidden /></Pulsable>}
+            {!r.is_system && <IconButton variante="caja" tono="peligro" onClick={() => openConfirmGlobal({ title: t('settings_sections.eliminar_x', { nombre: r.name }), message: t('settings_sections.confirmar_eliminar_x', { nombre: r.name }), danger: true, onConfirm: () => deleteRole(r.id) })} ariaLabel={t('settings_sections.eliminar_x', { nombre: r.name })} title={t('common.delete')}><Trash2 size={14} aria-hidden /></IconButton>}
           </div>
         )})}
         <Pulsable onClick={() => setShowCreate(true)} className="set-btn-dashed"><Plus size={13} aria-hidden /> {t('settings_sections.crear_rol')}</Pulsable>

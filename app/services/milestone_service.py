@@ -39,7 +39,7 @@ from app.core.codigos_de_error import error
 # auditoria 2026-11-22, §6: antes cadenas sueltas en cada funcion).
 HITO_PENDIENTE, HITO_COMPLETADO, HITO_PENDIENTE_DE_APROBAR = "pending", "completed", "pending_approval"
 HITO_APROBADO, HITO_RECHAZADO, HITO_FACTURADO = "approved", "rejected", "invoiced"
-from app.services.textos_de_salida_servicios_m_z import aviso_de, texto_para
+from app.services.textos_de_salida import aviso_de, texto_para
 
 logger = logging.getLogger(__name__)
 
@@ -148,6 +148,9 @@ def complete_milestone(milestone_id: str, current_user: User, db: Session):
     m.completed_date = timeutil.today()
     m.completed_by = current_user.id
     m.billing_status = HITO_COMPLETADO
+    # Migración 206 (docs/PIR.md): la puesta en marcha programa la PIR del proyecto.
+    from app.services.pir.programacion import al_completar_hito
+    al_completar_hito(db, m, current_user)
     db.commit()
 
     # ASC 606: trigger revenue recognition for milestone-method contracts
@@ -427,6 +430,7 @@ def serialize_milestone(m, db=None) -> dict:
         "name": m.name, "description": m.description,
         "due_date": str(m.due_date) if m.due_date else None,
         "sort_order": m.sort_order,
+        "is_go_live": bool(getattr(m, "is_go_live", False)),
         "billing_status": m.billing_status or "pending",
         "is_completed": m.is_completed,
         "completed_date": str(m.completed_date) if m.completed_date else None,

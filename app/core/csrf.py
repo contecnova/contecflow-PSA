@@ -59,6 +59,10 @@ _DEFAULT_EXEMPT_PREFIXES = (
     "/api/v1/collaboration/bots/",
     "/api/v1/m365/webhook",
     "/api/v1/scim/",
+    # 23-11-2026: ACS de SAML. Lo envía el navegador desde el IdP (POST entre
+    # sitios); se autentica con la firma XML del IdP, la audiencia, el destino
+    # y el InResponseTo de un solo uso (app/services/auth_service/saml.py).
+    "/api/v1/auth/saml/callback",
     "/health",
     "/status",
     "/metrics",

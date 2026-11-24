@@ -48,7 +48,10 @@ TIPOS = ("expense", "timesheet", "leave", "change_request", "invoice", "budget",
          "demand_step",
          # Clientes internos (rev. 193): cargo interno que excede el presupuesto
          # de la unidad (`app/services/clientes_internos/cargos.py`).
-         "internal_charge")
+         "internal_charge",
+         # BPM (migración 204, docs/BPM.md): tarea de servicio `action="approval"`
+         # de un proceso (`app/services/bpmn_acciones.py`, entity_id = el paso).
+         "bpmn_step")
 
 
 def abrir(db: Session, tipo: str, entidad_id: str, resumen: str, solicitante_id: str,
@@ -117,7 +120,9 @@ def aplicar(req, decision: str, actor, db: Session) -> None:
     try:
         if req.entity_type == "expense":
             from app.services.expense_service import review_expense
-            review_expense(req.entity_id, aprobado, None if aprobado else nota, actor, db)
+            # Aprobada sin ninguna decisión humana = por regla o política (auto-aprobación).
+            por_regla = aprobado and not list(getattr(req, "decisions", None) or [])
+            review_expense(req.entity_id, aprobado, None if aprobado else nota, actor, db, por_regla=por_regla)
         elif req.entity_type == "timesheet":
             from app.services.psa_flows import review_timesheet_flow
             review_timesheet_flow(db, req.entity_id, actor, aprobado, nota)
@@ -181,6 +186,10 @@ def aplicar(req, decision: str, actor, db: Session) -> None:
             # Clientes internos (rev. 193): aprobado, el cargo se emite; rechazado, vuelve a borrador.
             from app.services.clientes_internos.cargos import aplicar_desde_bandeja as aplicar_cargo
             aplicar_cargo(db, req.entity_id, aprobado, actor, nota)
+        elif req.entity_type == "bpmn_step":
+            # BPM: la decisión es la del paso; la instancia sigue con `aprobado`.
+            from app.services.bpmn_engine import aplicar_desde_bandeja as aplicar_paso_bpmn
+            aplicar_paso_bpmn(req, decision, actor, db)
         elif req.entity_type == "invoice":
             from app.models.billing_reports import Invoice, InvoiceStatus
             inv = db.query(Invoice).filter(Invoice.id == req.entity_id).first()
@@ -210,6 +219,12 @@ def comprobar_antes(req, decision: str, db: Session, actor=None) -> None:
         # Proveedores (migración 191): no aprueba quien cerró el periodo ni quien registró la factura.
         from app.services.proveedores.facturacion import comprobar_en_bandeja as segregacion_del_estado
         segregacion_del_estado(req, actor, db, decision)
+        return
+    if req.entity_type == "bpmn_step":
+        # BPM (migración 204): quien diseñó o publicó la versión no aprueba en ella
+        # si la empresa lo exige (`BPMN_SEGREGACION_DE_FUNCIONES`).
+        from app.services.bpmn_engine import comprobar_en_bandeja as segregacion_bpmn
+        segregacion_bpmn(req, actor, db)
         return
     if req.entity_type == "internal_charge":
         # Clientes internos (rev. 193): no decide quien generó ni quien emitió el cargo.

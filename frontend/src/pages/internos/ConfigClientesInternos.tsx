@@ -231,8 +231,8 @@ function ServiciosCompartidos() {
               </div>
               <div className="u-row-6">
                 <IconButton ariaLabel={t('internos.vista_previa')} title={t('internos.vista_previa')} onClick={() => setViendo(s)}><Eye size={14} aria-hidden /></IconButton>
-                <IconButton ariaLabel={t('internos.editar')} title={t('internos.editar')} onClick={() => setEditando(s)}><Pencil size={14} aria-hidden /></IconButton>
-                <IconButton ariaLabel={t('internos.borrar')} title={t('internos.borrar')}
+                <IconButton variante="caja" ariaLabel={t('internos.editar')} title={t('internos.editar')} onClick={() => setEditando(s)}><Pencil size={14} aria-hidden /></IconButton>
+                <IconButton variante="caja" tono="peligro" ariaLabel={t('internos.borrar')} title={t('internos.borrar')}
                   onClick={async () => { if (await confirmar({ message: t('internos.borrar_confirmar', { titulo: s.name }), danger: true })) borrar.mutate(s.id) }}>
                   <Trash2 size={14} aria-hidden />
                 </IconButton>

@@ -9,7 +9,7 @@ import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import { useToast } from '../../context/ToastContext'
 import { useAppT } from '../../i18n/AppLangContext'
 import { Folder, Languages, Lock, Pencil, Plus, Trash2, X } from 'lucide-react'
-import { Button, Spinner, EmptyState, Modal, Select, TablaSimple, Checkbox, Input, useErroresDeCampo } from '../../components/ui'
+import { Button, Spinner, EmptyState, Modal, Select, TablaSimple, Checkbox, Input, useErroresDeCampo, IconButton } from '../../components/ui'
 import { DialogoDeVersionesDeContenido } from '../../components/traduccion/VersionesDeContenidoPanel'
 import { COLOR_CATEGORIA_POR_DEFECTO, COLOR_DATO_POR_DEFECTO } from '../../constants/theme'
 import { sdCatalogApi, sdGroupsApi, approvalsApi } from '../../services/api'
@@ -114,10 +114,10 @@ export function CatalogConfig() {
                       <td className="sdcfg-td sdcfg-td--xs2">{svc.requires_approval && <span className="u-row-center-6"><Lock size={12} aria-hidden="true" />{t('service_desk.svc_requires_approval')}</span>}</td>
                       <td className="sdcfg-td--actions">
                         <div className="sdcfg-row-actions">
-                          <Button size="xs" variant="ghost" icon={<Pencil size={12} />} title={`${t('common.edit')} ${svc.name}`} onClick={() => setEditingSvc({...svc, category_id: cat.id})} />
-                          <Button size="xs" variant="ghost" icon={<Languages size={12} />} title={t('traduccion_admin.portal_versiones_de', { nombre: svc.name })}
-                            onClick={() => setTraduciendo({ tipo: 'catalog_service', id: svc.id, etiqueta: svc.name })} />
-                          <Button size="xs" variant="ghost" icon={<Trash2 size={12} />} title={`${t('common.delete')} ${svc.name}`} onClick={() => { openConfirmGlobal({ message: t('config.confirmar_eliminar_servicio'), onConfirm: () => deleteSvc(svc.id), danger: true }) }} />
+                          <IconButton variante="caja" ariaLabel={`${t('common.edit')} ${svc.name}`} onClick={() => setEditingSvc({...svc, category_id: cat.id})}><Pencil size={12} /></IconButton>
+                          <IconButton variante="caja" ariaLabel={t('traduccion_admin.portal_versiones_de', { nombre: svc.name })}
+                            onClick={() => setTraduciendo({ tipo: 'catalog_service', id: svc.id, etiqueta: svc.name })}><Languages size={12} /></IconButton>
+                          <IconButton variante="caja" tono="peligro" ariaLabel={`${t('common.delete')} ${svc.name}`} onClick={() => { openConfirmGlobal({ message: t('config.confirmar_eliminar_servicio'), onConfirm: () => deleteSvc(svc.id), danger: true }) }}><Trash2 size={12} /></IconButton>
                         </div>
                       </td>
                     </tr>
@@ -298,7 +298,7 @@ function NewServiceModal({ catalog, onClose, onSave, isPending, LS, initial, err
               </Select>
               <Input type="number" min={0} step={0.5} aria-label={t('sd_mercado.tarea_sla')} placeholder={t('sd_mercado.tarea_sla')} value={tarea.sla_hours ?? ''} onChange={e => setTareas(ts => ts.map((x, j) => j === i ? { ...x, sla_hours: e.target.value } : x))} className="sdcfg-input--flex1" />
               <Input type="number" min={1} aria-label={t('sd_mercado.tarea_etapa')} placeholder={t('sd_mercado.tarea_etapa')} value={tarea.stage ?? 1} onChange={e => setTareas(ts => ts.map((x, j) => j === i ? { ...x, stage: e.target.value } : x))} className="sdcfg-input--flex1" />
-              <Button size="xs" variant="ghost" icon={<X size={14} />} title={t('common.delete')} onClick={() => setTareas(ts => ts.filter((_, j) => j !== i))} />
+              <IconButton variante="caja" tono="peligro" ariaLabel={t('common.delete')} onClick={() => setTareas(ts => ts.filter((_, j) => j !== i))}><X size={14} /></IconButton>
             </div>
           ))}
           <div><Button size="sm" variant="secondary" icon={<Plus size={14} />} onClick={() => setTareas(ts => [...ts, { title: '', group_id: '', stage: 1 }])}>{t('sd_cfg.ff_add')}</Button></div>

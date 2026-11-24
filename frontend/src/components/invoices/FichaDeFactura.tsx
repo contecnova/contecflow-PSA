@@ -123,8 +123,7 @@ export default function FichaDeFactura({ id, onClose, onPdf, onEstado, etiquetaD
                     <td key={k} className="fidefa-sp-2"><Input aria-label={t(`invoices.ficha_${k === 'quantity' ? 'cantidad' : k === 'unit' ? 'unidad' : k === 'unit_price' ? 'precio' : 'descuento'}`)} type={k === 'unit' ? 'text' : 'number'} value={String(l[k] ?? '')} onChange={e => setLineas(v => v.map((x, j) => j === i ? { ...x, [k]: e.target.value } : x))} /></td>
                   ))}
                   <td className="fidefa-box-7">{dinero(importe(l), f.currency || fmtMoneda.moneda)}</td>
-                  <td><IconButton ariaLabel={t('invoices.ficha_quitar_linea')} onClick={() => setLineas(v => v.filter((_, j) => j !== i))}
-                    className="fidefa-box-8"><Trash2 size={14} /></IconButton></td>
+                  <td><IconButton variante="caja" tono="peligro" ariaLabel={t('invoices.ficha_quitar_linea')} onClick={() => setLineas(v => v.filter((_, j) => j !== i))}><Trash2 size={14} /></IconButton></td>
                 </>) : (<>
                   <td className="fidefa-sp-1">{l.description}</td><td className="fidefa-sp-1">{l.quantity}</td><td className="fidefa-sp-1">{l.unit}</td>
                   <td className="fidefa-box-9">{dinero(l.unit_price, f.currency || fmtMoneda.moneda)}</td><td className="fidefa-sp-1">{l.discount_pct ? `${l.discount_pct}%` : '—'}</td>

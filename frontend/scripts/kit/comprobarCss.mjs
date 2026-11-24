@@ -12,10 +12,14 @@
 //   selectorDsInput  un selector con `.ds-input`                  → la clase propia del campo (inputClassName) o la API
 //                    del kit: el Input/Textarea/Select del kit NO llevan ds-input, y una regla `.ds-input.x` o
 //                    `.algo .ds-input` deja de aplicarse sin avisar (23-11-2026: 22 reglas muertas así)
+//   botonDeIcono     una clase propia de botón de icono (`.x-icon-btn`, `.x-btn-icon`, `.x-boton-icono`…) o una
+//                    regla que retoca `.icon-button--caja` fuera del kit → IconButton variante="caja" (cuadrado de
+//                    alto fijo por --alto-control-*, no se estira; 23-11-2026). Una clase propia no garantiza el
+//                    tamaño fijo: con un título de dos líneas al lado, el botón se estiraba.
 import fs from 'node:fs'
 import path from 'node:path'
 
-export const COMPROBACIONES_CSS = ['mayusculas', 'monoespaciada', 'colorLiteral', 'altoFijoControl', 'minAltoCampo', 'selectorDsInput']
+export const COMPROBACIONES_CSS = ['mayusculas', 'monoespaciada', 'colorLiteral', 'altoFijoControl', 'minAltoCampo', 'selectorDsInput', 'botonDeIcono']
 
 const RE_MAYUSCULAS = /\b(uppercase|capitalize)\b/i
 const RE_MONO = /mono|courier|consolas|menlo/i
@@ -26,6 +30,8 @@ const RE_PX = /^-?\d+(\.\d+)?px$/
 // Campos de texto/desplegables (no botones, casillas, interruptores ni áreas de texto).
 const RE_SELECTOR_CAMPO = /\b(input|select)\b|campo|buscar|buscador|search|filtro|filter/i
 const RE_NO_CAMPO = /textarea|check|radio|color|range|switch|subir|file|nql|multi|area\b/i
+// Clase propia de botón de icono, o un retoque del IconButton de caja del kit.
+const RE_BOTON_DE_ICONO = /\.[\w-]*(icon-?btn|btn-?icon|icono-?btn|btn-?icono|boton-?icono|icon-?boton|botonicono|iconbtn)(?![\w])|\.icon-button--(caja|xs|sm|md|neutro|peligro|acento)(?![\w-])/i
 
 /** Recorre las declaraciones de una hoja: (selector, propiedad, valor, línea). */
 export function declaraciones(texto) {
@@ -72,6 +78,7 @@ export function analizarCss(texto) {
     if (d.propiedad === 'height' && RE_PX.test(d.valor) && RE_SELECTOR_CONTROL.test(d.selector)) r.altoFijoControl.push({ linea: d.linea, texto: `${d.selector} { ${texto} }` })
     if (d.propiedad === 'min-height' && RE_PX.test(d.valor) && RE_SELECTOR_CAMPO.test(d.selector) && !RE_NO_CAMPO.test(d.selector)) r.minAltoCampo.push({ linea: d.linea, texto: `${d.selector} { ${texto} }` })
     if (/\.ds-input(?![\w-])/.test(d.selector)) r.selectorDsInput.push({ linea: d.linea, texto: `${d.selector} { ${texto} }` })
+    if (RE_BOTON_DE_ICONO.test(d.selector)) r.botonDeIcono.push({ linea: d.linea, texto: `${d.selector} { ${texto} }` })
   }
   return r
 }

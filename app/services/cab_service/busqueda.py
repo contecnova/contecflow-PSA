@@ -178,6 +178,21 @@ def _search_invoices(db: Session, q_lower: str, limit: int, viewer) -> list:
     } for i in invoices]
 
 
+def _search_notes(db: Session, q: str, limit: int, viewer) -> list:
+    """Páginas de «Mi cuaderno» que `viewer` puede leer (suyas o compartidas con él)."""
+    from app.core import capacidades
+    if not (getattr(viewer, "is_superadmin", False) or capacidades.tiene(db, viewer, "cuaderno.usar")):
+        return []
+    from app.services.cuaderno import servicio as cuaderno
+    return [{
+        "id": p["id"], "type": "note",
+        "title": p["title"] or "—",
+        "subtitle": " · ".join(x for x in (p["notebook_title"], p["section_title"]) if x),
+        "url": f"/notebook?page={p['id']}",
+        "icon": "",
+    } for p in cuaderno.buscar(db, viewer, q, limite=limit)]
+
+
 def _search_opportunities(db: Session, q_lower: str, limit: int, viewer) -> list:
     consulta = consulta_de_oportunidades(db, viewer, q_lower)
     if consulta is None:
@@ -210,6 +225,10 @@ def global_search(q: str, types: Optional[str], limit: int, db: Session, viewer)
         results["invoices"] = _search_invoices(db, q_lower, 10, viewer)
     if "opportunities" in search_types:
         results["opportunities"] = _search_opportunities(db, q_lower, 10, viewer)
+    # Migracion 202: «Mi cuaderno». Solo las notas del dueño o compartidas con quien
+    # busca (`cuaderno.acceso`); nunca las de otros, tampoco para dirección.
+    if "notes" in search_types or not types:
+        results["notes"] = _search_notes(db, q, 8, viewer)
 
     all_results = []
     for items in results.values():

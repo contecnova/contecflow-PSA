@@ -141,7 +141,7 @@ Ninguno pasa por el exportador común porque cambiaría su formato (`;`, `QUOTE_
 
 ## 8. Ajustes nuevos
 
-Están en `app/core/config_groups/seguridad_salida_config.py`, el README §4.2 y `.env.example`:
+Están en `app/core/config_groups/seguridad_salida_config.py`, docs/REFERENCIA_DE_AJUSTES.md y `.env.example`:
 
 - `MAX_REQUEST_BODY_MB`
 - `CMDB_DISCOVERY_ALLOW_PLATFORM_CREDENTIALS`

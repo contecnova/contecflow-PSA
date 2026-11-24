@@ -71,7 +71,9 @@ def _cliente_del_portal(client, token, db, code="PIR", idioma="fr"):
     from app.models.client_portal import ClientUser
     pid = _proyecto(client, token, code)
     # .test es un dominio reservado: email-validator lo rechaza (422); se usa uno normal.
-    email, clave = f"{code.lower()}@cliente-portal.com", "ClavePortal123!"
+    # La política de contraseñas del portal rechaza las que contienen trozos del correo o del nombre
+    # ("portal", "cliente"): la clave de prueba no lleva ninguno.
+    email, clave = f"{code.lower()}@cliente-portal.com", "ClaveSegura123!"
     r = client.post("/api/v1/portal/clients", headers=auth(token), json={
         "project_ids": [pid], "full_name": "Cliente Portal", "email": email, "password": clave,
         "can_request_changes": True, "language": idioma})

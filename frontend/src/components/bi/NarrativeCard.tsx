@@ -7,7 +7,7 @@ import { useAppLang } from '../../i18n/AppLangContext'
 import MarkdownText from '../ui/MarkdownText'
 import { STALE_AI_NARRATIVE_MS } from '../../constants/timings'
 import './NarrativeCard.css'
-import { Pulsable } from '../ui'
+import { IconButton } from '../ui'
 
 
 interface NarrativeCardProps {
@@ -60,13 +60,13 @@ export default function NarrativeCard({ lang = 'es', style = {} }: NarrativeCard
           </div>
         </div>
         <div className="u-row-center-8">
-          <Pulsable className={`narrcard-row-4 ${isFetching ? 'narrative-card-m4' : 'narrative-card-m5'}`} aria-label={t('narrativecard.regenerar_narrativa')}
+          <IconButton variante="caja" ariaLabel={t('narrativecard.regenerar_narrativa')}
             onClick={e => { e.stopPropagation(); handleRefresh() }}
             disabled={isFetching}
             title={t('narrativecard.regenerar_narrativa')}
           >
             <RefreshCw size={13} className={`${isFetching ? 'narrative-card-m6' : 'narrative-card-m7'}`} />
-          </Pulsable>
+          </IconButton>
           {expanded ? <ChevronUp size={14} color="var(--text-3)" /> : <ChevronDown size={14} color="var(--text-3)" />}
         </div>
       </div>

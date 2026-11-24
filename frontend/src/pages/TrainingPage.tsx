@@ -249,8 +249,8 @@ export default function TrainingPage() {
                     </div>
                     {isAdmin && (
                       <div className="trn-course__actions">
-                        <IconButton ariaLabel={t('training.editar_curso')} onClick={() => { setEditingCourse(c); setShowCourseModal(true) }}><Pencil size={14} /></IconButton>
-                        <IconButton ariaLabel={t('training.eliminar_curso')} className="trn-danger" onClick={() => { openConfirmGlobal({ message: t('training.confirm_eliminar_curso'), onConfirm: () => delCourse(c.id), danger: true }) }}><Trash2 size={14} /></IconButton>
+                        <IconButton variante="caja" ariaLabel={t('training.editar_curso')} onClick={() => { setEditingCourse(c); setShowCourseModal(true) }}><Pencil size={14} /></IconButton>
+                        <IconButton variante="caja" tono="peligro" ariaLabel={t('training.eliminar_curso')} onClick={() => { openConfirmGlobal({ message: t('training.confirm_eliminar_curso'), onConfirm: () => delCourse(c.id), danger: true }) }}><Trash2 size={14} /></IconButton>
                       </div>
                     )}
                   </div>
@@ -308,8 +308,8 @@ export default function TrainingPage() {
                     {c.expires_at ? <div className="trn-cert__state">{c.is_expired ? t('training.expired') : t('training.caduca_el', { fecha: fmtDate(c.expires_at) })}</div> : <div className="trn-meta">{t('training.no_expiry')}</div>}
                   </div>
                   {c.url && <a href={sanitizeUrl(c.url)} target="_blank" rel="noopener noreferrer" className="trn-link"><ExternalLink size={12} aria-hidden="true" /> {t('training.verify')}</a>}
-                  <IconButton ariaLabel={t('training.editar_certificacion')} onClick={() => { setEditingCert(c); setShowCertModal(true) }}><Pencil size={14} /></IconButton>
-                  <IconButton ariaLabel={t('training.eliminar_certificacion')} className="trn-danger" onClick={() => { openConfirmGlobal({ message: t('training.confirm_eliminar_cert'), onConfirm: () => delCert(c.id), danger: true }) }}><Trash2 size={14} /></IconButton>
+                  <IconButton variante="caja" ariaLabel={t('training.editar_certificacion')} onClick={() => { setEditingCert(c); setShowCertModal(true) }}><Pencil size={14} /></IconButton>
+                  <IconButton variante="caja" tono="peligro" ariaLabel={t('training.eliminar_certificacion')} onClick={() => { openConfirmGlobal({ message: t('training.confirm_eliminar_cert'), onConfirm: () => delCert(c.id), danger: true }) }}><Trash2 size={14} /></IconButton>
                 </div>
               ))}
             </div>

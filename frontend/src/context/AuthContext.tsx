@@ -261,14 +261,19 @@ export function AuthProvider({ children }: AuthProviderProps) {
     // Notify subscribers (chat presence, etc.) BEFORE invalidating the cookie
     // so they can stop firing requests that would otherwise return 401.
     try { window.dispatchEvent(new CustomEvent('auth:logout-start')) } catch { /* noop */ }
+    // SLO SAML (23-11-2026): si entró por SAML y su IdP tiene logout, el backend
+    // devuelve la URL del IdP para cerrar también allí la sesión.
+    let urlSloSaml: string | null = null
     try {
-      await api.post('/auth/logout')
+      const { data } = await api.post<{ saml_logout_url?: string | null }>('/auth/logout')
+      urlSloSaml = data?.saml_logout_url ?? null
     } catch { /* noop */ }
     // Clear all session-scoped storage (cookie hint, per-user AI conv id,
     // notification-permission flag, etc.). UI prefs are kept on purpose.
     clearSessionStorage()
     limpiarDatosDeSesion()
     setUser(null)
+    if (urlSloSaml && /^https:\/\//.test(urlSloSaml)) window.location.assign(urlSloSaml)
   }, [])
 
   const puede = useCallback((capacidad: Capacidad): boolean => tieneCapacidad(user?.capacidades, capacidad), [user])

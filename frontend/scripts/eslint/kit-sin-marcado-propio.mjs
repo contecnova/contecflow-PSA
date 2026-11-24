@@ -7,6 +7,8 @@
 //   contec/sin-casilla-suelta   <input type="checkbox|radio">  → Checkbox / Radio / Switch / GrupoDeOpciones
 //   contec/sin-input-nativo    <input> de texto / <textarea>  → Input / Textarea / SearchInput
 //   contec/sin-fieldset-propio  <fieldset> sin ds-grupo-opciones → GrupoDeOpciones
+//   contec/sin-boton-de-icono-propio  <button>/<Pulsable>/<Button> con solo un icono de lucide
+//                                     → IconButton (variante="caja" en tarjetas y filas; 23-11-2026)
 //
 // Excepciones temporales: la opción `pendientes` ({ 'src/x.tsx': n }) admite
 // en ese fichero hasta n incumplimientos (los que tenía al crear la lista). Si
@@ -81,10 +83,54 @@ function crearRegla({ mensaje, detectar }) {
 
 const TIPOS_DE_TEXTO = new Set(['', 'text', 'search', 'email', 'number', 'password', 'url', 'tel'])
 
+// ── Botón de solo icono (23-11-2026) ─────────────────────────────────────────
+// Los nombres locales que el fichero importa de lucide-react (por programa).
+const iconosPorPrograma = new WeakMap()
+function iconosImportados(context) {
+  const ast = context.sourceCode.ast
+  if (!iconosPorPrograma.has(ast)) {
+    const nombres = new Set()
+    for (const s of ast.body) {
+      if (s.type !== 'ImportDeclaration' || s.source.value !== 'lucide-react') continue
+      for (const e of s.specifiers) if (e.type === 'ImportSpecifier' || e.type === 'ImportDefaultSpecifier') nombres.add(e.local.name)
+    }
+    iconosPorPrograma.set(ast, nombres)
+  }
+  return iconosPorPrograma.get(ast)
+}
+/** ¿Es la expresión solo un icono de lucide (o un ternario/&& entre iconos)? */
+function esIcono(e, iconos) {
+  if (!e) return false
+  if (e.type === 'JSXElement') {
+    const n = e.openingElement.name
+    return n.type === 'JSXIdentifier' && iconos.has(n.name)
+  }
+  if (e.type === 'ConditionalExpression') return esIcono(e.consequent, iconos) && esIcono(e.alternate, iconos)
+  if (e.type === 'LogicalExpression') return esIcono(e.right, iconos)
+  return false
+}
+/** <button>, <Pulsable> o <Button> cuyo único hijo es un icono de lucide, o
+ *  <Button icon={…}> sin texto. */
+export function esBotonDeSoloIcono(n, context) {
+  const nom = nombre(n)
+  if (nom !== 'button' && nom !== 'Pulsable' && nom !== 'Button') return false
+  const hijos = n.selfClosing ? [] : n.parent.children.filter((h) => !(h.type === 'JSXText' && !h.value.trim())
+    && !(h.type === 'JSXExpressionContainer' && h.expression.type === 'JSXEmptyExpression'))
+  if (nom === 'Button' && hijos.length === 0 && atributo(n, 'icon')) return true
+  const iconos = iconosImportados(context)
+  if (!iconos.size || hijos.length !== 1) return false
+  const h = hijos[0]
+  return esIcono(h.type === 'JSXExpressionContainer' ? h.expression : h, iconos)
+}
+
 export const reglasDelKit = {
   'sin-boton-nativo': crearRegla({
     mensaje: '<button> propio: usa Button (variant primary/secondary/ghost/danger/link), IconButton, Chip, Segmentado o Pulsable del kit (components/ui).',
     detectar: (n) => nombre(n) === 'button',
+  }),
+  'sin-boton-de-icono-propio': crearRegla({
+    mensaje: 'Botón de solo icono hecho a mano (<button>, <Pulsable> o <Button> con un icono de lucide como único hijo): usa IconButton del kit; en tarjetas y filas, <IconButton variante="caja" tono="neutro|peligro|acento" ariaLabel="…"> dentro de .ui-acciones (cuadrado de alto fijo, no se estira).',
+    detectar: esBotonDeSoloIcono,
   }),
   'sin-tabla-propia': crearRegla({
     mensaje: '<table> propia: usa Tabla (columnas declarativas) o TablaSimple (marcado libre con el estilo contecflow-table) del kit.',

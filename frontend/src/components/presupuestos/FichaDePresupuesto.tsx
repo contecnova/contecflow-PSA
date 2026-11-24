@@ -22,6 +22,7 @@ import { useToast } from '../../context/ToastContext'
 import { extractErr, fmtMonth, localeActivo } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import FormularioDePartida, { CLASE_CAMPO, modoDe } from './FormularioDePartida'
+import DocumentosDeFicha from '../conectores/DocumentosDeFicha'
 import { CierreDelPresupuesto, ControlDelPresupuesto, PedidosYTraspasos } from './SeguirPresupuesto'
 
 import { useFormatoMoneda } from '../../hooks/useFormatoMoneda'
@@ -120,6 +121,7 @@ export default function FichaDePresupuesto({ id, onClose, onAbrir }: { id: strin
             { id: 'estructura', label: t('pres.tab_estructura') },
             { id: 'escenarios', label: `${t('pres.tab_escenarios')} · ${p.versiones.length}` },
             { id: 'supuestos', label: t('pres.tab_supuestos') },
+            { id: 'documentos', label: t('fichas_cm.documentos') },
           ]} />
           {tab === 'partidas' && <Partidas p={p} dinero={dinero} onCambio={d => qc.setQueryData(['presupuesto', d.id], d)} />}
           {tab === 'seguimiento' && <Seguimiento p={p} dinero={dinero} />}
@@ -129,6 +131,8 @@ export default function FichaDePresupuesto({ id, onClose, onAbrir }: { id: strin
           {tab === 'estructura' && <Estructura p={p} dinero={dinero} onAbrir={onAbrir} />}
           {tab === 'escenarios' && <Escenarios p={p} dinero={dinero} onAbrir={onAbrir} accion={accion} ocupado={ocupado} />}
           {tab === 'supuestos' && <SupuestosDelPresupuesto p={p} accion={accion} ocupado={ocupado} />}
+          {/* 23-11-2026: documentos de contecmind del presupuesto (solo si el conector está configurado). */}
+          {tab === 'documentos' && <DocumentosDeFicha ficha="budget" id={p.id} preguntar />}
         </div>
       )}
     </Modal>

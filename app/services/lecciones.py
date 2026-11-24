@@ -41,7 +41,7 @@ from app.core.codigos_de_error import error
 
 logger = logging.getLogger("contecflow.lecciones")
 
-ORIGENES = ("project", "ticket", "problem", "major_incident", "sprint", "security_incident", "manual")
+ORIGENES = ("project", "ticket", "problem", "major_incident", "sprint", "security_incident", "pir", "manual")
 ESTADOS = ("borrador", "en_revision", "validada", "archivada")
 TIPOS = ("evitar", "repetir")
 SEVERIDADES = ("baja", "media", "alta")
@@ -284,9 +284,15 @@ def _hechos_incidente_seguridad(db: Session, usuario, id_: str) -> dict:
             "ambito": {}, "hechos": [x for x in hechos if x]}
 
 
+def _hechos_pir(db: Session, usuario, id_: str) -> dict:
+    """Migración 206 (docs/PIR.md): la revisión posterior a la implantación de un cambio o proyecto."""
+    from app.services.pir.servicio import hechos_para_leccion
+    return hechos_para_leccion(db, usuario, id_)
+
+
 _HECHOS = {"project": _hechos_proyecto, "ticket": _hechos_ticket, "problem": _hechos_problema,
            "major_incident": _hechos_incidente_grave, "sprint": _hechos_sprint,
-           "security_incident": _hechos_incidente_seguridad}
+           "security_incident": _hechos_incidente_seguridad, "pir": _hechos_pir}
 
 
 def hechos_de(db: Session, usuario, origen_tipo: str, origen_id: str) -> dict:

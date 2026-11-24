@@ -37,15 +37,6 @@
   display: flex;
   align-items: center;
 }
-.narrcard-row-4 {
-  background: transparent;
-  border: none;
-  color: var(--text-3);
-  padding: 4px;
-  border-radius: var(--radius-sm);
-  display: flex;
-  align-items: center;
-}
 .narrcard-box-2 {
   height: 12px;
   border-radius: var(--radius-sm);
@@ -85,12 +76,6 @@
 }
 .narrative-card-m2 {
   border-bottom: none;
-}
-.narrative-card-m4 {
-  cursor: not-allowed;
-}
-.narrative-card-m5 {
-  cursor: pointer;
 }
 .narrative-card-m6 {
   animation: spin 1s linear infinite;

@@ -433,7 +433,7 @@ def comparar(db: Session, ids: list[str]) -> dict:
 def recordar_campana(db: Session) -> int:
     """Avisa a los responsables de presupuestos sin enviar cuando la fecha límite se acerca."""
     from app.services.notifications import notify_user
-    from app.services.textos_de_salida_servicios_m_z import aviso_de
+    from app.services.textos_de_salida import aviso_de
     hoy = timeutil.today()
     avisos = 0
     for c in db.query(BudgetCampaign).filter(BudgetCampaign.abierta.is_(True)).all():

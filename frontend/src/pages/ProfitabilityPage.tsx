@@ -14,7 +14,7 @@ import { Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { profitabilityApi } from '../services/api'
 import type { HitoDeRentabilidad, RentabilidadDetallada, ResumenDeRentabilidad } from '../services/api/tipos-finanzas'
-import { Card, Button, Modal, Spinner, EmptyState, Input, KpiCard, Checkbox, Pulsable, Select } from '../components/ui'
+import { Card, Button, Modal, Spinner, EmptyState, Input, KpiCard, Checkbox, Select, IconButton } from '../components/ui'
 import StatusBadge from '../components/ui/StatusBadge'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -112,7 +112,7 @@ function MilestoneRow({ m, projectId, onUpdate }: { m: MilestoneItem; projectId:
           <Link to="/milestone-billing" className="prof-enlace">{t('rentabilidad_ui.facturar_en_hitos')} <ArrowRight size={12} aria-hidden /></Link>
         )}
         {m.is_billed && <StatusBadge kind="success" caps={false}>{t('rentabilidad_ui.facturado')}</StatusBadge>}
-        <Pulsable className="prof-icono-borrar" aria-label={t('rentabilidad_ui.eliminar_hito')} title={t('rentabilidad_ui.eliminar_hito')} onClick={() => { openConfirmGlobal({ message: t('rentabilidad_ui.eliminar_hito_confirm'), onConfirm: () => del(), danger: true }) }}><Trash2 size={14} aria-hidden /></Pulsable>
+        <IconButton variante="caja" tono="peligro" ariaLabel={t('rentabilidad_ui.eliminar_hito')} title={t('rentabilidad_ui.eliminar_hito')} onClick={() => { openConfirmGlobal({ message: t('rentabilidad_ui.eliminar_hito_confirm'), onConfirm: () => del(), danger: true }) }}><Trash2 size={14} aria-hidden /></IconButton>
       </div>
     </div>
   )

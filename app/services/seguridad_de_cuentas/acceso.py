@@ -6,16 +6,17 @@ confianza o con `GEOIP_LOOKUP_ENABLED` (apagado por defecto): sin país, el bloq
 por país no actúa.
 """
 from __future__ import annotations
+import logging
 
 import ipaddress
 from datetime import datetime, timezone
 from typing import Optional
 
 from app.core.codigos_de_error import error
-from app.services.seguridad_de_cuentas.politica import Politica, _csv, _lista
+from app.services.seguridad_de_cuentas.politica import PoliticaDeCuenta, _csv, _lista
 
 
-def ip_permitida(ip: Optional[str], p: Politica) -> bool:
+def ip_permitida(ip: Optional[str], p: PoliticaDeCuenta) -> bool:
     redes = p.redes()
     if not redes:
         return True
@@ -31,16 +32,18 @@ def _zona(db, org_id) -> str:
         from app.services.settings_service.por_empresa import zona_de_empresa
         return zona_de_empresa(db, org_id) or "UTC"
     except Exception:
+        logging.getLogger(__name__).debug("_zona: excepcion ignorada", exc_info=True)
         return "UTC"
 
 
-def dentro_de_horario(db, org_id, rol: str, p: Politica, ahora: Optional[datetime] = None) -> bool:
+def dentro_de_horario(db, org_id, rol: str, p: PoliticaDeCuenta, ahora: Optional[datetime] = None) -> bool:
     if not p.ACCESS_HOURS or rol in _csv(p.ACCESS_HOURS_EXEMPT_ROLES):
         return True
     from zoneinfo import ZoneInfo
     try:
         local = (ahora or datetime.now(timezone.utc)).astimezone(ZoneInfo(_zona(db, org_id)))
     except Exception:
+        logging.getLogger(__name__).debug("dentro_de_horario: excepcion ignorada", exc_info=True)
         local = (ahora or datetime.now(timezone.utc))
     if str(local.isoweekday()) not in set(_lista(p.ACCESS_DAYS)):
         return False
@@ -64,7 +67,7 @@ def pais_de_la_peticion(request) -> Optional[str]:
 
 
 def comprobar(db, user, org_id: Optional[str], ip: Optional[str], request=None, pais: Optional[str] = None,
-              p: Optional[Politica] = None) -> None:
+              p: Optional[PoliticaDeCuenta] = None) -> None:
     """403 con código si la empresa no deja entrar desde aquí o ahora."""
     if getattr(user, "is_superadmin", False) or not org_id:
         return

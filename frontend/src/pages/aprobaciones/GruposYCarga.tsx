@@ -91,7 +91,7 @@ export function ApprovalGroupsTab() {
                 <div className="u-text3-xs">{t('approvals.n_miembros', { n: members.length })}</div>
                 <div className="apv-grupo__acciones">
                   <Button size="sm" variant="secondary" icon={<Pencil size={14} />} onClick={() => openEdit(g)}>{t('approvals.editar')}</Button>
-                  <IconButton ariaLabel={t('approvals.eliminar_grupo_aria', { nombre: g.name })}
+                  <IconButton variante="caja" tono="peligro" ariaLabel={t('approvals.eliminar_grupo_aria', { nombre: g.name })}
                     onClick={() => openConfirmGlobal({ message: t('approvals.eliminar_grupo_confirmar', { nombre: g.name }), onConfirm: () => del(g.id), danger: true })}><Trash2 size={14} aria-hidden /></IconButton>
                 </div>
               </div>

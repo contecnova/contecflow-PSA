@@ -125,9 +125,6 @@ def seed_itsm_v2():
             risk=ChangeRisk.low, priority=TicketPriority.p3_medium,
             implementation_plan="Deploy Redis cluster, configurar TTLs, invalidación de caché.",
             rollback_plan="Desactivar caché en config y reiniciar servicio. 5 minutos.",
-            pir_notes="Reducción del 40% en latencia P95. Sin incidencias en 72h post-deploy.",
-            pir_success=True,
-            pir_date=now - timedelta(days=3),
             downtime_minutes=0,
             requester_id=admin.id if admin else None,
             actual_start=now - timedelta(days=5),
@@ -135,6 +132,22 @@ def seed_itsm_v2():
         ),
     ]
     db.add_all(changes); db.flush()
+
+    # PIR del cambio implantado (migración 206, docs/PIR.md): antes eran las
+    # columnas `pir_notes`/`pir_success`/`pir_date` del propio cambio.
+    from app.models.pir import PirRevision
+    implantado = changes[-1]
+    db.add(PirRevision(
+        organization_id=implantado.organization_id or (admin.organization_id if admin else None),
+        codigo="PIR-H0001", titulo=f"PIR de {implantado.number}: {implantado.title}"[:300],
+        origen_tipo="change", change_id=implantado.id, motivo="implantacion", tipo="standard",
+        estado="aprobado", obligatorio=False, fecha_prevista=(now - timedelta(days=3)).date(),
+        fecha_real=(now - timedelta(days=3)).date(), responsable_id=ana.id if ana else None,
+        objetivos_cumplidos="si", resultado="exito", hubo_marcha_atras=False,
+        resumen="Reducción del 40% en latencia P95. Sin incidencias en 72h post-deploy.",
+        aprobado_por=admin.id if admin else None, aprobado_en=now - timedelta(days=2),
+    ))
+    db.flush()
 
     # ── Major Incidents ────────────────────────────────────────────────────────
     mi = MajorIncident(

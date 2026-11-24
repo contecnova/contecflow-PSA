@@ -79,29 +79,8 @@ textarea.alm-input { resize: vertical; }
 
 .alm-pagination { margin-top: 16px; }
 
-/* Botones de icono (editar, borrar, historial...) */
-.alm-icon-btn {
-  background: none;
-  border: 1px solid var(--surface-4);
-  border-radius: var(--radius-sm);
-  padding: 5px 10px;
-  color: var(--text-2);
-  cursor: pointer;
-  font-size: var(--text-sm);
-  font-family: inherit;
-}
-.alm-icon-btn:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-.alm-icon-btn--danger { border-color: var(--danger-border); color: var(--danger); }
-.alm-icon-btn--accent { border-color: var(--accent-border); color: var(--accent); }
-.alm-icon-btn--sm { padding: 4px 8px; }
-.alm-icon-btn--md { padding: 4px 10px; }
-.alm-icon-btn--xs { padding: 3px 8px; }
-
-.alm-actions { display: flex; gap: 6px; flex-shrink: 0; }
-.alm-actions--end { justify-content: flex-end; }
+/* Acciones de tarjeta y fila: IconButton variante="caja" del kit dentro de
+   .ui-acciones (23-11-2026; antes .alm-icon-btn / .alm-actions, propios). */
 
 .alm-client-chip {
   color: var(--accent);
@@ -178,7 +157,7 @@ textarea.alm-input { resize: vertical; }
   transition: border-color 0.15s;
 }
 .alm-vendor:hover { border-color: color-mix(in srgb, var(--cat-color) 31%, transparent); }
-.alm-vendor__head { display: flex; justify-content: space-between; margin-bottom: 12px; }
+.alm-vendor__head { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--space-3); margin-bottom: 12px; }
 .alm-vendor__icon {
   width: 36px;
   height: 36px;

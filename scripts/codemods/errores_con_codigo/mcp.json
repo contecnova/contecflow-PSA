@@ -1,0 +1,117 @@
+{
+ "codigos": {
+  "mcp_apagado": {
+   "es": "MCP está apagado para esta empresa (Configuración → Agentes de código (MCP))",
+   "en": "MCP is switched off for this company (Settings → Coding agents (MCP))",
+   "zh": "本公司已关闭 MCP（设置 → 编程智能体 (MCP)）"
+  },
+  "mcp_limite_de_uso": {
+   "es": "Límite de uso de MCP alcanzado: {n} llamadas por minuto para esta credencial. Reintenta en {segundos} s",
+   "en": "MCP usage limit reached: {n} calls per minute for this credential. Retry in {segundos} s",
+   "zh": "已达到 MCP 使用上限：此凭据每分钟 {n} 次调用。请在 {segundos} 秒后重试"
+  },
+  "mcp_json_no_valido": {
+   "es": "El cuerpo de la petición MCP no es un JSON válido",
+   "en": "The MCP request body is not valid JSON",
+   "zh": "MCP 请求正文不是有效的 JSON"
+  },
+  "mcp_lotes_no_admitidos": {
+   "es": "MCP no admite lotes JSON-RPC: envía un mensaje por petición",
+   "en": "MCP does not accept JSON-RPC batches: send one message per request",
+   "zh": "MCP 不接受 JSON-RPC 批处理：每个请求发送一条消息"
+  },
+  "mcp_mensaje_no_valido": {
+   "es": "Mensaje JSON-RPC no válido: {motivo}",
+   "en": "Invalid JSON-RPC message: {motivo}",
+   "zh": "无效的 JSON-RPC 消息：{motivo}"
+  },
+  "mcp_metodo_no_soportado": {
+   "es": "Método MCP no soportado: {metodo}",
+   "en": "Unsupported MCP method: {metodo}",
+   "zh": "不支持的 MCP 方法：{metodo}"
+  },
+  "mcp_version_no_soportada": {
+   "es": "Versión del protocolo MCP no soportada: {version} (admitidas: {admitidas})",
+   "en": "Unsupported MCP protocol version: {version} (supported: {admitidas})",
+   "zh": "不支持的 MCP 协议版本：{version}（支持：{admitidas}）"
+  },
+  "mcp_origen_no_permitido": {
+   "es": "Origen no permitido para el servidor MCP: {origen}",
+   "en": "Origin not allowed for the MCP server: {origen}",
+   "zh": "MCP 服务器不允许该来源：{origen}"
+  },
+  "mcp_herramienta_desconocida": {
+   "es": "Herramienta MCP desconocida: {herramienta}",
+   "en": "Unknown MCP tool: {herramienta}",
+   "zh": "未知的 MCP 工具：{herramienta}"
+  },
+  "mcp_argumentos_no_validos": {
+   "es": "Argumentos no válidos para {herramienta}: {detalle}",
+   "en": "Invalid arguments for {herramienta}: {detalle}",
+   "zh": "{herramienta} 的参数无效：{detalle}"
+  },
+  "mcp_herramienta_sin_capacidad": {
+   "es": "No puedes usar {herramienta}: necesita la capacidad {capacidad}, la misma que su ruta de la API",
+   "en": "You cannot use {herramienta}: it needs the {capacidad} capability, the same as its API route",
+   "zh": "你不能使用 {herramienta}：它需要 {capacidad} 权限，与其 API 路由相同"
+  },
+  "mcp_herramienta_modulo_cerrado": {
+   "es": "No puedes usar {herramienta}: tu rol no tiene acceso al módulo {modulo}",
+   "en": "You cannot use {herramienta}: your role has no access to the {modulo} module",
+   "zh": "你不能使用 {herramienta}：你的角色无权访问 {modulo} 模块"
+  },
+  "mcp_herramienta_grc": {
+   "es": "No puedes usar {herramienta}: la matriz GRC deniega «{accion}» en {modulo}",
+   "en": "You cannot use {herramienta}: the GRC matrix denies «{accion}» on {modulo}",
+   "zh": "你不能使用 {herramienta}：GRC 矩阵拒绝在 {modulo} 上执行「{accion}」"
+  },
+  "mcp_herramienta_ia": {
+   "es": "No puedes usar {herramienta}: es una herramienta del asistente de IA y necesita la capacidad ia.usar",
+   "en": "You cannot use {herramienta}: it is an AI assistant tool and needs the ia.usar capability",
+   "zh": "你不能使用 {herramienta}：它是 AI 助手工具，需要 ia.usar 权限"
+  },
+  "mcp_escritura_no_permitida": {
+   "es": "{herramienta} escribe, y la escritura por MCP no está permitida para esta empresa o esta credencial (solo lectura)",
+   "en": "{herramienta} writes, and writing over MCP is not allowed for this company or this credential (read only)",
+   "zh": "{herramienta} 会写入数据，而本公司或此凭据不允许通过 MCP 写入（只读）"
+  },
+  "mcp_sin_flujo_de_aprobacion": {
+   "es": "La escritura por MCP necesita aprobación y la empresa no tiene un flujo para el tipo «mcp_action» (Configuración → Flujos de aprobación). No se ha hecho nada",
+   "en": "Writing over MCP needs approval and the company has no workflow for the «mcp_action» type (Settings → Approval workflows). Nothing was done",
+   "zh": "通过 MCP 写入需要审批，但公司没有「mcp_action」类型的流程（设置 → 审批流程）。未执行任何操作"
+  },
+  "mcp_accion_no_encontrada": {
+   "es": "No hay ninguna acción tuya pendiente por MCP con ese action_id",
+   "en": "There is no MCP action of yours with that action_id",
+   "zh": "没有你的、具有该 action_id 的 MCP 操作"
+  },
+  "mcp_error_interno": {
+   "es": "La herramienta {herramienta} ha fallado. Consta en el registro; prueba de nuevo o avisa al administrador",
+   "en": "The {herramienta} tool failed. It has been logged; try again or tell the administrator",
+   "zh": "工具 {herramienta} 执行失败。已记录；请重试或通知管理员"
+  },
+  "mcp_cuaderno_apagado": {
+   "es": "Las herramientas de Mi cuaderno por MCP están apagadas en esta empresa (Configuración → Agentes de código (MCP))",
+   "en": "The «My notebook» tools over MCP are switched off for this company (Settings → Coding agents (MCP))",
+   "zh": "本公司已关闭通过 MCP 使用「我的笔记本」工具（设置 → 编程智能体 (MCP)）"
+  },
+  "mcp_cuaderno_no_compartido": {
+   "es": "Esa nota no está en un cuaderno tuyo compartido con tus agentes de código",
+   "en": "That note is not in a notebook of yours shared with your coding agents",
+   "zh": "该笔记不在你与编程智能体共享的笔记本中"
+  },
+  "mcp_credencial_alcance_no_valido": {
+   "es": "Alcance no válido para una credencial MCP: {alcance} (read o write)",
+   "en": "Invalid scope for an MCP credential: {alcance} (read or write)",
+   "zh": "MCP 凭据的范围无效：{alcance}（read 或 write）"
+  },
+  "mcp_modo_de_escritura_no_valido": {
+   "es": "Modo de escritura de MCP no válido: {modo} (off, approval o direct)",
+   "en": "Invalid MCP write mode: {modo} (off, approval or direct)",
+   "zh": "无效的 MCP 写入模式：{modo}（off、approval 或 direct）"
+  }
+ },
+ "que": {
+  "credencial_mcp": {"es": "Credencial MCP", "en": "MCP credential", "zh": "MCP 凭据"}
+ }
+}

@@ -160,9 +160,18 @@ def prioritize_queue(data: dict = Body(...),
                      db: Session = Depends(get_db),
     _rol = Depends(requiere_capacidad("ia.rrhh")),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
                      _=Depends(get_current_user)):
+    """Puntúa una lista dada (uso de integraciones). La pantalla usa `/review-queue`."""
     items    = data.get("items", [])
     assigner = _svc.get_assigner(db)
     return APIResponse.ok(data={"prioritized": assigner.prioritize_queue(items)})
+
+
+@router.get("/review-queue", summary="Sugerencias pendientes de la empresa, las más útiles de revisar primero")
+def review_queue(limit: int = 50, db: Session = Depends(get_db),
+                 _rol=Depends(requiere_capacidad("ia.asignacion"))):
+    """23-11-2026: el `ActiveLearningPrioritizer` aplicado a las sugerencias sin
+    veredicto: un experto confirma o corrige las primeras (`POST /feedback`)."""
+    return APIListResponse.ok(items=_svc.cola_de_revision(db, limit))
 
 
 # ── Perfiles de usuario ───────────────────────────────────────────────────────
@@ -217,25 +226,18 @@ def rebuild_embeddings(db: Session = Depends(get_db),
 @router.post("/feedback")
 def record_feedback(data: dict = Body(...),
                     db: Session = Depends(get_db),
-    _rol = Depends(requiere_capacidad("ia.rrhh")),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
+    # 23-11-2026: «Corregir asignación» en tareas y tickets; la hacen quienes
+    # asignan con IA (dirección, PM y RRHH), no solo dirección y RRHH.
+    _rol = Depends(requiere_capacidad("ia.asignacion")),
                     cu=Depends(get_current_user)):
-    item_id              = data.get("item_id", "")
-    item_type            = data.get("item_type", "ticket")
-    item_text            = data.get("item_text", "")
-    correct_user_id      = data.get("correct_user_id", "")
-    original_engine_mode = data.get("original_engine_mode", "")
-    confirmed            = bool(data.get("confirmed", False))
-    if not item_text or not correct_user_id:
-        raise error_http(400, "campos_obligatorios", detail="item_text y correct_user_id requeridos", campos="item_text, correct_user_id")
-    assigner = _get_assigner(db)
-    corrected_by = cu.id
-    if original_engine_mode == "llm" and confirmed:
-        corrected_by = f"manager_confirm:{cu.id}"
-    assigner.record_feedback(item_id, item_type, item_text,
-                             correct_user_id, corrected_by)
-    _cache_item_embedding(db, item_id, item_type, item_text, correct_user_id)
-    llm_confirmed = original_engine_mode == "llm" and confirmed
-    return APIResponse.ok(data={"ok": True, "persisted_as_expert": llm_confirmed})
+    """Corrige (o confirma) la persona de una asignación de la IA.
+
+    23-11-2026: antes guardaba `corrected_by = "manager_confirm:<uuid>"` (52
+    caracteres) en una columna `String(36)` con FK a `users.id`. Ahora
+    `corrected_by` es el id y el tipo va en `correction_kind`
+    (`semantic_engine_service.corregir_asignacion`).
+    """
+    return APIResponse.ok(data=_svc.corregir_asignacion(db, cu, data))
 
 
 # ── Estadisticas ──────────────────────────────────────────────────────────────
@@ -248,6 +250,9 @@ def get_stats(db: Session = Depends(get_db), _=Depends(get_current_user)):
 @router.post("/record-assignment")
 def record_assignment(data: dict = Body(...),
                       db: Session = Depends(get_db),
-    _rol = Depends(requiere_capacidad("ia.rrhh")),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
+    # 23-11-2026: quien pide la sugerencia (`ia.usar`) registra que la aceptó; antes
+    # pedía `ia.rrhh` y a un PM le fallaba en silencio (el bucle nunca tenía datos).
+    # El veredicto lo pone el servidor y el ítem tiene que ser de la empresa.
+    _rol = Depends(requiere_capacidad("ia.usar")),
                       cu=Depends(get_current_user)):
     return APIResponse.ok(data=_svc.record_assignment(db, data, cu.id))

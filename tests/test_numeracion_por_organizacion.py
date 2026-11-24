@@ -74,12 +74,16 @@ def test_la_deteccion_de_problemas_no_mezcla_organizaciones(db):
 
     db.info.pop("organization_id", None)
     db.info.pop("is_superadmin", None)
-    for org in ("org-a", "org-b"):
-        for i in range(PROBLEM_DETECTION_THRESHOLD):
-            db.add(Ticket(number=f"INC-{i + 1:04d}", ticket_type="incident", title="caida",
-                          description="d", priority="p2_high", organization_id=org))
-    db.commit()
-    grupos = detect_recurring_incidents(db)
+    # Como el job (M8, 22-11-2026): trabajo de sistema declarado, entre empresas;
+    # sin él el ORM cierra (también al guardar: las automatizaciones leen sus reglas).
+    from app.db.contexto_de_tenant import trabajo_de_sistema
+    with trabajo_de_sistema("prueba: deteccion de problemas"):
+        for org in ("org-a", "org-b"):
+            for i in range(PROBLEM_DETECTION_THRESHOLD):
+                db.add(Ticket(number=f"INC-{i + 1:04d}", ticket_type="incident", title="caida",
+                              description="d", priority="p2_high", organization_id=org))
+        db.commit()
+        grupos = detect_recurring_incidents(db)
     assert sorted(g["organization_id"] for g in grupos) == ["org-a", "org-b"]
     for g in grupos:
         assert len(g["ticket_ids"]) == PROBLEM_DETECTION_THRESHOLD, "sin servicio, la lista salia vacia"

@@ -358,7 +358,9 @@ def test_un_fichero_demasiado_grande_no_sale(client, db, doble, pm_token, ticket
     db.commit()
     settings_service.invalidate_cache()
     r = client.post(f"{URL}/contecmind/fichas/ticket/{ticket.id}/subir", headers=auth(pm_token),
-                    files={"file": ("g.bin", b"0" * (1024 * 1024 + 1), "application/octet-stream")})
+                    # 23-11-2026: el validador común de subidas rechaza `.bin` (415) antes de
+                    # mirar el tamaño; se usa un tipo admitido para medir el tope de contecmind.
+                    files={"file": ("g.txt", b"0" * (1024 * 1024 + 1), "text/plain")})
     assert r.status_code == 413 and doble.llamadas == []
 
 
@@ -379,9 +381,13 @@ def test_contecintelligence_pregunta_con_recibo_y_reenvia_el_directo(client, dob
         "valid"] is True
 
 
-def test_el_token_de_los_componentes_no_lleva_la_credencial(client, doble, pm_token):
+def test_el_token_de_los_componentes_no_lleva_la_credencial(client, doble, pm_token, monkeypatch):
+    # 23-11-2026: solo con el origen permitido (CSP) se emite el token; si no, `incrustable: false` sin canje.
+    from app.core.config import settings
+    monkeypatch.setattr(settings, "CONTECINTELLIGENCE_EMBED_ORIGINS", BASE_CI)
     d = client.post(f"{URL}/contecintelligence/token", headers=auth(pm_token), json={"source_id": "s-erp"}).json()["data"]
-    assert set(d) == {"access_token", "expires_in", "base_url"} and "secreto" not in json.dumps(d)
+    assert set(d) == {"incrustable", "origen", "access_token", "expires_in", "base_url"} and "secreto" not in json.dumps(d)
+    assert d["incrustable"] is True and d["origen"] == BASE_CI and d["access_token"]
     assert _canjes(doble)[-1]["source_id"] == "s-erp"
 
 

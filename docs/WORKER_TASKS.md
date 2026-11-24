@@ -2,7 +2,7 @@
 
 Referencia de las tareas de fondo. Fuente de verdad: `app/worker.py`
 (`celery_app`, `beat_schedule` y las tareas `@celery_app.task`). Revisado contra
-el código el 2026-11-23 (53 entradas de `beat_schedule`, 57 tareas); si algo de aquí no coincide con `app/worker.py`, manda
+el código el 2026-11-23 (59 entradas de `beat_schedule`, 63 tareas `@celery_app.task`); si algo de aquí no coincide con `app/worker.py`, manda
 el código.
 
 ## Cómo se ejecutan
@@ -47,7 +47,7 @@ el código.
 - **Errores**: un fallo se registra con traza y se relanza (Celery lo marca
   FAILURE); no se devuelve `{"error": ...}`.
 - **Métricas**: con APScheduler, `attach_apscheduler_metrics` mide cada trabajo
-  (ver `docs/OBSERVABILITY_PROMETHEUS.md`).
+  (ver `docs/OBSERVABILIDAD.md`).
 
 ## Tareas bajo demanda (sin calendario)
 
@@ -75,6 +75,7 @@ Horas en `DEFAULT_TIMEZONE`. Día de la semana en notación Celery (0 = domingo)
 | `process-approval-timeouts` | `process_approval_timeouts` | cada hora :00 | fila | Acciones de vencimiento de pasos de aprobación caducados (`app.services.approval_engine`) |
 | `revenue-monthly-recognition` | `revenue_monthly_recognition` | diaria 02:00 | organización | ASC 606: reconoce el mes anterior donde es día 1 en su zona (idempotente) |
 | `ml-model-retrain` | `ml_model_retrain` | día 1, 03:00 | organización | Reentreno del modelo de sobrecoste |
+| `semantic-retrain-profiles` | `semantic_reentrenar` | cada hora :23 | organización | Asignación por IA: reconstruye los perfiles (texto desde el historial + embeddings) cuando la hora UTC es múltiplo de `SEMANTIC_RETRAIN_INTERVAL_HOURS` de la empresa (24 por defecto; 0 lo apaga). 23-11-2026 |
 | `olap-nightly-etl` | `olap_nightly_etl` | diaria 01:00 | global | ETL PostgreSQL → DuckDB |
 | `sla-breach-scan` | `sla_breach_scan` | cada 5 min | organización | Estado de SLA, avisos de riesgo/incumplimiento y escalado |
 | `sd-leer-buzones` | `sd_leer_buzones` | cada 2 min | fila | Buzón de soporte de cada organización (IMAP o Microsoft 365) |
@@ -118,6 +119,7 @@ Horas en `DEFAULT_TIMEZONE`. Día de la semana en notación Celery (0 = domingo)
 | `reuniones-sondeo` | `reuniones_sondeo` | cada 15 min | organización | Asistente de reuniones: recoge Teams/Meet terminadas, manda bots de calendario y renueva la suscripción de Graph |
 | `reuniones-retencion` | `reuniones_retencion` | diaria 03:40 | organización | Asistente de reuniones: borra audio y transcripciones caducados (respeta el bloqueo legal) |
 | `demanda-plazos` | `demanda_plazos` | cada hora :10 | organización | Flujo de demanda: avisa al acercarse y al vencer el plazo de cada fase (migración 195) |
+| `pir-vencidas` | `pir_vencidas` | diaria 07:20 | organización | PIR (migración 206, docs/PIR.md): aviso previo (`aviso_dias_antes`) y aviso de vencida, una vez cada uno, al responsable y al dueño del cambio o PM |
 
 ## Límites y reintentos
 

@@ -62,3 +62,6 @@ router.include_router(conectores.router,           prefix="/conectores",        
 router.include_router(lecciones.router,            prefix="/lessons",               tags=["Lecciones aprendidas"])
 router.include_router(politicas.router,            prefix="/policies",              tags=["Políticas y reglas"])
 router.include_router(errores_del_frontend.router, prefix="/client-errors",         tags=["Errores del frontend"])
+# Revisión posterior a la implantación (PIR) de cambios y proyectos (migración 206, docs/PIR.md)
+from app.api.v1.endpoints import pir  # noqa: E402
+router.include_router(pir.router,                  prefix="/pir",                   tags=["PIR"])

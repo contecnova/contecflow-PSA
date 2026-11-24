@@ -19,7 +19,7 @@ from app.models.performance import (
 from app.models.enterprise import Notification, NotificationType
 from app.models.user import User
 from app.core import timeutil
-from app.services.textos_de_salida_servicios_m_z import texto_para
+from app.services.textos_de_salida import texto_para
 
 logger = logging.getLogger(__name__)
 

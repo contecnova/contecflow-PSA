@@ -30,7 +30,9 @@ _BLOQUEANTES = ("requests.", "urllib.request.urlopen", "urlopen", "subprocess.",
 #: Llamadas que reciben la sesion pero no la usan para consultar.
 _PASAN_DB_SIN_CONSULTAR = {"publicar_contexto_de_tenant", "run_db", "run_in_threadpool",
                            "asyncio.to_thread", "to_thread", "Depends", "_ejecutar_comando_del_bot",
-                           "asyncio.create_task"}
+                           "asyncio.create_task",
+                           # 22-11-2026 (M8): solo anota el motivo en `session.info`, sin consultar.
+                           "declarar_sistema", "_declarar_sistema"}
 _DESCARGAN = {"run_db", "run_in_threadpool", "asyncio.to_thread", "to_thread"}
 
 
@@ -213,9 +215,11 @@ def test_el_worker_abre_sesion_propia_con_el_contexto_publicado(monkeypatch):
                       "informe": "i1", "extra": 2, "org": "org-a"}
     assert abiertas[0].cerrada and sp.organizacion_en_curso() is None
 
-    # Sin organizacion: sesion «no inicializada» (trabajo de plataforma).
+    # Sin organizacion: trabajo de plataforma. Desde el 22-11-2026 (M8,
+    # `TENANT_SESION_SIN_CONTEXTO=cerrar`) ya no es una sesion «no inicializada»
+    # sino un contexto de sistema declarado, con su motivo.
     sp._ejecutar_con_contexto("app.core.segundo_plano:_objetivo_de_prueba", None, ["i2"], {})
-    assert vistos["info"] == {}
+    assert vistos["info"] == {"contexto_de_sistema": "trabajo en segundo plano sin empresa"}
 
     # Una funcion sin `db` no abre sesion.
     monkeypatch.setattr(sp, "_objetivo_de_prueba", lambda a: a * 2, raising=False)
@@ -270,8 +274,12 @@ def test_20_sin_cola_la_pasada_responde_como_siempre(client, admin_token):
 
 def test_20_los_endpoints_de_lotes_encolan():
     """Cada endpoint movido llama a `encolar` (medido en el codigo, no en red)."""
+    # 23-11-2026: `password_forgot` encola dentro del servicio
+    # (`seguridad_de_cuentas.restablecimiento.enviar_enlace_al_operador`, correo en
+    # el idioma del usuario); lo comprueba de verdad
+    # `test_20_recuperar_contrasena_encola_el_correo_y_responde_igual`.
     movidos = {
-        "app/api/v1/routers/auth_core.py": "password_forgot",
+        "app/services/seguridad_de_cuentas/restablecimiento.py": "enviar_enlace_al_operador",
         "app/api/v1/endpoints/billing_reports.py": "run_scheduled_report",
         "app/api/v1/endpoints/bi_intelligence.py": ("phase2_delivery_run_now", "send_delivery_now"),
         "app/api/v1/endpoints/service_desk/cmdb.py": "_discovery_en_segundo_plano",

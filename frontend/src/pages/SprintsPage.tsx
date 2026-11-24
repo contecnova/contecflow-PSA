@@ -165,7 +165,7 @@ function TaskCard({ task, onStatusChange, onMoveToBacklog, compact = false }: { 
           <div className="spr-task__code">{task.code}</div>
           <div className="spr-task__title">{task.title}</div>
         </div>
-        <IconButton type="button" onClick={e => { e.stopPropagation(); setShowMenu(m => !m) }} className="spr-task__menu-btn"
+        <IconButton variante="caja" type="button" onClick={e => { e.stopPropagation(); setShowMenu(m => !m) }}
           aria-haspopup="menu" aria-expanded={showMenu} ariaLabel={t('sprints.acciones_tarea', { code: task.code || task.title || '' })}><MoreHorizontal size={16} aria-hidden /></IconButton>
       </div>
 

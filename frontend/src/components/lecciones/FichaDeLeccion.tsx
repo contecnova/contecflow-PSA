@@ -14,6 +14,7 @@ import { useToast } from '../../context/ToastContext'
 import { extractErr, fmtDate } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import FormularioDeLeccion, { TablaDeHechos } from './FormularioDeLeccion'
+import DocumentosDeFicha from '../conectores/DocumentosDeFicha'
 import DateInput from '../ui/DateInput'
 import './FichaDeLeccion.css'
 
@@ -77,6 +78,9 @@ export default function FichaDeLeccion({ id, onClose }: { id: string; onClose: (
                 </form>
               )}
             </section>
+
+            {/* 23-11-2026: documentos de contecmind de la lección (solo si el conector está configurado). */}
+            <section><DocumentosDeFicha ficha="lesson" id={l.id} /></section>
 
             <div className="fidele-row-2">
               {l.puedo_editar && <Button variant="secondary" onClick={() => setEditando(true)}>{t('lec.editar')}</Button>}

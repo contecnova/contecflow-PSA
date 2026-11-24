@@ -135,11 +135,11 @@ function WeekLines({ weekStart, onClose }: { weekStart: string; onClose: () => v
                         {l.is_approved && <span className="ts-tag ts-tag--approved"><Check size={12} aria-hidden="true" /> {t('timesheets.approved')}</span>}
                         {!l.is_approved && (
                           <>
-                            <IconButton ariaLabel={t('timesheets.editar_linea')}
+                            <IconButton variante="caja" ariaLabel={t('timesheets.editar_linea')}
                               onClick={() => { setEditingId(l.id); setEditForm({ hours: l.hours, description: l.description || '' }) }}>
                               <Pencil size={14} />
                             </IconButton>
-                            <IconButton ariaLabel={t('timesheets.eliminar_linea')}
+                            <IconButton variante="caja" tono="peligro" ariaLabel={t('timesheets.eliminar_linea')}
                               onClick={() => { openConfirmGlobal({ message: t('timesheets.confirmar_eliminar'), onConfirm: () => deleteLine(l.id), danger: true }) }}>
                               <Trash2 size={14} />
                             </IconButton>

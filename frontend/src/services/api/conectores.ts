@@ -36,6 +36,16 @@ export interface EstadoProducto {
 export interface Prueba { ok: boolean; codigo: string; detail: string; ms?: number }
 export interface Fuente { id: string; name: string; source_type?: string; status?: string; puedes_preguntar?: boolean }
 export interface Metrica { id: string; name: string; label: string; description: string; source_id: string; dimensions: string[]; grain?: string }
+/** 23-11-2026: puntos de una métrica y los que se apartan de su historia (POST /metrics/anomalies). */
+export interface AnomaliasCI {
+  metrica: string; metodo: string; sql?: string
+  puntos: { etiqueta: string; valor: number; esperado: number | null; desviacion: number | null; es_anomalia: boolean }[]
+  anomalias: string[]
+}
+/** 23-11-2026: token acotado para llamar a contecintelligence desde la pantalla (solo si su origen está en la CSP). */
+export interface TokenCI {
+  incrustable: boolean; origen: string; access_token: string | null; expires_in: number; base_url: string
+}
 export interface RespuestaCI {
   text: string; payload?: unknown; receipt_id?: string | null; receipt_signed?: boolean
   conversation_id?: string | null; source_id: string
@@ -83,6 +93,11 @@ export const conectoresApi = {
   explicar: (body: { source_id: string; metric: string; actual: { column: string; start: string; end: string }; anterior: { column: string; start: string; end: string }; dimensions?: string[] }) =>
     D<Record<string, unknown>>(api.post('/conectores/contecintelligence/metricas/explicar', body)),
   verificarRecibo: (id: string) => D<{ valid: boolean; reason?: string }>(api.get(`/conectores/contecintelligence/recibos/${id}/verificar`)),
+  /** 23-11-2026: anomalías de una métrica certificada en un periodo. */
+  anomalias: (body: { source_id: string; metric: string; time_column: string; start: string; end: string; granularity?: 'hour' | 'day' | 'week' | 'month' }) =>
+    D<AnomaliasCI>(api.post('/conectores/contecintelligence/metricas/anomalias', body)),
+  /** 23-11-2026: token acotado (unos minutos) para las métricas incrustadas. */
+  token: (source_id?: string) => D<TokenCI>(api.post('/conectores/contecintelligence/token', { source_id })),
 }
 
 /** Mensaje de un fallo del conector, tal y como lo manda el servidor. */

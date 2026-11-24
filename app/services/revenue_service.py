@@ -31,7 +31,7 @@ from app.models.revenue import (
 from app.models.financial import ProjectMilestone
 from app.models.project import Project
 from app.core import timeutil
-from app.services.textos_de_salida_servicios_m_z import texto_para as _texto_para_plano
+from app.services.textos_de_salida import texto_para as _texto_para_plano
 from app.services.textos_guardados import por_clave_json, pintar_campo
 
 

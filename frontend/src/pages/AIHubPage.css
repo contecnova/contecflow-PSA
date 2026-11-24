@@ -23,12 +23,6 @@
 .aih-link--block svg { vertical-align: -2px; }
 .aih-link--icon { display: inline-flex; align-items: center; gap: 4px; }
 
-.aih-close {
-  background: none; border: none; cursor: pointer; color: var(--text-3); display: flex;
-  padding: 4px; border-radius: var(--radius-sm); font-family: inherit;
-}
-.aih-close--lg { color: var(--text-2); font-size: var(--text-lg); }
-.aih-close:focus-visible,
 .aih-provider-pick:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 /* ── Drawer del proveedor ─────────────────────────────────────── */
@@ -135,7 +129,6 @@
 .aih-active-eyebrow { font-size: var(--text-xs); color: var(--text-2);letter-spacing: 0.06em; }
 .aih-active-name { font-size: var(--text-lg); font-weight: 800; }
 
-
 .aih-providers { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr)); gap: 14px; }
 .aih-provider--default { border-color: color-mix(in srgb, var(--aih-color) 31%, transparent); }
 .aih-provider-head { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
@@ -166,7 +159,6 @@
   display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; padding: 10px 12px;
   background: var(--surface-1); border-radius: 8px; font-size: var(--text-sm);
 }
-
 
 /* Uso */
 .aih-stats { margin-bottom: var(--space-5); }

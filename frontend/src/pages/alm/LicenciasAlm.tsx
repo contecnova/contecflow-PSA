@@ -8,7 +8,7 @@ import { useToast } from '../../context/ToastContext'
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import { z } from 'zod'
 import { licensesApi, vendorsApi, almExtApi } from '../../services/api'
-import { Buscador, Button, Spinner, EmptyState, Modal, Pulsable, Select, Checkbox, useErroresDeCampo, Input, Textarea } from '../../components/ui'
+import { Buscador, Button, Spinner, EmptyState, Modal, Pulsable, Select, Checkbox, useErroresDeCampo, Input, Textarea, IconButton } from '../../components/ui'
 import Pagination from '../../components/ui/Pagination'
 import {
   Building2,
@@ -363,15 +363,13 @@ export function LicensesTab() {
                       </div>
                     )}
                   </div>
-                  <div className="alm-actions">
-                    <Pulsable type="button" aria-label={t('alm.aria_assign_license', { name: lic.name })} onClick={() => setAssignModal(lic)}
-                      className="alm-icon-btn alm-icon-btn--accent alm-meta-ico">
-                      <UserPlus size={14} aria-hidden="true" />{t('alm.licenses_assign')}
-                    </Pulsable>
-                    <Pulsable type="button" aria-label={t('alm.aria_detail', { name: lic.name })} onClick={() => setFicha(lic.id)} className="alm-icon-btn"><History size={15} aria-hidden="true" /></Pulsable>
-                    <Pulsable type="button" aria-label={t('alm.aria_edit_license', { name: lic.name })} onClick={() => setModal(lic)} className="alm-icon-btn"><Pencil size={15} aria-hidden="true" /></Pulsable>
-                    <Pulsable type="button" aria-label={t('alm.aria_delete_license', { name: lic.name })} onClick={() => { openConfirmGlobal({ message: t('alm.licenses_delete_confirm', { name: lic.name }), onConfirm: () => del(lic.id), danger: true }) }}
-                      className="alm-icon-btn alm-icon-btn--danger"><Trash2 size={15} aria-hidden="true" /></Pulsable>
+                  <div className="ui-acciones">
+                    <Button size="sm" variant="secondary" icon={<UserPlus size={14} aria-hidden="true" />} aria-label={t('alm.aria_assign_license', { name: lic.name })} onClick={() => setAssignModal(lic)}>
+                      {t('alm.licenses_assign')}
+                    </Button>
+                    <IconButton variante="caja" ariaLabel={t('alm.aria_detail', { name: lic.name })} onClick={() => setFicha(lic.id)}><History size={15} aria-hidden="true" /></IconButton>
+                    <IconButton variante="caja" ariaLabel={t('alm.aria_edit_license', { name: lic.name })} onClick={() => setModal(lic)}><Pencil size={15} aria-hidden="true" /></IconButton>
+                    <IconButton variante="caja" tono="peligro" ariaLabel={t('alm.aria_delete_license', { name: lic.name })} onClick={() => { openConfirmGlobal({ message: t('alm.licenses_delete_confirm', { name: lic.name }), onConfirm: () => del(lic.id), danger: true }) }}><Trash2 size={15} aria-hidden="true" /></IconButton>
                   </div>
                 </div>
               </div>

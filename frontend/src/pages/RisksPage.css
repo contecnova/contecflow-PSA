@@ -54,7 +54,6 @@ select.rsk-input { cursor: pointer; }
 .rsk-tag { display: inline-flex; align-items: center; }
 .rsk-mitigation svg,
 .rsk-card__mitigation svg { flex-shrink: 0; margin-top: 2px; color: var(--success); }
-.rsk-icon-btn { display: inline-flex; align-items: center; }
 
 /* Matriz */
 .rsk-matrix-title {
@@ -126,22 +125,6 @@ select.rsk-input { cursor: pointer; }
   border-radius: var(--radius-sm);
   padding: 6px 10px;
 }
-
-.rsk-icon-btn {
-  background: none;
-  border: 1px solid var(--surface-4);
-  border-radius: var(--radius-sm);
-  padding: 3px 8px;
-  color: var(--text-2);
-  cursor: pointer;
-  font-size: var(--text-xs);
-}
-.rsk-icon-btn--danger { border-color: var(--danger-border); color: var(--danger); }
-.rsk-icon-btn:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-.rsk-card .rsk-icon-btn { border-radius: 5px; padding: 2px 7px; }
 
 /* Riesgo en tarjeta */
 .rsk-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr)); gap: 12px; }

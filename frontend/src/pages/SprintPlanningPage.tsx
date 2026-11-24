@@ -289,8 +289,7 @@ export default function SprintPlanningPage() {
                     <Button size="sm" variant="ghost" icon={isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />} onClick={() => setExpandPlan(isExpanded ? null : plan.id)}>
                       {isExpanded ? t('sprint_planning.hide_details') : t('sprint_planning.view_details')}
                     </Button>
-                    <IconButton onClick={() => { openConfirmGlobal({ message: t('sprint_planning.delete_confirm', { name: plan.name }), onConfirm: () => deletePlan(plan.id), danger: true }) }}
-                      className="spl-borrar" ariaLabel={t('sprint_planning.eliminar_plan')} title={t('sprint_planning.eliminar_plan')}>
+                    <IconButton variante="caja" tono="peligro" onClick={() => { openConfirmGlobal({ message: t('sprint_planning.delete_confirm', { name: plan.name }), onConfirm: () => deletePlan(plan.id), danger: true }) }} ariaLabel={t('sprint_planning.eliminar_plan')} title={t('sprint_planning.eliminar_plan')}>
                       <Trash2 size={15} aria-hidden />
                     </IconButton>
                   </div>

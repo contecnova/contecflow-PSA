@@ -607,6 +607,12 @@ def update_and_save_project(db: Session, project, data: dict):
     """Apply field updates, commit, refresh, and return the updated project."""
     old_status = str(project.status)
     apply_project_update(db, project, data)
+    _CERRADO = ("completed", "closed")
+    if (getattr(project.status, "value", project.status) in _CERRADO
+            and old_status.rsplit(".", 1)[-1] not in _CERRADO):
+        # Migración 206 (docs/PIR.md): el cierre programa la PIR del proyecto si es obligatoria.
+        from app.services.pir.programacion import al_cerrar_proyecto
+        al_cerrar_proyecto(db, project)
     db.commit()
     db.refresh(project)
     from app.core.events import emit, EventType

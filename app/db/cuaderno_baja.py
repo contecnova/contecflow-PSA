@@ -32,8 +32,18 @@ def _desactivados(session) -> list:
         if not isinstance(obj, User) or obj.is_active is not False:
             continue
         hist = inspect(obj).attrs.is_active.history
-        if hist.deleted and any(v is True for v in hist.deleted):
-            salida.append(obj)
+        if hist.deleted:
+            if any(v is True for v in hist.deleted):
+                salida.append(obj)
+        elif hist.added and obj.id:
+            # Valor anterior sin cargar (la ficha venía caducada de un commit): el
+            # historial no trae lo que había y la baja se perdía en silencio. Se
+            # pregunta a la base, que aún tiene el valor confirmado (sin autoflush).
+            from app.db.session import sin_filtro_de_tenant
+            with session.no_autoflush, sin_filtro_de_tenant(session):
+                previo = session.query(User.is_active).filter(User.id == obj.id).scalar()
+            if previo is True:
+                salida.append(obj)
     return salida
 
 

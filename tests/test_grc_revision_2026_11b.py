@@ -215,6 +215,11 @@ def test_borrar_una_passkey_se_audita(client, db, admin_token):
     cred = WebAuthnCredential(user_id="admin-test-id", organization_id="1", credential_id="cred-grc-1",
                               public_key="x", name="Llave")
     db.add(cred)
+    # 23-11-2026 (políticas de cuenta): el admin tiene el MFA obligatorio
+    # (`MFA_REQUIRED_ROLES=admin`) y no puede quedarse sin segundo factor (409
+    # `mfa_obligatorio_no_desactivable`); con una segunda llave, borrar una vale.
+    db.add(WebAuthnCredential(user_id="admin-test-id", organization_id="1", credential_id="cred-grc-2",
+                              public_key="x", name="Llave de repuesto"))
     db.commit()
     r = client.delete(f"/api/v1/auth/mfa/webauthn/credentials/{cred.id}", headers=auth(admin_token))
     assert r.status_code == 200, r.text

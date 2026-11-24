@@ -242,11 +242,11 @@ export function SodTab({ roles }: { roles: Role[] }) {
                       ariaLabel={rule.is_active ? t('pagina_grc.desactivar_regla_sod') : t('pagina_grc.activar_regla_sod')}>
                       {rule.is_active ? <Pause size={14} /> : <Play size={14} />}
                     </IconButton>
-                    <IconButton onClick={() => setEditingRule(rule)} ariaLabel={t('pagina_grc.editar_regla_sod')}>
+                    <IconButton variante="caja" onClick={() => setEditingRule(rule)} ariaLabel={t('pagina_grc.editar_regla_sod')}>
                       <Pencil size={14} />
                     </IconButton>
-                    <IconButton onClick={() => { openConfirmGlobal({ message: t('pagina_grc.eliminar_esta_regla_sod'), onConfirm: () => del(rule.id), danger: true }) }}
-                      ariaLabel={t('pagina_grc.eliminar_regla_sod')} className="grc-borrar">
+                    <IconButton variante="caja" tono="peligro" onClick={() => { openConfirmGlobal({ message: t('pagina_grc.eliminar_esta_regla_sod'), onConfirm: () => del(rule.id), danger: true }) }}
+                      ariaLabel={t('pagina_grc.eliminar_regla_sod')}>
                       <Trash2 size={14} />
                     </IconButton>
                   </div>

@@ -82,6 +82,8 @@ export type HitoDeFacturacion = {
   description: string | null
   due_date: string | null
   sort_order: number | null
+  /** Puesta en marcha (go-live): al completarlo se programa la PIR del proyecto (migración 206). */
+  is_go_live?: boolean
   billing_status: EstadoDeFacturacionDeHito
   is_completed: boolean
   completed_date: string | null

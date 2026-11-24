@@ -11,6 +11,7 @@ class MilestoneIn(BaseModel):
     billing_amount: Optional[float] = Field(None, description="Importe a facturar al cumplir el hito")
     billing_pct: Optional[float] = Field(None, description="Porcentaje del total a facturar al cumplir el hito")
     sort_order: int = Field(0, description="Orden de visualización del hito")
+    is_go_live: bool = Field(False, description="Puesta en marcha (go-live): al completarlo se programa la PIR")
 
 
 class MilestoneOut(MilestoneIn):

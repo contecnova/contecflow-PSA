@@ -120,6 +120,23 @@ def suprimir_persona(db: Session, user) -> dict:
     # que es lo que identifica su participación.
     from app.services.reuniones import rgpd as rgpd_reuniones
     reuniones = rgpd_reuniones.suprimir(db, None, user_id=user.id, email=user.email)
+    # Migracion 202: sus cuadernos («Mi cuaderno») se borran enteros (páginas, adjuntos,
+    # dibujos, audios e instantáneas) y se quita lo compartido con ella (docs/CUADERNO.md).
+    from app.services.cuaderno import rgpd as rgpd_cuaderno
+    cuadernos = rgpd_cuaderno.suprimir(db, None, user.id)
+    # Migracion 207: sus conversaciones de Ask-the-Data (preguntas y consultas).
+    from app.services import ask_memoria
+    conversaciones_ask = ask_memoria.suprimir_persona(db, user.id)
+    # Migracion 204: datos personales en las variables de los procesos BPM (las
+    # marcadas `personal` de lo que arrancó y cualquier valor que sea su correo,
+    # nombre, usuario o id); se salta lo que está bajo bloqueo legal. Antes de
+    # seudonimizar la ficha: el correo original es lo que se busca.
+    from app.services import bpmn_gobierno
+    procesos_bpm = bpmn_gobierno.suprimir(db, user)
+    # Migracion 206: su id en la lista JSON de participantes de las PIR (no es
+    # clave ajena) y su nombre en la satisfaccion; antes de seudonimizar la ficha.
+    from app.services.pir import rgpd as rgpd_pir
+    pir = rgpd_pir.suprimir(db, user)
     # Migracion 200: sus llamadas al agente de voz (por la huella de su telefono),
     # antes de borrar el telefono de la ficha. El bloqueo legal ya se comprobo.
     from app.services.service_desk.voice_agent_service import suprimir_rgpd as suprimir_voz
@@ -138,7 +155,9 @@ def suprimir_persona(db: Session, user) -> dict:
     empresas = _empresas_de(db, user)
 
     informe: dict = {"user_id": user.id, "tablas": {}, "credenciales": {}, "almacen": None, "reuniones": reuniones,
-                     "sesiones_de_voz": voz}
+                     "sesiones_de_voz": voz, "cuadernos": cuadernos,
+                     "conversaciones_ask": conversaciones_ask, "procesos_bpm": procesos_bpm,
+                     "pir": pir}
     # 1. La ficha.
     user.email = originales.get(user.email) or f"{_seudonimo(user.id)}@erased.invalid"
     user.username = f"deleted_{_seudonimo(user.id)}"

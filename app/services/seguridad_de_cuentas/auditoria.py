@@ -1,5 +1,6 @@
 """Auditoría de las acciones de seguridad: siempre actor, IP, agente y empresa."""
 from __future__ import annotations
+import logging
 
 from dataclasses import dataclass
 from typing import Optional
@@ -19,6 +20,7 @@ class Origen:
         try:
             ip = extract_client_ip(request)
         except Exception:
+            logging.getLogger(__name__).debug("de: excepcion ignorada", exc_info=True)
             ip = getattr(getattr(request, "client", None), "host", None)
         return cls(ip=ip, agente=(request.headers.get("user-agent") or "")[:500] or None)
 

@@ -9,6 +9,11 @@
    "es": "Alguna de las personas a avisar no es de tu empresa",
    "en": "Some of the people to notify do not belong to your company",
    "zh": "部分通知对象不属于您的公司"
+  },
+  "interno_historial_formularios_dinamicos": {
+   "es": "El historial de formularios dinámicos se escribe con _append_history",
+   "en": "The dynamic form history is written with _append_history",
+   "zh": "动态表单历史记录须通过 _append_history 写入"
   }
  }
 }

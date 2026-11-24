@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Iterable, Optional
 
 from app.core.codigos_de_error import error
-from app.services.seguridad_de_cuentas.politica import Politica, leer
+from app.services.seguridad_de_cuentas.politica import PoliticaDeCuenta, leer
 
 
 def _ahora() -> datetime:
@@ -62,7 +62,7 @@ def _contiene_datos_personales(clave: str, datos: Iterable[Optional[str]]) -> bo
     return False
 
 
-def comprobar_reglas(clave: str, p: Politica, datos_personales: Iterable[Optional[str]] = ()) -> None:
+def comprobar_reglas(clave: str, p: PoliticaDeCuenta, datos_personales: Iterable[Optional[str]] = ()) -> None:
     """Reglas sin base de datos (también para el portal). Lanza con código."""
     clave = clave or ""
     if len(clave) < p.MIN_PASSWORD_LENGTH:
@@ -93,7 +93,7 @@ def _historial(db, user_id: str, n: int) -> list:
                 .order_by(PasswordHistory.created_at.desc()).limit(n).all())
 
 
-def validar_nueva(db, user, clave: str, *, org_id: Optional[str] = None, por_admin: bool = False) -> Politica:
+def validar_nueva(db, user, clave: str, *, org_id: Optional[str] = None, por_admin: bool = False) -> PoliticaDeCuenta:
     """Valida la contraseña nueva de `user` con la política de su empresa. Lanza con código."""
     from app.core.security import verify_password
     p = leer(db, org_id or getattr(user, "organization_id", None))
@@ -116,7 +116,7 @@ def validar_nueva(db, user, clave: str, *, org_id: Optional[str] = None, por_adm
     return p
 
 
-def registrar_cambio(db, user, nuevo_hash: str, *, temporal: bool = False, politica: Optional[Politica] = None) -> None:
+def registrar_cambio(db, user, nuevo_hash: str, *, temporal: bool = False, politica: Optional[PoliticaDeCuenta] = None) -> None:
     """Pone el hash, apunta el historial y las fechas. No confirma."""
     from app.db.session import sin_filtro_de_tenant
     from app.models.seguridad_de_cuentas import PasswordHistory
@@ -141,14 +141,14 @@ def registrar_cambio(db, user, nuevo_hash: str, *, temporal: bool = False, polit
         user.password_temporary_until = None
 
 
-def caduca_el(user, p: Politica) -> Optional[datetime]:
+def caduca_el(user, p: PoliticaDeCuenta) -> Optional[datetime]:
     if not p.PASSWORD_EXPIRY_DAYS or not getattr(user, "hashed_password", None):
         return None
     base = _aware(getattr(user, "password_changed_at", None)) or _aware(getattr(user, "created_at", None))
     return base + timedelta(days=p.PASSWORD_EXPIRY_DAYS) if base else None
 
 
-def estado(user, p: Politica) -> dict:
+def estado(user, p: PoliticaDeCuenta) -> dict:
     """Marcas para la pantalla: cambio obligatorio, caducidad y aviso."""
     ahora = _ahora()
     fin = caduca_el(user, p)

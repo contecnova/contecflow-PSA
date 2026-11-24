@@ -77,7 +77,6 @@ fieldset.slac-days legend { padding: 0; }
 .slac-row { display: flex; align-items: center; gap: 10px; padding: 8px 12px; font-size: var(--text-sm); }
 .slac-row__date { color: var(--text-2); flex-shrink: 0; font-variant-numeric: tabular-nums; }
 .slac-row__name { flex: 1; min-width: 0; color: var(--text-1); }
-.slac-borrar:hover { color: var(--danger); }
 
 .slac-check { border-top: 1px solid var(--surface-4); padding-top: 14px; }
 .slac-check__title {

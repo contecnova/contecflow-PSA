@@ -224,7 +224,7 @@ export function ScheduledReportsTab() {
                   rel="noopener noreferrer">
                   <FileText size={12} aria-hidden /> PDF
                 </a>
-                <IconButton className="rep-icono rep-icono--borrar" type="button" ariaLabel={traducir('common.delete')} title={traducir('common.delete')} onClick={() => { openConfirmGlobal({ message: traducir('reportes_ui.eliminar_confirm', { nombre: rep.name }), onConfirm: () => remove(rep.id), danger: true }) }}>
+                <IconButton variante="caja" tono="peligro" ariaLabel={traducir('common.delete')} title={traducir('common.delete')} onClick={() => { openConfirmGlobal({ message: traducir('reportes_ui.eliminar_confirm', { nombre: rep.name }), onConfirm: () => remove(rep.id), danger: true }) }}>
                   <Trash2 size={14} aria-hidden />
                 </IconButton>
               </div>

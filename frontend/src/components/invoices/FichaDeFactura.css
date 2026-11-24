@@ -51,12 +51,6 @@
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
-.fidefa-box-8 {
-  background: none;
-  border: none;
-  color: var(--danger);
-  cursor: pointer;
-}
 .fidefa-box-9 {
   padding: 6px;
   font-variant-numeric: tabular-nums;

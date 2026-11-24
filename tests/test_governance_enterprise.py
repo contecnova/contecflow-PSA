@@ -109,7 +109,18 @@ def test_governance_ai_read_endpoints_allow_admin_without_org(client, admin_toke
         hashed_password="x",
     )
     orgless_admin.organization_id = None
-    app.dependency_overrides[requiere_capacidad("gobierno.administrar")] = lambda: orgless_admin
+    # Como la guarda real (`get_current_user`), el doble publica el contexto de la
+    # sesión: admin de empresa SIN empresa (M8, 22-11-2026: una sesión sin contexto
+    # ya no lee; esta lee cero filas de empresa, que es el caso de producción).
+    from fastapi import Depends
+    from app.db.session import get_db as _get_db
+
+    def _admin_sin_empresa(sesion=Depends(_get_db)):
+        sesion.info["organization_id"] = None
+        sesion.info["is_superadmin"] = False
+        return orgless_admin
+
+    app.dependency_overrides[requiere_capacidad("gobierno.administrar")] = _admin_sin_empresa
     try:
         config_res = client.get("/api/v1/governance/config", headers=auth(admin_token))
         assert config_res.status_code == 200

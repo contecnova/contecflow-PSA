@@ -234,15 +234,17 @@ def test_la_politica_de_mfa_se_lee_de_la_organizacion_del_usuario(db):
 
 
 def test_una_organizacion_que_no_existe_no_exige_mfa(db):
-    """Fail-open aquí es lo correcto y conviene que esté escrito.
+    """Decisión cambiada a propósito (auditoría 22-11-2026, «Baja»): falla CERRADO.
 
-    Si el id no resuelve no hay política que aplicar, y bloquear el login de un
-    usuario por una fila que falta convertiría un dato inconsistente en una
-    caída de acceso.
+    Antes era fail-open («una fila que falta no debe tumbar el acceso»). Una
+    empresa que no existe es una empresa dada de baja o un id corrupto: dejar
+    entrar sin segundo factor era el hueco. Ahora se exige el MFA
+    (`auth_service.mfa.organizacion_exige_mfa`). El nombre del test se conserva
+    para que el historial se siga leyendo.
     """
     from app.services import auth_service as svc
 
-    assert svc.organizacion_exige_mfa(db, _Usuario("org-que-no-existe")) is False
+    assert svc.organizacion_exige_mfa(db, _Usuario("org-que-no-existe")) is True
 
 
 def test_guardar_el_secreto_de_mfa_no_lo_deja_activado(db):

@@ -22,7 +22,7 @@ import type { AccionDeVozPendiente, ComandoDeVozTranscrito } from '../../service
 import { useToast } from '../../context/ToastContext'
 import { Mic, Square, X } from 'lucide-react'
 import { useAppLang } from '../../i18n/AppLangContext'
-import { Pulsable, useDialogo } from '../ui'
+import { Pulsable, useDialogo, IconButton } from '../ui'
 import './VoiceCommandModal.css'
 
 
@@ -212,9 +212,9 @@ export default function VoiceCommandModal({ open, onClose }: VoiceCommandModalPr
           <h3 className="vocomo-box-1">
             {traducir('voicecommandmodal.comando_de_voz')}
           </h3>
-          <Pulsable onClick={onClose} className="vocomo-box-2">
+          <IconButton variante="caja" ariaLabel={traducir('common.close')} onClick={onClose}>
             <X size={18} />
-          </Pulsable>
+          </IconButton>
         </div>
 
         {/* Error banner */}

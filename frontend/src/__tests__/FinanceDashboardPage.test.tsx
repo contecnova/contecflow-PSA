@@ -29,6 +29,9 @@ vi.mock('../services/api', () => ({
     projects: () => Promise.resolve({ data: respuestas['/profitability/projects'] }),
   },
   invoicesApi: { list: () => Promise.resolve({ data: [] }) },
+  // Auditoría 22-11-2026: la página pide el pipeline con `pipelineApi.list` (antes
+  // `api.get('/pipeline')`); el mock lo sirve con la misma respuesta.
+  pipelineApi: { list: () => Promise.resolve({ data: respuestas['/pipeline'] }) },
   userCostsApi: { summary: () => Promise.resolve({ data: null }) },
 }))
 // Periodo libre (16-11-2026): el selector pide los límites de la API; sin ellos, los de por defecto.

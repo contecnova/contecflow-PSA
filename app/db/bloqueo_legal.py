@@ -247,6 +247,47 @@ def _hueco_de_conocimiento():
     return KBGap
 
 
+# Migracion 202: «Mi cuaderno» (docs/CUADERNO.md §GRC).
+def _cuaderno():
+    from app.models.cuaderno import Notebook
+    return Notebook
+
+
+def _pagina_de_cuaderno():
+    from app.models.cuaderno import NotebookPage
+    return NotebookPage
+
+
+def _adjunto_de_cuaderno():
+    from app.models.cuaderno import NotebookAttachment
+    return NotebookAttachment
+
+
+# 23-11-2026: definidas ANTES de TIPOS (se usaban antes de existir: NameError al importar y 500 en cualquier borrado).
+def _instancia_bpmn():
+    from app.models.bpmn_process import BPMNInstance
+    return BPMNInstance
+
+
+def _ejecucion_ticket_pr():
+    from app.models.ticket_a_pr import TicketPrRun
+    return TicketPrRun
+
+
+_ESTADOS_FINALES_TPR = ("rejected", "blocked", "failed", "cancelled", "cab_rejected", "merged", "closed")
+
+
+# Migracion 206 (docs/PIR.md): definida ANTES de TIPOS, como las anteriores.
+def _revision_pir():
+    from app.models.pir import PirRevision
+    return PirRevision
+
+# Migracion 207 (Ask-the-Data con memoria): definida ANTES de TIPOS, como las anteriores.
+def _conversacion_ask():
+    from app.models.ai_chat import AskDataConversation
+    return AskDataConversation
+
+
 TIPOS: dict[str, Tipo] = {
     # Sólo tickets cerrados, contando desde el cierre.
     "tickets": Tipo(_ticket, lambda M: M.closed_at, lambda M: M.closed_at.isnot(None),
@@ -371,8 +412,48 @@ TIPOS: dict[str, Tipo] = {
     # Huecos de la base de conocimiento (preguntas literales de clientes): desde
     # la ultima vez que se pregunto, solo los cerrados.
     "sd_kb_gaps": Tipo(_hueco_de_conocimiento, lambda M: M.last_asked_at,
-                       lambda M: M.status.in_(("answered", "dismissed")), ("id", "article_id")),
+                       lambda M: M.status.in_(("answered", "dismissed")), ("id", "article_id", "owner_id", "task_id")),
+    # Migracion 207: conversaciones de Ask-the-Data (preguntas y consultas de una
+    # persona; sin filas de resultado). Desde la ultima pregunta; sus preguntas se
+    # van en cascada. Se bloquean por conversacion o por persona.
+    "ask_data_conversations": Tipo(_conversacion_ask, lambda M: func.coalesce(M.updated_at, M.created_at), None,
+                                   ("id", "user_id")),
+    # Migracion 202: «Mi cuaderno». Notas personales: la retención solo alcanza lo
+    # que está en la papelera (desde que se tiró); el bloqueo legal por persona
+    # (`owner_id`), cuaderno o página impide borrarlo venga de donde venga
+    # (papelera, purga, supresión RGPD) y es lo que habilita el acceso excepcional.
+    "notebooks": Tipo(_cuaderno, lambda M: M.deleted_at, lambda M: M.deleted_at.isnot(None),
+                      ("id", "owner_id", "transferred_from")),
+    "notebook_pages": Tipo(_pagina_de_cuaderno, lambda M: M.deleted_at, lambda M: M.deleted_at.isnot(None),
+                           ("id", "owner_id", "notebook_id", "section_id", "created_by")),
+    "notebook_attachments": Tipo(_adjunto_de_cuaderno, lambda M: M.created_at,
+                                 lambda M: M.page_id.in_(_paginas_en_papelera()), ("id", "owner_id", "page_id")),
+    # Migracion 203: «Del ticket al PR». Registro de cada ejecucion del agente con el log
+    # del contenedor (datos personales ocultos). Cuenta desde que termina; solo las
+    # terminadas. Se bloquea por ejecucion, por quien la lanzo, por ticket, tarea o proyecto.
+    "ticket_pr_runs": Tipo(_ejecucion_ticket_pr, lambda M: M.finished_at, lambda M: M.status.in_(_ESTADOS_FINALES_TPR),
+                           ("id", "launched_by", "ticket_id", "task_id", "project_id")),
+    # Migracion 204: instancias de proceso BPM terminadas (con su historial de pasos en
+    # cascada), desde que terminan. Se bloquean por instancia, proceso, quien la
+    # arranco o clave de negocio (docs/BPM.md §GRC). Las en curso nunca se retienen.
+    "bpmn_instances": Tipo(_instancia_bpmn, lambda M: M.ended_at,
+                           lambda M: M.status.in_(("completed", "cancelled", "failed")) & M.ended_at.isnot(None),
+                           ("id", "process_id", "started_by_user_id", "business_key")),
+    # Migracion 206 (docs/PIR.md): revisiones posteriores a la implantacion terminadas
+    # (aprobadas, cerradas o descartadas), con sus acciones en cascada, desde que se
+    # cerraron o aprobaron. Se bloquean por revision, cambio, proyecto o responsable.
+    "pir_reviews": Tipo(_revision_pir,
+                        lambda M: func.coalesce(M.cerrado_en, M.aprobado_en, M.updated_at, M.created_at),
+                        lambda M: M.estado.in_(("aprobado", "cerrado", "descartado")),
+                        ("id", "change_id", "project_id", "responsable_id")),
 }
+
+
+
+def _paginas_en_papelera():
+    from sqlalchemy import select
+    P = _pagina_de_cuaderno()
+    return select(P.id).where(P.deleted_at.isnot(None))
 
 
 class BloqueoLegalActivo(ErrorDeDominio):

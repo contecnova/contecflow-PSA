@@ -39,5 +39,3 @@
 .uat-case__detail + .uat-case__detail { margin-top: 2px; }
 .uat-case__actions { display: flex; gap: 4px; align-items: center; flex-shrink: 0; flex-wrap: wrap; }
 
-.uat-danger { color: var(--danger); }
-

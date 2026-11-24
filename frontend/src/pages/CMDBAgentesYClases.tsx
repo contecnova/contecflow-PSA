@@ -119,9 +119,8 @@ export function CMDBAgentsTab({ items }: { items: CI[] }) {
                   <td className="cmdb-td">{nombreCI(ag.ci_id) || ag.last_hostname || '—'}</td>
                   <td className="cmdb-td">
                     {ag.is_active && (
-                      <IconButton ariaLabel={t('cmdb.revoke_agent')}
-                        onClick={() => openConfirmGlobal({ message: t('cmdb.revoke_agent_q', { name: ag.name }), onConfirm: () => revokeAgent(ag.id), danger: true })}
-                        className="cmdb-del"><Trash2 size={14} /></IconButton>
+                      <IconButton variante="caja" tono="peligro" ariaLabel={t('cmdb.revoke_agent')}
+                        onClick={() => openConfirmGlobal({ message: t('cmdb.revoke_agent_q', { name: ag.name }), onConfirm: () => revokeAgent(ag.id), danger: true })}><Trash2 size={14} /></IconButton>
                     )}
                   </td>
                 </tr>
@@ -178,7 +177,7 @@ export function ClasesTab() {
           <div className="cmdb-class-row__actions">
             <IconButton disabled={i === 0} onClick={() => mover(i, -1)} ariaLabel={t('cmdb.classes_up')}><ArrowUp size={14} /></IconButton>
             <IconButton disabled={i === actuales.length - 1} onClick={() => mover(i, 1)} ariaLabel={t('cmdb.classes_down')}><ArrowDown size={14} /></IconButton>
-            <IconButton className="cmdb-del"
+            <IconButton variante="caja" tono="peligro"
               onClick={() => setFilas(actuales.filter((_, j) => j !== i))} ariaLabel={t('cmdb.classes_remove')}><Trash2 size={14} /></IconButton>
           </div>
         </div>

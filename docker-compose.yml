@@ -589,7 +589,7 @@ volumes:
     external: true
   # `s3_data` y no `minio_data`: un volumen de MinIO guarda los objetos en su
   # formato (xl.meta), no como ficheros, y versitygw montado encima serviría
-  # basura en vez de fallar. Pasar datos de uno a otro: DOCS.md.
+  # basura en vez de fallar. Pasar datos de uno a otro: README, §4.6.
   s3_data:
     name: contecflow_s3_data
     external: true

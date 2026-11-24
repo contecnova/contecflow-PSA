@@ -104,7 +104,7 @@ export function ConexionesDeEscaneo() {
                 <div className="u-actions-8">
                   <Button size="xs" variant="secondary" icon={<PlugZap size={12} />} loading={probar.isPending && probar.variables === c.id} onClick={() => probar.mutate(c.id)}>{t('sw.cfg_probar')}</Button>
                   <Button size="xs" variant="ghost" onClick={() => setEditando(c)}>{t('sw.editar')}</Button>
-                  <IconButton ariaLabel={t('sw.borrar')} onClick={async () => { if (await confirmar({ message: t('sw.esc_borrar_confirmar', { nombre: c.name }), danger: true })) borrar.mutate(c.id) }}><Trash2 size={14} /></IconButton>
+                  <IconButton variante="caja" tono="peligro" ariaLabel={t('sw.borrar')} onClick={async () => { if (await confirmar({ message: t('sw.esc_borrar_confirmar', { nombre: c.name }), danger: true })) borrar.mutate(c.id) }}><Trash2 size={14} /></IconButton>
                 </div>
               </li>
             ))}

@@ -156,7 +156,7 @@ export default function ApprovalsPage({ mode = 'inbox' }: ApprovalsPageProps): J
         <Button size="xs" variant="secondary" onClick={(e) => { void runValidate(e as MouseEvent, wf.id) }}>{t('approvals.validar')}</Button>
         <Button size="xs" variant="secondary" onClick={(e) => { void runPublish(e as MouseEvent, wf.id) }}>{t('approvals.publicar')}</Button>
         <Button size="xs" variant="secondary" onClick={(e) => { void runClone(e as MouseEvent, wf.id) }}>{t('approvals.clonar_version')}</Button>
-        <IconButton ariaLabel={t('approvals.workflow_delete_aria', { name: wf.name })}
+        <IconButton variante="caja" tono="peligro" ariaLabel={t('approvals.workflow_delete_aria', { name: wf.name })}
           onClick={e => { e.stopPropagation(); openConfirmGlobal({ message: t('approvals.workflow_delete_confirm', { name: wf.name }), onConfirm: () => del(wf.id), danger: true }) }}>
           <Trash2 size={14} aria-hidden />
         </IconButton>

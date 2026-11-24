@@ -7,7 +7,7 @@ import { openConfirmGlobal } from '../../context/ConfirmContext'
 import { useToast } from '../../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { advancedConfigApi } from '../../services/settingsApi'
-import { Button, Checkbox, Input, Pulsable, Select, Spinner, EmptyState } from '../../components/ui'
+import { Button, Checkbox, Input, Pulsable, Select, Spinner, EmptyState, IconButton } from '../../components/ui'
 import { Layers, Pencil, Trash2, Check, X, Hash, Puzzle, Type, Calendar, List, CheckSquare, Link2 } from 'lucide-react'
 import { useAppLang } from '../../i18n/AppLangContext'
 import { extractErr } from '../../utils/helpers'
@@ -88,8 +88,8 @@ export function CustomFieldsSection() {
                         {f.is_required && <span className="set-required">*{t('settings_sections.obligatorio_min')}</span>}
                       </div>
                       <span className="u-text2-xs">{typeLabel(f.field_type)}</span>
-                      <Pulsable onClick={() => { setEditingFieldId(f.id); setEditFieldForm({ name: f.name, is_required: f.is_required, placeholder: f.placeholder||'' }) }} className="set-btn-edit" aria-label={t('settings_sections.editar_x', { nombre: f.name })} title={t('common.edit')}><Pencil size={14} aria-hidden /></Pulsable>
-                      <Pulsable onClick={() => openConfirmGlobal({ title: t('settings_sections.eliminar_x', { nombre: f.name }), message: t('settings_sections.confirmar_eliminar_x', { nombre: f.name }), danger: true, onConfirm: () => deleteField(f.id) })} className="set-btn-delete" aria-label={t('settings_sections.eliminar_x', { nombre: f.name })} title={t('common.delete')}><Trash2 size={14} aria-hidden /></Pulsable>
+                      <IconButton variante="caja" onClick={() => { setEditingFieldId(f.id); setEditFieldForm({ name: f.name, is_required: f.is_required, placeholder: f.placeholder||'' }) }} ariaLabel={t('settings_sections.editar_x', { nombre: f.name })} title={t('common.edit')}><Pencil size={14} aria-hidden /></IconButton>
+                      <IconButton variante="caja" tono="peligro" onClick={() => openConfirmGlobal({ title: t('settings_sections.eliminar_x', { nombre: f.name }), message: t('settings_sections.confirmar_eliminar_x', { nombre: f.name }), danger: true, onConfirm: () => deleteField(f.id) })} ariaLabel={t('settings_sections.eliminar_x', { nombre: f.name })} title={t('common.delete')}><Trash2 size={14} aria-hidden /></IconButton>
                     </div>
                     {editingFieldId === f.id && (
                       <div className="set-edit-strip">
@@ -100,7 +100,7 @@ export function CustomFieldsSection() {
                         <Checkbox className="set-check-nowrap" label={t('settings_sections.obligatorio')} checked={editFieldForm.is_required}
                           onChange={m=>setEditFieldForm(f=>({...f,is_required:m}))} />
                         <Pulsable onClick={() => updateField({ id: f.id, data: editFieldForm })} disabled={!editFieldForm.name} className="set-btn-save set-btn-save--sm"><Check size={13} aria-hidden /> {t('common.save')}</Pulsable>
-                        <Pulsable onClick={() => setEditingFieldId(null)} className="set-btn-cancel set-btn-cancel--sm" aria-label={t('common.cancel')} title={t('common.cancel')}><X size={14} aria-hidden /></Pulsable>
+                        <IconButton variante="caja" onClick={() => setEditingFieldId(null)} ariaLabel={t('common.cancel')} title={t('common.cancel')}><X size={14} aria-hidden /></IconButton>
                       </div>
                     )}
                   </React.Fragment>

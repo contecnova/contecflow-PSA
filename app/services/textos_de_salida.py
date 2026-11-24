@@ -30,6 +30,36 @@ IDIOMA_DE_RESPALDO = "es"
 
 #: clave -> idioma -> plantilla (`str.format` con los datos).
 TEXTOS: dict[str, dict[str, str]] = {
+    # ── Preguntas sin respuesta como tareas (migración 207, kb_calidad) ──
+    "kb_hueco.asignada_titulo": {"es": "Pregunta sin respuesta a tu cargo", "en": "Unanswered question assigned to you",
+                                 "zh": "分配给你的未回答问题"},
+    "kb_hueco.asignada_cuerpo": {"es": "Responder en la base de conocimiento: {pregunta}",
+                                 "en": "Answer it in the knowledge base: {pregunta}", "zh": "请在知识库中回答：{pregunta}"},
+    "kb_hueco.tarea_titulo": {"es": "Tarea: responder una pregunta sin respuesta",
+                              "en": "Task: answer an unanswered question", "zh": "任务：回答一个未回答问题"},
+    "kb_hueco.tarea_cuerpo": {"es": "{pregunta}", "en": "{pregunta}", "zh": "{pregunta}"},
+    "kb_hueco.respondida_titulo": {"es": "Pregunta sin respuesta: ya está respondida",
+                                   "en": "Unanswered question: now answered", "zh": "未回答问题：已回答"},
+    "kb_hueco.respondida_cuerpo": {"es": "{pregunta}", "en": "{pregunta}", "zh": "{pregunta}"},
+    # ── Mi cuaderno (migración 202, docs/CUADERNO.md) ──
+    "cuaderno.compartido": {"es": "{persona} ha compartido contigo «{cuaderno}»",
+                            "en": "{persona} shared «{cuaderno}» with you", "zh": "{persona} 与你共享了「{cuaderno}」"},
+    "cuaderno.recordatorio": {"es": "Recordatorio: {texto}", "en": "Reminder: {texto}", "zh": "提醒：{texto}"},
+    "cuaderno.recordatorio_cuerpo": {"es": "En tu nota «{pagina}»", "en": "In your note «{pagina}»",
+                                     "zh": "在你的笔记「{pagina}」中"},
+    # ── Del ticket al PR (migración 203, docs/integraciones/TICKET_A_PR.md) ──
+    "ticket_pr.plan_listo": {"es": "Plan del agente listo para revisar ({ref}, {repo})",
+                             "en": "Agent plan ready for review ({ref}, {repo})",
+                             "zh": "智能体计划已就绪，待审核（{ref}，{repo}）"},
+    "ticket_pr.pr_abierto": {"es": "El agente ha abierto un PR para {ref} ({repo}); pendiente del CAB",
+                             "en": "The agent opened a PR for {ref} ({repo}); pending CAB approval",
+                             "zh": "智能体已为 {ref} 创建 PR（{repo}）；等待 CAB 批准"},
+    # ── BPM (migración 204, docs/BPM.md) ──
+    "bpm.tarea_asignada": {"es": "Tarea de proceso asignada: {tarea}", "en": "Process task assigned to you: {tarea}",
+                           "zh": "已分配给你的流程任务：{tarea}"},
+    "bpm.tarea_vencida": {"es": "Tarea de proceso fuera de plazo: {tarea}", "en": "Process task overdue: {tarea}",
+                          "zh": "流程任务已逾期：{tarea}"},
+    "bpm.aviso_de_proceso": {"es": "Proceso: {mensaje}", "en": "Process: {mensaje}", "zh": "流程：{mensaje}"},
     # ── Excel de gastos (auditoría 22-11-2026, textos fijos de expense_service) ──
     "gastos.excel.hoja": {"es": "Gastos", "en": "Expenses", "zh": "费用"},
     "gastos.excel.fecha": {"es": "Fecha", "en": "Date", "zh": "日期"},
@@ -436,6 +466,11 @@ from app.services.textos_de_salida_servicios_m_z import TEXTOS_SERVICIOS_M_Z as 
 
 TEXTOS.update(_TEXTOS_M_Z)
 
+# 23-11-2026: revisión posterior a la implantación (PIR, migración 206, docs/PIR.md).
+from app.services.textos_de_salida_pir import TEXTOS_PIR as _TEXTOS_PIR  # noqa: E402
+
+TEXTOS.update(_TEXTOS_PIR)
+
 
 def texto(clave: str, idioma: Optional[str] = None, **params) -> str:
     """El texto `clave` en `idioma` (castellano si no lo hay) con sus datos.
@@ -455,6 +490,26 @@ def texto(clave: str, idioma: Optional[str] = None, **params) -> str:
     except (KeyError, IndexError):
         logger.warning("textos_de_salida: faltan datos para %r: %s", clave, sorted(params))
         return plantilla
+
+
+def texto_para(db, clave: str, *, user_id: Optional[str] = None, org_id: Optional[str] = None,
+               preferido: Optional[str] = None, **params) -> str:
+    """`clave` en el idioma del destinatario (`user_id`/`org_id`/`preferido`)."""
+    from app.services.formato_regional import idioma_de_salida
+    return texto(clave, idioma_de_salida(db, user_id=user_id, org_id=org_id, preferido=preferido), **params)
+
+
+def aviso_de(db, user_id: str, titulo: str, cuerpo: Optional[str] = None, **params) -> dict:
+    """Argumentos `title`/`body`/`aviso` de `notify_user`: texto en el idioma del destinatario.
+
+    Los textos de respaldo (`title`/`body`) ya salen en su idioma; `aviso` lleva
+    la clave y los datos para el empujon por WebSocket.
+    """
+    return {
+        "title": texto_para(db, titulo, user_id=user_id, **params),
+        "body": texto_para(db, cuerpo, user_id=user_id, **params) if cuerpo else None,
+        "aviso": {"titulo": titulo, "cuerpo": cuerpo, "params": params},
+    }
 
 
 def nombre_de_marca(db=None, org_id: Optional[str] = None) -> str:

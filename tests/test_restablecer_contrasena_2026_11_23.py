@@ -148,13 +148,14 @@ def test_portal_restablecer_aplica_politica_un_solo_uso_y_cierra_sesiones(client
     igual = client.post("/api/v1/portal/auth/password/reset", json={"token": token, "new_password": "Clave-inicial-1"})
     assert igual.status_code == 400 and igual.json()["code"] == "portal_contrasena_igual_a_la_anterior"
 
-    ok = client.post("/api/v1/portal/auth/password/reset", json={"token": token, "new_password": "Nueva-clave-portal-2026"})
+    # Sin "portal": el contacto se llama "Berta Portal" y la política rechaza trozos del nombre/correo.
+    ok = client.post("/api/v1/portal/auth/password/reset", json={"token": token, "new_password": "Nueva-clave-segura-2026"})
     assert ok.status_code == 200, ok.text
-    otra = client.post("/api/v1/portal/auth/password/reset", json={"token": token, "new_password": "Otra-clave-portal-2026"})
+    otra = client.post("/api/v1/portal/auth/password/reset", json={"token": token, "new_password": "Otra-clave-segura-2026"})
     assert otra.status_code == 401 and otra.json()["code"] == "portal_reset_token_no_valido"
 
     assert verify_client_token(vieja, db) is None   # la sesión anterior queda cerrada
-    login = client.post("/api/v1/portal/auth/login", json={"email": contacto.email, "password": "Nueva-clave-portal-2026"})
+    login = client.post("/api/v1/portal/auth/login", json={"email": contacto.email, "password": "Nueva-clave-segura-2026"})
     assert login.status_code == 200, login.text
     assert _auditorias(db, "PORTAL_PASSWORD_RESET_COMPLETE")
 
@@ -164,7 +165,7 @@ def test_portal_token_del_operador_no_vale_en_el_portal(client, db, contacto):
     from app.services.auth_service import issue_password_reset_token
     admin = db.query(User).filter(User.username == "admin").first()
     r = client.post("/api/v1/portal/auth/password/reset",
-                    json={"token": issue_password_reset_token(admin), "new_password": "Nueva-clave-portal-2026"})
+                    json={"token": issue_password_reset_token(admin), "new_password": "Nueva-clave-segura-2026"})
     assert r.status_code == 401 and r.json()["code"] == "portal_reset_token_no_valido"
 
 

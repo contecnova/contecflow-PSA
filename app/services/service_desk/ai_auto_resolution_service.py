@@ -553,6 +553,9 @@ def run_auto_close_job(db: Session, organization_id: str | None = None) -> dict:
             try:
                 ticket.status = TicketStatus.closed
                 ticket.closed_at = datetime.now(timezone.utc)
+                # 23-11-2026: historial del nivel 3 (texto y quien lo resolvio).
+                from app.services.service_desk.semantic_feedback_service import registrar_cierre_semantico
+                registrar_cierre_semantico(db, ticket)
                 stats["auto_closed"] += 1
                 stats["processed"] += 1
                 db.commit()

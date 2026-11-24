@@ -27,6 +27,12 @@ _IMPORTS_HTTP_PERMITIDOS = {
     # (`route.matches(scope)` y su `Match`) y el arbol de dependencias de
     # FastAPI. Su entrada es el enrutador HTTP; sin Starlette no hay nada que explicar.
     "app/services/explicar_acceso.py",
+    # 22-11-2026 (M8): `sesion_de_sistema(motivo)` es la dependencia FastAPI de
+    # las rutas anónimas: envuelve `get_db` con `Depends` para que la sesión sea la
+    # misma del grafo (y valgan los `dependency_overrides`). Solo importa `Depends`,
+    # dentro de esa función; no lee peticiones ni monta respuestas. Llevarla a
+    # `app/core/deps.py` cerraría un ciclo (deps -> db.session) o tocaría 31 rutas.
+    "app/db/session.py",
 }
 
 #: Ficheros de `app/core` y `app/db` que pueden lanzar `HTTPException`.

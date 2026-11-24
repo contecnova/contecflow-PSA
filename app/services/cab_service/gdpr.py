@@ -163,7 +163,8 @@ def _gdpr_erase_user(db: Session, user) -> dict:
     from app.services.proveedores.grc import suprimir as suprimir_ficha_de_proveedor
     detalle["tablas"]["proveedor"] = suprimir_ficha_de_proveedor(db, user)
     return {"anonymised": True, "tablas": detalle["tablas"], "credenciales": detalle["credenciales"],
-            "almacen": detalle["almacen"], "meetings": detalle.get("reuniones"), "records_kept": ["imputations", "timesheets", "expenses", "overtime_requests"]}
+            "almacen": detalle["almacen"], "meetings": detalle.get("reuniones"),
+            "notebooks": detalle.get("cuadernos"), "pir_reviews": detalle.get("pir"), "records_kept": ["imputations", "timesheets", "expenses", "overtime_requests"]}
 
 
 def _gdpr_portability_export(db: Session, user) -> dict:
@@ -184,7 +185,22 @@ def _gdpr_portability_export(db: Session, user) -> dict:
     # consentimiento y sus acciones (`app/services/reuniones/rgpd.py`).
     from app.services.reuniones import rgpd as rgpd_reuniones
     reuniones = rgpd_reuniones.copia(db, None, user_id=user.id, email=user.email)
+    # Migracion 202: sus cuadernos («Mi cuaderno»), cada página en Markdown (docs/CUADERNO.md).
+    from app.services.cuaderno import rgpd as rgpd_cuaderno
+    cuadernos = rgpd_cuaderno.copia(db, None, user.id)
+    # Migracion 204: procesos BPM que arrancó y pasos que completó, con lo que aportó (docs/BPM.md §GRC).
+    from app.services import bpmn_gobierno
+    procesos = bpmn_gobierno.copia(db, user.id)
+    # Migracion 206: las PIR donde es responsable, participante, autora o aprobadora (docs/PIR.md §5).
+    from app.services.pir import rgpd as rgpd_pir
+    pir = rgpd_pir.copia(db, user.id)
     return {
+        "bpm_instances": procesos["bpm_instances"],
+        "bpm_steps": procesos["bpm_steps"],
+        "pir_reviews": pir["pir_reviews"],
+        "pir_actions": pir["pir_actions"],
+        "notebooks": cuadernos["notebooks"],
+        "notebook_tags": cuadernos["notebook_tags"],
         "meetings": reuniones["meetings"],
         "user": {
             "email": user.email, "full_name": user.full_name,
@@ -204,7 +220,8 @@ def _gdpr_portability_export(db: Session, user) -> dict:
         # Migracion 200: sus llamadas al agente de voz (por la huella de su telefono).
         "voice_sessions": _sesiones_de_voz(db, user),
         "data_summary": {"imputations": len(imputaciones), "tickets": len(tickets),
-                         "overtime_requests": len(horas_extra), "meetings": reuniones["meetings_count"]},
+                         "overtime_requests": len(horas_extra), "meetings": reuniones["meetings_count"],
+                         "notebook_pages": cuadernos["notebook_pages_count"]},
         "export_date": str(timeutil.today()),
         "format": "JSON",
     }

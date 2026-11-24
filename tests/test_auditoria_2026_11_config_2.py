@@ -26,6 +26,11 @@ PERMITIDAS = {
     ("app/core/metrics.py", "PROMETHEUS_MULTIPROC_DIR"):
         "la consume prometheus_client del entorno del proceso; metrics.py la fija con setdefault",
     ("app/db/migrate_to_pg.py", "DATABASE_URL"): "CLI autónomo que debe correr sin el resto de Settings",
+    # 22-11-2026 (A13): no es configuración de la app sino el entorno MÍNIMO del
+    # sistema (PATH, HOME, TEMP, LANG… de `_ENTORNO_PERMITIDO`) que hereda
+    # Terraform/Ansible, para no pasarle los secretos del worker.
+    ("app/services/bookings_service/aprovisionamiento.py", "<dinámico: k>"):
+        "entorno mínimo del sistema para el subproceso de aprovisionamiento (lista blanca, sin secretos)",
 }
 
 
@@ -55,8 +60,10 @@ def test_EL_HALLAZGO_no_hay_lecturas_de_entorno_fuera_de_settings_salvo_las_perm
     fuera = sorted(f"{f}:{ln} {v}" for f, v, ln in lecturas if (f, v) not in PERMITIDAS)
     assert fuera == [], (
         "Lectura de entorno fuera de Settings. Añade el campo a app/core/config_groups/proceso_config.py "
-        f"(y su fila en README §4.2) o justifícala en PERMITIDAS: {fuera}")
-    assert len(lecturas) == 5  # TESTING, PYTEST_CURRENT_TEST, 2× PROMETHEUS_MULTIPROC_DIR, DATABASE_URL
+        f"(y su fila en docs/REFERENCIA_DE_AJUSTES.md) o justifícala en PERMITIDAS: {fuera}")
+    # TESTING, PYTEST_CURRENT_TEST, 2× PROMETHEUS_MULTIPROC_DIR, DATABASE_URL y,
+    # desde el 22-11-2026, el entorno mínimo del aprovisionamiento (A13).
+    assert len(lecturas) == 6
 
 
 def test_tampoco_se_importa_environ_o_getenv_suelto():

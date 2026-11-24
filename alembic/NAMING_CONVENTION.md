@@ -12,7 +12,7 @@ and the standard to follow for **future** migrations.
 
 ## Current state (updated 2026-11-23)
 
-150 revision files, one linear chain, head `198_cambios_estandar_y_portal`. Counted with a script over `alembic/versions/*.py`: 129 start with a three-digit number (111 of them from `086` on) and 21 use a 12-char hex id. **The hex style is no longer used: since `086` every new migration is numbered** (see *Standard for new migrations*). Numbers `176` and `187` do not exist (they were never committed); that does not break the chain.
+157 revision files, one linear chain, head `205_portal_usuarios`. Counted over `alembic/versions/*.py`: 136 start with a three-digit number and 21 use a 12-char hex id. **The hex style is no longer used: since `086` every new migration is numbered** (see *Standard for new migrations*). Numbers `176` and `187` do not exist (they were never committed); that does not break the chain.
 
 Two styles coexist in `alembic/versions/`:
 
@@ -112,8 +112,7 @@ python -m alembic heads        # exactly one head: its number + 1 is yours
    `downgrade` does, then `Revision ID:` and `Revises:`. `docs/DESPLIEGUE.md`
    (B.2) is written from these docstrings, and a new migration adds its row there.
 6. **Indexes**: prefer creating indexes inside the same migration that creates
-   the column. For composite indexes follow the equality-before-range rule
-   (see `docs/INDEX_TUNING.md`).
+   the column. For composite indexes follow the equality-before-range rule.
 7. **Tables with `organization_id`**: no policy is written by hand; `alembic/env.py`
    applies row-level security after every `upgrade` (`app/db/rls.py`).
 

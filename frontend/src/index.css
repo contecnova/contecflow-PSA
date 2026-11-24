@@ -323,7 +323,7 @@
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 }
 
-html { scroll-behavior: smooth; }
+html { scroll-behavior: smooth; scrollbar-gutter: stable; }
 
 /* Revisión 2026-11: un <button> no hereda el color del texto (el navegador le
    pone el suyo, negro). Medido: 79 botones en 9 pantallas se leían mal en tema

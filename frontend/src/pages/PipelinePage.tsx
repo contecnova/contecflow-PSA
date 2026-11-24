@@ -643,7 +643,7 @@ export default function PipelinePage() {
               { key: 'expected_close_date', label: t('pagina_pipe.cierre'), render: (_v, o) => fmtDate(o.expected_close_date) },
               { key: 'owner_name', label: t('pagina_pipe.responsable'), render: (_v, o) => o.owner_name || t('pagina_pipe.sin_asignar') },
               { key: 'acciones', label: '', sortable: false, render: (_v, o) => (
-                <IconButton ariaLabel={t('pagina_pipe.eliminar_oportunidad')} onClick={() => handleDelete(o)}><Trash2 size={14} /></IconButton>
+                <IconButton variante="caja" tono="peligro" ariaLabel={t('pagina_pipe.eliminar_oportunidad')} onClick={() => handleDelete(o)}><Trash2 size={14} /></IconButton>
               ) },
             ]}
           />
@@ -687,7 +687,7 @@ export default function PipelinePage() {
                             <IconButton ariaLabel={t('pagina_pipe.ver_detalles_y_gestionar_propuesta')} onClick={() => setDetailOpp(opportunity)}>
                               <FileText size={14} />
                             </IconButton>
-                            <IconButton ariaLabel={t('pagina_pipe.eliminar_oportunidad')} onClick={() => handleDelete(opportunity)}>
+                            <IconButton variante="caja" tono="peligro" ariaLabel={t('pagina_pipe.eliminar_oportunidad')} onClick={() => handleDelete(opportunity)}>
                               <Trash2 size={14} />
                             </IconButton>
                           </div>

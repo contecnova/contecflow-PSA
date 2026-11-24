@@ -220,11 +220,11 @@ def _fallback_narrative(kpis: dict, lang: str, simbolo: str) -> str:
             f"**Resumen ejecutivo** (generado automáticamente)\n\n"
             f"El portfolio activo cuenta con {projects} proyectos en curso, con un margen medio "
             f"del {margin}%. El pipeline comercial presenta {opps} oportunidades abiertas "
-            f"con un revenue ponderado de {formatear_importe(pipeline, simbolo)}.\n\n"
+            f"con un revenue ponderado de {formatear_importe(pipeline, simbolo, idioma='es')}.\n\n"
             f"{'⚠ Atención: hay ' + str(high_risk) + ' proyectos en riesgo alto.' if high_risk else ''}"
         )
     return (
         f"**Executive Summary** (auto-generated)\n\n"
         f"Active portfolio: {projects} projects with avg margin {margin}%. "
-        f"Pipeline: {opps} open opportunities, weighted revenue {formatear_importe(pipeline, simbolo)}."
+        f"Pipeline: {opps} open opportunities, weighted revenue {formatear_importe(pipeline, simbolo, idioma='en')}."
     )

@@ -10,6 +10,9 @@ Un solo sitio para preguntar a la base de conocimiento desde la IA:
   entera como subcadena literal.
 - Si una pregunta de un cliente llega sin artículo ni corrección, queda en la
   lista de **preguntas sin respuesta** (`KBGap`), agrupando las repetidas.
+  23-11-2026 (migración 207): cada una con responsable, plazo y estado de
+  seguimiento; se convierte en tarea (con aviso al responsable) y se cierra
+  sola —ella y su tarea— al publicar el artículo enlazado que la responde.
 - Una **corrección** (`KBCorrection`) se aplica al momento a las preguntas
   parecidas: por vector si hay modelo de frases, si no por palabras.
 - La **pasada diaria** avisa de artículos sin revisar desde hace
@@ -115,6 +118,7 @@ def crear_correccion(db: Session, autor, pregunta: str, respuesta: str, *, es_pu
         hueco = db.get(KBGap, gap_id)
         if hueco:
             hueco.status, hueco.correction_id, hueco.closed_by = "answered", corr.id, corr.created_by
+            _terminar_seguimiento(db, hueco, corr.created_by, motivo="correccion")
     db.commit()
     return corr
 
@@ -324,9 +328,17 @@ def resumen(db: Session) -> dict:
         KBCorrection.created_at.desc()).limit(200).all()
     avisos = db.query(KBFinding).filter(KBFinding.status == "open").order_by(
         KBFinding.kind, KBFinding.first_seen_at.desc()).limit(200).all()
+    from app.models.user import User
+    responsables = dict(db.query(User.id, User.full_name).filter(
+        User.id.in_([g.owner_id for g in huecos if g.owner_id] or ["__none__"])).all())
     return {
         "gaps": [{"id": g.id, "question": g.question, "times_asked": g.times_asked, "source": g.source,
-                  "last_asked_at": g.last_asked_at.isoformat() if g.last_asked_at else None} for g in huecos],
+                  "last_asked_at": g.last_asked_at.isoformat() if g.last_asked_at else None,
+                  # Migración 207: seguimiento.
+                  "owner_id": g.owner_id, "owner_name": responsables.get(g.owner_id),
+                  "due_date": g.due_date.isoformat() if g.due_date else None,
+                  "follow_status": g.follow_status or "pendiente", "task_id": g.task_id,
+                  "article_id": g.article_id, "article_number": titulos.get(g.article_id)} for g in huecos],
         "corrections": [{"id": c.id, "question": c.question, "answer": c.answer, "is_public": c.is_public,
                          "usage_count": c.usage_count,
                          "last_used_at": c.last_used_at.isoformat() if c.last_used_at else None}
@@ -352,3 +364,160 @@ def cerrar(db: Session, modelo, fila_id: str, estado: str, usuario) -> None:
     if hasattr(fila, "closed_by"):
         fila.closed_by = getattr(usuario, "id", None)
     db.commit()
+
+
+# ── Preguntas sin respuesta como tareas (23-11-2026, migración 207) ──────────
+#
+# Lo que contecmind ya tenía: la pregunta sin respuesta no es solo una lista,
+# es trabajo con dueño y fecha. Se le pone responsable, plazo y estado de
+# seguimiento (pendiente | en_curso | hecho); se puede convertir en una tarea
+# de un proyecto (aviso al responsable) y se le enlaza el artículo que la va a
+# responder. Al PUBLICAR ese artículo se cierra la pregunta y su tarea, con
+# aviso. Todo auditado y en la empresa de la sesión (filtro de tenant).
+
+ESTADOS_DE_SEGUIMIENTO = ("pendiente", "en_curso", "hecho")
+
+from app.core.codigos_de_error import error  # noqa: E402
+
+
+def _hueco(db: Session, gap_id: str) -> KBGap:
+    hueco = db.query(KBGap).filter(KBGap.id == gap_id).first()
+    if hueco is None:
+        raise error(404, "no_encontrado", detail="Pregunta no encontrada", que="pregunta_sin_respuesta")
+    return hueco
+
+
+def _usuario_de_la_empresa(db: Session, user_id: Optional[str]) -> Optional[str]:
+    """`user_id` si es una persona activa de la empresa de la sesión (si no, error)."""
+    if not user_id:
+        return None
+    from app.models.user import User
+    from app.services.semantic_engine_service import ids_de_usuarios_del_ambito
+    org = _org(db)
+    existe = db.query(User.id).filter(User.id == user_id, User.is_active == True).first()  # noqa: E712
+    if existe is None:
+        raise error(404, "no_encontrado", detail="Usuario no encontrado", que="usuario")
+    if org:
+        sujeto = type("S", (), {"organization_id": org, "is_superadmin": False})()
+        ambito = ids_de_usuarios_del_ambito(db, sujeto)
+        if ambito is not None and user_id not in ambito:
+            raise error(404, "no_encontrado", detail="Usuario no encontrado", que="usuario")
+    return user_id
+
+
+def _avisar_responsable(db: Session, hueco: KBGap, clave: str, titulo: str, cuerpo: str) -> None:
+    if not hueco.owner_id:
+        return
+    from app.services.notifications import notify_user
+    notify_user(db, hueco.owner_id, "system", titulo[:255], cuerpo, resource="kb_gap", resource_id=hueco.id,
+                action_url="/service-desk?tab=kb",
+                aviso={"titulo": f"kb_hueco.{clave}_titulo", "cuerpo": f"kb_hueco.{clave}_cuerpo",
+                       "params": {"pregunta": (hueco.question or "")[:120]}})
+
+
+def _auditar(db: Session, usuario, accion: str, hueco: KBGap, antes: dict, despues: dict) -> None:
+    from app.services.audit import audit_log
+    audit_log(db, usuario, accion, "kb_gap", hueco.id, (hueco.question or "")[:200],
+              old_values=antes, new_values=despues)
+
+
+def _foto(h: KBGap) -> dict:
+    return {"owner_id": h.owner_id, "due_date": h.due_date, "follow_status": h.follow_status,
+            "task_id": h.task_id, "article_id": h.article_id, "status": h.status}
+
+
+def actualizar_seguimiento(db: Session, usuario, gap_id: str, datos: dict) -> dict:
+    """Responsable, plazo y estado de seguimiento. Avisa al nuevo responsable. Confirma."""
+    hueco = _hueco(db, gap_id)
+    antes = _foto(hueco)
+    if "follow_status" in datos and datos["follow_status"] is not None:
+        if datos["follow_status"] not in ESTADOS_DE_SEGUIMIENTO:
+            raise error(422, "estado_no_valido", detail="follow_status")
+        hueco.follow_status = datos["follow_status"]
+    if "due_date" in datos:
+        hueco.due_date = datos["due_date"]
+    nuevo = antes["owner_id"]
+    if "owner_id" in datos:
+        nuevo = _usuario_de_la_empresa(db, datos["owner_id"])
+        hueco.owner_id = nuevo
+    _auditar(db, usuario, "UPDATE", hueco, antes, _foto(hueco))
+    if nuevo and nuevo != antes["owner_id"]:
+        _avisar_responsable(db, hueco, "asignada", "Pregunta sin respuesta a tu cargo",
+                            f"Responder en la base de conocimiento: {hueco.question[:200]}")
+    db.commit()
+    return _foto(hueco) | {"id": hueco.id}
+
+
+def convertir_en_tarea(db: Session, usuario, gap_id: str, project_id: str, owner_id: Optional[str] = None,
+                       due_date=None) -> dict:
+    """Crea la tarea «Responder en la base: …» en `project_id` (con sus permisos) y la enlaza. Confirma."""
+    from app.schemas.tasks import TaskCreate
+    from app.services.task_service import create_task_record
+    hueco = _hueco(db, gap_id)
+    if hueco.task_id:
+        raise error(409, "kb_hueco_ya_tiene_tarea", detail="La pregunta ya tiene tarea")
+    responsable = _usuario_de_la_empresa(db, owner_id or hueco.owner_id)
+    plazo = due_date or hueco.due_date
+    antes = _foto(hueco)
+    tarea = create_task_record(db, TaskCreate(
+        title=f"Responder en la base de conocimiento: {hueco.question}"[:255],
+        description=(f"Pregunta sin respuesta ({hueco.times_asked} veces, origen {hueco.source}):\n\n"
+                     f"{hueco.question}\n\nAl publicar el artículo que la responde (enlazado a la pregunta), "
+                     "la pregunta y esta tarea se cierran solas."),
+        project_id=project_id, assignee_id=responsable, due_date=plazo,
+    ), usuario)
+    hueco = _hueco(db, gap_id)          # create_task_record confirma: se relee
+    hueco.task_id = tarea.id
+    hueco.owner_id = responsable
+    hueco.due_date = plazo
+    hueco.follow_status = "en_curso"
+    _auditar(db, usuario, "UPDATE", hueco, antes, _foto(hueco))
+    _avisar_responsable(db, hueco, "tarea", "Tarea: responder una pregunta sin respuesta",
+                        f"{tarea.code}: {hueco.question[:200]}")
+    db.commit()
+    return _foto(hueco) | {"id": hueco.id, "task_code": tarea.code}
+
+
+def enlazar_articulo(db: Session, usuario, gap_id: str, article_id: Optional[str]) -> dict:
+    """El artículo que responderá la pregunta. Si ya está publicado, la cierra ya. Confirma."""
+    from app.services.service_desk.kb_service import get_scoped_kb_article_or_404
+    hueco = _hueco(db, gap_id)
+    antes = _foto(hueco)
+    articulo = get_scoped_kb_article_or_404(db, usuario, article_id) if article_id else None
+    hueco.article_id = articulo.id if articulo else None
+    _auditar(db, usuario, "UPDATE", hueco, antes, _foto(hueco))
+    if articulo is not None and getattr(articulo.status, "value", articulo.status) == KBStatus.published.value:
+        cerrar_al_publicar(db, articulo, getattr(usuario, "id", None))
+    db.commit()
+    return _foto(hueco) | {"id": hueco.id}
+
+
+def _terminar_seguimiento(db: Session, hueco: KBGap, quien: Optional[str], motivo: str) -> None:
+    """Seguimiento hecho y su tarea terminada (si no lo estaba), con aviso. No confirma."""
+    hueco.follow_status = "hecho"
+    if hueco.task_id:
+        from app.models.task import ESTADOS_DE_TAREA_TERMINADOS, Task, TaskStatus
+        tarea = db.query(Task).filter(Task.id == hueco.task_id).first()
+        if tarea is not None and getattr(tarea.status, "value", tarea.status) not in ESTADOS_DE_TAREA_TERMINADOS:
+            tarea.status = TaskStatus.done
+    _avisar_responsable(db, hueco, "respondida", "Pregunta sin respuesta: ya está respondida",
+                        f"({motivo}) {hueco.question[:200]}")
+
+
+def cerrar_al_publicar(db: Session, articulo: KBArticle, quien: Optional[str]) -> int:
+    """Publicado `articulo`: sus preguntas abiertas pasan a respondidas (y su tarea a hecha). No confirma.
+
+    Lo llaman los caminos de publicación de `kb_service` (alta publicada, edición
+    a publicado, revisión aprobada) y `enlazar_articulo`.
+    """
+    from app.services.audit import audit_log
+    n = 0
+    for hueco in db.query(KBGap).filter(KBGap.article_id == articulo.id, KBGap.status == "open").all():
+        antes = _foto(hueco)
+        hueco.status, hueco.closed_by = "answered", quien
+        _terminar_seguimiento(db, hueco, quien, motivo=f"artículo {articulo.number}")
+        audit_log(db, None, "UPDATE", "kb_gap", hueco.id, (hueco.question or "")[:200], old_values=antes,
+                  new_values=_foto(hueco), metadata={"motivo": "articulo_publicado", "article_id": articulo.id,
+                                                     "user_id": quien})
+        n += 1
+    return n

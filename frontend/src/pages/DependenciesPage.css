@@ -211,7 +211,6 @@
   font-size: var(--text-sm);
 }
 
-.deps-borrar { color: var(--danger); }
 .deps-flecha { display: inline-flex; align-items: center; }
 .deps-filtros { margin-bottom: 16px; }
 .deps-proyecto { flex: 1; min-width: 0; max-width: 480px; cursor: pointer; }

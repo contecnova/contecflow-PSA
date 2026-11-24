@@ -126,7 +126,7 @@ export default function ParticipantesDeReunion({ reunion }: { reunion: ReunionDe
                       </>
                     )}
                     {gestor && (
-                      <IconButton ariaLabel={t('reuniones.quitar')} onClick={async () => {
+                      <IconButton variante="caja" tono="peligro" ariaLabel={t('reuniones.quitar')} onClick={async () => {
                         if (await confirmar({ title: t('reuniones.participantes.quitar_titulo'), message: t('reuniones.participantes.quitar_desc', { nombre: p.name ?? '' }), danger: true })) borrar.mutate(p.id)
                       }}><Trash2 size={14} aria-hidden /></IconButton>
                     )}

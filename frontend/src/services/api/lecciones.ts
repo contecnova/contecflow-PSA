@@ -4,7 +4,7 @@
  */
 import api from './_core'
 
-export type OrigenLeccion = 'project' | 'ticket' | 'problem' | 'major_incident' | 'sprint' | 'security_incident' | 'manual'
+export type OrigenLeccion = 'project' | 'ticket' | 'problem' | 'major_incident' | 'sprint' | 'security_incident' | 'pir' | 'manual'
 export interface Hecho { etiqueta: string; valor: string | number | boolean | string[] }
 export interface Leccion {
   id: string; codigo: string; titulo: string; tipo: 'evitar' | 'repetir'; categoria: string; severidad: 'baja' | 'media' | 'alta'

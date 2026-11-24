@@ -3,13 +3,15 @@
 - `KBCorrection`: la respuesta buena que un experto deja para una pregunta. Se
   aplica al momento a las preguntas parecidas, por delante de los artículos.
 - `KBGap`: preguntas que llegaron sin ningún artículo que las respondiera. Es
-  la lista de trabajo de quien escribe la base.
+  la lista de trabajo de quien escribe la base. Migración 207: con responsable,
+  plazo y estado de seguimiento; se puede convertir en tarea (con aviso) y se
+  cierra sola al publicar el artículo enlazado que la responde.
 - `KBFinding`: avisos de la pasada diaria: artículos caducados y pares de
   artículos que se contradicen.
 """
 import uuid
 
-from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Index, Integer, String, Text
+from sqlalchemy import Boolean, Column, Date, DateTime, Float, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.sql import func
 
 from app.db.base import Base
@@ -49,6 +51,11 @@ class KBGap(Base):
     first_asked_at = Column(DateTime(timezone=True), server_default=func.now())
     last_asked_at = Column(DateTime(timezone=True), server_default=func.now())
     closed_by = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    # Migración 207: seguimiento como tarea. `follow_status`: pendiente | en_curso | hecho.
+    owner_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    due_date = Column(Date, nullable=True)
+    follow_status = Column(String(20), default="pendiente", server_default="pendiente", nullable=False)
+    task_id = Column(String(36), ForeignKey("tasks.id", ondelete="SET NULL"), nullable=True, index=True)
 
 
 class KBFinding(Base):

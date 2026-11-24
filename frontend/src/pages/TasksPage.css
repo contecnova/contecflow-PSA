@@ -66,7 +66,7 @@
 }
 .tsk-quick-add:hover { background: var(--surface-3); color: var(--text-1); }
 input.tsk-quick-add-input { margin-top: 8px; width: 100%; box-sizing: border-box; }
-.tsk-wip-btn:focus-visible, .tsk-quick-add:focus-visible, .tsk-icon-btn:focus-visible, .tsk-list-row:focus-visible, .tsk-mcard:focus-visible {
+.tsk-wip-btn:focus-visible, .tsk-quick-add:focus-visible, .tsk-list-row:focus-visible, .tsk-mcard:focus-visible {
   outline: 2px solid var(--accent); outline-offset: 2px;
 }
 
@@ -81,8 +81,6 @@ input.tsk-quick-add-input { margin-top: 8px; width: 100%; box-sizing: border-box
   border-bottom: 1px solid var(--surface-4); flex-shrink: 0;
 }
 .tsk-drawer-code { font-variant-numeric: tabular-nums; font-size: var(--text-base); color: var(--text-2); }
-.tsk-icon-btn { background: none; border: none; cursor: pointer; color: var(--text-2); display: flex; padding: 4px; border-radius: var(--radius-sm); }
-.tsk-icon-btn:hover { background: var(--surface-3); color: var(--text-1); }
 .tsk-drawer-tabs { margin-bottom: 16px; padding-bottom: 10px; border-bottom: 1px solid var(--surface-4); }
 .tsk-borrar:hover { color: var(--danger); }
 .tsk-drawer-body { flex: 1; overflow-y: auto; padding: 20px 20px 24px; }

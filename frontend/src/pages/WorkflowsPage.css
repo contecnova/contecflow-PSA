@@ -62,11 +62,6 @@
 .wf-tag--final { background: var(--success-bg); color: var(--success); }
 .wf-tag--role { padding: 1px 5px; background: var(--warning-bg); color: var(--warning); }
 .wf-tag--comment { padding: 1px 5px; background: var(--purple-bg); color: var(--purple); }
-.wf-icon-btn {
-  background: none; border: 1px solid var(--surface-4); border-radius: 5px; padding: 3px 8px;
-  color: var(--text-2); cursor: pointer; font-size: var(--text-xs);
-}
-.wf-icon-btn--danger { border-color: var(--danger-border); color: var(--danger); }
 
 .wf-no-transitions { text-align: center; padding: 24px; color: var(--text-3); font-size: var(--text-base); }
 .wf-transition {
@@ -95,6 +90,5 @@
    .ds-input y botones con icono lucide. */
 .wf-barra { margin-bottom: 20px; }
 .wf-label--inline { margin-bottom: 0; }
-.wf-icon-btn,
 .wf-transition-del,
 .wf-tag--comment { display: inline-flex; align-items: center; justify-content: center; }

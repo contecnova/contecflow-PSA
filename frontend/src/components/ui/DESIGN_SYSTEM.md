@@ -37,7 +37,7 @@ Fuera de `components/ui` no se escribe marcado propio para lo que resuelve el ki
 |---|---|---|
 | Una acción con aspecto de botón | `Button` (`primary` la principal, `secondary`, `ghost`, `danger` solo para destruir) | `<button className="…">` |
 | Un enlace que hace una acción («Ver todo», «Limpiar») | `Button variant="link"` | `<button className="link">` |
-| Solo un icono | `IconButton ariaLabel="…"` | `<button><X/></button>` |
+| Solo un icono | `IconButton ariaLabel="…"`; en tarjetas, filas y cabeceras, `IconButton variante="caja"` dentro de `.ui-acciones` (ver «Acciones de solo icono») | `<button><X/></button>`, `<Pulsable><Pencil/></Pulsable>`, `<Button icon={<X/>} />` sin texto, clases `*-icon-btn` |
 | Tarjeta, elemento de lista o zona entera pulsable | `Pulsable className="tu-clase"` (botón sin aspecto, foco visible) | `<div onClick>` / `<button>` con reset propio |
 | Elegir entre 2–5 vistas o modos | `Segmentado` (`ds-segmented`); con contenido por pestaña, `Tabs` | botones sueltos con `aria-pressed` |
 | Filtro rápido conmutable o quitable | `Chip` (`activo`, `onClick`, `onQuitar`, `cuenta`, `color`) | `<button className="pill">` |
@@ -142,6 +142,29 @@ El icono va centrado, a `--campo-icono` (14 px), `aria-hidden`, y el texto empie
 
 **Lista de un `<select>` nativo.** Sigue el tema: `color-scheme` (oscuro en `:root` y en los temas oscuros, claro en `light`) y las `option` con `--surface-2`/`--text-1`. Antes `:root` no declaraba `color-scheme` y el tema por defecto (oscuro) abría la lista blanca y azul del sistema. Para una lista con iconos, marcas o descripción, `SelectRico`.
 
+### Acciones de solo icono: `IconButton variante="caja"` (23-11-2026)
+
+Editar, borrar, más, copiar, historial o cerrar en una **tarjeta, fila o cabecera** son siempre el mismo botón, en toda la aplicación. Origen: en Licencias y activos → Proveedores, el botón de editar y el de borrar de cada tarjeta se estiraban en alto cuando el nombre ocupaba dos líneas (la cabecera era `display: flex` con `align-items: stretch` y el botón no tenía alto fijo).
+
+```tsx
+<div className="ui-acciones">
+  <IconButton variante="caja" ariaLabel={t('alm.aria_edit_vendor', { name })} onClick={editar}><Pencil /></IconButton>
+  <IconButton variante="caja" tono="peligro" ariaLabel={t('common.delete')} onClick={borrar}><Trash2 /></IconButton>
+</div>
+```
+
+- **Caja:** cuadrado de tamaño fijo (ancho = alto), borde fino `--surface-4`, radio `--radius-md`, fondo transparente, icono `--text-2` centrado. Hover `--surface-3`; foco visible (anillo `--accent`); deshabilitado a opacidad 0,45. `aria-pressed="true"` lo pinta en acento.
+- **Tono:** `neutro` (por defecto) · `peligro` (icono `--danger`, borde `--danger-border`; borrar, quitar, revocar) · `acento` (icono y borde de acento; guardar en línea, IA, asignar).
+- **Tamaño:** `xs` 26 px con icono 12 · **`sm` 32 px con icono 16 (por defecto)** · `md` 38 px con icono 16 (`--alto-control-*`). El icono lo fija el CSS: el `size` del icono de lucide no cambia nada.
+- **Por qué `sm`:** el título de una tarjeta (`--text-md`, ~20 px por línea) más su línea secundaria mide ~36 px; un botón de 32 px queda alineado arriba con el título sin dominar la tarjeta y coincide con `Button size="sm"`. `md` (38 px) solo junto a controles de 38 px (barras de herramientas); `xs` no se usa en tarjetas ni filas.
+- **No se estira nunca:** `flex: none` y `align-self: flex-start`; las clases propias que se le sumen pueden colocarlo (`margin-left: auto`), no cambiar su tamaño.
+- **Contenedor:** `.ui-acciones` (en `IconButton.css`): `display: flex`, `align-items: flex-start`, separación de 6 px, arriba a la derecha (`margin-left: auto` en un padre flex; `justify-content: flex-end` en un bloque o celda). La cabecera de la tarjeta lleva `align-items: flex-start`.
+- `ariaLabel` es obligatorio (nombre accesible y tooltip).
+
+**Excepciones justificadas** (con `/* eslint-disable-line contec/sin-boton-de-icono-propio -- excepción: motivo */` en la etiqueta): aspa dentro de un chip, casillas de selección, opciones de un segmentado, interruptores de palanca, estrellas y votos, lanzadores flotantes, botón de envío relleno del compositor, cromo de navegación del portal, controles del lienzo (Gantt), la barra del cuaderno (`cdn-boton`) y la videollamada (paleta `--call-*` propia).
+
+**Lo vigilan:** la regla `contec/sin-boton-de-icono-propio` (`<button>`, `<Pulsable>` o `<Button>` con un icono de lucide como único hijo, o `<Button icon>` sin texto) y la comprobación CSS `botonDeIcono` (clases propias `*-icon-btn`, `*-btn-icon`, `*-boton-icono`… o retoques de `.icon-button--caja` fuera del kit). Cupo 0 en `kit-pendientes.json`.
+
 ### Hojas de estilo de las pantallas
 
 Fuera de `components/ui` e `index.css` (lo comprueba `src/__tests__/kitCssSinRestos.test.ts`):
@@ -151,6 +174,7 @@ Fuera de `components/ui` e `index.css` (lo comprueba `src/__tests__/kitCssSinRes
 - Sin colores literales (`#hex`, `rgb()/rgba()/hsl()` con números): `var(--token)`; mezclas con `color-mix(in srgb, var(--x) 20%, transparent)`.
 - Sin `height: NNpx` en botones, campos y selects, ni `min-height: NNpx` en campos: los controles del kit ya miden `--alto-control` (38) / `--alto-control-sm` (32).
 - Sin selectores con `.ds-input` (los controles del kit no la llevan): la clase propia del campo.
+- Sin clases propias de botón de icono (`*-icon-btn`, `*-btn-icon`, `*-boton-icono`…) ni retoques de `.icon-button--caja`: `IconButton variante="caja"` (comprobación `botonDeIcono`).
 
 ### Excepciones temporales
 
@@ -294,7 +318,7 @@ useQuery({ queryKey: ['x', periodo.params], queryFn: () => api.get('/x', { param
 <XAxis dataKey="t" tickFormatter={t => formatearTramo(t, periodo.granularidad)} />
 ```
 
-Accesos rápidos (hoy, 24 h, 7/30/90 días, este mes, trimestre, año; en horizontes, próximos 7 a 365 días), «Personalizado» con `CampoRangoDeFechas` (fecha y hora si el dato tiene hora; si no, fecha con fin incluido), agrupación auto/hora/día/semana/mes con las no admitidas desactivadas y explicadas, «comparar con el periodo anterior» (`comparable`). El periodo vive en la URL (`periodo`, `desde`, `hasta`, `granularidad`, `comparar`; `prefijo` si hay varios). Valida con los límites de `GET /periodo/limites`. Contrato completo en DOCS.md, «Periodo libre en informes».
+Accesos rápidos (hoy, 24 h, 7/30/90 días, este mes, trimestre, año; en horizontes, próximos 7 a 365 días), «Personalizado» con `CampoRangoDeFechas` (fecha y hora si el dato tiene hora; si no, fecha con fin incluido), agrupación auto/hora/día/semana/mes con las no admitidas desactivadas y explicadas, «comparar con el periodo anterior» (`comparable`). El periodo vive en la URL (`periodo`, `desde`, `hasta`, `granularidad`, `comparar`; `prefijo` si hay varios). Valida con los límites de `GET /periodo/limites`. Uso en el README, §33.
 
 ### `<RejillaPersonaDia>` — rejilla única fila × día / semana (16-11-2026)
 
@@ -324,6 +348,21 @@ Fuera de la rejilla quedan, a propósito, el planificador visual (`ResourceSched
 - **Categoría con panel** (`PANEL_DE_CATEGORIA` en `components/layout/menuLateral.tsx`): dos controles en la misma fila, el nombre (`NavLink` al panel, `.nav-cat__enlace`) y la flecha (`IconButton` con `aria-expanded`/`aria-controls`, `.nav-cat__flecha`). Sin panel, la cabecera entera despliega, como siempre. Menú contraído: un icono por categoría (`.nav-cat-plegada__icono`) con `aria-haspopup`; el desplegable (portal) sale con el ratón **y con el foco**, y se recorre con flechas.
 - **Reordenar una lista** (`EditorDeMenu`): arrastre HTML5 para el ratón **y siempre** botones `IconButton` subir/bajar (teclado y táctil), con el anuncio en una región `aria-live` (`.u-sr-only`) y el foco que sigue al elemento movido. Ocultar = `Checkbox` del kit. Nunca solo arrastre.
 - Solo tokens (`--surface-*`, `--text-*`, `--accent`): vale en todos los temas. En móvil (≤ 640 px) los botones crecen a 40 px de alto y se quita la cuenta «n de m visibles».
+
+### Editor de texto rico del cuaderno (23-11-2026)
+
+«Mi cuaderno» (`components/cuaderno/`, docs/CUADERNO.md) usa TipTap 3 (ProseMirror + Yjs), cargado en diferido.
+Reglas para reutilizarlo o ampliarlo:
+
+- Botones de la barra: `IconButton` con `ariaLabel` y `aria-pressed` (activo = `--accent` / `--accent-muted`);
+  menús desplegables con `cuaderno/Menu.tsx` (`Pulsable role="menuitem"`, Esc y clic fuera cierran).
+- Nodos propios con vista React (`ReactNodeViewRenderer`): chips vivos (`ChipVivo`, `Pulsable` si enlaza) y
+  etiquetas (`EtiquetaEnLinea`). Colores de sección y etiqueta por clase `cdn-color--<color>` → `--cdn-color`
+  (solo tokens). Iconos lucide (nunca emojis).
+- El JSON del editor es la fuente de verdad y lo valida el servidor: un nodo o atributo nuevo se añade también
+  en `app/services/cuaderno/contenido.py`.
+- Orden libre: arrastrar y, siempre, la alternativa con botones (Subir, Bajar, subpágina) en el menú del elemento.
+- Paneles: el rápido es `Drawer variant="borde"` con `avisarSinGuardar={false}` (se guarda solo).
 
 ## Utility classes `.ds-*`
 

@@ -80,7 +80,7 @@ export default function Informes() {
                   <Button size="xs" variant="secondary" icon={<Send size={12} />} loading={enviar.isPending && enviar.variables === x.id} disabled={enviar.isPending} onClick={() => enviar.mutate(x.id)}>{t('swr.enviar_ahora')}</Button>
                   <Button size="xs" variant="ghost" onClick={() => activar.mutate({ id: x.id, si: !x.is_active })}>{t(x.is_active ? 'swr.desactivar' : 'swr.activar')}</Button>
                   <Button size="xs" variant="ghost" onClick={() => setEditando(x)}>{t('swr.editar')}</Button>
-                  <IconButton ariaLabel={t('swr.borrar')} onClick={async () => { if (await confirmar({ message: t('swr.borrar_informe_confirmar', { nombre: x.name }), danger: true })) borrar.mutate(x.id) }}><Trash2 size={14} /></IconButton>
+                  <IconButton variante="caja" tono="peligro" ariaLabel={t('swr.borrar')} onClick={async () => { if (await confirmar({ message: t('swr.borrar_informe_confirmar', { nombre: x.name }), danger: true })) borrar.mutate(x.id) }}><Trash2 size={14} /></IconButton>
                 </div>
               )}
             </li>

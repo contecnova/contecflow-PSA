@@ -48,8 +48,3 @@ class UserSession(Base):
     def __repr__(self) -> str:
         return f"<UserSession id={self.id!r} user_id={self.user_id!r}>"
 
-
-# Rev. 199: desactivar a un usuario revoca sus sesiones (app/db/revocar_al_desactivar.py).
-from app.db.revocar_al_desactivar import registrar as _registrar_revocacion  # noqa: E402
-
-_registrar_revocacion()

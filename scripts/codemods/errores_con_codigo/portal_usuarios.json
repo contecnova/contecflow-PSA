@@ -1,0 +1,34 @@
+{
+ "codigos": {
+  "portal_usuario_archivado": {
+   "es": "El usuario del portal está archivado: restáuralo antes de cambiarle el acceso",
+   "en": "The portal user is archived: restore it before changing its access",
+   "zh": "该门户用户已归档：请先恢复，再更改其访问权限"
+  },
+  "portal_usuario_no_archivado": {
+   "es": "El usuario del portal no está archivado",
+   "en": "The portal user is not archived",
+   "zh": "该门户用户未归档"
+  },
+  "portal_usuario_email_archivado": {
+   "es": "Ya hay un usuario del portal archivado con ese correo: restáuralo en vez de crear otro",
+   "en": "There is already an archived portal user with that email: restore it instead of creating another one",
+   "zh": "已有使用该邮箱的已归档门户用户：请恢复该用户，而不是新建"
+  },
+  "portal_usuario_contrasena_igual_a_la_actual": {
+   "es": "La contraseña nueva tiene que ser distinta de la que tiene ahora el usuario del portal",
+   "en": "The new password must be different from the portal user's current one",
+   "zh": "新密码必须与该门户用户的当前密码不同"
+  },
+  "portal_usuario_contrasena_con_datos_personales": {
+   "es": "La contraseña no puede contener el correo ni el nombre del usuario del portal",
+   "en": "The password cannot contain the portal user's email or name",
+   "zh": "密码不能包含该门户用户的邮箱或姓名"
+  },
+  "portal_usuario_contrasena_solo_con_su_accion": {
+   "es": "La contraseña de un usuario del portal se cambia con «Establecer contraseña» o «Reenviar acceso», no al editarlo",
+   "en": "A portal user's password is changed with «Set password» or «Resend access», not when editing it",
+   "zh": "门户用户的密码需通过「设置密码」或「重新发送访问」更改，而不是在编辑时更改"
+  }
+ }
+}

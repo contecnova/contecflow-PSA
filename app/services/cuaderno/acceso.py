@@ -85,6 +85,12 @@ def permiso_en_seccion(db: Session, usuario, seccion, nb=None) -> Optional[str]:
     return mayor(por_cuaderno.get(nb.id), por_seccion.get(seccion.id))
 
 
+def permiso_en_pagina_por_id(db: Session, usuario, page_id: str) -> Optional[str]:
+    """`permiso_en_pagina` a partir del id (la sala de edición simultánea, `/ws/notebook`)."""
+    from app.models.cuaderno import NotebookPage
+    return permiso_en_pagina(db, usuario, db.get(NotebookPage, page_id))
+
+
 def permiso_en_pagina(db: Session, usuario, pagina) -> Optional[str]:
     if pagina is None or pagina.organization_id != _org(usuario):
         return None

@@ -13,3 +13,10 @@ from typing import Any, Callable, Protocol
 
 class ProgramadorDeTareas(Protocol):
     def add_task(self, func: Callable[..., Any], *args: Any, **kwargs: Any) -> Any: ...
+
+
+class EnElMomento:
+    """`ProgramadorDeTareas` que ejecuta cada tarea al añadirla (fuera de HTTP: MCP, scripts)."""
+
+    def add_task(self, func: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
+        return func(*args, **kwargs)

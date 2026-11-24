@@ -36,18 +36,18 @@ Una ruta que no abre sesión ORM queda exenta, con su motivo escrito en
 ## 2. Recuento (medido el 23-11-2026)
 
 Medido importando `app.main` y recorriendo `app.routes` y su grafo
-`dependant.dependencies`: **2 757 rutas, 93 anónimas** (97 desde el 23-11-2026: +4 del restablecimiento de contraseña).
+`dependant.dependencies`: **2 757 rutas, 93 anónimas** (97 desde el 23-11-2026: +4 del restablecimiento de contraseña; 101 con las 4 de SAML).
 
 | Tipo de credencial | Rutas | Sin sesión ORM |
 |---|---:|---:|
-| Entrada e identidad (login, MFA, SSO, refresco, contraseña, portal, OAuth) | 25 | 2 |
+| Entrada e identidad (login, MFA, SSO, SAML, refresco, contraseña, portal, OAuth) | 29 | 2 |
 | Webhooks y canales con firma o secreto | 28 | 1 |
 | SCIM (token de la empresa) | 13 | 0 |
 | Enlaces y tokens propios (formularios, enlaces firmados, BI, aprobaciones, agente CMDB) | 13 | 0 |
 | WebSocket (ticket de un uso; JWT solo fuera de producción) | 6 | 0 |
 | Públicas por slug (status page) | 2 | 0 |
 | Sin credencial: JS estáticos, health, ayudas | 10 | 10 |
-| **Total** | **97** | **13** |
+| **Total** | **101** | **13** |
 
 Ninguna ruta se encontró sin verificar su credencial. Las de firma ya se habían
 revisado en auditorías anteriores (2026-08, 2026-11 y 2026-11b), y esta pasada
@@ -58,7 +58,7 @@ es la empresa que se fija después de verificar.
 
 Prefijo `/api/v1` salvo las de la raíz.
 
-### Entrada e identidad (21)
+### Entrada e identidad (25)
 
 | Ruta | Credencial | Cómo resuelve la empresa |
 |---|---|---|
@@ -76,6 +76,10 @@ Prefijo `/api/v1` salvo las de la raíz.
 | `GET /auth/sso/{config_id}/authorize` | configuración SSO + `state` | sistema; la de la configuración |
 | `POST /auth/sso/{config_id}/callback` | `state` firmado + `code` OIDC | sistema; la de la configuración |
 | `GET /auth/saml/metadata` | ninguna | sin base (XML con `BASE_URL`) |
+| `GET /auth/saml/{config_id}/login` | configuración SAML activa; registra la AuthnRequest pendiente (un solo uso) | sistema; la de la configuración |
+| `POST /auth/saml/callback` (ACS) | firma XML del IdP + audiencia, destino, caducidad e `InResponseTo` de un solo uso | sistema; la de la configuración de la petición pendiente |
+| `POST /auth/saml/canjear` | ticket de un solo uso que emite el ACS | sistema; la de la configuración (`entrada_service.confirmar`) |
+| `GET /auth/saml/logout` | LogoutRequest del IdP con firma de query (RSA-SHA256/512) obligatoria | sistema; la de la configuración del emisor |
 | `POST /portal/auth/login` | email + contraseña del cliente | sistema; la del cliente |
 | `POST /portal/auth/logout` | token del cliente (se revoca su `jti`) | sin base |
 | `POST /portal/auth/password/forgot` | ninguna (anti-enumeración, tiempo igualado, 5/min + cubo hash(correo)\|IP) | sistema; la del cliente, para su SMTP (`encolar`) |

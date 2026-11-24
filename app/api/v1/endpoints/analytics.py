@@ -1020,6 +1020,8 @@ def metric_breaches(
 
 class AskRequest(BaseModel):
     question: str
+    # 23-11-2026: la conversación a la que sigue (memoria para «¿y en octubre?»); sin ella, una nueva.
+    conversation_id: Optional[str] = Field(None, max_length=36)
 
 
 @router.get("/narrative", summary="Narrativa ejecutiva generada por IA")
@@ -1053,7 +1055,39 @@ def ask_the_data(
         org_id=org_id,
         user_id=str(current_user.id),
         is_superadmin=bool(getattr(current_user, "is_superadmin", False)),
+        conversation_id=payload.conversation_id,
     ))
+
+
+# ── Conversaciones de Ask-the-Data (23-11-2026, memoria de seguimiento) ──────
+# Cada persona ve y borra SOLO las suyas, en su empresa (`app/services/ask_memoria.py`).
+
+@router.get("/ask/conversations", summary="Mis conversaciones de Ask-the-Data (las más recientes primero)")
+def list_ask_conversations(db: Session = Depends(get_db),
+                           current_user: User = Depends(requiere_capacidad("analitica.usar"))):
+    from app.services import ask_memoria
+    return APIResponse.ok(data={"items": ask_memoria.listar(db, current_user.organization_id, current_user.id)})
+
+
+@router.get("/ask/conversations/{conversation_id}", summary="Las preguntas de una conversación mía")
+def get_ask_conversation(conversation_id: str, db: Session = Depends(get_db),
+                         current_user: User = Depends(requiere_capacidad("analitica.usar"))):
+    from app.services import ask_memoria
+    return APIResponse.ok(data=ask_memoria.detalle(db, current_user.organization_id, current_user.id, conversation_id))
+
+
+@router.delete("/ask/conversations/{conversation_id}", summary="Borrar una conversación mía (auditado)")
+def delete_ask_conversation(conversation_id: str, db: Session = Depends(get_db),
+                            current_user: User = Depends(requiere_capacidad("analitica.usar"))):
+    from app.services import ask_memoria
+    return APIResponse.ok(data={"deleted": ask_memoria.borrar(db, current_user, conversation_id)})
+
+
+@router.delete("/ask/conversations", summary="Borrar todas mis conversaciones (auditado)")
+def delete_all_ask_conversations(db: Session = Depends(get_db),
+                                 current_user: User = Depends(requiere_capacidad("analitica.usar"))):
+    from app.services import ask_memoria
+    return APIResponse.ok(data={"deleted": ask_memoria.borrar(db, current_user)})
 
 
 # ── Banco de preguntas validadas (revisión 2026-11) ──────────────────────────

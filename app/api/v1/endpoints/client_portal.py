@@ -209,13 +209,16 @@ def list_clients(
     response: Response,
     project_id: Optional[str] = None,
     client_org_id: Optional[str] = None,
+    include_archived: bool = Query(False, description="Incluir los usuarios archivados («Ver archivados»)"),
     pagina: Paginacion = Depends(paginacion),
     db: Session = Depends(get_db),
     current_user: User = Depends(requiere_capacidad("clientes.gestionar")),
 ):
     """``page``/``page_size`` con el mecanismo comun (total en ``X-Total-Count`` y
-    ``meta.total``). Sin ellos, la misma lista entera de antes (hasta LIST_MAX_ROWS)."""
-    return lista_paginada(response, _svc.list_clients(project_id, client_org_id, db, pagina))
+    ``meta.total``). Sin ellos, la misma lista entera de antes (hasta LIST_MAX_ROWS).
+    Los archivados (23-11-2026) solo con ``include_archived=true``."""
+    return lista_paginada(response, _svc.list_clients(project_id, client_org_id, db, pagina,
+                                                      incluir_archivados=include_archived))
 
 
 @router.post("/clients", summary="Crear acceso de cliente al portal")
@@ -225,7 +228,7 @@ def create_client(
     current_user: User = Depends(requiere_capacidad("clientes.gestionar")),
 ):
     try:
-        return APIResponse.ok(data=_svc.create_client(payload, db))
+        return APIResponse.ok(data=_svc.create_client(payload, db, actor=current_user))
     except ValueError as e:
         raise desde_valor(400, e)
 
@@ -259,17 +262,34 @@ def update_client(
         raise desde_valor(404, e)
 
 
-@router.delete("/clients/{client_id}", summary="Eliminar cliente")
+@router.delete("/clients/{client_id}", summary="Eliminar (sin historial) o archivar (con historial) un usuario del portal")
 def delete_client(
     client_id: str,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(requiere_capacidad("clientes.gestionar")),
 ):
+    """23-11-2026 (portal_usuarios): decide el servidor. Sin historial se borra de
+    verdad; con historial se archiva (no entra, sesiones cerradas, fuera de las
+    listas por defecto, historial conservado con su nombre). La respuesta dice
+    `resultado` (`eliminado`/`archivado`) y el `historial` por tabla. Auditado."""
+    from app.services.client_portal_service.usuarios import eliminar_o_archivar
+    from app.services.seguridad_de_cuentas.auditoria import Origen
     enforce_abac(db, current_user, "client_portal_client", client_id, action="delete")
-    try:
-        return APIResponse.ok(data=_svc.delete_client(client_id, db))
-    except ValueError as e:
-        raise desde_valor(404, e)
+    return APIResponse.ok(data=eliminar_o_archivar(db, current_user, client_id, origen=Origen.de(request)))
+
+
+@router.post("/clients/{client_id}/restore", summary="Restaurar un usuario del portal archivado")
+def restore_client(
+    client_id: str,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(requiere_capacidad("clientes.gestionar")),
+):
+    """Vuelve a poder entrar con su contraseña (respeta el tope de usuarios del cliente). Auditado."""
+    from app.services.client_portal_service.usuarios import restaurar
+    from app.services.seguridad_de_cuentas.auditoria import Origen
+    return APIResponse.ok(data=restaurar(db, current_user, client_id, origen=Origen.de(request)))
 
 
 # ── Client Auth ───────────────────────────────────────────────────────────────

@@ -255,7 +255,7 @@ function Versiones({ producto, versiones }: { producto: ProductoSw; versiones: V
               <td className="sw-num">{v.instances_count ?? 0}</td><td className="sw-num">{v.components_count ?? 0}</td><td className="sw-num">{v.open_findings ?? 0}</td>
               {gestiona && <td><div className="u-row-center-6">
                 <Button size="xs" variant="ghost" onClick={() => setForm({ id: v.id, version: v.version, cycle: v.cycle ?? '', release_date: v.release_date ?? '', support_end: v.support_end ?? '', eol_date: v.eol_date ?? '', extended_support_end: v.extended_support_end ?? '', is_latest: v.is_latest, notes: v.notes ?? '' })}>{t('sw.editar')}</Button>
-                <IconButton ariaLabel={t('sw.borrar')} onClick={async () => { if (await confirmar({ message: t('sw.borrar_version_confirmar', { version: v.version }), danger: true })) borrar.mutate(v.id) }}><Trash2 size={14} /></IconButton>
+                <IconButton variante="caja" tono="peligro" ariaLabel={t('sw.borrar')} onClick={async () => { if (await confirmar({ message: t('sw.borrar_version_confirmar', { version: v.version }), danger: true })) borrar.mutate(v.id) }}><Trash2 size={14} /></IconButton>
               </div></td>}
             </tr>
           ))}</tbody>
@@ -399,7 +399,7 @@ function Nodo({ n, nivel, onQuitar }: { n: NodoDeArbol; nivel: number; onQuitar?
         {!n.license && <StatusBadge caps={false} kind="warning">{t('sw.sin_licencia')}</StatusBadge>}
         <CicloBadge c={n.lifecycle} fecha={n.eol_date} />
         {n.open_findings > 0 && <><StatusBadge kind="danger" caps={false}>{t('sw.n_hallazgos', { n: n.open_findings })}</StatusBadge><SeveridadBadge s={n.worst_severity} /></>}
-        {onQuitar && <IconButton className="sw-nodo__quitar" ariaLabel={t('sw.quitar_componente')} onClick={() => onQuitar(n.id, n.name ?? '')}><Trash2 size={12} /></IconButton>}
+        {onQuitar && <IconButton variante="caja" tono="peligro" className="sw-nodo__quitar" ariaLabel={t('sw.quitar_componente')} onClick={() => onQuitar(n.id, n.name ?? '')}><Trash2 size={12} /></IconButton>}
       </div>
       {n.license_issue && <div className="u-text3-xs sw-nodo__aviso">{e('familia', n.license_issue.family)} · {e('motivo_lic', n.license_issue.reason)}</div>}
       {hijos && abierto && <ul role="group">{n.children.map(h => <Nodo key={h.id} n={h} nivel={nivel + 1} onQuitar={onQuitar} />)}</ul>}
@@ -688,7 +688,7 @@ function LineasBase({ producto, lineas }: { producto: ProductoSw; lineas: LineaB
             <div className="u-actions-8">
               {puede('software.aprobar') && !l.approved_at && <Button size="xs" variant="secondary" loading={aprobar.isPending} onClick={() => aprobar.mutate(l.id)}>{t('sw.aprobar')}</Button>}
               {gestiona && <Button size="xs" variant="ghost" onClick={() => setForm({ id: l.id, name: l.name, environment: l.environment ?? '', rules: l.rules.map(r => ({ ...r })) })}>{t('sw.editar')}</Button>}
-              {gestiona && <IconButton ariaLabel={t('sw.borrar')} onClick={async () => { if (await confirmar({ message: t('sw.borrar_linea_base_confirmar', { nombre: l.name }), danger: true })) borrar.mutate(l.id) }}><Trash2 size={14} /></IconButton>}
+              {gestiona && <IconButton variante="caja" tono="peligro" ariaLabel={t('sw.borrar')} onClick={async () => { if (await confirmar({ message: t('sw.borrar_linea_base_confirmar', { nombre: l.name }), danger: true })) borrar.mutate(l.id) }}><Trash2 size={14} /></IconButton>}
             </div>
           </li>
         ))}</ul>
@@ -710,7 +710,7 @@ function LineasBase({ producto, lineas }: { producto: ProductoSw; lineas: LineaB
                 <Input aria-label={t('sw.valor')} placeholder={t('sw.valor')} value={r.value == null ? '' : typeof r.value === 'object' ? JSON.stringify(r.value) : String(r.value)} disabled={r.op === 'present' || r.op === 'absent'} onChange={ev => cambiarRegla(i, { value: ev.target.value })} inputClassName="u-mono" />
                 <Select suelto placeholder={false} aria-label={t('sw.severidad')} value={r.severity} onChange={ev => cambiarRegla(i, { severity: ev.target.value })}>
                   {['critical', 'high', 'medium', 'low'].map(s => <option key={s} value={s}>{e('sev', s)}</option>)}</Select>
-                <IconButton ariaLabel={t('sw.quitar_regla')} onClick={() => setForm({ ...form, rules: form.rules.filter((_, j) => j !== i) })}><Trash2 size={14} /></IconButton>
+                <IconButton variante="caja" tono="peligro" ariaLabel={t('sw.quitar_regla')} onClick={() => setForm({ ...form, rules: form.rules.filter((_, j) => j !== i) })}><Trash2 size={14} /></IconButton>
               </div>
             ))}
             <div><Button size="sm" variant="secondary" icon={<Plus size={14} />} onClick={() => setForm({ ...form, rules: [...form.rules, { key: '', op: 'eq', value: '', severity: 'medium' }] })}>{t('sw.anadir_regla')}</Button></div>

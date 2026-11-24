@@ -202,7 +202,7 @@ def decode_token_de_peticion(request, token: str) -> Optional[dict]:
             try:
                 estado._jwt_memo = memo
             except Exception:  # noqa: S110 - un estado sin atributos: sin memo
-                pass
+                logger.debug("decode_token_de_peticion: excepcion ignorada", exc_info=True)
     if token not in memo:
         memo[token] = decode_token(token)
     datos = memo[token]

@@ -64,12 +64,6 @@
   gap: 8px;
 }
 
-.chat-icon-close {
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: var(--text-2);
-}
 .chat-icon-close--end { margin-left: auto; }
 
 .chat-form-label {
@@ -96,7 +90,6 @@
   border-color: var(--accent);
   box-shadow: 0 0 0 2px var(--accent-muted);
 }
-
 
 .chat-popover {
   position: absolute;
@@ -307,7 +300,6 @@
   background: var(--accent-muted);
   color: var(--accent);
 }
-
 
 /* ── Modal nueva conversación ─────────────────────────────────────────── */
 .chat-modal-tabs {
@@ -590,7 +582,9 @@ h3.chat-section-btn { margin: 0; }
   outline-offset: 1px;
 }
 
-.chat-icon-btn {
+/* Botón de envío relleno del compositor (IconBtn variant="primary"). Los demás
+   botones de icono del chat son IconButton variante="caja" del kit. */
+.chat-enviar {
   width: 32px;
   min-height: 32px;
   display: inline-flex;
@@ -603,10 +597,7 @@ h3.chat-section-btn { margin: 0; }
   cursor: pointer;
   flex-shrink: 0;
 }
-.chat-icon-btn--ghost:hover,
-.chat-icon-btn--danger:hover { background: var(--surface-4); }
-.chat-icon-btn--danger { color: var(--danger); }
-.chat-icon-btn--primary {
+.chat-enviar {
   background: var(--accent);
   color: var(--on-accent);
 }
@@ -1033,13 +1024,6 @@ h3.chat-section-btn { margin: 0; }
 }
 .chat-ctx__role { font-size: var(--text-2xs); color: var(--text-3); }
 .chat-ctx__role--admin { color: var(--accent); }
-.chat-ctx__remove {
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: var(--text-3);
-  padding: 2px;
-}
 .chat-ctx__summary { margin-left: 4px; color: var(--warning); }
 .chat-ctx__decision-icon { margin-right: 4px; }
 .chat-ctx__event {

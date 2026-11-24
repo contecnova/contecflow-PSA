@@ -1,0 +1,231 @@
+{
+ "codigos": {
+  "ticket_pr_apagado": {
+   "es": "«Del ticket al PR» está apagado para esta empresa (Configuración › Del ticket al PR)",
+   "en": "«Ticket to PR» is switched off for this company (Settings › Ticket to PR)",
+   "zh": "本公司已关闭「从工单到 PR」（设置 › 从工单到 PR）"
+  },
+  "ticket_pr_config_no_valida": {
+   "es": "La configuración de «Del ticket al PR» no es válida ({campo})",
+   "en": "The «Ticket to PR» configuration is not valid ({campo})",
+   "zh": "「从工单到 PR」的配置无效（{campo}）"
+  },
+  "ticket_pr_version_sin_fijar": {
+   "es": "Fija la versión de la imagen del motor (ni vacía ni «latest») en Configuración › Del ticket al PR: sin ella no se ejecuta nada",
+   "en": "Pin the engine image version (neither empty nor «latest») in Settings › Ticket to PR: without it nothing runs",
+   "zh": "请在 设置 › 从工单到 PR 中固定引擎镜像版本（不能为空或「latest」）：否则不会执行任何操作"
+  },
+  "ticket_pr_motor_desconocido": {
+   "es": "Motor de agente de código desconocido: {motor}",
+   "en": "Unknown coding-agent engine: {motor}",
+   "zh": "未知的编程智能体引擎：{motor}"
+  },
+  "ticket_pr_docker_no_disponible": {
+   "es": "Docker no está disponible en el servidor: el agente solo se ejecuta en un contenedor aislado y no se ha ejecutado nada",
+   "en": "Docker is not available on the server: the agent only runs in an isolated container and nothing has been run",
+   "zh": "服务器上没有可用的 Docker：智能体只能在隔离容器中运行，未执行任何操作"
+  },
+  "ticket_pr_origen_no_valido": {
+   "es": "Origen no válido: {tipo} (ticket o tarea)",
+   "en": "Invalid source: {tipo} (ticket or task)",
+   "zh": "无效的来源：{tipo}（工单或任务）"
+  },
+  "ticket_pr_rama_no_valida": {
+   "es": "Nombre de rama no válido: {rama}",
+   "en": "Invalid branch name: {rama}",
+   "zh": "无效的分支名称：{rama}"
+  },
+  "ticket_pr_proveedor_git_no_valido": {
+   "es": "Proveedor Git no válido: {proveedor} (GitHub o GitLab)",
+   "en": "Invalid Git provider: {proveedor} (GitHub or GitLab)",
+   "zh": "无效的 Git 提供方：{proveedor}（GitHub 或 GitLab）"
+  },
+  "ticket_pr_repo_no_valido": {
+   "es": "Repositorio no válido: {repo} (propietario/repositorio o ruta del proyecto de GitLab)",
+   "en": "Invalid repository: {repo} (owner/repository or GitLab project path)",
+   "zh": "无效的仓库：{repo}（所有者/仓库 或 GitLab 项目路径）"
+  },
+  "ticket_pr_repo_duplicado": {
+   "es": "El repositorio {repo} ya está permitido para ese proyecto",
+   "en": "Repository {repo} is already allowed for that project",
+   "zh": "该项目已允许仓库 {repo}"
+  },
+  "ticket_pr_repo_no_permitido": {
+   "es": "Ese repositorio no está permitido para el proyecto del ticket o la tarea",
+   "en": "That repository is not allowed for the project of the ticket or task",
+   "zh": "该仓库不允许用于此工单或任务所属的项目"
+  },
+  "ticket_pr_sin_modelo": {
+   "es": "La empresa no tiene un proveedor de IA con modelo para el agente (Configuración › Proveedores de IA)",
+   "en": "The company has no AI provider with a model for the agent (Settings › AI providers)",
+   "zh": "公司没有为智能体配置带模型的 AI 提供方（设置 › AI 提供方）"
+  },
+  "ticket_pr_limite_diario": {
+   "es": "Límite diario de ejecuciones del agente alcanzado ({max} por empresa)",
+   "en": "Daily limit of agent runs reached ({max} per company)",
+   "zh": "已达到智能体每日运行上限（每家公司 {max} 次）"
+  },
+  "ticket_pr_limite_de_coste": {
+   "es": "Límite diario de coste del agente alcanzado ({max} USD por empresa)",
+   "en": "Daily agent cost limit reached ({max} USD per company)",
+   "zh": "已达到智能体每日费用上限（每家公司 {max} 美元）"
+  },
+  "ticket_pr_limite_de_concurrencia": {
+   "es": "Ya hay {max} ejecuciones del agente en marcha en la empresa; espera a que terminen",
+   "en": "There are already {max} agent runs in progress in the company; wait for them to finish",
+   "zh": "公司已有 {max} 个智能体运行正在进行；请等待其完成"
+  },
+  "ticket_pr_instruccion_vacia": {
+   "es": "La instrucción del agente está vacía",
+   "en": "The agent instruction is empty",
+   "zh": "智能体指令为空"
+  },
+  "ticket_pr_estado_no_valido": {
+   "es": "La ejecución no admite esa acción en su estado actual ({estado})",
+   "en": "The run does not allow that action in its current state ({estado})",
+   "zh": "该运行在当前状态（{estado}）下不允许此操作"
+  },
+  "ticket_pr_plan_propio": {
+   "es": "La empresa exige que el plan lo apruebe otra persona distinta de quien lanzó el agente",
+   "en": "The company requires the plan to be approved by someone other than whoever launched the agent",
+   "zh": "公司要求由启动智能体者以外的人批准计划"
+  },
+  "ticket_pr_sin_permiso": {
+   "es": "Solo quien lanzó el agente o quien aprueba planes puede hacer esto",
+   "en": "Only whoever launched the agent or a plan approver can do this",
+   "zh": "只有启动智能体的人或计划审批人可以执行此操作"
+  },
+  "ticket_pr_sin_proyecto": {
+   "es": "El ticket o la tarea no tiene proyecto: el agente necesita un repositorio del proyecto",
+   "en": "The ticket or task has no project: the agent needs a project repository",
+   "zh": "工单或任务没有项目：智能体需要项目的仓库"
+  },
+  "ticket_pr_sin_repositorio": {
+   "es": "El proyecto no tiene repositorios permitidos (Configuración › Del ticket al PR)",
+   "en": "The project has no allowed repositories (Settings › Ticket to PR)",
+   "zh": "该项目没有允许的仓库（设置 › 从工单到 PR）"
+  },
+  "ticket_pr_sin_capacidad": {
+   "es": "No tienes la capacidad ticket_pr.lanzar",
+   "en": "You do not have the ticket_pr.lanzar capability",
+   "zh": "你没有 ticket_pr.lanzar 权限"
+  },
+  "ticket_pr_tiempo_agotado": {
+   "es": "El agente superó el tiempo máximo ({minutos} min) y se detuvo",
+   "en": "The agent exceeded the maximum time ({minutos} min) and was stopped",
+   "zh": "智能体超过最长时间（{minutos} 分钟）已被停止"
+  },
+  "ticket_pr_motor_fallo": {
+   "es": "El motor del agente terminó con error (código {codigo}); mira el log de la ejecución",
+   "en": "The agent engine ended with an error (code {codigo}); check the run log",
+   "zh": "智能体引擎出错结束（代码 {codigo}）；请查看运行日志"
+  },
+  "ticket_pr_error_interno": {
+   "es": "Error interno en la ejecución del agente; consta en el registro",
+   "en": "Internal error in the agent run; it has been logged",
+   "zh": "智能体运行内部错误；已记录"
+  },
+  "ticket_pr_repo_demasiado_grande": {
+   "es": "El repositorio supera el tamaño máximo configurado",
+   "en": "The repository exceeds the configured maximum size",
+   "zh": "仓库超过配置的最大大小"
+  },
+  "ticket_pr_sin_cambios": {
+   "es": "El agente no ha cambiado ningún fichero: no hay PR que abrir",
+   "en": "The agent has not changed any file: there is no PR to open",
+   "zh": "智能体未更改任何文件：无需创建 PR"
+  },
+  "ticket_pr_bloqueo_fichero_no_admitido": {
+   "es": "Bloqueado: el resultado contiene un enlace o una ruta no admitida ({fichero}: {motivo})",
+   "en": "Blocked: the result contains a link or a disallowed path ({fichero}: {motivo})",
+   "zh": "已阻止：结果包含链接或不允许的路径（{fichero}：{motivo}）"
+  },
+  "ticket_pr_bloqueo_demasiados_ficheros": {
+   "es": "Bloqueado: el agente cambió {n} ficheros (máximo {max})",
+   "en": "Blocked: the agent changed {n} files (maximum {max})",
+   "zh": "已阻止：智能体更改了 {n} 个文件（上限 {max}）"
+  },
+  "ticket_pr_bloqueo_fichero_protegido": {
+   "es": "Bloqueado: el agente tocó un fichero protegido ({fichero}, regla «{patron}»)",
+   "en": "Blocked: the agent touched a protected file ({fichero}, rule «{patron}»)",
+   "zh": "已阻止：智能体修改了受保护文件（{fichero}，规则「{patron}」）"
+  },
+  "ticket_pr_bloqueo_binario": {
+   "es": "Bloqueado: el agente añadió o cambió un fichero binario ({fichero})",
+   "en": "Blocked: the agent added or changed a binary file ({fichero})",
+   "zh": "已阻止：智能体添加或更改了二进制文件（{fichero}）"
+  },
+  "ticket_pr_bloqueo_diff_grande": {
+   "es": "Bloqueado: el cambio ocupa {kb} KB (máximo {max} KB)",
+   "en": "Blocked: the change is {kb} KB (maximum {max} KB)",
+   "zh": "已阻止：更改大小为 {kb} KB（上限 {max} KB）"
+  },
+  "ticket_pr_bloqueo_secreto": {
+   "es": "Bloqueado: el cambio parece añadir un secreto en {fichero} ({tipo})",
+   "en": "Blocked: the change seems to add a secret in {fichero} ({tipo})",
+   "zh": "已阻止：更改似乎在 {fichero} 中添加了密钥（{tipo}）"
+  },
+  "ticket_pr_bloqueo_tests": {
+   "es": "Bloqueado: los tests del repositorio fallan (código {codigo})",
+   "en": "Blocked: the repository tests fail (code {codigo})",
+   "zh": "已阻止：仓库测试失败（代码 {codigo}）"
+  },
+  "ticket_pr_git_credencial": {
+   "es": "La credencial Git de la empresa no es válida o no tiene permisos ({paso}, HTTP {estado})",
+   "en": "The company Git credential is not valid or lacks permissions ({paso}, HTTP {estado})",
+   "zh": "公司的 Git 凭据无效或权限不足（{paso}，HTTP {estado}）"
+  },
+  "ticket_pr_git_rama_no_encontrada": {
+   "es": "No se encuentra la rama base en el repositorio ({paso}, HTTP {estado})",
+   "en": "The base branch was not found in the repository ({paso}, HTTP {estado})",
+   "zh": "仓库中找不到基础分支（{paso}，HTTP {estado}）"
+  },
+  "ticket_pr_git_descarga": {
+   "es": "No se pudo descargar el código del repositorio ({paso}, HTTP {estado})",
+   "en": "Could not download the repository code ({paso}, HTTP {estado})",
+   "zh": "无法下载仓库代码（{paso}，HTTP {estado}）"
+  },
+  "ticket_pr_git_publicar": {
+   "es": "No se pudo crear la rama con los cambios ({paso}, HTTP {estado})",
+   "en": "Could not create the branch with the changes ({paso}, HTTP {estado})",
+   "zh": "无法创建包含更改的分支（{paso}，HTTP {estado}）"
+  },
+  "ticket_pr_git_pr": {
+   "es": "No se pudo abrir o leer el PR ({paso}, HTTP {estado})",
+   "en": "Could not open or read the PR ({paso}, HTTP {estado})",
+   "zh": "无法创建或读取 PR（{paso}，HTTP {estado}）"
+  },
+  "ticket_pr_git_estado": {
+   "es": "No se pudo publicar el estado del CAB en el PR ({paso}, HTTP {estado})",
+   "en": "Could not publish the CAB status on the PR ({paso}, HTTP {estado})",
+   "zh": "无法在 PR 上发布 CAB 状态（{paso}，HTTP {estado}）"
+  },
+  "ticket_pr_git_sin_credencial": {
+   "es": "Falta la credencial de {proveedor} de la empresa (Configuración › Del ticket al PR)",
+   "en": "The company {proveedor} credential is missing (Settings › Ticket to PR)",
+   "zh": "缺少公司的 {proveedor} 凭据（设置 › 从工单到 PR）"
+  },
+  "ticket_pr_sin_solicitante": {
+   "es": "Quien lanzó el agente ya no existe: el cambio no se puede pedir en su nombre",
+   "en": "Whoever launched the agent no longer exists: the change cannot be requested on their behalf",
+   "zh": "启动智能体的人已不存在：无法以其名义提交变更"
+  },
+  "ticket_pr_cab_no_disponible": {
+   "es": "El cambio no pudo ir al CAB; el PR sigue bloqueado hasta que se apruebe",
+   "en": "The change could not go to the CAB; the PR stays blocked until it is approved",
+   "zh": "变更无法提交给 CAB；PR 在批准前保持阻止状态"
+  }
+ },
+ "que": {
+  "ticket_pr_run": {
+   "es": "Ejecución del agente de código",
+   "en": "Coding agent run",
+   "zh": "编程智能体运行"
+  },
+  "ticket_pr_repo": {
+   "es": "Repositorio permitido",
+   "en": "Allowed repository",
+   "zh": "允许的仓库"
+  }
+ }
+}

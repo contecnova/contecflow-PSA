@@ -20,7 +20,10 @@ alcances la recortan:
 - `read`: solo lectura (GET, HEAD, OPTIONS);
 - `write` o `admin`: tambien escritura;
 - `projects`, `tasks`, `timesheets`, `billing`, `expenses` (solo tokens del
-  portal): lectura y escritura dentro de su area y nada fuera.
+  portal): lectura y escritura dentro de su area y nada fuera;
+- `mcp:read` / `mcp:write` (23-11-2026, docs/integraciones/MCP.md): solo el
+  servidor MCP (`POST /api/v1/mcp`), en lectura o en lectura y escritura; nada
+  mas de la API. Son las que genera Configuracion → Agentes de codigo (MCP).
 
 Nunca sirve para gestionar credenciales: sesion, contraseña, MFA, SSO, claves
 de API ni aplicaciones del portal piden iniciar sesion.
@@ -42,6 +45,11 @@ _LECTURA = {"GET", "HEAD", "OPTIONS"}
 RUTAS_VEDADAS = (
     "/api/v1/auth/", "/api/v1/bookings/api-keys", "/api/v1/developer/apps",
     "/api/v1/enterprise/sso", "/api/v1/bookings/sso", "/api/v1/users/me/password",
+    # 23-11-2026: configuracion y credenciales del MCP (`/mcp/estado`, `/mcp/credenciales`...);
+    # el propio servidor (`/api/v1/mcp`, sin barra final) no entra aqui.
+    "/api/v1/mcp/",
+    # 23-11-2026: «Del ticket al PR» (lanzar un agente que gasta y abre PR exige sesion).
+    "/api/v1/ticket-pr/",
 )
 #: Excepciones de solo lectura dentro de las vedadas.
 _LECTURAS_PERMITIDAS = ("/api/v1/auth/me",)
@@ -55,7 +63,9 @@ AREAS = {
     "expenses": ("/api/v1/expenses",),
 }
 ALCANCES_GENERALES = ("read", "write", "admin")
-ALCANCES_VALIDOS = ALCANCES_GENERALES + tuple(AREAS)
+#: Solo el servidor MCP (23-11-2026). `mcp:write` incluye la lectura.
+ALCANCES_MCP = ("mcp:read", "mcp:write")
+ALCANCES_VALIDOS = ALCANCES_GENERALES + tuple(AREAS) + ALCANCES_MCP
 
 
 def huella(secreto: str) -> str:
@@ -78,8 +88,8 @@ def comprobar_alcance(metodo: str, ruta: str, alcances: list[str]) -> None:
     if ruta == "/api/v1/mcp":
         # MCP va siempre por POST: la escritura se decide por herramienta
         # (`mcp_service.permite_escribir`). Un token de área no abre MCP.
-        if not generales:
-            raise _no("MCP necesita una credencial de alcance read, write o admin", 403)
+        if not generales and not set(alcances) & set(ALCANCES_MCP):
+            raise _no("MCP necesita una credencial de alcance read, write, admin, mcp:read o mcp:write", 403)
         return
     if generales:
         if metodo not in _LECTURA and not generales & {"write", "admin"}:
@@ -129,7 +139,7 @@ def _clave_de_api(db: Session, crudo: str):
     clave.requests_today = (clave.requests_today or 0) + 1
     clave.requests_this_hour = (clave.requests_this_hour or 0) + 1
     clave.last_used_at = ahora
-    return clave.user_id, json.loads(clave.scopes or '["read"]'), "api_key", clave.organization_id
+    return clave.user_id, json.loads(clave.scopes or '["read"]'), "api_key", clave.organization_id, clave.id
 
 
 def _token_de_aplicacion(db: Session, crudo: str):
@@ -145,11 +155,13 @@ def _token_de_aplicacion(db: Session, crudo: str):
     app = db.query(OAuthApp).filter(OAuthApp.id == token.app_id).first()
     if app is None or not app.is_active:
         raise _no("La aplicación del token está desactivada")
-    return token.user_id, json.loads(token.scopes or '["read"]'), "oauth", token.organization_id
+    return token.user_id, json.loads(token.scopes or '["read"]'), "oauth", token.organization_id, token.id
 
 
 def resolver(db: Session, request: Request, crudo: Optional[str]):
-    """(user_id, alcances, tipo, empresa) si `crudo` (o `X-API-Key`) es una credencial delegada; None si no.
+    """(user_id, alcances, tipo, empresa, id) si `crudo` (o `X-API-Key`) es una credencial delegada; None si no.
+
+    `id` (23-11-2026): el de la clave o el token, para auditar por credencial (MCP).
 
     `empresa` es la de la credencial (en la que se creo), no la de la ficha del
     dueño: revision multitenant 2026-11b.

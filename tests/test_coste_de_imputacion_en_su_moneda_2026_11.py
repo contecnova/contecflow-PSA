@@ -30,7 +30,9 @@ def test_EL_HALLAZGO_un_perfil_en_dolares_se_imputa_en_euros(client, admin_token
                     json={"project_id": project_id, "task_id": task.id, "date": str(date.today()), "hours": 2})
     assert r.status_code == 200, r.text
     imp = db.get(Imputation, r.json()["data"]["id"])
-    assert (imp.hourly_rate_snapshot, imp.cost_amount) == (100, 180.0)      # 2 h × 100 USD × 0,9
+    # M7 (auditoría 22-11-2026): la tarifa congelada también va en la moneda de la
+    # empresa (100 USD × 0,9 = 90 €), así coste = horas × tarifa sin mezclar monedas.
+    assert (imp.hourly_rate_snapshot, imp.cost_amount) == (90, 180.0)       # 2 h × 100 USD × 0,9
     r = client.patch(f"/api/v1/imputations/{imp.id}", headers=auth(dev_token), json={"hours": 3})
     assert r.status_code == 200, r.text
     db.expire_all()

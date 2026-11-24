@@ -10,6 +10,7 @@ import { useAppLang } from '../../i18n/AppLangContext'
 import { Button, Table, Pulsable } from '../ui'
 import { STALE_DEFAULT_MS } from '../../constants/timings'
 import './AskDataWidget.css'
+import ConversacionDeAsk from './ConversacionDeAsk'
 import { Input } from '../ui'
 
 /** Preguntas de ejemplo: `askdatawidget.ejemplo_<n>` en el idioma del usuario. */
@@ -79,11 +80,22 @@ export default function AskDataWidget({ style = {} }: { style?: React.CSSPropert
   const [showSql, setShowSql] = useState<boolean>(false)
   const [showExamples, setShowExamples] = useState<boolean>(false)
   const inputRef = useRef<HTMLInputElement | null>(null)
+  // 23-11-2026: memoria de conversación (preguntas de seguimiento como «¿y en octubre?»).
+  const [conversacion, setConversacion] = useState<string | null>(null)
+  const [preguntas, setPreguntas] = useState<string[]>([])
 
   const mutation = useMutation<AskResult, unknown, string>({
-    mutationFn: (q: string) => analyticsApi.ask(q).then(r => r.data),
-    onSuccess: () => setGuardada(false),
+    mutationFn: (q: string) => analyticsApi.ask(q, conversacion).then(r => r.data),
+    onSuccess: (data, q) => {
+      setGuardada(false)
+      if (data.conversation_id) {
+        if (data.conversation_id !== conversacion) setPreguntas([])
+        setConversacion(data.conversation_id)
+        setPreguntas(p => [...p, q])
+      }
+    },
   })
+  const nuevaConversacion = () => { setConversacion(null); setPreguntas([]); mutation.reset() }
   const { puede } = useAuth()
   const puedeValidar = puede('analitica.ver')
   const [guardada, setGuardada] = useState(false)
@@ -130,6 +142,9 @@ export default function AskDataWidget({ style = {} }: { style?: React.CSSPropert
             {mutation.isPending ? t('askdatawidget.consultando') : t('askdatawidget.consultar')}
           </Button>
         </form>
+
+        <ConversacionDeAsk conversacion={conversacion} preguntas={preguntas} conContexto={!!mutation.data?.with_context}
+          onNueva={nuevaConversacion} onRetomar={(id, previas) => { setConversacion(id); setPreguntas(previas); mutation.reset() }} />
 
         {/* Examples toggle */}
         <Pulsable

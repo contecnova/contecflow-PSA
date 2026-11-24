@@ -268,6 +268,12 @@ def abrir(req, timeout: float = 15):
     return opener.open(req, timeout=timeout)
 
 
+def cabecera_basic(usuario: str, clave: str) -> str:
+    """Valor de `Authorization` para HTTP Basic (RFC 7617): «Basic base64(usuario:clave)»."""
+    import base64
+    return "Basic " + base64.b64encode(f"{usuario}:{clave}".encode()).decode()
+
+
 def _validar_peticion(request) -> None:
     """Hook de petición: la URL de cada petición (también la primera) se valida."""
     validate_outbound_url(str(request.url), field="url")

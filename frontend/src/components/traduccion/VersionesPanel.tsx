@@ -193,7 +193,7 @@ export default function VersionesPanel({ adaptador }: { adaptador: AdaptadorDeVe
                 <IconButton ariaLabel={t('traduccion_admin.kb_abrir_x', { idioma: nombreDeIdioma(v.language, lang) })} title={t('traduccion_admin.kb_abrir')} onClick={() => setAbierta(v)}>
                   <Eye size={14} aria-hidden="true" />
                 </IconButton>
-                <IconButton ariaLabel={t('traduccion_admin.kb_borrar_x', { idioma: nombreDeIdioma(v.language, lang) })} title={t('traduccion_admin.borrar')} onClick={async () => {
+                <IconButton variante="caja" tono="peligro" ariaLabel={t('traduccion_admin.kb_borrar_x', { idioma: nombreDeIdioma(v.language, lang) })} title={t('traduccion_admin.borrar')} onClick={async () => {
                   if (await confirmar({ title: t('traduccion_admin.kb_borrar_titulo'), message: t('traduccion_admin.kb_borrar_desc', { idioma: nombreDeIdioma(v.language, lang) }), danger: true })) borrar.mutate(v.language)
                 }}>
                   <Trash2 size={14} aria-hidden="true" />

@@ -273,9 +273,9 @@ export default function DeliverablesPage(): JSX.Element {
                               <Button size="sm" variant="danger" onClick={async () => { const r = await pedirTexto({ title: t('deliverables.rechazar_titulo'), message: t('deliverables.rechazar_mensaje'), label: t('deliverables.rechazar_motivo'), required: true, multiline: true, danger: true, confirmLabel: t('deliverables.rechazar_confirmar') }); if (r) reject({ id: d.id, reason: r }) }}>{t('deliverables.rechazar')}</Button>
                             </>
                           )}
-                          {puede('proyectos.gestionar') && <IconButton onClick={() => setEditing(d)}
+                          {puede('proyectos.gestionar') && <IconButton variante="caja" onClick={() => setEditing(d)}
                             ariaLabel={t('deliverables.editar_n', { nombre: d.name })}><Pencil size={14} aria-hidden /></IconButton>}
-                          {puede('proyectos.gestionar') && <IconButton className="dlv-icon-btn--danger" onClick={() => { openConfirmGlobal({ message: t('deliverables.confirmar_eliminar'), onConfirm: () => del(d.id), danger: true }) }}
+                          {puede('proyectos.gestionar') && <IconButton variante="caja" tono="peligro" onClick={() => { openConfirmGlobal({ message: t('deliverables.confirmar_eliminar'), onConfirm: () => del(d.id), danger: true }) }}
                             ariaLabel={t('deliverables.eliminar_n', { nombre: d.name })}><Trash2 size={14} aria-hidden /></IconButton>}
                         </div>
                       </div>

@@ -108,25 +108,45 @@ def serialize_config(cfg) -> dict:
 
 
 def cache_item_embedding(db: Session, item_id: str, item_type: str,
-                         text: str, user_id: str):
-    """Save the embedding of a resolved item into the cache."""
+                         text: str, user_id: str, *, commit: bool = True,
+                         calidad: float | None = None):
+    """Guarda el embedding de un ítem resuelto y quién lo resolvió (historial del nivel 3).
+
+    23-11-2026: si el texto ya estaba, se renueva la fecha (el decaimiento cuenta
+    desde la última resolución) y la persona; con `commit=False` solo `flush`
+    (lo usa el cierre en segundo plano, que confirma una vez).
+    """
     import hashlib
-    h = hashlib.sha256(" ".join(text.strip().lower().split()).encode()).hexdigest()
+    from app.core.timeutil import utcnow
+    text = (text or "").strip()
+    if not text or not user_id:
+        return None
+    h = hashlib.sha256(" ".join(text.lower().split()).encode()).hexdigest()
     exist = db.query(SemEmbeddingCache).filter(
         SemEmbeddingCache.text_hash == h).first()
     if exist:
         exist.assigned_user_id = user_id
+        exist.item_type = item_type
+        exist.item_id = item_id or exist.item_id
+        exist.created_at = utcnow()
+        if calidad is not None:
+            exist.resolution_quality = calidad
+        cache = exist
+    else:
+        assigner = get_assigner(db)
+        emb = assigner._encode_single(text)
+        cache = SemEmbeddingCache(
+            item_type=item_type, item_id=item_id or "",
+            text_hash=h, text_snippet=text[:300],
+            embedding=json.dumps(emb), assigned_user_id=user_id,
+            resolution_quality=calidad,
+        )
+        db.add(cache)
+    if commit:
         db.commit()
-        return
-    assigner = get_assigner(db)
-    emb = assigner._encode_single(text)
-    cache = SemEmbeddingCache(
-        item_type=item_type, item_id=item_id,
-        text_hash=h, text_snippet=text[:300],
-        embedding=json.dumps(emb), assigned_user_id=user_id,
-    )
-    db.add(cache)
-    db.commit()
+    else:
+        db.flush()
+    return cache
 
 
 def auto_generate_profiles(db: Session, *, organization_id=None, is_superadmin: bool = False) -> dict:
@@ -305,6 +325,11 @@ def get_stats(db: Session) -> dict:
     profiles   = db.query(func.count(SemProfile.id)).scalar() or 0
     cache_size = db.query(func.count(SemEmbeddingCache.id)).scalar() or 0
     feedback   = db.query(func.count(SemFeedback.id)).scalar() or 0
+    # 23-11-2026: aceptadas y rechazadas REALES. Antes la pantalla de alta
+    # registraba `was_accepted=True` al sugerir y nada pasaba a False si la
+    # persona se reasignaba después: la precisión salía 100 % por construcción.
+    # Ahora una sugerencia nace pendiente (None), se confirma al cerrar con la
+    # misma persona y se rechaza al reasignar o al corregir.
     accuracy   = round(accepted / (accepted + rejected) * 100) \
                  if (accepted + rejected) > 0 else None
     by_mode_rows = db.query(
@@ -321,32 +346,46 @@ def get_stats(db: Session) -> dict:
         "cache_size":        cache_size,
         "expert_feedback":   feedback,
         "by_mode":           {r[0]: r[1] for r in by_mode_rows},
+        "resolved":          accepted + rejected,
     }
 
 
 def record_assignment(db: Session, data: dict, created_by_id) -> dict:
-    """Persist a SemAssignment and update the assignee's load counters."""
+    """Registra una sugerencia aceptada en pantalla y suma la carga del asignado.
+
+    23-11-2026: el resultado lo decide el servidor, no el cliente: nace pendiente
+    (`None`) si se aceptó a la persona sugerida y rechazada (`False`) si se eligió
+    otra. Se confirma al cerrar (`cerrar_item`) y se rechaza al reasignar
+    (`resolver_por_reasignacion`). El ítem tiene que ser de la empresa.
+    """
+    item_type = str(data.get("item_type") or "ticket")
+    item_id = str(data.get("item_id") or "")
+    if item_type not in ("ticket", "task") or _item_de_la_empresa(db, item_type, item_id) is None:
+        from app.core.codigos_de_error import error
+        raise error(404, "no_encontrado", detail="Elemento no encontrado", que=item_type)
+    sugerido = data.get("suggested_user_id")
+    aceptado = data.get("accepted_user_id") or sugerido
     sa = SemAssignment(
-        item_type         = data.get("item_type", "ticket"),
-        item_id           = data.get("item_id", ""),
-        item_title        = data.get("item_title", "")[:500],
-        suggested_user_id = data.get("suggested_user_id"),
-        accepted_user_id  = data.get("accepted_user_id"),
-        was_accepted      = data.get("was_accepted"),
+        item_type         = item_type,
+        item_id           = item_id,
+        item_title        = (data.get("item_title") or "")[:500],
+        suggested_user_id = sugerido,
+        accepted_user_id  = aceptado,
+        was_accepted      = None if (not sugerido or aceptado == sugerido) else False,
         confidence        = data.get("confidence"),
-        top_scores        = json.dumps(data.get("top_scores", {})),
+        top_scores        = json.dumps(data.get("top_scores") or {}),
         engine_mode       = data.get("engine_mode"),
         estimated_hours   = data.get("estimated_hours"),
         complexity        = data.get("complexity"),
-        reasoning         = data.get("reasoning", "")[:1000],
-        needs_review      = data.get("needs_review", False),
+        reasoning         = (data.get("reasoning") or "")[:1000],
+        needs_review      = bool(data.get("needs_review", False)),
         created_by        = created_by_id,
     )
     db.add(sa)
-    if data.get("accepted_user_id"):
-        p = perfil_semantico(db, data["accepted_user_id"])
+    if aceptado:
+        p = perfil_semantico(db, aceptado)
         if p:
-            if data.get("item_type") == "ticket":
+            if item_type == "ticket":
                 p.open_tickets = max(0, (p.open_tickets or 0) + 1)
             else:
                 p.open_tasks = max(0, (p.open_tasks or 0) + 1)
@@ -392,3 +431,270 @@ def estimate_sprint_backlog(tasks: list, capacity_h: float, db: Session) -> dict
         "utilization_pct": round(recommended / capacity_h * 100) if capacity_h else 0,
         "complex_task_count": complex_count,
     }
+
+
+# ── Bucle de aprendizaje (23-11-2026) ─────────────────────────────────────────
+#
+# Lo que faltaba para que el motor aprenda de verdad (docs y README, «Motor
+# semántico»):
+#
+# - cada asignación hecha por la IA deja un `SemAssignment` PENDIENTE
+#   (`was_accepted=None`), también en tickets (antes solo tareas, y nacían
+#   aceptadas);
+# - se CONFIRMA (True) si la persona sugerida lo mantiene hasta resolverlo o
+#   cerrarlo, y se RECHAZA (False) si se reasigna a otra persona, aunque ya
+#   valiera True (antes solo se tocaba si era None);
+# - al resolver o cerrar, el texto y quien lo resolvió van a
+#   `SemEmbeddingCache`: es el historial con decaimiento del nivel 3, que
+#   estaba vacío porque nada lo alimentaba;
+# - «Corregir asignación» guarda la persona correcta en la caché de experto
+#   (`SemFeedback`, niveles 1 y 2) y rechaza la asignación.
+
+TIPOS_DE_ITEM = ("ticket", "task")
+
+
+def _item_de_la_empresa(db: Session, item_type: str, item_id: str):
+    """El ticket o la tarea si existen en la empresa de la sesión; si no, None.
+
+    El filtro de empresa de la sesión (`app/db/session.py`) acota la consulta.
+    """
+    if not item_id:
+        return None
+    if item_type == "ticket":
+        return db.query(Ticket).filter(Ticket.id == item_id).first()
+    if item_type == "task":
+        return db.query(Task).filter(Task.id == item_id).first()
+    return None
+
+
+def ultima_asignacion(db: Session, item_type: str, item_id: str):
+    """El último `SemAssignment` del ítem (o None)."""
+    return (db.query(SemAssignment)
+            .filter(SemAssignment.item_id == item_id, SemAssignment.item_type == item_type)
+            .order_by(SemAssignment.created_at.desc())
+            .first())
+
+
+def registrar_sugerencia_automatica(db: Session, *, item_type: str, item_id: str, item_title: str,
+                                    sugerencia: dict, created_by=None):
+    """La IA asignó sola al dar de alta: queda pendiente (`None`). No confirma."""
+    sugerido = sugerencia.get("suggested_user_id")
+    if not sugerido or not item_id:
+        return None
+    sa = SemAssignment(
+        item_type=item_type, item_id=item_id, item_title=(item_title or "")[:500],
+        suggested_user_id=sugerido, accepted_user_id=sugerido, was_accepted=None,
+        confidence=sugerencia.get("confidence"),
+        top_scores=json.dumps(sugerencia.get("top_scores") or {}),
+        engine_mode=sugerencia.get("engine_mode"),
+        reasoning=(sugerencia.get("reasoning") or "")[:1000],
+        needs_review=bool(sugerencia.get("needs_review", False)),
+        created_by=created_by,
+    )
+    db.add(sa)
+    return sa
+
+
+def resolver_por_reasignacion(db: Session, item_type: str, item_id: str, nuevo_user_id) -> "bool | None":
+    """Reasignado a otra persona: la sugerencia se rechaza (también si ya valía True).
+
+    Volver a la persona sugerida no la rechaza (ni la confirma: se decide al cerrar).
+    Devuelve el nuevo `was_accepted`, o None si no había asignación de la IA. No confirma.
+    """
+    sa = ultima_asignacion(db, item_type, item_id)
+    if sa is None:
+        return None
+    if nuevo_user_id and sa.suggested_user_id and str(nuevo_user_id) == str(sa.suggested_user_id):
+        sa.accepted_user_id = nuevo_user_id
+        return sa.was_accepted
+    sa.was_accepted = False
+    sa.accepted_user_id = nuevo_user_id or None
+    return False
+
+
+def cerrar_item(db: Session, item_type: str, item_id: str, *, texto: str, user_id, calidad=None) -> dict:
+    """Al resolver o cerrar: historial del nivel 3 y veredicto de la sugerencia. No confirma.
+
+    - `SemEmbeddingCache`: el texto y quien lo resolvió (`user_id`).
+    - `SemAssignment` pendiente: True si lo cerró la persona sugerida, False si otra.
+    """
+    salida = {"historial": False, "veredicto": None}
+    if user_id and (texto or "").strip():
+        salida["historial"] = cache_item_embedding(db, item_id, item_type, texto, user_id,
+                                                   commit=False, calidad=calidad) is not None
+    sa = ultima_asignacion(db, item_type, item_id)
+    if sa is not None and sa.was_accepted is None and user_id:
+        sa.was_accepted = str(user_id) == str(sa.suggested_user_id or "")
+        sa.accepted_user_id = user_id
+        salida["veredicto"] = sa.was_accepted
+    return salida
+
+
+def texto_del_item(item) -> str:
+    """Título y descripción, como los ve el clasificador."""
+    return f"{getattr(item, 'title', '') or ''}. {getattr(item, 'description', '') or ''}".strip(". ").strip()
+
+
+def corregir_asignacion(db: Session, usuario, data: dict) -> dict:
+    """«Corregir asignación»: la persona correcta para un ticket o una tarea.
+
+    - La persona tiene que ser de la empresa (`ids_de_usuarios_del_ambito`).
+    - El ítem tiene que ser de la empresa; su texto sale del ítem, no del cliente,
+      salvo que no se dé `item_id` (corrección suelta desde la pantalla del motor).
+    - `SemFeedback`: `corrected_by` = quien corrige; `correction_kind` =
+      `confirmacion_responsable` si confirma una propuesta del modelo de lenguaje,
+      `correccion` en otro caso.
+    - El `SemAssignment` del ítem pasa a rechazado si la persona correcta no es
+      la sugerida (o a aceptado si es una confirmación de la misma persona).
+    - Auditado. Confirma.
+    """
+    from app.core.codigos_de_error import error
+    from app.services.audit import audit_log
+
+    item_type = str(data.get("item_type") or "ticket")
+    item_id = str(data.get("item_id") or "")
+    correcto = str(data.get("correct_user_id") or "")
+    confirmado = bool(data.get("confirmed", False))
+    modo_original = str(data.get("original_engine_mode") or "")
+    if item_type not in TIPOS_DE_ITEM:
+        raise error(400, "campo_no_valido_opciones", detail="item_type", campo="item_type",
+                    opciones=", ".join(TIPOS_DE_ITEM))
+    if not correcto:
+        raise error(400, "campo_obligatorio", detail="correct_user_id requerido", campo="correct_user_id")
+    ambito = ids_de_usuarios_del_ambito(db, usuario)
+    if ambito is not None and correcto not in ambito:
+        raise error(404, "no_encontrado", detail="Usuario no encontrado", que="usuario")
+    texto = (data.get("item_text") or "").strip()
+    item = None
+    if item_id:
+        item = _item_de_la_empresa(db, item_type, item_id)
+        if item is None:
+            raise error(404, "no_encontrado", detail="Elemento no encontrado", que=item_type)
+        texto = texto_del_item(item) or texto
+    if not texto:
+        raise error(400, "campos_obligatorios", detail="item_text y correct_user_id requeridos",
+                    campos="item_text, correct_user_id")
+
+    sa = ultima_asignacion(db, item_type, item_id) if item_id else None
+    sugerido = getattr(sa, "suggested_user_id", None)
+    es_confirmacion = confirmado and (sugerido is None or str(sugerido) == correcto)
+    tipo = "confirmacion_responsable" if (es_confirmacion and modo_original == "llm") else "correccion"
+    antes = {"suggested_user_id": sugerido, "was_accepted": getattr(sa, "was_accepted", None)}
+
+    get_assigner(db).record_feedback(item_id, item_type, texto, correcto, usuario.id,
+                                     correction_kind=tipo, commit=False)
+    cache_item_embedding(db, item_id, item_type, texto, correcto, commit=False)
+    if sa is not None:
+        sa.was_accepted = bool(es_confirmacion and sugerido and str(sugerido) == correcto)
+        sa.accepted_user_id = correcto
+    audit_log(db, usuario, "UPDATE", "sem_assignment", item_id or None,
+              resource_name=(getattr(item, "title", None) or texto)[:200],
+              old_values=antes,
+              new_values={"correct_user_id": correcto, "correction_kind": tipo,
+                          "was_accepted": getattr(sa, "was_accepted", None)},
+              metadata={"item_type": item_type, "motivo": "corregir_asignacion_ia"})
+    db.commit()
+    return {"ok": True, "persisted_as_expert": tipo == "confirmacion_responsable",
+            "correction_kind": tipo, "was_accepted": getattr(sa, "was_accepted", None)}
+
+
+# ── Cola de casos dudosos (ActiveLearningPrioritizer) ─────────────────────────
+#
+# 23-11-2026: `POST /semantic/prioritize` puntuaba una lista que nadie le
+# mandaba. Se usa donde aporta: las sugerencias PENDIENTES de la empresa
+# (todavía sin veredicto), ordenadas por lo que más enseña al motor que un
+# experto las etiquete (incertidumbre, novedad, urgencia y carga). La pantalla
+# del motor las lista y el experto confirma o corrige (`corregir_asignacion`).
+
+def cola_de_revision(db: Session, limite: int = 50) -> list:
+    pendientes = (db.query(SemAssignment)
+                  .filter(SemAssignment.was_accepted.is_(None))
+                  .order_by(SemAssignment.created_at.desc())
+                  .limit(max(1, min(int(limite or 50), 200)) * 3)
+                  .all())
+    items = []
+    for sa in pendientes:
+        tipo = getattr(sa.item_type, "value", sa.item_type)
+        item = _item_de_la_empresa(db, tipo, sa.item_id)
+        if item is None:
+            continue
+        prioridad = getattr(item, "priority", None)
+        items.append({
+            "assignment_id": sa.id, "item_type": tipo, "item_id": sa.item_id,
+            "item_title": sa.item_title or getattr(item, "title", ""),
+            "suggested_user_id": sa.suggested_user_id, "confidence": sa.confidence or 0.0,
+            "engine_mode": sa.engine_mode, "needs_review": bool(sa.needs_review),
+            "priority": str(getattr(prioridad, "value", prioridad) or "medium"),
+            "assigned_to": sa.suggested_user_id if sa.was_accepted else None,
+            "created_at": sa.created_at.isoformat() if sa.created_at else None,
+        })
+    ordenados = get_assigner(db).prioritize_queue(items)
+    nombres = {u.id: u.full_name for u in db.query(User).filter(
+        User.id.in_([i["suggested_user_id"] for i in ordenados if i.get("suggested_user_id")] or ["__none__"]))}
+    for i in ordenados:
+        i["suggested_user_name"] = nombres.get(i.get("suggested_user_id"))
+    return ordenados[: max(1, min(int(limite or 50), 200))]
+
+
+# ── Reentrenamiento periódico ─────────────────────────────────────────────────
+
+def toca_reentrenar(intervalo_horas: int, ahora=None) -> bool:
+    """Sin estado: la tarea corre cada hora y reentrena cuando la hora UTC es múltiplo del intervalo.
+
+    0 (o menos) lo apaga. Con 24, a las 00 UTC; con 168, una vez por semana.
+    """
+    from app.core.timeutil import utcnow
+    if not intervalo_horas or intervalo_horas <= 0:
+        return False
+    ahora = ahora or utcnow()
+    return int(ahora.timestamp() // 3600) % int(intervalo_horas) == 0
+
+
+def reentrenar_empresa(db: Session, org_id, *, forzar: bool = False) -> dict:
+    """Reconstruye los perfiles de la empresa (texto desde su historial y embeddings).
+
+    Lo llama `app.worker.semantic_reentrenar` en cada empresa con su contexto
+    publicado. El intervalo es `SEMANTIC_RETRAIN_INTERVAL_HOURS` de la empresa.
+    """
+    from app.services import settings_service as _ss
+    intervalo = _ss.get_runtime_int(db, "SEMANTIC_RETRAIN_INTERVAL_HOURS", org_id)
+    if intervalo is None:
+        intervalo = settings.SEMANTIC_RETRAIN_INTERVAL_HOURS
+    if not forzar and not toca_reentrenar(int(intervalo or 0)):
+        return {"omitido": True, "intervalo_horas": intervalo}
+    generados = auto_generate_profiles(db, organization_id=org_id, is_superadmin=False)
+    reconstruidos = get_assigner(db).rebuild_profiles()
+    return {"omitido": False, "perfiles": generados, "reconstruidos": reconstruidos}
+
+
+def precargar_en_segundo_plano() -> None:
+    """Carga el modelo configurado en un hilo, sin retrasar el arranque del backend.
+
+    Solo si el motor está configurado con transformer (en la base o en el
+    entorno); con TF-IDF no hay nada que precargar. Vivía en `semantic_classifier`,
+    que importaba este módulo dentro de la función y cerraba un ciclo (prueba
+    global 23-11-2026).
+    """
+    import logging
+    import threading
+    import time
+    from app.services import semantic_classifier as sc
+    log = logging.getLogger(__name__)
+
+    def _precargar():
+        try:
+            from app.db.session import SessionLocal, declarar_sistema
+            db = declarar_sistema(SessionLocal(), "arranque: precarga del modelo semántico")
+            try:
+                backend, modelo = resolve_embeddings_backend_and_model(get_or_create_config(db))
+            finally:
+                db.close()
+            entorno = (settings.SEMANTIC_EMBEDDINGS_BACKEND or "tfidf").strip().lower()
+            if backend != "transformer" and entorno != "transformer":
+                return
+            t0 = time.monotonic()
+            sc._get_model(modelo, "transformer")
+            log.info("Modelo semántico %s precargado en %.0f s", modelo, time.monotonic() - t0)
+        except Exception as exc:  # noqa: BLE001 - la precarga es accesoria: el primer uso lo cargará
+            log.warning("Precarga del modelo semántico no hecha: %s", exc)
+    threading.Thread(target=_precargar, name="precarga-modelo-semantico", daemon=True).start()

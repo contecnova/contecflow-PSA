@@ -44,10 +44,9 @@ class ITSMChangeRequest(Base):
     affected_cis       = Column(Text, nullable=True)  # JSON: lista de CI IDs
     downtime_minutes   = Column(Integer, default=0)
 
-    # Post-Implementation Review
-    pir_notes    = Column(Text, nullable=True)
-    pir_success  = Column(Boolean, nullable=True)
-    pir_date     = Column(DateTime(timezone=True), nullable=True)
+    # Post-Implementation Review: desde la migración 206 vive en `pir_revisiones`
+    # (app/models/pir.py, docs/PIR.md). Las columnas `pir_notes`, `pir_success` y
+    # `pir_date` se copiaron allí y se retiraron; la API las sigue dando (compat.).
 
     # Relaciones
     requester_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)

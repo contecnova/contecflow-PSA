@@ -60,7 +60,7 @@ export function WebhooksTab({ showCreate, setShowCreate }: AltaProps) {
               <Button size="sm" variant="secondary" icon={<History size={14} />} onClick={() => setShowLogs(showLogs === trg.id ? null : trg.id)}>
                 {showLogs === trg.id ? t('pagina_ent.ocultar') : t('pagina_ent.logs')}
               </Button>
-              <IconButton className="ent-borrar" onClick={() => { openConfirmGlobal({ message: t('pagina_ent.eliminar_webhook'), confirmLabel: t('pagina_ent.eliminar_boton'), onConfirm: () => del(trg.id), danger: true }) }} ariaLabel={t('pagina_ent.eliminar_webhook_aria', { name: trg.name })}><Trash2 size={14} aria-hidden /></IconButton>
+              <IconButton variante="caja" tono="peligro" onClick={() => { openConfirmGlobal({ message: t('pagina_ent.eliminar_webhook'), confirmLabel: t('pagina_ent.eliminar_boton'), onConfirm: () => del(trg.id), danger: true }) }} ariaLabel={t('pagina_ent.eliminar_webhook_aria', { name: trg.name })}><Trash2 size={14} aria-hidden /></IconButton>
             </div>
           </div>
           {showLogs === trg.id && (

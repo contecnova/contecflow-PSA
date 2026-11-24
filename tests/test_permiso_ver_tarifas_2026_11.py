@@ -25,6 +25,10 @@ def _costes(client, token):
 def test_EL_HALLAZGO_sin_ver_tarifas_las_ajenas_salen_sin_coste(client, db, pm_token, proyecto):
     pm = db.query(User).filter(User.username == "pm_test").one()
     dev = db.query(User).filter(User.username == "dev_test").one()
+    # M33 (auditoría 22-11-2026): el PM ve las imputaciones ajenas de los proyectos
+    # que DIRIGE; sin ser su PM sólo vería las suyas y no habría nada que ocultar.
+    from app.models.project import Project
+    db.get(Project, "p-b1").pm_id = pm.id
     for quien, desc in ((pm, "mía"), (dev, "ajena")):
         db.add(Imputation(id=str(uuid.uuid4()), user_id=quien.id, project_id="p-b1", date=date(2026, 3, 2), hours=2,
                           cost_amount=100, organization_id="1", description=desc))

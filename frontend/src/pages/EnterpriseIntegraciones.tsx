@@ -138,7 +138,7 @@ export function IntegrationsTab() {
                   <Button size="sm" variant="secondary" icon={<RefreshCw size={14} />} onClick={() => sync(integ.id)}>
                     {t('pagina_ent.sync')}
                   </Button>
-                  <IconButton className="ent-borrar" ariaLabel={t('pagina_ent.eliminar', { name: integ.name || cat.label })}
+                  <IconButton variante="caja" tono="peligro" ariaLabel={t('pagina_ent.eliminar', { name: integ.name || cat.label })}
                     onClick={() => { openConfirmGlobal({ message: t('pagina_ent.eliminar', { name: integ.name }), onConfirm: () => del(integ.id), danger: true }) }}><Trash2 size={14} aria-hidden /></IconButton>
                 </div>
               </div>

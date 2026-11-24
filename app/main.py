@@ -612,6 +612,13 @@ async def lifespan(_app: FastAPI):
     # Collaboration: scheduled message dispatcher
     _arrancar_planificador_de_colaboracion(_is_testing)
 
+    # 23-11-2026: el modelo semántico (si es transformer) tarda minutos en cargar
+    # la primera vez; se precarga en un hilo para que «Reconstruir vectores» y la
+    # asignación no esperen. No retrasa el arranque.
+    if not _is_testing:
+        from app.services.semantic_engine_service import precargar_en_segundo_plano
+        precargar_en_segundo_plano()
+
     yield
 
     _parar_planificador_de_colaboracion()
@@ -638,8 +645,14 @@ def _traza_saneada(exc: BaseException) -> str:
     marcos = "".join(traceback.format_tb(exc.__traceback__))
     try:
         from app.services.ai_governance import redact_pii
+        # Las líneas de código de los marcos también pueden llevar datos (un
+        # literal, un f-string con el valor): pasan por el mismo redactor.
+        marcos = redact_pii(marcos)[0]
         mensaje = redact_pii(str(exc))[0]
-    except Exception:  # noqa: BLE001 - sin redactor, sin mensaje
+    except Exception:  # noqa: BLE001 - sin redactor, sin mensaje ni código de los marcos
+        logger.debug("traza saneada: redactor no disponible; se omiten mensaje y código")
+        marcos = "".join(f'  File "{f.filename}", line {f.lineno}, in {f.name}' + chr(10)
+                         for f in traceback.extract_tb(exc.__traceback__, limit=None))
         mensaje = "(mensaje omitido)"
     return "Traceback (most recent call last):" + chr(10) + f"{marcos}{type(exc).__name__}: {mensaje}"
 
@@ -856,6 +869,10 @@ async def security_headers_middleware(request: Request, call_next):
         pass
     else:
         frame_ancestors = "'self'" if is_doc_file_route else "'none'"
+        # 23-11-2026: métricas de contecintelligence incrustadas (token acotado):
+        # SOLO los orígenes configurados en CONTECINTELLIGENCE_EMBED_ORIGINS.
+        from app.services.conectores.contecintelligence import origenes_incrustables
+        connect_extra = "".join(f" {o}" for o in origenes_incrustables())
         # Content-Security-Policy: the Vite production build emits a single
         # bundled script — no unsafe-inline or unsafe-eval needed for scripts.
         # Inline styles are still needed for dynamic CSS-in-JS (e.g. Tailwind).
@@ -868,7 +885,7 @@ async def security_headers_middleware(request: Request, call_next):
             # grabado con MediaRecorder en el voice command modal.
             "media-src 'self' blob:; "
             "font-src 'self' data:; "
-            "connect-src 'self' ws: wss:; "
+            f"connect-src 'self'{connect_extra} ws: wss:; "
             # Segunda auditoría 2026-11: DocumentsPage muestra el PDF en un
             # <iframe> con la URL de /documents/file/ (almacenamiento local). Con
             # 'none' el navegador lo bloqueaba aunque X-Frame-Options ya fuera

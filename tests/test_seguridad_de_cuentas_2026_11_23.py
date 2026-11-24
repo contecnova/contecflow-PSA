@@ -94,17 +94,17 @@ def test_historial_impide_reutilizar(client, db):
 def test_comunes_y_datos_personales_sin_red():
     from app.core.errores import ErrorDeDominio
     from app.services.seguridad_de_cuentas.contrasenas import comprobar_reglas, es_comun
-    from app.services.seguridad_de_cuentas.politica import Politica
+    from app.services.seguridad_de_cuentas.politica import PoliticaDeCuenta
     assert es_comun("Password2024!") and es_comun("qwerty123") and es_comun("aaaaaaaa")
     assert not es_comun("Zorro-Azul#Monta2026")
     with pytest.raises(ErrorDeDominio) as e:
-        comprobar_reglas("Password2024!", Politica())
+        comprobar_reglas("Password2024!", PoliticaDeCuenta())
     assert e.value.code == "contrasena_comun"
     with pytest.raises(ErrorDeDominio) as e:
-        comprobar_reglas("Marta-Gomez#2026x", Politica(), ("mgomez", "marta@empresa.es", "Marta Gómez"))
+        comprobar_reglas("Marta-Gomez#2026x", PoliticaDeCuenta(), ("mgomez", "marta@empresa.es", "Marta Gómez"))
     assert e.value.code == "contrasena_con_datos_personales"
     with pytest.raises(ErrorDeDominio) as e:
-        comprobar_reglas("Ab1!" + "x" * 200, Politica())
+        comprobar_reglas("Ab1!" + "x" * 200, PoliticaDeCuenta())
     assert e.value.code == "contrasena_max_caracteres"
 
 
@@ -194,11 +194,11 @@ def test_ip_fuera_de_la_lista_no_entra_y_el_superadmin_si(client, db, superadmin
 
 def test_validacion_de_la_politica():
     from app.core.errores import ErrorDeDominio
-    from app.services.seguridad_de_cuentas.politica import Politica, validar
+    from app.services.seguridad_de_cuentas.politica import PoliticaDeCuenta, validar
     for cambio in ({"ACCESS_IP_ALLOWLIST": "10.0.0.0/33"}, {"ACCESS_HOURS": "25:00-26:00"},
                    {"MFA_ALLOWED_METHODS": "sms"}, {"PASSWORD_HISTORY_COUNT": 99}, {"NO_EXISTE": 1}):
         with pytest.raises(ErrorDeDominio):
-            validar(cambio, Politica())
+            validar(cambio, PoliticaDeCuenta())
 
 
 # ── Gobierno ────────────────────────────────────────────────────────────────

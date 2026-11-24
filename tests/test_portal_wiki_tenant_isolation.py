@@ -88,8 +88,9 @@ def _setup(client, pm_token, db):
     p_a = _create_project(client, pm_token, code="WIKA", name="Proyecto Cliente A")
     p_b = _create_project(client, pm_token, code="WIKB", name="Proyecto Cliente B")
 
-    email_a, pwd_a = "wiki.victim@test.com", "VictimPass123!"
-    email_b, pwd_b = "wiki.attacker@test.com", "AttackerPass123!"
+    # La política del portal rechaza claves con trozos del correo o del nombre ("victim", "attacker"...).
+    email_a, pwd_a = "wiki.victim@test.com", "Kq7!mZ2pLx9w"
+    email_b, pwd_b = "wiki.attacker@test.com", "Rt4#vN8sYb3e"
     _create_portal_client(client, pm_token, [p_a], email_a, pwd_a)
     _create_portal_client(client, pm_token, [p_b], email_b, pwd_b)
 

@@ -345,8 +345,8 @@ export function WorkflowDetail({ workflowId, onBack }: { workflowId: string; onB
                     </div>
                   </div>
                   <div className="u-row-6">
-                    <IconButton ariaLabel={t('approvals.edit_step_aria', { name: step.name })} onClick={() => setEditStep(step)}><Pencil size={14} aria-hidden /></IconButton>
-                    <IconButton ariaLabel={t('approvals.delete_step_aria', { name: step.name })}
+                    <IconButton variante="caja" ariaLabel={t('approvals.edit_step_aria', { name: step.name })} onClick={() => setEditStep(step)}><Pencil size={14} aria-hidden /></IconButton>
+                    <IconButton variante="caja" tono="peligro" ariaLabel={t('approvals.delete_step_aria', { name: step.name })}
                       onClick={() => openConfirmGlobal({ message: t('approvals.delete_step_confirm', { name: step.name }), onConfirm: () => delStep(step.id), danger: true })}><Trash2 size={14} aria-hidden /></IconButton>
                   </div>
                 </div>

@@ -156,7 +156,7 @@ export default function Superficies() {
               {(vistas.data ?? []).map(v => <option key={v.id} value={v.id}>{v.name}{v.shared ? ` · ${t('swr.compartida')}` : ''}</option>)}
             </Select>
             {gestiona && <Button size="sm" variant="secondary" icon={<Save size={14} />} onClick={() => setGuardando(true)}>{t('swr.guardar_vista')}</Button>}
-            {vistaActual?.mine && <IconButton ariaLabel={t('swr.borrar_vista')} onClick={async () => { if (await confirmar({ message: t('swr.borrar_vista_confirmar', { nombre: vistaActual.name }), danger: true })) borrarVista.mutate(vistaActual.id) }}><Trash2 size={14} /></IconButton>}
+            {vistaActual?.mine && <IconButton variante="caja" tono="peligro" ariaLabel={t('swr.borrar_vista')} onClick={async () => { if (await confirmar({ message: t('swr.borrar_vista_confirmar', { nombre: vistaActual.name }), danger: true })) borrarVista.mutate(vistaActual.id) }}><Trash2 size={14} /></IconButton>}
           </div>
           {verColumnas && agrupar === 'none' && (
             <div className="swr-columnas" role="group" aria-label={t('swr.columnas')}>

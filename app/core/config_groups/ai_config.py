@@ -51,6 +51,13 @@ class AISettingsMixin:
     # herramienta que escribe. off: no la ve. approval: se abre una aprobación
     # (tipo «mcp_action») y se ejecuta solo si se aprueba. direct: se ejecuta.
     MCP_WRITE_MODE: str = Field(default="off", env="MCP_WRITE_MODE")
+    # MCP para agentes de código (23-11-2026, docs/integraciones/MCP.md): llamadas
+    # por minuto de cada credencial (o sesión) al servidor MCP; al pasarlo, 429
+    # con `Retry-After` (0: sin límite propio; quedan el de la clave y el diario).
+    MCP_RATE_LIMIT_PER_MINUTE: int = Field(default=60, env="MCP_RATE_LIMIT_PER_MINUTE")
+    # Herramientas de «Mi cuaderno» por MCP (opcional, apagado): aun encendido,
+    # cada persona decide qué cuadernos comparte con sus agentes (privados por defecto).
+    MCP_NOTEBOOK_ENABLED: bool = Field(default=False, env="MCP_NOTEBOOK_ENABLED")
     # Tope diario de gasto en IA por empresa, en USD (0: sin tope). Al
     # alcanzarlo las llamadas se cortan hasta las 00:00 UTC (revisión 2026-11).
     AI_DAILY_BUDGET_USD: float = Field(default=0.0, env="AI_DAILY_BUDGET_USD")
@@ -64,6 +71,9 @@ class AISettingsMixin:
     ASK_DATA_REUSE_EXACT_EXAMPLE: bool = Field(default=True, env="ASK_DATA_REUSE_EXACT_EXAMPLE")
     ASK_DATA_EXAMPLES_IN_PROMPT: int = Field(default=3, env="ASK_DATA_EXAMPLES_IN_PROMPT")
     ASK_DATA_EXAMPLE_MIN_SIMILARITY: float = Field(default=0.3, env="ASK_DATA_EXAMPLE_MIN_SIMILARITY")
+    # 23-11-2026 (Ask-the-Data con memoria): preguntas anteriores de la misma
+    # conversación que se dan al modelo para entender «¿y en octubre?» (0: sin memoria).
+    ASK_DATA_CONTEXT_TURNS: int = Field(default=4, env="ASK_DATA_CONTEXT_TURNS")
     # Tope de la llamada de «Probar»: con 10, los modelos que razonan (Gemini 2.5,
     # o-series) gastaban todo en pensar y la prueba fallaba con el proveedor sano.
     AI_TEST_MAX_TOKENS: int = Field(default=256, env="AI_TEST_MAX_TOKENS")
@@ -117,6 +127,10 @@ class AISettingsMixin:
     # Semantic classifier backend: keep HTTP API lean by default.
     # "tfidf" avoids loading heavy torch/transformers dependencies in API pods.
     SEMANTIC_EMBEDDINGS_BACKEND: str = Field(default="tfidf", env="SEMANTIC_EMBEDDINGS_BACKEND")
+    # 23-11-2026: cada cuántas horas se reconstruyen los perfiles del motor de
+    # asignación (texto desde el historial + embeddings), por empresa (0: nunca).
+    # La tarea corre cada hora y actúa cuando la hora UTC es múltiplo de esto.
+    SEMANTIC_RETRAIN_INTERVAL_HOURS: int = Field(default=24, env="SEMANTIC_RETRAIN_INTERVAL_HOURS")
 
     # ── OpenAI (fallback key — prefer DB-configured provider) ────────────────
     OPENAI_API_KEY: str = Field(default="", env="OPENAI_API_KEY")

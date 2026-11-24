@@ -483,6 +483,11 @@ def _estado_de_modulo_limpio():
         ee._POLITICA_CACHE.update(hasta=0.0, valor=None)
         with ee._sso_states_lock:
             ee._login_fail_fallback.clear()
+    # 23-11-2026: el límite de uso de MCP por minuto (en memoria en pruebas) no
+    # se arrastra entre tests (los usuarios de prueba tienen ids fijos).
+    mcp = sys.modules.get("app.services.mcp_service")
+    if mcp is not None:
+        mcp.reiniciar_limites()
     yield
 
 

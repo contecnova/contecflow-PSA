@@ -150,7 +150,7 @@ def test_c_sd4_un_despliegue_no_arranca_sin_cambio_ni_con_uno_sin_aprobar(db):
 # ── C-SD5: informe de cumplimiento con datos reales ──────────────────────────
 
 def test_c_sd5_el_informe_lee_quien_aprobo_y_los_fallidos(db):
-    from app.services.service_desk.governance_compliance_service import audit_change_management
+    from app.services.service_desk.governance_compliance_service import _g, audit_change_management
     ok = _cambio(db, "closed_success")
     ok.change_type, ok.approved_by = "normal", "admin-test-id"
     for n in range(3):
@@ -159,8 +159,10 @@ def test_c_sd5_el_informe_lee_quien_aprobo_y_los_fallidos(db):
     db.commit()
     r = audit_change_management(db, days=30)
     titulos = {h["title"]: h for h in r["findings"]}
-    assert "Normal changes without CAB approval record" not in titulos, "approved_by es la aprobacion"
-    assert titulos["Change failure rate above threshold"]["count"] == 3
+    # 23-11-2026 (textos por clave): el título sale en el idioma de la empresa
+    # (`gov.chg.*`), no en inglés fijo; se compara con el texto de su clave.
+    assert _g(db, "gov.chg.cab.titulo") not in titulos, "approved_by es la aprobacion"
+    assert titulos[_g(db, "gov.chg.fallos.titulo")]["count"] == 3
 
 
 # ── A-SD1 / A-SD3: reloj del SLA ─────────────────────────────────────────────

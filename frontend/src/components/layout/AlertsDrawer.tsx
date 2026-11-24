@@ -6,7 +6,7 @@ import { X, Bell, ExternalLink } from 'lucide-react'
 import { fmtRelative } from '../../utils/helpers'
 import { useAuth } from '../../context/AuthContext'
 import { useAppLang } from '../../i18n/AppLangContext'
-import { Drawer, Pulsable } from '../ui'
+import { Drawer, Pulsable, IconButton } from '../ui'
 import { POLL_FREQUENT_MS } from '../../constants/timings'
 import './AlertsDrawer.css'
 import type { CSSProperties } from 'react'
@@ -79,9 +79,9 @@ export default function AlertsDrawer({ onClose }: Props) {
               <span className="alerdraw-box-1">{alerts.length}</span>
             )}
           </div>
-          <Pulsable onClick={onClose} aria-label={t('common.close')} className="alerdraw-row-2" data-cierra-dialogo="">
+          <IconButton variante="caja" onClick={onClose} ariaLabel={t('common.close')} data-cierra-dialogo="">
             <X size={16} />
-          </Pulsable>
+          </IconButton>
         </div>
 
         {/* Severity summary */}

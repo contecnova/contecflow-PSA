@@ -49,6 +49,13 @@ class ClientUser(Base):
     # el portal no deja usar mas que el cambio de contrasena hasta cambiarla.
     must_change_password = Column(Boolean, nullable=False, default=False, server_default=false())
     is_active = Column(Boolean, default=True)
+    # Migración `205_portal_usuarios` (23-11-2026): «Eliminar» de un usuario
+    # con historial lo ARCHIVA (no entra: `is_active=False`; fuera de las listas
+    # por defecto; se puede restaurar). Distinto de «Suspender» (solo
+    # `is_active`) y de la supresión RGPD (anonimiza). Sin clave ajena en
+    # `archived_by`: el rastro completo está en `audit_log`.
+    archived_at = Column(DateTime(timezone=True), nullable=True)
+    archived_by = Column(String(36), nullable=True)
     can_approve_deliverables = Column(Boolean, default=True)
     can_request_changes = Column(Boolean, default=True)
     can_view_budget = Column(Boolean, default=True)   # Sees budget consumption, not costs

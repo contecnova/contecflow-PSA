@@ -158,10 +158,10 @@ export default function DocumentsPage(): JSX.Element {
         </Select>
         <div className="ds-toolbar__spacer" />
         <div className="ds-segmented" role="group" aria-label={t('pagina_docs.vista')}>
-          <Pulsable aria-label={t('pagina_docs.tarjetas')} type="button" aria-pressed={viewMode === 'grid'} onClick={() => setViewMode('grid')} title={t('pagina_docs.tarjetas')}>
+          <Pulsable /* eslint-disable-line contec/sin-boton-de-icono-propio -- excepción: opción de un segmentado (ds-segmented) */ aria-label={t('pagina_docs.tarjetas')} type="button" aria-pressed={viewMode === 'grid'} onClick={() => setViewMode('grid')} title={t('pagina_docs.tarjetas')}>
             <Grid3X3 size={12} />
           </Pulsable>
-          <Pulsable aria-label={t('pagina_docs.lista')} type="button" aria-pressed={viewMode === 'list'} onClick={() => setViewMode('list')} title={t('pagina_docs.lista')}>
+          <Pulsable /* eslint-disable-line contec/sin-boton-de-icono-propio -- excepción: opción de un segmentado (ds-segmented) */ aria-label={t('pagina_docs.lista')} type="button" aria-pressed={viewMode === 'list'} onClick={() => setViewMode('list')} title={t('pagina_docs.lista')}>
             <List size={12} />
           </Pulsable>
         </div>
@@ -245,7 +245,7 @@ export default function DocumentsPage(): JSX.Element {
             <thead>
               <tr className="docs-row-39">
                 <th className="docs-td">
-                  <Pulsable type="button" onClick={selectAll}
+                  <Pulsable /* eslint-disable-line contec/sin-boton-de-icono-propio -- excepción: casilla de seleccionar todo */ type="button" onClick={selectAll}
                     className={`docs-btn-29 document-sx16 ${selectedIds.size === docs.length && docs.length > 0 ? 'document-sx12' : 'document-sx17'} documents-page-e4`} style={{ '--documents-page-border': `2px solid ${selectedIds.size === docs.length && docs.length > 0 ? 'var(--accent)' : 'var(--surface-5)'}` } as CSSProperties}>
                     {selectedIds.size === docs.length && docs.length > 0 && <Check size={9} color="white" strokeWidth={3} />}
                   </Pulsable>

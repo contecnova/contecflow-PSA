@@ -381,8 +381,8 @@ export default function EpicsPage(): JSX.Element {
                       )}
                     </div>
                     {canEdit && <div className="epics-row-9">
-                      <IconButton ariaLabel={t('common.edit')} onClick={e=>{e.stopPropagation();setEditEpic(epic);setShowForm(true)}}><Pencil size={14} aria-hidden /></IconButton>
-                      <IconButton className="epics-borrar" ariaLabel={t('common.delete')} onClick={e=>{e.stopPropagation();openConfirmGlobal({message:`${t('common.are_you_sure')} "${epic.title}"?`,onConfirm:()=>deleteEpic(epic.id),danger:true})}}><Trash2 size={14} aria-hidden /></IconButton>
+                      <IconButton variante="caja" ariaLabel={t('common.edit')} onClick={e=>{e.stopPropagation();setEditEpic(epic);setShowForm(true)}}><Pencil size={14} aria-hidden /></IconButton>
+                      <IconButton variante="caja" tono="peligro" ariaLabel={t('common.delete')} onClick={e=>{e.stopPropagation();openConfirmGlobal({message:`${t('common.are_you_sure')} "${epic.title}"?`,onConfirm:()=>deleteEpic(epic.id),danger:true})}}><Trash2 size={14} aria-hidden /></IconButton>
                     </div>}
                   </div>
                 </div>

@@ -56,3 +56,14 @@ describe('comprobación de CSS del kit', () => {
     expect(fallos).toEqual([])
   })
 })
+
+describe('comprobación CSS botonDeIcono (23-11-2026)', () => {
+  it('marca clases propias de botón de icono y retoques de la caja del kit', () => {
+    const r = analizarCss('.x-icon-btn { padding: 4px }\n.y-btn-icon:hover { color: red }\n.z .icon-button--caja { height: 40px }\n.x-titulo { color: var(--text-1) }')
+    expect(r.botonDeIcono.map(h => h.texto)).toEqual([
+      '.x-icon-btn { padding: 4px }',
+      '.y-btn-icon:hover { color: red }',
+      '.z .icon-button--caja { height: 40px }',
+    ])
+  })
+})

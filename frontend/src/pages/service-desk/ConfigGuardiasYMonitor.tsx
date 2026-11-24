@@ -17,7 +17,7 @@ import { openConfirmGlobal } from '../../context/ConfirmContext'
 import { useListaDeUsuarios } from '../../hooks/useListas'
 import { extractErr, fmtDateTime } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
-import { Button, EmptyState, Modal, Select, Spinner, StatusBadge, TablaSimple, Input } from '../../components/ui'
+import { Button, EmptyState, Modal, Select, Spinner, StatusBadge, TablaSimple, Input, IconButton } from '../../components/ui'
 import { sdGroupsApi, sdMonitoringApi, sdOnCallApi, apiUrlAbsoluta, type UserListItem } from '../../services/api'
 import type { SdCalendarioDeGuardia } from '../../services/api/tipos-sd'
 import DateInput from '../../components/ui/DateInput'
@@ -82,7 +82,7 @@ export function GuardiasConfig() {
               <div key={e.id} className="coguym-row-3">
                 <span className="coguym-persona">{e.user_name}</span>
                 <span className="coguym-tramo">{fecha(e.start_dt)} – {fecha(e.end_dt)}</span>
-                <Button size="xs" variant="ghost" icon={<X size={12} />} title={t('common.delete')} onClick={() => openConfirmGlobal({ message: t('sd_cfg.oc_confirmar_quitar_turno', { name: e.user_name }), confirmLabel: t('common.delete'), onConfirm: () => quitar.mutate(e.id), danger: true })} />
+                <IconButton variante="caja" tono="peligro" ariaLabel={t('common.delete')} onClick={() => openConfirmGlobal({ message: t('sd_cfg.oc_confirmar_quitar_turno', { name: e.user_name }), confirmLabel: t('common.delete'), onConfirm: () => quitar.mutate(e.id), danger: true })}><X size={12} /></IconButton>
               </div>
             ))}
         </div>

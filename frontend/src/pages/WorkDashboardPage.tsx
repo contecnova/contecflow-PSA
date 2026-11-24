@@ -7,7 +7,7 @@
  * el enlace de cada uno debajo; vacíos con EmptyState; el indicador de tareas
  * completadas ya no marca 100% cuando no hay tareas.
  */
-import { useEffect } from 'react'
+import { lazy, Suspense, useEffect } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
@@ -34,6 +34,9 @@ import { formateadorDeFecha, localeActivo } from '../utils/helpers'
 import { STALE_DEFAULT_MS } from '../constants/timings'
 import { COUNT_ONLY_PAGE_SIZE, FULL_LIST_SIZE } from '../constants/pagination'
 import './WorkDashboardPage.css'
+
+// «Mi cuaderno» (migración 202): casillas pendientes de las notas, cargadas aparte.
+const TareasDelCuaderno = lazy(() => import('../components/cuaderno/BandejaDelCuaderno'))
 
 type TaskStatResponse = { open: number; overdue: number; done: number }
 type HourRow = FilaDeMetrica
@@ -150,7 +153,7 @@ export default function WorkDashboardPage(): JSX.Element {
   const t = useAppT()
   const navigate = useNavigate()
   const toast = useToast()
-  const { user } = useAuth()
+  const { user, puede } = useAuth()
   const { weekly_capacity_hours: capacidadEmpresa } = useOrgSettings() // 18-11-2026
   const userId = user?.id
 
@@ -368,6 +371,14 @@ export default function WorkDashboardPage(): JSX.Element {
               )}
             </Section>
           </Card>
+
+          {puede('cuaderno.usar') && (
+            <Card>
+              <Section title={t('work_dashboard.section_notebook')}>
+                <Suspense fallback={null}><TareasDelCuaderno compacto limite={8} /></Suspense>
+              </Section>
+            </Card>
+          )}
         </div>
       </div>
     </PageShell>

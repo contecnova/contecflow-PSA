@@ -333,12 +333,10 @@ export default function WorkflowsPage() {
                     {s.is_final  && <span className="wf-tag wf-tag--final">{t('workflows.tag_final')}</span>}
                   </div>
                   <div className="u-row-6">
-                    <IconButton type="button" onClick={() => { setEditingState(s); setShowStateForm(true) }}
-                      ariaLabel={t('workflows.editar_estado_n', { nombre: s.name })} title={t('workflows.editar_estado')}
-                      className="wf-icon-btn"><Pencil size={14} aria-hidden /></IconButton>
-                    <IconButton type="button" onClick={() => { openConfirmGlobal({ message: t('workflows.confirmar_eliminar_estado', { nombre: s.name }), onConfirm: () => deleteState(s.id), danger: true }) }}
-                      ariaLabel={t('workflows.eliminar_estado_n', { nombre: s.name })} title={t('workflows.eliminar_estado')}
-                      className="wf-icon-btn wf-icon-btn--danger"><Trash2 size={14} aria-hidden /></IconButton>
+                    <IconButton variante="caja" type="button" onClick={() => { setEditingState(s); setShowStateForm(true) }}
+                      ariaLabel={t('workflows.editar_estado_n', { nombre: s.name })} title={t('workflows.editar_estado')}><Pencil size={14} aria-hidden /></IconButton>
+                    <IconButton variante="caja" tono="peligro" type="button" onClick={() => { openConfirmGlobal({ message: t('workflows.confirmar_eliminar_estado', { nombre: s.name }), onConfirm: () => deleteState(s.id), danger: true }) }}
+                      ariaLabel={t('workflows.eliminar_estado_n', { nombre: s.name })} title={t('workflows.eliminar_estado')}><Trash2 size={14} aria-hidden /></IconButton>
                   </div>
                 </div>
               ))}

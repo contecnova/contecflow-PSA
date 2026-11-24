@@ -1,12 +1,12 @@
 // Pestaña de usuarios del portal de cliente (lista, alta y edicion). 23-11-2026: troceado de ClientPortalPage sin cambio de comportamiento.
 import React, { useState } from 'react'
-import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
-import { portalApi, portalClientsApi, projectsApi, type PathId } from '../services/api'
-import { Button, Checkbox, Modal, Spinner, EmptyState, useErroresDeCampo, Input } from '../components/ui'
+import { portalClientsApi, projectsApi } from '../services/api'
+import { Button, Checkbox, Modal, Spinner, EmptyState, EstadoDeError, useErroresDeCampo, Input } from '../components/ui'
 import Pagination from '../components/ui/Pagination'
-import { Users, Plus, Check, Pencil, Pause, Play, Trash2 } from 'lucide-react'
+import { Users, Plus, Check, Pencil, Pause, Play, Archive } from 'lucide-react'
+import { AccionesDeUsuarioDelPortal, SeccionContrasenaInicial, contrasenaInicialPorDefecto, datosDeContrasenaInicial, type ContrasenaInicial } from './clients/AccionesUsuarioPortal'
 import { fmtDate, extractErr } from '../utils/helpers'
 import { useAppT } from '../i18n/AppLangContext'
 import { useFormValidation } from '../hooks/useFormValidation'
@@ -20,10 +20,12 @@ export function ClientUsersTab({ projectId }: { projectId: string }) {
   const [showCreate, setShowCreate] = useState(false)
   const [editingClient, setEditingClient] = useState<ClientePortal | null>(null)
   const [page, setPage] = useState(1)
+  // 23-11-2026 (portal_usuarios): los archivados, solo a petición.
+  const [verArchivados, setVerArchivados] = useState(false)
   // Paginada en el servidor (#22): total en meta.total / X-Total-Count.
-  const { data: pagina, isLoading } = useQuery({
-    queryKey: ['portal-clients', projectId, 'pagina', page],
-    queryFn: () => portalClientsApi.list({ project_id: projectId, page, page_size: CONTACTOS_POR_PAGINA }).then(r => ({
+  const { data: pagina, isLoading, isError, error, refetch } = useQuery({
+    queryKey: ['portal-clients', projectId, 'pagina', page, verArchivados],
+    queryFn: () => portalClientsApi.list({ project_id: projectId, page, page_size: CONTACTOS_POR_PAGINA, include_archived: verArchivados || undefined }).then(r => ({
       items: r.data,
       total: r.meta?.total ?? Number(r.headers?.['x-total-count'] ?? r.data.length),
     })),
@@ -35,12 +37,8 @@ export function ClientUsersTab({ projectId }: { projectId: string }) {
   const totalPages = Math.max(1, Math.ceil(total / CONTACTOS_POR_PAGINA))
   // Al borrar el último de la última página, o al cambiar de proyecto, no quedarse en una página vacía.
   React.useEffect(() => { if (pagina && page > totalPages) setPage(totalPages) }, [pagina, page, totalPages])
-  React.useEffect(() => { setPage(1) }, [projectId])
-  const { mutate: deleteClient } = useMutation({
-    mutationFn: (id: PathId) => portalApi.deleteClient(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['portal-clients', projectId] }),
-    onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
-  })
+  React.useEffect(() => { setPage(1) }, [projectId, verArchivados])
+  const refrescar = () => { void qc.invalidateQueries({ queryKey: ['portal-clients', projectId] }) }
   const { mutate: toggleActive } = useMutation({
     mutationFn: ({ id, active }: { id: string; active: boolean }) => portalClientsApi.update(id, { is_active: active }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['portal-clients', projectId] }),
@@ -51,9 +49,12 @@ export function ClientUsersTab({ projectId }: { projectId: string }) {
     <div>
       <div className="u-row-between-mb16">
         <div className="u-text2-base">{total} {t('client_portal.contacts_count')}</div>
-        <Button onClick={() => setShowCreate(true)} icon={<Plus size={14} />}>{t('client_portal.add_contact')}</Button>
+        <div className="u-row-8">
+          <Checkbox checked={verArchivados} onChange={m => setVerArchivados(m)} label={t('portalacc.ver_archivados')} />
+          <Button onClick={() => setShowCreate(true)} icon={<Plus size={14} />}>{t('client_portal.add_contact')}</Button>
+        </div>
       </div>
-      {isLoading ? <Spinner /> : clients.length === 0 ? (
+      {isLoading ? <Spinner /> : isError ? <EstadoDeError error={error} onReintentar={() => { void refetch() }} /> : clients.length === 0 ? (
         <EmptyState svgIcon={<Users size={36} />} title={t('client_portal.empty_contacts_title')} description={t('client_portal.empty_contacts_desc')} />
       ) : (
         <div className="u-stack-10">
@@ -63,7 +64,9 @@ export function ClientUsersTab({ projectId }: { projectId: string }) {
                 {c.full_name.split(' ').map(w => w[0]).join('').slice(0, 2)}
               </div>
               <div className="u-flex1">
-                <div className="u-md-700">{c.full_name}</div>
+                <div className="u-md-700">{c.full_name}
+                  {c.archived_at && <span className="u-text2-xs cpp-con-icono"> <Archive size={12} aria-hidden="true" />{t('portalacc.archivado_badge')}</span>}
+                </div>
                 <div className="u-text2-sm">{c.job_title || t('client_portal.role_unknown')} · {c.company || c.project_name} · {c.email}</div>
                 <div className="cpp-perms">
                   {c.can_approve_deliverables && <span className="u-success cpp-con-icono"><Check size={12} aria-hidden="true" />{t('client_portal.perm_approve')}</span>}
@@ -73,6 +76,7 @@ export function ClientUsersTab({ projectId }: { projectId: string }) {
               </div>
               {c.last_login && <div className="u-text2-xs">{`${t('client_portal.last_access')}: ${fmtDate(c.last_login)}`}</div>}
               <div className="u-row-8">
+                {!c.archived_at && <>
                 <Button variant="secondary" size="sm" icon={<Pencil size={13} />} onClick={() => setEditingClient(c)}>
                   {t('client_portal.edit')}
                 </Button>
@@ -80,11 +84,9 @@ export function ClientUsersTab({ projectId }: { projectId: string }) {
                   onClick={() => toggleActive({ id: c.id, active: !c.is_active })}>
                   {c.is_active ? t('client_portal.suspend') : t('client_portal.activate')}
                 </Button>
-                <Button variant="danger" size="sm" icon={<Trash2 size={13} />}
-                  title={t('clientportalpage.eliminar_contacto', { name: c.full_name })}
-                  onClick={() => { openConfirmGlobal({ message: t('client_portal.delete_contact_confirm'), onConfirm: () => deleteClient(c.id), danger: true }) }}>
-                  <span className="u-sr-only">{t('clientportalpage.eliminar_contacto', { name: c.full_name })}</span>
-                </Button>
+                </>}
+                {/* Establecer contraseña, reenviar acceso, eliminar o archivar (lo decide el servidor), restaurar y RGPD. */}
+                <AccionesDeUsuarioDelPortal usuario={c} onCambio={refrescar} />
               </div>
             </div>
           ))}
@@ -104,6 +106,8 @@ function CreateClientModal({ projectId, onClose }: { projectId: string; onClose:
   const qc = useQueryClient()
   const [form, setForm] = useState<FormCliente>({ full_name: '', email: '', job_title: '', company: '', phone: '', can_approve_deliverables: true, can_request_changes: true, can_view_budget: true, can_view_team: false })
   const [extraProjectIds, setExtraProjectIds] = useState<string[]>([]) // additional projects beyond projectId
+  // 23-11-2026 (portal_usuarios): contraseña inicial generada (por defecto) o a mano.
+  const [inicial, setInicial] = useState<ContrasenaInicial>(contrasenaInicialPorDefecto)
   const esquema = React.useMemo(() => crearEsquemaAltaCliente(t), [t])
   const validation = useFormValidation(esquema)
   const errs = validation.errors as Record<string, string | undefined>
@@ -123,12 +127,13 @@ function CreateClientModal({ projectId, onClose }: { projectId: string; onClose:
   const msgC = (k: string) => camposC.de(k) ? <div className="u-field-error">{camposC.de(k)}</div> : null
   const { mutate, isPending } = useMutation({
     onMutate: () => camposC.limpiar(),
-    mutationFn: (data: DatosAltaCliente & { project_id: string; project_ids: string[] }) => portalClientsApi.create(data),
+    mutationFn: (data: DatosAltaCliente & { project_id: string; project_ids: string[] }) => portalClientsApi.create({ ...data, ...datosDeContrasenaInicial(inicial) }),
     // 23-11-2026 (M10 del 04b): la contraseña la genera el servidor y la envía al cliente.
     onSuccess: (r) => {
       validation.setErrors({}); qc.invalidateQueries({ queryKey: ['portal-clients', projectId] })
       if (r.data?.credenciales_enviadas === false) toast.warning(t('portaluserstab.acceso_no_enviado'), 10000)
-      else toast.success(t('portaluserstab.acceso_enviado'))
+      else if (r.data?.credenciales_enviadas === true) toast.success(t('portaluserstab.acceso_enviado'))
+      else toast.success(t('portaluserstab.acceso_creado'))
       onClose()
     },
     onError: (e: unknown) => { if (!camposC.recoger(e)) toast.error(extractErr(e, t('ai.generic_error'))) },
@@ -158,7 +163,8 @@ function CreateClientModal({ projectId, onClose }: { projectId: string; onClose:
         <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="cpp-label">{t('client_portal.label_job_title')}</label><Input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.job_title} onChange={set('job_title')} placeholder={t('client_portal.label_job_title')} inputClassName="cpp-input cpp-input--roomy" />{msgC('job_title')}</div>
         <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="cpp-label">{t('client_portal.label_company')}</label><Input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.company} onChange={set('company')} inputClassName="cpp-input cpp-input--roomy" />{msgC('company')}</div>
         <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="cpp-label">{t('client_portal.label_phone')}</label><Input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={form.phone} onChange={set('phone')} inputClassName="cpp-input cpp-input--roomy" />{msgC('phone')}</div>
-        <div className="u-col-full u-hint">{t('portaluserstab.acceso_se_envia_por_correo')} /portal</div>
+        {inicial.modo === 'generar' && <div className="u-col-full u-hint">{t('portaluserstab.acceso_se_envia_por_correo')} /portal</div>}
+        <SeccionContrasenaInicial valor={inicial} onChange={c => { camposC.limpiar('password'); setInicial(c) }} email={form.email} error={camposC.de('password')} />
         {allProjects.length > 1 && (
           <fieldset className="u-col-full cpp-fieldset ds-grupo-opciones">
             <legend className="cpp-label cpp-label--group">{t('client_portal.additional_projects_access')}</legend>
@@ -181,7 +187,7 @@ function CreateClientModal({ projectId, onClose }: { projectId: string; onClose:
         </fieldset>
         <div className="cpp-actions">
           <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
-          <Button onClick={handleSubmit} disabled={isPending} loading={isPending}>
+          <Button onClick={handleSubmit} disabled={isPending || (inicial.modo === 'manual' && !inicial.password)} loading={isPending}>
             {isPending ? t('client_portal.creating') : t('client_portal.create_access')}
           </Button>
         </div>

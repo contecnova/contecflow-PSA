@@ -18,6 +18,7 @@ import { etiquetaCodigo } from '../../i18n/etiquetaCodigo'
 import { fmtDateTime } from '../../utils/helpers'
 import { etiquetaSd } from '../../pages/service-desk/sdUtils'
 import { cambiosApi } from '../../services/api/serviceDeskMercado'
+import PirDelCab from '../pir/PirDelCab'
 import './sdMercado.css'
 import './PanelDelCab.css'
 
@@ -66,6 +67,8 @@ export default function PanelDelCab({ onOpen }: { onOpen: (id: string) => void }
         </div>
       )}
       <Pagination page={page} totalPages={Math.max(1, Math.ceil(total / TAMANO))} onChange={setPage} total={total} pageSize={TAMANO} />
+      {/* Migración 206 (docs/PIR.md): el CAB ve las PIR pendientes y los cambios cerrados «del todo». */}
+      <PirDelCab />
     </div>
   )
 }

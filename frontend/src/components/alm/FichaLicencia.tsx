@@ -7,7 +7,7 @@ import { useState } from 'react'
 import type { CSSProperties } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Eye, Plus, Split, X, UserMinus, Activity } from 'lucide-react'
-import { Button, Drawer, Spinner, Tabs, Pulsable, Input } from '../ui'
+import { Button, Drawer, Spinner, Tabs, Input, IconButton } from '../ui'
 import { useAppT } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
 import { licensesApi } from '../../services/api'
@@ -105,7 +105,7 @@ export default function FichaLicencia({ licenseId, onClose }: { licenseId: strin
               </div>
             </div>
           </div>
-          <Pulsable type="button" className="alm-icon-btn" aria-label={t('common.close')} onClick={onClose} data-cierra-dialogo=""><X size={16} aria-hidden="true" /></Pulsable>
+          <IconButton variante="caja" ariaLabel={t('common.close')} onClick={onClose} data-cierra-dialogo=""><X size={16} aria-hidden="true" /></IconButton>
         </div>
         {isLoading || !lic ? <Spinner /> : (
           <div className="almf-ficha__cuerpo">

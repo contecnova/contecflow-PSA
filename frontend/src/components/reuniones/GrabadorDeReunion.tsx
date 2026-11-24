@@ -282,7 +282,7 @@ export default function GrabadorDeReunion({ onClose, onCreada }: Props) {
                   onChange={e => cambiarParticipante(i, 'name', e.target.value)} />
                 <Input aria-label={t('reuniones.campo.correo')} placeholder={t('reuniones.campo.correo')} type="email" value={p.email ?? ''}
                   onChange={e => cambiarParticipante(i, 'email', e.target.value)} />
-                <IconButton ariaLabel={t('reuniones.quitar')} onClick={() => setParticipantes(ps => ps.filter((_, j) => j !== i))}>
+                <IconButton variante="caja" tono="peligro" ariaLabel={t('reuniones.quitar')} onClick={() => setParticipantes(ps => ps.filter((_, j) => j !== i))}>
                   <Trash2 size={14} aria-hidden />
                 </IconButton>
               </div>

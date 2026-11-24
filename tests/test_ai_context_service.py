@@ -134,10 +134,16 @@ def test_un_superadmin_lee_de_todas_las_organizaciones(db):
     veía 0 proyectos cuando los datos vivían en otra. Es fácil romperlo sin
     querer al tocar la resolución de alcance.
     """
-    alcance = context_service._construir_alcance(db, None)
+    # M50 (auditoría 22-11-2026): sin usuario falla CERRADO (no ve nada); el bypass
+    # es el del superadministrador, así que se prueba con uno de verdad.
+    from types import SimpleNamespace
+    super_ = SimpleNamespace(id="sa", is_superadmin=True, role=UserRole.employee, organization_id="1")
+    alcance = context_service._construir_alcance(db, super_)
     assert alcance.org_id is None
     assert alcance.can_see_financials is True
     assert alcance.can_see_capacity is True
+    sin_usuario = context_service._construir_alcance(db, None)
+    assert sin_usuario.can_see_financials is False and sin_usuario.can_see_capacity is False
 
 
 def test_un_empleado_queda_acotado_a_sus_proyectos(db):

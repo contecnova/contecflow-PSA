@@ -70,9 +70,24 @@ def test_la_200_sube_baja_y_vuelve_a_subir_sin_perder_datos(base_199):
     assert fila[0] == "1222" and fila[1].startswith(("v2:", "kmsv1:")) and "600" not in fila[1] and fila[2]
     assert c.execute("SELECT count(*) FROM sd_dynamic_form_rule_history").fetchone()[0] == 1
     assert c.execute("SELECT count(*) FROM app_settings WHERE \"key\" LIKE 'sd.%'").fetchone()[0] == 0
-    # A-MOD1: hacia organizations, CASCADE; B-MOD1: ya no hay columnas org_id.
-    acciones = {r[3]: r[6] for r in c.execute("PRAGMA foreign_key_list('alerts')")}
-    assert acciones["organization_id"] == "CASCADE"
+    # A-MOD1: cada FK de la lista de la 200 que EXISTE en la base queda con su accion.
+    # En SQLite, las `organization_id` que anadio la 076 con ALTER no tienen FK
+    # (p. ej. `alerts`) y la 200 las deja tal cual (`sin_fk_en_bd`): se mira
+    # solo lo que hay. Antes se miraba `alerts`, que en SQLite no tiene esa FK.
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(
+        "_m200", os.path.join(RAIZ, "alembic", "versions", "200_esquema_pendiente_auditoria.py"))
+    m200 = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(m200)
+    vistas, malas = 0, []
+    for tabla, col, ref, accion in m200._fks():
+        for r in c.execute(f"PRAGMA foreign_key_list('{tabla}')"):
+            if r[3] == col and r[2] == ref:
+                vistas += 1
+                if r[6] != accion:
+                    malas.append((tabla, col, r[6], accion))
+    assert vistas > 50 and malas == [], (vistas, malas[:10])
+    # B-MOD1: ya no hay columnas org_id.
     assert "org_id" not in {r[1] for r in c.execute("PRAGMA table_info('security_events')")}
     assert c.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
     assert c.execute("PRAGMA foreign_key_check").fetchall() == []

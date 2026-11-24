@@ -8,7 +8,7 @@ import { Search, FileText, AlertCircle, X, Headphones, ListChecks, type LucideIc
 import { collabApi } from '../../services/collaborationApi'
 import { useAppLang } from '../../i18n/AppLangContext'
 import { fmtDateTime } from '../../utils/helpers'
-import { useDialogo, Pulsable, Input } from '../../components/ui'
+import { useDialogo, Pulsable, Input, IconButton } from '../../components/ui'
 import { CHAT_SEARCH_LIMIT } from '../../constants/pagination'
 import { type LinkCandidate, type Msg, type SearchHit } from './compartido'
 
@@ -109,9 +109,9 @@ export function LinkPickerModal({ messageId, kind, onClose, onPicked }: {
           <h2 id={tituloId} className="u-md-700 chat-reset-h">
             {traducir('chat.link_to', { entity: traducir(`chat.entity_${kind}_lower`, kind) })}
           </h2>
-          <Pulsable type="button" onClick={onClose} className="chat-icon-close" aria-label={traducir('chat.close')}>
+          <IconButton variante="caja" onClick={onClose} ariaLabel={traducir('chat.close')}>
             <X size={14} aria-hidden="true" />
-          </Pulsable>
+          </IconButton>
         </div>
         <Input type="search" aria-label={traducir('chat.search_placeholder')} value={q} onChange={(e) => setQ(e.target.value)} placeholder={traducir('chat.search_placeholder')} autoFocus
           inputClassName="chat-input chat-input--lg" />

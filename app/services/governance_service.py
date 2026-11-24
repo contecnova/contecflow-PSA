@@ -154,7 +154,7 @@ def _de_la_empresa(q, organization_id: Optional[str]):
 
 #: Sin fila, apagados: abren una puerta hacia fuera (revisión 2026-11). Vive aqui
 #: (no en la ruta) para que `app.core.modulos_ia` no importe la API.
-APAGADOS_SIN_CONFIGURAR = {"mcp"}
+APAGADOS_SIN_CONFIGURAR = {"mcp", "ticket_pr"}   # ticket_pr: «Del ticket al PR» (migración 203)
 
 
 def config_de_modulo(db: Session, organization_id: Optional[str], module: str) -> Optional[AIGovernanceConfig]:

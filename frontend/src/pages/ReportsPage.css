@@ -232,7 +232,6 @@
   margin-left: auto;
 }
 
-
 .rep-state-muted {
   text-align: center;
   padding: 40px 0 24px;
@@ -524,7 +523,6 @@
   margin-bottom: 4px;
 }
 
-
 .rep-row-14 {
   display: flex;
   justify-content: space-between;
@@ -577,8 +575,6 @@
   flex-shrink: 0;
 }
 
-
-
 .rep-link-purple {
   background: var(--purple-bg);
   border: 1px solid var(--purple-border);
@@ -622,7 +618,6 @@
   border-bottom: 1px solid var(--surface-4);
   padding-bottom: 12px;
 }
-
 
 .rep-text-muted-sm-3 {
   font-size: var(--text-sm);
@@ -728,7 +723,6 @@
   color: var(--rep-text-5-color);
 }
 
-
 .rep-text-7 {
   color: var(--rep-text-7-color);
 }
@@ -777,7 +771,6 @@
   padding: 24px;
 }
 
-
 /* ── 16-11-2026: pasada de diseño ───────────────────────────────────────────
    Iconos lucide en lugar de emojis, tipos de gráfico, chips de categoría y
    acciones con tokens del tema. */
@@ -807,17 +800,6 @@
   margin-bottom: 8px;
   color: var(--accent);
 }
-.rep-icono {
-  display: inline-flex;
-  padding: 4px;
-  border: none;
-  border-radius: var(--radius-sm);
-  background: none;
-  color: var(--text-3);
-  cursor: pointer;
-}
-.rep-icono:hover { background: var(--surface-3); color: var(--text-1); }
-.rep-icono--borrar:hover { color: var(--danger); }
 .rep-mini-total {
   font-size: var(--text-xl);
   font-weight: 700;

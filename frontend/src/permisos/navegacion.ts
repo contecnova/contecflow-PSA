@@ -53,6 +53,10 @@ export const RUTAS: RutaDeclarada[] = [
   ]),
   // Asistente de reuniones (19-11-2026): antes con `proyectos.trabajo`.
   ...con('reuniones.usar', ['/meetings-ai']),
+  // «Mi cuaderno» (migración 202): cada persona con acceso a gestión (no el portal de clientes).
+  ...con('cuaderno.usar', ['/notebook']),
+  // Revisiones posteriores a la implantación (migración 206): las mías, todas (acotadas) e informes.
+  ...con('pir.ver', ['/pir']),
   ...con('proyectos.panel', ['/projects-dashboard']),
   ...con('proyectos.gobierno', ['/deliverables', '/changes', '/risks', '/git', '/esign']),
   ...con('equipo.ver', ['/team-dashboard', '/resources/planning', '/alm/altas-y-bajas']),

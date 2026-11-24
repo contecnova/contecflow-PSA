@@ -53,12 +53,6 @@
   border-radius: var(--radius-sm); background: var(--accent-muted); color: var(--accent); font-weight: 700; font-size: var(--text-sm);
 }
 .vap-tecla__nueva { width: 110px; }
-.vap-icono-btn {
-  display: inline-flex; align-items: center; justify-content: center; width: 32px; min-height: 32px; background: none;
-  border: 1px solid var(--surface-4); border-radius: var(--radius-sm); color: var(--text-2); cursor: pointer;
-}
-.vap-icono-btn:hover { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 40%, transparent); }
-.vap-icono-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 /* Palabras clave por motivo */
 .vap-motivo { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; border: 1px solid var(--surface-4); border-radius: var(--radius-md); }

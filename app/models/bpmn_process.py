@@ -49,6 +49,11 @@ class BPMNProcess(Base):
     icon = Column(String(40), nullable=True)                     # optional emoji/icon hint
     owner = Column(String(200), nullable=True)                   # responsable (texto: rol o persona)
     sla = Column(String(120), nullable=True)                     # plazo objetivo, en texto (p. ej. «3 días hábiles»)
+    # Migracion 204 (docs/BPM.md): variables declaradas del proceso, JSON
+    # [{name, type, label?, required?, personal?, options?}]. El motor valida el
+    # tipo al arrancar y al completar; `personal` las lleva a la copia y a la
+    # supresion RGPD.
+    variables_schema = Column(Text, nullable=True)
 
     # Source linkage — when the process is derived from an existing module
     source_kind = Column(String(40), nullable=True)              # "seeded" | "custom"
@@ -85,6 +90,12 @@ class BPMNProcessVersion(Base):
     notes = Column(String(500), nullable=True)     # change description
     is_published = Column(Boolean, default=False, nullable=False)
     published_at = Column(DateTime(timezone=True), nullable=True)
+    # Migracion 204: quien publico (segregacion de funciones) y la retirada.
+    # Ciclo: borrador -> publicada -> retirada. Una version retirada no arranca
+    # instancias nuevas; las que ya corren en ella siguen hasta el final.
+    published_by_user_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    retired_at = Column(DateTime(timezone=True), nullable=True)
+    retired_by_user_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
 
     created_by_user_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
@@ -104,7 +115,7 @@ class BPMNInstance(Base):
     organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
     process_id = Column(String(36), ForeignKey("bpmn_processes.id", ondelete="CASCADE"), nullable=False, index=True)
     version = Column(Integer, nullable=False)
-    status = Column(String(20), nullable=False, default="running", index=True)  # running | completed | cancelled | failed
+    status = Column(String(20), nullable=False, default="running", index=True)  # running | suspended | completed | cancelled | failed
     variables = Column(Text, nullable=True)       # JSON
     error = Column(String(500), nullable=True)
     # Revisión BPM 2026-11-16: el motivo del fallo como código y parámetros,
@@ -115,6 +126,12 @@ class BPMNInstance(Base):
     started_by_user_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     started_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     ended_at = Column(DateTime(timezone=True), nullable=True)
+    # Migracion 204: clave de negocio (correlacion de mensajes, busqueda),
+    # instancia padre de una actividad de llamada (`callActivity`) y suspension.
+    business_key = Column(String(120), nullable=True, index=True)
+    parent_instance_id = Column(String(36), ForeignKey("bpmn_instances.id", ondelete="SET NULL"), nullable=True, index=True)
+    parent_step_id = Column(String(36), nullable=True)
+    suspended_at = Column(DateTime(timezone=True), nullable=True)
 
     steps = relationship("BPMNInstanceStep", back_populates="instance", cascade="all, delete-orphan",
                          order_by="BPMNInstanceStep.created_at")
@@ -135,11 +152,22 @@ class BPMNInstanceStep(Base):
     # Revisión BPM 2026-11-16: por qué espera el paso. task (tarea humana),
     # decision (compuerta exclusiva sin condiciones: elige una persona),
     # timer (temporizador), join (unión paralela); NULL en los automáticos.
+    # Migracion 204: message, subprocess, call, job (accion automatica en cola),
+    # retry (reintento programado), incident (fallo tras los reintentos) y
+    # approval (solicitud abierta en el motor de aprobaciones).
     wait_kind = Column(String(20), nullable=True)
     due_at = Column(DateTime(timezone=True), nullable=True)   # temporizadores
     arrived = Column(Integer, nullable=False, default=1)      # fichas llegadas (union paralela)
     completed_by_user_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     result = Column(Text, nullable=True)          # JSON: variables que aporto quien lo completo
+    # Migracion 204: asignacion (persona concreta; candidatos `role:x`,
+    # `user:<id>`, `approval:<grupo>`, `team:<cola>` separados por comas), plazo
+    # de la tarea (SLA) y su escalado, e intentos de una accion automatica.
+    assignee_user_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    candidate_groups = Column(String(1000), nullable=True)
+    sla_due_at = Column(DateTime(timezone=True), nullable=True, index=True)
+    escalated_at = Column(DateTime(timezone=True), nullable=True)
+    attempts = Column(Integer, nullable=False, default=0, server_default="0")
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     completed_at = Column(DateTime(timezone=True), nullable=True)
 

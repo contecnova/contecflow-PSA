@@ -421,7 +421,7 @@ export default function GanttChart({
                 <div className={`gantchar-row-6 gantt-chart-e9 ${isGroup ? 'gantt-chart-m10' : 'gantt-chart-m11'}`} key={item.id} style={{ '--gantt-chart-height': px(h) } as CSSProperties}>
                   {isGroup ? (
                     <>
-                      <Pulsable
+                      <Pulsable /* eslint-disable-line contec/sin-boton-de-icono-propio -- excepción: chevron de plegar grupo dentro del lienzo del Gantt */
                         onClick={() => setCollapsed(s => { const n = new Set(s); n.has(item.id) ? n.delete(item.id) : n.add(item.id); return n })}
                         aria-label={collapsed.has(item.id) ? traducir('ganttchart.expandir_grupo') : traducir('ganttchart.contraer_grupo')}
                         className="gantchar-box-6">

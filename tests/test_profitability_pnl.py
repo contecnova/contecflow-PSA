@@ -79,6 +79,16 @@ def _imputacion(db, proyecto, *, horas, coste, facturable=True):
     ))
 
 
+def _hito_facturado(db, proyecto, importe):
+    """Auditoría 22-11-2026 (§7.2, margen único en bloque): el ingreso a precio
+    cerrado sale de los hitos facturados DE VERDAD (`billed_at`); el parámetro
+    `billed_milestones_total` ya no se usa (venía sin convertir de moneda)."""
+    from app.models.financial import ProjectMilestone
+    db.add(ProjectMilestone(id=str(uuid.uuid4()), organization_id="1", project_id=proyecto.id, name="Hito",
+                            is_active=True, billing_amount=importe, is_billed=True,
+                            billed_at=timeutil.today() - timedelta(days=5)))
+
+
 def _tarea(db, proyecto, estado):
     db.add(Task(
         id=str(uuid.uuid4()),
@@ -224,8 +234,9 @@ def test_a_precio_cerrado_el_ingreso_sale_de_los_hitos_facturados(db):
     que se han facturado — no el importe del contrato entero."""
     p = _proyecto(db, contract_amount=50_000.0, budget_amount=40_000.0)
     _imputacion(db, p, horas=10.0, coste=500.0)
+    _hito_facturado(db, p, 12_000.0)
     db.commit()
-    r = calc_project_profitability(p, db, billed_milestones_total=12_000.0)
+    r = calc_project_profitability(p, db)
     assert r["billing_revenue"] == 12_000.0
     assert r["contract_amount"] == 50_000.0
 
@@ -246,8 +257,9 @@ def test_con_tarifa_pero_sin_horas_facturables_se_cae_a_los_hitos(db):
     tarifa pero todo no facturable, el ingreso son los hitos."""
     p = _proyecto(db, billing_rate=90.0, contract_amount=50_000.0)
     _imputacion(db, p, horas=10.0, coste=500.0, facturable=False)
+    _hito_facturado(db, p, 7_000.0)
     db.commit()
-    r = calc_project_profitability(p, db, billed_milestones_total=7_000.0)
+    r = calc_project_profitability(p, db)
     assert r["billable_hours"] == 0.0
     assert r["billing_revenue"] == 7_000.0
 
@@ -389,9 +401,12 @@ def test_los_totales_precalculados_se_respetan(db):
     p = _proyecto(db, billing_rate=50.0, budget_amount=10_000.0)
     _imputacion(db, p, horas=99.0, coste=9_999.0)
     db.commit()
-    r = calc_project_profitability(p, db, imputation_totals={
-        "total_hours": 8.0, "billable_hours": 8.0, "internal_cost": 400.0,
-    })
+    # §7.2 (margen único en bloque): los totales precalculados de una lista llegan
+    # en `cifras` (la fila del bloque); `imputation_totals` ya no se usa.
+    from app.services.margen_de_proyectos import margen_en_bloque
+    cifras = {**margen_en_bloque(db, [p], None, None)[p.id],
+              "hours": 8.0, "billable_hours": 8.0, "internal_cost": 400.0, "revenue": 400.0, "total_cost": 400.0}
+    r = calc_project_profitability(p, db, cifras=cifras)
     assert r["total_hours"] == 8.0          # los precalculados, no las 99 reales
     assert r["internal_cost"] == 400.0
     assert r["billing_revenue"] == 400.0    # 50 × 8

@@ -12,7 +12,11 @@ setlocal EnableDelayedExpansion
 ::   setup.bat docker [demo^|clean] - TODO en Docker (app + Grafana/Prometheus/Alertmanager)
 ::   setup.bat docker-status - estado de los contenedores y URLs
 ::   setup.bat docker-stop / docker-clean - para Docker (clean borra los volumenes regenerables; conserva PostgreSQL y S3)
+::   setup.bat backup   - copia local (SQLite o PostgreSQL + uploads) en backups\
+::   setup.bat restore ^<carpeta^> - restaura una copia (verifica integridad antes)
 ::   SETUP_INIT_MODE=demo^|clean setup.bat start  - modo no interactivo (CI/CD)
+::   BACKEND_PORT / FRONTEND_PORT / CF_REDIS_PORT - puertos (8000 / 3000 / 6381)
+::   CONTECFLOW_TAREAS=auto^|celery^|integrado - como corren las tareas programadas
 
 :: La consola de Windows arranca en la pagina de codigos 850 o 1252, y el
 :: sembrado imprime «checks» y avisos con caracteres fuera de ASCII: 81 `print`
@@ -25,8 +29,11 @@ setlocal EnableDelayedExpansion
 :: cambiarle la consola al usuario.
 set PYTHONUTF8=1
 
-set BACKEND_PORT=8000
-set FRONTEND_PORT=3000
+:: Puertos: los del entorno si vienen (set BACKEND_PORT=8010 y luego setup.bat
+:: start); si no, los de siempre. Igual que setup.sh. Hasta el 23-11-2026
+:: estaban fijos y un "set BACKEND_PORT=..." previo se pisaba aqui.
+if not defined BACKEND_PORT set "BACKEND_PORT=8000"
+if not defined FRONTEND_PORT set "FRONTEND_PORT=3000"
 set SCRIPT_DIR=%~dp0
 set SCRIPT_DIR=%SCRIPT_DIR:~0,-1%
 set REQUESTED_MODE=
@@ -60,6 +67,8 @@ if /I "%CMD%"=="docker"        goto :docker_full
 if /I "%CMD%"=="docker-start"  goto :docker_full
 if /I "%CMD%"=="docker-up"     goto :docker_full
 if /I "%CMD%"=="docker-status" goto :docker_status
+if /I "%CMD%"=="backup"        goto :backup_local
+if /I "%CMD%"=="restore"       goto :restore_local
 
 if /I "%CMD%"=="install" set "REQUESTED_MODE="& goto :full_install
 if /I "%CMD%"=="demo"  set "REQUESTED_MODE=demo"
@@ -90,11 +99,65 @@ echo                                   Prometheus, Alertmanager, Grafana y expor
 echo   setup.bat docker-status      -^> estado de los contenedores y URLs
 echo   setup.bat docker-stop        -^> para todos los contenedores ^(conserva datos^)
 echo   setup.bat docker-clean       -^> para Docker y borra los volumenes regenerables ^(conserva PostgreSQL y S3^)
+echo   setup.bat backup             -^> copia local: base ^(SQLite o PostgreSQL^) + uploads en backups
+echo   setup.bat restore ^<carpeta^>  -^> verifica la copia, para la app y la restaura ^(pide confirmacion^)
 echo.
 echo   Alias: seed = demo; zero / cero / admin-only = clean
 echo   CI/CD: set SETUP_INIT_MODE=demo^|clean ^&^& setup.bat start
+echo   Puertos: set BACKEND_PORT=8010, FRONTEND_PORT=3010 o CF_REDIS_PORT=6381 antes de setup.bat
+echo   Tareas:  set CONTECFLOW_TAREAS=auto^|celery^|integrado ^(auto: Celery si hay Redis; si no, integrado^)
 endlocal
 exit /b 1
+
+:: Copias locales (23-11-2026). scripts\backup.sh y restore.sh solo cubrian
+:: Docker; la logica comun (SQLite con la API de backup, PostgreSQL con
+:: pg_dump, uploads y verificacion SHA-256) vive en scripts\copia_local.py,
+:: que tambien usa setup.sh. Ver README, "Copias de seguridad".
+:backup_local
+if not exist "%SCRIPT_DIR%\.venv\Scripts\python.exe" (
+    echo [ERROR] Falta el entorno virtual. Ejecuta antes: setup.bat install
+    endlocal
+    exit /b 1
+)
+cd /d "%SCRIPT_DIR%"
+.venv\Scripts\python scripts\copia_local.py backup
+if errorlevel 1 (
+    echo [ERROR] La copia de seguridad ha fallado. Revisa el mensaje de arriba.
+    endlocal
+    exit /b 1
+)
+goto :end
+
+:restore_local
+if "%~2"=="" (
+    echo [ERROR] Uso: setup.bat restore ^<carpeta de la copia en backups, o su MANIFIESTO^>
+    endlocal
+    exit /b 1
+)
+if not exist "%SCRIPT_DIR%\.venv\Scripts\python.exe" (
+    echo [ERROR] Falta el entorno virtual. Ejecuta antes: setup.bat install
+    endlocal
+    exit /b 1
+)
+cd /d "%SCRIPT_DIR%"
+:: Primero se comprueba la copia sin tocar nada; solo si es integra se para la
+:: app (con la base abierta Windows no deja reemplazar el fichero SQLite).
+.venv\Scripts\python scripts\copia_local.py verificar "%~2"
+if errorlevel 1 (
+    echo [ERROR] La copia no supera la verificacion de integridad: no se restaura nada.
+    endlocal
+    exit /b 1
+)
+echo [INFO] Parando la app antes de restaurar...
+call :parar_procesos
+.venv\Scripts\python scripts\copia_local.py restore "%~2"
+if errorlevel 1 (
+    echo [ERROR] La restauracion no se ha completado. Revisa el mensaje de arriba.
+    endlocal
+    exit /b 1
+)
+echo [OK] Restaurado. Arranca con: setup.bat start
+goto :end
 
 :docker_stop
 :: Todos los perfiles (infra, app, observabilidad, s3, host-metrics), sin -v:
@@ -535,7 +598,7 @@ if not exist ".env" (
         echo CLIENT_PORTAL_SECRET=!CLIENT_PORTAL_SECRET!
         echo ACCESS_TOKEN_EXPIRE_MINUTES=60
         echo REFRESH_TOKEN_EXPIRE_DAYS=30
-        echo ALLOWED_ORIGINS=["http://localhost:3000","http://localhost:5173","http://localhost:8000"]
+        echo ALLOWED_ORIGINS=["http://localhost:%FRONTEND_PORT%","http://localhost:5173","http://localhost:%BACKEND_PORT%"]
         echo ENVIRONMENT=development
         echo SUPERADMIN_EMAIL=admin@company.com
         echo SUPERADMIN_PASSWORD=!INIT_ADMIN_PWD!
@@ -578,6 +641,16 @@ findstr /b "ENVIRONMENT=" .env >nul 2>&1
 if errorlevel 1 (
     echo [INFO] ENVIRONMENT no encontrado en .env - estableciendo development
     >>.env echo ENVIRONMENT=development
+)
+:: 23-11-2026: un valor que Settings acepte (canonico o alias, ver .env.example).
+:: Antes un ENVIRONMENT desconocido pasaba el setup y la API no arrancaba.
+call :get_environment
+set "ENV_VALIDO="
+for %%E in (development dev local demo test testing staging stage pre preprod production prod prd) do if /I "!APP_ENVIRONMENT!"=="%%E" set "ENV_VALIDO=1"
+if not defined ENV_VALIDO (
+    echo [ERROR] ENVIRONMENT=!APP_ENVIRONMENT! en .env no es valido: la API no arrancaria.
+    echo [ERROR] Usa development, test, staging o production ^(alias: dev, local, demo, testing, stage, pre, preprod, prod, prd^).
+    exit /b 1
 )
 
 :: Regenerar SECRET_KEY si quedó con placeholder/insegura
@@ -742,7 +815,44 @@ if not exist "%SCRIPT_DIR%\frontend\node_modules\vite\dist\node\cli.js" (
 :: Always sync demo passwords before starting -- ensures hash matches .env even on 'start only'
 call :sync_demo_passwords
 
-:: Liberar puertos antes de arrancar
+:: Tareas en segundo plano (23-11-2026). Antes se lanzaban SIEMPRE worker y beat
+:: de Celery y la API sin planificador, pero este script no escribia REDIS_URL:
+:: sin Redis los dos morian y no corria ninguna tarea programada. Ahora
+:: scripts\modo_tareas.py busca un Redis que responda (REDIS_URL del .env, 6379
+:: local o el de Docker en CF_REDIS_PORT) y escribe REDIS_URL si faltaba:
+::   celery    = API con ENABLE_APSCHEDULER=0, mas worker y beat de Celery
+::   integrado = API con el planificador integrado (APScheduler, que replica
+::               todo el calendario de beat); no se lanzan procesos que fallarian
+set "TAREAS_MODO="
+set "TAREAS_DETALLE="
+for /f "tokens=1,*" %%A in ('.venv\Scripts\python scripts\modo_tareas.py') do (
+    set "TAREAS_MODO=%%A"
+    set "TAREAS_DETALLE=%%B"
+)
+if /I "!TAREAS_MODO!"=="celery" goto :tareas_con_celery
+set "TAREAS_MODO=integrado"
+set "RUN_APSCHEDULER=1"
+set "RUN_CELERY_BEAT=0"
+echo.
+echo [AVISO] ==========================================================
+echo [AVISO] Sin Redis: !TAREAS_DETALLE!. Se arranca SIN Celery.
+echo [AVISO] Las tareas programadas ^(SLA, buzon, avisos...^) las ejecuta el
+echo [AVISO] planificador integrado de la API ^(APScheduler^). No se lanzan
+echo [AVISO] worker ni beat. Lo que se encola al momento ^(.delay^) no corre.
+echo [AVISO] Para usar Celery: arranca Redis ^(6379, o el de Docker en 6381^)
+echo [AVISO] y vuelve a ejecutar setup.bat start.
+echo [AVISO] ==========================================================
+echo.
+goto :tareas_decididas
+:tareas_con_celery
+set "RUN_APSCHEDULER=0"
+set "RUN_CELERY_BEAT=1"
+echo [OK] Tareas en segundo plano: Celery con Redis !TAREAS_DETALLE!
+:tareas_decididas
+
+:: Liberar puertos y procesos de un arranque anterior
+taskkill /FI "WINDOWTITLE eq Contecflow Worker*" /F >nul 2>&1
+taskkill /FI "WINDOWTITLE eq Contecflow Beat*" /F >nul 2>&1
 call :kill_port %BACKEND_PORT%
 call :kill_port %FRONTEND_PORT%
 call :wait_port_free %BACKEND_PORT% 15
@@ -765,8 +875,8 @@ if not defined BACKEND_HOST set "BACKEND_HOST=127.0.0.1"
 (
     echo @echo off
     echo cd /d "%SCRIPT_DIR%"
-    echo set ENABLE_APSCHEDULER=0
-    echo set ENABLE_CELERY_BEAT=1
+    echo set ENABLE_APSCHEDULER=!RUN_APSCHEDULER!
+    echo set ENABLE_CELERY_BEAT=!RUN_CELERY_BEAT!
     echo .venv\Scripts\python -m uvicorn app.main:app --host %BACKEND_HOST% --port %BACKEND_PORT% --log-level info 1^>"%TEMP%\contecflow-backend.log" 2^>"%TEMP%\contecflow-backend.err.log"
 ) > "%BACKEND_RUNNER%"
 REM (call ) deja errorlevel a 0: si no, el "if errorlevel 1" de abajo hereda el de
@@ -777,9 +887,9 @@ if errorlevel 1 (
     echo [ERROR] No se pudo lanzar el backend.
     exit /b 1
 )
-REM Tareas en segundo plano (auditoria 2026-11): sin Celery no corrian 48 de las
-REM 52 tareas programadas (SLA/OLA/UC, buzon, avisos de ticket). En Windows Celery
-REM necesita el pool "solo". No verificado en Windows.
+REM Worker y beat solo con Redis (ver modo de tareas arriba). En Windows Celery
+REM necesita el pool "solo".
+if /I not "!TAREAS_MODO!"=="celery" goto :sin_worker_ni_beat
 set "WORKER_RUNNER=%TEMP%\contecflow-worker-runner.cmd"
 (
     echo @echo off
@@ -794,14 +904,15 @@ set "BEAT_RUNNER=%TEMP%\contecflow-beat-runner.cmd"
     echo .venv\Scripts\python -m celery -A app.worker.celery_app beat --loglevel=info --schedule "%TEMP%\contecflow-celerybeat-schedule" 1^>"%TEMP%\contecflow-beat.log" 2^>^&1
 ) > "%BEAT_RUNNER%"
 start "Contecflow Beat" /min "%COMSPEC%" /c call "%BEAT_RUNNER%"
+:sin_worker_ni_beat
 
-:: Esperar a que el backend responda (máx. 180 s)
+:: Esperar a que el backend responda (máx. 600 s backend / 300 s frontend: con la máquina cargada tarda varios minutos)
 echo [INFO] Esperando backend
 set BACKEND_ATTEMPTS=0
 :wait_backend
 set /a BACKEND_ATTEMPTS+=1
-if %BACKEND_ATTEMPTS% GTR 180 (
-    echo [ERROR] El backend no respondio en 180 segundos.
+if %BACKEND_ATTEMPTS% GTR 600 (
+    echo [ERROR] El backend no respondio en 600 segundos.
     echo [ERROR] Revisa los logs: %TEMP%\contecflow-backend.log y %TEMP%\contecflow-backend.err.log
     exit /b 1
 )
@@ -863,6 +974,7 @@ set "FRONTEND_RUNNER=%TEMP%\contecflow-frontend-runner.cmd"
 (
     echo @echo off
     echo cd /d "%SCRIPT_DIR%\frontend"
+    echo set API_URL=http://localhost:%BACKEND_PORT%
     echo npm run dev -- --port %FRONTEND_PORT% 1^>"%TEMP%\contecflow-frontend.log" 2^>"%TEMP%\contecflow-frontend.err.log"
 ) > "%FRONTEND_RUNNER%"
 (call )
@@ -872,13 +984,13 @@ if errorlevel 1 (
     exit /b 1
 )
 
-:: Esperar frontend (máx. 180 s)
+:: Esperar frontend (máx. 600 s backend / 300 s frontend: con la máquina cargada tarda varios minutos)
 echo [INFO] Esperando frontend
 set FRONTEND_ATTEMPTS=0
 :wait_frontend
 set /a FRONTEND_ATTEMPTS+=1
-if %FRONTEND_ATTEMPTS% GTR 180 (
-    echo [ERROR] El frontend no respondio en 180 segundos.
+if %FRONTEND_ATTEMPTS% GTR 300 (
+    echo [ERROR] El frontend no respondio en 300 segundos.
     echo [ERROR] Revisa los logs: %TEMP%\contecflow-frontend.log y %TEMP%\contecflow-frontend.err.log
     exit /b 1
 )
@@ -897,13 +1009,17 @@ echo.
 echo   App:      http://localhost:%FRONTEND_PORT%
 echo   API:      http://localhost:%BACKEND_PORT%/api/v1/docs
 echo   Logs:     %TEMP%\contecflow-backend.log
+if /I "!TAREAS_MODO!"=="celery" (
+    echo   Tareas:   Celery ^(%TEMP%\contecflow-worker.log y contecflow-beat.log^)
+) else (
+    echo   Tareas:   planificador integrado de la API ^(sin Redis ni Celery^)
+)
 echo.
-call :get_demo_password
-echo   Usuarios de prueba:
-echo     admin      / !DEMO_PASSWORD!   - Direccion
-echo     ana.torres / !DEMO_PASSWORD!   - PM
-echo     luis.vega  / !DEMO_PASSWORD!   - Empleado
-echo     rrhh       / !DEMO_PASSWORD!   - RRHH
+:: 23-11-2026: el banner decia DEFAULT_USER_PASSWORD tambien para admin, cuya
+:: contrasena es SUPERADMIN_PASSWORD, y perdia los "!" por la expansion
+:: retardada. Lo imprime Python directamente: cada usuario con la suya, solo
+:: los que existen y sin contrasenas fuera de development/test.
+.venv\Scripts\python scripts\credenciales_iniciales.py
 echo.
 echo   Para parar:  setup.bat stop
 echo.
@@ -919,6 +1035,11 @@ goto :end
 :: -----------------------------------------------------------------------
 :stop_services
 echo [INFO] Parando Contecflow...
+call :parar_procesos
+echo [OK] Servicios parados.
+goto :end
+
+:parar_procesos
 taskkill /FI "WINDOWTITLE eq Contecflow Backend*" /F >nul 2>&1
 taskkill /FI "WINDOWTITLE eq Contecflow Frontend*" /F >nul 2>&1
 taskkill /FI "WINDOWTITLE eq Contecflow Worker*" /F >nul 2>&1
@@ -927,8 +1048,7 @@ call :kill_port %BACKEND_PORT%
 call :kill_port %FRONTEND_PORT%
 call :wait_port_free %BACKEND_PORT% 15 >nul 2>&1
 call :wait_port_free %FRONTEND_PORT% 15 >nul 2>&1
-echo [OK] Servicios parados.
-goto :end
+exit /b 0
 
 :: -----------------------------------------------------------------------
 :kill_port
@@ -968,15 +1088,6 @@ ping -n 2 127.0.0.1 >nul
 goto :wait_port_free_loop
 
 :: -----------------------------------------------------------------------
-:get_demo_password
-:: Sin fallback: inventar una contraseña por defecto aquí significaba que un .env
-:: sin DEFAULT_USER_PASSWORD acababa con usuarios cuya contraseña estaba escrita
-:: en este script. Si queda vacía, quien llama debe abortar.
-set "DEMO_PASSWORD="
-for /f "tokens=1,* delims==" %%A in ('findstr /b "DEFAULT_USER_PASSWORD=" .env 2^>nul') do set "DEMO_PASSWORD=%%B"
-exit /b 0
-
-:: -----------------------------------------------------------------------
 :: Entorno declarado en .env. Fail-closed: si no se puede determinar, se asume
 :: "production" para que ninguna operación destructiva se ejecute por descuido.
 :get_environment
@@ -988,59 +1099,24 @@ exit /b 0
 :: -----------------------------------------------------------------------
 :sync_demo_passwords
 setlocal EnableDelayedExpansion
-
-:: Gate de entorno (auditoría 2026-08, P0-4). Esta rutina reescribe el hash de
-:: contraseña de admin/ana.torres/luis.vega/rrhh con DEFAULT_USER_PASSWORD. Sin
-:: guarda, ejecutar setup.bat contra producción dejaba la cuenta admin con una
-:: contraseña conocida y compartida.
-call :get_environment
-set "ENV_OK="
-if /i "!APP_ENVIRONMENT!"=="development" set "ENV_OK=1"
-if /i "!APP_ENVIRONMENT!"=="dev"         set "ENV_OK=1"
-if /i "!APP_ENVIRONMENT!"=="local"       set "ENV_OK=1"
-if /i "!APP_ENVIRONMENT!"=="test"        set "ENV_OK=1"
-if /i "!APP_ENVIRONMENT!"=="testing"     set "ENV_OK=1"
-if /i "!APP_ENVIRONMENT!"=="demo"        set "ENV_OK=1"
-if not defined ENV_OK (
-    echo [WARN] ENVIRONMENT=!APP_ENVIRONMENT!: se OMITE la sincronizacion de contrasenas demo.
-    echo [WARN] Reescribir credenciales solo se permite en development/test/demo.
-    endlocal
-    exit /b 0
-)
-
-call :get_demo_password
-set "DEMO_PWD=!DEMO_PASSWORD!"
-if "!DEMO_PWD!"=="" (
-    echo [WARN] DEFAULT_USER_PASSWORD no esta definida en .env: se omite la sincronizacion.
-    endlocal
-    exit /b 0
-)
-
-:: Centinela de cambio. Antes se escribía la contraseña EN CLARO en este fichero
-:: (se llamaba .pwd_hash pero no lo era): ahora se guarda su SHA-256.
-set "PWD_HASH_FILE=.venv\.pwd_hash"
-set "CURRENT_HASH="
-for /f "delims=" %%H in ('.venv\Scripts\python -c "import hashlib,os;print(hashlib.sha256(os.environ['DEMO_PWD'].encode()).hexdigest())"') do set "CURRENT_HASH=%%H"
-if "!CURRENT_HASH!"=="" set "CURRENT_HASH=nocheck"
-
-if exist "%PWD_HASH_FILE%" (
-    set /p STORED_HASH=<"%PWD_HASH_FILE%"
-    if "!STORED_HASH!"=="!CURRENT_HASH!" (
-        echo [INFO] Contrasenas demo sin cambios, omitiendo rehash
-        endlocal
-        exit /b 0
-    )
-)
-
-echo [INFO] Sincronizando contrasenas demo con DEFAULT_USER_PASSWORD...
-.venv\Scripts\python -c "from app.db.session import SessionLocal, declarar_sistema; from app.models.user import User; from app.core.security import get_password_hash; db=declarar_sistema(SessionLocal(), 'setup: contrasenas demo'
-);
- [setattr(u,'hashed_password',get_password_hash('!DEMO_PWD!')) for u in db.query(User).filter(User.username.in_(['admin','ana.torres','luis.vega','rrhh'])).all()]; db.commit(); db.close(); print('ok')"
-if errorlevel 1 (
-    echo [WARN] No se pudieron sincronizar las contrasenas demo automaticamente
+:: 23-11-2026: toda la logica en scripts\sincronizar_contrasenas_demo.py:
+:: - puerta de entorno (auditoria 2026-08, P0-4): solo development/test y alias;
+:: - admin (superadmin) con SUPERADMIN_PASSWORD y el resto con
+::   DEFAULT_USER_PASSWORD, igual que la semilla (antes admin recibia aqui
+::   DEFAULT_USER_PASSWORD y en la semilla SUPERADMIN_PASSWORD);
+:: - las contrasenas se leen del .env en Python: por la consola, con la
+::   expansion retardada, se perdian los "!";
+:: - centinela con el SHA-256 de las dos (nunca en claro).
+set "SYNC_OUT="
+for /f "delims=" %%R in ('.venv\Scripts\python scripts\sincronizar_contrasenas_demo.py --centinela .venv\.pwd_hash 2^>nul') do set "SYNC_OUT=%%R"
+if /I "!SYNC_OUT:~0,3!"=="ok:" (
+    echo [INFO] Contrasenas demo alineadas con .env ^(!SYNC_OUT:~3! usuarios^)
+) else if /I "!SYNC_OUT!"=="sin-cambios" (
+    echo [INFO] Contrasenas demo sin cambios, omitiendo rehash
+) else if /I "!SYNC_OUT:~0,8!"=="omitido:" (
+    echo [WARN] Sincronizacion de contrasenas demo omitida: !SYNC_OUT:~8!
 ) else (
-    echo !CURRENT_HASH!> "%PWD_HASH_FILE%"
-    echo [INFO] Contrasenas actualizadas correctamente
+    echo [WARN] No se pudieron sincronizar las contrasenas demo: !SYNC_OUT!
 )
 endlocal
 exit /b 0

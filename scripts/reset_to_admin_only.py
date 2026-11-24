@@ -32,6 +32,14 @@ def _wipe_all_data(db):
     data_tables = [t for t in metadata.sorted_tables if t.name != "alembic_version"]
     dialect = bind.dialect.name
 
+    # 23-11-2026: desde la 199, `audit_logs` es de solo añadir (triggers que niegan
+    # UPDATE/DELETE/TRUNCATE) y `setup clean` fallaba. Este reseteo total solo corre
+    # fuera de producción (`exigir_entorno_no_productivo` en `main`): se retiran los
+    # triggers, se vacía todo y se reinstalan en la MISMA transacción. Fuera de este
+    # script la protección no cambia.
+    from app.db import auditoria_inmutable
+    auditoria_inmutable.desinstalar(db.connection())
+
     if dialect == "sqlite":
         db.execute(text("PRAGMA foreign_keys=OFF"))
         for table in reversed(data_tables):
@@ -49,6 +57,8 @@ def _wipe_all_data(db):
     else:
         for table in reversed(data_tables):
             db.execute(table.delete())
+
+    auditoria_inmutable.instalar(db.connection())
 
 
 def _get_available_columns(db, table_name: str) -> set[str]:
@@ -133,7 +143,48 @@ def _ensure_admin_user(db):
             admin.organization_id = org_id
 
 
+def _solo_admin() -> int:
+    """Crea o restablece el admin desde el .env SIN borrar nada (23-11-2026).
+
+    Es lo que hace `make init-admin` (antes llamaba a un `init_admin.sh` que no
+    existía). Toma SUPERADMIN_EMAIL y SUPERADMIN_PASSWORD, que `Settings` ya
+    exige fuertes fuera de desarrollo, igual que la semilla, que re-afirma esa
+    contraseña en cada pasada como vía de recuperación de un superadmin
+    bloqueado. Por eso vale en cualquier entorno: no borra datos. Queda en
+    audit_log (sin la contraseña) y, si el admin ya existía, se cierran sus
+    sesiones (como al restablecer una contraseña).
+    """
+    from app.db.contexto_de_tenant import declarar_sistema as _declarar_sistema
+    from app.services.audit import audit_log
+
+    db = SessionLocal()
+    _declarar_sistema(db, "script: crear o restablecer admin")
+    try:
+        existia = db.query(User).filter(User.username == "admin").first() is not None
+        _ensure_admin_user(db)
+        admin = db.query(User).filter(User.username == "admin").first()
+        cerradas = 0
+        if existia:
+            from app.services.auth_service.tokens_y_cookies import revocar_sesiones_del_usuario
+            cerradas = revocar_sesiones_del_usuario(db, admin.id, "admin restablecido desde .env")
+        db.flush()
+        audit_log(db, None, "UPDATE" if existia else "CREATE", "users", admin.id, "admin",
+                  new_values={"is_active": True, "is_superadmin": True, "password": "(restablecida desde .env)"},
+                  metadata={"origen": "scripts/reset_to_admin_only.py --solo-admin", "sesiones_cerradas": cerradas})
+        db.commit()
+        print(f"OK: admin {'restablecido' if existia else 'creado'} con SUPERADMIN_EMAIL/SUPERADMIN_PASSWORD del .env.")
+        return 0
+    except Exception as exc:
+        db.rollback()
+        print(f"ERROR: no se pudo crear o restablecer el admin: {exc}")
+        return 1
+    finally:
+        db.close()
+
+
 def main() -> int:
+    if "--solo-admin" in sys.argv[1:]:
+        return _solo_admin()
     from app.core.entorno import exigir_entorno_no_productivo
     exigir_entorno_no_productivo("Dejar la base sólo con el administrador")
     db = SessionLocal()

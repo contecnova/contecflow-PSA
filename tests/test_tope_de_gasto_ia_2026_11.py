@@ -36,8 +36,13 @@ def _llamar(db, org="1"):
 
 def test_sin_tope_no_se_corta_y_el_uso_lleva_la_empresa(db, proveedor):
     db.info.clear()   # como un trabajo de fondo: sin contexto de empresa en la sesión
-    for _ in range(3):
-        assert _llamar(db) == "ok"
+    # Desde el 22-11-2026 (M8) el trabajo de fondo declara su contexto de sistema
+    # (Celery: `TareaDeSistema`); sin él, el ORM cierra. El uso sigue llevando la
+    # empresa de la llamada, que es lo que se mide.
+    from app.db.contexto_de_tenant import trabajo_de_sistema
+    with trabajo_de_sistema("prueba: IA desde un trabajo de fondo"):
+        for _ in range(3):
+            assert _llamar(db) == "ok"
     from app.db.session import sin_filtro_de_tenant
     with sin_filtro_de_tenant(db):
         assert {u.organization_id for u in db.query(AIUsageLog)} == {"1"}

@@ -11,7 +11,7 @@ import {
   RotateCcw, ShieldAlert, Trash2, Undo2, Upload, UserPlus, Wrench, X,
 } from 'lucide-react'
 import type { ReactNode } from 'react'
-import { Button, Drawer, Modal, Spinner, Tabs, Pulsable, Select, useErroresDeCampo, Input, Textarea } from '../ui'
+import { Button, Drawer, Modal, Spinner, Tabs, Select, useErroresDeCampo, Input, Textarea, IconButton } from '../ui'
 import { LicenseSelect } from '../ui/EntitySelect'
 import DateInput from '../ui/DateInput'
 import { useAppT } from '../../i18n/AppLangContext'
@@ -263,7 +263,7 @@ export default function FichaActivo({ assetId, onClose }: { assetId: string; onC
               <div className="almf-ficha__sub">{[a?.brand, a?.model, a?.asset_tag].filter(Boolean).join(' · ')}</div>
             </div>
           </div>
-          <Pulsable type="button" className="alm-icon-btn" aria-label={t('common.close')} onClick={onClose} data-cierra-dialogo=""><X size={16} aria-hidden="true" /></Pulsable>
+          <IconButton variante="caja" ariaLabel={t('common.close')} onClick={onClose} data-cierra-dialogo=""><X size={16} aria-hidden="true" /></IconButton>
         </div>
         {isLoading || !a ? <Spinner /> : (
           <div className="almf-ficha__cuerpo">

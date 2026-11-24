@@ -16,14 +16,6 @@
   font-size: var(--text-sm);
 }
 .ptpl-aviso svg { flex-shrink: 0; }
-.ptpl-aviso__cerrar {
-  display: inline-flex;
-  padding: 2px;
-  border: none;
-  background: none;
-  color: inherit;
-  cursor: pointer;
-}
 
 /* ── Tarjeta de plantilla ────────────────────────────────────────────────── */
 .ptpl-tarjeta { min-width: 0; }

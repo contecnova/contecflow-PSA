@@ -205,7 +205,21 @@ export type VersionDeProcesoBpmn = {
   published_at: string | null
   created_at: string | null
   created_by_user_id: string | null
+  /** Migración 204: ciclo borrador → publicada → retirada. */
+  state?: 'draft' | 'published' | 'retired'
+  published_by_user_id?: string | null
+  retired_at?: string | null
   bpmn_xml?: string
+}
+
+/** Variable declarada de un proceso o campo del formulario de una tarea (bpmn_engine.leer_formulario). */
+export type CampoBpmn = {
+  name: string
+  label?: string
+  type: 'string' | 'text' | 'number' | 'integer' | 'boolean' | 'date' | 'enum' | 'user'
+  required?: boolean
+  personal?: boolean
+  options?: string[]
 }
 
 /** bpmn_process_service.serialize_process. `versions` solo en alta, duplicado y detalle. */
@@ -224,6 +238,8 @@ export type ProcesoBpmn = {
   /** Versión que ejecutan las instancias nuevas; null si no hay ninguna publicada (se ejecuta la última). */
   published_version: number | null
   status: 'draft' | 'published' | 'archived'
+  /** Variables declaradas (tipo, obligatoria, dato personal). */
+  variables_schema?: CampoBpmn[]
   is_seeded: boolean
   is_active: boolean
   created_at: string | null
@@ -246,6 +262,33 @@ export type ValidacionBpmn = {
   version?: number
   executable: boolean
   problems: ProblemaBpmn[]
+  /** No bloquean (elementos inalcanzables, salidas que nunca se toman…). */
+  warnings?: ProblemaBpmn[]
+}
+
+/** POST /bpmn-processes/{id}/simulate: recorrido en memoria, sin escribir nada. */
+export type SimulacionBpmn = {
+  version: number
+  problems: ProblemaBpmn[]
+  warnings: ProblemaBpmn[]
+  path: { element_id: string; name: string | null; type: string }[]
+  completed: boolean
+  stuck: { element_id: string; name: string | null; arrived: number; expected: number }[]
+  actions: { element_id: string; action: string }[]
+  error: string | null
+}
+
+/** GET /bpmn-instances/metrics (bpmn_gobierno.metricas). */
+export type MetricasBpmn = {
+  days: number
+  by_status: Record<string, number>
+  started: number
+  duration_hours: { count: number; avg: number | null; p50: number | null; p90: number | null }
+  bottlenecks: { element_id: string; name: string | null; count: number; avg_hours: number; p90_hours: number | null }[]
+  stuck: { instance_id: string; step: string; since: string | null; reason: 'incident' | 'overdue' | 'waiting'; process_name?: string | null }[]
+  stuck_count: number
+  overdue_tasks: number
+  stuck_hours: number
 }
 
 /** GET /bpmn-processes/{id}: el proceso con sus versiones y la última con su XML. */
@@ -263,9 +306,24 @@ export type PasoDeInstanciaBpmn = {
   name: string | null
   status: string
   candidate_role: string | null
-  /** Por qué espera: task (tarea humana), decision (elige una persona la salida), timer, join; null si fue automático. */
-  wait_kind: 'task' | 'decision' | 'timer' | 'join' | null
+  /** Por qué espera: task (tarea humana), decision (elige una persona la salida), timer, join, message,
+   *  subprocess, call, job (acción en cola), retry, incident, approval; null si fue automático. */
+  wait_kind: 'task' | 'decision' | 'timer' | 'join' | 'message' | 'subprocess' | 'call' | 'job' | 'retry' | 'incident' | 'approval' | null
   due_at: string | null
+  /** Migración 204: asignación y plazo de la tarea. */
+  candidate_groups?: string[]
+  assignee_user_id?: string | null
+  assignee_name?: string | null
+  sla_due_at?: string | null
+  overdue?: boolean
+  escalated?: boolean
+  attempts?: number
+  completed_by_name?: string | null
+  /** Pendiente y humano: formulario, si es una aprobación y los errores que captura. */
+  form?: CampoBpmn[]
+  approval?: boolean
+  multiple?: boolean
+  error_codes?: string[]
   completed_by_user_id: string | null
   result: unknown
   created_at: string | null
@@ -286,6 +344,7 @@ export type OpcionDeDecisionBpmn = {
 export type PasoDeBandejaBpmn = PasoDeInstanciaBpmn & {
   process_id: string
   process_name: string | null
+  business_key?: string | null
   variables: Record<string, unknown>
 }
 
@@ -306,6 +365,12 @@ export type InstanciaBpmn = {
   active_steps: string[]
   steps?: PasoDeInstanciaBpmn[]
   process_name?: string | null
+  business_key?: string | null
+  parent_instance_id?: string | null
+  suspended_at?: string | null
+  incidents?: number
+  started_by_name?: string | null
+  children?: { id: string; status: string }[]
 }
 
 // ── Alertas operativas ─────────────────────────────────────────────────────

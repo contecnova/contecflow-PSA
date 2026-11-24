@@ -76,7 +76,7 @@ _CMM_NIVELES = (1, 2, 3, 4, 5)
 
 def _g(db: Session, clave: str, **datos) -> str:
     """Texto del informe en el idioma de la empresa del contexto (`gov.*` en `textos_de_salida`)."""
-    from app.services.textos_de_salida_servicios_m_z import texto_para
+    from app.services.textos_de_salida import texto_para
     return texto_para(db, clave, org_id=db.info.get("organization_id"), **datos)
 
 
@@ -252,7 +252,13 @@ def audit_change_management(db: Session, days: int = 30) -> dict:
 
     # ── Finding 1: Emergency changes without PIR ──────────────────────────────
     emergency = [c for c in changes if c.change_type == ChangeType.emergency]
-    emergency_no_pir = [c for c in emergency if not c.pir_notes]
+    # Migración 206 (docs/PIR.md): «con PIR» = una PIR aprobada o cerrada en `pir_revisiones`
+    # (antes bastaba con texto en la columna `pir_notes`, que nadie rellenaba).
+    from app.models.pir import PirRevision
+    con_pir = {cid for (cid,) in db.query(PirRevision.change_id).filter(
+        PirRevision.change_id.in_([c.id for c in emergency] or [""]),
+        PirRevision.estado.in_(("aprobado", "cerrado"))).all()}
+    emergency_no_pir = [c for c in emergency if c.id not in con_pir]
     if emergency_no_pir:
         pct = round(len(emergency_no_pir) / max(len(emergency), 1) * 100)
         score -= min(25, pct // 3)

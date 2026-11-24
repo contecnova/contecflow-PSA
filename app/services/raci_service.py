@@ -197,7 +197,7 @@ def compute_retro_insights(sprint: Sprint, db: Session) -> dict:
     necesita para poder discutirse.
     """
     m = _metricas_de_sprint(sprint, db)
-    from app.services.textos_de_salida_servicios_m_z import texto_para
+    from app.services.textos_de_salida import texto_para
     org_id = db.query(Project.organization_id).filter(Project.id == sprint.project_id).scalar()
 
     def _t(clave: str, **p) -> str:
@@ -302,7 +302,7 @@ def compute_user_burnout_risk(user: User, db: Session, today: date) -> dict:
             break
         racha += 1
 
-    from app.services.textos_de_salida_servicios_m_z import texto_para
+    from app.services.textos_de_salida import texto_para
     m = {"current": actual, "media_4s": media_4s, "racha": racha}
     puntos = 0.0
     factores = []
@@ -620,7 +620,7 @@ def generate_changelog(
     project_id: str, weeks: int, version_tag: "Optional[str]", author_id: str, db: Session
 ) -> dict:
     import json as _json
-    from app.services.textos_de_salida_servicios_m_z import texto_para
+    from app.services.textos_de_salida import texto_para
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project:
         raise ErrorConCodigo("no_encontrado", detail="Proyecto no encontrado", que="proyecto")

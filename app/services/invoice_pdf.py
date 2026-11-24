@@ -366,13 +366,14 @@ def _tabla_de_lineas(lines: list, currency: str, subtotal, tax_rate, tax_amount,
         ])
 
     def fila_de_total(etiqueta, valor, negrita=False):
-        # Las tres primeras celdas van vacias para que el total quede alineado
-        # bajo la columna de importes.
-        return ["", "", "", Paragraph(etiqueta, PS(
+        # La etiqueta ocupa las cuatro primeras columnas (SPAN abajo), alineada a
+        # la derecha, para que el total quede bajo la columna de importes. En la
+        # columna de precio (2 cm) sola, «IVA (20%):» se partía en dos líneas.
+        return [Paragraph(etiqueta, PS(
             "TLbl", fontSize=9,
             fontName=est["fb"] if negrita else est["fn"],
             textColor=principal, alignment=TA_RIGHT,
-        )), Paragraph(valor, PS(
+        )), "", "", "", Paragraph(valor, PS(
             "TVal", fontSize=10 if negrita else 9,
             fontName=est["fb"] if negrita else est["fn"],
             textColor=principal, alignment=TA_RIGHT,
@@ -396,6 +397,9 @@ def _tabla_de_lineas(lines: list, currency: str, subtotal, tax_rate, tax_amount,
         ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
         ("LEFTPADDING", (0, 0), (-1, -1), 6),
         ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+        ("SPAN", (0, n + 1), (3, n + 1)),
+        ("SPAN", (0, n + 2), (3, n + 2)),
+        ("SPAN", (0, n + 3), (3, n + 3)),
         # Separador antes del subtotal.
         ("LINEABOVE", (0, n + 1), (-1, n + 1), 0.8, secundario),
         # La fila del TOTAL, destacada.

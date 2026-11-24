@@ -16,6 +16,7 @@ Cache:
   invalidate_membership(user_id) para que se actualice antes del TTL.
 """
 from __future__ import annotations
+import logging
 
 import time
 from typing import Optional
@@ -44,6 +45,7 @@ def _redis():
         from app.services.auth_service.estado_efimero import get_sso_redis
         return get_sso_redis()
     except Exception:
+        logging.getLogger(__name__).debug("_redis: excepcion ignorada", exc_info=True)
         return None
 
 
@@ -55,7 +57,7 @@ def _epoca() -> int:
             try:
                 _epoca_leida[0] = int(r.get(_CLAVE_EPOCA) or 0)
             except Exception:
-                pass
+                logging.getLogger(__name__).warning("_epoca: excepcion ignorada", exc_info=True)
         _epoca_leida[1] = ahora
     return _epoca_leida[0]
 
@@ -87,7 +89,7 @@ def invalidate_membership(user_id: str) -> None:
             _epoca_leida[0] = int(r.incr(_CLAVE_EPOCA))
             _epoca_leida[1] = time.monotonic()
         except Exception:
-            pass
+            logging.getLogger(__name__).debug("invalidate_membership: excepcion ignorada", exc_info=True)
 
 from app.models.collaboration import (
     CollaborationChannel, CollaborationChannelMember,

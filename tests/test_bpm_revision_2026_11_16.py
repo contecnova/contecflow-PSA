@@ -30,7 +30,7 @@ DECISION = _CAB + """
 </bpmn:process></bpmn:definitions>"""
 
 NO_EJECUTABLE = _CAB + """<bpmn:process id="P"><bpmn:startEvent id="S"/>
-  <bpmn:subProcess id="Sub" name="Sub"/>
+  <bpmn:complexGateway id="Sub" name="Sub"/>
   <bpmn:sequenceFlow id="a" sourceRef="S" targetRef="Sub"/></bpmn:process></bpmn:definitions>"""
 
 SIN_RUTA = _CAB + """<bpmn:process id="P"><bpmn:startEvent id="S"/>
@@ -74,7 +74,9 @@ def test_EL_HALLAZGO_la_compuerta_sin_condiciones_es_una_decision_y_no_un_fallo(
     fin = client.post(url, headers=auth(pm_token), json={"flow_id": "no"}).json()["data"]
     assert fin["status"] == "completed"
     assert [s["element_id"] for s in fin["steps"]] == ["S", "G", "E_no"]
-    assert fin["steps"][1]["result"] == {"flow_id": "no"}
+    # 23-11-2026 (decisiones de elección múltiple, test_bpm_profesional_2026_11_23):
+    # el paso anota la LISTA de salidas elegidas, también cuando es una sola.
+    assert fin["steps"][1]["result"] == {"flow_ids": ["no"]}
 
 
 def test_la_decision_de_la_calle_pm_no_la_toma_un_empleado(client, pm_token, dev_token, db):
@@ -95,7 +97,7 @@ def test_la_validacion_devuelve_problemas_con_codigo(client, pm_token, db):
     assert d["executable"] is False and d["version"] == 1
     assert [p["code"] for p in d["problems"]] == ["unsupported_element"]
     sub = next(p for p in d["problems"] if p["code"] == "unsupported_element")
-    assert (sub["element"], sub["extra"]) == ("Sub", "subProcess")
+    assert (sub["element"], sub["extra"]) == ("Sub", "complexGateway")
 
 
 def test_el_motor_rechaza_un_xml_con_entidades(db):
@@ -208,4 +210,5 @@ def test_cancelar_queda_en_la_auditoria(client, pm_token, db):
     inst = _arrancar(client, pm_token, pid).json()["data"]
     assert client.post(f"/api/v1/bpmn-instances/{inst['id']}/cancel", headers=auth(pm_token)).status_code == 200
     filas = db.query(AuditLog).filter(AuditLog.resource == "bpmn_instance", AuditLog.resource_id == inst["id"]).all()
-    assert sorted(f.action for f in filas) == ["CREATE", "UPDATE"]
+    # 23-11-2026: cada acción con su nombre (antes la cancelación era un UPDATE).
+    assert sorted(f.action for f in filas) == ["CANCEL", "CREATE"]

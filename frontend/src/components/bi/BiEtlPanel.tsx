@@ -168,7 +168,7 @@ function Tarjeta({ c, onConfigurar }: { c: Conector; onConfigurar: () => void })
         <Button size="xs" variant="secondary" icon={<Settings2 size={12} />} onClick={onConfigurar}>{t('etl.configurar')}</Button>
         <Button size="xs" variant="secondary" icon={<FlaskConical size={12} />} loading={ocupado === 'test'} onClick={() => accion('test')}>{t('etl.probar')}</Button>
         <Button size="xs" variant="secondary" icon={<RefreshCw size={12} />} loading={ocupado === 'sync'} disabled={!c.enabled} title={c.enabled ? undefined : t('etl.activalo_antes')} onClick={() => accion('sync')}>{t('etl.sincronizar')}</Button>
-        {c.personalizado && <IconButton className="bietpa-del" ariaLabel={t('etl.quitar')} onClick={async () => {
+        {c.personalizado && <IconButton variante="caja" tono="peligro" ariaLabel={t('etl.quitar')} onClick={async () => {
           // 23-11-2026: confirmación única (ConfirmContext), antes `ui/Confirm`.
           if (await confirmar({ title: t('etl.quitar_x', { x: c.nombre }), message: t('etl.quitar_ayuda'), danger: true })) quitar()
         }}><Trash2 size={13} /></IconButton>}

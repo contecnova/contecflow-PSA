@@ -15,6 +15,12 @@ Endpoints:
   GET    /bpmn-processes/{id}/versions/{version}          — get a specific version XML
   GET    /bpmn-processes/{id}/validation                  — can the version be executed? (coded problems)
   POST   /bpmn-processes/{id}/versions/{version}/publish  — publish a version
+  POST   /bpmn-processes/{id}/versions/{version}/retire   — retire a version (no new instances)
+  POST   /bpmn-processes/{id}/simulate                    — dry run in memory (no database writes)
+
+Revision BPM 2026-11-23 (docs/BPM.md): variables declaradas (`variables_schema`),
+retirar versiones, simulacion, quien publica (segregacion de funciones) y
+auditoria con acciones propias (PUBLISH, RETIRE).
 
 Revision BPM 2026-11-16:
 - las lecturas exigian solo `get_current_user`: un usuario del portal de
@@ -56,6 +62,7 @@ class ProcessIn(BaseModel):
     owner: Optional[str] = Field(None, max_length=200)
     sla: Optional[str] = Field(None, max_length=120)
     bpmn_xml: Optional[str] = None
+    variables_schema: Optional[list[dict]] = Field(None, max_length=200)
 
 
 class ProcessUpdate(BaseModel):
@@ -67,6 +74,7 @@ class ProcessUpdate(BaseModel):
     sla: Optional[str] = Field(None, max_length=120)
     status: Optional[BPMNProcessStatus] = None
     is_active: Optional[bool] = None
+    variables_schema: Optional[list[dict]] = Field(None, max_length=200)
 
 
 class VersionIn(BaseModel):
@@ -80,6 +88,13 @@ class DuplicateIn(BaseModel):
 
 class SeedIn(BaseModel):
     force: bool = False
+
+
+class SimulacionIn(BaseModel):
+    version: Optional[int] = Field(None, ge=1)
+    variables: Optional[dict] = None
+    #: {id de compuerta: flow_id o [flow_ids]}
+    decisions: Optional[dict] = None
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -158,6 +173,8 @@ def create_process(
         bpmn_xml=payload.bpmn_xml, organization_id=org_id,
         created_by_user_id=current_user.id, is_seeded=False, source_kind="custom",
     )
+    if payload.variables_schema:
+        proc = svc.update_metadata(db, proc.id, variables_schema=payload.variables_schema)
     auditar_y_confirmar(db, current_user, "CREATE", "bpmn_process", proc.id, proc.name,
                         new_values={"key": proc.key, "category": proc.category})
     return APIResponse.ok(data=svc.serialize_process(proc, include_versions=True))
@@ -290,9 +307,39 @@ def publish_version(
     db: Session = Depends(get_db),
     current_user: User = Depends(requiere_capacidad("bpm.gestionar")),
 ):
-    v = svc.publish_version(db, process_id, version)
+    v = svc.publish_version(db, process_id, version, user_id=current_user.id)
     if not v:
         raise error_http(404, "no_encontrado", detail="Version not found", que="version")
-    auditar_y_confirmar(db, current_user, "UPDATE", "bpmn_process", process_id, None,
+    auditar_y_confirmar(db, current_user, "PUBLISH", "bpmn_process", process_id, None,
                         new_values={"published_version": version})
     return APIResponse.ok(data=svc.serialize_version(v))
+
+
+@router.post("/{process_id}/versions/{version}/retire", summary="Retire a version (running instances keep it)")
+def retire_version(
+    process_id: str,
+    version: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(requiere_capacidad("bpm.gestionar")),
+):
+    v = svc.retire_version(db, process_id, version, user_id=current_user.id)
+    if not v:
+        raise error_http(404, "no_encontrado", detail="Version not found", que="version")
+    auditar_y_confirmar(db, current_user, "RETIRE", "bpmn_process", process_id, None,
+                        new_values={"retired_version": version})
+    return APIResponse.ok(data=svc.serialize_version(v))
+
+
+@router.post("/{process_id}/simulate", summary="Dry run of a version in memory (nothing is written)")
+def simulate(
+    process_id: str,
+    payload: SimulacionIn = Body(default_factory=SimulacionIn),
+    db: Session = Depends(get_db),
+    _: User = Depends(requiere_capacidad("bpm.usar")),
+):
+    proc = _proceso_o_404(db, process_id)
+    v = svc.get_version(db, process_id, payload.version) if payload.version else svc.get_latest_version(db, proc.id)
+    if not v:
+        raise error_http(404, "no_encontrado", detail="Version not found", que="version")
+    return APIResponse.ok(data={"version": v.version,
+                                **motor.simular(v.bpmn_xml, payload.variables or {}, payload.decisions or {})})

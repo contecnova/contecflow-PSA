@@ -1,6 +1,13 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import AIInlineEditor from '../components/AIInlineEditor';
+
+// El editor lee `t` y `lang` con useAppLang (el useAppT retirado devolvía un
+// respaldo sin proveedor; useAppLang exige AppLangProvider, como en la app).
+// Aquí solo se prueba el campo: se simula el contexto de idioma.
+vi.mock('../i18n/AppLangContext', () => ({
+  useAppLang: () => ({ t: (k: string) => k, lang: 'es' }),
+}));
 
 describe('AIInlineEditor', () => {
   it('renderiza el textarea y placeholder', () => {

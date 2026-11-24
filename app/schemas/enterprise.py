@@ -35,7 +35,7 @@ class WebhookUpdate(BaseModel):
     is_active: Optional[bool] = Field(None, description="Activa o desactiva el webhook")
 
 class SSOCreate(BaseModel):
-    provider: str = Field(..., description="Proveedor SSO (oidc, azure_ad, okta, google)")
+    provider: str = Field(..., description="Proveedor SSO (oidc, azure_ad, okta, google, saml)")
     name: Optional[str] = Field(None, max_length=120, description="Texto del botón en el login")
     groups_claim: Optional[str] = Field("groups", max_length=100, description="Claim del id_token con los grupos (para role_mapping)")
     organization_id: Optional[str] = Field(None, description="ID de la organización a la que se asocia")
@@ -66,10 +66,9 @@ class SSOCreate(BaseModel):
     @field_validator("provider")
     @classmethod
     def _proveedor_soportado(cls, v: str) -> str:
-        # Auditoria 2026-11: SAML se ofrecia y devolvia 503; no hay
-        # implementacion (ni contecintelligence la tiene).
-        if v not in ("oidc", "azure_ad", "okta", "google"):
-            raise ValueError("Proveedor no soportado: usa oidc, azure_ad, okta o google (SAML no está implementado)")
+        # 23-11-2026: SAML 2.0 implementado (app/services/auth_service/saml.py).
+        if v not in ("oidc", "azure_ad", "okta", "google", "saml"):
+            raise ValueError("Proveedor no soportado: usa oidc, azure_ad, okta, google o saml")
         return v
 
 
@@ -91,8 +90,14 @@ class SSOUpdate(BaseModel):
     allowed_domains: Optional[str] = None
     saml_attribute_email: Optional[str] = None
     saml_attribute_name: Optional[str] = None
+    # 23-11-2026: SAML editable (antes solo se podía fijar al crear).
+    saml_entity_id: Optional[str] = None
+    saml_sso_url: Optional[str] = None
+    saml_slo_url: Optional[str] = None
+    saml_certificate: Optional[str] = None
+    saml_attribute_role: Optional[str] = None
 
-    @field_validator("oidc_discovery_url", mode="before")
+    @field_validator("oidc_discovery_url", "saml_sso_url", "saml_slo_url", mode="before")
     @classmethod
     def _https(cls, v: Optional[str]) -> Optional[str]:
         if v and not v.startswith("https://"):

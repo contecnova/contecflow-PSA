@@ -40,8 +40,10 @@ def test_EL_HALLAZGO_sin_correo_de_aprobacion_si_se_apaga(client, admin_token, p
     _apagar(client, admin_token, "approval_requested", app=True, email=False)
     wf = create_workflow(client, admin_token)
     add_step(client, admin_token, wf["id"], approver_type="role", approver_role="admin")
+    # El motor evalúa con la entidad real (404 si no existe): un gasto de verdad.
+    from tests.test_aprobaciones_nucleo_2026_11 import _gasto
     r = client.post("/api/v1/approvals/requests", headers=auth(pm_token), json={
-        "entity_type": "expense", "entity_id": "e-1", "entity_summary": "Gasto", "context": {}})
+        "entity_type": "expense", "entity_id": _gasto(db), "entity_summary": "Gasto", "context": {}})
     assert r.status_code in (200, 201), r.text
     assert "admin@contecflow.com" not in enviados
     rid = r.json()["data"]["id"]

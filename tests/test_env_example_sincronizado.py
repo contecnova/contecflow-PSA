@@ -32,7 +32,7 @@ _FAMILIAS_FUERA = (
     # Valores de negocio que eran fijos (19-11-2026, `valores_de_negocio.py`): por empresa, en Configuración.
     "CHANGE_CANARY_", "CHAT_RETENTION_", "PERF_REMINDER_", "PERF_STALLED_",
     # Umbrales por métrica (19-11-2026, `app/core/umbrales.py`, grupo `semaforos`): por
-    # empresa en Configuración, con defecto; documentados en README 4.2/4.1.
+    # empresa en Configuración, con defecto; documentados en docs/REFERENCIA_DE_AJUSTES.md.
     "UMBRAL_",
 )
 
@@ -62,6 +62,8 @@ _FUERA = {
     # Voz y semántica: modelos e idiomas con defecto.
     "OPENAI_STT_MODEL", "AZURE_STT_LANGUAGE", "GOOGLE_STT_LANGUAGE", "STT_FALLBACK_PROVIDERS",
     "EMBEDDING_MODEL_NAME", "SEMANTIC_EMBEDDINGS_BACKEND",
+    # 23-11-2026: frecuencia del reentrenamiento (por empresa, en Configuración).
+    "SEMANTIC_RETRAIN_INTERVAL_HOURS",
     # Proceso y despliegue que fijan setup.sh/compose o tienen defecto correcto.
     "CELERY_BEAT", "CELERY_AGENT_TASK_SOFT_TIME_LIMIT", "CELERY_AGENT_TASK_TIME_LIMIT",
     "EXPECTED_ALEMBIC_REVISION", "FAIL_ON_SCHEMA_DRIFT", "DUCKDB_PATH", "UPLOADS_DIR",

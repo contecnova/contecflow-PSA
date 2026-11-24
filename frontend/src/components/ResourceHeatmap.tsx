@@ -19,7 +19,7 @@ import { useMemo, useState, type CSSProperties, useId } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { reservasApi } from '../services/api'
-import { Button, Card, KpiCard, Modal, Select, Spinner, EmptyState, SelectorDePeriodo, RejillaPersonaDia, columnasDeSemanas, useErroresDeCampo, Input } from './ui'
+import { Button, Card, KpiCard, Modal, Select, Spinner, EmptyState, SelectorDePeriodo, RejillaPersonaDia, columnasDeSemanas, useErroresDeCampo, Input, IconButton } from './ui'
 import type { TonoDeRejilla } from './ui'
 import { usePeriodo } from '../hooks/usePeriodo'
 import { AlertTriangle, ArrowLeft, BatteryLow, CalendarDays, Flame, List, Plus, Trash2, Users } from 'lucide-react'
@@ -231,7 +231,7 @@ export default function ResourceHeatmap() {
 
   const { data: heatmapData } = useQuery<HeatmapData>({
     queryKey: ['heatmap', periodo.params],
-    queryFn: () => reservasApi.mapaDeCalor<HeatmapData>(periodo.params).then(r => r.data),
+    queryFn: () => reservasApi.mapaDeCalor<HeatmapData>({ ...periodo.params }).then(r => r.data),
     refetchInterval: POLL_DEFAULT_MS,
   })
   const isLoading = !heatmapData
@@ -308,8 +308,8 @@ export default function ResourceHeatmap() {
                     <span className="u-text2">{fmtDate(b.start_date)} – {fmtDate(b.end_date)}</span>
                     <span>{b.hours_per_day}{t('resourceheatmap.h_dia_2')}</span>
                     <span className="resoheat-txt-1">{b.total_hours}{t('resourceheatmap.h_total')}</span>
-                    <Button variant="ghost" size="sm" icon={<Trash2 size={14} />} title={t('resourceheatmap.eliminar_reserva')}
-                      onClick={() => { openConfirmGlobal({ message: t('resource_heatmap.delete_booking_confirm'), onConfirm: () => deleteBooking(b.id), danger: true }) }} />
+                    <IconButton variante="caja" tono="peligro" ariaLabel={t('resourceheatmap.eliminar_reserva')}
+                      onClick={() => { openConfirmGlobal({ message: t('resource_heatmap.delete_booking_confirm'), onConfirm: () => deleteBooking(b.id), danger: true }) }}><Trash2 size={14} /></IconButton>
                   </div>
                 )
               })}

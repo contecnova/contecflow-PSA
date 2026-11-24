@@ -57,7 +57,7 @@ DECLARAN = (
 #:   10 sin credencial y sin base (JS estáticos, health/ready, ayudas).
 #: De las 93, 13 no abren sesión ORM (`SIN_BASE`).
 
-RUTAS_ANONIMAS = 97  # 23-11-2026: +4 del restablecimiento de contraseña (operador y portal)
+RUTAS_ANONIMAS = 102  # 23-11-2026 (prueba global): +1 WS /ws/notebook/{page_id} («Mi cuaderno», ticket de un uso, `declarar_sistema` hasta resolver al usuario); +4 del restablecimiento de contraseña (operador y portal); +4 de SAML (login, ACS, canje, SLO)
 
 #: Rutas anónimas que no abren sesión ORM, con su motivo.
 SIN_BASE = {
@@ -85,6 +85,18 @@ def _dependencias(dep):
     for d in dep.dependencies:
         yield d.call
         yield from _dependencias(d)
+
+
+#: Guardas de router de `app.main` (`_ROUTER_GUARDS`), comunes a toda la API.
+_GUARDAS_DE_ROUTER = frozenset({"bind_request_timezone", "apply_abac_for_route", "enforce_grc_matrix"})
+
+
+def _dependencias_propias(dep):
+    for d in dep.dependencies:
+        if _nombre(d.call) in _GUARDAS_DE_ROUTER:
+            continue
+        yield d.call
+        yield from _dependencias_propias(d)
 
 
 def _clave(ruta) -> str:
@@ -178,7 +190,10 @@ def test_las_de_sin_base_existen_y_no_piden_sesion():
     sobran = sorted(set(SIN_BASE) - set(anonimas))
     assert not sobran, f"En SIN_BASE pero ya no es una ruta anónima: {sobran}"
     for clave in SIN_BASE:
-        nombres = {_nombre(c) for c in _dependencias(anonimas[clave].dependant)}
+        # Sin las guardas de router de `app.main` (`_ROUTER_GUARDS`: zona horaria,
+        # ABAC y matriz GRC): cuelgan de TODA la API, piden `get_db` y, sin
+        # usuario, vuelven sin consultar. Lo que se mira es la ruta.
+        nombres = {_nombre(c) for c in _dependencias_propias(anonimas[clave].dependant)}
         assert "get_db" not in nombres, f"{clave} está en SIN_BASE pero pide sesión"
         assert "SessionLocal(" not in _fuente(anonimas[clave].endpoint), clave
 

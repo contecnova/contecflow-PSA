@@ -361,5 +361,4 @@
 /* 16-11-2026 (pasada de diseño): filtro de proyecto en barra y borrar con IconButton. */
 .egantt-filtros { margin-bottom: 20px; }
 .egantt-proyecto { flex: 1; min-width: 0; max-width: 480px; cursor: pointer; }
-.egantt-borrar { color: var(--danger); }
 .egantt-label-5 { display: inline-flex; vertical-align: middle; }

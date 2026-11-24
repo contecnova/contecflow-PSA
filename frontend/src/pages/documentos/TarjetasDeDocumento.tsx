@@ -7,7 +7,7 @@ import { useState, type CSSProperties } from 'react'
 import { sanitizeUrl } from '../../utils/security'
 import { useAuth } from '../../context/AuthContext'
 import { Download, Trash2, Sparkles, History, Check, Lock } from 'lucide-react'
-import { Pulsable } from '../../components/ui'
+import { Pulsable, IconButton } from '../../components/ui'
 import { fmtDate, fmtDateTime } from '../../utils/helpers'
 import {
   CAT_STYLE,
@@ -65,7 +65,7 @@ export function DocCard({ doc, onView, onDelete, onSummary, selected, onToggleSe
       <div className="docs-box-4 documents-page-e3" style={{ '--documents-page-background-color': ft.c } as CSSProperties} />
 
       {/* Checkbox */}
-      <Pulsable
+      <Pulsable /* eslint-disable-line contec/sin-boton-de-icono-propio -- excepción: casilla de selección de la tarjeta */
         type="button"
         onClick={e => { e.stopPropagation(); onToggleSelect(doc.id); }}
         className={`docs-btn document-sx11 ${selected ? 'document-sx12' : 'document-sx13'} ${selected || hover ? 'document-sx14' : 'document-sx15'} documents-page-e4`} style={{ '--documents-page-border': `2px solid ${selected ? 'var(--accent)' : 'var(--surface-5)'}` } as CSSProperties}>
@@ -125,14 +125,12 @@ export function DocCard({ doc, onView, onDelete, onSummary, selected, onToggleSe
               <Download size={11} />
             </a>
           )}
-          <Pulsable aria-label={t('pagina_docs.generar_resumen_ia')} onClick={(e) => { e.stopPropagation(); onSummary(doc.id); }} title={t('pagina_docs.generar_resumen_ia')}
-            className="docs-btn-2">
+          <IconButton variante="caja" tono="acento" ariaLabel={t('pagina_docs.generar_resumen_ia')} onClick={(e) => { e.stopPropagation(); onSummary(doc.id); }} title={t('pagina_docs.generar_resumen_ia')}>
             <Sparkles size={11} />
-          </Pulsable>
-          <Pulsable aria-label={t('pagina_docs.eliminar_documento')} onClick={(e) => { e.stopPropagation(); onDelete(doc); }} title={t('pagina_docs.eliminar_documento')}
-            className="docs-btn-3">
+          </IconButton>
+          <IconButton variante="caja" tono="peligro" ariaLabel={t('pagina_docs.eliminar_documento')} onClick={(e) => { e.stopPropagation(); onDelete(doc); }} title={t('pagina_docs.eliminar_documento')}>
             <Trash2 size={11} />
-          </Pulsable>
+          </IconButton>
         </div>
       </div>
     </div>
@@ -162,7 +160,7 @@ export function DocRow({ doc, onView, onDelete, onSummary, selected, onToggleSel
       }}
       className="docs-row-12 documents-page-e3" style={{ '--documents-page-background-color': selected ? 'color-mix(in srgb, var(--accent) 6%, transparent)' : hover ? 'var(--surface-2)' : 'transparent' } as CSSProperties}>
       <td className="docs-td">
-        <Pulsable type="button" onClick={e => { e.stopPropagation(); onToggleSelect(doc.id); }} className={`docs-btn-4 document-sx16 ${selected ? 'document-sx12' : 'document-sx17'} documents-page-e4`} style={{ '--documents-page-border': `2px solid ${selected ? 'var(--accent)' : 'var(--surface-5)'}` } as CSSProperties}>
+        <Pulsable /* eslint-disable-line contec/sin-boton-de-icono-propio -- excepción: casilla de selección de la fila */ type="button" onClick={e => { e.stopPropagation(); onToggleSelect(doc.id); }} className={`docs-btn-4 document-sx16 ${selected ? 'document-sx12' : 'document-sx17'} documents-page-e4`} style={{ '--documents-page-border': `2px solid ${selected ? 'var(--accent)' : 'var(--surface-5)'}` } as CSSProperties}>
           {selected && <Check size={9} color="white" strokeWidth={3} />}
         </Pulsable>
       </td>
@@ -193,14 +191,12 @@ export function DocRow({ doc, onView, onDelete, onSummary, selected, onToggleSel
               <Download size={11} />
             </a>
           )}
-          <Pulsable type="button" onClick={() => onSummary(doc.id)} title={t('pagina_docs.generar_resumen_ia')} aria-label={t('pagina_docs.generar_resumen_ia')}
-            className="docs-btn-5">
+          <IconButton variante="caja" tono="acento" onClick={() => onSummary(doc.id)} title={t('pagina_docs.generar_resumen_ia')} ariaLabel={t('pagina_docs.generar_resumen_ia')}>
             <Sparkles size={11} />
-          </Pulsable>
-          <Pulsable type="button" onClick={() => onDelete(doc)} title={t('pagina_docs.eliminar_documento')} aria-label={t('pagina_docs.eliminar_documento')}
-            className="docs-btn-6">
+          </IconButton>
+          <IconButton variante="caja" tono="peligro" onClick={() => onDelete(doc)} title={t('pagina_docs.eliminar_documento')} ariaLabel={t('pagina_docs.eliminar_documento')}>
             <Trash2 size={11} />
-          </Pulsable>
+          </IconButton>
         </div>
       </td>
     </tr>

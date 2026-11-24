@@ -225,12 +225,11 @@ function HolidaysModal({ cal, onClose }: { cal: SlaCalendar; onClose: () => void
                 <div className="slac-row">
                   <span className="slac-row__date">{fmtDate(h.holiday_date)}</span>
                   <span className="slac-row__name">{h.name || sinNombre}</span>
-                  <IconButton onClick={() => { setEditingId(h.id); setEditForm({ holiday_date: h.holiday_date, name: h.name || '' }) }}
+                  <IconButton variante="caja" onClick={() => { setEditingId(h.id); setEditForm({ holiday_date: h.holiday_date, name: h.name || '' }) }}
                     ariaLabel={t('sla_calendars_page.editar_festivo', { nombre: h.name || fmtDate(h.holiday_date) })} title={t('sla_calendars_page.editar')}>
                     <Pencil size={14} aria-hidden />
                   </IconButton>
-                  <IconButton onClick={() => { openConfirmGlobal({ message: t('sla_calendars_page.confirmar_eliminar_festivo'), onConfirm: () => delH(h.id), danger: true }) }}
-                    className="slac-borrar"
+                  <IconButton variante="caja" tono="peligro" onClick={() => { openConfirmGlobal({ message: t('sla_calendars_page.confirmar_eliminar_festivo'), onConfirm: () => delH(h.id), danger: true }) }}
                     ariaLabel={t('sla_calendars_page.eliminar_festivo', { nombre: h.name || fmtDate(h.holiday_date) })} title={t('sla_calendars_page.eliminar')}>
                     <Trash2 size={14} aria-hidden />
                   </IconButton>
@@ -325,8 +324,7 @@ export default function SLACalendarsPage() {
                   <Button variant="secondary" size="sm" icon={<Pencil size={14} />} onClick={() => { setEditing(cal); setShowForm(true) }}>
                     {t('sla_calendars_page.editar')}
                   </Button>
-                  <IconButton onClick={() => { openConfirmGlobal({ message: t('sla_calendars_page.confirmar_eliminar', { nombre: cal.name }), onConfirm: () => deleteCal(cal.id), danger: true }) }}
-                    className="slac-borrar"
+                  <IconButton variante="caja" tono="peligro" onClick={() => { openConfirmGlobal({ message: t('sla_calendars_page.confirmar_eliminar', { nombre: cal.name }), onConfirm: () => deleteCal(cal.id), danger: true }) }}
                     ariaLabel={t('sla_calendars_page.eliminar_calendario', { nombre: cal.name })} title={t('sla_calendars_page.eliminar')}>
                     <Trash2 size={15} aria-hidden />
                   </IconButton>

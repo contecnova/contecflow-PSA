@@ -247,6 +247,7 @@ class Settings(
 
     # ── Contabilidad (opcionales) ─────────────────────────────────────────────
     XERO_API_BASE: str = Field(default="https://api.xero.com/api.xro/2.0", env="XERO_API_BASE")
+    XERO_TOKEN_URL: str = Field(default="https://identity.xero.com/connect/token", env="XERO_TOKEN_URL")
     QB_API_BASE: str = Field(default="https://quickbooks.api.intuit.com/v3/company", env="QB_API_BASE")
 
     # ── URLs ──────────────────────────────────────────────────────────────────
@@ -596,6 +597,11 @@ class Settings(
     CONTECINTELLIGENCE_ANALYST_ROLES: str = Field(default="admin,pm", env="CONTECINTELLIGENCE_ANALYST_ROLES")
     CONTECINTELLIGENCE_ASK_TIMEOUT_SECONDS: float = Field(default=120.0, env="CONTECINTELLIGENCE_ASK_TIMEOUT_SECONDS")
     CONTECINTELLIGENCE_HANDOFF_ENABLED: bool = Field(default=True, env="CONTECINTELLIGENCE_HANDOFF_ENABLED")
+    # 23-11-2026: orígenes de contecintelligence (CSV, p. ej. https://ci.miempresa.com)
+    # a los que la pantalla puede llamar DIRECTAMENTE con un token acotado (métricas
+    # incrustadas en el panel BI). Se añaden SOLO estos al `connect-src` de la CSP;
+    # vacío = sin incrustación (todo sigue pasando por contecflow).
+    CONTECINTELLIGENCE_EMBED_ORIGINS: str = Field(default="", env="CONTECINTELLIGENCE_EMBED_ORIGINS")
 
     # ── Lecciones aprendidas (revisión 2026-11) ───────────────────────────────
     LESSONS_CATEGORIES: str = Field(default='alcance,planificacion,estimacion,tecnica,calidad,comunicacion,cliente,proveedor,equipo,seguridad,operacion,coste', env="LESSONS_CATEGORIES")
@@ -680,6 +686,36 @@ class Settings(
     RECURRING_TASKS_MAX_CATCHUP: int = Field(default=10, env="RECURRING_TASKS_MAX_CATCHUP")
     COLLAB_TUS_TTL_HOURS: int = Field(default=24, env="COLLAB_TUS_TTL_HOURS")
     DOC_COLLAB_HISTORY_MAX: int = Field(default=200, env="DOC_COLLAB_HISTORY_MAX")
+    # «Mi cuaderno» (migración 202, docs/CUADERNO.md): tamaño máximo del contenido de
+    # una página (JSON del editor; el estado Yjs admite el doble), instantáneas de
+    # colaboración que se guardan por página y tamaño máximo de una nota de voz.
+    CUADERNO_PAGE_MAX_BYTES: int = Field(default=2 * 1024 * 1024, env="CUADERNO_PAGE_MAX_BYTES")
+    CUADERNO_COLLAB_HISTORY_MAX: int = Field(default=20, env="CUADERNO_COLLAB_HISTORY_MAX")
+    CUADERNO_VOICE_MAX_BYTES: int = Field(default=25 * 1024 * 1024, env="CUADERNO_VOICE_MAX_BYTES")
+    # «Del ticket al PR» (migración 203, docs/integraciones/TICKET_A_PR.md). Valores de la
+    # plataforma; cada empresa los ajusta en Configuración › Del ticket al PR (apagado por defecto).
+    # Imagen del motor (OpenCode) y su versión FIJADA (vacía o «latest»: no se ejecuta nada).
+    TICKET_PR_ENGINE_IMAGE: str = Field(default="ghcr.io/anomalyco/opencode", env="TICKET_PR_ENGINE_IMAGE")
+    TICKET_PR_ENGINE_VERSION: str = Field(default="", env="TICKET_PR_ENGINE_VERSION")
+    # Hosts que el motor necesita al arrancar (además del modelo), separados por comas.
+    TICKET_PR_ENGINE_EGRESS_HOSTS: str = Field(default="models.dev,registry.npmjs.org",
+                                               env="TICKET_PR_ENGINE_EGRESS_HOSTS")
+    # Proxy de salida con lista blanca (squid) y ayudante para rellenar/vaciar el volumen (sh + tar).
+    TICKET_PR_EGRESS_PROXY_IMAGE: str = Field(default="ubuntu/squid:6.6-24.04_beta", env="TICKET_PR_EGRESS_PROXY_IMAGE")
+    TICKET_PR_HELPER_IMAGE: str = Field(default="busybox:1.36.1", env="TICKET_PR_HELPER_IMAGE")
+    TICKET_PR_DOCKER_BIN: str = Field(default="docker", env="TICKET_PR_DOCKER_BIN")
+    # Límites del contenedor y de la empresa (por día, UTC).
+    TICKET_PR_CPUS: float = Field(default=2.0, env="TICKET_PR_CPUS")
+    TICKET_PR_MEMORY_MB: int = Field(default=4096, env="TICKET_PR_MEMORY_MB")
+    TICKET_PR_PIDS_LIMIT: int = Field(default=512, env="TICKET_PR_PIDS_LIMIT")
+    TICKET_PR_PLAN_TIMEOUT_MIN: int = Field(default=15, env="TICKET_PR_PLAN_TIMEOUT_MIN")
+    TICKET_PR_BUILD_TIMEOUT_MIN: int = Field(default=45, env="TICKET_PR_BUILD_TIMEOUT_MIN")
+    TICKET_PR_MAX_RUNS_PER_DAY: int = Field(default=20, env="TICKET_PR_MAX_RUNS_PER_DAY")
+    TICKET_PR_MAX_COST_PER_DAY_USD: float = Field(default=20.0, env="TICKET_PR_MAX_COST_PER_DAY_USD")
+    TICKET_PR_MAX_CONCURRENT: int = Field(default=2, env="TICKET_PR_MAX_CONCURRENT")
+    TICKET_PR_MAX_REPO_MB: int = Field(default=200, env="TICKET_PR_MAX_REPO_MB")
+    TICKET_PR_MAX_CHANGED_FILES: int = Field(default=50, env="TICKET_PR_MAX_CHANGED_FILES")
+    TICKET_PR_MAX_DIFF_KB: int = Field(default=512, env="TICKET_PR_MAX_DIFF_KB")
     AI_CONTRACT_MAX_PAGES: int = Field(default=200, env="AI_CONTRACT_MAX_PAGES")
     QB_MINOR_VERSION: int = Field(default=65, env="QB_MINOR_VERSION")
     BI_DELIVERY_ALLOWED_DOMAINS: str = Field(default="", env="BI_DELIVERY_ALLOWED_DOMAINS")
@@ -786,13 +822,33 @@ class Settings(
             raise ValueError("SECRET_KEY cannot be a single repeated character")
         return v
 
-    @field_validator("ENVIRONMENT")
+    # 23-11-2026: setup.sh, setup.bat, `app/core/entorno.py` y los scripts
+    # aceptan `dev`, `local`, `demo` y `testing`, pero aquí solo valían los
+    # cuatro canónicos y la API no arrancaba con un .env que los scripts daban
+    # por bueno. Se normalizan los alias al valor canónico ANTES de validar
+    # (el resto de validadores leen `info.data["ENVIRONMENT"]` ya normalizado).
+    # `demo` es una instalación local con datos de ejemplo: development.
+    # Lo desconocido se sigue rechazando: nada se cuela como "no producción".
+    ENVIRONMENT_ALIASES: ClassVar[dict[str, str]] = {
+        "development": "development", "dev": "development", "local": "development",
+        "demo": "development",
+        "test": "test", "testing": "test",
+        "staging": "staging", "stage": "staging", "pre": "staging", "preprod": "staging",
+        "production": "production", "prod": "production", "prd": "production",
+    }
+
+    @field_validator("ENVIRONMENT", mode="before")
     @classmethod
-    def environment_must_be_valid(cls, v: str) -> str:
-        valid = {"development", "test", "staging", "production"}
-        if v not in valid:
-            raise ValueError(f"ENVIRONMENT must be one of {valid}, got '{v}'")
-        return v
+    def environment_must_be_valid(cls, v: object) -> str:
+        bruto = str(v if v is not None else "").strip().strip('"').strip("'").lower()
+        canonico = cls.ENVIRONMENT_ALIASES.get(bruto)
+        if canonico is None:
+            raise ValueError(
+                "ENVIRONMENT must be one of development, test, staging, production "
+                f"(alias: {', '.join(sorted(k for k in cls.ENVIRONMENT_ALIASES if k != cls.ENVIRONMENT_ALIASES[k]))}), "
+                f"got '{v}'"
+            )
+        return canonico
 
     @field_validator("DEFAULT_USER_PASSWORD")
     @classmethod

@@ -119,6 +119,13 @@ celery_app.conf.beat_schedule = {
         "task": "app.worker.ml_model_retrain",
         "schedule": crontab(day_of_month=1, hour=3, minute=0),
     },
+    # 23-11-2026: perfiles del motor de asignación por IA. Corre cada hora y cada
+    # empresa reentrena cuando le toca según SEMANTIC_RETRAIN_INTERVAL_HOURS
+    # (por defecto 24; 0 lo apaga): `semantic_engine_service.reentrenar_empresa`.
+    "semantic-retrain-profiles": {
+        "task": "app.worker.semantic_reentrenar",
+        "schedule": crontab(minute=23),
+    },
     # OLAP nightly ETL — incremental load PostgreSQL → DuckDB every night at 01:00
     "olap-nightly-etl": {
         "task": "app.worker.olap_nightly_etl",
@@ -336,6 +343,25 @@ celery_app.conf.beat_schedule = {
     "demanda-plazos": {
         "task": "app.worker.demanda_plazos",
         "schedule": crontab(minute=10),
+    },
+    # «Mi cuaderno» (migración 202): avisos de las casillas y purga de la papelera.
+    "cuaderno-avisos": {
+        "task": "app.worker.cuaderno_avisos",
+        "schedule": crontab(minute="*/5"),
+    },
+    "cuaderno-papelera": {
+        "task": "app.worker.cuaderno_papelera",
+        "schedule": crontab(hour=3, minute=55),
+    },
+    # «Del ticket al PR» (migración 203): estado del cambio → estado del PR, y ejecuciones colgadas.
+    "ticket-pr-sincronizar": {
+        "task": "app.worker.ticket_pr_sincronizar",
+        "schedule": crontab(minute="*/5"),
+    },
+    # PIR (migración 206, docs/PIR.md): vencidas y avisos previos, a diario.
+    "pir-vencidas": {
+        "task": "app.worker.pir_vencidas",
+        "schedule": crontab(hour=7, minute=20),
     },
 }
 
@@ -570,6 +596,13 @@ def ml_model_retrain():
     return _por_organizacion("ml_model_retrain", train_model)
 
 
+@celery_app.task(name="app.worker.semantic_reentrenar")
+def semantic_reentrenar():
+    """Reconstruye los perfiles del motor de asignacion de cada organizacion a su intervalo."""
+    from app.services.semantic_engine_service import reentrenar_empresa
+    return _por_organizacion("semantic_reentrenar", reentrenar_empresa)
+
+
 @celery_app.task(name="app.worker.sla_breach_scan")
 def sla_breach_scan():
     """Estado del SLA, avisos de riesgo e incumplimiento, y escalado."""
@@ -717,22 +750,8 @@ def aplicar_retencion():
     Auditoría 22-11-2026 (A64): y borra las copias RGPD (acceso/portabilidad)
     caducadas (`COMPLIANCE_GDPR_EXPORT_TTL_DAYS`).
     """
-    from app.services.retencion import aplicar
-    from app.services.cab_service.gdpr import purgar_copias_caducadas
-
-    def _retencion_y_copias(db, org):
-        informe = aplicar(db, org)
-        if isinstance(informe, dict):
-            informe["copias_rgpd_caducadas"] = purgar_copias_caducadas(db, org)
-            # M77 (auditoría 22-11-2026): la retención del chat también corre cada día.
-            from app.services.collaboration.compliance import run_retention_de_empresa
-            try:
-                informe["chat"] = run_retention_de_empresa(db, org)
-            except Exception:
-                db.rollback()
-                _worker_logger.exception("retención del chat de %s", org)
-        return informe
-    return _por_organizacion("aplicar_retencion", _retencion_y_copias)
+    from app.services.retencion import pasada_diaria
+    return _por_organizacion("aplicar_retencion", pasada_diaria)
 
 
 @celery_app.task(name="app.worker.ausencias_pasada_diaria")
@@ -929,3 +948,31 @@ def demanda_plazos():
     """Flujo de demanda: avisa al acercarse y al vencer el plazo de cada fase (una vez por fase y ronda)."""
     from app.services.demanda.trabajos import plazos
     return _por_organizacion("demanda_plazos", plazos)
+
+
+@celery_app.task(name="app.worker.cuaderno_avisos")
+def cuaderno_avisos():
+    """Mi cuaderno: avisa de las casillas con aviso vencido y sin marcar (una vez por aviso)."""
+    from app.services.cuaderno.trabajos import avisos
+    return _por_organizacion("cuaderno_avisos", avisos)
+
+
+@celery_app.task(name="app.worker.cuaderno_papelera")
+def cuaderno_papelera():
+    """Mi cuaderno: borra lo que lleva en la papelera más de `trash_days` (respeta el bloqueo legal)."""
+    from app.services.cuaderno.trabajos import papelera
+    return _por_organizacion("cuaderno_papelera", papelera)
+
+
+@celery_app.task(name="app.worker.ticket_pr_sincronizar")
+def ticket_pr_sincronizar():
+    """Del ticket al PR: lleva el estado del cambio (CAB) al PR y cierra ejecuciones colgadas. Nunca fusiona."""
+    from app.services.ticket_a_pr.servicio import sincronizar_empresa
+    return _por_organizacion("ticket_pr_sincronizar", sincronizar_empresa)
+
+
+@celery_app.task(name="app.worker.pir_vencidas")
+def pir_vencidas():
+    """PIR (migración 206, docs/PIR.md): aviso previo y aviso de vencida, una vez cada uno, por empresa."""
+    from app.services.pir.programacion import revisar_vencidas
+    return _por_organizacion("pir_vencidas", revisar_vencidas)

@@ -78,7 +78,8 @@ export default defineConfig(({ mode }) => {
           "img-src     'self' data: blob:; " +
           "media-src   'self' blob:; " +
           "font-src    'self' data:; " +
-          `connect-src 'self' ${apiOrigin} ws: wss:; ` +
+          // 23-11-2026: + los origenes de contecintelligence incrustables (mismo ajuste que el backend).
+          `connect-src 'self' ${apiOrigin}${(process.env.CONTECINTELLIGENCE_EMBED_ORIGINS || '').split(',').map(o => o.trim()).filter(o => /^https?:\/\/[A-Za-z0-9.-]+(:\d{1,5})?$/.test(o)).map(o => ` ${o}`).join('')} ws: wss:; ` +
           "object-src  'none'; " +
           "base-uri    'self'; " +
           "worker-src  'self' blob:;",

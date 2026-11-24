@@ -90,7 +90,14 @@ beforeEach(() => {
   api.preferencias.mockResolvedValue({ collect_teams: false, collect_meet: false, bot_for_my_calendar: false, language: null, available: { teams: true, meet: false, bots: true } })
   api.buscar.mockResolvedValue([])
   api.config.mockResolvedValue(structuredClone(CONFIG))
-  api.guardarConfig.mockImplementation(async (c: unknown) => ({ ...structuredClone(CONFIG), ...(c as object) }))
+  // Como el servidor (`para_la_api` tras guardar): mezcla bloque a bloque y conserva los
+  // campos de solo lectura (stt_providers, stt_effective, webhook_url…). Antes se
+  // sustituían los bloques enteros y `transcription.stt_providers` quedaba sin definir.
+  api.guardarConfig.mockImplementation(async (c: unknown) => {
+    const base = structuredClone(CONFIG) as Record<string, Record<string, unknown>>
+    for (const [k, v] of Object.entries(c as Record<string, Record<string, unknown>>)) base[k] = { ...base[k], ...v }
+    return base
+  })
 })
 
 describe('pantalla del asistente de reuniones', () => {

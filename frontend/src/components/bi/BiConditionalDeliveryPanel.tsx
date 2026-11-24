@@ -13,7 +13,7 @@ import { biConditionalDeliveryApi } from '../../services/api'
 import type { EvaluacionDeEntregaBi, ReglaDeEntregaBi } from '../../services/api/tipos-bi'
 import { useAppT } from '../../i18n/AppLangContext'
 import { Bell, Play, Plus, ToggleLeft, ToggleRight } from 'lucide-react'
-import { Button, Card, EmptyState, Input, Section, Spinner, Pulsable } from '../ui'
+import { Button, Card, EmptyState, Input, Section, Spinner, Pulsable, IconButton } from '../ui'
 import StatusBadge from '../ui/StatusBadge'
 import './BiConditionalDeliveryPanel.css'
 
@@ -111,14 +111,13 @@ export default function BiConditionalDeliveryPanel() {
                       </StatusBadge>
                     )}
                     {!rule.enabled && <StatusBadge kind="neutral" caps={false}>{t('prediccion_bi.desactivada')}</StatusBadge>}
-                    <Pulsable aria-label={t('biconditionaldelivery.evaluar_ahora')}
+                    <IconButton variante="caja" tono="acento" ariaLabel={t('biconditionaldelivery.evaluar_ahora')}
                       onClick={() => evaluateMutation.mutate(rule.id)}
                       title={t('biconditionaldelivery.evaluar_ahora')}
-                      className="bicodepa-icono"
                     >
                       <Play size={16} aria-hidden />
-                    </Pulsable>
-                    <Pulsable className={`bicodepa-icono${rule.enabled ? ' bicodepa-icono--activo' : ''}`}
+                    </IconButton>
+                    <Pulsable /* eslint-disable-line contec/sin-boton-de-icono-propio -- excepción: interruptor activar/desactivar (icono de palanca), no es una acción de tarjeta */ className={`bicodepa-icono${rule.enabled ? ' bicodepa-icono--activo' : ''}`}
                       onClick={() => toggleMutation.mutate({ id: rule.id, enabled: !rule.enabled })}
                       aria-pressed={rule.enabled}
                       aria-label={rule.enabled ? t('prediccion_bi.desactivar') : t('prediccion_bi.activar')}

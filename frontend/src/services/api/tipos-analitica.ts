@@ -174,6 +174,10 @@ export type PistaSinFilas = {
 /** ask_the_data.ask (POST /analytics/ask). Los campos opcionales dependen del camino. */
 export type RespuestaDeAskTheData = {
   question: string
+  /** 23-11-2026: conversación a la que pertenece (memoria para las preguntas de seguimiento). */
+  conversation_id?: string | null
+  /** 23-11-2026: el modelo recibió preguntas anteriores de la conversación. */
+  with_context?: boolean
   sql: string
   columns: string[]
   rows: Array<Record<string, unknown>>
@@ -415,6 +419,33 @@ export type EstadisticasDelMotorSemantico = {
   cache_size: number
   expert_feedback: number
   by_mode: Record<string, number>
+  /** 23-11-2026: aceptadas + rechazadas reales (la base de `accuracy_pct`). */
+  resolved?: number
+}
+
+/** 23-11-2026: «Corregir asignación» (POST /semantic/feedback). */
+export type CorreccionDeAsignacion = {
+  ok: boolean
+  persisted_as_expert: boolean
+  correction_kind: 'correccion' | 'confirmacion_responsable'
+  was_accepted: boolean | null
+}
+
+/** 23-11-2026: sugerencia pendiente en la cola de revisión (GET /semantic/review-queue). */
+export type CasoDudoso = {
+  assignment_id: string
+  item_type: 'ticket' | 'task'
+  item_id: string
+  item_title: string
+  suggested_user_id: string | null
+  suggested_user_name?: string | null
+  confidence: number
+  engine_mode?: string | null
+  needs_review: boolean
+  priority: string
+  priority_score: number
+  priority_breakdown: Record<string, number>
+  created_at?: string | null
 }
 
 /** semantic_engine_service.estimate_sprint_backlog (POST /semantic/estimate/sprint-backlog). */
@@ -849,7 +880,7 @@ export type InstantaneasDeAgotamiento = { week_start: string; processed: number;
 /** cab_service/busqueda: un resultado (los usuarios y oportunidades no traen `status`). */
 export type ResultadoDeBusqueda = {
   id: string
-  type: 'project' | 'task' | 'ticket' | 'user' | 'invoice' | 'opportunity'
+  type: 'project' | 'task' | 'ticket' | 'user' | 'invoice' | 'opportunity' | 'note'
   title: string
   subtitle: string
   status?: string
@@ -861,7 +892,7 @@ export type ResultadoDeBusqueda = {
 export type BusquedaGlobal = {
   query: string
   total: number
-  grouped: Partial<Record<'projects' | 'tasks' | 'tickets' | 'users' | 'invoices' | 'opportunities', ResultadoDeBusqueda[]>>
+  grouped: Partial<Record<'projects' | 'tasks' | 'tickets' | 'users' | 'invoices' | 'opportunities' | 'notes', ResultadoDeBusqueda[]>>
   flat: ResultadoDeBusqueda[]
 }
 
@@ -1003,3 +1034,6 @@ export type PanelDeCartera = {
     milestones: Array<{ id: string; title: string; due_date: string | null; is_completed: boolean }>
   }>
 }
+
+/** 23-11-2026: una conversación de Ask-the-Data (GET /analytics/ask/conversations). */
+export type ConversacionDeAsk = { id: string; title: string; updated_at: string | null; turns: number }

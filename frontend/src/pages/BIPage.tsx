@@ -10,6 +10,7 @@ import { etiquetaCodigo } from '../i18n/etiquetaCodigo'
 import { useAppT, useAppLang } from '../i18n/AppLangContext'
 import NarrativeCard from '../components/bi/NarrativeCard'
 import AskDataWidget from '../components/bi/AskDataWidget'
+import MetricasIncrustadas from '../components/conectores/MetricasIncrustadas'
 import useMediaQuery from '../hooks/useMediaQuery'
 import { localeActivo } from '../utils/helpers'
 
@@ -119,6 +120,9 @@ export default function BIPage(): JSX.Element {
             <NarrativeCard lang={lang} />
             <AskDataWidget />
           </div>
+
+          {/* 23-11-2026: métricas certificadas de contecintelligence (token acotado; solo si su origen está en la CSP). */}
+          <MetricasIncrustadas />
 
           <section className="bi-panel" aria-labelledby="bi-estado-proyectos">
             <h2 id="bi-estado-proyectos" className="bi-panel__title">

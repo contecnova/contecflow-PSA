@@ -81,7 +81,7 @@ def update_milestone(
 ):
     m = svc_get_milestone_by_id(db, milestone_id)
     if not m: raise error_http(404, "no_encontrado", que="hito")
-    allowed = ["name", "description", "due_date", "billing_amount", "billing_pct", "sort_order"]
+    allowed = ["name", "description", "due_date", "billing_amount", "billing_pct", "sort_order", "is_go_live"]
     m = svc_update_milestone_fields(db, m, {k: v for k, v in payload.items() if k in allowed})
     return APIResponse.ok(data=_ms_out(m, db))
 

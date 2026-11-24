@@ -28,7 +28,27 @@ def correos(monkeypatch):
     return enviados
 
 
-def _pedir(client, token, contexto=None, entity_id="e-1"):
+def _gasto(db, importe=100, usuario="pm-test-id"):
+    """Un gasto real de la empresa 1.
+
+    El motor de aprobaciones ya no se fía del `context` del cliente: el flujo y
+    sus condiciones se evalúan con los datos de la ENTIDAD real
+    (`fuentes.contexto_de_entidad`) y una entidad inexistente da 404. Por eso
+    la solicitud apunta a un gasto de verdad con el importe que se quiere probar.
+    """
+    import uuid
+    from datetime import date
+    from app.models.expenses import Expense
+    g = Expense(id=str(uuid.uuid4()), organization_id="1", code=f"EXP-{uuid.uuid4().hex[:6]}",
+                user_id=usuario, category="travel", description="Gasto", amount=importe,
+                currency="EUR", expense_date=date.today())
+    db.add(g)
+    db.commit()
+    return g.id
+
+
+def _pedir(client, token, db, contexto=None):
+    entity_id = _gasto(db, (contexto or {}).get("amount", 100))
     r = client.post("/api/v1/approvals/requests", headers=auth(token), json={
         "entity_type": "expense", "entity_id": entity_id, "entity_summary": "Gasto", "context": contexto or {}})
     assert r.status_code in (200, 201), r.text
@@ -43,14 +63,14 @@ def test_EL_HALLAZGO_la_solicitud_va_al_flujo_cuyas_condiciones_encajan(client, 
     db.query(ApprovalWorkflow).filter(ApprovalWorkflow.id == grande["id"]).update(
         {"trigger_conditions": json.dumps({"amount_gt": 1000})})
     db.commit()
-    assert _pedir(client, pm_token, {"amount": 2500}, "e-big")["workflow_id"] == grande["id"]
-    assert _pedir(client, pm_token, {"amount": 200}, "e-small")["workflow_id"] == general["id"]
+    assert _pedir(client, pm_token, db, {"amount": 2500})["workflow_id"] == grande["id"]
+    assert _pedir(client, pm_token, db, {"amount": 200})["workflow_id"] == general["id"]
 
 
 def test_EL_HALLAZGO_el_delegado_puede_decidir(client, admin_token, pm_token, dev_token, db):
     wf = create_workflow(client, admin_token)
     add_step(client, admin_token, wf["id"], approver_type="role", approver_role="admin")
-    req = _pedir(client, pm_token)
+    req = _pedir(client, pm_token, db)
     r = client.post(f"/api/v1/approvals/requests/{req['id']}/decide", headers=auth(admin_token),
                     json={"decision": "delegated", "delegate_to": "dev-test-id", "note": "vacaciones"})
     assert r.status_code == 200, r.text
@@ -69,7 +89,7 @@ def test_EL_HALLAZGO_se_avisa_a_todos_los_del_rol_y_por_correo(client, admin_tok
     db.commit()
     wf = create_workflow(client, admin_token)
     add_step(client, admin_token, wf["id"], approver_type="role", approver_role="pm")
-    req = _pedir(client, dev_token)
+    req = _pedir(client, dev_token, db)
     avisados = {n.user_id for n in db.query(Notification).filter(Notification.resource_id == req["id"]).all()}
     assert avisados == {"pm-test-id", "pm-2"}
     assert sorted(correos) == ["pm2@contecflow.com", "pm@contecflow.com"]
@@ -83,7 +103,7 @@ def test_EL_HALLAZGO_se_avisa_al_responsable(client, admin_token, dev_token, db,
     r = client.post(f"/api/v1/approvals/workflows/{wf['id']}/steps", headers=auth(admin_token), json={
         "step_order": 1, "name": "Responsable", "approver_type": "manager", "timeout_hours": 48})
     assert r.status_code in (200, 201), r.text
-    req = _pedir(client, dev_token)
+    req = _pedir(client, dev_token, db)
     assert {n.user_id for n in db.query(Notification).filter(Notification.resource_id == req["id"])} == {"pm-test-id"}
 
 
@@ -93,7 +113,7 @@ def test_EL_HALLAZGO_los_recordatorios_se_envian(client, admin_token, pm_token, 
     wf = create_workflow(client, admin_token)
     paso = add_step(client, admin_token, wf["id"], approver_type="role", approver_role="admin")
     db.query(ApprovalStep).filter(ApprovalStep.id == paso["id"]).update({"reminder_hours": 1})
-    req = _pedir(client, pm_token)
+    req = _pedir(client, pm_token, db)
     db.query(ApprovalRequest).filter(ApprovalRequest.id == req["id"]).update(
         {"step_started_at": datetime.now(timezone.utc) - timedelta(hours=2)})
     db.commit()
@@ -127,7 +147,7 @@ def _token_de(enlaces, correo):
 def test_EL_HALLAZGO_se_aprueba_desde_el_enlace_del_correo_sin_sesion(client, admin_token, pm_token, db, enlaces):
     wf = create_workflow(client, admin_token)
     add_step(client, admin_token, wf["id"], approver_type="role", approver_role="admin")
-    req = _pedir(client, pm_token)
+    req = _pedir(client, pm_token, db)
     token = _token_de(enlaces, "admin@contecflow.com")
     client.cookies.clear()
     r = client.get("/api/v1/approvals/email-decision", params={"token": token})
@@ -151,7 +171,7 @@ def test_el_solicitante_no_se_aprueba_a_si_mismo_por_correo(client, admin_token,
     from app.services.approval_engine.por_correo import crear_enlace
     wf = create_workflow(client, admin_token)
     add_step(client, admin_token, wf["id"], approver_type="role", approver_role="admin")
-    req = _pedir(client, admin_token)
+    req = _pedir(client, admin_token, db)
     fila = db.get(ApprovalRequest, req["id"])
     token = crear_enlace(db, fila, "admin-test-id").split("token=")[1]
     r = client.post("/api/v1/approvals/email-decision", json={"token": token, "decision": "approved"})
@@ -164,7 +184,7 @@ def test_EL_HALLAZGO_la_aprobacion_pendiente_llega_al_canal(client, admin_token,
     monkeypatch.setattr(integrations, "notify_event", lambda tipo, entidad, db, *a, **k: eventos.append((tipo, entidad["id"])))
     wf = create_workflow(client, admin_token)
     add_step(client, admin_token, wf["id"], approver_type="role", approver_role="admin")
-    req = _pedir(client, pm_token)
+    req = _pedir(client, pm_token, db)
     assert eventos == [("approval.required", req["id"])]
 
 
@@ -182,7 +202,7 @@ def test_EL_HALLAZGO_el_delegado_de_un_ausente_recibe_y_decide(client, admin_tok
     assert _ausencia(client, admin_token, "dev-test-id").status_code == 200
     wf = create_workflow(client, admin_token)
     add_step(client, admin_token, wf["id"], approver_type="role", approver_role="admin")
-    req = _pedir(client, pm_token)
+    req = _pedir(client, pm_token, db)
     avisados = {n.user_id for n in db.query(Notification).filter(Notification.resource_id == req["id"])}
     assert "dev-test-id" in avisados and "admin-test-id" in avisados
     r = client.post(f"/api/v1/approvals/requests/{req['id']}/decide", headers=auth(dev_token), json={"decision": "approved"})
@@ -193,7 +213,7 @@ def test_fuera_de_fechas_el_delegado_no_decide(client, admin_token, pm_token, de
     _ausencia(client, admin_token, "dev-test-id", dias=(5, 9))
     wf = create_workflow(client, admin_token)
     add_step(client, admin_token, wf["id"], approver_type="role", approver_role="admin")
-    req = _pedir(client, pm_token)
+    req = _pedir(client, pm_token, db)
     r = client.post(f"/api/v1/approvals/requests/{req['id']}/decide", headers=auth(dev_token), json={"decision": "approved"})
     assert r.status_code == 403
 

@@ -133,12 +133,14 @@ def test_paralelo_espera_a_las_dos_ramas_y_el_temporizador_despierta(client, pm_
 
 
 def test_EL_HALLAZGO_lo_que_no_se_soporta_no_arranca(client, pm_token, db):
+    # 23-11-2026: los subprocesos ya se ejecutan (tests/test_bpm_profesional_2026_11_23.py);
+    # una compuerta compleja sigue sin soportarse.
     xml = APROBACION.replace('<bpmn:serviceTask id="Alta" name="Dar de alta"/>',
-                             '<bpmn:subProcess id="Alta" name="Dar de alta"/>')
+                             '<bpmn:complexGateway id="Alta" name="Dar de alta"/>')
     pid = _proceso(client, pm_token, xml)
     r = _arrancar(client, pm_token, pid)
     assert r.status_code == 422
-    assert "subProcess" in r.text
+    assert "complexGateway" in r.text
 
 
 def test_el_diagrama_de_ejemplo_lineal_se_ejecuta(client, pm_token, db):

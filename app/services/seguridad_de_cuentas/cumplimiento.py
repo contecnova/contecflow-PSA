@@ -1,5 +1,6 @@
 """Controles de seguridad de cuentas para el informe de cumplimiento (medidos en vivo)."""
 from __future__ import annotations
+import logging
 
 from datetime import datetime, timedelta, timezone
 
@@ -62,6 +63,7 @@ def controles(db, org: str, _control) -> list[dict]:
         try:
             sens = set(capacidades_de(db, u)) & set(CAPACIDADES_SENSIBLES)
         except Exception:
+            logging.getLogger(__name__).debug("controles: excepcion ignorada", exc_info=True)
             sens = set()
         if sens or u.is_superadmin:
             privilegiados.append((u, sens))

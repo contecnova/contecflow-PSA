@@ -4,13 +4,6 @@
   font-size: var(--text-md);
   font-weight: 700;
 }
-.vocomo-box-2 {
-  background: transparent;
-  border: none;
-  color: var(--text-2);
-  font-size: var(--text-xl);
-  cursor: pointer;
-}
 .vocomo-box-3 {
   text-align: center;
   padding: 20px 0;

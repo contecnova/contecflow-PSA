@@ -146,7 +146,19 @@ def apply_abac_for_route(
         fijar_organizacion_activa(db, user, payload.get("org"))
 
     resource_type, action = coverage
-    enforce_abac(db, user, resource_type, resource_id=None, action=action)
+    # 23-11-2026 (sesiones sin empresa cerradas): esta vía es la de las rutas que
+    # no resuelven usuario (página pública con cookie de sesión, p. ej. el iframe
+    # de BI); su sesión `get_db` no tiene empresa y leer las políticas lanzaba
+    # TenantIsolationError → 403 «servicio no disponible». Se evalúa en la
+    # empresa activa del usuario, ya validada arriba.
+    org = getattr(user, "organization_id", None)
+    if org:
+        from app.db.contexto_de_tenant import con_empresa
+        with con_empresa(db, str(org)):
+            enforce_abac(db, user, resource_type, resource_id=None, action=action)
+    else:
+        with contexto_de_sistema(db, "abac: usuario sin empresa"):
+            enforce_abac(db, user, resource_type, resource_id=None, action=action)
 
 
 def aplicar_abac_a_principal(db: Session, user, request) -> None:

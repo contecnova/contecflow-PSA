@@ -137,12 +137,12 @@ function ObligationsPanel({ contractId, onClose, currency }: { contractId: strin
                     </div>
                   </div>
                   <div className="rev-ob__actions">
-                    <IconButton type="button" className="rev-icon-btn"
+                    <IconButton variante="caja" type="button"
                       ariaLabel={t('revenue_page.editar_obligacion', { nombre: ob.name })} title={t('revenue_page.editar')}
                       onClick={() => { setEditing(ob); setForm({ name:ob.name, method:ob.method||'over_time', standalone_price:String(ob.standalone_price||''), notes:ob.notes||'' }); setShowForm(true) }}>
                       <Pencil size={14} aria-hidden />
                     </IconButton>
-                    <IconButton type="button" className="rev-icon-btn rev-icon-btn--danger"
+                    <IconButton variante="caja" tono="peligro" type="button"
                       ariaLabel={t('revenue_page.borrar_obligacion', { nombre: ob.name })} title={t('revenue_page.borrar')}
                       onClick={() => openConfirmGlobal({ message: t('revenue_page.confirmar_borrar_obligacion', { nombre: ob.name }), danger: true, onConfirm: () => del(ob.id) })}>
                       <Trash2 size={14} aria-hidden />

@@ -70,18 +70,6 @@
   color: var(--text-2);
 }
 
-.rc-icono {
-  display: inline-flex;
-  padding: 4px;
-  border: none;
-  border-radius: var(--radius-sm);
-  background: none;
-  color: var(--text-3);
-  cursor: pointer;
-}
-.rc-icono:hover { background: var(--surface-3); color: var(--accent); }
-.rc-icono--borrar:hover { color: var(--danger); }
-
 /* ── Tabla de tarifas ────────────────────────────────────────────────────── */
 .rc-tabla-card { padding: 0; gap: 0; overflow: hidden; }
 .rc-tabla-scroll { overflow-x: auto; }

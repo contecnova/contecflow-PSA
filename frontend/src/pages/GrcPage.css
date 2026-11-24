@@ -1021,6 +1021,5 @@
 .grc-denegado { color: var(--danger); vertical-align: middle; }
 .grc-girando { animation: grc-giro 0.9s linear infinite; vertical-align: middle; }
 @keyframes grc-giro { to { transform: rotate(360deg); } }
-.grc-borrar { color: var(--danger); }
 .grc-mb { margin-bottom: 16px; }
 .grc-label-3 { display: inline-flex; color: var(--text-2); }

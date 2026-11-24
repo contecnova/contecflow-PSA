@@ -7,7 +7,7 @@ import { openConfirmGlobal } from '../../context/ConfirmContext'
 import { useToast } from '../../context/ToastContext'
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import { vendorsApi } from '../../services/api'
-import { Buscador, Button, Spinner, EmptyState, Modal, Pulsable, Select, useErroresDeCampo, Input, Textarea } from '../../components/ui'
+import { Buscador, Button, Spinner, EmptyState, Modal, Select, useErroresDeCampo, Input, Textarea, IconButton } from '../../components/ui'
 import Pagination from '../../components/ui/Pagination'
 import { Building2, Plus, Pencil, Trash2, User, Mail, Link as LinkIcon } from 'lucide-react'
 import { extractErr } from '../../utils/helpers'
@@ -136,10 +136,9 @@ export function VendorsTab() {
                       <div className="alm-vendor__cat">{t(`alm.vendor_cat_${catKey}`)}</div>
                     </div>
                   </div>
-                  <div className="u-row-6">
-                    <Pulsable type="button" aria-label={t('alm.aria_edit_vendor', { name: v.name })} onClick={() => setModal(v)} className="alm-icon-btn alm-icon-btn--sm"><Pencil size={14} aria-hidden="true" /></Pulsable>
-                    <Pulsable type="button" aria-label={`${t('common.delete')} ${v.name}`} onClick={() => { openConfirmGlobal({ message: `${t('alm.vendors_delete_confirm')} "${v.name}"?`, onConfirm: () => del(v.id), danger: true }) }}
-                      className="alm-icon-btn alm-icon-btn--sm alm-icon-btn--danger"><Trash2 size={14} aria-hidden="true" /></Pulsable>
+                  <div className="ui-acciones">
+                    <IconButton variante="caja" ariaLabel={t('alm.aria_edit_vendor', { name: v.name })} onClick={() => setModal(v)}><Pencil size={14} aria-hidden="true" /></IconButton>
+                    <IconButton variante="caja" tono="peligro" ariaLabel={`${t('common.delete')} ${v.name}`} onClick={() => { openConfirmGlobal({ message: `${t('alm.vendors_delete_confirm')} "${v.name}"?`, onConfirm: () => del(v.id), danger: true }) }}><Trash2 size={14} aria-hidden="true" /></IconButton>
                   </div>
                 </div>
                 <div className="alm-vendor__info">

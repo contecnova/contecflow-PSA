@@ -65,6 +65,11 @@ PUBLIC_ROUTES: dict[tuple[str, str], str] = {
     ("POST", "/api/v1/portal/auth/password/reset"): "reset del portal con token de un solo uso",
     ("POST", "/api/v1/portal/auth/password/policy"): "reglas de la contraseña del portal: exige el token firmado y vigente",
     ("GET", "/api/v1/auth/saml/metadata"): "metadata SP de SAML, público por spec",
+    # SAML 2.0 (23-11-2026): flujo completo del SP.
+    ("GET", "/api/v1/auth/saml/{config_id}/login"): "redirección al IdP con la AuthnRequest",
+    ("POST", "/api/v1/auth/saml/callback"): "ACS: firma del IdP + InResponseTo de un solo uso",
+    ("POST", "/api/v1/auth/saml/canjear"): "ticket de un solo uso emitido por el ACS",
+    ("GET", "/api/v1/auth/saml/logout"): "SLO del IdP: LogoutRequest con firma de query obligatoria",
     ("GET", "/api/v1/auth/sso/providers"): "lista de IdP para pintar el botón de login",
     ("POST", "/api/v1/auth/sso/{config_id}/callback"): "callback del IdP",
     ("POST", "/api/v1/portal/auth/login"): "emite el token de portal",
@@ -137,6 +142,9 @@ PUBLIC_ROUTES: dict[tuple[str, str], str] = {
 PUBLIC_WEBSOCKETS = frozenset({
     "/api/v1/ws/notifications",
     "/api/v1/ws/doc/{doc_id}",
+    # 23-11-2026 («Mi cuaderno», migración 202): edición simultánea de una página;
+    # ticket o token al abrir, `cuaderno.usar` y permiso en la página (4003 si no).
+    "/api/v1/ws/notebook/{page_id}",
     "/api/v1/ws/portal-notifications",
     "/api/v1/collaboration/ws",
     "/api/v1/bi/collaboration/dashboards/{dashboard_key}/updates",

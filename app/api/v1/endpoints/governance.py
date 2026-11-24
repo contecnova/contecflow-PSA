@@ -303,7 +303,8 @@ def release_legal_hold(hold_id: str, db: Session = Depends(get_db), current_user
 AI_MODULES = [
     "nexusassist", "nexusagent", "nexusoracle", "meeting_assistant",
     "contract_intelligence", "knowledge_base", "portal_ai", "voice",
-    "mcp",
+    "mcp", "notebook",  # «Mi cuaderno» (migración 202): resumir, extraer tareas, ordenar ideas
+    "ticket_pr",  # «Del ticket al PR» (migración 203): agente de código que propone un PR
 ]
 APAGADOS_SIN_CONFIGURAR = _gsvc.APAGADOS_SIN_CONFIGURAR
 

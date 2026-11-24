@@ -521,6 +521,7 @@ def _render_template(text: Optional[str], ctx: dict) -> str:
     try:
         return re.sub(r"\{([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z0-9_]+)*)\}", _valor, text)
     except Exception:
+        logger.debug("_render_template: excepcion ignorada", exc_info=True)
         return text
 
 

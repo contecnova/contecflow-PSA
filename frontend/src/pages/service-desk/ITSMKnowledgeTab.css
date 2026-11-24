@@ -41,7 +41,6 @@
 .itk-mb-8 { margin-bottom: 8px; }
 
 /* Borrar: botón de icono en rojo (la acción destruye) */
-.itk-icon-danger { color: var(--danger); }
 
 /* Articulos KB */
 .itk-search-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }

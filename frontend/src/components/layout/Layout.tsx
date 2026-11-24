@@ -1,5 +1,5 @@
 import { useAppName } from '../../hooks/useAppName'
-import React, { type CSSProperties, useState, useEffect, useRef, useMemo } from 'react'
+import React, { type CSSProperties, lazy, Suspense, useState, useEffect, useRef, useMemo } from 'react'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { createPortal } from 'react-dom'
 import { useQuery } from '@tanstack/react-query'
@@ -16,6 +16,7 @@ import UserProfilePanel from './UserProfilePanel'
 import AlertsDrawer from './AlertsDrawer'
 import CampanaDeAvisos from './CampanaDeAvisos'
 import Breadcrumbs from './Breadcrumbs'
+import { ATAJOS_IR, crearSecuenciaIr, esCampoDeTexto } from './atajosDeTeclado'
 import useUserPreferences from '../../hooks/useUserPreferences'
 import useNotificationBadges from '../../hooks/useNotificationBadges'
 import { useChatRealtime } from '../../context/ChatRealtimeContext'
@@ -24,7 +25,7 @@ import { useSwipeGesture } from '../../hooks/useSwipeGesture'
 import { useAppLang, EVENTO_IDIOMA_ELEGIDO } from '../../i18n/AppLangContext'
 import {
   Calendar, MessageSquare, Brain, Search, LogOut, ChevronRight, ChevronLeft, Menu, X,
-  Timer, Keyboard, Plus, Inbox, Mic, SlidersHorizontal, RotateCcw,
+  Timer, Keyboard, Plus, Inbox, Mic, SlidersHorizontal, RotateCcw, NotebookPen,
 } from 'lucide-react'
 import { ANIMATION_FAST_MS, CLOCK_TICK_MS, DROPDOWN_DELAY_MS, POLL_FAST_MS, STALE_5_MIN_MS, STALE_LIVE_MS } from '../../constants/timings'
 import './Layout.css'
@@ -39,13 +40,15 @@ import useMenuPersonal from '../../hooks/useMenuPersonal'
 import { aplicarMenu } from '../../permisos/menuPersonal'
 import { puedeAbrir } from '../../permisos/navegacion'
 import { px } from '../../utils/estilos'
+// «Mi cuaderno» (migración 202): panel de notas rápidas; el editor se carga al abrirlo.
+const PanelRapido = lazy(() => import('../cuaderno/PanelRapido'))
 
 // Auditoría 22-11-2026 (M2 y B1 del 04): fuera `ROUTE_LABELS` (≈20 rutas retiradas y
 // literales en inglés) y `ROUTE_SECTION` en inglés/castellano. Las rutas que no están
 // en el menú dicen aquí a qué grupo pertenecen y la miga sale traducida (`nav.group_*`).
 const GRUPO_DE_RUTA_FUERA_DEL_MENU: Record<string, string> = {
   '/calendar': 'group_work', '/timer': 'group_work', '/timesheets': 'group_work', '/imputar': 'group_work',
-  '/chat': 'group_work', '/search': 'group_work', '/inbox': 'group_work',
+  '/chat': 'group_work', '/search': 'group_work', '/inbox': 'group_work', '/pir': 'group_work',
   '/contracts-ai': 'group_business',
 }
 
@@ -108,11 +111,13 @@ const SHORTCUTS = [
   { keys: ['?'], labelKey: 'shortcut_view_shortcuts' },
   { keys: ['Esc'], labelKey: 'shortcut_close_modal' },
   { keys: ['⌘', 'B'], labelKey: 'shortcut_toggle_sidebar' },
-  { keys: ['G', 'T'], labelKey: 'shortcut_go_tasks' },
-  { keys: ['G', 'P'], labelKey: 'shortcut_go_projects' },
-  { keys: ['G', 'I'], labelKey: 'shortcut_go_log_hours' },
-  { keys: ['G', 'S'], labelKey: 'shortcut_go_service_desk' },
-]
+  // 23-11-2026: «G + letra» se anunciaban y no los atendía nadie; ahora sí
+  // (atajosDeTeclado.ts) y solo se muestran los que el usuario puede abrir.
+  { keys: ['G', 'T'], labelKey: 'shortcut_go_tasks', ruta: ATAJOS_IR.t },
+  { keys: ['G', 'P'], labelKey: 'shortcut_go_projects', ruta: ATAJOS_IR.p },
+  { keys: ['G', 'I'], labelKey: 'shortcut_go_log_hours', ruta: ATAJOS_IR.i },
+  { keys: ['G', 'S'], labelKey: 'shortcut_go_service_desk', ruta: ATAJOS_IR.s },
+] as Array<{ keys: string[]; labelKey: string; ruta?: string }>
 
 function getSectionLabel(path: string, t: TFn | null | undefined): string | null {
   const group = NAV_GROUPS.find(g => (g.items || []).some(
@@ -124,7 +129,7 @@ function getSectionLabel(path: string, t: TFn | null | undefined): string | null
   return group.label
 }
 
-function ShortcutsModal({ onClose, text }: { onClose: () => void; text: Record<string, string> }) {
+function ShortcutsModal({ onClose, text, puedeIr }: { onClose: () => void; text: Record<string, string>; puedeIr: (ruta: string) => boolean }) {
   const dialogRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
@@ -161,7 +166,7 @@ function ShortcutsModal({ onClose, text }: { onClose: () => void; text: Record<s
           <IconButton className="modal-close" onClick={onClose} ariaLabel={text.close}><X size={14} /></IconButton>
         </div>
         <div className="shortcuts-grid">
-          {SHORTCUTS.map((s, i) => (
+          {SHORTCUTS.filter(s => !s.ruta || puedeIr(s.ruta)).map((s, i) => (
             <div key={i} className="shortcut-row">
               <span className="u-text2-sm">{text[s.labelKey]}</span>
               <div className="layo-row-1">
@@ -454,9 +459,11 @@ interface TopAppBarProps {
   onAlertsOpen: () => void
   onQuickCreate: () => void
   onVoiceOpen: () => void
+  onNotebookToggle: () => void
+  notebookOpen: boolean
 }
 
-function TopAppBar({ onSearchOpen, onAiToggle, aiOpen, onChatToggle, chatOpen, chatUnread, user, onProfileOpen, onLogout, alertCount, approvalCount, t, allNavItems, text, activeTimer, timerElapsed, onAlertsOpen: _onAlertsOpen, onQuickCreate, onVoiceOpen }: TopAppBarProps) {
+function TopAppBar({ onSearchOpen, onAiToggle, aiOpen, onChatToggle, chatOpen, chatUnread, user, onProfileOpen, onLogout, alertCount, approvalCount, t, allNavItems, text, activeTimer, timerElapsed, onAlertsOpen: _onAlertsOpen, onQuickCreate, onVoiceOpen, onNotebookToggle, notebookOpen }: TopAppBarProps) {
   const { puede } = useAuth()
   const { t: traducir } = useAppLang()
   const location = useLocation()
@@ -613,6 +620,13 @@ function TopAppBar({ onSearchOpen, onAiToggle, aiOpen, onChatToggle, chatOpen, c
             <Calendar size={13} aria-hidden />
           </NavLink>
         )}
+        {/* «Mi cuaderno» (migración 202): notas rápidas desde cualquier pantalla. */}
+        {user && puede('cuaderno.usar') && (
+          <Pulsable /* eslint-disable-line contec/sin-boton-de-icono-propio -- excepción: conmutador del cuaderno en el cromo de la barra superior */ className={`layo-row-19 layout-sx3 layout-e13 ${notebookOpen ? 'layout-m14' : 'layout-m15'}`} onClick={onNotebookToggle}
+            title={traducir('layoutshell.abrir_cuaderno')} aria-label={traducir('layoutshell.abrir_cuaderno')} aria-pressed={notebookOpen}>
+            <NotebookPen size={13} aria-hidden />
+          </Pulsable>
+        )}
         {activeTimer && !activeTimer.paused_at && (
           <NavLink to="/timer"
             title={topbarTimerSubtitle ? `Cronómetro activo: ${topbarTimerSubtitle}` : 'Cronómetro activo — click para gestionar'} className="layout-sx4"
@@ -753,7 +767,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
         return nuevo ? id : (actual ? null : p)
       })
     return { search: de('search'), ai: de('ai'), chat: de('chat'), profile: de('profile'),
-      shortcuts: de('shortcuts'), alerts: de('alerts'), quick: de('quick'), voice: de('voice') }
+      shortcuts: de('shortcuts'), alerts: de('alerts'), quick: de('quick'), voice: de('voice'), notebook: de('notebook') }
   }, [])
   const searchOpen = panel === 'search', setSearchOpen = setters.search
   const aiOpen = panel === 'ai', setAiOpen = setters.ai
@@ -763,6 +777,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
   const alertsDrawerOpen = panel === 'alerts', setAlertsDrawerOpen = setters.alerts
   const quickCreateOpen = panel === 'quick', setQuickCreateOpen = setters.quick
   const voiceOpen = panel === 'voice', setVoiceOpen = setters.voice
+  const notebookOpen = panel === 'notebook', setNotebookOpen = setters.notebook
   const [workspace, setWorkspace] = useState<string>(() => { try { return localStorage.getItem(NAV_WORKSPACE_KEY) || 'all' } catch { return 'all' } })
   const [timerElapsed, setTimerElapsed] = useState<number>(0)
 
@@ -821,19 +836,31 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
     }
   }, [isOverlayNav, mobileOpen])
 
+  const secuenciaIr = useRef(crearSecuenciaIr())
+  const puedeIrA = (ruta: string) => canOpen(ruta) && puedeAbrir(ruta, puede)
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      const tag = (e.target as HTMLElement | null)?.tagName
-      const isInput = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (e.target as HTMLElement | null)?.isContentEditable
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') { e.preventDefault(); setSearchOpen(o => !o); return }
-      if ((e.metaKey || e.ctrlKey) && e.key === 'i') { e.preventDefault(); setAiOpen(o => !o); return }
-      if ((e.metaKey || e.ctrlKey) && e.key === 'b') { e.preventDefault(); setCollapsed(c => !c); return }
+      const isInput = esCampoDeTexto(e.target)
+      const tecla = (e.key || '').toLowerCase()
+      if ((e.metaKey || e.ctrlKey) && tecla === 'k') { e.preventDefault(); setSearchOpen(o => !o); return }
+      if ((e.metaKey || e.ctrlKey) && tecla === 'i') { e.preventDefault(); setAiOpen(o => !o); return }
+      if ((e.metaKey || e.ctrlKey) && tecla === 'b') { e.preventDefault(); setCollapsed(c => !c); return }
       if (e.key === 'Escape') { setPersonalizando(false); setSearchOpen(false); setAiOpen(false); setShortcutsOpen(false); setProfileOpen(false); setMobileOpen(false); return }
       if (!isInput && e.key === '?') { e.preventDefault(); setShortcutsOpen(o => !o); return }
+      // «G + letra» (23-11-2026): fuera de campos de texto, sin modificadores y
+      // solo hacia lo que el usuario puede abrir (mismas reglas que el menú).
+      if (!isInput && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        const r = secuenciaIr.current(tecla)
+        if (r?.tipo === 'ir' && canOpen(r.ruta) && puedeAbrir(r.ruta, puede)) {
+          e.preventDefault()
+          setShortcutsOpen(false)
+          navigate(r.ruta)
+        }
+      }
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [setSearchOpen, setAiOpen, setShortcutsOpen, setProfileOpen])
+  }, [setSearchOpen, setAiOpen, setShortcutsOpen, setProfileOpen, navigate, canOpen, puede])
 
   const _currentDensity = prefs?.ui_density || 'normal'
   const _setDensity = (d: string) => save({ ui_density: d })
@@ -1013,6 +1040,8 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
           onAlertsOpen={() => setAlertsDrawerOpen(true)}
           onQuickCreate={() => setQuickCreateOpen(o => !o)}
           onVoiceOpen={() => setVoiceOpen(true)}
+          onNotebookToggle={() => setNotebookOpen(o => !o)}
+          notebookOpen={notebookOpen}
         />
         {children}
       </main>
@@ -1031,10 +1060,11 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
         />
       )}
       {profileOpen && <UserProfilePanel onClose={() => setProfileOpen(false)} />}
-      {shortcutsOpen && <ShortcutsModal onClose={() => setShortcutsOpen(false)} text={text} />}
+      {shortcutsOpen && <ShortcutsModal onClose={() => setShortcutsOpen(false)} text={text} puedeIr={puedeIrA} />}
       {alertsDrawerOpen && <AlertsDrawer onClose={() => setAlertsDrawerOpen(false)} />}
       {quickCreateOpen && <QuickCreateMenu onClose={() => setQuickCreateOpen(false)} />}
       <VoiceCommandModal open={voiceOpen} onClose={() => setVoiceOpen(false)} />
+      {notebookOpen && <Suspense fallback={null}><PanelRapido onClose={() => setNotebookOpen(false)} /></Suspense>}
       <OfflineIndicator />
     </div>
   )

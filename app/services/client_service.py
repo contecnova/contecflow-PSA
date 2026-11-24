@@ -719,10 +719,11 @@ def dar_acceso_al_portal(cid: str, contact_id: str, datos: dict, current_user: U
     payload = ClientCreateIn(
         client_org_id=cliente.id, full_name=ct.full_name, email=_texto(ct.email),
         job_title=(ct.job_title or None) and ct.job_title[:80], phone=(ct.phone or None) and ct.phone[:30],
-        **{k: v for k, v in datos.items() if k in ("password", "language", "project_ids")},
+        **{k: v for k, v in datos.items()
+           if k in ("password", "language", "project_ids", "must_change_password", "send_access")},
     )
     try:
-        creado = crear_usuario_del_portal(payload, db)
+        creado = crear_usuario_del_portal(payload, db, actor=current_user)
     except ValueError as e:
         from app.core.codigos_de_error import desde_valor
         raise desde_valor(400, e)
@@ -789,14 +790,18 @@ def list_contacts(cid: str, db: Session, current_user: Optional[User] = None) ->
         ClientContact.client_id == cid, ClientContact.is_active == True
     ).order_by(ClientContact.is_primary.desc(), ClientContact.full_name).all()
     ids = [ct.portal_user_id for ct in contactos if ct.portal_user_id]
-    activos = {u.id: bool(u.is_active) for u in db.query(ClientUser).filter(ClientUser.id.in_(ids)).all()} if ids else {}
+    usuarios = {u.id: u for u in db.query(ClientUser).filter(ClientUser.id.in_(ids)).all()} if ids else {}
+    activos = {uid: bool(u.is_active) for uid, u in usuarios.items()}
     filas = [
         {"id": ct.id, "full_name": ct.full_name, "email": ct.email,
          "phone": ct.phone, "job_title": ct.job_title, "role": ct.role,
          "is_primary": ct.is_primary, "notes": ct.notes, "is_active": ct.is_active,
          # Acceso al portal: sin usuario, `None`; con usuario, si está activo.
          "portal_user_id": ct.portal_user_id if ct.portal_user_id in activos else None,
-         "portal_active": activos.get(ct.portal_user_id) if ct.portal_user_id in activos else None}
+         "portal_active": activos.get(ct.portal_user_id) if ct.portal_user_id in activos else None,
+         # 23-11-2026 (portal_usuarios): archivado (se puede restaurar).
+         "portal_archived": (usuarios[ct.portal_user_id].archived_at is not None)
+         if ct.portal_user_id in usuarios else None}
         for ct in contactos
     ]
     return [recortar_contacto_de_cliente(current_user, f) for f in filas]

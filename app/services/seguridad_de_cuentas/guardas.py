@@ -15,8 +15,6 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-from fastapi import status
-
 from app.core.codigos_de_error import error_http
 
 #: Rutas que siguen abiertas en modo restringido (prefijos).
@@ -61,16 +59,19 @@ def comprobar_peticion(db, user, payload: dict, request) -> None:
     from app.services.seguridad_de_cuentas.auditoria import Origen
     from app.services.seguridad_de_cuentas.politica import leer
     org: Optional[str] = (db.info or {}).get("organization_id") or getattr(user, "organization_id", None)
-    sesiones.comprobar_sesion(db, user, payload.get("sid"), org)
+    # Una sola lectura de la política por petición (antes dos: aquí y en
+    # `comprobar_sesion`; sin la caché de 30 s, que en pruebas está apagada,
+    # eran 3 consultas más en cada petición autenticada).
     p = leer(db, org)
+    sesiones.comprobar_sesion(db, user, payload.get("sid"), org, p=p)
     acceso.comprobar(db, user, org, Origen.de(request).ip, request, p=p)
     ruta = request.url.path if request is not None else ""
     if _ruta_de_arreglo(ruta):
         return
     if _contrasena_bloquea(user, p):
-        raise error_http(status.HTTP_403_FORBIDDEN, "contrasena_cambio_obligatorio")
+        raise error_http(403, "contrasena_cambio_obligatorio")
     if _mfa_bloquea(db, user, org, p):
-        raise error_http(status.HTTP_403_FORBIDDEN, "mfa_configuracion_obligatoria")
+        raise error_http(403, "mfa_configuracion_obligatoria")
 
 
 def marcas(db, user) -> dict:

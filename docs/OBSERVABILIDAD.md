@@ -1,9 +1,8 @@
 # Observabilidad de Contecflow PSA (22-11-2026)
 
 Todo en Docker con un comando, métricas de plataforma y de negocio **por empresa**,
-alertas y paneles de Grafana provisionados desde el repositorio. Este documento
-sustituye a `docs/OBSERVABILITY_PROMETHEUS.md` (que se conserva como referencia
-de la activación de `/metrics`).
+alertas y paneles de Grafana provisionados desde el repositorio. Es la referencia
+única de observabilidad, incluida la activación de `/metrics`.
 
 ## 1. Arrancar
 

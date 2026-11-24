@@ -116,8 +116,9 @@ const COMPONENTES_POR_BLOQUE = {
 const ABREV = {
   'contec/sin-boton-nativo': 'botón', 'contec/sin-tabla-propia': 'tabla', 'contec/sin-select-nativo': 'select',
   'contec/sin-casilla-suelta': 'casilla', 'contec/sin-fieldset-propio': 'fieldset', 'contec/sin-input-nativo': 'input',
+  'contec/sin-boton-de-icono-propio': 'botón icono',
   mayusculas: 'MAYÚS', monoespaciada: 'mono', colorLiteral: 'color', altoFijoControl: 'alto px',
-  minAltoCampo: 'min alto campo', selectorDsInput: '.ds-input',
+  minAltoCampo: 'min alto campo', selectorDsInput: '.ds-input', botonDeIcono: 'botón icono CSS',
 }
 
 function escribirPlan(lista) {

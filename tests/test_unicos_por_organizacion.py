@@ -41,8 +41,9 @@ GLOBALES_A_PROPOSITO = {
     ("webhook_triggers", ("slug",)): "el slug es la URL pública del webhook entrante y se resuelve sin sesión",
     ("esign_envelopes", ("provider_envelope_id",)): "id que asigna el proveedor de firma, único en su sistema",
     ("collaboration_push_subscriptions", ("endpoint",)): "endpoint del navegador, único por dispositivo",
-    ("integration_connectors", ("name",)): "catálogo global de la plataforma (NULL = global)",
-    ("integration_connectors", ("slug",)): "catálogo global de la plataforma (NULL = global)",
+    # M-MOD2 (migración 200): `name` deja de ser único; `slug` es único por empresa y
+    # una sola vez en el catálogo global (índice PARCIAL, `organization_id IS NULL`).
+    ("integration_connectors", ("slug",)): "índice PARCIAL del catálogo global (NULL = global); por empresa, uq_integration_connectors_org_slug",
     ("onboarding_states", ("user_id",)): _DEL_PADRE,
     ("user_preferences", ("user_id",)): _DEL_PADRE,
     ("collaboration_presence_states", ("user_id",)): _DEL_PADRE,
@@ -93,6 +94,11 @@ GLOBALES_A_PROPOSITO = {
     ("sw_versions", ("product_id", "version")): "una versión por producto; " + _DEL_PADRE,
     ("bpmn_processes", ("key",)): "índice PARCIAL (`organization_id IS NULL`): solo el catálogo global; "
                                   "las empresas usan uq_bpmn_processes_org_key (organization_id, key)",
+    # 23-11-2026 (rev. 199): huella del token del dispositivo de confianza (credencial).
+    ("trusted_devices", ("token_hash",)): _IDENTIDAD,
+    # 23-11-2026 (rev. 201, M31): índice PARCIAL (`ended_at IS NULL`): un solo cronómetro
+    # abierto por persona, que es una persona en todas sus empresas (no puede cronometrar dos cosas a la vez).
+    ("timer_sessions", ("user_id",)): "un solo cronómetro abierto por persona (índice parcial, ended_at IS NULL)",
 }
 
 

@@ -8,7 +8,7 @@ import { useToast } from '../../context/ToastContext'
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import { z } from 'zod'
 import { vendorsApi, almExtApi, type UserListItem } from '../../services/api'
-import { Buscador, Button, Spinner, EmptyState, Modal, Pulsable, Select, useErroresDeCampo, Input, Textarea } from '../../components/ui'
+import { Buscador, Button, Spinner, EmptyState, Modal, Pulsable, Select, useErroresDeCampo, Input, Textarea, IconButton } from '../../components/ui'
 import { useListaDeUsuarios } from '../../hooks/useListas'
 import Pagination from '../../components/ui/Pagination'
 import {
@@ -331,10 +331,9 @@ export function ContractsTab() {
                     <span>{t('alm.licenses_count', { n: c.licenses_count })}</span>
                   </div>
                 </div>
-                <div className="alm-actions">
-                  <Pulsable type="button" aria-label={t('alm.aria_edit_contract', { name: c.title })} onClick={() => setModal(c)} className="alm-icon-btn"><Pencil size={15} aria-hidden="true" /></Pulsable>
-                  <Pulsable type="button" aria-label={t('alm.aria_delete_contract', { name: c.title })} onClick={() => { openConfirmGlobal({ message: t('alm.contracts_delete_confirm_named', { name: c.title }), onConfirm: () => del(c.id), danger: true }) }}
-                    className="alm-icon-btn alm-icon-btn--danger"><Trash2 size={15} aria-hidden="true" /></Pulsable>
+                <div className="ui-acciones">
+                  <IconButton variante="caja" ariaLabel={t('alm.aria_edit_contract', { name: c.title })} onClick={() => setModal(c)}><Pencil size={15} aria-hidden="true" /></IconButton>
+                  <IconButton variante="caja" tono="peligro" ariaLabel={t('alm.aria_delete_contract', { name: c.title })} onClick={() => { openConfirmGlobal({ message: t('alm.contracts_delete_confirm_named', { name: c.title }), onConfirm: () => del(c.id), danger: true }) }}><Trash2 size={15} aria-hidden="true" /></IconButton>
                 </div>
               </div>
             )

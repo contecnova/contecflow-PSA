@@ -1,7 +1,6 @@
 # Configuración del operador
 
-Reorganizada el 18-11-2026. El estado de antes, medido, está en
-[CONFIGURACION_INVENTARIO.md](CONFIGURACION_INVENTARIO.md).
+Mapa de la pantalla Configuración y del menú por defecto. Guía de uso: README, [§41](../README.md#41-configuración-mapa-de-secciones); lista completa de ajustes: [REFERENCIA_DE_AJUSTES.md](REFERENCIA_DE_AJUSTES.md).
 
 ## Criterio
 
@@ -68,6 +67,7 @@ Reorganizada el 18-11-2026. El estado de antes, medido, está en
 | | `ausencias` Ausencias: tipos, documentos, turnos, jornadas, festivos, personas y saldos, horario, acceso especial, ejemplos | admin, hr | Ausencias → pestaña Configuración |
 | | `vacations` Vacaciones (derecho anual; máximo asignable `VACATION_MAX_DAYS_ENTITLED`, que solo edita admin) | admin, hr | pestaña |
 | | `horas-extra` Horas extra | admin, hr | Horas extra → pestaña Configuración |
+| | `cuaderno` Mi cuaderno: etiquetas por defecto, plantillas (acta, seguimiento de cliente, 1:1, lluvia de ideas), qué pasa con los cuadernos al dar de baja a alguien, días de papelera, IA, voz, con quién se puede compartir y acceso excepcional (bloqueo legal o RGPD, auditado) | admin (`cuaderno.config`; acceso excepcional `cuaderno.acceso_excepcional`) | Nueva (23-11-2026, `docs/CUADERNO.md`); `/notebook` sin botón «Configurar» |
 | Proyectos y trabajo | `project-templates` Plantillas | admin, pm | `/project-templates` |
 | | `issue-types` Tipos de tarea | admin, pm | `/issue-types` (+ pestaña «Tipos tarea», retirada) |
 | | `project-workflows` Flujos de estado | admin, pm | `/settings/project-workflows` |
@@ -104,6 +104,8 @@ Reorganizada el 18-11-2026. El estado de antes, medido, está en
 | | `enterprise` SSO, webhooks y OAuth | admin | `/enterprise` |
 | | `webhook-log` Registro de webhooks | admin | `/webhook-log` |
 | | `developer` Portal de desarrolladores | admin, pm | `/developer` |
+| | `mcp` Agentes de código (MCP): encender el servidor, modo de escritura, Mi cuaderno y límite (dirección), cómo conectar OpenCode y Claude Code, credenciales propias, herramientas disponibles y guía (docs/integraciones/MCP.md) | todos (`mcp.usar`); los ajustes, `gobierno.administrar` | — (nueva, 23-11-2026) |
+| | `ticket-a-pr` Del ticket al PR: encender el módulo (apagado por defecto), motor OpenCode con versión fijada, proveedor y modelo de IA, credenciales Git cifradas (GitHub App, token de GitLab), repositorios permitidos por proyecto, ficheros protegidos, salida extra, órdenes de shell, tests, aprobación del plan por otra persona, tipo de cambio, límites, plantillas, prueba de conexión y coste por proyecto (docs/integraciones/TICKET_A_PR.md) | admin (`ticket_pr.config`) | — (nueva, 23-11-2026) |
 | | `import` Importar datos | admin, pm | `/import` |
 | Seguridad y GRC | `seguridad-cuentas` Seguridad de cuentas: política de contraseñas, bloqueo, MFA, sesiones (incluida la inactividad, antes `session`, que redirige aquí), acceso, usuarios, sesiones de la empresa, aprobaciones y campañas de recertificación (23-11-2026, docs/seguridad/politicas_de_cuenta.md) | `seguridad.administrar` (admin) | `/settings/seguridad-cuentas` |
 | | `recertificacion` Recertificación de accesos: lo que le toca revisar al responsable | `seguridad.recertificar` (admin, PM, jefe de equipo, RRHH) | `/settings/recertificacion` |

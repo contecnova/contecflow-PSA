@@ -117,7 +117,7 @@ function KRRow({ kr, onDelete }: { kr: KeyResult; onDelete: (id: string | number
         <Button size="sm" variant="secondary" icon={<TrendingUp size={13} />} onClick={() => setShowCheckin(s => !s)}>
           {t('pagina_okr.actualizar')}
         </Button>
-        <IconButton ariaLabel={t('pagina_okr.eliminar_kr_corto')} onClick={() => onDelete(kr.id)}><Trash2 size={14} /></IconButton>
+        <IconButton variante="caja" tono="peligro" ariaLabel={t('pagina_okr.eliminar_kr_corto')} onClick={() => onDelete(kr.id)}><Trash2 size={14} /></IconButton>
       </div>
       {showCheckin && (
         <div className="okr-kr__checkin">
@@ -172,8 +172,8 @@ function ObjectiveCard({ obj, onEdit, onAddKR, onDeleteObj, onDeleteKR }: {
           <Button size="sm" variant="secondary" icon={<Plus size={13} />} onClick={() => onAddKR(obj)}>
             {t('pagina_okr.kr')}
           </Button>
-          <IconButton ariaLabel={t('pagina_okr.editar_objetivo')} onClick={() => onEdit(obj)}><Pencil size={14} /></IconButton>
-          <IconButton ariaLabel={t('pagina_okr.eliminar_objetivo')} onClick={() => onDeleteObj(obj.id)}><Trash2 size={14} /></IconButton>
+          <IconButton variante="caja" ariaLabel={t('pagina_okr.editar_objetivo')} onClick={() => onEdit(obj)}><Pencil size={14} /></IconButton>
+          <IconButton variante="caja" tono="peligro" ariaLabel={t('pagina_okr.eliminar_objetivo')} onClick={() => onDeleteObj(obj.id)}><Trash2 size={14} /></IconButton>
         </div>
       </div>
 

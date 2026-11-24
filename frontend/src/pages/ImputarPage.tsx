@@ -608,12 +608,12 @@ export default function ImputarPage(): JSX.Element {
                   </div>
                   <div className="u-row-center-8">
                     <span className="imput-label-14">{imp.hours}h</span>
-                    <IconButton
+                    <IconButton variante="caja"
                       onClick={() => { setEditingId(imp.id); setEditForm({ hours: imp.hours, description: imp.description || '', is_billable: imp.is_billable ?? false }) }}
                       ariaLabel={t('imputa_page.edit_aria')}><Pencil size={14} /></IconButton>
-                    <IconButton
+                    <IconButton variante="caja" tono="peligro"
                       onClick={() => { openConfirmGlobal({ message: t('imputa_page.confirm_delete'), onConfirm: () => deleteImp(imp.id), danger: true }) }}
-                      ariaLabel={t('imputa_page.delete_aria')} className="imput-borrar"><Trash2 size={14} /></IconButton>
+                      ariaLabel={t('imputa_page.delete_aria')}><Trash2 size={14} /></IconButton>
                   </div>
                 </div>
               )}

@@ -48,7 +48,8 @@ describe('rutas, capacidades y menú', () => {
     const app = src('App.tsx')
     expect(app).toMatch(/path="\/internal-clients"/)
     expect(app).toMatch(/path="\/mi-departamento"/)
-    const layout = src('components/layout/Layout.tsx')
+    // Menú personalizable (23-11-2026): NAV_GROUPS salió de Layout.tsx a menuLateral.tsx.
+    const layout = src('components/layout/menuLateral.tsx')
     expect(layout).toMatch(/to: '\/internal-clients'/)
     expect(layout).toMatch(/to: '\/mi-departamento'/)
   })

@@ -150,7 +150,10 @@ CASOS = [
     ("/api/v1/alm/assets", _activo, 13),
     ("/api/v1/invoices", _factura, 13),
     ("/api/v1/billing-reports/invoices", _factura, 13),
-    ("/api/v1/clients", _cliente_suelto, 15),
+    # Ronda 2 de la auditoría 22-11-2026: el contacto principal de cada cliente
+    # se lee con UNA consulta en bloque para la página (antes, una por cliente):
+    # +1 fija, que no crece con las filas (2 y 8 dan lo mismo).
+    ("/api/v1/clients", _cliente_suelto, 16),
     ("/api/v1/clients/{cliente}/invoices", _factura, 12),
 ]
 

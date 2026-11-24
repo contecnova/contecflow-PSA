@@ -5,7 +5,7 @@ import type { Conversacion, FuenteDeRespuesta } from '../../services/api/tipos-a
 import { useConfirm } from '../../context/ConfirmContext'
 import { useAppLang } from '../../i18n/AppLangContext'
 import { Plus, Trash2, X } from 'lucide-react'
-import { Checkbox, Pulsable, Textarea } from '../ui'
+import { Checkbox, Pulsable, Textarea, IconButton } from '../ui'
 import './NexusAssistPanel.css'
 
 const LAST_CONV_KEY = 'nexusassist_last_conversation_id'
@@ -174,20 +174,20 @@ export default function ContecflowAssistPanel({ open, onClose, context }: Props)
           </div>
         </div>
         <div className="neaspa-row-2">
-          <Pulsable title={t('nexusassist.nueva')} aria-label={t('nexusassist.nueva')} onClick={() => { localStorage.removeItem(LAST_CONV_KEY); setConvId(null); setMessages([]) }} className="neaspa-botonicono">
+          <IconButton variante="caja" title={t('nexusassist.nueva')} ariaLabel={t('nexusassist.nueva')} onClick={() => { localStorage.removeItem(LAST_CONV_KEY); setConvId(null); setMessages([]) }}>
             <Plus size={16} />
-          </Pulsable>
-          <Pulsable className={`neaspa-botonicono2 ${conversations.length === 0 || isClearingHistory ? 'nexus-assist-panel-m1' : 'nexus-assist-panel-m2'}`} title={t(isClearingHistory ? 'nexusassist.borrando' : 'nexusassist.borrar_historial')} aria-label={t('nexusassist.borrar_historial')} disabled={conversations.length === 0 || isClearingHistory} onClick={() => openConfirm({
+          </IconButton>
+          <IconButton variante="caja" tono="peligro" title={t(isClearingHistory ? 'nexusassist.borrando' : 'nexusassist.borrar_historial')} ariaLabel={t('nexusassist.borrar_historial')} disabled={conversations.length === 0 || isClearingHistory} onClick={() => openConfirm({
               title: t('nexusassist.borrar_historial'),
               message: t('nexusassist.borrar_historial_ayuda'),
               danger: true,
               onConfirm: () => clearHistory(),
             })}>
             <Trash2 size={16} />
-          </Pulsable>
-          <Pulsable title={t('nexusassist.cerrar')} aria-label={t('nexusassist.cerrar')} onClick={onClose} className="neaspa-botonicono">
+          </IconButton>
+          <IconButton variante="caja" title={t('nexusassist.cerrar')} ariaLabel={t('nexusassist.cerrar')} onClick={onClose}>
             <X size={16} />
-          </Pulsable>
+          </IconButton>
         </div>
       </div>
       {!convId && messages.length === 0 && conversations.length > 0 && (

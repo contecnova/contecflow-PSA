@@ -20,6 +20,7 @@ import logging
 import math
 import re
 import threading
+import time
 from collections import defaultdict
 from typing import Optional
 
@@ -41,6 +42,11 @@ logger = logging.getLogger("semantic_classifier")
 _MODEL_INSTANCE = None
 _MODEL_NAME     = None
 _USE_TRANSFORMER = False
+# 23-11-2026: medido, cargar el transformer (import de torch/transformers + pesos)
+# tarda ~140 s la primera vez en cada proceso; la operación en sí, <1 s. Dos
+# peticiones a la vez lo cargaban dos veces. El candado lo serializa y
+# `precargar_en_segundo_plano` lo deja cargado al arrancar el backend.
+_CANDADO_MODELO = threading.Lock()
 
 def _get_model(model_name: str | None = None, backend_override: str | None = None):
     """Singleton del modelo (se carga UNA sola vez, como el ModelRegistry del sistema de origen)."""
@@ -48,6 +54,14 @@ def _get_model(model_name: str | None = None, backend_override: str | None = Non
     global _MODEL_INSTANCE, _MODEL_NAME, _USE_TRANSFORMER
     if _MODEL_INSTANCE is not None and _MODEL_NAME == model_name:
         return _MODEL_INSTANCE, _USE_TRANSFORMER
+    with _CANDADO_MODELO:
+        if _MODEL_INSTANCE is not None and _MODEL_NAME == model_name:
+            return _MODEL_INSTANCE, _USE_TRANSFORMER
+        return _cargar_modelo(model_name, backend_override)
+
+
+def _cargar_modelo(model_name: str, backend_override: str | None):
+    global _MODEL_INSTANCE, _MODEL_NAME, _USE_TRANSFORMER
     backend = (backend_override or settings.SEMANTIC_EMBEDDINGS_BACKEND or "tfidf").strip().lower()
     if backend != "transformer":
         # Auditoria 2026-11-22 (A-RZ3): el TF-IDF era un singleton del proceso
@@ -426,28 +440,38 @@ class SemanticAssigner(ServiceBase):
 
     def record_feedback(self, item_id: str, item_type: str,
                         item_text: str, correct_user_id: str,
-                        corrected_by: str):
+                        corrected_by: str, correction_kind: str = "correccion",
+                        commit: bool = True):
         """
         Guarda una correccion de experto en sem_feedback.
-        Equivalente a guardar en el Expert Cache del sistema de origen.
+        Equivalente a guardar en la cache de experto del sistema de origen.
+
+        23-11-2026: `corrected_by` es el id de quien corrige (FK a users.id) y
+        `correction_kind` el tipo (`correccion` | `confirmacion_responsable`).
         """
         h     = _text_hash(item_text)
         emb   = self._encode_single(item_text)
         exist = self.db.query(SemFeedback).filter(
-            SemFeedback.text_hash == h).first()
+            SemFeedback.text_hash == h, SemFeedback.item_type == item_type).first()
         if exist:
             exist.correct_user_id = correct_user_id
             exist.corrected_by    = corrected_by
-            exist.times_used      += 1
+            exist.correction_kind = correction_kind
+            exist.embedding       = json.dumps(emb)
+            exist.times_used      = (exist.times_used or 0) + 1
         else:
             fb = SemFeedback(text_hash=h,
                              text_snippet=item_text[:300],
                              embedding=json.dumps(emb),
                              item_type=item_type,
                              correct_user_id=correct_user_id,
-                             corrected_by=corrected_by)
+                             corrected_by=corrected_by,
+                             correction_kind=correction_kind)
             self.db.add(fb)
-        self.db.commit()
+        if commit:
+            self.db.commit()
+        else:
+            self.db.flush()
 
     def rebuild_profiles(self):
         """
@@ -468,11 +492,15 @@ class SemanticAssigner(ServiceBase):
             texts = [p.profile_text for p in profiles if p.profile_text]
             if texts:
                 self.model = _reajustar_encoder_de_empresa(org, texts)
+        reconstruidos = 0
         for p in profiles:
             if p.profile_text:
                 emb = self._encode_single(p.profile_text)
                 p.embedding = json.dumps(emb)
+                reconstruidos += 1
         self.db.commit()
+        # 23-11-2026: antes devolvía None y la API respondía {"rebuilt": null}.
+        return reconstruidos
 
     def refresh_user_profile(self, user_id: str) -> bool:
         """

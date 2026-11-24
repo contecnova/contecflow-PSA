@@ -298,7 +298,13 @@ export type SdRevisionKb = { ok: boolean; status: string }
 
 /** kb_calidad.resumen. */
 export type SdCalidadKb = {
-  gaps: { id: string; question: string; times_asked: number; source: string; last_asked_at: string | null }[]
+  gaps: {
+    id: string; question: string; times_asked: number; source: string; last_asked_at: string | null
+    // 23-11-2026 (migración 207): seguimiento como tarea.
+    owner_id?: string | null; owner_name?: string | null; due_date?: string | null
+    follow_status?: 'pendiente' | 'en_curso' | 'hecho'; task_id?: string | null
+    article_id?: string | null; article_number?: string | null
+  }[]
   corrections: { id: string; question: string; answer: string; is_public: boolean; usage_count: number; last_used_at: string | null }[]
   findings: { id: string; kind: 'stale' | 'contradiction'; article_id: string | null; article_number: string | null; other_article_id: string | null; other_article_number: string | null; detail: string | null; first_seen_at: string | null }[]
   counts: { gaps: number; corrections: number; findings: number }

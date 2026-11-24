@@ -20,7 +20,6 @@
 .exp-cabecera { display: flex; gap: 14px; margin-bottom: 20px; align-items: center; flex-wrap: wrap; }
 .exp-kpis { margin-bottom: 20px; }
 .exp-dato { display: inline-flex; align-items: center; gap: 4px; }
-.exp-borrar { color: var(--danger); }
 .exp-kpi { padding: 10px 16px; min-width: 120px; }
 .exp-kpi__valor { font-size: var(--text-lg-em); font-weight: 800; color: var(--text-1); }
 .exp-kpi__valor--aviso { color: var(--warning); }

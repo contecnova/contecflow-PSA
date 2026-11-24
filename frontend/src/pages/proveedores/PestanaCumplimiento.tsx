@@ -273,8 +273,8 @@ export default function PestanaCumplimiento({ sub, onCambio }: { sub: Subcontrat
                     <td className="sub-td">
                       {gestionar && (
                         <div className="u-row-6">
-                          <IconButton onClick={() => setDocumento(d)} ariaLabel={t('proveedores.editar_documento')} title={t('proveedores.editar_documento')}><Pencil size={14} aria-hidden /></IconButton>
-                          <IconButton className="sub-borrar" onClick={async () => { if (await confirmar({ message: t('proveedores.borrar_documento_confirmar'), danger: true })) borrarDoc.mutate(d.id) }}
+                          <IconButton variante="caja" onClick={() => setDocumento(d)} ariaLabel={t('proveedores.editar_documento')} title={t('proveedores.editar_documento')}><Pencil size={14} aria-hidden /></IconButton>
+                          <IconButton variante="caja" tono="peligro" onClick={async () => { if (await confirmar({ message: t('proveedores.borrar_documento_confirmar'), danger: true })) borrarDoc.mutate(d.id) }}
                             ariaLabel={t('proveedores.borrar_documento')} title={t('proveedores.borrar_documento')}><Trash2 size={14} aria-hidden /></IconButton>
                         </div>
                       )}

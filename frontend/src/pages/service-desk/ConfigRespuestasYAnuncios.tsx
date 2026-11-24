@@ -7,7 +7,7 @@ import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import { useToast } from '../../context/ToastContext'
 import { useAppT } from '../../i18n/AppLangContext'
 import { Eye, Languages, Megaphone, MessageSquareText, Pencil, Plus, Trash2 } from 'lucide-react'
-import { Button, Spinner, EmptyState, Modal, StatusBadge, Select, Checkbox, Input, FormField, useErroresDeCampo, Textarea } from '../../components/ui'
+import { Button, Spinner, EmptyState, Modal, StatusBadge, Select, Checkbox, Input, FormField, useErroresDeCampo, Textarea, IconButton } from '../../components/ui'
 import { DialogoDeVersionesDeContenido } from '../../components/traduccion/VersionesDeContenidoPanel'
 import type { StatusBadgeKind } from '../../components/ui/StatusBadge'
 import { sdCannedApi, sdAnnouncementsApi } from '../../services/api'
@@ -76,8 +76,8 @@ export function CannedResponsesManager() {
                 <div className="sdcfg-canned-body">{r.body?.slice(0,100)}</div>
               </div>
               <div className="sdcfg-row-actions">
-                <Button size="xs" variant="ghost" icon={<Pencil size={12} />} title={`${t('common.edit')} ${r.title}`} onClick={() => { setEditing(r.id); setEditForm({title:r.title,body:r.body,category:r.category||'',shortcut:r.shortcut||''}) }} />
-                <Button size="xs" variant="ghost" icon={<Trash2 size={12} />} title={`${t('common.delete')} ${r.title}`} onClick={() => { openConfirmGlobal({ message: t('config.confirmar_eliminar_x', { title: r.title }), onConfirm: () => del(r.id), danger: true }) }} />
+                <IconButton variante="caja" ariaLabel={`${t('common.edit')} ${r.title}`} onClick={() => { setEditing(r.id); setEditForm({title:r.title,body:r.body,category:r.category||'',shortcut:r.shortcut||''}) }}><Pencil size={12} /></IconButton>
+                <IconButton variante="caja" tono="peligro" ariaLabel={`${t('common.delete')} ${r.title}`} onClick={() => { openConfirmGlobal({ message: t('config.confirmar_eliminar_x', { title: r.title }), onConfirm: () => del(r.id), danger: true }) }}><Trash2 size={12} /></IconButton>
               </div>
             </div>
           ))}
@@ -175,10 +175,10 @@ export function AnnouncementsConfig() {
                       </div>
                     )}
                   </div>
-                  <Button size="xs" variant="ghost" icon={<Pencil size={12} />} title={`${t('common.edit')} ${a.title}`} onClick={() => editar(a)} />
-                  <Button size="xs" variant="ghost" icon={<Languages size={12} />} title={t('traduccion_admin.portal_versiones_de', { nombre: a.title })}
-                    onClick={() => setTraduciendo({ tipo: 'announcement', id: a.id, etiqueta: a.title })} />
-                  <Button size="xs" variant="ghost" icon={<Trash2 size={12} />} title={t('config.desactivar_anuncio_x', { title: a.title })} onClick={() => { openConfirmGlobal({ message: t('config.confirmar_desactivar_anuncio'), onConfirm: () => del(a.id) }) }} />
+                  <IconButton variante="caja" ariaLabel={`${t('common.edit')} ${a.title}`} onClick={() => editar(a)}><Pencil size={12} /></IconButton>
+                  <IconButton variante="caja" ariaLabel={t('traduccion_admin.portal_versiones_de', { nombre: a.title })}
+                    onClick={() => setTraduciendo({ tipo: 'announcement', id: a.id, etiqueta: a.title })}><Languages size={12} /></IconButton>
+                  <IconButton variante="caja" tono="peligro" ariaLabel={t('config.desactivar_anuncio_x', { title: a.title })} onClick={() => { openConfirmGlobal({ message: t('config.confirmar_desactivar_anuncio'), onConfirm: () => del(a.id) }) }}><Trash2 size={12} /></IconButton>
                 </div>
               ))}
             </div>

@@ -14,7 +14,12 @@ PANTALLA = (Path(__file__).resolve().parents[1] / "frontend/src/pages/settings-s
 CATALOGO = (Path(__file__).resolve().parents[1] / "frontend/src/pages/settings/catalogoDeAjustes.tsx")
 #: 18-11-2026 (configuración única): estos grupos se editan en su propia sección
 #: de Configuración, no en «Configuración dinámica» (antes estaban en las dos).
-CON_SECCION_PROPIA = {"service_desk": "sd", "traduccion": "traduccion"}
+#: 23-11-2026 (políticas de cuenta, docs/seguridad/politicas_de_cuenta.md):
+#: `password_policy` y `account_security` solo se escriben por
+#: `PUT /security/policy` (separación de funciones y auditoría), desde su sección
+#: «Seguridad de cuentas»; en «Configuración dinámica» se saltarían ambas.
+CON_SECCION_PROPIA = {"service_desk": "sd", "traduccion": "traduccion",
+                      "password_policy": "seguridad-cuentas", "account_security": "seguridad-cuentas"}
 
 
 def test_cada_grupo_del_servidor_esta_en_la_pantalla():

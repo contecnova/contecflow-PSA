@@ -77,11 +77,11 @@ def get_active_sso_providers(db: Session, request=None, dominio: Optional[str] =
     (correo o dominio); sin dominio, ninguno.
     """
     # Auditoria 2026-11: leia `c.name`, que no existia, y la excepcion dejaba
-    # el login sin botones. SAML no esta implementado: no se ofrece.
+    # el login sin botones. 23-11-2026: SAML implementado, se ofrece como los demas.
     from sqlalchemy import or_, select
     from app.models.mfa import Organization
     consulta = db.query(SSOConfig).filter(
-        SSOConfig.is_active == True, SSOConfig.is_deleted == False, SSOConfig.provider != "saml",
+        SSOConfig.is_active == True, SSOConfig.is_deleted == False,
         # Revision multitenant 2026-11b: ni los de empresas desactivadas…
         or_(SSOConfig.organization_id.is_(None),
             SSOConfig.organization_id.in_(select(Organization.id).where(Organization.is_active == True))))  # noqa: E712

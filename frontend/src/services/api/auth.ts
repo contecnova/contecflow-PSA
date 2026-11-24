@@ -144,6 +144,18 @@ export const authApi = {
   ssoCallback: (providerId: string, payload: { code: string; state: string; redirect_uri: string }): Promise<AxiosResponse<LoginResponse>> =>
     api.post(`/auth/sso/${providerId}/callback`, payload),
 
+  // SAML 2.0 (23-11-2026): URL del IdP con la AuthnRequest; el IdP vuelve al ACS
+  // del backend, que redirige a /login?saml_ticket=… y aquí se canjea el ticket.
+  authorizeSaml: (providerId: string): Promise<AxiosResponse<{ authorization_url?: string }>> =>
+    api.get(`/auth/saml/${providerId}/login`),
+  samlCanjear: (ticket: string): Promise<AxiosResponse<LoginResponse>> =>
+    api.post('/auth/saml/canjear', { ticket }),
+  samlLogout: (providerId: string): Promise<AxiosResponse<{ logout_url: string | null }>> =>
+    api.post(`/auth/saml/${providerId}/logout`),
+  // URLs del SP (metadata, ACS y SLO) para darlas de alta en el IdP (org.administrar).
+  samlUrlsDelSp: (): Promise<AxiosResponse<{ metadata_url: string; acs_url: string; slo_url: string }>> =>
+    api.get('/auth/saml/health'),
+
   // Gestión de passkeys del propio usuario (Perfil → Seguridad).
   // Auditoria 2026-11 (#21, backend): una passkey nueva es un segundo factor
   // nuevo; el servidor exige la contrasena actual o un codigo TOTP

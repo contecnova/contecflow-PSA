@@ -180,6 +180,132 @@ sigue valiendo (es el login justo después del restablecimiento).
 Pruebas: `tests/test_restablecer_contrasena_2026_11_23.py` y
 `frontend/src/__tests__/restablecerContrasenaPortal.test.ts`.
 
+## 3 ter. Portal de clientes: contraseña a mano, eliminar y archivar (23-11-2026)
+
+Petición del usuario: poder poner a mano la contraseña de un usuario del portal y poder borrar
+usuarios del portal; si tienen cosas hechas, archivarlos en vez de borrarlos. Antes, por la
+revisión M10 del 04b, el equipo no podía escribir la contraseña (solo «Reenviar acceso», que la
+genera y la manda por correo), y «Eliminar» borraba siempre: las filas de negocio que apuntaban
+al usuario se quedaban sin autor (`ON DELETE SET NULL`).
+
+**Quién.** Las acciones las tiene quien tiene `clientes.gestionar`, la capacidad que ya gestionaba
+los usuarios del portal. No se ha abierto a más roles. La supresión RGPD la sigue pidiendo solo
+quien tiene `cab.administrar`. Cada acción comprueba además que el usuario del portal sea de la
+empresa de quien actúa; si no, responde 404.
+
+**Contraseña a mano.** Hay dos caminos:
+- en el alta (pestaña «Usuarios del portal», alta desde un contacto con «Dar acceso al portal» y
+  página del portal de clientes), eligiendo «Ponerla a mano»;
+- en cualquier momento después, con «Establecer contraseña»
+  (`POST /portal/clients/{id}/set-password`).
+
+Cómo funciona:
+- El campo tiene mostrar/ocultar, un botón para generar una aleatoria de 20 caracteres
+  (mayúsculas, minúsculas, dígitos y especiales, sin caracteres que se confundan) y otro para copiarla.
+- Hay dos casillas:
+  - «Obligar a cambiarla en el primer acceso» va marcada por defecto y pone
+    `client_users.must_change_password`. En la API, si no se manda el campo en el alta, no obliga
+    (como antes); en `set-password`, por defecto sí obliga.
+  - «Enviar el acceso por correo al titular» usa el correo de siempre (`portal.acceso.*`, en
+    los 8 idiomas del portal).
+- La contraseña pasa la política de la empresa
+  (`usuarios.validar_puesta_por_el_equipo`):
+  - longitud mínima: la mayor entre la de la empresa y `MIN_PASSWORD_LENGTH`;
+  - longitud máxima y composición;
+  - comunes;
+  - datos personales: ni el correo ni el nombre del usuario del portal;
+  - distinta de la actual. El portal no guarda historial de contraseñas, así que la actual es
+    todo su historial.
+  - Los errores llevan el código del operador (es/en/zh): `contrasena_*`,
+    `portal_usuario_contrasena_con_datos_personales` y
+    `portal_usuario_contrasena_igual_a_la_actual`.
+- La contraseña solo se guarda con hash (bcrypt). No vuelve en ninguna respuesta. No va a los logs.
+  No va a la auditoría.
+- Al establecerla se cierran todas las sesiones del portal de ese usuario (corte por cliente de §3 bis
+  y borrado de sus `client_sessions`).
+- Auditoría:
+  - `PORTAL_PASSWORD_SET` con quién, a quién, IP, `must_change_password`, `send_requested`,
+    `sent` y `sessions_revoked`;
+  - en el alta, `PORTAL_USER_CREATED` con `password_manual`, `must_change_password` y `sent`.
+- «Reenviar acceso» se mantiene como alternativa: el sistema genera la contraseña y se la manda
+  al titular.
+- Editar el usuario (`PATCH /portal/clients/{id}`) ya no cambia la contraseña: antes lo hacía sin
+  política, sin cerrar sesiones y sin auditoría. Ahora responde
+  `portal_usuario_contrasena_solo_con_su_accion`.
+
+**Eliminar o archivar** (`DELETE /portal/clients/{id}`). Decide el servidor
+(`usuarios.eliminar_o_archivar`):
+- **Criterio de historial.** Se miran todas las claves ajenas a `client_users.id` que declaran
+  los modelos; la lista se saca de los modelos, no se escribe a mano. Hoy son:
+  - tickets (solicitante, actor del historial, autor de comentarios);
+  - mensajes del portal;
+  - peticiones de funcionalidad;
+  - UAT (firma e incidencias);
+  - encuestas;
+  - documentos firmados;
+  - demanda (solicitudes, actores, comentarios, adjuntos);
+  - conversaciones del portal y de colaboración (mensajes, adjuntos, llamadas, reacciones,
+    canales directos, auditoría de colaboración);
+  - conversaciones de canal y acciones del asistente del service desk;
+  - sesiones del chat de IA del portal.
+
+  Solo NO cuentan como historial (`NO_SON_HISTORIAL`):
+  - los permisos de proyecto (`client_user_projects`);
+  - las sesiones (`client_sessions`);
+  - su ficha de contacto (`client_contacts`, que se queda, sin enlace);
+  - lo que ha leído, sus avisos, su presencia y sus suscripciones push;
+  - las conversaciones en las que es miembro;
+  - las menciones que le hicieron.
+
+  Una tabla nueva que apunte al usuario cuenta como historial por defecto, que es lo seguro.
+- **Sin historial: se borra de verdad.** Antes se borran sus filas accesorias y se desenlaza su
+  contacto. Así ninguna cascada llega a datos de negocio, porque si existieran, sería historial.
+  Se audita `PORTAL_USER_DELETED`, con su nombre y correo en `old_values`.
+- **Con historial: se archiva.**
+  - `is_active=False`, `archived_at` y `archived_by` (migración `205_portal_usuarios`).
+  - No puede entrar, porque el login y cada petición exigen `is_active`.
+  - Se cierran sus sesiones y se borran sus suscripciones push y su presencia.
+  - Sale de las listas por defecto; se ve con «Ver archivados» (`include_archived=true`).
+  - Conserva su historial con su nombre.
+  - Se audita `PORTAL_USER_ARCHIVED` con el recuento por `tabla.columna`.
+  - La respuesta dice `resultado` (`eliminado` o `archivado`), `historial` y `total`, y la
+    pantalla lo explica.
+- Un archivado:
+  - no se reactiva con «Reactivar»;
+  - no recibe contraseña ni reenvío de acceso;
+  - no se puede volver a dar de alta con su correo (`portal_usuario_archivado`,
+    `portal_usuario_email_archivado`).
+- **Restaurar** (`POST /portal/clients/{id}/restore`):
+  - respeta el tope de usuarios del portal del cliente;
+  - vuelve a entrar con su contraseña;
+  - se audita `PORTAL_USER_RESTORED`.
+
+**Distinto de la supresión RGPD.** Eliminar o archivar no es la supresión del art. 17. La
+supresión anonimiza la ficha de contacto y el usuario del portal
+(`datos_personales_de_contactos.anonimizar`). En la ficha hay una acción aparte, «Supresión RGPD»,
+solo para `cab.administrar`. Crea la solicitud de supresión para ese correo, que se procesa en
+Enterprise › RGPD.
+
+**GRC.**
+- Retención: el archivado conserva el historial mientras la empresa lo necesite. Para borrar los
+  datos personales está la supresión RGPD.
+- Privilegios: no cambian; sigue siendo `clientes.gestionar`.
+- El borrado definitivo solo ocurre cuando no hay nada que conservar.
+- Esquema: `client_users.archived_at`, de tipo fecha con zona y nula; `client_users.archived_by`,
+  de tipo texto de 36 caracteres y nula. `archived_by` no tiene clave ajena: el rastro completo está
+  en `audit_log`.
+
+**Interfaz.**
+- `frontend/src/pages/clients/AccionesUsuarioPortal.tsx` reúne los `IconButton variante="caja"`
+  de «Establecer contraseña», «Reenviar acceso», «Eliminar o archivar», «Restaurar» y
+  «Supresión RGPD», con sus confirmaciones.
+- Se usa en la pestaña de usuarios del portal, en los contactos del cliente y en la página del
+  portal de clientes.
+- Los textos del operador están en es/en/zh (`portalacc.*`). El cliente del portal no ve textos
+  nuevos: el correo de acceso y la pantalla de cambio obligatorio ya existían en los 8 idiomas.
+
+Pruebas: `tests/test_portal_usuarios_contrasena_y_archivo.py`.
+
 ## 4. Bloqueo de cuenta
 
 | Ajuste | Defecto | Recomendado |
@@ -302,6 +428,11 @@ confianza. No se aplica a superadmins ni a cuentas creadas dentro del plazo.
 
 ## 10. GRC
 
+- **Capas (prueba global 23-11-2026).** Las rutas de `/security` solo resuelven la guarda, la
+  empresa activa y el origen; cada acción (consultar, escribir, auditar y confirmar) vive en
+  `app/services/seguridad_de_cuentas/administracion.py`, y las del portal («¿Olvidaste tu
+  contraseña?», restablecer, forzar) en `restablecimiento.py` (`pedir_en_el_portal`,
+  `restablecer_en_el_portal`, `forzar_en_el_portal`). Misma auditoría, mismos códigos de error.
 - **Auditoría.** Todas las acciones nuevas van a `audit_log` con actor, IP, agente y empresa
   (`auditar()` en `seguridad_de_cuentas/auditoria.py`).
 - **Inmutabilidad.** La migración 199 instala triggers (`app/db/auditoria_inmutable.py`) en

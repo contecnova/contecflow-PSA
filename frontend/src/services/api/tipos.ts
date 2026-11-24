@@ -37,6 +37,8 @@ export interface ClientContact {
   portal_user_id?: string | null
   /** null: sin acceso al portal; false: su usuario del portal está desactivado. */
   portal_active?: boolean | null
+  /** 23-11-2026 (portal_usuarios): su usuario del portal está archivado. */
+  portal_archived?: boolean | null
 }
 
 /** RiskIn: probability e impact son cualitativos (low/medium/high...). Algunas

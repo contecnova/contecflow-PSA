@@ -12,6 +12,7 @@ import { FileText, Plus, ShieldAlert, ShieldCheck, Trash2, Upload } from 'lucide
 import { gastosApi, politicasApi } from '../../services/api'
 import type { Gasto } from '../../services/api/tipos-finanzas'
 import ExplicacionDeEntidad from '../politicas/ExplicacionDeEntidad'
+import DocumentosDeFicha from '../conectores/DocumentosDeFicha'
 import './gastos-politicas.css'
 import { Button, Modal, Spinner, Pulsable, Select, Input } from '../ui'
 import { useAppT } from '../../i18n/AppLangContext'
@@ -157,6 +158,8 @@ export default function DetalleDeGasto({ gasto, editable, onClose }: { gasto: Ga
             </div>
           )}
         </section>
+        {/* 23-11-2026: documentos de contecmind del gasto (solo si el conector está configurado). */}
+        <section className="gp-mt"><DocumentosDeFicha ficha="expense" id={gasto.id} /></section>
       </div>
     </Modal>
   )

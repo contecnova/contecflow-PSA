@@ -37,7 +37,6 @@ textarea.dlv-input { resize: vertical; }
 .dlv-card__rejection { margin-top: 6px; font-size: var(--text-sm); color: var(--danger); background: var(--danger-bg); border-radius: var(--radius-sm); padding: 4px 10px; }
 .dlv-card__criteria { margin-top: 6px; font-size: var(--text-xs); color: var(--text-2); }
 .dlv-card__actions { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
-.dlv-icon-btn--danger { color: var(--danger); }
 
 @media (max-width: 640px) {
   .dlv-card__body { flex-direction: column; }

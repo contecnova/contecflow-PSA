@@ -65,12 +65,22 @@ def test_routing_rule_assign_user_sets_assigned_status(client, admin_token, db):
     rule = RoutingRule(
         id=str(uuid.uuid4()),
         name="Assign all incidents to dev",
+        # A-SD5 (auditoria 22-11-2026): solo se aplican las reglas de la empresa
+        # del ticket; una regla sin empresa no es de nadie y no se aplica.
+        organization_id="1",
         is_active=True,
         priority=1,
         conditions=json.dumps({"ticket_type": "incident"}),
         actions=json.dumps({"assign_user": "dev-test-id"}),
     )
     db.add(rule)
+    # La regla solo asigna a un AGENTE de la empresa del ticket (miembro de uno
+    # de sus grupos); un id cualquiera se ignora con aviso (auditoria 2026-11).
+    from app.models.service_desk import AgentGroup, AgentGroupMember, SupportLevel
+    grupo = AgentGroup(id=str(uuid.uuid4()), name="Soporte", support_level=SupportLevel.l1, organization_id="1")
+    db.add(grupo)
+    db.flush()
+    db.add(AgentGroupMember(group_id=grupo.id, user_id="dev-test-id", organization_id="1"))
     db.commit()
 
     create = client.post(

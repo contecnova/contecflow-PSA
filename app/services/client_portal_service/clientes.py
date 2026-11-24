@@ -25,9 +25,10 @@ from app.core.codigos_de_error import ErrorConCodigo
 # ── Client Management ─────────────────────────────────────────────────────────
 
 def list_clients(project_id: Optional[str], client_org_id: Optional[str], db: Session,
-                 pagina: Optional[Paginacion] = None) -> Pagina:
+                 pagina: Optional[Paginacion] = None, incluir_archivados: bool = False) -> Pagina:
     """Usuarios del portal, por nombre. Pagina con el mecanismo comun
-    (`app.core.paginacion`): sin `pagina`, la lista entera hasta LIST_MAX_ROWS."""
+    (`app.core.paginacion`): sin `pagina`, la lista entera hasta LIST_MAX_ROWS.
+    23-11-2026: los archivados solo con `incluir_archivados` («Ver archivados»)."""
     import sqlalchemy as sa
 
     q = db.query(ClientUser).options(joinedload(ClientUser.project), joinedload(ClientUser.projects))
@@ -43,6 +44,8 @@ def list_clients(project_id: Optional[str], client_org_id: Optional[str], db: Se
         ).distinct()
     if client_org_id:
         q = q.filter(ClientUser.client_org_id == client_org_id)
+    if not incluir_archivados:
+        q = q.filter(ClientUser.archived_at.is_(None))
     resultado = paginar(q.order_by(ClientUser.full_name, ClientUser.id), pagina, "portal.clients")
     return resultado.mapear(lambda c: {
         "id": c.id,
@@ -54,6 +57,7 @@ def list_clients(project_id: Optional[str], client_org_id: Optional[str], db: Se
         "job_title": c.job_title, "company": c.company,
         "phone": c.phone,
         "is_active": c.is_active,
+        "archived_at": c.archived_at.isoformat() if c.archived_at else None,
         "can_approve_deliverables": c.can_approve_deliverables,
         "can_request_changes": c.can_request_changes,
         "can_view_budget": c.can_view_budget,
@@ -90,7 +94,7 @@ def enviar_acceso(client: ClientUser, clave: str) -> bool:
     asunto = texto("portal.acceso.asunto", idioma)
     url = f"{settings.FRONTEND_URL.rstrip('/')}/portal"
     html = texto("portal.acceso.cuerpo", idioma, nombre=escape(client.full_name or ""), url=escape(url),
-                 email=escape(client.email or ""), clave=escape(clave))
+                 email=escape(client.email or ""), contrasena=escape(clave))
     return enviar_correo(client.email, asunto, html).enviado
 
 
@@ -99,6 +103,8 @@ def reenviar_acceso(client_id: str, db: Session) -> dict:
     client = db.query(ClientUser).filter(ClientUser.id == client_id).first()
     if not client:
         raise ErrorConCodigo("cliente_no_encontrado")
+    if client.archived_at is not None:
+        raise ErrorConCodigo("portal_usuario_archivado")
     clave = generar_contrasena()
     client.hashed_password = hash_password(clave)
     client.must_change_password = True
@@ -116,7 +122,15 @@ def reenviar_acceso_y_auditar(client_id: str, db: Session, actor) -> dict:
     return resultado
 
 
-def create_client(payload, db: Session) -> dict:
+def create_client(payload, db: Session, actor=None) -> dict:
+    """Alta de un usuario del portal.
+
+    Sin `password`, el servidor genera una y la manda al titular (cambio
+    obligatorio). Con `password` (puesta a mano, 23-11-2026): pasa la política
+    de la empresa, obliga a cambiarla si `must_change_password` y se manda por
+    correo si `send_access`. La contraseña nunca vuelve en la respuesta ni va a
+    la auditoría (`PORTAL_USER_CREATED`, si hay `actor`).
+    """
 
     all_project_ids = list(dict.fromkeys([
         *(payload.project_ids or []),
@@ -124,7 +138,10 @@ def create_client(payload, db: Session) -> dict:
     ]))
     if not all_project_ids and not payload.client_org_id:
         raise ErrorConCodigo("portal_usuario_sin_alcance", detail="Debe especificar al menos un proyecto o una empresa cliente")
-    if db.query(ClientUser).filter(ClientUser.email == payload.email).first():
+    existente = db.query(ClientUser).filter(ClientUser.email == payload.email).first()
+    if existente is not None and existente.archived_at is not None:
+        raise ErrorConCodigo("portal_usuario_email_archivado")
+    if existente is not None:
         raise ErrorConCodigo("email_ya_registrado", detail="Ya existe un usuario de portal con ese email")
     # Revisión 2026-11: el tope de usuarios por cliente sólo lo aplicaba un
     # segundo camino de alta sin pantalla (/clients/{id}/portal-users, retirado).
@@ -148,9 +165,19 @@ def create_client(payload, db: Session) -> dict:
     if organizacion is None and all_project_ids:
         primero = db.query(ProjectModel).filter(ProjectModel.id == all_project_ids[0]).first()
         organizacion = primero.organization_id if primero else None
-    clave_generada = None if payload.password else generar_contrasena()
+    manual = bool(payload.password)
+    if manual:
+        from app.services.client_portal_service.usuarios import validar_alta_con_contrasena
+        validar_alta_con_contrasena(db, email=payload.email, full_name=payload.full_name,
+                                    organization_id=organizacion, clave=payload.password)
+    clave_generada = None if manual else generar_contrasena()
+    # Contraseña a mano: obliga a cambiarla solo si se pide (la pantalla lo marca
+    # por defecto; la API sin el campo, como antes). La generada, siempre.
+    obligar = bool(payload.must_change_password) if manual else True
+    enviar_manual = manual and bool(payload.send_access)
     create_data = {k: v for k, v in payload.model_dump().items()
-                   if k not in ("password", "company", "project_ids", "project_id", "organization_id")}
+                   if k not in ("password", "company", "project_ids", "project_id", "organization_id",
+                                "must_change_password", "send_access")}
     client = ClientUser(
         **create_data,
         organization_id=organizacion,
@@ -158,7 +185,7 @@ def create_client(payload, db: Session) -> dict:
         company=company,
         hashed_password=hash_password(payload.password or clave_generada),
         # La contrasena generada solo la conoce el sistema y el buzon: se cambia al entrar.
-        must_change_password=clave_generada is not None,
+        must_change_password=obligar,
         avatar_initials=payload.full_name[:2].upper(),
     )
     db.add(client)
@@ -173,13 +200,26 @@ def create_client(payload, db: Session) -> dict:
     vincular_usuario_del_portal(db, client)
     db.commit()
     db.refresh(client)
+    # Con contraseña generada, se envía al titular y no vuelve en la respuesta;
+    # la puesta a mano, solo si se pidió.
+    if clave_generada:
+        enviadas = enviar_acceso(client, clave_generada)
+    elif enviar_manual:
+        enviadas = enviar_acceso(client, payload.password)
+    else:
+        enviadas = None
+    if actor is not None:
+        from app.services.seguridad_de_cuentas.auditoria import auditar
+        auditar(db, actor, "PORTAL_USER_CREATED", client, org_id=client.organization_id, recurso="client_user",
+                datos={"password_manual": manual, "must_change_password": obligar,
+                       "send_requested": enviar_manual or not manual, "sent": bool(enviadas)})
+        db.commit()
     return {
         "id": client.id,
         "email": client.email,
         "project_ids": client.get_project_ids(),
         "portal_url": "/portal",
-        # Con contraseña generada, se envía al titular y no vuelve en la respuesta.
-        "credenciales_enviadas": enviar_acceso(client, clave_generada) if clave_generada else None,
+        "credenciales_enviadas": enviadas,
         "message": f"Usuario creado. Puede acceder en /portal con {client.email}."
     }
 
@@ -196,11 +236,16 @@ def update_client(client_id: str, payload: dict, db: Session) -> dict:
         project_ids_payload = [pid for pid in (payload.get("project_ids") or []) if pid]
     elif "project_id" in payload:
         project_ids_payload = [payload["project_id"]] if payload.get("project_id") else []
+    # 23-11-2026 (portal_usuarios): la contraseña ya no se cambia por aquí (sin
+    # política, sin cerrar sesiones y sin auditoría): «Establecer contraseña».
+    if "password" in payload:
+        raise ErrorConCodigo("portal_usuario_contrasena_solo_con_su_accion")
+    # Un archivado no se reactiva con «Reactivar»: se restaura (queda auditado).
+    if client.archived_at is not None and payload.get("is_active"):
+        raise ErrorConCodigo("portal_usuario_archivado")
     for k, v in payload.items():
         if k in allowed and k != "project_id":
             setattr(client, k, v)
-    if "password" in payload:
-        client.hashed_password = hash_password(payload["password"])
     if project_ids_payload is not None:
         ordered_ids = list(dict.fromkeys(project_ids_payload))
         client.projects.clear()
@@ -219,17 +264,8 @@ def update_client(client_id: str, payload: dict, db: Session) -> dict:
     return {"ok": True, "project_ids": client.get_project_ids()}
 
 
-def delete_client(client_id: str, db: Session) -> dict:
-
-    client = db.query(ClientUser).filter(ClientUser.id == client_id).first()
-    if not client:
-        raise ErrorConCodigo("cliente_no_encontrado")
-    # La persona sigue siendo contacto del cliente; solo pierde el enlace.
-    from app.services.client_service import desvincular_usuario_del_portal
-    desvincular_usuario_del_portal(db, client.id)
-    db.delete(client)
-    db.commit()
-    return {"ok": True}
+# 23-11-2026: `delete_client` (borrado siempre, con SET NULL en el historial) lo
+# sustituye `usuarios.eliminar_o_archivar`: sin historial borra, con historial archiva.
 
 
 # ── Auth ──────────────────────────────────────────────────────────────────────

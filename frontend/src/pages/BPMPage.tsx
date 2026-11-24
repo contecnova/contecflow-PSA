@@ -9,9 +9,11 @@ import type BaseViewer from 'bpmn-js/lib/BaseViewer'
 import type { BaseViewerOptions } from 'bpmn-js/lib/BaseViewer'
 import type Canvas from 'diagram-js/lib/core/Canvas'
 import { Buscador, Button, Page, Tabs, EmptyState, IconButton, Pulsable, Select, Input } from '../components/ui'
-import { Network, Plus, X, ChevronLeft, ChevronRight, Edit3, Download, Play, History, Trash2, Archive, User, Timer, ListOrdered, LayoutGrid, Activity, Workflow, SearchX, Save } from 'lucide-react'
+import { Network, Plus, X, ChevronLeft, ChevronRight, Edit3, Download, Upload, Play, History, Trash2, Archive, User, Timer, ListOrdered, LayoutGrid, Activity, Workflow, SearchX, Save, Braces, FlaskConical } from 'lucide-react'
 import BpmRunPanel from './bpm/BpmRunPanel'
 import BpmVersionsModal, { BpmProblemsModal } from './bpm/BpmVersionsModal'
+import BpmPropiedades from './bpm/BpmPropiedades'
+import { BpmSimulacionModal, BpmVariablesModal } from './bpm/BpmHerramientas'
 import { bpmnProcessesApi, apiErrorMsg } from '../services/api'
 import { extractErr } from '../utils/helpers'
 import type { ProblemaBpmn, ProcesoBpmn } from '../services/api/tipos-documentos'
@@ -24,6 +26,10 @@ import './BPMPage.css'
 // Revisión BPM 2026-11-16 (ver DOCS.md, «Revisión BPM (16-11-2026)»):
 // - el listado trae el XML en una sola petición (`include_xml`): antes, una
 //   petición de detalle por proceso;
+// Revisión BPM 23-11-2026 (docs/BPM.md): panel de propiedades en el editor
+// (asignación, plazo, formulario, acción, condiciones, temporizadores,
+// mensajes, llamadas), importar un .bpmn (lo valida el servidor, sin DTD),
+// variables declaradas del proceso y «Probar» (simulación sin escribir nada);
 // - lo que se ve es lo que se ejecuta: iniciar un proceso del catálogo crea (o
 //   actualiza, si era el esqueleto sembrado sin editar) su registro con el
 //   diagrama mostrado; antes había que editarlo y guardarlo, y un proceso
@@ -63,6 +69,8 @@ const CAT_COLOR = Object.fromEntries(CATEGORIES.map(c => [c.id, c.color]))
 function useBpmnViewer(containerRef: RefObject<HTMLDivElement | null>, xml: string | null, editMode: boolean) {
   const instanceRef = useRef<BaseViewer | null>(null)
   const [errorImport, setErrorImport] = useState(false)
+  // El modelador vivo (solo en edición), para el panel de propiedades.
+  const [modelador, setModelador] = useState<BaseViewer | null>(null)
   const toast = useToast()
   const { t } = useAppLang()
   // El efecto no debe relanzarse por el toast ni por `t`: se leen de la referencia.
@@ -95,6 +103,7 @@ function useBpmnViewer(containerRef: RefObject<HTMLDivElement | null>, xml: stri
 
       const instance = new BpmnClass({ container: containerRef.current })
       instanceRef.current = instance
+      setModelador(editMode ? instance : null)
 
       try {
         await instance.importXML(xml)
@@ -116,6 +125,7 @@ function useBpmnViewer(containerRef: RefObject<HTMLDivElement | null>, xml: stri
     })
 
     return () => {
+      setModelador(null)
       if (instanceRef.current) {
         try { instanceRef.current.destroy() } catch { /* accesorio: al desmontar, un visor ya roto no necesita aviso */ }
         instanceRef.current = null
@@ -134,7 +144,7 @@ function useBpmnViewer(containerRef: RefObject<HTMLDivElement | null>, xml: stri
     }
   }
 
-  return { getXml, errorImport }
+  return { getXml, errorImport, modelador }
 }
 
 // ─── BLANK BPMN TEMPLATE ─────────────────────────────────────────────────────
@@ -258,6 +268,10 @@ export default function BPMPage(): JSX.Element {
   const [versionAbierta, setVersionAbierta]   = useState<{ version: number; xml: string } | null>(null)
   const [problemas, setProblemas]             = useState<ProblemaBpmn[] | null>(null)
   const [iniciando, setIniciando]             = useState(false)
+  const [avisos, setAvisos]                   = useState<ProblemaBpmn[]>([])
+  const [verVariables, setVerVariables]       = useState(false)
+  const [probando, setProbando]               = useState(false)
+  const ficheroRef                            = useRef<HTMLInputElement>(null)
   // Auditoría 2026-11: además del catálogo, la ejecución (bandeja e instancias).
   const [view, setView]                       = useState<'catalog' | 'run'>('catalog')
   const containerRef                          = useRef<HTMLDivElement>(null)
@@ -346,7 +360,7 @@ export default function BPMPage(): JSX.Element {
 
   const currentBpmn = selectedProcess ? (versionAbierta?.xml ?? selectedProcess.bpmn) : null
 
-  const { getXml, errorImport } = useBpmnViewer(containerRef, currentBpmn, editMode)
+  const { getXml, errorImport, modelador } = useBpmnViewer(containerRef, currentBpmn, editMode)
 
   /**
    * El registro del proceso en el backend, con `xml` como diagrama vigente.
@@ -401,6 +415,26 @@ export default function BPMPage(): JSX.Element {
     URL.revokeObjectURL(url)
   }
 
+  /** Importa un .bpmn como versión nueva. El servidor lo valida (defusedxml, sin DTD) y dice si se puede ejecutar. */
+  async function handleImport(fichero: File | undefined) {
+    if (!fichero || !selectedProcess) return
+    setSaving(true)
+    try {
+      const xml = await fichero.text()
+      const { executable } = await guardarRegistro(selectedProcess, xml, traducir('bpm.nota_importado', { nombre: fichero.name }))
+      setBackend(prev => ({ ...prev, xmlByKey: { ...prev.xmlByKey, [selectedProcess.id]: xml } }))
+      await reloadBackend()
+      setEditMode(false)
+      if (executable) toast.success(traducir('bpm.importado'))
+      else toast.warning(traducir('bpm.guardado_no_ejecutable'))
+    } catch (e) {
+      toast.error(apiErrorMsg(e, traducir('bpm.error_importar')))
+    } finally {
+      setSaving(false)
+      if (ficheroRef.current) ficheroRef.current.value = ''
+    }
+  }
+
   async function handleAddProcess() {
     if (!newProcess.name.trim()) return
     const key = `custom_${Date.now()}`
@@ -453,7 +487,7 @@ export default function BPMPage(): JSX.Element {
         await reloadBackend()
       }
       const v = await bpmnProcessesApi.validate(id)
-      if (!v.data.executable) { setProblemas(v.data.problems); return }
+      if (!v.data.executable) { setProblemas(v.data.problems); setAvisos(v.data.warnings ?? []); return }
       const r = await bpmnProcessesApi.start(id)
       const inst = r.data
       if (inst.status === 'failed') toast.error(textoErrorDeInstancia(traducir, inst) || traducir('bpm.estado_failed'))
@@ -621,9 +655,28 @@ export default function BPMPage(): JSX.Element {
                 <Button variant="ghost" size="sm" icon={<Download size={14} />} onClick={handleExport}>
                   {traducir('bpm.exportar_bpmn')}
                 </Button>
+                {puedeEditar && !versionAbierta && (
+                  <>
+                    <Button variant="ghost" size="sm" icon={<Upload size={14} />} onClick={() => ficheroRef.current?.click()} disabled={saving}>
+                      {traducir('bpm.importar_bpmn')}
+                    </Button>
+                    <input ref={ficheroRef} type="file" accept=".bpmn,.xml,application/xml,text/xml" hidden
+                      aria-label={traducir('bpm.importar_bpmn')} onChange={e => handleImport(e.target.files?.[0])} />
+                  </>
+                )}
                 {!editMode && selectedProcess._backendId && (
                   <Button variant="ghost" size="sm" icon={<History size={14} />} onClick={() => setVerVersiones(true)}>
                     {traducir('bpm.versiones')}
+                  </Button>
+                )}
+                {!editMode && selectedProcess._backendId && (
+                  <Button variant="ghost" size="sm" icon={<Braces size={14} />} onClick={() => setVerVariables(true)}>
+                    {traducir('bpm.variables')}
+                  </Button>
+                )}
+                {!editMode && selectedProcess._backendId && !versionAbierta && (
+                  <Button variant="ghost" size="sm" icon={<FlaskConical size={14} />} onClick={() => setProbando(true)}>
+                    {traducir('bpm.probar')}
                   </Button>
                 )}
                 {!editMode && puedeEditar && selectedProcess._backendId && (
@@ -702,6 +755,7 @@ export default function BPMPage(): JSX.Element {
                 {errorImport && <div role="alert" className="bprupa-box-2">{traducir('bpm.error_diagrama')}</div>}
                 <div ref={containerRef} className="bpmp-diagram" />
               </div>
+              {editMode && <BpmPropiedades modelador={modelador} />}
             </div>
           ) : (
             /* ── CATALOG GRID ── */
@@ -768,7 +822,15 @@ export default function BPMPage(): JSX.Element {
           onClose={() => setVerVersiones(false)}
         />
       )}
-      {problemas && <BpmProblemsModal problemas={problemas} onClose={() => setProblemas(null)} />}
+      {problemas && <BpmProblemsModal problemas={problemas} avisos={avisos} onClose={() => { setProblemas(null); setAvisos([]) }} />}
+      {verVariables && selectedProcess?._backendId && (
+        <BpmVariablesModal processId={selectedProcess._backendId} puedeEditar={puedeEditar}
+          iniciales={backendProcesses.find(b => b.id === selectedProcess._backendId)?.variables_schema ?? []}
+          onGuardado={() => { reloadBackend() }} onClose={() => setVerVariables(false)} />
+      )}
+      {probando && selectedProcess?._backendId && (
+        <BpmSimulacionModal processId={selectedProcess._backendId} xml={selectedProcess.bpmn} onClose={() => setProbando(false)} />
+      )}
     </Page>
   )
 }

@@ -11,9 +11,9 @@
    "zh": "发现 URL 必须是完整的 HTTPS 地址（不能留有 «tenant-id» 等占位符）"
   },
   "sso_discovery_entra_no_valida": {
-   "es": "En Entra ID la URL de discovery es https://login.microsoftonline.com/<id del inquilino>/v2.0/.well-known/openid-configuration",
-   "en": "For Entra ID the discovery URL is https://login.microsoftonline.com/<tenant id>/v2.0/.well-known/openid-configuration",
-   "zh": "Entra ID 的发现 URL 为 https://login.microsoftonline.com/<租户 ID>/v2.0/.well-known/openid-configuration"
+   "es": "En Entra ID la URL de discovery es {base}/<id del inquilino>/v2.0/.well-known/openid-configuration",
+   "en": "For Entra ID the discovery URL is {base}/<tenant id>/v2.0/.well-known/openid-configuration",
+   "zh": "Entra ID 的发现 URL 为 {base}/<租户 ID>/v2.0/.well-known/openid-configuration"
   },
   "sso_client_id_no_valido": {
    "es": "El Client ID no es válido (en Entra ID es el identificador de la aplicación, un GUID)",

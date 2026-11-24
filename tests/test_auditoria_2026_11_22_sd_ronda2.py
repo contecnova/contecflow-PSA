@@ -285,7 +285,12 @@ def test_la_prueba_del_buzon_no_devuelve_el_texto_del_error(db, monkeypatch):
     # 23-11-2026: la conexion IMAP sale por `_abrir_imap` (IP validada y fijada).
     monkeypatch.setattr(buzones, "_abrir_imap", _falla)
     r = buzones.probar_buzon(db, ORG)
-    assert r == {"ok": False, "protocol": "imap", "error": "OSError"}
+    # 23-11-2026 (textos por clave): la respuesta lleva además `code` y `params`
+    # para traducir el aviso. Lo que se mide sigue igual: sólo el tipo de error,
+    # nunca el texto (que traía IP y puerto internos).
+    assert {k: r[k] for k in ("ok", "protocol", "error")} == {"ok": False, "protocol": "imap", "error": "OSError"}
+    assert r.get("code") == "buzon_conexion_fallida" and r.get("params") == {"error": "OSError"}
+    assert "10.0.0.5" not in str(r)
 
 
 # ── metricas y peticiones ───────────────────────────────────────────────────

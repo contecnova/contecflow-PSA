@@ -51,11 +51,48 @@ def _articulo(db, usuario, id_):
     return get_scoped_kb_article_or_404(db, usuario, id_)
 
 
+# 23-11-2026: lecciones, gastos y presupuestos. La pantalla las declaraba
+# (`conectores.ts`) y el servidor respondía 404 `tipo_desconocido`. Cada una
+# con la misma regla de visibilidad que su propia ficha.
+
+def _leccion(db, usuario, id_):
+    """Como `GET /lessons/{id}` (`proyectos.usar`): la visibilidad por origen de `lecciones._puede_ver`."""
+    from app.core import capacidades
+    from app.services import lecciones
+    if not capacidades.tiene(db, usuario, "proyectos.usar"):
+        raise error(403, "sin_permiso")
+    leccion = lecciones._cargar(db, id_)
+    if not lecciones._puede_ver(db, usuario, leccion):
+        raise error(404, "no_encontrado", detail="Lección no encontrada", que="leccion")
+    return leccion
+
+
+def _gasto(db, usuario, id_):
+    """Como los justificantes del gasto (`gastos.trabajar`): el dueño o quien lo gestiona."""
+    from app.core import capacidades
+    from app.services.gastos_avanzados import _gasto as gasto_visible
+    if not capacidades.tiene(db, usuario, "gastos.trabajar"):
+        raise error(403, "sin_permiso")
+    return gasto_visible(db, usuario, id_)
+
+
+def _presupuesto(db, usuario, id_):
+    """Como `GET /budgets/{id}` (`presupuestos.gestionar`)."""
+    from app.core import capacidades
+    from app.services.budgets_service import _cargar
+    if not capacidades.tiene(db, usuario, "presupuestos.gestionar"):
+        raise error(403, "sin_permiso")
+    return _cargar(db, id_)
+
+
 FICHAS: dict[str, Ficha] = {
     "ticket": Ficha("ticket", "Tickets", _ticket, lambda o: f"{o.number} — {o.title}"),
     "contract": Ficha("contract", "Contratos", _contrato, lambda o: f"{o.code} — {o.name}"),
     "project": Ficha("project", "Proyectos", _proyecto, lambda o: f"{o.code} — {o.name}"),
     "kb_article": Ficha("kb_article", "Base de conocimiento", _articulo, lambda o: f"{o.number} — {o.title}"),
+    "lesson": Ficha("lesson", "Lecciones aprendidas", _leccion, lambda o: f"{o.codigo} — {o.titulo}"),
+    "expense": Ficha("expense", "Gastos", _gasto, lambda o: f"{o.code} — {o.description}"),
+    "budget": Ficha("budget", "Presupuestos", _presupuesto, lambda o: f"{o.name} · v{o.version}"),
 }
 
 

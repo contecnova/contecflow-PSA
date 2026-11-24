@@ -75,12 +75,17 @@ def validate_sso_config(config) -> dict:
 # resto de la entrada se valida con códigos (nunca un 500).
 
 import re as _re
+from urllib.parse import urlparse
+
+from app.core.config import settings
 
 _GUID = _re.compile(r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}")
 _DOMINIO = _re.compile(r"(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}")
 _CLAIM = _re.compile(r"[A-Za-z0-9_:./-]{1,100}")
 #: Hosts de Microsoft Entra ID (nube pública, administración de EE. UU. y China).
-_HOSTS_DE_ENTRA = ("login.microsoftonline.com", "login.microsoftonline.us", "login.partner.microsoftonline.cn")
+#: La pública sale de `MICROSOFT_OAUTH_BASE` (hosts solo en `Settings`).
+_HOSTS_DE_ENTRA = (urlparse(settings.MICROSOFT_OAUTH_BASE).hostname or "",
+                   "login.microsoftonline.us", "login.partner.microsoftonline.cn")
 _MAX_GRUPOS = 200
 
 
@@ -118,7 +123,8 @@ def validar_entrada_sso(data: dict, proveedor, *, actual=None) -> dict:
     from app.models.enterprise import SSOProvider
     proveedor = _proveedor(proveedor)
     for campo in ("oidc_client_id", "oidc_discovery_url", "name", "allowed_domains", "groups_claim",
-                  "oidc_scopes", "default_role"):
+                  "oidc_scopes", "default_role", "saml_entity_id", "saml_sso_url", "saml_slo_url",
+                  "saml_certificate", "saml_attribute_email", "saml_attribute_name", "saml_attribute_role"):
         if isinstance(data.get(campo), str):
             data[campo] = data[campo].strip()
 
@@ -130,7 +136,7 @@ def validar_entrada_sso(data: dict, proveedor, *, actual=None) -> dict:
         if proveedor == SSOProvider.azure:
             inquilino = (partes.path.strip("/").split("/") or [""])[0]
             if partes.hostname.lower() not in _HOSTS_DE_ENTRA or not inquilino or inquilino.startswith("."):
-                raise error(422, "sso_discovery_entra_no_valida")
+                raise error(422, "sso_discovery_entra_no_valida", base=settings.MICROSOFT_OAUTH_BASE.rstrip("/"))
     elif "oidc_discovery_url" in data:
         data["oidc_discovery_url"] = None
 
@@ -171,9 +177,31 @@ def validar_entrada_sso(data: dict, proveedor, *, actual=None) -> dict:
     if data.get("groups_claim") and not _CLAIM.fullmatch(data["groups_claim"]):
         raise error(422, "sso_claim_no_valido")
 
+    # SAML (23-11-2026): URLs HTTPS y un certificado X.509 que se pueda leer.
+    for campo in ("saml_sso_url", "saml_slo_url"):
+        if data.get(campo):
+            partes = urlparse(data[campo])
+            if partes.scheme != "https" or not partes.hostname or " " in data[campo]:
+                raise error(422, "sso_url_saml_no_valida", campo=campo)
+        elif campo in data:
+            data[campo] = None
+    if data.get("saml_certificate"):
+        from cryptography import x509
+        from app.services.auth_service.saml import ErrorSaml, certificado_pem
+        try:
+            x509.load_pem_x509_certificate(certificado_pem(data["saml_certificate"]).encode())
+        except (ValueError, ErrorSaml):
+            raise error(422, "sso_certificado_no_valido") from None
+    if data.get("saml_entity_id") and len(data["saml_entity_id"]) > 500:
+        raise error(422, "sso_falta_dato", campo="saml_entity_id")
+
     # Activo = usable en el login: tiene que tener lo mínimo.
     activo = data.get("is_active") if "is_active" in data else getattr(actual, "is_active", False)
-    if activo:
+    if activo and proveedor == SSOProvider.saml:
+        for campo in ("saml_entity_id", "saml_sso_url", "saml_certificate"):
+            if not (data.get(campo) if campo in data else getattr(actual, campo, None)):
+                raise error(422, "sso_falta_dato", campo=campo)
+    elif activo:
         tiene_id = data.get("oidc_client_id") if "oidc_client_id" in data else getattr(actual, "oidc_client_id", None)
         tiene_secreto = data.get("oidc_client_secret") or getattr(actual, "oidc_client_secret", None)
         tiene_url = (data.get("oidc_discovery_url") if "oidc_discovery_url" in data
@@ -218,7 +246,8 @@ def create_sso_config(payload, current_user, db: Session) -> dict:
     db.flush()  # el id existe antes de auditarlo
     # GRC: del secreto solo consta que se puso; nunca su valor.
     audit_log(db, current_user, "CREATE", "sso_configs", config.id, payload.provider,
-              new_values={k: ("***" if k == "oidc_client_secret" and v else getattr(v, "value", v))
+              new_values={k: ("***" if k == "oidc_client_secret" and v else
+                              "(certificado)" if k == "saml_certificate" and v else getattr(v, "value", v))
                           for k, v in data.items()})
     db.commit()
     return serialize_sso(config)
@@ -242,7 +271,8 @@ def update_sso_config(config_id: str, payload, current_user, db: Session) -> dic
     # Revisión GRC 2026-11b: crear SSO se auditaba; cambiarlo (o rotar su
     # secreto) y borrarlo, no. Del secreto sólo consta que cambió.
     audit_log(db, current_user, "UPDATE", "sso_configs", config.id, config.provider,
-              new_values={k: ("***" if k == "oidc_client_secret" else v) for k, v in data.items()})
+              new_values={k: ("***" if k == "oidc_client_secret" else
+                              "(certificado)" if k == "saml_certificate" and v else v) for k, v in data.items()})
     db.commit()
     return serialize_sso(config)
 

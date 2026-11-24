@@ -7,14 +7,6 @@
   font-size: var(--text-xs);
   opacity: 0.85;
 }
-.poaiwi-row-1 {
-  background: transparent;
-  color: var(--on-accent-light);
-  border: none;
-  cursor: pointer;
-  padding: 4px;
-  display: flex;
-}
 .poaiwi-stack-1 {
   flex: 1;
   padding: 14px 16px;

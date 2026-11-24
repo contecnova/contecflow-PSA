@@ -135,7 +135,7 @@ export function PortalShell({ section, onSection, branding, badges, avisosEnVivo
               </div>
             </div>
           )}
-          <Pulsable className={`portui-box-25 ${collapsed ? 'portal-ui-m6' : 'portal-ui-m7'}`}
+          <Pulsable /* eslint-disable-line contec/sin-boton-de-icono-propio -- excepción: cromo de navegación del portal (plegar menú) */ className={`portui-box-25 ${collapsed ? 'portal-ui-m6' : 'portal-ui-m7'}`}
             onClick={() => setCollapsed(c => !c)}
             aria-label={collapsed ? traducir('portalui.expandir_menu') : tr('sidebar_collapse', 'Contraer menú')}
             title={tr('sidebar_collapse', 'Contraer menú')}
@@ -209,7 +209,7 @@ export function PortalShell({ section, onSection, branding, badges, avisosEnVivo
               ><LogOut size={13} /> {tr('logout', 'Cerrar sesión')}</Pulsable>
             </>
           ) : (
-            <Pulsable onClick={() => setCollapsed(false)}
+            <Pulsable /* eslint-disable-line contec/sin-boton-de-icono-propio -- excepción: cromo de navegación del portal (desplegar menú) */ onClick={() => setCollapsed(false)}
               aria-label={traducir('portalui.expandir_menu')}
               className="portui-row-4"><Menu size={14} /></Pulsable>
           )}
@@ -220,7 +220,7 @@ export function PortalShell({ section, onSection, branding, badges, avisosEnVivo
       <main className="portui-stack-1">
         {/* Topbar */}
         <header className="portui-row-5">
-          <Pulsable onClick={() => setMobileOpen(true)}
+          <Pulsable /* eslint-disable-line contec/sin-boton-de-icono-propio -- excepción: cromo de navegación del portal (menú móvil) */ onClick={() => setMobileOpen(true)}
             className="portal-mobile-toggle portui-box-13"
             aria-label={traducir('portalui.abrir_menu')}
             ><Menu size={18} /></Pulsable>
@@ -235,7 +235,7 @@ export function PortalShell({ section, onSection, branding, badges, avisosEnVivo
           </div>
 
           <div className="u-row-center-10">
-            <Pulsable
+            <Pulsable /* eslint-disable-line contec/sin-boton-de-icono-propio -- excepción: cromo de navegación del portal (crear) */
               onClick={() => setQuickOpen(true)}
               title={traducir('portalui.crear_nuevo')}
               aria-label={traducir('portalui.crear_nuevo_2')}

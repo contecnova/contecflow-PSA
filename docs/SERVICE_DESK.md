@@ -961,7 +961,7 @@ Qué cambia para quien usa y opera el Service Desk. Detalle y estado por hallazg
   evento sin empresa no lanza flujos; un nodo de aprobación exige el rol del nodo.
 
 **GRC.** Auditoría nueva: cada resolución automática (`audit_log` con `origen`), cierre y
-reapertura de periodos de ingresos. Retención: 9 tipos nuevos (ver `DOCS.md`). Privilegios:
+reapertura de periodos de ingresos. Retención: 9 tipos nuevos (ver README, §15). Privilegios:
 `GET /services/{id}/provisioning` pasa a administración; exportar BI a Excel/Word exige
 `analitica.ver`. RGPD: la supresión solo toca filas de las empresas de la persona.
 

@@ -17,6 +17,7 @@ import DocumentsPanel from '../../components/DocumentsPanel'
 import AIInlineEditor from '../../components/AIInlineEditor'
 import { useAppT } from '../../i18n/AppLangContext'
 import ExternalizarTarea from '../../components/proveedores/ExternalizarTarea'
+import PanelTicketAPr from '../../components/ticket-a-pr/PanelTicketAPr'
 import { asignacionExclusiva } from '../proveedores/logica'
 import DateInput from '../../components/ui/DateInput'
 import {
@@ -36,10 +37,12 @@ import {
   type TaskForm,
 } from './compartido'
 import { HistorialDeMovimientos, useWorkflowStatusOptions } from './TarjetasKanban'
+import CorregirAsignacion from '../../components/asignacion-ia/CorregirAsignacion'
 
 export function TaskDetailModal({ task, open, onClose }: { task: Task | null; open: boolean; onClose: () => void }) {
   const idCampo = useId()
   const puedeBorrar = useAuth().puede('tareas.gestionar')
+  const puedeVerTicketAPr = useAuth().puede('ticket_pr.ver')
   const t = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
@@ -157,7 +160,7 @@ export function TaskDetailModal({ task, open, onClose }: { task: Task | null; op
         item_title: form.title || task.title || '',
         suggested_user_id: semSuggestion.suggested_user_id,
         accepted_user_id: semSuggestion.suggested_user_id,
-        was_accepted: true,
+        // 23-11-2026: el veredicto lo pone el servidor (pendiente hasta cerrar o reasignar).
         confidence: semSuggestion.confidence,
         needs_review: semSuggestion.needs_review,
         engine_mode: semSuggestion.engine_mode,
@@ -203,7 +206,7 @@ export function TaskDetailModal({ task, open, onClose }: { task: Task | null; op
         {/* Drawer header */}
         <div className="tsk-drawer-head">
           <span className="tsk-drawer-code">{task.code}</span>
-          <IconButton className="tsk-icon-btn" onClick={onClose} ariaLabel={t('common.close')} data-cierra-dialogo="">
+          <IconButton variante="caja" onClick={onClose} ariaLabel={t('common.close')} data-cierra-dialogo="">
             <X size={16} />
           </IconButton>
         </div>
@@ -249,6 +252,12 @@ export function TaskDetailModal({ task, open, onClose }: { task: Task | null; op
                 <div className="u-row-center-8">
                   <Avatar name={task.assignee.full_name} size={22} />
                   <span className="u-base-600">{task.assignee.full_name}</span>
+                  {/* 23-11-2026: la IA eligió mal → persona correcta (aprende el motor) y se reasigna. */}
+                  <CorregirAsignacion itemType="task" itemId={task.id} asignadoActual={task.assignee_id || task.assignee.id}
+                    onCorregida={async uid => {
+                      await tareas.update(task.id, { assignee_id: uid })
+                      qc.invalidateQueries({ queryKey: ['tasks'] }); qc.invalidateQueries({ queryKey: ['kanban-board'] })
+                    }} />
                 </div>
               ) : task.supplier_name ? (
                 <span className="u-row-center-8 u-base-600" title={t('proveedores.externalizada_a', { nombre: task.supplier_name })}>
@@ -405,7 +414,7 @@ export function TaskDetailModal({ task, open, onClose }: { task: Task | null; op
                 </div>
                 <div className="u-row-6">
                   <Button size="xs" onClick={acceptSuggestion}>{t('tasks.ai_apply')}</Button>
-                  <IconButton className="tsk-icon-btn" onClick={() => { setSemSuggestion(null); setSemEffort(null) }} ariaLabel={t('tasks.descartar_sugerencia')}><X size={14} aria-hidden /></IconButton>
+                  <IconButton variante="caja" onClick={() => { setSemSuggestion(null); setSemEffort(null) }} ariaLabel={t('tasks.descartar_sugerencia')}><X size={14} aria-hidden /></IconButton>
                 </div>
               </div>
             )}
@@ -575,6 +584,13 @@ export function TaskDetailModal({ task, open, onClose }: { task: Task | null; op
       {tab === 'docs' && (
         <div className="tsk-tab-panel">
           <DocumentsPanel taskId={task.id} />
+        </div>
+      )}
+
+      {/* «Del ticket al PR» (migración 203): agente de código que propone el arreglo como PR. */}
+      {tab === 'detail' && !isEditing && puedeVerTicketAPr && (
+        <div className="tsk-tab-panel">
+          <PanelTicketAPr tipo="task" id={task.id} />
         </div>
       )}
         </div>

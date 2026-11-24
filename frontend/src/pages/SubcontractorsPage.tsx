@@ -217,9 +217,9 @@ export default function SubcontractorsPage() {
               </span>
               <div className="sub-row-actions">
                 {gestionar && <>
-                <IconButton onClick={e => { e.stopPropagation(); abrirEdicion(s) }}
+                <IconButton variante="caja" onClick={e => { e.stopPropagation(); abrirEdicion(s) }}
                   ariaLabel={t('subcontractors.editar_a', { name: s.name })} title={t('subcontractors.editar_a', { name: s.name })}><Pencil size={14} aria-hidden /></IconButton>
-                <IconButton className="sub-borrar" onClick={e => { e.stopPropagation(); confirmarEliminar(s) }}
+                <IconButton variante="caja" tono="peligro" onClick={e => { e.stopPropagation(); confirmarEliminar(s) }}
                   ariaLabel={t('subcontractors.eliminar_a', { name: s.name })} title={t('subcontractors.eliminar_a', { name: s.name })}><Trash2 size={14} aria-hidden /></IconButton>
                 </>}
               </div>

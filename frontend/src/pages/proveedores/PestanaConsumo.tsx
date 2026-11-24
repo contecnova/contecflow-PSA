@@ -270,7 +270,7 @@ export default function PestanaConsumo({ sub, facturas }: { sub: Subcontratista;
                     </td>
                     <td className="sub-td">
                       {gestionar && !u.statement_id && (
-                        <IconButton className="sub-borrar" onClick={() => openConfirmGlobal({ message: t('proveedores.borrar_consumo_confirmar'), danger: true, onConfirm: () => borrarConsumo.mutate(u.id) })}
+                        <IconButton variante="caja" tono="peligro" onClick={() => openConfirmGlobal({ message: t('proveedores.borrar_consumo_confirmar'), danger: true, onConfirm: () => borrarConsumo.mutate(u.id) })}
                           ariaLabel={t('proveedores.borrar_consumo')} title={t('proveedores.borrar_consumo')}><Trash2 size={14} aria-hidden /></IconButton>
                       )}
                     </td>

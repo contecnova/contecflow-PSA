@@ -265,3 +265,21 @@ from app.models.cuaderno import (  # noqa: F401,E402
     Notebook, NotebookSection, NotebookPage, NotebookShare, NotebookItem, NotebookLink, NotebookTag,
     NotebookAttachment, NotebookTemplate,
 )
+# «Del ticket al PR»: agente de código que propone un PR (rev. 203, 23-11-2026, docs/integraciones/TICKET_A_PR.md)
+from app.models.ticket_a_pr import TicketPrRepo, TicketPrRun  # noqa: F401,E402
+# Revisión posterior a la implantación (PIR) de cambios y proyectos (rev. 206, 23-11-2026, docs/PIR.md)
+from app.models.pir import PirRevision, PirAccion, PirPlantilla, PirConfiguracion  # noqa: F401,E402
+
+# Listeners de sesión que dependen de modelos (viven en app/db). Se registran aquí,
+# con todos los modelos ya cargados, y no desde el propio modelo: un modelo no
+# importa servicios ni cierra el ciclo modelo -> app/db -> modelo (prueba global 23-11-2026).
+# - Rev. 199: desactivar a un usuario revoca sus sesiones y dispositivos de confianza.
+# - Rev. 202: la baja de una persona aplica la política de sus cuadernos, y al borrar
+#   páginas o adjuntos del cuaderno se borran sus ficheros e instantáneas tras confirmar.
+from app.db import cuaderno_baja as _cuaderno_baja  # noqa: E402
+from app.db import cuaderno_borrado as _cuaderno_borrado  # noqa: E402
+from app.db import revocar_al_desactivar as _revocar_al_desactivar  # noqa: E402
+
+_revocar_al_desactivar.registrar()
+_cuaderno_baja.registrar()
+_cuaderno_borrado.registrar()

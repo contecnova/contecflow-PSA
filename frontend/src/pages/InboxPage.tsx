@@ -11,7 +11,7 @@
 import { lazy, Suspense } from 'react'
 import type { ComponentType } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { AtSign, Bell, CheckCircle, Inbox, Workflow } from 'lucide-react'
+import { AtSign, Bell, CheckCircle, ClipboardCheck, Inbox, NotebookPen, Workflow } from 'lucide-react'
 import { Page, Tabs, Spinner } from '../components/ui'
 import useNotificationBadges from '../hooks/useNotificationBadges'
 import { useAuth } from '../context/AuthContext'
@@ -22,6 +22,10 @@ const NotificationsPage = lazy(() => import('./NotificationsPage'))
 const MentionsPage = lazy(() => import('./MentionsPage'))
 const ApprovalsPage = lazy(() => import('./ApprovalsPage'))
 const BpmInbox = lazy(() => import('./bpm/BpmRunPanel').then(m => ({ default: m.BpmInbox })))
+// «Mi cuaderno» (migración 202): casillas pendientes y etiquetas de todos los cuadernos.
+const TareasDelCuaderno = lazy(() => import('../components/cuaderno/BandejaDelCuaderno'))
+// PIR (migración 206): las revisiones posteriores a la implantación que tengo asignadas o por aprobar.
+const BandejaPir = lazy(() => import('../components/pir/BandejaPir'))
 
 const NotificationsEmbedded = NotificationsPage as ComponentType<{ embedded?: boolean }>
 const MentionsEmbedded = MentionsPage as ComponentType<{ embedded?: boolean }>
@@ -33,9 +37,9 @@ const Loading = () => (
   </div>
 )
 
-const VALID_TABS = new Set(['notifications', 'mentions', 'approvals', 'processes'])
+const VALID_TABS = new Set(['notifications', 'mentions', 'approvals', 'processes', 'notebook', 'pir'])
 
-type InboxTab = 'notifications' | 'mentions' | 'approvals' | 'processes'
+type InboxTab = 'notifications' | 'mentions' | 'approvals' | 'processes' | 'notebook' | 'pir'
 
 export default function InboxPage(): JSX.Element {
   const t = useAppT()
@@ -61,6 +65,8 @@ export default function InboxPage(): JSX.Element {
     { id: 'mentions',      label: t('inbox.tab_mentions'),      icon: <AtSign size={14} />, count: mentionCount || undefined },
     { id: 'approvals',     label: t('inbox.tab_approvals'),     icon: <CheckCircle size={14} />, count: approvalCount || undefined },
     ...(veProcesos ? [{ id: 'processes', label: t('inbox.tab_processes'), icon: <Workflow size={14} /> }] : []),
+    ...(puede('cuaderno.usar') ? [{ id: 'notebook', label: t('inbox.tab_notebook'), icon: <NotebookPen size={14} /> }] : []),
+    ...(puede('pir.ver') ? [{ id: 'pir', label: t('inbox.tab_pir'), icon: <ClipboardCheck size={14} /> }] : []),
   ]
 
   return (
@@ -76,6 +82,8 @@ export default function InboxPage(): JSX.Element {
         {tab === 'mentions'      && <MentionsEmbedded embedded />}
         {tab === 'approvals'     && <ApprovalsEmbedded embedded />}
         {tab === 'processes'     && veProcesos && <BpmInbox />}
+        {tab === 'notebook'      && puede('cuaderno.usar') && <TareasDelCuaderno />}
+        {tab === 'pir'           && puede('pir.ver') && <BandejaPir />}
       </Suspense>
     </Page>
   )

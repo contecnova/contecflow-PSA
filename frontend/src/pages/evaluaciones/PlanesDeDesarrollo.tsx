@@ -6,7 +6,7 @@ import { useAppLang, useAppT } from '../../i18n/AppLangContext'
 import { type CSSProperties, useState, useId } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { performanceApi } from '../../services/api'
-import { Button, Modal, Pulsable, Select, Spinner, EmptyState, useErroresDeCampo, Textarea, Input } from '../../components/ui'
+import { Button, Modal, Pulsable, Select, Spinner, EmptyState, useErroresDeCampo, Textarea, Input, IconButton } from '../../components/ui'
 import { Plus, Save, Trash2, X, Map as MapIcon, Flag } from 'lucide-react'
 import { useToast } from '../../context/ToastContext'
 import { confirmar } from '../../context/ConfirmContext'
@@ -204,10 +204,10 @@ function NewDevPlanModal({ subjectId, onClose }: { subjectId?: string; onClose: 
                 onChange={e => setGoal(idx, 'due_date', e.target.value)}
                 className="ds-input perf-box-39" />
               {form.goals.length > 1 && (
-                <Button size="sm" variant="ghost" onClick={() => removeRow(idx)}
-                  aria-label={t('pagina_perf.quitar')}>
+                <IconButton variante="caja" tono="peligro" onClick={() => removeRow(idx)}
+                  ariaLabel={t('pagina_perf.quitar')}>
                   <X size={12} />
-                </Button>
+                </IconButton>
               )}
             </div>
           ))}
@@ -319,11 +319,11 @@ function DevPlanModal({ planId, onClose }: { planId: string; onClose: () => void
                         <option key={k} value={k}>{t(v.label)}</option>
                       ))}
                     </Select>
-                    <Button size="sm" variant="ghost"
+                    <IconButton variante="caja" tono="peligro"
                       onClick={async () => { if (await confirmar({ message: t('pagina_perf.eliminar_objetivo'), danger: true, confirmLabel: t('pagina_perf.eliminar') })) removeG(g.id) }}
-                      aria-label={t('pagina_perf.eliminar')}>
+                      ariaLabel={t('pagina_perf.eliminar')}>
                       <Trash2 size={11} />
-                    </Button>
+                    </IconButton>
                   </div>
                 )
               })}

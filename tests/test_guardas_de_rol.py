@@ -78,6 +78,9 @@ EXENTAS_REVISADAS = {
     # `test_user_update_authorization`. Una guarda de rol encima romperia que
     # un empleado edite sus propios datos.
     "PATCH /api/v1/users/me": "editar el perfil propio",
+    # 23-11-2026 (SAML SLO): cierra la sesión propia como `POST /auth/logout` (llama a
+    # esa misma función con `current_user`) y devuelve la URL de SLO de su IdP.
+    "POST /api/v1/auth/saml/{config_id}/logout": "cerrar la sesión propia (la de current_user) y obtener la URL de SLO del IdP",
     "PUT /api/v1/users/me/notification-preferences": "elegir los propios avisos (solo toca las preferencias del usuario de la sesion)",
     "PATCH /api/v1/users/{user_id}": (
         "el endpoint ya distingue perfil propio de ficha ajena; lo prueban los "
@@ -174,7 +177,10 @@ EXENCIONES_ESPERADAS = {
     # `current_user.id` en `prepare_chat`) y gana `require_internal_user` en la firma.
     # 94 desde 2026-11-23: +1 DELETE /security/me/devices/{device_id} (olvidar un
     # dispositivo de confianza propio: `mfa.revocar_dispositivo(db, current_user.id, ...)`).
-    "acotada al propio usuario": 94,  # +1 medido, tarea #25 (rev. 167): rutas nuevas de /absences que `_acota_por_propiedad` ve acotadas al usuario (vista previa y adjuntar documento; POST /absences/my va en EXENTAS_REVISADAS); 2026-11 un solo TOTP: -4 rutas /mfa/* (setup, verify, validate, disable) retiradas, +2 /auth/mfa/setup y verify-setup (antes en EXENTAS_REVISADAS);  # +1 2026-11: cambio de empresa en la sesión; +2: reservar y liberar un documento (decide el permiso del documento, como el resto de /documents); +1 auditoria 2026-11 #22: change-password (antes en EXENTAS_REVISADAS) revoca las sesiones de `current_user.id` y el detector ya la ve acotada
+    # 95 medido el 2026-11-23 (prueba global): la de arriba no se veía acotada (el
+    # servicio no recibía `current_user.id` desde la ruta) y el 94 se había puesto sin
+    # medir; ahora la ruta pasa `current_user.id` a `mfa.revocar_dispositivo`.
+    "acotada al propio usuario": 95,  # +1 medido, tarea #25 (rev. 167): rutas nuevas de /absences que `_acota_por_propiedad` ve acotadas al usuario (vista previa y adjuntar documento; POST /absences/my va en EXENTAS_REVISADAS); 2026-11 un solo TOTP: -4 rutas /mfa/* (setup, verify, validate, disable) retiradas, +2 /auth/mfa/setup y verify-setup (antes en EXENTAS_REVISADAS);  # +1 2026-11: cambio de empresa en la sesión; +2: reservar y liberar un documento (decide el permiso del documento, como el resto de /documents); +1 auditoria 2026-11 #22: change-password (antes en EXENTAS_REVISADAS) revoca las sesiones de `current_user.id` y el detector ya la ve acotada
     "superficie: API key": 6,  # 2026-11: fuera POST /bookings/api-keys/verify (oraculo)
     # 20 desde 2026-11-09: fuera la copia de /clients/{cid}/portal-users (POST y
     # PATCH) que no exigía el máximo de usuarios del portal.
@@ -208,7 +214,12 @@ EXENCIONES_ESPERADAS = {
     # exige la firma de cada proveedor (Svix de Recall, clientState de Graph, HMAC de Zoom)
     # con el secreto de la empresa del {org_id} y responde 403 si falta o no cuadra
     # (test_asistente_de_reuniones::test_webhooks_sin_secreto_o_con_firma_mala_dan_403).
-    "superficie: sin sujeto autenticado": 56,  # +1 elegir empresa tras la contraseña; +1 decidir desde el correo; +1 webhook de Stripe (firma); +1 POST /client-errors (solo log)
+    # 62 desde 2026-11-23 (+6, medido con _clasificar): restablecimiento de contraseña
+    # (POST /auth/password/reset/policy y, en el portal, /portal/auth/password/forgot,
+    # /policy y /reset: límite por minuto, token de un solo uso y misma respuesta exista
+    # o no la cuenta) y SAML (POST /auth/saml/callback, firma de la aserción del IdP, y
+    # /auth/saml/canjear, ticket de un solo uso emitido tras validarla).
+    "superficie: sin sujeto autenticado": 62,  # +1 elegir empresa tras la contraseña; +1 decidir desde el correo; +1 webhook de Stripe (firma); +1 POST /client-errors (solo log)
 }
 
 #: Rutas de escritura que sí llevan guarda de rol. Sólo puede subir.

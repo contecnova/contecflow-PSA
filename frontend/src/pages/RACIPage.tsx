@@ -285,7 +285,7 @@ export default function RACIPage({ projectId }: { projectId?: string } = {}) {
                             <div className="raci-row-5">
                               <div className="raci-box-2">
                                 <RoleCell role={a.role} editable={false} />
-                                <Pulsable className="raci-btn-3xs" aria-label={t('raci_ui.quitar')} onClick={() => { openConfirmGlobal({ message: t('raci_ui.quitar_confirm'), onConfirm: () => deleteEntry(a.entry_id), danger: true }) }}
+                                <Pulsable /* eslint-disable-line contec/sin-boton-de-icono-propio -- excepción: aspa de quitar dentro de una celda densa de la matriz RACI */ className="raci-btn-3xs" aria-label={t('raci_ui.quitar')} onClick={() => { openConfirmGlobal({ message: t('raci_ui.quitar_confirm'), onConfirm: () => deleteEntry(a.entry_id), danger: true }) }}
                                   title={t('raci_ui.quitar')}>
                                   <X size={9} aria-hidden />
                                 </Pulsable>

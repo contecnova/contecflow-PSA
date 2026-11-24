@@ -366,8 +366,8 @@ export default function UATPage({ projectId }: { projectId?: string } = {}) {
                         {traducir('uat.fallar')}
                       </Button>
                     )}
-                    <IconButton ariaLabel={traducir('uat.editar_caso')} onClick={() => setEditCase(c)}><Pencil size={14} /></IconButton>
-                    <IconButton ariaLabel={traducir('uat.eliminar_caso')} className="uat-danger" onClick={() => setDeleteTarget(c)}><Trash2 size={14} /></IconButton>
+                    <IconButton variante="caja" ariaLabel={traducir('uat.editar_caso')} onClick={() => setEditCase(c)}><Pencil size={14} /></IconButton>
+                    <IconButton variante="caja" tono="peligro" ariaLabel={traducir('uat.eliminar_caso')} onClick={() => setDeleteTarget(c)}><Trash2 size={14} /></IconButton>
                   </div>
                 </div>
               </div>

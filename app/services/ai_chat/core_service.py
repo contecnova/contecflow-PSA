@@ -28,8 +28,12 @@ def log_action(
     tokens: int = 0,
     latency: int = 0,
     status: str = "success",
+    ip_address: str = None,
 ) -> None:
-    """Log an AI action to the audit log (la única implementación; con empresa, baja 22-11-2026)."""
+    """Log an AI action to the audit log (la única implementación; con empresa, baja 22-11-2026).
+
+    23-11-2026: `ip_address` opcional (MCP la registra; retención `ai_action_logs`).
+    """
     db.add(AIActionLog(
         organization_id=(db.info or {}).get("organization_id"),
         user_id=user_id, module=module, action_type=action_type,
@@ -37,6 +41,7 @@ def log_action(
         output_summary=(output_s or "")[:300],
         entities_affected=json.dumps(entities or []),
         tokens_used=tokens, latency_ms=latency, status=status,
+        ip_address=(ip_address or None) and str(ip_address)[:45],
     ))
 
 

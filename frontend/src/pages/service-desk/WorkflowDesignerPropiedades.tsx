@@ -39,7 +39,7 @@ export function PropertiesPanel({ node, onChange, onDelete }: { node: NodoFlujo 
         <div className="wfd-bold wfd-c" style={colorVar(NODE_VISUAL[t]?.color ?? 'inherit')}>
           {nombreDeNodo(t, traducir)} <span className="u-text3-xs">· {node.id.slice(0, 10)}</span>
         </div>
-        <IconButton ariaLabel={traducir('workflowdesigner.eliminar_nodo')} onClick={onDelete}>
+        <IconButton variante="caja" tono="peligro" ariaLabel={traducir('workflowdesigner.eliminar_nodo')} onClick={onDelete}>
           <Trash2 size={14} aria-hidden="true" />
         </IconButton>
       </div>

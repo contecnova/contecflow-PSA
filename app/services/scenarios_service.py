@@ -11,7 +11,7 @@ grupos ni un solo ciclo. Los cuerpos se movieron verbatim.
 """
 
 from app.core import timeutil
-from app.services.textos_de_salida_servicios_m_z import texto_para
+from app.services.textos_de_salida import texto_para
 import json
 from datetime import date, datetime, timedelta, timezone
 from sqlalchemy.orm import Session

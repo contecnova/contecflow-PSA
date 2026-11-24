@@ -85,6 +85,8 @@ class ProjectMilestone(Base):
     is_active   = Column(Boolean, default=True)
     due_date    = Column(Date, nullable=True)
     sort_order  = Column(Integer, default=0)
+    #: Puesta en marcha (go-live): al completarlo se programa la PIR del proyecto (migración 206, docs/PIR.md).
+    is_go_live  = Column(Boolean, nullable=False, default=False, server_default="0")
 
     # ── Estado del flujo ────────────────────────────────────────────────────────
     # pending → completed → pending_approval → approved → invoiced

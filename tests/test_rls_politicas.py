@@ -23,7 +23,14 @@ def test_la_semantica_es_la_del_orm():
 def test_el_contexto_es_el_que_decide_el_orm():
     assert rls.tenant_de({"organization_id": "o1", "is_superadmin": False}) == "o1"
     assert rls.tenant_de({"organization_id": "o1", "is_superadmin": True}) == ""
-    assert rls.tenant_de({"organization_id": "o1"}) == "", "sesión sin inicializar (trabajos de fondo): no filtra"
+    # Auditoría 22-11-2026 (M8): una sesión sin inicializar ya no «no filtra». Con
+    # `TENANT_SESION_SIN_CONTEXTO=cerrar` (el defecto) la base no da NINGUNA fila,
+    # igual que el ORM (que lanza `TenantIsolationError`); con `avisar`, sin filtro.
+    # Un trabajo de fondo declara su contexto (`contexto_de_sistema`) y queda libre.
+    from app.db import contexto_de_tenant as ctx
+    esperado = rls.NINGUNA if ctx.modo() == ctx.MODO_CERRAR else ""
+    assert rls.tenant_de({"organization_id": "o1"}) == esperado, "sesión sin contexto: lo que diga el modo"
+    assert rls.tenant_de({"organization_id": "o1", ctx.CLAVE_SISTEMA: "trabajo de fondo"}) == ""
     assert rls.tenant_de({"organization_id": "o1", "is_superadmin": False, "bypass_tenant_filter": True}) == ""
 
 

@@ -60,7 +60,7 @@ export type * from './demanda'
 export type { Presupuesto, FichaPresupuesto, Partida, Informe as InformeDePresupuesto, Ambito as AmbitoDePresupuesto, Plantilla as PlantillaDePresupuesto, Campana as CampanaDePresupuesto, Area as AreaDeEmpresa, Comparacion as ComparacionDePresupuestos, Recurrencia, MetodoPrevision, Pedido as PedidoDePresupuesto, Traspaso as TraspasoDePresupuesto, RenglonDelCuadro } from './presupuestos'
 export type { Justificante, Parte as ParteDeGasto, Incumplimiento, GastoConPoliticas, VistaPreviaDeEnvio } from './gastos'
 export type { Leccion, Accion as AccionDeMejora, Borrador as BorradorDeLeccion, Recomendacion, Pendiente as PendienteDeLeccion, Hecho, OrigenLeccion } from './lecciones'
-export type { Ficha as FichaDocumental, DocHit, Enlace, DocDetalle, Aprobacion, EstadoProducto, Fuente, Metrica, RespuestaCI } from './conectores'
+export type { Ficha as FichaDocumental, DocHit, Enlace, DocDetalle, Aprobacion, EstadoProducto, Fuente, Metrica, RespuestaCI, AnomaliasCI, TokenCI } from './conectores'
 export { usersApi, esFichaCompleta } from './users'
 export type {
   UserListItem,

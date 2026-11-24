@@ -382,6 +382,7 @@
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
+  scrollbar-gutter: stable;
   display: flex;
   flex-direction: column;
   gap: 0;
@@ -455,6 +456,10 @@
   min-width: 0;
   min-height: 100vh;
   overflow: auto;
+  /* 23-11-2026: hueco de la barra de scroll siempre reservado. Si no, al cambiar
+     de pestaña la barra aparecía o desaparecía, el ancho variaba ~15 px y las
+     filas de pestañas y botones saltaban de línea (CMDB, etc.). */
+  scrollbar-gutter: stable;
 }
 
 /* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */

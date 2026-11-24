@@ -27,7 +27,8 @@ describe('rutas y menú de proveedores', () => {
     expect(rutaDeclarada('/supplier-portal')?.capacidad).toBe('proveedores.portal')
     expect(puedeAbrir('/supplier-portal', c => c === 'proveedores.ver')).toBe(false)
     expect(CAPACIDADES).toContain('proveedores.portal')
-    expect(src('components/layout/Layout.tsx')).toMatch(/to: '\/supplier-portal'/)
+    // Menú personalizable (23-11-2026): NAV_GROUPS salió de Layout.tsx a menuLateral.tsx.
+    expect(src('components/layout/menuLateral.tsx')).toMatch(/to: '\/supplier-portal'/)
     expect(src('App.tsx')).toMatch(/path="\/supplier-portal"/)
   })
 

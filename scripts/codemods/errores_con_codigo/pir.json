@@ -1,0 +1,51 @@
+{
+ "codigos": {
+  "pir_config_no_valida": {
+   "es": "La configuración de PIR no es válida ({campo})",
+   "en": "The PIR settings are not valid ({campo})",
+   "zh": "实施后评审配置无效（{campo}）"
+  },
+  "pir_plantilla_no_valida": {
+   "es": "La plantilla de PIR no es válida ({campo})",
+   "en": "The PIR template is not valid ({campo})",
+   "zh": "实施后评审模板无效（{campo}）"
+  },
+  "pir_campo_no_valido": {
+   "es": "El dato «{campo}» de la PIR no es válido",
+   "en": "The PIR field «{campo}» is not valid",
+   "zh": "实施后评审字段「{campo}」无效"
+  },
+  "pir_no_editable": {
+   "es": "La PIR no se puede editar en estado «{estado}»",
+   "en": "The PIR cannot be edited in status «{estado}»",
+   "zh": "实施后评审在「{estado}」状态下不可编辑"
+  },
+  "pir_sin_permiso": {
+   "es": "No tienes permiso para hacer esto en esta PIR",
+   "en": "You do not have permission to do this on this PIR",
+   "zh": "你无权对此实施后评审执行此操作"
+  },
+  "pir_transicion_no_permitida": {
+   "es": "La PIR no puede pasar de «{desde}» a «{hasta}»",
+   "en": "The PIR cannot go from «{desde}» to «{hasta}»",
+   "zh": "实施后评审不能从「{desde}」变为「{hasta}」"
+  },
+  "pir_incompleta": {
+   "es": "Falta completar la PIR antes de enviarla: {faltan}",
+   "en": "The PIR must be completed before submitting it: {faltan}",
+   "zh": "提交前需完成实施后评审：{faltan}"
+  },
+  "pir_obligatoria_no_descartable": {
+   "es": "Esta PIR es obligatoria: no se puede descartar",
+   "en": "This PIR is mandatory: it cannot be discarded",
+   "zh": "此实施后评审为必填，不能放弃"
+  }
+ },
+ "que": {
+  "pir": {
+   "es": "revisión posterior a la implantación (PIR)",
+   "en": "post-implementation review (PIR)",
+   "zh": "实施后评审"
+  }
+ }
+}

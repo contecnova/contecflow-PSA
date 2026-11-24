@@ -22,7 +22,7 @@ import type { CSSProperties, ReactNode, MouseEvent as ReactMouseEvent, KeyboardE
 import { X, Inbox } from 'lucide-react'
 import { useLang } from './portalClientContext'
 import Tabs from '../../components/ui/Tabs'
-import { Button, EmptyState, Pulsable, Select, Input, Textarea, useDialogoEditable } from '../../components/ui'
+import { Button, EmptyState, Pulsable, Select, Input, Textarea, useDialogoEditable, IconButton } from '../../components/ui'
 import { SinGuardarContext } from '../../components/ui/useCambiosSinGuardar'
 import { tonoDe, UMBRALES_POR_DEFECTO } from '../../utils/umbrales'
 import type { Umbrales } from '../../utils/umbrales'
@@ -437,7 +437,7 @@ export function PortalModal({ open, onClose, title, subtitle, width = 560, child
             <h2 className="portui-box-22">{title}</h2>
             {subtitle && <p className="portui-box-23">{subtitle}</p>}
           </div>
-          <Pulsable onClick={pedirCierre} aria-label={traducir('common.close')} className="portui-row-19"><X size={14} /></Pulsable>
+          <IconButton variante="caja" onClick={pedirCierre} ariaLabel={traducir('common.close')}><X size={14} /></IconButton>
         </div>
         {children}
         {footer && (

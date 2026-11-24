@@ -56,7 +56,10 @@ def _gasto_real() -> str:
     from tests.conftest import TestSession
     from app.models.expenses import Expense, ExpenseStatus
     gid = str(uuid.uuid4())
+    from app.db.contexto_de_tenant import fijar_contexto
     with TestSession() as s:
+        # Sesiones sin empresa cerradas por defecto: la de la prueba declara la suya.
+        fijar_contexto(s, "1", "prueba: gasto real")
         s.add(Expense(id=gid, code="EXP-T16", user_id="admin-test-id", organization_id="1", category="travel",
                       description="Prueba", amount=100, currency="EUR", expense_date=date.today(),
                       status=ExpenseStatus.submitted))

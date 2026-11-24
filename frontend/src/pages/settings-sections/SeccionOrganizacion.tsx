@@ -10,7 +10,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { settingsApi, advancedConfigApi } from '../../services/settingsApi'
 import { useAuth } from '../../context/AuthContext'
 import { presupuestosApi } from '../../services/api'
-import { Button, Checkbox, Input, Pulsable, Select, Spinner, EmptyState } from '../../components/ui'
+import { Button, Checkbox, Input, Pulsable, Select, Spinner, EmptyState, IconButton } from '../../components/ui'
 import { Building2, Pencil, Trash2, Check, X, Palmtree, Hash, Compass } from 'lucide-react'
 import { useAppLang } from '../../i18n/AppLangContext'
 import { extractErr } from '../../utils/helpers'
@@ -165,8 +165,8 @@ export function OfficesSection() {
                   <div className="u-base-700">{o.name}</div>
                   <div className="u-text2-xs">{o.city}{o.country ? `, ${o.country}` : ''} · {o.timezone}</div>
                 </div>
-                <Pulsable onClick={() => { setEditingId(o.id); setEditForm({ name:o.name, country:o.country||'', city:o.city||'', timezone:o.timezone||defaultTimezone }) }} className="set-btn-edit" aria-label={t('settings_sections.editar_x', { nombre: o.name })} title={t('common.edit')}><Pencil size={14} aria-hidden /></Pulsable>
-                <Pulsable onClick={() => openConfirmGlobal({ title: t('settings_sections.eliminar_x', { nombre: o.name }), message: t('settings_sections.confirmar_eliminar_x', { nombre: o.name }), danger: true, onConfirm: () => del(o.id) })} className="set-btn-delete" aria-label={t('settings_sections.eliminar_x', { nombre: o.name })} title={t('common.delete')}><Trash2 size={14} aria-hidden /></Pulsable>
+                <IconButton variante="caja" onClick={() => { setEditingId(o.id); setEditForm({ name:o.name, country:o.country||'', city:o.city||'', timezone:o.timezone||defaultTimezone }) }} ariaLabel={t('settings_sections.editar_x', { nombre: o.name })} title={t('common.edit')}><Pencil size={14} aria-hidden /></IconButton>
+                <IconButton variante="caja" tono="peligro" onClick={() => openConfirmGlobal({ title: t('settings_sections.eliminar_x', { nombre: o.name }), message: t('settings_sections.confirmar_eliminar_x', { nombre: o.name }), danger: true, onConfirm: () => del(o.id) })} ariaLabel={t('settings_sections.eliminar_x', { nombre: o.name })} title={t('common.delete')}><Trash2 size={14} aria-hidden /></IconButton>
               </div>
             )}
           </div>
@@ -226,16 +226,16 @@ export function DepartmentsSection() {
                   <Input value={editForm.description} onChange={e => setEditForm(f => ({ ...f, description: e.target.value }))}
                     className="set-input--f3" inputClassName="set-input set-input--compact" placeholder={t('common.description')} aria-label={t('settings.descripcion_del_departamento')} />
                   {selectorDeArea(editForm.area_id, v => setEditForm(f => ({ ...f, area_id: v })))}
-                  <Pulsable onClick={() => update({ id: d.id, data: { ...editForm, area_id: editForm.area_id || null } })} disabled={!editForm.name} className="set-btn-save set-btn-confirm-light" aria-label={t('common.save')} title={t('common.save')}><Check size={14} aria-hidden /></Pulsable>
-                  <Pulsable onClick={() => setEditingId(null)} className="set-btn-cancel set-btn-cancel--sm" aria-label={t('common.cancel')} title={t('common.cancel')}><X size={14} aria-hidden /></Pulsable>
+                  <IconButton variante="caja" tono="acento" onClick={() => update({ id: d.id, data: { ...editForm, area_id: editForm.area_id || null } })} disabled={!editForm.name} ariaLabel={t('common.save')} title={t('common.save')}><Check size={14} aria-hidden /></IconButton>
+                  <IconButton variante="caja" onClick={() => setEditingId(null)} ariaLabel={t('common.cancel')} title={t('common.cancel')}><X size={14} aria-hidden /></IconButton>
                 </div>
               ) : (
                 <div className="set-item set-item--wrap">
                   <span className="set-dept-name">{d.name}</span>
                   {nombreDeArea(d.area_id) && <span className="set-area-tag">{nombreDeArea(d.area_id)}</span>}
                   {d.description && <span className="u-text2-sm">{d.description}</span>}
-                  <Pulsable onClick={() => { setEditingId(d.id); setEditForm({ name: d.name, description: d.description || '', area_id: d.area_id || '' }) }} className="set-btn-edit" aria-label={t('settings_sections.editar_x', { nombre: d.name })} title={t('common.edit')}><Pencil size={14} aria-hidden /></Pulsable>
-                  <Pulsable onClick={() => openConfirmGlobal({ title: t('settings_sections.eliminar_x', { nombre: d.name }), message: t('settings_sections.confirmar_eliminar_x', { nombre: d.name }), danger: true, onConfirm: () => del(d.id) })} className="set-btn-delete" aria-label={t('settings_sections.eliminar_x', { nombre: d.name })} title={t('common.delete')}><Trash2 size={14} aria-hidden /></Pulsable>
+                  <IconButton variante="caja" onClick={() => { setEditingId(d.id); setEditForm({ name: d.name, description: d.description || '', area_id: d.area_id || '' }) }} ariaLabel={t('settings_sections.editar_x', { nombre: d.name })} title={t('common.edit')}><Pencil size={14} aria-hidden /></IconButton>
+                  <IconButton variante="caja" tono="peligro" onClick={() => openConfirmGlobal({ title: t('settings_sections.eliminar_x', { nombre: d.name }), message: t('settings_sections.confirmar_eliminar_x', { nombre: d.name }), danger: true, onConfirm: () => del(d.id) })} ariaLabel={t('settings_sections.eliminar_x', { nombre: d.name })} title={t('common.delete')}><Trash2 size={14} aria-hidden /></IconButton>
                 </div>
               )}
             </div>
@@ -275,15 +275,15 @@ function AreasSection() {
               {editando?.id === a.id ? (
                 <>
                   <Input value={editando.name} onChange={e => setEditando({ id: a.id, name: e.target.value })} aria-label={t('settings.nombre_del_area')} className="set-input--f2" inputClassName="set-input set-input--compact" autoFocus />
-                  <Pulsable onClick={() => ejecutar(() => presupuestosApi.guardarArea({ name: editando.name }, a.id)).then(ok => { if (ok) setEditando(null) })} disabled={!editando.name.trim()} className="set-btn-save set-btn-confirm-light" aria-label={t('common.save')} title={t('common.save')}><Check size={14} aria-hidden /></Pulsable>
-                  <Pulsable onClick={() => setEditando(null)} className="set-btn-cancel set-btn-cancel--sm" aria-label={t('common.cancel')} title={t('common.cancel')}><X size={14} aria-hidden /></Pulsable>
+                  <IconButton variante="caja" tono="acento" onClick={() => ejecutar(() => presupuestosApi.guardarArea({ name: editando.name }, a.id)).then(ok => { if (ok) setEditando(null) })} disabled={!editando.name.trim()} ariaLabel={t('common.save')} title={t('common.save')}><Check size={14} aria-hidden /></IconButton>
+                  <IconButton variante="caja" onClick={() => setEditando(null)} ariaLabel={t('common.cancel')} title={t('common.cancel')}><X size={14} aria-hidden /></IconButton>
                 </>
               ) : (
                 <>
                   <span className="u-base-600">{a.name}</span>
                   <span className="set-area-depts">{a.departamentos.length ? a.departamentos.join(', ') : t('settings.area_sin_departamentos')}</span>
-                  <Pulsable onClick={() => setEditando({ id: a.id, name: a.name })} className="set-btn-edit" aria-label={t('settings_sections.editar_x', { nombre: a.name })} title={t('common.edit')}><Pencil size={14} aria-hidden /></Pulsable>
-                  <Pulsable onClick={() => openConfirmGlobal({ title: t('settings_sections.eliminar_x', { nombre: a.name }), message: t('settings_sections.confirmar_eliminar_x', { nombre: a.name }), danger: true, onConfirm: () => { void ejecutar(() => presupuestosApi.borrarArea(a.id)) } })} className="set-btn-delete" aria-label={t('settings_sections.eliminar_x', { nombre: a.name })} title={t('common.delete')}><Trash2 size={14} aria-hidden /></Pulsable>
+                  <IconButton variante="caja" onClick={() => setEditando({ id: a.id, name: a.name })} ariaLabel={t('settings_sections.editar_x', { nombre: a.name })} title={t('common.edit')}><Pencil size={14} aria-hidden /></IconButton>
+                  <IconButton variante="caja" tono="peligro" onClick={() => openConfirmGlobal({ title: t('settings_sections.eliminar_x', { nombre: a.name }), message: t('settings_sections.confirmar_eliminar_x', { nombre: a.name }), danger: true, onConfirm: () => { void ejecutar(() => presupuestosApi.borrarArea(a.id)) } })} ariaLabel={t('settings_sections.eliminar_x', { nombre: a.name })} title={t('common.delete')}><Trash2 size={14} aria-hidden /></IconButton>
                 </>
               )}
             </div>

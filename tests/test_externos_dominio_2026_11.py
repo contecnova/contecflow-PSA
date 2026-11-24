@@ -100,6 +100,11 @@ def test_tarifa_de_otro_proveedor_no_vale(db, base):
 def test_imputacion_del_externo_cuesta_su_tarifa_y_suma_a_la_asignacion(client, db, base):
     w = _alta(db, base)
     r = _asignar(db, base, w["id"])
+    # 23-11-2026 (seguridad de cuentas): con la contraseña temporal sólo se llega
+    # a cambiarla (403 `contrasena_cambio_obligatorio`); aquí se mide la imputación,
+    # así que el externo ya la ha cambiado.
+    db.get(User, w["user_id"]).password_must_change = False
+    db.commit()
     tok = client.post("/api/v1/auth/login", json={"username": w["login_username"], "password": w["temp_password"]})
     assert tok.status_code == 200, tok.text
     h = auth(tok.cookies.get("access_token"))

@@ -5,7 +5,7 @@ import { useToast } from '../context/ToastContext'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { aiProvidersApi } from '../services/api'
 import type { ProveedorIa as AiProvider, ModeloDelCatalogoIa as CatalogModel, EntradaCatalogoIa as CatalogEntry, CatalogoIa as ProviderCatalog } from '../services/api/tipos-grc'
-import { Button, Modal, Drawer, Pulsable, Select, Checkbox, Input } from '../components/ui'
+import { Button, Modal, Drawer, Pulsable, Select, Checkbox, Input, IconButton } from '../components/ui'
 import { sanitizeUrl } from '../utils/security'
 import { useAppT } from '../i18n/AppLangContext'
 import { Cpu, X, Plug, ExternalLink, CheckCircle2, XCircle } from 'lucide-react'
@@ -107,9 +107,9 @@ export function ProviderModal({ provider, catalog, onClose }: { provider: Partia
         {/* Drawer header */}
         <div className="aih-drawer-head">
           <span className="aih-drawer-title">{title}</span>
-          <Pulsable type="button" onClick={onClose} aria-label={t('common.close')} className="aih-close" data-cierra-dialogo="">
+          <IconButton variante="caja" onClick={onClose} ariaLabel={t('common.close')} data-cierra-dialogo="">
             <X size={16} aria-hidden="true" />
-          </Pulsable>
+          </IconButton>
         </div>
         {/* Body */}
         <div className="aih-drawer-body">

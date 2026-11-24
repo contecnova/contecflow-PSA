@@ -82,11 +82,17 @@ def test_la_201_cierra_duplicados_y_va_y_vuelve(base_200):
 
 
 def test_una_sola_cabeza_y_es_la_201():
+    """Una sola cabeza y la 201 en su cadena. Desde el 23-11-2026 encima van la
+    202-207 (cuaderno, ticket->PR, BPM, portal, PIR, conectores): la cabeza ya no
+    es la 201, pero la 201 tiene que seguir en la linea unica."""
     from alembic.script import ScriptDirectory
     from alembic.config import Config
     cfg = Config(os.path.join(RAIZ, "alembic.ini"))
     cfg.set_main_option("script_location", os.path.join(RAIZ, "alembic"))
-    assert ScriptDirectory.from_config(cfg).get_heads() == ["201_cadena_colaboracion_y_cronometro"]
+    guion = ScriptDirectory.from_config(cfg)
+    cabezas = guion.get_heads()
+    assert len(cabezas) == 1
+    assert "201_cadena_colaboracion_y_cronometro" in {r.revision for r in guion.walk_revisions("base", cabezas[0])}
 
 
 # ── C5 · HMAC con el llavero ─────────────────────────────────────────────────

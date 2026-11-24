@@ -505,10 +505,10 @@ function MyExpenses({ showCreate, setShowCreate }: { showCreate: boolean; setSho
               <ExpenseRow key={e.id} expense={e} isManager={false} onAction={(exp) => (
                 <div className="exp-acciones">
                   {exp.status === 'draft' && <>
-                    <IconButton onClick={() => setEditing(exp)} ariaLabel={t('expenses.editar_gasto')}><Pencil size={14} aria-hidden /></IconButton>
+                    <IconButton variante="caja" onClick={() => setEditing(exp)} ariaLabel={t('expenses.editar_gasto')}><Pencil size={14} aria-hidden /></IconButton>
                     <Button size="xs" variant="secondary" icon={<Send size={12} />} onClick={() => setConfirmando(exp)} title={t('expenses.enviar_gasto')}
                       disabled={saving}>{t('expenses.enviar')}</Button>
-                    <IconButton className="exp-borrar" ariaLabel={t('expenses.eliminar_gasto')}
+                    <IconButton variante="caja" tono="peligro" ariaLabel={t('expenses.eliminar_gasto')}
                       onClick={() => openConfirmGlobal({ message: t('expenses.eliminar_confirmar'), onConfirm: () => del(exp.id), danger: true })}><Trash2 size={14} aria-hidden /></IconButton>
                   </>}
                   {exp.status === 'submitted' && (

@@ -570,7 +570,7 @@ function ChatLateral({ items, value, onChange, onSend, onClose, t }: {
     <aside className="call-side" aria-label={t('call.meeting_chat')}>
       <div className="call-side__head">
         <h2 className="call-side__title">{t('call.meeting_chat')}</h2>
-        <Pulsable type="button" onClick={onClose} className="call-side__close" aria-label={t('call.cerrar_chat')} title={t('call.cerrar_chat')}><X size={14} aria-hidden="true" /></Pulsable>
+        <Pulsable /* eslint-disable-line contec/sin-boton-de-icono-propio -- excepción: videollamada: paleta oscura propia (--call-*) */ type="button" onClick={onClose} className="call-side__close" aria-label={t('call.cerrar_chat')} title={t('call.cerrar_chat')}><X size={14} aria-hidden="true" /></Pulsable>
       </div>
       <div className="call-side__body" aria-live="polite">
         {items.length === 0 && <div className="call-side__empty">{t('call.no_messages_yet')}</div>}
@@ -586,7 +586,7 @@ function ChatLateral({ items, value, onChange, onSend, onClose, t }: {
           onKeyDown={e => { if (e.key === 'Enter') onSend() }}
           placeholder={t('call.write_placeholder')}
           className="u-flex1-min0" inputClassName="call-side__input" />
-        <Pulsable type="button" onClick={onSend} className="call-side__send" aria-label={t('call.enviar')} title={t('call.enviar')}><Send size={13} aria-hidden="true" /></Pulsable>
+        <Pulsable /* eslint-disable-line contec/sin-boton-de-icono-propio -- excepción: videollamada: botón de envío relleno del compositor */ type="button" onClick={onSend} className="call-side__send" aria-label={t('call.enviar')} title={t('call.enviar')}><Send size={13} aria-hidden="true" /></Pulsable>
       </div>
     </aside>
   )
@@ -601,7 +601,7 @@ function ParticipantsPanel({ onClose, participants, t }: {
     <aside className="call-side call-side--narrow" aria-label={t('call.participants')}>
       <div className="call-side__head">
         <h2 className="call-side__title">{t('call.participants')} ({participants.length})</h2>
-        <Pulsable type="button" onClick={onClose} className="call-side__close" aria-label={t('call.cerrar_participantes')} title={t('call.cerrar_participantes')}><X size={14} aria-hidden="true" /></Pulsable>
+        <Pulsable /* eslint-disable-line contec/sin-boton-de-icono-propio -- excepción: videollamada: paleta oscura propia (--call-*) */ type="button" onClick={onClose} className="call-side__close" aria-label={t('call.cerrar_participantes')} title={t('call.cerrar_participantes')}><X size={14} aria-hidden="true" /></Pulsable>
       </div>
       {participants.length === 0 && <div className="call-side__body call-side__empty">{t('call.waiting_participants')}</div>}
       {participants.length > 0 && (

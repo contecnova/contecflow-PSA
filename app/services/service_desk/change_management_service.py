@@ -114,7 +114,7 @@ class RiskLevel(str, Enum):
 
 def _t(db, clave: str, **datos) -> str:
     """Texto de este servicio en el idioma de la empresa del contexto (`db.info`)."""
-    from app.services.textos_de_salida_servicios_m_z import texto_para
+    from app.services.textos_de_salida import texto_para
     return texto_para(db, clave, org_id=db.info.get("organization_id"), **datos)
 
 
@@ -626,6 +626,8 @@ def _update_change_status_on_rollback(db: Session, change_id: str) -> None:
         if change:
             change.status = ChangeStatus.closed_failed
             change.actual_end = datetime.now(timezone.utc)
+            from app.services.pir.programacion import al_cambiar_estado_de_cambio  # migración 206
+            al_cambiar_estado_de_cambio(db, change, "closed_failed")
     # intentional: best-effort fallback, log noise outweighs diagnostic value
     except Exception:
         _log.debug("_update_change_status_on_rollback: fallo best-effort ignorado", exc_info=True)
@@ -638,6 +640,8 @@ def _update_change_status_on_complete(db: Session, change_id: str) -> None:
         if change:
             change.status = ChangeStatus.implemented
             change.actual_end = datetime.now(timezone.utc)
+            from app.services.pir.programacion import al_cambiar_estado_de_cambio  # migración 206
+            al_cambiar_estado_de_cambio(db, change, "implemented")
     # intentional: best-effort fallback, log noise outweighs diagnostic value
     except Exception:
         _log.debug("_update_change_status_on_complete: fallo best-effort ignorado", exc_info=True)

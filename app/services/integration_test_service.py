@@ -338,6 +338,12 @@ def _probar_alm(clave: str):
     return probe
 
 
+def _probar_ticket_pr(cfg: dict, db: Session) -> dict:
+    """«Del ticket al PR»: la prueba completa del módulo (`ticket_a_pr.prueba`), con su `verificado`."""
+    from app.services.ticket_a_pr.prueba import probar
+    return probar(db, _org_de_la_prueba.get())
+
+
 #: Lo que demuestra una prueba que sale bien, cuando la sonda no lo dice.
 _VERIFICA: dict[str, str] = {
     "smtp": "credencial", "aws_s3": "credencial_y_uso", "ms_graph": "credencial_y_uso",
@@ -395,6 +401,8 @@ _PROBES: dict[str, Callable[[dict, Session], dict]] = {
     "alm_google":           _probar_alm("google"),
     "alm_okta":             _probar_alm("okta"),
     "alm_jamf":             _probar_alm("jamf"),
+    # «Del ticket al PR» (23-11-2026): Docker, imágenes fijadas, credencial Git y modelo.
+    "ticket_pr":            _probar_ticket_pr,
 }
 
 

@@ -18,7 +18,7 @@ def get_ticket_or_404(db: Session, ticket_id: str) -> Ticket:
     return ticket
 
 
-from app.services.textos_de_salida_servicios_m_z import texto_para  # noqa: E402
+from app.services.textos_de_salida import texto_para  # noqa: E402
 from app.services.textos_guardados import pintar, por_clave_json, idioma_del_lector  # noqa: E402
 
 

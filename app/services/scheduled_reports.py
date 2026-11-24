@@ -100,7 +100,11 @@ def proxima_ejecucion(report, desde: Optional[datetime] = None, zona=None) -> da
     zona); si no, UTC."""
     if zona is None:
         from sqlalchemy.orm import object_session
-        sesion = object_session(report)
+        from sqlalchemy.orm.exc import UnmappedInstanceError
+        try:
+            sesion = object_session(report)
+        except UnmappedInstanceError:  # objeto no mapeado (p. ej. un informe en memoria): UTC
+            sesion = None
         if sesion is not None:
             zona = _zona_del_informe(report, sesion)
     return _get_next_run(report.frequency, desde, send_hour=getattr(report, "send_hour", None),

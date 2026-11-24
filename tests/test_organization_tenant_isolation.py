@@ -235,6 +235,8 @@ ORG_ID_ROUTE_GUARDS = {
     ("DELETE", "/api/v1/organizations/{org_id}/deletion"): "superadmin",
     ("GET",    "/api/v1/organizations/{org_id}/export"): "superadmin",
     ("POST",   "/api/v1/organizations/{org_id}/impersonate"): "superadmin",
+    # 23-11-2026 (SCIM por empresa): genera el token SCIM de esa empresa; solo el superadmin.
+    ("POST",   "/api/v1/organizations/{org_id}/scim-token"): "superadmin",
     ("GET",    "/api/v1/orgs/{org_id}/branding"): "own-org",
     ("PUT",    "/api/v1/orgs/{org_id}/branding"): "own-org",
     ("DELETE", "/api/v1/orgs/{org_id}/branding"): "own-org",

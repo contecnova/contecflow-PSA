@@ -10,6 +10,7 @@ autorización del paso, segregación de funciones, voto doble, quórum. Si el pa
 ya cambió o la solicitud ya no está pendiente, el enlace deja de valer.
 """
 from __future__ import annotations
+import logging
 
 from datetime import datetime, timedelta, timezone
 
@@ -95,7 +96,7 @@ def _usado(jti) -> bool:
         try:
             return bool(r.exists(_clave(jti)))
         except Exception:
-            pass
+            logging.getLogger(__name__).debug("_usado: excepcion ignorada", exc_info=True)
     import time
     exp = _USADOS.get(jti)
     return bool(exp and exp > time.time())
@@ -111,7 +112,7 @@ def _consumir(jti, segundos: int) -> None:
             r.setex(_clave(jti), max(int(segundos), 1), "1")
             return
         except Exception:
-            pass
+            logging.getLogger(__name__).debug("_consumir: excepcion ignorada", exc_info=True)
     import time
     ahora = time.time()
     for k in [k for k, v in _USADOS.items() if v <= ahora]:

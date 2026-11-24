@@ -501,7 +501,8 @@ def test_45_un_usuario_inexistente_tambien_paga_un_bcrypt(client, db, monkeypatc
 def test_45_el_bloqueo_por_cuenta_no_depende_de_la_ip(db, monkeypatch):
     from app.services.auth_service import estado_efimero as ee
 
-    monkeypatch.setattr(ee, "_politica_de_bloqueo", lambda: (2, 60, 30))
+    # 23-11-2026: `_politica_de_bloqueo(org_id=None)` lee la de la empresa de la cuenta.
+    monkeypatch.setattr(ee, "_politica_de_bloqueo", lambda org_id=None: (2, 60, 30))
     monkeypatch.setattr(ee, "get_sso_redis", lambda: None)
     cuenta = ee.login_account_bucket("Victima@x.com ")
     ee.clear_login_failure(cuenta)

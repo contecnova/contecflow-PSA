@@ -12,7 +12,7 @@ import { collabApi } from '../../services/collaborationApi'
 import { useAppLang } from '../../i18n/AppLangContext'
 import { extractErr, fmtDateTime, fmtNumber } from '../../utils/helpers'
 import { sanitizeUrl } from '../../utils/security'
-import { Button, Pulsable } from '../../components/ui'
+import { Button, IconButton } from '../../components/ui'
 import { POLL_FREQUENT_MS, POLL_SLOW_MS } from '../../constants/timings'
 import {
   type CalendarData,
@@ -130,13 +130,12 @@ export function ContextPanel({ conv }: { conv: Conv }) {
                 {(m.role && m.role !== 'member') && <span className="chat-ctx__role">{traducir(`chat.role_${m.role}`, m.role)}</span>}
                 {m.is_admin && <span className="chat-ctx__role chat-ctx__role--admin">{traducir('chat.admin')}</span>}
                 {canRemove && (
-                  <Pulsable type="button" aria-label={isMe ? traducir('chat.leave_group') : traducir('chat.remove_from_group')}
+                  <IconButton variante="caja" tono="peligro" ariaLabel={isMe ? traducir('chat.leave_group') : traducir('chat.remove_from_group')}
                     onClick={async () => { if (await confirmar({ message: isMe ? traducir('chat.leave_group_q') : traducir('chat.remove_member_q', { name: m.user_name ?? '' }), danger: true, confirmLabel: isMe ? traducir('chat.leave') : traducir('chat.remove') })) removeMember.mutate(m.user_id) }}
                     title={isMe ? traducir('chat.leave_group') : traducir('chat.remove_from_group')}
-                    className="chat-ctx__remove"
                   >
                     <X size={12} aria-hidden="true" />
-                  </Pulsable>
+                  </IconButton>
                 )}
               </div>
             )

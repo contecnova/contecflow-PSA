@@ -21,7 +21,14 @@ class ClientCreateIn(BaseModel):
     phone: Optional[str] = Field(None, max_length=30)
     # 23-11-2026 (M10 del 04b): opcional. Sin ella, el servidor genera una y se la manda
     # al cliente por correo; nadie del equipo la ve ni la copia.
-    password: Optional[str] = Field(None, min_length=8, max_length=128)
+    # 23-11-2026 (portal_usuarios): con ella, contraseña puesta a mano. La longitud
+    # y el resto los decide la política de la empresa (errores con código), no el esquema.
+    password: Optional[str] = Field(None, min_length=1, max_length=1024)
+    # Solo con `password`: obligar a cambiarla en el primer acceso (la pantalla
+    # lo marca por defecto; sin el campo, como antes: no obliga) y mandarla por
+    # correo al titular (sin el campo, no se manda).
+    must_change_password: Optional[bool] = None
+    send_access: Optional[bool] = None
     can_approve_deliverables: bool = True
     can_request_changes: bool = True
     can_view_budget: bool = True

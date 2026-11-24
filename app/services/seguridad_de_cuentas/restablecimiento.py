@@ -279,3 +279,77 @@ def sesion_del_portal_cortada(carga: dict) -> bool:
     except (TypeError, ValueError):
         return False
     return emitido < corte
+
+
+# ── Portal: la unidad de trabajo de cada ruta (prueba global 23-11-2026) ────────
+# Vivían en `app/api/v1/endpoints/client_portal_password.py`, que consultaba
+# `client_users` y confirmaba la transacción en la capa API.
+
+def pedir_en_el_portal(db, correo: str, origen) -> None:
+    """«¿Olvidaste tu contraseña?» del portal: envía el enlace si la cuenta existe.
+
+    Misma respuesta pase lo que pase (sin oráculo): un fallo se deshace y queda en
+    el log sin datos. Si la cuenta no existe no se apunta nada (RGPD: minimización).
+    """
+    from sqlalchemy import func
+    from app.db.session import exigir_organizacion_activa
+    from app.models.client_portal import ClientUser
+    from app.services.seguridad_de_cuentas.auditoria import auditar
+    cliente = db.query(ClientUser).filter(func.lower(ClientUser.email) == correo,
+                                          ClientUser.is_active == True).first()  # noqa: E712
+    if cliente is None or not cliente.hashed_password:
+        return
+    try:
+        exigir_organizacion_activa(db, cliente.organization_id)
+        enviar_enlace_al_cliente(db, cliente)
+        auditar(db, None, "PORTAL_PASSWORD_RESET_REQUEST", cliente, org_id=cliente.organization_id,
+                origen=origen, recurso="client_user")
+        db.commit()
+    except Exception as exc:  # misma respuesta pase lo que pase (sin oráculo)
+        db.rollback()
+        logger.warning("portal: restablecimiento no enviado client_id=%s: %s", cliente.id, type(exc).__name__)
+
+
+def restablecer_en_el_portal(db, cliente, carga: dict, nueva: str, minimo: int, origen) -> None:
+    """Contraseña nueva con el enlace: política de la empresa, un solo uso, cierra
+    TODAS las sesiones del portal y audita (`PORTAL_PASSWORD_RESET_COMPLETE`)."""
+    from app.core.codigos_de_error import ErrorConCodigo, desde_valor, error
+    from app.services.client_portal_service.autenticacion import hash_password, verify_password
+    from app.services.seguridad_de_cuentas.auditoria import auditar
+    from app.services.seguridad_de_cuentas.contrasenas import validar_del_portal
+    try:
+        validar_del_portal(db, cliente, nueva, minimo)
+        if cliente.hashed_password and verify_password(nueva, cliente.hashed_password):
+            raise ErrorConCodigo("portal_contrasena_igual_a_la_anterior")
+    except ValueError as e:
+        raise desde_valor(400, e)
+    # Un solo uso: comprobar y borrar el `jti` en una operación.
+    if not reclamar_token_del_portal(carga):
+        raise error(401, "portal_reset_token_no_valido")
+    cliente.hashed_password = hash_password(nueva)
+    cliente.must_change_password = False
+    cerrar_sesiones_del_portal(cliente.id)
+    auditar(db, None, "PORTAL_PASSWORD_RESET_COMPLETE", cliente, org_id=cliente.organization_id,
+            origen=origen, recurso="client_user", datos={"sessions_revoked": "all"})
+    db.commit()
+
+
+def forzar_en_el_portal(db, actor, org: Optional[str], client_id: str, motivo: str, enviar: bool, origen) -> bool:
+    """El equipo fuerza el restablecimiento de un usuario del portal de SU empresa:
+    cambio obligatorio, cierre de sesiones y enlace (`PORTAL_PASSWORD_RESET_FORCED`).
+    Devuelve si se envió el enlace."""
+    from app.core.codigos_de_error import error
+    from app.models.client_portal import ClientUser
+    from app.services.seguridad_de_cuentas.auditoria import auditar
+    cliente = db.query(ClientUser).filter(ClientUser.id == client_id).first()
+    if cliente is None or (not actor.is_superadmin and cliente.organization_id != org):
+        raise error(404, "no_encontrado", que="cliente")
+    cliente.must_change_password = True
+    cerrar_sesiones_del_portal(cliente.id)
+    enviado = bool(enviar and cliente.is_active and cliente.hashed_password
+                   and enviar_enlace_al_cliente(db, cliente, forzado=True))
+    auditar(db, actor, "PORTAL_PASSWORD_RESET_FORCED", cliente, org_id=cliente.organization_id,
+            origen=origen, recurso="client_user",
+            datos={"reason": motivo, "link_sent": enviado, "sessions_revoked": "all"})
+    db.commit()
+    return enviado

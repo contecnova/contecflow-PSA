@@ -11,7 +11,7 @@ import { useState } from 'react'
 import type { CSSProperties } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Check, Pencil, Tags, Trash2, X } from 'lucide-react'
-import { Button, Pulsable, Spinner, Input } from '../../components/ui'
+import { Button, Spinner, Input, IconButton } from '../../components/ui'
 import SeccionDeAjustes from '../settings-sections/SeccionDeAjustes'
 import { useAppT } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
@@ -70,8 +70,8 @@ export function Catalogo({ catalogo }: { catalogo: NombreDeCatalogo }) {
                 <>
                   <Input value={editando.label} onChange={e => setEditando({ ...editando, label: e.target.value })} aria-label={t('catalogos_ajustes.nombre')} autoFocus className="set-input--f2" />
                   <input type="color" value={editando.color} onChange={e => setEditando({ ...editando, color: e.target.value })} aria-label={t('catalogos_ajustes.color')} />
-                  <Pulsable onClick={() => guardar.mutate(editando)} disabled={!editando.label.trim()} className="set-btn-save set-btn-confirm-light" aria-label={t('common.save')} title={t('common.save')}><Check size={14} aria-hidden /></Pulsable>
-                  <Pulsable onClick={() => setEditando(null)} className="set-btn-cancel set-btn-cancel--sm" aria-label={t('common.cancel')} title={t('common.cancel')}><X size={14} aria-hidden /></Pulsable>
+                  <IconButton variante="caja" tono="acento" onClick={() => guardar.mutate(editando)} disabled={!editando.label.trim()} ariaLabel={t('common.save')} title={t('common.save')}><Check size={14} aria-hidden /></IconButton>
+                  <IconButton variante="caja" onClick={() => setEditando(null)} ariaLabel={t('common.cancel')} title={t('common.cancel')}><X size={14} aria-hidden /></IconButton>
                 </>
               ) : (
                 <>
@@ -80,8 +80,8 @@ export function Catalogo({ catalogo }: { catalogo: NombreDeCatalogo }) {
                   <span className="u-text2-sm">{v.value}</span>
                   {v.organization_id
                     ? <>
-                        <Pulsable onClick={() => setEditando(v)} className="set-btn-edit" aria-label={t('settings_sections.editar_x', { nombre: v.label })} title={t('common.edit')}><Pencil size={14} aria-hidden /></Pulsable>
-                        <Pulsable onClick={() => borrarValor(v)} className="set-btn-delete" aria-label={t('settings_sections.eliminar_x', { nombre: v.label })} title={t('common.delete')}><Trash2 size={14} aria-hidden /></Pulsable>
+                        <IconButton variante="caja" onClick={() => setEditando(v)} ariaLabel={t('settings_sections.editar_x', { nombre: v.label })} title={t('common.edit')}><Pencil size={14} aria-hidden /></IconButton>
+                        <IconButton variante="caja" tono="peligro" onClick={() => borrarValor(v)} ariaLabel={t('settings_sections.eliminar_x', { nombre: v.label })} title={t('common.delete')}><Trash2 size={14} aria-hidden /></IconButton>
                       </>
                     : <span className="u-text2-sm">{t('catalogos_ajustes.del_sistema')}</span>}
                 </>

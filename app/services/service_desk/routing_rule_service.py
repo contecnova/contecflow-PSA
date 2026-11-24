@@ -121,6 +121,7 @@ def _momento(ticket) -> datetime:
     try:
         sesion = object_session(ticket)
     except Exception:  # objeto no mapeado (pruebas, simulaciones)
+        logger.debug("_momento: excepcion ignorada", exc_info=True)
         sesion = None
     return momento.astimezone(zona_horaria(sesion, getattr(ticket, "organization_id", None)))
 

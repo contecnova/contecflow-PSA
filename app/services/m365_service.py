@@ -23,6 +23,7 @@ alcanzables desde cualquier empresa. Ahora:
 
 Documentado en docs/seguridad/entrada_y_salida.md («Microsoft 365 / Graph»).
 """
+import logging
 import hashlib
 import re
 import threading
@@ -259,6 +260,7 @@ def probar_conexion(db: Session, org_id: Optional[str]) -> dict:
     try:
         token = token_de_graph_sync(cred)
     except Exception as exc:  # noqa: BLE001 - se informa la clase, no el texto remoto
+        logging.getLogger(__name__).debug("probar_conexion: excepcion ignorada", exc_info=True)
         return {"ok": False, "verificado": "nada", "origen": cred["origen"], "error": type(exc).__name__}
     try:
         with httpx.Client(timeout=outbound_http_timeout(db, default=15)) as client:

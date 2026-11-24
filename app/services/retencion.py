@@ -188,3 +188,23 @@ def _sellar(db, org) -> None:
 
 # Segunda auditoría 2026-11 (#19): `aplicar_job` (sesión propia SIN contexto de
 # tenant, sin llamadas) se borró; el worker llama a `aplicar` por organización.
+
+
+def pasada_diaria(db, org) -> dict:
+    """La pasada diaria de retención de una empresa (`app.worker.aplicar_retencion`).
+
+    Políticas de retención (respetan el bloqueo legal), copias RGPD caducadas
+    (A64, `COMPLIANCE_GDPR_EXPORT_TTL_DAYS`) y retención del chat (M77). Un fallo
+    del chat no deshace lo anterior: se registra y la pasada sigue.
+    """
+    from app.services.cab_service.gdpr import purgar_copias_caducadas
+    from app.services.collaboration.compliance import run_retention_de_empresa
+    informe = aplicar(db, org)
+    if isinstance(informe, dict):
+        informe["copias_rgpd_caducadas"] = purgar_copias_caducadas(db, org)
+        try:
+            informe["chat"] = run_retention_de_empresa(db, org)
+        except Exception:
+            db.rollback()
+            logger.exception("retención del chat de %s", org)
+    return informe

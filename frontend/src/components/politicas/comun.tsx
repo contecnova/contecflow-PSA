@@ -70,7 +70,7 @@ export function ListaDeValores({ valores, onChange, opciones, etiqueta, placehol
         {valores.map(v => (
           <span key={v} className="pol-chip">
             {ver(v)}
-            <Pulsable onClick={() => onChange(valores.filter(x => x !== v))} aria-label={t('pol.quitar_valor', { valor: ver(v) })}>
+            <Pulsable /* eslint-disable-line contec/sin-boton-de-icono-propio -- excepción: aspa de quitar dentro de un chip */ onClick={() => onChange(valores.filter(x => x !== v))} aria-label={t('pol.quitar_valor', { valor: ver(v) })}>
               <X size={12} aria-hidden />
             </Pulsable>
           </span>

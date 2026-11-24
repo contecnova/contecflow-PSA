@@ -11,22 +11,17 @@ from sqlalchemy.orm import object_session
 
 from app.models.service_desk._enums import ESTADOS_DE_TICKET_CERRADOS
 from app.models.service_desk import SLAPolicy
-from app.services.sla_service import (
+# `calendario_del_ticket` vive en `sla_service` (prueba global 23-11-2026: desde
+# aqui cerraba el ciclo sla_service -> sla_del_ticket -> sla_service); se reexporta.
+from app.services.sla_service import (  # noqa: F401
     calculate_sla_due as _calculate_sla_due,
+    calendario_del_ticket,
     calendario_sla,
     horas_sla_entre,
     norm_enum as _norm_enum,
 )
 
 logger = logging.getLogger(__name__)
-
-
-def calendario_del_ticket(db, ticket):
-    """El calendario del SLA del ticket (el de su politica, o el de los ajustes
-    de su empresa): el mismo con el que se calcularon sus vencimientos."""
-    politica = (db.query(SLAPolicy).filter(SLAPolicy.id == ticket.sla_policy_id).first()
-                if db is not None and ticket.sla_policy_id else None)
-    return calendario_sla(db, politica, ticket.organization_id)
 
 
 def pausar_sla(ticket, now) -> bool:
@@ -60,8 +55,14 @@ def _reanudar_sla_pausado(ticket, now) -> None:
     # reloj de pared (viernes 17:00 → lunes 9:00 = ~64 h) ocultaba
     # incumplimientos. Los lectores suman estos minutos con el mismo calendario
     # (`sla_service.vencimiento_efectivo`).
-    db = object_session(ticket)
     try:
+        db = object_session(ticket)
+    except Exception:   # no es una fila del ORM (p. ej. un ticket en memoria)
+        logger.debug("_reanudar_sla_pausado: excepcion ignorada", exc_info=True)
+        db = None
+    try:
+        if db is None:
+            raise LookupError("ticket sin sesion")
         cal = calendario_del_ticket(db, ticket)
         paused_mins = int(round(horas_sla_entre(paused_at, now, cal) * 60))
     except Exception:

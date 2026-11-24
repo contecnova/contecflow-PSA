@@ -1,15 +1,16 @@
 import { PRODUCT_NAME } from '../../constants/brand'
 import { type CSSProperties, useState, useId } from 'react'
 import { useToast } from '../../context/ToastContext'
-import { openConfirmGlobal, pedirTexto } from '../../context/ConfirmContext'
+import { pedirTexto } from '../../context/ConfirmContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { portalClientsApi, clientsApi } from '../../services/api'
-import { Button, EmptyState, Modal, Checkbox, GrupoDeOpciones, useErroresDeCampo, Input } from '../../components/ui'
-import { Check, ClipboardCopy, Coins, FolderOpen, Globe, KeyRound, Lock, LockOpen, Mail, Pause, Pencil, Play, Plus, TriangleAlert, Users } from 'lucide-react'
+import { Button, EmptyState, EstadoDeError, Modal, Checkbox, GrupoDeOpciones, useErroresDeCampo, Input } from '../../components/ui'
+import { Archive, Check, ClipboardCopy, Coins, FolderOpen, Globe, Lock, LockOpen, Mail, Pause, Pencil, Play, Plus, TriangleAlert, Users } from 'lucide-react'
 import { extractErr, fmtDate } from '../../utils/helpers'
 import { invalidarContactosDelCliente } from './contactosCliente'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import { useAppLang } from '../../i18n/AppLangContext'
+import { AccionesDeUsuarioDelPortal, SeccionContrasenaInicial, contrasenaInicialPorDefecto, datosDeContrasenaInicial, type ContrasenaInicial } from './AccionesUsuarioPortal'
 import './PortalUsersTab.css'
 
 type PortalUsersTabProps = {
@@ -26,6 +27,8 @@ type PortalUser = {
   project_ids?: string[]
   project_id?: string | null
   is_active: boolean
+  /** 23-11-2026 (portal_usuarios): archivado (solo con «Ver archivados»). */
+  archived_at?: string | null
   can_approve_deliverables?: boolean
   can_request_changes?: boolean
   can_view_budget?: boolean
@@ -122,10 +125,13 @@ export function PortalUsersTab({ cid, clientName }: PortalUsersTabProps) {
   const [editUser, setEditUser] = useState<PortalUser | null>(null)
   const [editForm, setEditForm] = useState<PortalEditForm | null>(null)
   const [form, setForm] = useState<PortalForm>(emptyForm)
+  // 23-11-2026 (portal_usuarios): contraseña inicial generada (por defecto) o a mano.
+  const [inicial, setInicial] = useState<ContrasenaInicial>(contrasenaInicialPorDefecto)
+  const [verArchivados, setVerArchivados] = useState(false)
 
-  const { data: users = [] } = useQuery<PortalUser[]>({
-    queryKey: ['portal-clients-org', cid],
-    queryFn: () => portalClientsApi.list({ client_org_id: String(cid) }).then(r => r.data),
+  const { data: users = [], isError, error: errorUsuarios, refetch } = useQuery<PortalUser[]>({
+    queryKey: ['portal-clients-org', cid, verArchivados],
+    queryFn: () => portalClientsApi.list({ client_org_id: String(cid), include_archived: verArchivados || undefined }).then(r => r.data),
   })
   const { data: clientDetail } = useQuery({
     queryKey: ['client-detail-projects', cid],
@@ -141,13 +147,14 @@ export function PortalUsersTab({ cid, clientName }: PortalUsersTabProps) {
 
   const { mutate: add, isPending } = useMutation({
     onMutate: () => campos.limpiar(),
-    mutationFn: (d: PortalForm & { client_org_id: string | number; project_ids?: string[] }) => portalClientsApi.create(d).then(r => r.data),
+    mutationFn: (d: PortalForm & { client_org_id: string | number; project_ids?: string[] }) => portalClientsApi.create({ ...d, ...datosDeContrasenaInicial(inicial) }).then(r => r.data),
     onSuccess: (creado) => {
       // El servidor crea/actualiza el contacto del usuario: contactos y ficha cambian.
       invalidarContactosDelCliente(qc, cid)
       setShowAdd(false)
       setCreatedCreds({ email: form.email, enviado: creado?.credenciales_enviadas ?? null })
       setForm(emptyForm())
+      setInicial(contrasenaInicialPorDefecto())
     },
     onError: (e: unknown) => { if (!campos.recoger(e)) toast.error(extractErr(e, t('portaluserstab.error_crear'))) },
   })
@@ -158,15 +165,8 @@ export function PortalUsersTab({ cid, clientName }: PortalUsersTabProps) {
     onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))
   })
 
-  // Reenviar acceso: el servidor genera otra contraseña y la manda al titular.
-  const { mutate: reenviar } = useMutation({
-    mutationFn: (id: string) => portalClientsApi.sendAccess(id).then(r => r.data),
-    onSuccess: (r) => {
-      qc.invalidateQueries({ queryKey: ['portal-clients-org', cid] })
-      setCreatedCreds({ email: r.email, enviado: r.credenciales_enviadas })
-    },
-    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
-  })
+  // Establecer contraseña, reenviar acceso, eliminar o archivar, restaurar y
+  // supresión RGPD: `AccionesDeUsuarioDelPortal` (23-11-2026).
 
   // 23-11-2026: forzar el restablecimiento (cambio obligatorio, cierre de sesiones y enlace), con motivo.
   const forzarRestablecimiento = async (u: PortalUser) => {
@@ -223,15 +223,21 @@ export function PortalUsersTab({ cid, clientName }: PortalUsersTabProps) {
       </div>
 
       <div className="pousta-row-1">
-        <div className="u-text2-base">{users.length} {t('portalusers.usuario_s_de_portal_activos')}</div>
-        <Button onClick={() => setShowAdd(true)} size="sm" icon={<Plus size={14} />}>{t('portalusers.crear_usuario_de_portal')}</Button>
+        <div className="u-text2-base">{users.filter(u => !u.archived_at).length} {t('portalusers.usuario_s_de_portal_activos')}</div>
+        <div className="u-row-center-12">
+          <Checkbox checked={verArchivados} onChange={m => setVerArchivados(m)} label={t('portalacc.ver_archivados')} />
+          <Button onClick={() => setShowAdd(true)} size="sm" icon={<Plus size={14} />}>{t('portalusers.crear_usuario_de_portal')}</Button>
+        </div>
       </div>
 
-      {users.length === 0
+      {isError
+        ? <EstadoDeError error={errorUsuarios} onReintentar={() => { void refetch() }} />
+        : users.length === 0
         ? <EmptyState icon={<Lock size={28} />} title={t('portalusers.sin_usuarios_de_portal')} description={t('portaluserstab.crea_primer_acceso')}
           action={<Button onClick={() => setShowAdd(true)} size="sm" icon={<Plus size={14} />}>{t('portalusers.crear_usuario_de_portal')}</Button>} />
         : users.map(u => {
           const assignedProjects = (u.project_ids || []).map(pid => projectLabelById.get(pid)).filter((label): label is string => Boolean(label))
+          const archivado = !!u.archived_at
           return (
           <div className={`pousta-panel ${u.is_active ? 'portal-users-tab-m1' : 'portal-users-tab-m2'}`} key={u.id}>
             <div className="pousta-row-2">
@@ -241,7 +247,9 @@ export function PortalUsersTab({ cid, clientName }: PortalUsersTabProps) {
                 </div>
                 <div>
                   <div className="u-md-700">{u.full_name}
-                    {!u.is_active && <span className="pousta-box-4">{t('portaluserstab.inactivo')}</span>}
+                    {archivado
+                      ? <span className="pousta-box-4 pousta-ico"><Archive size={12} aria-hidden="true" />{t('portalacc.archivado_badge')}</span>
+                      : !u.is_active && <span className="pousta-box-4">{t('portaluserstab.inactivo')}</span>}
                   </div>
                   <div className="u-text2-sm pousta-ico">
                     <Mail size={13} aria-hidden="true" />{u.email}{u.job_title && ` · ${u.job_title}`}
@@ -262,11 +270,9 @@ export function PortalUsersTab({ cid, clientName }: PortalUsersTabProps) {
               </div>
             </div>
             <div className="pousta-row-4">
+              {!archivado && <>
               <Button size="sm" variant="secondary" icon={<Pencil size={14} />} onClick={() => openEdit(u)}>
                 {t('portaluserstab.editar')}
-              </Button>
-              <Button size="sm" variant="secondary" icon={<KeyRound size={14} />} onClick={() => openConfirmGlobal({ title: t('portaluserstab.reenviar_acceso'), message: t('portaluserstab.confirmar_reenviar_acceso', { email: u.email }), confirmLabel: t('portaluserstab.reenviar_acceso'), onConfirm: () => reenviar(u.id) })}>
-                {t('portaluserstab.reenviar_acceso')}
               </Button>
               <Button size="sm" variant="secondary" icon={<Lock size={14} />} onClick={() => { void forzarRestablecimiento(u) }}>
                 {t('portaluserstab.forzar_restablecimiento')}
@@ -280,6 +286,8 @@ export function PortalUsersTab({ cid, clientName }: PortalUsersTabProps) {
               }}>
                 {t('portalusers.copiar_datos_de_acceso')}
               </Button>
+              </>}
+              <AccionesDeUsuarioDelPortal usuario={u} onCambio={() => invalidarContactosDelCliente(qc, cid)} onAcceso={setCreatedCreds} />
             </div>
           </div>
           )
@@ -374,9 +382,9 @@ export function PortalUsersTab({ cid, clientName }: PortalUsersTabProps) {
       {showAdd && (
         <Modal open title={t('portalusers.nuevo_usuario_de_portal')} onClose={() => setShowAdd(false)} width={560}>
           <form onSubmit={e => { e.preventDefault(); add({ ...form, client_org_id: cid, project_ids: form.project_ids ?? [] }) }}>
-          <div className="pousta-aviso">
+          {inicial.modo === 'generar' && <div className="pousta-aviso">
             {t('portaluserstab.acceso_se_envia_por_correo')} <strong className="u-text1">{portalUrl}</strong>
-          </div>
+          </div>}
           <div className="pousta-grid-1">
             <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="pousta-lbl">{t('portaluserstab.nombre_completo')} *</label><Input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.full_name} onChange={e => { campos.limpiar('full_name'); setForm(f => ({ ...f, full_name: e.target.value })) }} inputClassName="pousta-inp" />{msg('full_name')}</div>
             <div><label id={`${idCampo}-mail-et`} htmlFor={`${idCampo}-mail`} className="pousta-lbl">{t('portalusers.email_sera_el_usuario_de_login')}</label><Input id={`${idCampo}-mail`} aria-labelledby={`${idCampo}-mail-et`} type="email" value={form.email} onChange={e => { campos.limpiar('email'); setForm(f => ({ ...f, email: e.target.value })) }} placeholder={t('portalusers.email_de_acceso')} inputClassName="pousta-inp" />{msg('email')}</div>
@@ -387,6 +395,7 @@ export function PortalUsersTab({ cid, clientName }: PortalUsersTabProps) {
                 onChange={v => setForm(f => ({ ...f, project_ids: v }))}
                 opciones={projects.map(p => ({ valor: String(p.id), titulo: `${p.code} — ${p.name}` }))} />
             </div>
+            <SeccionContrasenaInicial valor={inicial} onChange={c => { campos.limpiar('password'); setInicial(c) }} email={form.email} error={campos.de('password')} />
           </div>
           <div className="pousta-panel2">
             <div className="pousta-box-16">{t('portalusers.permisos_en_el_portal')}</div>
@@ -406,7 +415,7 @@ export function PortalUsersTab({ cid, clientName }: PortalUsersTabProps) {
           <div className="u-actions-8">
             <Button variant="secondary" onClick={() => setShowAdd(false)}>{t('common.cancel')}</Button>
             <Button type="submit"
-              disabled={!form.full_name || !form.email || isPending}>
+              disabled={!form.full_name || !form.email || isPending || (inicial.modo === 'manual' && !inicial.password)}>
               {isPending ? t('portaluserstab.creando') : t('portaluserstab.crear_acceso')}
             </Button>
           </div>

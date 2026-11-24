@@ -124,10 +124,10 @@ function RuleCard({ rule, onEdit, onDelete, onTest, onToggle, onHistory, highlig
           <Button size="sm" variant="ghost" icon={<History size={14} />} aria-label={`${t('automations.history_btn')} ${rule.name}`} title={`${t('automations.history_btn')} ${rule.name}`} onClick={() => onHistory(rule)}>
             {t('automations.history_btn')}
           </Button>
-          <IconButton ariaLabel={`${t('common.edit')} ${rule.name}`} title={t('common.edit')} onClick={() => onEdit(rule)}>
+          <IconButton variante="caja" ariaLabel={`${t('common.edit')} ${rule.name}`} title={t('common.edit')} onClick={() => onEdit(rule)}>
             <Pencil size={14} aria-hidden="true" />
           </IconButton>
-          <IconButton ariaLabel={`${t('common.delete')} ${rule.name}`} title={t('common.delete')} onClick={() => { openConfirmGlobal({ message: t('common.are_you_sure'), onConfirm: () => onDelete(rule.id), danger: true }) }}>
+          <IconButton variante="caja" tono="peligro" ariaLabel={`${t('common.delete')} ${rule.name}`} title={t('common.delete')} onClick={() => { openConfirmGlobal({ message: t('common.are_you_sure'), onConfirm: () => onDelete(rule.id), danger: true }) }}>
             <Trash2 size={14} aria-hidden="true" />
           </IconButton>
         </div>

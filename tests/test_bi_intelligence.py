@@ -164,7 +164,7 @@ def test_bi_delivery_send_only_on_change_and_diff(client, admin_token, monkeypat
             "name": "Condicional semanal",
             "report_preset_id": "finance_revenue_by_client",
             "channels": ["email"],
-            "recipients": ["ops@example.com"],
+            "recipients": ["admin@contecflow.com"],  # 23-11: sólo personas activas de la empresa o dominios autorizados
             "frequency": "daily",
             "export_format": "json",
             "send_only_on_change": True,
@@ -233,7 +233,7 @@ def test_bi_delivery_delete_schedule(client, admin_token):
             "name": "Delete Schedule",
             "report_preset_id": "finance_revenue_by_client",
             "channels": ["email"],
-            "recipients": ["ops@example.com"],
+            "recipients": ["admin@contecflow.com"],  # 23-11: sólo personas activas de la empresa o dominios autorizados
             "frequency": "weekly",
             "export_format": "json",
             "is_active": True,

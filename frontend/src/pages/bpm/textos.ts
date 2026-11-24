@@ -44,6 +44,16 @@ export function textoEstado(t: Traducir, estado: string): string {
   return traducirO(t, `bpm.estado_${estado}`, estado)
 }
 
+/** Por qué espera un paso (`bpm.espera_<wait_kind>`: tarea, decisión, temporizador, incidente…). */
+export function textoEspera(t: Traducir, espera: string): string {
+  return traducirO(t, `bpm.espera_${espera}`, espera)
+}
+
+/** Tipo de una variable declarada (`bpm.vartipo_<tipo>`). */
+export function textoTipoDeVariable(t: Traducir, tipo: string): string {
+  return traducirO(t, `bpm.vartipo_${tipo}`, tipo)
+}
+
 /** Variables escritas una por línea (`nombre=valor`): booleanos y números con su tipo. */
 export function leerVariables(texto: string): Record<string, unknown> {
   const out: Record<string, unknown> = {}

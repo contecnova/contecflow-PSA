@@ -852,6 +852,93 @@ async def ws_doc_collab(
             await _broadcast_doc(doc_id, {"type": "left", "user_id": user_id or "?", "peers": peer_count})
 
 
+
+# ── «Mi cuaderno»: edición simultánea de una página (migración 202) ──────────
+# Mismo protocolo y misma infraestructura que `/ws/doc` (salas locales + Redis),
+# con la sala `nb:<page_id>`. El permiso es el de la página
+# (`app/services/cuaderno/acceso.py`): quien solo lee recibe las actualizaciones
+# pero las suyas se descartan (solo «awareness», el cursor). El estado se
+# persiste con el guardado automático (`/notebook/pages/{id}/content`, `yjs_state`).
+
+def _permiso_en_pagina_de_cuaderno(db, user, page_id: str):
+    from app.services.cuaderno.acceso import permiso_en_pagina_por_id
+    return permiso_en_pagina_por_id(db, user, page_id)
+
+
+async def _bucle_de_cuaderno(websocket: WebSocket, sala: str, user_id: str, puede_editar: bool) -> None:
+    MAX_MSG_SIZE = 2 * 1024 * 1024  # 2 MB, como en /ws/doc
+    try:
+        while True:
+            raw = await websocket.receive_text()
+            if len(raw) > MAX_MSG_SIZE:
+                await websocket.close(code=4009, reason="Mensaje demasiado grande")
+                break
+            try:
+                msg = json.loads(raw)
+                tipo = msg.get("type")
+                if tipo == "ping":
+                    await websocket.send_text(json.dumps({"type": "pong"}))
+                elif tipo == "awareness" or (tipo == "update" and puede_editar):
+                    await _broadcast_doc(sala, {"type": tipo, "data": msg.get("data"), "from": user_id},
+                                         exclude=websocket)
+            except Exception:
+                log.debug("Notebook WS mensaje malformado sala=%s user=%s", sala, user_id, exc_info=True)
+    except WebSocketDisconnect:
+        pass
+
+
+@router.websocket("/notebook/{page_id}")
+async def ws_notebook_collab(
+    websocket: WebSocket,
+    page_id: str,
+    ticket: Optional[str] = Query(default=None),
+    token: Optional[str] = Query(default=None),
+):
+    """Edición simultánea de una página de «Mi cuaderno» (Yjs). Ticket de un solo uso: GET /ws/ticket."""
+    from app.db.session import SessionLocal
+    user_id: Optional[str] = None
+    sala = f"nb:{page_id}"
+    unido = False
+    with SessionLocal() as db:
+        from app.db.contexto_de_tenant import declarar_sistema as _declarar_sistema
+        _declarar_sistema(db, "ws: identidad por ticket")
+        try:
+            user_id, org_activa = separar_identidad(await _identidad_de_la_conexion(
+                websocket, db, ticket=ticket, token=token))
+            if not user_id:
+                return
+            user = await run_db(_ws_svc.get_active_user_by_id, db, user_id)
+            await run_db(usuario_en_su_organizacion_activa, db, user, org_activa)
+            if user:
+                publicar_contexto_de_tenant(db, user)
+            from app.core import capacidades as _capacidades
+            permiso = None
+            if user and (user.is_superadmin or await run_db(_capacidades.tiene, db, user, "cuaderno.usar")):
+                permiso = await run_db(_permiso_en_pagina_de_cuaderno, db, user, page_id)
+            if not permiso:
+                await websocket.close(code=4003, reason="Sin permiso para esta página")
+                return
+            await websocket.accept()
+            async with _doc_rooms_lock:
+                _doc_rooms.setdefault(sala, []).append(websocket)
+            unido = True
+            await _ensure_doc_redis_sub()
+            peers = len(_doc_rooms.get(sala, []))
+            await websocket.send_text(json.dumps({"type": "joined", "user_id": user_id, "peers": peers,
+                                                  "can_edit": permiso in ("owner", "edit")}))
+            await _broadcast_doc(sala, {"type": "joined", "user_id": user_id, "peers": peers}, exclude=websocket)
+            await _bucle_de_cuaderno(websocket, sala, user_id, permiso in ("owner", "edit"))
+        finally:
+            if unido:
+                async with _doc_rooms_lock:
+                    room = _doc_rooms.get(sala, [])
+                    if websocket in room:
+                        room.remove(websocket)
+                    if not room:
+                        _doc_rooms.pop(sala, None)
+                peers = len(_doc_rooms.get(sala, []))
+                await _broadcast_doc(sala, {"type": "left", "user_id": user_id or "?", "peers": peers})
+
 async def _broadcast_doc(doc_id: str, message: dict, exclude: WebSocket = None) -> None:
     """Send a message to all clients editing a document.
 

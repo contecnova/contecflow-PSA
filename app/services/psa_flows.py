@@ -17,7 +17,7 @@ from app.models.resources import Absence, AbsenceStatus
 from app.models.sprints import Sprint, SprintStatus, SprintTask
 from app.models.user import User, UserRole
 from app.services.notifications import notify_user
-from app.services.textos_de_salida_servicios_m_z import aviso_de, texto_para
+from app.services.textos_de_salida import aviso_de, texto_para
 import logging
 from app.core import timeutil
 from app.core.codigos_de_error import error

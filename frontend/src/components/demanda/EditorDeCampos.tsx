@@ -6,7 +6,7 @@
  * enviar (`submit_required`) y la ejecución al aprobar (`execution`).
  */
 import { ArrowDown, ArrowUp, Plus, Trash2 } from 'lucide-react'
-import { Button, Checkbox, GrupoDeOpciones, Input, Select } from '../ui'
+import { Button, Checkbox, GrupoDeOpciones, Input, Select, IconButton } from '../ui'
 import type { CampoDeFlujo, CatalogoDeDemanda, DefinicionDeFlujo, OpcionDeCampo } from '../../services/api/demanda'
 import { useAppT } from '../../i18n/AppLangContext'
 import { CamposI18n, opcionesDe } from './comunes'
@@ -53,8 +53,8 @@ export default function EditorDeCampos({ def, catalogo, onChange }: { def: Defin
           <div className="dem-fila dem-fila--entre">
             <span className="u-mono dem-mono">{c.key || '—'}</span>
             <span className="dem-fila">
-              <Button size="xs" variant="ghost" aria-label={t('demanda.cfg_subir')} disabled={i === 0} icon={<ArrowUp size={12} />} onClick={() => onChange({ ...def, fields: mover(def.fields, i, -1) })} />
-              <Button size="xs" variant="ghost" aria-label={t('demanda.cfg_bajar')} disabled={i === def.fields.length - 1} icon={<ArrowDown size={12} />} onClick={() => onChange({ ...def, fields: mover(def.fields, i, 1) })} />
+              <IconButton variante="caja" ariaLabel={t('demanda.cfg_subir')} disabled={i === 0} onClick={() => onChange({ ...def, fields: mover(def.fields, i, -1) })}><ArrowUp size={12} /></IconButton>
+              <IconButton variante="caja" ariaLabel={t('demanda.cfg_bajar')} disabled={i === def.fields.length - 1} onClick={() => onChange({ ...def, fields: mover(def.fields, i, 1) })}><ArrowDown size={12} /></IconButton>
               <Button size="xs" variant="ghost" icon={<Trash2 size={12} />} onClick={() => quitar(i)}>{t('demanda.cfg_quitar_campo')}</Button>
             </span>
           </div>

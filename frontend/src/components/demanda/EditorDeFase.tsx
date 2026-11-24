@@ -6,7 +6,7 @@
  */
 import { useEffect, useState } from 'react'
 import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, Plus, Trash2 } from 'lucide-react'
-import { Button, Checkbox, GrupoDeOpciones, Input, Select } from '../ui'
+import { Button, Checkbox, GrupoDeOpciones, Input, Select, IconButton } from '../ui'
 import type { AvisoDeFlujo, CampoDeFlujo, CatalogoDeDemanda, CondicionDePuerta, DefinicionDeFlujo, FaseDeFlujo, PasoDeFlujo } from '../../services/api/demanda'
 import { useAppT } from '../../i18n/AppLangContext'
 import { CamposI18n, etiquetaDe, opcionesDe } from './comunes'
@@ -167,8 +167,8 @@ export default function EditorDeFase({ fase, indice, total, def, catalogo, onCha
           {indice + 1}. {fase.name.es || fase.key} <span className="u-mono dem-mono">({fase.key})</span> · {etiquetaDe(t, 'kind', fase.kind)}
         </Button>
         <span className="dem-fila">
-          <Button size="xs" variant="ghost" aria-label={t('demanda.cfg_subir')} disabled={indice === 0} icon={<ArrowUp size={12} />} onClick={() => onMover(-1)} />
-          <Button size="xs" variant="ghost" aria-label={t('demanda.cfg_bajar')} disabled={indice === total - 1} icon={<ArrowDown size={12} />} onClick={() => onMover(1)} />
+          <IconButton variante="caja" ariaLabel={t('demanda.cfg_subir')} disabled={indice === 0} onClick={() => onMover(-1)}><ArrowUp size={12} /></IconButton>
+          <IconButton variante="caja" ariaLabel={t('demanda.cfg_bajar')} disabled={indice === total - 1} onClick={() => onMover(1)}><ArrowDown size={12} /></IconButton>
           <Button size="xs" variant="ghost" icon={<Trash2 size={12} />} onClick={onBorrar}>{t('demanda.cfg_quitar_fase')}</Button>
         </span>
       </div>

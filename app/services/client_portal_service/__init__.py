@@ -7,6 +7,7 @@ submodulos por responsabilidad, sin cambiar el codigo:
 - `autenticacion`: Credenciales del portal: contrasenas, tokens de cliente, enlaces publicos y configuracion de sesion.
 - `serializacion`: Como se presentan al portal peticiones, UAT, mensajes, documentos y encuestas.
 - `clientes`: Clientes del portal: alta, edicion, acceso, perfil propio y marca.
+- `usuarios`: Contrasena puesta a mano, eliminar o archivar y restaurar usuarios del portal (23-11-2026).
 - `facturas`: Facturas del cliente y enlaces publicos de estado del proyecto.
 - `panel`: Panel del cliente, actividad reciente, ficha del proyecto y estadisticas del portal.
 - `peticiones`: Peticiones de funcionalidad del cliente y las peticiones de cambio que generan.
@@ -56,7 +57,6 @@ from app.services.client_portal_service.clientes import (  # noqa: F401
     create_client,
     reenviar_acceso,
     update_client,
-    delete_client,
     get_active_client_by_id,
     client_login,
     get_me,

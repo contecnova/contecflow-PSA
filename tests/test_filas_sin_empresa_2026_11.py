@@ -79,7 +79,12 @@ def test_EL_HALLAZGO_las_predicciones_del_job_llevan_empresa(db):
     db.add(t)
     db.commit()
     db.info.clear()   # como el job: sesión sin contexto de empresa
-    _oracle_sla_breach(db, [t], datetime.now(timezone.utc))
+    # Desde el 22-11-2026 (M8, `TENANT_SESION_SIN_CONTEXTO=cerrar`) un trabajo de
+    # fondo declara su contexto de sistema (Celery: `TareaDeSistema`); sin él, el
+    # ORM cierra. Lo que se mide sigue igual: la predicción lleva la empresa del ticket.
+    from app.db.contexto_de_tenant import trabajo_de_sistema
+    with trabajo_de_sistema("prueba: oráculo como job"):
+        _oracle_sla_breach(db, [t], datetime.now(timezone.utc))
     db.commit()
     with sin_filtro_de_tenant(db):
         preds = db.query(AIPrediction).filter(AIPrediction.entity_id == t.id).all()

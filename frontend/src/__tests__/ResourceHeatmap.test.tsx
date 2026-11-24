@@ -17,16 +17,28 @@ vi.mock('../services/api/periodo', () => ({
 }));
 
 // Mock the api service (useQuery internally calls api.get)
-vi.mock('../services/api', () => ({
-  default: {
-    get: vi.fn().mockResolvedValue({ data: [] }),
-    post: vi.fn().mockResolvedValue({ data: {} }),
-    patch: vi.fn().mockResolvedValue({ data: {} }),
-    delete: vi.fn().mockResolvedValue({ data: {} }),
-  },
-  projectsApi: { get: vi.fn().mockResolvedValue({ data: [] }) },
-  usersApi: { get: vi.fn().mockResolvedValue({ data: [] }) },
-}));
+// El componente pide el mapa y las reservas con `reservasApi` (pantallasSueltas.ts),
+// que en la app llama a `api.get`; el mock hace lo mismo para que `paramsDelMapa`
+// lea los parámetros que salen (`{ ...periodo.params }`).
+vi.mock('../services/api', () => {
+  const get = vi.fn().mockResolvedValue({ data: [] });
+  return {
+    default: {
+      get,
+      post: vi.fn().mockResolvedValue({ data: {} }),
+      patch: vi.fn().mockResolvedValue({ data: {} }),
+      delete: vi.fn().mockResolvedValue({ data: {} }),
+    },
+    reservasApi: {
+      mapaDeCalor: (params?: Record<string, unknown>) => get('/bookings/heatmap', { params }),
+      listar: (params?: Record<string, unknown>) => get('/bookings', { params }),
+      crear: vi.fn().mockResolvedValue({ data: {} }),
+      borrar: vi.fn().mockResolvedValue({ data: {} }),
+    },
+    projectsApi: { get: vi.fn().mockResolvedValue({ data: [] }) },
+    usersApi: { get: vi.fn().mockResolvedValue({ data: [] }) },
+  };
+});
 
 vi.mock('../context/ConfirmContext', () => ({
   openConfirmGlobal: vi.fn().mockResolvedValue(true),

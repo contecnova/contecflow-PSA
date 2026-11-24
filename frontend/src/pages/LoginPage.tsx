@@ -222,6 +222,22 @@ export default function LoginPage(): JSX.Element {
     || logoutReason === 'token_reuse'
     || logoutReason === 'backend_refresh_failed'
 
+  // ── Vuelta del ACS SAML (?saml_ticket=… o ?saml_error=…) ──────────────────
+  // 23-11-2026: el backend valida la respuesta del IdP y deja la identidad tras
+  // un ticket de un solo uso; aquí se canjea por la sesión (o el reto MFA).
+  useEffect(() => {
+    const ticket = searchParams.get('saml_ticket')
+    const fallo = searchParams.get('saml_error')
+    if (!ticket && !fallo) return
+    window.history.replaceState({}, '', '/login')
+    if (fallo) { setError(t('login.saml_rechazado', { codigo: fallo })); return }
+    setSsoLoading(true); setError('')
+    authApi.samlCanjear(ticket as string)
+      .then(({ data }) => procesar(data))
+      .catch(e => setError(extractErrorMsg(e, t('login.sso_error'))))
+      .finally(() => setSsoLoading(false))
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
   // ── Vuelta del proveedor SSO (?code=…&state=…) ─────────────────────────────
   // Auditoría 2026-11: el proveedor redirigía aquí y nada canjeaba el código.
   useEffect(() => {
@@ -345,11 +361,15 @@ export default function LoginPage(): JSX.Element {
   }
 
   // ── SSO ───────────────────────────────────────────────────────────────────
-  async function handleSso(provider: { id: string; name: string }) {
+  async function handleSso(provider: { id: string; name: string; provider?: string }) {
     setSsoLoading(true); setError('')
     try {
-      sessionStorage.setItem(SSO_CONFIG_KEY, provider.id)
-      const { data } = await authApi.authorizeSso(provider.id, `${window.location.origin}/login`)
+      // SAML (23-11-2026): el IdP vuelve al ACS del backend, no a esta página.
+      const esSaml = provider.provider === 'saml'
+      if (!esSaml) sessionStorage.setItem(SSO_CONFIG_KEY, provider.id)
+      const { data } = esSaml
+        ? await authApi.authorizeSaml(provider.id)
+        : await authApi.authorizeSso(provider.id, `${window.location.origin}/login`)
       const url = (data as { authorization_url?: string }).authorization_url
       if (url) { window.location.assign(url); return }
       setError(t('login.sso_error'))

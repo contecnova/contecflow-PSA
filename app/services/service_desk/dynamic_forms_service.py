@@ -128,7 +128,9 @@ def _set_json(db: Session, key: str, org_id: Optional[str], value: dict | list, 
             fila.regla_json, fila.version, fila.updated_by = texto, version, quien
         return
     # El historial se escribe una version cada vez (`_append_history`).
-    raise ValueError("el historial de formularios dinamicos se escribe con _append_history")
+    from app.core.codigos_de_error import ErrorConCodigo
+    raise ErrorConCodigo("interno_historial_formularios_dinamicos",
+                         detail="el historial de formularios dinamicos se escribe con _append_history")
 
 
 def _default_rules() -> dict:

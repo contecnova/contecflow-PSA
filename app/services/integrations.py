@@ -14,7 +14,7 @@ import json
 import logging
 import urllib.request
 
-from app.core.outbound_url import abrir, validate_outbound_url
+from app.core.outbound_url import abrir, cabecera_basic, validate_outbound_url
 import urllib.parse
 from typing import Optional
 from app.core import timeutil
@@ -396,7 +396,6 @@ def _xero_request(config_dict: dict, method: str, path: str, body=None) -> dict:
 def _refrescar_token_xero(config_dict: dict) -> bool:
     """Renueva el access token de Xero con el refresh token (rotatorio: Xero
     devuelve también un refresh token nuevo). True si se renovó."""
-    import base64
     import json as _json
     import urllib.parse
     import urllib.request
@@ -404,11 +403,11 @@ def _refrescar_token_xero(config_dict: dict) -> bool:
                     config_dict.get("client_secret"))
     if not (rt and cid and sec):
         return False
-    url = settings.XERO_TOKEN_URL if getattr(settings, "XERO_TOKEN_URL", None) else "https://identity.xero.com/connect/token"
+    url = settings.XERO_TOKEN_URL
     req = urllib.request.Request(  # noqa: S310
         validate_outbound_url(url, field="URL de integración"), method="POST",
         data=urllib.parse.urlencode({"grant_type": "refresh_token", "refresh_token": rt}).encode(),
-        headers={"Authorization": "Basic " + base64.b64encode(f"{cid}:{sec}".encode()).decode(),
+        headers={"Authorization": cabecera_basic(cid, sec),
                  "Content-Type": "application/x-www-form-urlencoded", "Accept": "application/json"})
     try:
         with abrir(req, timeout=outbound_http_timeout(default=15)) as resp:  # noqa: S310

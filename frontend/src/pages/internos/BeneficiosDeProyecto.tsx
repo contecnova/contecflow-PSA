@@ -57,8 +57,8 @@ export function ListaDeBeneficios({ items, conProyecto = false, onEditar, onBorr
               {(onEditar || onBorrar) && (
                 <td className="int-td">
                   <div className="u-row-6">
-                    {onEditar && <IconButton ariaLabel={t('internos.editar')} title={t('internos.editar')} onClick={() => onEditar(b)}><Pencil size={14} aria-hidden /></IconButton>}
-                    {onBorrar && <IconButton ariaLabel={t('internos.borrar')} title={t('internos.borrar')} onClick={() => onBorrar(b)}><Trash2 size={14} aria-hidden /></IconButton>}
+                    {onEditar && <IconButton variante="caja" ariaLabel={t('internos.editar')} title={t('internos.editar')} onClick={() => onEditar(b)}><Pencil size={14} aria-hidden /></IconButton>}
+                    {onBorrar && <IconButton variante="caja" tono="peligro" ariaLabel={t('internos.borrar')} title={t('internos.borrar')} onClick={() => onBorrar(b)}><Trash2 size={14} aria-hidden /></IconButton>}
                   </div>
                 </td>
               )}

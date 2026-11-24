@@ -15,7 +15,10 @@ import { CATALOGO_DEL_BACKEND, capacidadesDe, puedeComo } from './capacidadesDel
 
 const raiz = resolve(__dirname, '..')
 const app = readFileSync(resolve(raiz, 'App.tsx'), 'utf8')
-const layout = readFileSync(resolve(raiz, 'components/layout/Layout.tsx'), 'utf8')
+// Menú personalizable (23-11-2026): NAV_GROUPS salió de Layout.tsx a menuLateral.tsx
+// (y la personalización a permisos/menuPersonal.ts); se miran los tres.
+const layout = ['components/layout/Layout.tsx', 'components/layout/menuLateral.tsx', 'permisos/menuPersonal.ts']
+  .map(f => readFileSync(resolve(raiz, f), 'utf8')).join('\n')
 
 /** Rutas con `<ProtectedRoute>` en App.tsx. */
 const rutasProtegidas = [...app.matchAll(/<Route path="([^"]+)"\s+element=\{\s*<ProtectedRoute/g)].map(m => m[1])

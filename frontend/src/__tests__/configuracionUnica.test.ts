@@ -15,7 +15,8 @@ import {
 
 const raiz = resolve(__dirname, '..')
 const app = readFileSync(resolve(raiz, 'App.tsx'), 'utf8')
-const layout = readFileSync(resolve(raiz, 'components/layout/Layout.tsx'), 'utf8')
+// Menú personalizable (23-11-2026): NAV_GROUPS salió de Layout.tsx a menuLateral.tsx.
+const layout = readFileSync(resolve(raiz, 'components/layout/menuLateral.tsx'), 'utf8')
 
 // 19-11-2026: las secciones piden capacidades; el rol se simula con el catálogo del backend.
 const visiblesPara = (rol: string, esSuperadmin = false) => SECCIONES_DE_AJUSTES
@@ -54,7 +55,10 @@ describe('catálogo de Configuración', () => {
     expect(pm).not.toContain('approval-workflows')
     expect(pm).not.toContain('ai-hub')
     expect(pm).not.toContain('jira')
-    expect(visiblesPara('employee')).toEqual(['mfa'])
+    // 23-11-2026: «Agentes de código (MCP)» pide `mcp.usar`, que el backend da a TODOS
+    // (cada persona genera sus propias credenciales; las herramientas piden además la
+    // capacidad de su ruta REST). Encender o apagar MCP sigue siendo de gobierno.administrar.
+    expect(visiblesPara('employee')).toEqual(['mcp', 'mfa'])
     expect(visiblesPara('admin')).not.toContain('organizations')
     expect(visiblesPara('admin', true)).toContain('organizations')
   })

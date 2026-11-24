@@ -336,6 +336,32 @@ Se importan de `src/components/ui`. Entre paréntesis, en cuántos ficheros
   acción a la derecha. Borrar es `danger`, o `secondary` con el texto en rojo
   si va en una fila de una lista.
 
+### 8.1 bis Botones de solo icono: `IconButton variante="caja"` (23-11-2026)
+
+Las acciones de solo icono de una tarjeta, fila o cabecera (editar, borrar,
+más, copiar, historial, cerrar) son **iguales en toda la aplicación y se ajustan
+al icono**: cuadrado de 32 px (`--alto-control-sm`) con icono de 16 px, borde
+fino `--surface-4`, radio medio, fondo transparente e icono gris centrado; el
+de borrar, con el icono en rojo y un borde rojizo suave (`tono="peligro"`).
+Van juntos, con 6 px entre ellos, arriba a la derecha, dentro de
+`.ui-acciones`. Nunca se estiran con el contenido de al lado: antes, en
+Proveedores, un nombre de dos líneas alargaba el botón porque la cabecera
+estiraba a sus hijos y el botón no tenía alto fijo.
+
+```tsx
+<div className="ui-acciones">
+  <IconButton variante="caja" ariaLabel="Editar Acme"><Pencil /></IconButton>
+  <IconButton variante="caja" tono="peligro" ariaLabel="Borrar Acme"><Trash2 /></IconButton>
+</div>
+```
+
+- Tamaños `xs` 26 / `sm` 32 (por defecto) / `md` 38 px; tonos `neutro`,
+  `peligro`, `acento`. Detalle y excepciones: `frontend/src/components/ui/DESIGN_SYSTEM.md`.
+- Migración del 23-11-2026: 115 botones de solo icono hechos a mano
+  (`Pulsable`/`Button` con un icono por único hijo o `Button icon` sin texto)
+  y 109 `IconButton` simples de editar/borrar/más/copiar pasaron a la caja; 27
+  excepciones justificadas en línea; se quitaron ~70 clases CSS propias de botón de icono que quedaron muertas.
+
 ### 8.2 Modal (76 ficheros)
 
 - **Anchos:** `sm` 400 · `md` 520 (por defecto) · `lg` 760 · `xl` 1040, o
@@ -584,7 +610,14 @@ dominio, una sola copia, y una prueba que falle si se pinta el código.
    `componentesPermitidos`) y las funciones que solo devuelven variables
    (opción `funcionesDeVariables`).
 6. **`fetch` directo** fuera de `src/services/api`: hay que usar el cliente API.
-7. **`jsx-a11y`**: etiquetas de controles, atributos ARIA válidos y demás
+7. **Botón de icono propio** (error, regla `contec/sin-boton-de-icono-propio`
+   de `frontend/scripts/eslint/kit-sin-marcado-propio.mjs`): `<button>`,
+   `<Pulsable>` o `<Button>` con un icono de lucide como único hijo, o
+   `<Button icon>` sin texto. Hay que usar `IconButton` (`variante="caja"` en
+   tarjetas y filas). La comprobación CSS `botonDeIcono`
+   (`frontend/scripts/kit/comprobarCss.mjs`) marca las clases propias
+   `*-icon-btn` y los retoques de `.icon-button--caja`.
+8. **`jsx-a11y`**: etiquetas de controles, atributos ARIA válidos y demás
    (`click-events-have-key-events` y `no-static-element-interactions` son
    **error**).
 

@@ -1,0 +1,123 @@
+/* PIR (migración 206, docs/PIR.md): lista, ficha guiada, CAB y configuración. Solo tokens. */
+
+.pir-celda {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.pir-apagado {
+  color: var(--text-2);
+  font-size: var(--text-sm);
+}
+
+.pir-origen {
+  font-size: var(--text-sm);
+}
+
+.pir-insignia {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.pir-aviso {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--surface-4);
+  font-size: var(--text-sm);
+}
+
+.pir-aviso--peligro {
+  color: var(--danger);
+  background: var(--danger-bg);
+  border-color: var(--danger-border);
+}
+
+.pir-aviso--info {
+  background: var(--accent-muted);
+}
+
+.pir-fila--vencida td:first-child,
+.pir-fila--vencida th:first-child {
+  box-shadow: inset 3px 0 0 var(--danger);
+}
+
+.pir-ficha {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.pir-bloque {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 12px;
+  border-top: 1px solid var(--surface-4);
+}
+
+.pir-bloque:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.pir-bloque__titulo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+}
+
+.pir-rejilla {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.pir-criterio {
+  display: grid;
+  grid-template-columns: minmax(180px, 2fr) auto minmax(160px, 2fr);
+  gap: 10px;
+  align-items: center;
+}
+
+.pir-fila-editable {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)) auto;
+  gap: 8px;
+  align-items: end;
+}
+
+.pir-acciones-pie {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.pir-lista-simple {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pir-lista-simple li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 720px) {
+  .pir-criterio {
+    grid-template-columns: 1fr;
+  }
+}

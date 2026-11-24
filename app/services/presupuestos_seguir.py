@@ -41,7 +41,7 @@ from app.models.mfa import Budget, BudgetClose, BudgetCommitment, BudgetLine, Bu
 from app.services.audit import audit_log
 from app.core.errores import ErrorDeDominio
 from app.core.codigos_de_error import error
-from app.services.textos_de_salida_servicios_m_z import texto_para
+from app.services.textos_de_salida import texto_para
 
 METODOS = ("plan", "ritmo", "manual")
 

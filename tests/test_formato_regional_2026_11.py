@@ -72,7 +72,11 @@ def test_el_catalogo_de_analitica_sale_con_la_moneda_de_la_organizacion(client, 
 
 def test_narrativa_de_respaldo_con_la_moneda(monkeypatch):
     from app.services import bi_storytelling
+    # El importe va con los separadores del idioma de la narrativa (antes, con
+    # los de la instalación, y la frase en castellano salía con «12,000»).
     texto = bi_storytelling._fallback_narrative({"pipeline_weighted": 12000}, "es", "$")
+    assert "12.000 $" in texto and "€" not in texto
+    texto = bi_storytelling._fallback_narrative({"pipeline_weighted": 12000}, "en", "$")
     assert "12,000 $" in texto and "€" not in texto
 
 

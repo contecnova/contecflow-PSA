@@ -34,7 +34,6 @@
 .trn-meta { display: inline-flex; align-items: center; gap: 4px; font-size: var(--text-xs); color: var(--text-2); }
 .trn-link { display: inline-flex; align-items: center; gap: 4px; font-size: var(--text-xs); color: var(--accent); white-space: nowrap; }
 .trn-enrolled { font-size: var(--text-xs); color: var(--text-3); margin-left: auto; }
-.trn-danger { color: var(--danger); }
 
 .trn-score { font-size: var(--text-sm); color: var(--text-3); }
 .trn-score--good { color: var(--success); }

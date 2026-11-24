@@ -9,6 +9,7 @@
  * temporal», «error conocido»). Sin estilos en línea con valores fijos.
  */
 import DocumentosDeFicha from '../../components/conectores/DocumentosDeFicha'
+import SeguimientoDeHueco from '../../components/servicedesk/SeguimientoDeHueco'
 import { useId, useState } from 'react'
 import { useAppLang, useAppT as useAppTSimple } from '../../i18n/AppLangContext'
 import type { ChangeEvent } from 'react'
@@ -326,7 +327,7 @@ function Problems() {
                         </Button>
                       )}
                       <Button size="xs" variant="secondary" icon={<Pencil size={12} />} onClick={() => { setEditing(p); setShowModal(true) }}>{t('itsmknowledge.editar')}</Button>
-                      <IconButton className="itk-icon-danger" ariaLabel={t('itsmknowledge.eliminar_x', { title: p.title })} onClick={() => { openConfirmGlobal({ message: t('itsmknowledge.confirmar_eliminar_problema', { title: p.title }), onConfirm: () => deleteProblem(p.id), danger: true }) }}><Trash2 size={14} aria-hidden /></IconButton>
+                      <IconButton variante="caja" tono="peligro" ariaLabel={t('itsmknowledge.eliminar_x', { title: p.title })} onClick={() => { openConfirmGlobal({ message: t('itsmknowledge.confirmar_eliminar_problema', { title: p.title }), onConfirm: () => deleteProblem(p.id), danger: true }) }}><Trash2 size={14} aria-hidden /></IconButton>
                     </div>
                   </div>
                   {p.root_cause && (
@@ -491,7 +492,7 @@ function KB() {
                 <Button size="xs" variant="secondary" icon={a.status === 'published' ? <Pause size={12} /> : <Play size={12} />} onClick={() => toggleStatus({ id: a.id, status: a.status === 'published' ? 'draft' : 'published' })}>{a.status === 'published' ? ts('sd_cfg.kb_unpublish') : ts('sd_cfg.kb_publish')}</Button>
                 {a.status === 'draft' && <Button size="xs" variant="secondary" icon={<Send size={12} />} onClick={() => enviarARevision(a.id)}>{ts('sd_cfg.kb_submit')}</Button>}
               </>}
-              <IconButton className="itk-icon-danger" ariaLabel={t('itsmknowledge.eliminar_x', { title: a.title })} onClick={() => { openConfirmGlobal({ message: t('itsmknowledge.confirmar_eliminar_articulo'), onConfirm: () => deleteArticle(a.id), danger: true }) }}><Trash2 size={14} aria-hidden /></IconButton>
+              <IconButton variante="caja" tono="peligro" ariaLabel={t('itsmknowledge.eliminar_x', { title: a.title })} onClick={() => { openConfirmGlobal({ message: t('itsmknowledge.confirmar_eliminar_articulo'), onConfirm: () => deleteArticle(a.id), danger: true }) }}><Trash2 size={14} aria-hidden /></IconButton>
             </div>
           </div>
         ))}
@@ -517,7 +518,8 @@ function KB() {
 type KBArticleModalProps = {
   article: KbArticle | null
   onClose: () => void
-  onSaved: () => void
+  /** 23-11-2026: con el id del artículo creado (para enlazarlo a una pregunta sin respuesta). */
+  onSaved: (creadoId?: string) => void
   /** Para un alta: lo que ya se sabe (p. ej. el título desde una pregunta sin respuesta). */
   inicial?: { title?: string }
 }
@@ -541,7 +543,7 @@ function KBArticleModal({ article, onClose, onSaved, inicial }: KBArticleModalPr
   const { mutate, isPending } = useMutation({
     onMutate: () => campos.limpiar(),
     mutationFn: (data: typeof form): Promise<unknown> => isEdit && article ? sdKbApi.update(article.id, data) : sdKbApi.create(data),
-    onSuccess: () => { toast.success(isEdit ? t('itsmknowledge.articulo_actualizado') : t('itsmknowledge.articulo_creado')); onSaved() },
+    onSuccess: (r: unknown) => { toast.success(isEdit ? t('itsmknowledge.articulo_actualizado') : t('itsmknowledge.articulo_creado')); onSaved((r as { data?: { id?: string } } | undefined)?.data?.id) },
     onError: (e: unknown) => { if (!campos.recoger(e)) toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) },
   })
   const set = (k: keyof typeof form) => (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
@@ -649,6 +651,8 @@ function CalidadKB() {
                 <div className="itk-q-meta">
                   {t('itsmknowledge.veces', { n: h.times_asked })} · {t('itsmknowledge.origen_' + h.source)}{h.last_asked_at ? ` · ${fmtDateTime(h.last_asked_at)}` : ''}
                 </div>
+                {/* 23-11-2026: responsable, plazo, seguimiento, tarea y artículo que la responde. */}
+                <SeguimientoDeHueco h={h} onCambio={refrescar} />
               </div>
               <div className="itk-q-actions">
                 <Button size="xs" onClick={() => { setRespondiendo(h); setRespuesta('') }}>{t('itsmknowledge.responder')}</Button>
@@ -716,7 +720,13 @@ function CalidadKB() {
       )}
       {articuloDe && (
         <KBArticleModal article={null} inicial={{ title: articuloDe.question }} onClose={() => setArticuloDe(null)}
-          onSaved={() => { estado({ tipo: 'gap', id: articuloDe.id, status: 'answered' }); qc.invalidateQueries({ queryKey: ['sd-kb'] }); setArticuloDe(null) }} />
+          onSaved={creadoId => {
+            // 23-11-2026: se enlaza; si se creó publicado la cierra ya, si no al publicarlo.
+            const gap = articuloDe.id
+            if (creadoId) sdKbApi.gapArticle(gap, creadoId).then(refrescar).catch(alFallar)
+            else estado({ tipo: 'gap', id: gap, status: 'answered' })
+            qc.invalidateQueries({ queryKey: ['sd-kb'] }); setArticuloDe(null)
+          }} />
       )}
     </div>
   )

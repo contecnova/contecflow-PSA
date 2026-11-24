@@ -78,7 +78,7 @@ Barridos (recuentos comentados en cada test):
 
 ## Capacidades que guardan rutas (medido 23-11-2026)
 
-| Capacidad | Roles | Pares (método, ruta) |
+| Capacidad | Roles | Pares (mÃ©todo, ruta) |
 |---|---|---|
 | `alertas.administrar` | admin | 1 |
 | `alertas.gestionar` | admin, pm, team_lead, hr | 1 |

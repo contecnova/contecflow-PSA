@@ -415,10 +415,16 @@ def test_EL_HALLAZGO_el_tiempo_de_espera_de_la_IA_es_un_ajuste(db, monkeypatch):
     from app.services import settings_service
     from app.services.ai_provider_service import espera_de_ia
     monkeypatch.setattr("app.db.session.SessionLocal", lambda: contextlib.nullcontext(db))
+    from app.services.ai_provider_service import clientes as _clientes
+    monkeypatch.setattr(_clientes, "_ESPERAS", {})   # sin lo que dejara otra prueba del proceso
     assert espera_de_ia("AI_LOCAL_HTTP_TIMEOUT_SECONDS") == 120
     settings_service.set_runtime_value(db, "timeouts", "AI_LOCAL_HTTP_TIMEOUT_SECONDS", 300, None)
     db.commit()
     settings_service.invalidate_cache()
+    # Baja (auditoría 22-11-2026): `espera_de_ia` guarda el valor 60 s por clave;
+    # la prueba no espera ese minuto, vacía esa caché.
+    from app.services.ai_provider_service import clientes as _clientes
+    _clientes._ESPERAS.clear()
     assert espera_de_ia("AI_LOCAL_HTTP_TIMEOUT_SECONDS") == 300
 
 

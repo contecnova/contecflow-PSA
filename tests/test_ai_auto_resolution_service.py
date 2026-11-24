@@ -77,9 +77,21 @@ def test_analyze_ticket_uses_persisted_thresholds(db: Session, monkeypatch):
             "threshold_auto": 0.60,
             "threshold_suggest": 0.40,
             "default_job_limit": 20,
+            # Auditoría 22-11-2026 (C-SD2): resolver y publicar solo con la regla
+            # explícita de la empresa (`auto_publish`) y respaldo en la base de
+            # conocimiento; sin ella queda como sugerencia interna. El test mira
+            # los umbrales guardados, así que activa la regla y da un artículo.
+            "auto_publish": True,
         },
     )
     db.commit()
+    from types import SimpleNamespace
+    articulo = SimpleNamespace(id="kb-1", title="Reset", number="KB-1", status="published",
+                               helpful_count=0, body="Restablecer la clave")
+    monkeypatch.setattr(
+        "app.services.service_desk.ai_auto_resolution_service._search_kb",
+        lambda *_a, **_k: [articulo],
+    )
 
     monkeypatch.setattr(
         "app.services.service_desk.ai_auto_resolution_service.call_ai",

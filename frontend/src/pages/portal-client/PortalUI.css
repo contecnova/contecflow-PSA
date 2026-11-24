@@ -373,18 +373,6 @@
   color: var(--text-2);
   margin: 4px 0 0;
 }
-.portui-row-19 {
-  background: var(--surface-3);
-  border: 1px solid var(--surface-4);
-  border-radius: var(--radius-sm);
-  color: var(--text-2);
-  cursor: pointer;
-  width: 28px;
-  height: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
 .portui-row-20 {
   display: flex;
   justify-content: flex-end;

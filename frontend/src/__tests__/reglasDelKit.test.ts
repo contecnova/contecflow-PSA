@@ -61,3 +61,31 @@ tester.run('sin-fieldset-propio', regla('sin-fieldset-propio'), {
     { code: 'const a = <fieldset className="mi-grupo" />', errors: 1 },
   ],
 })
+
+// 23-11-2026: botón de solo icono hecho a mano → IconButton (variante="caja" en tarjetas y filas).
+const LUCIDE = "import { Pencil, Trash2, ChevronUp, ChevronDown } from 'lucide-react'\n"
+tester.run('sin-boton-de-icono-propio', regla('sin-boton-de-icono-propio'), {
+  valid: [
+    { code: LUCIDE + 'const a = <IconButton variante="caja" ariaLabel="Editar"><Pencil size={16} /></IconButton>' },
+    // Icono con texto: es un Button normal.
+    { code: LUCIDE + 'const a = <Button icon={<Pencil />}>Editar</Button>' },
+    { code: LUCIDE + 'const a = <Pulsable className="x"><Pencil /> Editar</Pulsable>' },
+    // Un icono que no es de lucide no cuenta.
+    { code: 'const a = <Pulsable><MiIcono /></Pulsable>' },
+    // Excepción justificada en la línea (el aviso cae en la línea de la etiqueta de
+    // apertura, donde va el comentario). El RuleTester registra la regla como
+    // `rule-to-test/<nombre>`, no como `contec/<nombre>`: con el prefijo de la app la
+    // directiva apunta a una regla que aquí no existe y ESLint da «Definition for rule
+    // not found» (fallo del caso, no de la regla). En la app vale `contec/…`; lo
+    // comprueba `eslint src` con los Pulsable exceptuados (CallPage, GanttChart…).
+    { code: LUCIDE + 'const a = <Pulsable /* eslint-disable-line rule-to-test/sin-boton-de-icono-propio -- excepción: chip */><Trash2 /></Pulsable>' },
+  ],
+  invalid: [
+    { code: LUCIDE + 'const a = <Pulsable aria-label="Editar" className="x-icon-btn"><Pencil size={14} /></Pulsable>', errors: [{ messageId: 'prohibido' }] },
+    { code: LUCIDE + 'const a = <button type="button">\n  <Trash2 />\n</button>', errors: 1 },
+    { code: LUCIDE + 'const a = <Pulsable>{abierto ? <ChevronUp /> : <ChevronDown />}</Pulsable>', errors: 1 },
+    { code: LUCIDE + 'const a = <Button size="sm" variant="ghost" aria-label="Borrar"><Trash2 /></Button>', errors: 1 },
+    // Button sin texto, solo con `icon`.
+    { code: 'const a = <Button size="xs" variant="ghost" icon={<X />} title="Borrar" />', errors: 1 },
+  ],
+})

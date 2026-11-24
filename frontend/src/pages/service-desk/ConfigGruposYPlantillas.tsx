@@ -9,7 +9,7 @@ import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import { useToast } from '../../context/ToastContext'
 import { useAppT } from '../../i18n/AppLangContext'
 import { FileText, Pencil, Plus, Star, Trash2, Users, X } from 'lucide-react'
-import { Button, Spinner, EmptyState, Modal, StatusBadge, Pulsable, Select, Input, Textarea } from '../../components/ui'
+import { Button, Spinner, EmptyState, Modal, StatusBadge, Pulsable, Select, Input, Textarea, IconButton } from '../../components/ui'
 import { sdGroupsApi, sdTemplatesApi } from '../../services/api'
 import { PBadge, etiquetaSd } from './sdUtils'
 import { type Group, LS_BASE, type Member, PRIORITY_LABEL_MAP, type Template, type User } from './ConfigTabComun'
@@ -101,7 +101,7 @@ export function GroupsConfig() {
                   <div key={m.id} className="sdcfg-member">
                     <span className="sdcfg-member__name">{m.full_name}</span>
                     {m.is_lead && <span className="sdcfg-member__lead" role="img" aria-label={t('config.responsable')} title={t('config.responsable')}><Star size={12} aria-hidden="true" /></span>}
-                    <Pulsable onClick={() => quitarMiembro(g.id, m.id, m.full_name ?? '')} aria-label={t('config.quitar_miembro', { name: m.full_name ?? '' })}
+                    <Pulsable /* eslint-disable-line contec/sin-boton-de-icono-propio -- excepción: aspa de quitar dentro de un chip de miembro */ onClick={() => quitarMiembro(g.id, m.id, m.full_name ?? '')} aria-label={t('config.quitar_miembro', { name: m.full_name ?? '' })}
                       title={t('config.quitar_miembro', { name: m.full_name ?? '' })} className="sdcfg-member__remove"><X size={12} aria-hidden="true" /></Pulsable>
                   </div>
                 ))}
@@ -220,8 +220,8 @@ export function TemplatesConfig() {
                 </div>
               </div>
               <div className="sdcfg-row-actions">
-                <Button size="xs" variant="ghost" icon={<Pencil size={12} />} title={`${t('common.edit')} ${tmpl.name}`} onClick={() => setEditing(tmpl)} />
-                <Button size="xs" variant="ghost" icon={<Trash2 size={12} />} title={`${t('common.delete')} ${tmpl.name}`} onClick={() => { openConfirmGlobal({ message: t('config.confirmar_eliminar_plantilla'), onConfirm: () => remove(tmpl.id), danger: true }) }} />
+                <IconButton variante="caja" ariaLabel={`${t('common.edit')} ${tmpl.name}`} onClick={() => setEditing(tmpl)}><Pencil size={12} /></IconButton>
+                <IconButton variante="caja" tono="peligro" ariaLabel={`${t('common.delete')} ${tmpl.name}`} onClick={() => { openConfirmGlobal({ message: t('config.confirmar_eliminar_plantilla'), onConfirm: () => remove(tmpl.id), danger: true }) }}><Trash2 size={12} /></IconButton>
               </div>
             </div>
             {tmpl.default_priority && <div className="sdcfg-tmpl-prio">

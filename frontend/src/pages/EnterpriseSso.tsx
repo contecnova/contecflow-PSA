@@ -6,7 +6,7 @@ import { extractErr } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { enterpriseApi } from '../services/api'
+import { authApi, enterpriseApi } from '../services/api'
 import type { ConfigSso } from '../services/api/tipos'
 import { Button, EmptyState, IconButton, StatusBadge, Select, Checkbox, Input, Textarea } from '../components/ui'
 import { CheckCircle2, KeyRound, Pencil, Plus, Trash2, XCircle } from 'lucide-react'
@@ -33,9 +33,19 @@ export function SSOTab({ showCreate, setShowCreate }: AltaProps) {
     oidc_discovery_url: '', oidc_scopes: 'openid email profile', is_active: true,
     default_role: 'employee', auto_create_users: true, allowed_domains: '',
     groups_claim: 'groups', role_mapping_text: '',
+    // SAML 2.0 (23-11-2026)
+    saml_entity_id: '', saml_sso_url: '', saml_slo_url: '', saml_certificate: '',
+    saml_attribute_email: 'email', saml_attribute_name: 'displayName', saml_attribute_role: '',
   }
   const [form, setForm] = useState(VACIO)
   const [editId, setEditId] = useState<string | null>(null)
+  const [certGuardado, setCertGuardado] = useState(false)
+  const esSaml = form.provider === 'saml'
+  const { data: urlsSp } = useQuery({
+    queryKey: ['saml-sp-urls'],
+    queryFn: () => authApi.samlUrlsDelSp().then(r => r.data),
+    enabled: esSaml && showCreate,
+  })
   const aPayload = (f: typeof VACIO) => {
     const role_mapping: Record<string, string> = {}
     f.role_mapping_text.split('\n').map(l => l.trim()).filter(Boolean).forEach(l => {
@@ -44,6 +54,11 @@ export function SSOTab({ showCreate, setShowCreate }: AltaProps) {
     })
     const { role_mapping_text: _omit, ...resto } = f
     const datos: Record<string, unknown> = { ...resto, role_mapping }
+    const CAMPOS_OIDC = ['oidc_client_id', 'oidc_client_secret', 'oidc_discovery_url', 'oidc_scopes']
+    const CAMPOS_SAML = ['saml_entity_id', 'saml_sso_url', 'saml_slo_url', 'saml_certificate',
+      'saml_attribute_email', 'saml_attribute_name', 'saml_attribute_role']
+    for (const k of (f.provider === 'saml' ? CAMPOS_OIDC : CAMPOS_SAML)) delete datos[k]
+    if (f.provider === 'saml' && !f.saml_certificate) delete datos.saml_certificate
     if (editId) { delete datos.provider; if (!f.oidc_client_secret) delete datos.oidc_client_secret }
     return datos
   }
@@ -72,7 +87,11 @@ export function SSOTab({ showCreate, setShowCreate }: AltaProps) {
       is_active: !!c.is_active, default_role: c.default_role || 'employee', auto_create_users: c.auto_create_users !== false,
       allowed_domains: c.allowed_domains || '', groups_claim: c.groups_claim || 'groups',
       role_mapping_text: Object.entries(c.role_mapping || {}).map(([g, r]) => `${g}=${r}`).join('\n'),
+      saml_entity_id: c.saml_entity_id || '', saml_sso_url: c.saml_sso_url || '', saml_slo_url: c.saml_slo_url || '',
+      saml_certificate: '', saml_attribute_email: c.saml_attribute_email || 'email',
+      saml_attribute_name: c.saml_attribute_name || 'displayName', saml_attribute_role: c.saml_attribute_role || '',
     })
+    setCertGuardado(!!c.has_certificate)
     setShowCreate(true)
   }
 
@@ -97,8 +116,12 @@ export function SSOTab({ showCreate, setShowCreate }: AltaProps) {
     okta:     { label: 'Okta',                discovery: 'https://{your-domain}.okta.com/.well-known/openid-configuration' },
     google:   { label: 'Google Workspace',    discovery: 'https://accounts.google.com/.well-known/openid-configuration' },
     oidc:     { label: t('pagina_ent.oidc_generico'), discovery: 'https://your-idp.com/.well-known/openid-configuration' },
+    saml:     { label: traducir('enterprise.saml_proveedor'), discovery: '' },
   }
-  const cerrarFormulario = () => { setShowCreate(false); setEditId(null); setForm(VACIO) }
+  const cerrarFormulario = () => { setShowCreate(false); setEditId(null); setForm(VACIO); setCertGuardado(false) }
+  const puedeGuardar = esSaml
+    ? !!(form.saml_entity_id && form.saml_sso_url && (form.saml_certificate || certGuardado))
+    : !!form.oidc_client_id
 
 
   return (
@@ -139,6 +162,7 @@ export function SSOTab({ showCreate, setShowCreate }: AltaProps) {
               <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="enterprise-page-e20">{traducir('enterprise.nombre_para_mostrar_en_login')}</label>
               <Input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.name} onChange={e => setForm(f=>({...f,name:e.target.value}))} placeholder={PROVIDER_INFO[form.provider]?.label} inputClassName="enterprise-page-e19" />
             </div>
+            {!esSaml && (<>
             <div>
               <label id={`${idCampo}-et10`} htmlFor={`${idCampo}-10`} className="enterprise-page-e20">{t('pagina_ent.client_id')}</label>
               <Input id={`${idCampo}-10`} aria-labelledby={`${idCampo}-et10`} value={form.oidc_client_id} onChange={e => setForm(f=>({...f,oidc_client_id:e.target.value}))} placeholder={traducir('enterprise.client_id_del_proveedor')} inputClassName="enterprise-page-e19" />
@@ -155,6 +179,46 @@ export function SSOTab({ showCreate, setShowCreate }: AltaProps) {
               <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="enterprise-page-e20">{traducir('enterprise.sso_scopes')}</label>
               <Input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={form.oidc_scopes} onChange={e => setForm(f=>({...f,oidc_scopes:e.target.value}))} inputClassName="enterprise-page-e19" />
             </div>
+            </>)}
+            {esSaml && (<>
+            <div className="u-col-full">
+              <label id={`${idCampo}-et11`} htmlFor={`${idCampo}-11`} className="enterprise-page-e20">{traducir('enterprise.saml_entity_id')}</label>
+              <Input id={`${idCampo}-11`} aria-labelledby={`${idCampo}-et11`} value={form.saml_entity_id} onChange={e => setForm(f=>({...f,saml_entity_id:e.target.value}))} placeholder="https://idp.example.com/metadata" inputClassName="enterprise-page-e19" />
+            </div>
+            <div>
+              <label id={`${idCampo}-et12`} htmlFor={`${idCampo}-12`} className="enterprise-page-e20">{traducir('enterprise.saml_sso_url')}</label>
+              <Input id={`${idCampo}-12`} aria-labelledby={`${idCampo}-et12`} value={form.saml_sso_url} onChange={e => setForm(f=>({...f,saml_sso_url:e.target.value}))} placeholder="https://idp.example.com/sso" inputClassName="enterprise-page-e19" />
+            </div>
+            <div>
+              <label id={`${idCampo}-et13`} htmlFor={`${idCampo}-13`} className="enterprise-page-e20">{traducir('enterprise.saml_slo_url')}</label>
+              <Input id={`${idCampo}-13`} aria-labelledby={`${idCampo}-et13`} value={form.saml_slo_url} onChange={e => setForm(f=>({...f,saml_slo_url:e.target.value}))} placeholder="https://idp.example.com/slo" inputClassName="enterprise-page-e19" />
+            </div>
+            <div className="u-col-full">
+              <label id={`${idCampo}-et14`} htmlFor={`${idCampo}-14`} className="enterprise-page-e20">{traducir('enterprise.saml_certificado')}</label>
+              <Textarea id={`${idCampo}-14`} aria-labelledby={`${idCampo}-et14`} rows={4} value={form.saml_certificate} onChange={e => setForm(f=>({...f,saml_certificate:e.target.value}))} placeholder={certGuardado ? traducir('enterprise.saml_certificado_guardado') : '-----BEGIN CERTIFICATE-----'} inputClassName="ds-codigo enterprise-page-e12" />
+            </div>
+            <div>
+              <label id={`${idCampo}-et15`} htmlFor={`${idCampo}-15`} className="enterprise-page-e20">{traducir('enterprise.saml_attr_email')}</label>
+              <Input id={`${idCampo}-15`} aria-labelledby={`${idCampo}-et15`} value={form.saml_attribute_email} onChange={e => setForm(f=>({...f,saml_attribute_email:e.target.value}))} inputClassName="enterprise-page-e19" />
+            </div>
+            <div>
+              <label id={`${idCampo}-et16`} htmlFor={`${idCampo}-16`} className="enterprise-page-e20">{traducir('enterprise.saml_attr_nombre')}</label>
+              <Input id={`${idCampo}-16`} aria-labelledby={`${idCampo}-et16`} value={form.saml_attribute_name} onChange={e => setForm(f=>({...f,saml_attribute_name:e.target.value}))} inputClassName="enterprise-page-e19" />
+            </div>
+            <div>
+              <label id={`${idCampo}-et17`} htmlFor={`${idCampo}-17`} className="enterprise-page-e20">{traducir('enterprise.saml_attr_rol')}</label>
+              <Input id={`${idCampo}-17`} aria-labelledby={`${idCampo}-et17`} value={form.saml_attribute_role} onChange={e => setForm(f=>({...f,saml_attribute_role:e.target.value}))} inputClassName="enterprise-page-e19" />
+            </div>
+            {urlsSp && (
+              <div className="u-col-full u-text2-xs">
+                <strong className="u-text1">{traducir('enterprise.saml_datos_sp')}</strong><br/>
+                {traducir('enterprise.saml_metadata')}: <code className="ds-codigo">{urlsSp.metadata_url}</code><br/>
+                {traducir('enterprise.saml_acs')}: <code className="ds-codigo">{urlsSp.acs_url}</code><br/>
+                {traducir('enterprise.saml_slo_sp')}: <code className="ds-codigo">{urlsSp.slo_url}</code><br/>
+                {traducir('enterprise.saml_firma_obligatoria')}
+              </div>
+            )}
+            </>)}
             <div>
               <label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} className="enterprise-page-e20">{traducir('enterprise.sso_dominios')}</label>
               <Input id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} value={form.allowed_domains} onChange={e => setForm(f=>({...f,allowed_domains:e.target.value}))} placeholder={t('pagina_ent.empresa_com_filial_es')} inputClassName="enterprise-page-e19" />
@@ -184,7 +248,7 @@ export function SSOTab({ showCreate, setShowCreate }: AltaProps) {
           </div>
           <div className="u-actions-8">
             <Button variant="secondary" onClick={cerrarFormulario}>{t('pagina_ent.cancelar')}</Button>
-            <Button onClick={() => create(aPayload(form))} disabled={!form.oidc_client_id} loading={creating}>
+            <Button onClick={() => create(aPayload(form))} disabled={!puedeGuardar} loading={creating}>
               {creating ? t('pagina_ent.guardando') : t('pagina_ent.guardar_sso')}
             </Button>
           </div>
@@ -206,7 +270,9 @@ export function SSOTab({ showCreate, setShowCreate }: AltaProps) {
                   <div className="ent-box-29">
                     <div className="u-md-700">{c.name || info.label}</div>
                     <div className="u-text2-xs">
-                      {t('pagina_ent.client_id_2')}{' '}{c.oidc_client_id?.slice(0,8)}...
+                      {c.provider === 'saml'
+                        ? (c.saml_entity_id || '').slice(0, 40)
+                        : <>{t('pagina_ent.client_id_2')}{' '}{c.oidc_client_id?.slice(0,8)}...</>}
                       {' '}<StatusBadge kind={c.is_active ? 'success' : 'neutral'}>{c.is_active ? t('pagina_ent.activo') : t('pagina_ent.inactivo')}</StatusBadge>
                     </div>
                     {c.oidc_discovery_url && (
@@ -221,8 +287,8 @@ export function SSOTab({ showCreate, setShowCreate }: AltaProps) {
                   <Button size="sm" variant="secondary" onClick={() => testSSO(c.id)}>
                     {t('pagina_ent.verificar_config')}
                   </Button>
-                  <IconButton onClick={() => editar(c)} ariaLabel={`${traducir('enterprise.sso_editar')} ${c.name || c.provider}`}><Pencil size={14} aria-hidden /></IconButton>
-                  <IconButton className="ent-borrar" ariaLabel={t('pagina_ent.eliminar_2', { v1: c.name || c.provider })} onClick={() => { openConfirmGlobal({ message: t('pagina_ent.eliminar_2', { v1: c.name || c.provider }), onConfirm: () => del(c.id), danger: true }) }}><Trash2 size={14} aria-hidden /></IconButton>
+                  <IconButton variante="caja" onClick={() => editar(c)} ariaLabel={`${traducir('enterprise.sso_editar')} ${c.name || c.provider}`}><Pencil size={14} aria-hidden /></IconButton>
+                  <IconButton variante="caja" tono="peligro" ariaLabel={t('pagina_ent.eliminar_2', { v1: c.name || c.provider })} onClick={() => { openConfirmGlobal({ message: t('pagina_ent.eliminar_2', { v1: c.name || c.provider }), onConfirm: () => del(c.id), danger: true }) }}><Trash2 size={14} aria-hidden /></IconButton>
                 </div>
               </div>
             </div>

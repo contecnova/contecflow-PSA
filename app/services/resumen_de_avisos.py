@@ -59,7 +59,7 @@ def enviar(db: Session, ahora: datetime | None = None) -> int:
         filas = "".join(f"<li><strong>{html.escape(n.title or '')}</strong>"
                         f"{' — ' + html.escape(n.body) if n.body else ''}</li>" for n in pendientes[:maximo])
         resto = len(pendientes) - maximo
-        from app.services.textos_de_salida_servicios_m_z import texto_para
+        from app.services.textos_de_salida import texto_para
 
         def _t(clave, **p):
             return texto_para(db, clave, user_id=usuario.id, org_id=usuario.organization_id, **p)

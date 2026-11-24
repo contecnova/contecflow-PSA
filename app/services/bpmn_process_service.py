@@ -475,7 +475,9 @@ def validar_xml(db: Session, organization_id, xml: str) -> None:
     if tope and tamano > tope:
         raise error(413, "bpm_diagrama_demasiado_grande", bytes=tamano, max=tope)
     try:
-        raiz = fromstring(xml or "")
+        # Revision 23-11-2026: tambien sin DTD (antes solo sin entidades): un
+        # BPMN no necesita DOCTYPE y asi no hay ni XXE ni expansiones.
+        raiz = fromstring(xml or "", forbid_dtd=True, forbid_entities=True, forbid_external=True)
     except Exception as exc:   # ParseError y los rechazos de defusedxml
         raise error(422, "bpm_xml_no_valido", detail=f"El diagrama no es un XML válido: {exc}") from exc
     if raiz.tag != "{http://www.omg.org/spec/BPMN/20100524/MODEL}definitions":
@@ -496,6 +498,7 @@ def serialize_process(p: BPMNProcess, include_versions: bool = False) -> dict:
         "icon": p.icon,
         "owner": p.owner,
         "sla": p.sla,
+        "variables_schema": _esquema(p),
         "source_kind": p.source_kind,
         "source_ref": p.source_ref,
         "latest_version": p.latest_version,
@@ -539,14 +542,29 @@ def anotar_versiones(db: Session, procesos: list[BPMNProcess], *, con_xml: bool 
     return dict(filas)
 
 
+def _esquema(p: BPMNProcess) -> list:
+    from app.services.bpmn_engine import esquema
+    return esquema(p)
+
+
+def estado_de_version(v: BPMNProcessVersion) -> str:
+    """Ciclo de una version: draft (borrador) -> published -> retired."""
+    if v.is_published:
+        return "published"
+    return "retired" if v.retired_at else "draft"
+
+
 def serialize_version(v: BPMNProcessVersion, include_xml: bool = True) -> dict:
     out = {
         "id": v.id,
         "process_id": v.process_id,
         "version": v.version,
         "is_published": v.is_published,
+        "state": estado_de_version(v),
         "notes": v.notes,
         "published_at": v.published_at.isoformat() if v.published_at else None,
+        "published_by_user_id": v.published_by_user_id,
+        "retired_at": v.retired_at.isoformat() if v.retired_at else None,
         "created_at": v.created_at.isoformat() if v.created_at else None,
         "created_by_user_id": v.created_by_user_id,
     }
@@ -671,6 +689,9 @@ def update_metadata(db: Session, process_id: str, **fields) -> Optional[BPMNProc
     for k, val in fields.items():
         if val is None:
             continue
+        if k == "variables_schema":
+            proc.variables_schema = validar_esquema(val)
+            continue
         if k == "status":
             proc.status = BPMNProcessStatus(val)
         elif es_asignable(proc, k):
@@ -681,7 +702,24 @@ def update_metadata(db: Session, process_id: str, **fields) -> Optional[BPMNProc
     return proc
 
 
-def publish_version(db: Session, process_id: str, version: int) -> Optional[BPMNProcessVersion]:
+def validar_esquema(campos) -> Optional[str]:
+    """Las variables declaradas de un proceso (lista), validadas; JSON para guardar."""
+    import json
+    from app.services.bpmn_engine import leer_formulario
+    if not campos:
+        return None
+    try:
+        lista = leer_formulario(json.dumps(campos))
+    except (ValueError, TypeError) as exc:
+        raise error(422, "bpm_esquema_no_valido", detail=f"Variables declaradas no válidas: {exc}") from exc
+    nombres = [c["name"] for c in lista or []]
+    if len(nombres) != len(set(nombres)):
+        raise error(422, "bpm_esquema_no_valido", detail="Variables declaradas repetidas")
+    return json.dumps(lista)
+
+
+def publish_version(db: Session, process_id: str, version: int,
+                    user_id: Optional[str] = None) -> Optional[BPMNProcessVersion]:
     """Publica una version: la que ejecutan las instancias nuevas.
 
     Revision BPM 2026-11-16:
@@ -708,8 +746,36 @@ def publish_version(db: Session, process_id: str, version: int) -> Optional[BPMN
      .update({BPMNProcessVersion.is_published: False}, synchronize_session="fetch"))
     v.is_published = True
     v.published_at = datetime.now(timezone.utc)
+    v.published_by_user_id = user_id
+    v.retired_at = None
+    v.retired_by_user_id = None
     proc = v.process
     proc.status = BPMNProcessStatus.published
+    proc.updated_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(v)
+    return v
+
+
+def retire_version(db: Session, process_id: str, version: int,
+                   user_id: Optional[str] = None) -> Optional[BPMNProcessVersion]:
+    """Retira una version: no arranca instancias nuevas; las que corren en ella siguen.
+
+    Si era la publicada, el proceso se queda sin version que arrancar hasta
+    que se publique otra (`version_ejecutable` da 409).
+    """
+    v = get_version(db, process_id, version)
+    if not v:
+        return None
+    if v.retired_at and not v.is_published:
+        raise error(409, "bpm_version_ya_retirada")
+    v.is_published = False
+    v.retired_at = datetime.now(timezone.utc)
+    v.retired_by_user_id = user_id
+    proc = v.process
+    db.flush()
+    if not any(x.is_published for x in proc.versions):
+        proc.status = BPMNProcessStatus.draft
     proc.updated_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(v)
@@ -725,16 +791,13 @@ def delete_process(db: Session, process_id: str) -> bool:
     # M75 (auditoría 22-11-2026): borrar un proceso cancela sus instancias en
     # curso (como Camunda con «cascade»); antes seguían vivas y con tareas en
     # bandejas de un proceso que ya no existía.
+    # Revision 23-11-2026: con el motor (cierra tambien aprobaciones abiertas
+    # e instancias hijas) y tambien las suspendidas.
     from app.models.bpmn_process import BPMNInstance
-    ahora = datetime.now(timezone.utc)
+    from app.services.bpmn_engine import _cancelar_instancia
     for inst in db.query(BPMNInstance).filter(BPMNInstance.process_id == proc.id,
-                                              BPMNInstance.status == "running").all():
-        for p in inst.steps:
-            if p.status == "active":
-                p.status = "cancelled"
-                p.completed_at = ahora
-        inst.status = "cancelled"
-        inst.ended_at = ahora
+                                              BPMNInstance.status.in_(("running", "suspended"))).all():
+        _cancelar_instancia(db, inst)
     db.commit()
     return True
 
@@ -753,7 +816,7 @@ def duplicate_process(db: Session, process_id: str, *, new_name: str,
     if not src:
         return None
     src_xml = get_latest_version(db, process_id)
-    return create_process(
+    copia = create_process(
         db, name=new_name, category=src.category,
         key=clave_unica(db, slugify(new_name), organization_id),
         description=src.description, icon=src.icon, owner=src.owner, sla=src.sla,
@@ -762,6 +825,10 @@ def duplicate_process(db: Session, process_id: str, *, new_name: str,
         created_by_user_id=created_by_user_id,
         is_seeded=False, source_kind="custom", source_ref=src.key,
     )
+    if src.variables_schema:
+        copia.variables_schema = src.variables_schema
+        db.commit()
+    return copia
 
 
 # ── Seeding ───────────────────────────────────────────────────────────────────

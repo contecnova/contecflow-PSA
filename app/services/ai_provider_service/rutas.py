@@ -22,6 +22,8 @@ MODULOS_DE_IA = {
     "document_summary": "Resumen de documentos",
     "contract_intelligence": "Contratos",
     "meeting_assistant": "Reuniones",
+    "notebook": "Mi cuaderno: resumir, extraer tareas y ordenar ideas",
+    "ticket_pr": "Del ticket al PR: agente de código (plan y build)",
     "bi_storytelling": "Narrativa de BI",
     "ask_the_data": "Preguntas sobre los datos (SQL)",
     "semantic_assign": "Asignación semántica (desempate)",

@@ -77,8 +77,9 @@ export function CreateTaskModal({ open, onClose, projects }: { open: boolean; on
           item_id: newTask.id,
           item_title: newTask.title || '',
           suggested_user_id: pendingSuggestion.suggested_user_id,
-          accepted_user_id: pendingSuggestion.suggested_user_id,
-          was_accepted: true,
+          // 23-11-2026: la persona con la que se creó de verdad; si no es la sugerida,
+          // el servidor la registra como rechazada; si lo es, queda pendiente hasta cerrar.
+          accepted_user_id: newTask.assignee_id || null,
           confidence: pendingSuggestion.confidence,
           needs_review: pendingSuggestion.needs_review,
           engine_mode: pendingSuggestion.engine_mode,
@@ -215,7 +216,7 @@ export function CreateTaskModal({ open, onClose, projects }: { open: boolean; on
             </div>
             <div className="u-row-6">
               <Button size="sm" onClick={acceptSuggestion}>{t('tasks.ai_apply')}</Button>
-              <IconButton className="tsk-icon-btn" onClick={() => { setSemSuggestion(null); setSemEffort(null) }} ariaLabel={t('tasks.descartar_sugerencia')}><X size={14} aria-hidden /></IconButton>
+              <IconButton variante="caja" onClick={() => { setSemSuggestion(null); setSemEffort(null) }} ariaLabel={t('tasks.descartar_sugerencia')}><X size={14} aria-hidden /></IconButton>
             </div>
           </div>
         )}

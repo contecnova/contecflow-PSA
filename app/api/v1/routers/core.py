@@ -87,3 +87,10 @@ router.include_router(cmdb_software.router, prefix="/cmdb/software", tags=["CMDB
 # Índice de riesgo y gestión de vulnerabilidades (rev. 194, 22-11-2026).
 from app.api.v1.endpoints import cmdb_riesgo  # noqa: E402
 router.include_router(cmdb_riesgo.router, prefix="/cmdb/software/risk", tags=["Índice de riesgo y vulnerabilidades"])
+# «Mi cuaderno»: notas personales tipo OneNote (rev. 202, 23-11-2026, docs/CUADERNO.md).
+from app.api.v1.endpoints import cuaderno  # noqa: E402
+router.include_router(cuaderno.router, prefix="/notebook", tags=["Mi cuaderno"])
+# «Del ticket al PR»: agente de código que propone un PR (rev. 203, 23-11-2026,
+# docs/integraciones/TICKET_A_PR.md). Módulo opcional por empresa, apagado por defecto.
+from app.api.v1.endpoints import ticket_a_pr  # noqa: E402
+router.include_router(ticket_a_pr.router, prefix="/ticket-pr", tags=["Del ticket al PR"])

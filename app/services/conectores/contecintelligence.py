@@ -141,8 +141,40 @@ def verificar_recibo(db: Session, usuario, receipt_id: str) -> dict:
     return r.json()
 
 
+def origenes_incrustables() -> list[str]:
+    """Los orígenes de `CONTECINTELLIGENCE_EMBED_ORIGINS` bien formados (esquema://host[:puerto]).
+
+    Lo usa la CSP (`app/main.py`, `connect-src`): un valor con espacios, `;` o
+    ruta se descarta, para que el ajuste no pueda inyectar directivas.
+    """
+    import re
+    from app.core.config import settings
+    validos = []
+    for o in (getattr(settings, "CONTECINTELLIGENCE_EMBED_ORIGINS", "") or "").split(","):
+        o = o.strip().rstrip("/")
+        if re.fullmatch(r"https?://[A-Za-z0-9.-]+(:[0-9]{1,5})?", o):
+            validos.append(o)
+    return validos
+
+
+def _origen(url: str) -> str:
+    from urllib.parse import urlsplit
+    p = urlsplit(url or "")
+    return f"{p.scheme}://{p.netloc}" if p.scheme and p.netloc else ""
+
+
 def token_para_componentes(db: Session, usuario, source_id: Optional[str] = None) -> dict:
-    """Token acotado para `<ci-chat>` / `<ci-metric>` en el navegador. La credencial no sale de aquí."""
+    """Token acotado para los componentes incrustables. La credencial no sale de aquí.
+
+    23-11-2026: `incrustable` dice si el navegador puede llamar al origen de
+    `base_url` (está en `CONTECINTELLIGENCE_EMBED_ORIGINS`, y por tanto en la CSP).
+    Sin él no se pide token: no tendría uso y saldría del servidor para nada.
+    """
+    cfg = configuracion(db, CONTECINTELLIGENCE, usuario.organization_id)
+    origen = _origen(cfg["base_url"])
+    if origen not in origenes_incrustables():
+        return {"incrustable": False, "origen": origen, "access_token": None, "expires_in": 0,
+                "base_url": cfg["base_url"]}
     extra = {"source_id": source_id} if source_id else None
     token, ttl, base = token_delegado(db, CONTECINTELLIGENCE, usuario, COMPONENTES, extra=extra)
-    return {"access_token": token, "expires_in": ttl, "base_url": base}
+    return {"incrustable": True, "origen": origen, "access_token": token, "expires_in": ttl, "base_url": base}

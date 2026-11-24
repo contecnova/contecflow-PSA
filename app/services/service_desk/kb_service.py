@@ -184,6 +184,11 @@ def apply_kb_article_update(
     if before != after and getattr(article.status, "value", article.status) == KBStatus.published.value:
         from app.services.service_desk.kb_sugerencias import refrescar_vector
         refrescar_vector(article, db=db)
+    if (getattr(before["status"], "value", before["status"]) != KBStatus.published.value
+            and getattr(article.status, "value", article.status) == KBStatus.published.value):
+        # 23-11-2026: cierra las preguntas sin respuesta enlazadas (y sus tareas).
+        from app.services.service_desk.kb_calidad import cerrar_al_publicar
+        cerrar_al_publicar(db, article, changed_by_user_id)
     if before != after:
         _snapshot_kb_version(
             db=db,
@@ -380,6 +385,9 @@ def revisar(db: Session, article: KBArticle, user: User, publicar: bool, comenta
         article.status = KBStatus.published
         article.published_at = article.published_at or datetime.now(timezone.utc)
         refrescar_vector(article, db=db)
+        # 23-11-2026: cierra las preguntas sin respuesta enlazadas (y sus tareas).
+        from app.services.service_desk.kb_calidad import cerrar_al_publicar
+        cerrar_al_publicar(db, article, user.id)
     else:
         article.status = KBStatus.draft
     if article.author_id and article.author_id != user.id:

@@ -286,7 +286,12 @@ def test_una_etiqueta_de_dia_invalida_no_coincide():
 
 
 def test_el_dia_de_la_semana_se_calcula_del_created_at():
-    assert _aplica({"day_of_week": "saturday"}, _ticket(created_at=SABADO_23H))[0] is True
+    # Auditoria 22-11-2026 (4.3): el dia se calcula en la zona de la empresa
+    # (`DEFAULT_TIMEZONE`). El sabado a las 23:30 UTC ya es domingo en Madrid;
+    # el mediodia UTC es sabado en cualquier zona razonable.
+    sabado_mediodia = datetime(2026, 8, 29, 12, 0, tzinfo=timezone.utc)
+    assert _aplica({"day_of_week": "saturday"}, _ticket(created_at=sabado_mediodia))[0] is True
+    assert _aplica({"day_of_week": "sunday"}, _ticket(created_at=sabado_mediodia))[0] is False
 
 
 def test_el_cliente_se_toma_del_solicitante_si_el_ticket_no_lo_trae():

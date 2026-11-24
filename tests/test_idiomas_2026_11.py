@@ -47,8 +47,9 @@ def test_EL_HALLAZGO_el_portal_recibe_sus_traducciones(client, admin_token):
     r = client.post("/api/v1/portal/translations", headers=auth(admin_token), json={"en": {"nav_dashboard": "Home"}})
     assert r.status_code == 200, r.text
     pid = _create_project(client, admin_token, "IDI1", "Idiomas")
-    _create_portal_client(client, admin_token, [pid], "idiomas@cliente.com", "Portal-Idiomas-2026!")
+    # La política del portal rechaza claves con trozos del correo o del nombre («Portal …»).
+    _create_portal_client(client, admin_token, [pid], "idiomas@cliente.com", "Kq7!mZ2pLx9w-2026")
     client.cookies.clear()
-    _portal_login(client, "idiomas@cliente.com", "Portal-Idiomas-2026!")
+    _portal_login(client, "idiomas@cliente.com", "Kq7!mZ2pLx9w-2026")
     marca = client.get("/api/v1/portal/branding").json()["data"]
     assert marca["translations"] == {"en": {"nav_dashboard": "Home"}}

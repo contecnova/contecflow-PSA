@@ -31,6 +31,7 @@ from app.services.task_service import (
     bulk_update_dates_record,
     record_reassign_feedback_bg,
     refresh_profile_bg as _refresh_profile_bg,
+    cierre_semantico_bg as _cierre_semantico_bg,
     list_task_dependencies as svc_list_task_dependencies,
     create_task_dependency as svc_create_task_dependency,
     delete_task_dependency as svc_delete_task_dependency,
@@ -308,11 +309,13 @@ def update_task(
     # Background: refresh semantic profile when task is done
     if payload.status == TaskStatus.done and task.assignee_id:
         _refresh_profile_bg(background_tasks, db, task.assignee_id)
+        # 23-11-2026: historial del nivel 3 y veredicto de la sugerencia de la IA.
+        _cierre_semantico_bg(background_tasks, db, task_id)
 
     # Background: record reassignment feedback for active learning
     if (payload.assignee_id and old_assignee_id
             and payload.assignee_id != old_assignee_id):
-        record_reassign_feedback_bg(background_tasks, db, task_id, "task")
+        record_reassign_feedback_bg(background_tasks, db, task_id, "task", nuevo_user_id=payload.assignee_id)
 
     return APIResponse.ok(data=task)
 

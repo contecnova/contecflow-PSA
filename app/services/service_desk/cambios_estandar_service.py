@@ -376,17 +376,78 @@ def anotar_uso(change: ITSMChangeRequest) -> None:
         modelo.use_count = (modelo.use_count or 0) + 1
 
 
-def anotar_cierre(db: Session, change: ITSMChangeRequest, exito: bool, usuario: Optional[User]) -> None:
-    """Suma el cierre al modelo y lo suspende si su tasa de fallo pasa del umbral."""
+def _modelo_del_cambio(db: Session, change: ITSMChangeRequest) -> Optional[StandardChangeModel]:
     if _valor(change.change_type) != ChangeType.standard.value or not change.standard_model_id:
-        return
-    modelo = db.get(StandardChangeModel, change.standard_model_id)
-    if modelo is None:
+        return None
+    return db.get(StandardChangeModel, change.standard_model_id)
+
+
+def _pir_ya_contada(db: Session, change: ITSMChangeRequest) -> bool:
+    """Una PIR «fallo» aprobada ya sumó su fallo al modelo (migración 206, docs/PIR.md)."""
+    from app.models.pir import PirRevision
+    try:
+        with db.begin_nested():   # sin la migración 206 aplicada, el cierre sigue contando como siempre
+            return db.query(PirRevision.id).filter(PirRevision.change_id == change.id,
+                                                   PirRevision.cuenta_en_modelo.is_(True)).first() is not None
+    except Exception:
+        import logging
+        logging.getLogger(__name__).warning("_pir_ya_contada: sin tabla de PIR", exc_info=True)
+        return False
+
+
+def anotar_cierre(db: Session, change: ITSMChangeRequest, exito: bool, usuario: Optional[User]) -> None:
+    """Suma el cierre al modelo y lo suspende si su tasa de fallo pasa del umbral.
+
+    Si una PIR «fallo» ya contó el fallo de este cambio, el cierre no suma nada
+    (el cambio es UN resultado para el modelo, no dos)."""
+    modelo = _modelo_del_cambio(db, change)
+    if modelo is None or _pir_ya_contada(db, change):
         return
     if exito:
         modelo.success_count = (modelo.success_count or 0) + 1
     else:
         modelo.failure_count = (modelo.failure_count or 0) + 1
+    _evaluar_suspension(db, modelo, usuario)
+
+
+def anotar_fallo_de_pir(db: Session, change: ITSMChangeRequest, usuario: Optional[User]) -> bool:
+    """Una PIR aprobada con resultado «fallo» cuenta como fallo del modelo (migración 206).
+
+    - Cerrado como fallo: ya contó al cerrarse; no se suma otra vez (False).
+    - Cerrado como éxito: el éxito del cierre pasa a ser un fallo.
+    - Sin cerrar: suma el fallo; el cierre posterior ya no suma (`_pir_ya_contada`).
+    Devuelve si sumó (la PIR lo recuerda en `cuenta_en_modelo` para poder deshacerlo).
+    """
+    modelo = _modelo_del_cambio(db, change)
+    if modelo is None:
+        return False
+    estado = _valor(change.status)
+    if estado == "closed_failed":
+        return False
+    if estado == "closed_success" and (modelo.success_count or 0) > 0:
+        modelo.success_count = (modelo.success_count or 0) - 1
+    modelo.failure_count = (modelo.failure_count or 0) + 1
+    _auditar(db, usuario, "fallo_por_pir", modelo, {"cambio": change.number, "tasa_de_fallo": tasa_de_fallo(modelo)})
+    _evaluar_suspension(db, modelo, usuario)
+    return True
+
+
+def deshacer_fallo_de_pir(db: Session, change: ITSMChangeRequest, usuario: Optional[User]) -> None:
+    """Al reabrir o borrar la PIR que sumó el fallo: se devuelve lo que había.
+    Si el cambio se cerró como fallo después, ese fallo es ya el del cierre y se queda."""
+    modelo = _modelo_del_cambio(db, change)
+    if modelo is None:
+        return
+    estado = _valor(change.status)
+    if estado == "closed_failed":
+        return
+    modelo.failure_count = max(0, (modelo.failure_count or 0) - 1)
+    if estado == "closed_success":
+        modelo.success_count = (modelo.success_count or 0) + 1
+    _auditar(db, usuario, "fallo_por_pir_deshecho", modelo, {"cambio": change.number})
+
+
+def _evaluar_suspension(db: Session, modelo: StandardChangeModel, usuario: Optional[User]) -> None:
     if modelo.status != ESTADO_MODELO_APROBADO:
         return
     cierres = (modelo.success_count or 0) + (modelo.failure_count or 0)

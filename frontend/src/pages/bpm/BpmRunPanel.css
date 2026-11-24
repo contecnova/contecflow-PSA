@@ -51,3 +51,22 @@
 }
 
 /* <<< estilos-en-linea */
+
+/* Revision BPM 23-11-2026: diagrama de la instancia con marcas, metricas y formulario. */
+.bpm-diagrama { display: flex; flex-direction: column; gap: 6px; }
+.bpm-diagrama__lienzo { height: 320px; border: 1px solid var(--surface-4); border-radius: var(--radius-md); background: var(--surface-1); }
+.bpm-diagrama__lienzo--bajo { height: 240px; }
+.bpm-diagrama__leyenda { display: flex; gap: 12px; flex-wrap: wrap; font-size: var(--text-xs); color: var(--text-2); }
+.bpm-leyenda::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: middle; }
+.bpm-leyenda--activo::before { background: var(--warning); }
+.bpm-leyenda--hecho::before { background: var(--success); }
+.bpm-leyenda--incidente::before { background: var(--danger); }
+.bpm-marca-hecho .djs-visual > :nth-child(1) { stroke: var(--success) !important; }
+.bpm-marca-activo .djs-visual > :nth-child(1) { stroke: var(--warning) !important; stroke-width: 3px !important; }
+.bpm-marca-incidente .djs-visual > :nth-child(1) { stroke: var(--danger) !important; stroke-width: 3px !important; }
+.bpm-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
+.bpm-vencida { color: var(--danger); font-weight: 600; }
+.bpm-acciones-instancia { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.bpm-campos { display: grid; gap: 10px; }
+.bpm-propiedades { display: grid; gap: 10px; padding: 12px; border: 1px solid var(--surface-4); border-radius: var(--radius-md); background: var(--surface-2); }
+.bpm-fila-variable { display: grid; grid-template-columns: 2fr 1.4fr auto auto auto; gap: 8px; align-items: end; }

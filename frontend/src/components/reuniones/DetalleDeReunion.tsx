@@ -14,7 +14,7 @@ import type { ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   AlertTriangle, Bot, Briefcase, Building2, CalendarDays, CheckCircle2, Clock, FileDown, FileText, HelpCircle,
-  History, Languages, Lock, Pencil, RefreshCw, Send, ShieldAlert, Sparkles, Trash2,
+  History, Languages, Lock, NotebookPen, Pencil, RefreshCw, Send, ShieldAlert, Sparkles, Trash2,
 } from 'lucide-react'
 import {
   Button, Card, ClientSelect, FormField, Input, Modal, ProjectSelect, Section, Select, Spinner,
@@ -25,6 +25,9 @@ import { confirmar } from '../../context/ConfirmContext'
 import { downloadBlob, extractErr, fmtDate, fmtDateTime } from '../../utils/helpers'
 import { LANGUAGES } from '../../i18n/portalTranslations'
 import { reunionesApi } from '../../services/api/reuniones'
+import { cuadernoApi } from '../../services/api/cuaderno'
+import { useAuth } from '../../context/AuthContext'
+import { useNavigate } from 'react-router-dom'
 import type { FormatoTranscripcion, ReunionDetalle } from '../../services/api/reuniones'
 import { CLAVES, EstadoDeReunion, OrigenDeReunion, REFRESCO_EN_CURSO_MS, enCurso } from './comun'
 import AccionesDeReunion from './AccionesDeReunion'
@@ -129,6 +132,14 @@ export default function DetalleDeReunion({ id, segmentoResaltado, onBorrada }: P
   const reprocesar = useMutation({ mutationFn: () => reunionesApi.reprocesar(id), onSuccess: () => { toast.success(t('reuniones.detalle.reprocesando')); refrescar() }, onError: alFallar })
   const acta = useMutation({ mutationFn: () => reunionesApi.generarActa(id), onSuccess: () => { toast.success(t('reuniones.detalle.acta_generada')); refrescar() }, onError: alFallar })
   const sacarBot = useMutation({ mutationFn: () => reunionesApi.sacarBot(id), onSuccess: refrescar, onError: alFallar })
+  // «Mi cuaderno» (migración 202): resumen y acciones a una página nueva del cuaderno de quien lo pide.
+  const { puede } = useAuth()
+  const navigate = useNavigate()
+  const aCuaderno = useMutation({
+    mutationFn: () => cuadernoApi.desdeReunion(id),
+    onSuccess: r => { toast.success(t('reuniones.detalle.enviada_al_cuaderno')); navigate(`/notebook?page=${r.page_id}`) },
+    onError: alFallar,
+  })
   const eliminar = useMutation({
     mutationFn: () => reunionesApi.borrar(id),
     onSuccess: () => { toast.success(t('reuniones.detalle.borrada')); qc.invalidateQueries({ queryKey: CLAVES.lista }); onBorrada?.() },
@@ -177,6 +188,12 @@ export default function DetalleDeReunion({ id, segmentoResaltado, onBorrada }: P
           </div>
         </div>
         <div className="reu-cab__botones">
+          {puede('cuaderno.usar') && (
+            <Button size="sm" variant="secondary" icon={<NotebookPen size={14} />} loading={aCuaderno.isPending} onClick={() => aCuaderno.mutate()}
+              disabled={r.status !== 'lista'}>
+              {t('reuniones.detalle.enviar_al_cuaderno')}
+            </Button>
+          )}
           {gestor && <Button size="sm" variant="secondary" icon={<Pencil size={14} />} onClick={() => setEditar(true)}>{t('reuniones.detalle.editar')}</Button>}
           {gestor && (
             <Button size="sm" variant="secondary" icon={<FileText size={14} />} loading={acta.isPending} onClick={() => acta.mutate()}

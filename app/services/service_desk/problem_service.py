@@ -154,7 +154,7 @@ def link_ticket_to_problem_record(db: Session, current_user: User, problem_id: s
 
 def _t(db: Session, clave: str, org_id=None, user_id=None, **datos) -> str:
     """Texto de este servicio en el idioma del usuario o de la empresa."""
-    from app.services.textos_de_salida_servicios_m_z import texto_para
+    from app.services.textos_de_salida import texto_para
     return texto_para(db, clave, user_id=user_id, org_id=org_id, **datos)
 
 

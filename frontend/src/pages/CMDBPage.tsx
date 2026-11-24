@@ -352,9 +352,8 @@ export default function CMDBPage(): JSX.Element {
                       <div className="u-row-6">
                         <IconButton onClick={() => setHistoryItem(item)} ariaLabel={t('cmdb.ver_historial_de_cambios')}><History size={14} /></IconButton>
                         <IconButton onClick={() => setRelItem(item)} ariaLabel={t('cmdb.relationships')}><Link2 size={14} /></IconButton>
-                        <IconButton onClick={() => { setEditing(item); setShowForm(true) }} ariaLabel={t('cmdb.edit_ci')}><Pencil size={14} /></IconButton>
-                        <IconButton onClick={() => openConfirmGlobal({ message: t('cmdb.delete_ci_q', { name: item.name ?? '' }), onConfirm: () => deleteItem(item.id), danger: true })}
-                          className="cmdb-del" ariaLabel={t('cmdb.delete_ci')}><Trash2 size={14} /></IconButton>
+                        <IconButton variante="caja" onClick={() => { setEditing(item); setShowForm(true) }} ariaLabel={t('cmdb.edit_ci')}><Pencil size={14} /></IconButton>
+                        <IconButton variante="caja" tono="peligro" onClick={() => openConfirmGlobal({ message: t('cmdb.delete_ci_q', { name: item.name ?? '' }), onConfirm: () => deleteItem(item.id), danger: true })} ariaLabel={t('cmdb.delete_ci')}><Trash2 size={14} /></IconButton>
                       </div>
                     </td>
                   </tr>

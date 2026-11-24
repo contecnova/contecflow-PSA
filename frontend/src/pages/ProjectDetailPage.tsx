@@ -342,6 +342,8 @@ const FinanzasDelProyecto = lazy(() => import('../components/planificador/Finanz
 const PanelValorGanado = lazy(() => import('../components/planificador/PanelValorGanado'))
 const PanelIaDelProyecto = lazy(() => import('../components/planificador/PanelIaDelProyecto'))
 const VistasDeTrabajo = lazy(() => import('../components/planificador/VistasDeTrabajo'))
+// Migración 206 (docs/PIR.md): PIR de la puesta en marcha y del cierre del proyecto.
+const SeccionPir = lazy(() => import('../components/pir/SeccionPir'))
 
 export default function ProjectDetailPage() {
   const t = useAppT()
@@ -367,6 +369,7 @@ export default function ProjectDetailPage() {
     { id: 'ai',        label: t('planificador.tab_ia'),         icon: Brain, render: pid => <PanelIaDelProyecto projectId={pid} /> },
     { id: 'documents', label: t('project_detail.tab_documents'), icon: FileText },
     { id: 'lessons',   label: t('project_detail.tab_lessons'), icon: Lightbulb },
+    { id: 'pir',       label: t('pir.tab_proyecto'),            icon: ShieldCheck, render: pid => <SeccionPir origen="project" origenId={pid} /> },
     { id: 'tech',      label: t('project_detail.tab_tech_resources'), icon: Laptop },
   ].filter(p => p.visible !== false)
   const STATUS_CFG: Record<string, { color: string; label: string }> = cfgDeEstadoDeProyecto(t)

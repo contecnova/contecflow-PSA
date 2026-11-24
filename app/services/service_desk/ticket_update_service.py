@@ -273,6 +273,10 @@ def cambiar_estado_por_automatismo(db: Session, ticket: Ticket, estado: str, *, 
     audit_log(db, actor, "UPDATE", "tickets", ticket.id, ticket.number,
               old_values={"status": antes}, new_values={"status": destino},
               metadata={"origen": origen, **(metadatos or {})})
+    # 23-11-2026: historial del nivel 3 (texto y quien lo resolvio), como el PATCH.
+    if destino in ESTADOS_DE_TICKET_RESUELTOS:
+        from app.services.service_desk.semantic_feedback_service import registrar_cierre_semantico
+        registrar_cierre_semantico(db, ticket)
     return True
 
 

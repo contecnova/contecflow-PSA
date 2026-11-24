@@ -10,7 +10,7 @@ import { confirmar } from '../../context/ConfirmContext'
 import { collabApi } from '../../services/collaborationApi'
 import { useAppLang } from '../../i18n/AppLangContext'
 import { extractErr } from '../../utils/helpers'
-import { Buscador, useDialogoEditable, Button, Tabs, Pulsable, Select, Input } from '../../components/ui'
+import { Buscador, useDialogoEditable, Button, Tabs, Pulsable, Select, Input, IconButton } from '../../components/ui'
 import { MENTION_SUGGESTIONS_LIMIT, MENTION_SUGGESTIONS_MEMBERS_LIMIT } from '../../constants/pagination'
 import { type Conv, type Member, type MentionSuggestions, type NotificationRule, type Team, type UserLike } from './compartido'
 
@@ -107,7 +107,7 @@ export function NewConversationModal({ onClose, onCreated }: { onClose: () => vo
         className="chat-modal">
         <div className="chat-modal__head">
           <h2 id={tituloId} className="u-md-700 chat-reset-h">{traducir('chat.nueva_conversacion')}</h2>
-          <Pulsable type="button" onClick={pedirCierre} className="chat-icon-close" aria-label={traducir('chat.close')}><X size={14} aria-hidden="true" /></Pulsable>
+          <IconButton variante="caja" onClick={pedirCierre} ariaLabel={traducir('chat.close')}><X size={14} aria-hidden="true" /></IconButton>
         </div>
         <div className="chat-modal-tabs">
           <Tabs
@@ -166,7 +166,7 @@ export function NewConversationModal({ onClose, onCreated }: { onClose: () => vo
             <div className="chat-chips">
               {selectedUsers.map(u => (
                 <span key={u.id} className="chat-chip">
-                  {u.full_name || u.username} <Pulsable type="button" onClick={() => toggleUser(u)} className="chat-chip__remove" aria-label={traducir('chat.remove_name', { name: u.full_name || u.username || '' })}><X size={11} aria-hidden="true" /></Pulsable>
+                  {u.full_name || u.username} <Pulsable /* eslint-disable-line contec/sin-boton-de-icono-propio -- excepción: aspa de quitar dentro de un chip */ type="button" onClick={() => toggleUser(u)} className="chat-chip__remove" aria-label={traducir('chat.remove_name', { name: u.full_name || u.username || '' })}><X size={11} aria-hidden="true" /></Pulsable>
                 </span>
               ))}
             </div>
@@ -247,9 +247,9 @@ export function AddGroupMembersModal({ conv, existingUserIds, onClose, onAdded }
       >
         <div className="u-row-between">
           <h2 id={tituloId} className="u-md-700 chat-reset-h">{traducir('chat.anadir_miembros_a')} {conv.title || traducir('chat.group_fallback')}</h2>
-          <Pulsable type="button" onClick={pedirCierre} className="chat-icon-close" aria-label={traducir('chat.close')}>
+          <IconButton variante="caja" onClick={pedirCierre} ariaLabel={traducir('chat.close')}>
             <X size={16} aria-hidden="true" />
-          </Pulsable>
+          </IconButton>
         </div>
         <Buscador
           autoFocus
@@ -264,7 +264,7 @@ export function AddGroupMembersModal({ conv, existingUserIds, onClose, onAdded }
             {picked.map(u => (
               <span key={u.id} className="chat-addm__chip">
                 {u.full_name || u.username}
-                <Pulsable type="button" onClick={() => togglePick(u)} className="chat-addm__chip-x" aria-label={traducir('chat.remove_name', { name: u.full_name || u.username || '' })}>
+                <Pulsable /* eslint-disable-line contec/sin-boton-de-icono-propio -- excepción: aspa de quitar dentro de un chip */ type="button" onClick={() => togglePick(u)} className="chat-addm__chip-x" aria-label={traducir('chat.remove_name', { name: u.full_name || u.username || '' })}>
                   <X size={11} aria-hidden="true" />
                 </Pulsable>
               </span>

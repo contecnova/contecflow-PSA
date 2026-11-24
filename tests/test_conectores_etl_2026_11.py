@@ -116,7 +116,9 @@ def test_EL_HALLAZGO_la_fuente_rest_generica_extrae_por_data_path(client, admin_
 def test_una_url_interna_no_se_pide(client, admin_token):
     client.post(f"{URL}/sources", headers=auth(admin_token), json={"nombre": "Interna", "config": {"endpoint_url": "https://127.0.0.1/admin"}})
     p = client.post(f"{URL}/connectors/rest.interna/test", headers=auth(admin_token)).json()["data"]
-    assert p["ok"] is False and "private" in p["error"]
+    # 23-11-2026 (validador único de URLs salientes): el motivo sale con el texto
+    # común («apunta a una red no permitida»), no con el «private» del validador viejo.
+    assert p["ok"] is False and "red no permitida" in p["error"]
 
 
 def test_cada_organizacion_ve_sus_fuentes(db):

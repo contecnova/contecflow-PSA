@@ -19,6 +19,7 @@ Los triggers se instalan con la migración (`instalar(conexion)`), no con
 la inmutabilidad los instala en su propia base.
 """
 from __future__ import annotations
+import logging
 
 from sqlalchemy import text
 
@@ -111,6 +112,7 @@ def instalados(conexion) -> bool:
                 "AND name IN ('audit_logs_no_update','audit_logs_no_delete')")).scalar()
         return int(n or 0) == 2
     except Exception:
+        logging.getLogger(__name__).warning("instalados: excepcion ignorada", exc_info=True)
         return False
 
 

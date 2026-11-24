@@ -472,11 +472,10 @@ function WikiTagsInline() {
               <div className="wk-tag-dot" style={{ '--wk-color': tag.color || 'var(--text-2)' } as CSSProperties} aria-hidden="true"/>
               <span className="u-text1-base-600">{tag.name}</span>
               <span className="u-text2-xs">{tag.page_count} {traducir('wiki.paginas')}</span>
-              <IconButton onClick={()=>{setEditing(tag);setForm({name:tag.name||'',color:tag.color||'var(--accent)'});setShowForm(true)}}
+              <IconButton variante="caja" onClick={()=>{setEditing(tag);setForm({name:tag.name||'',color:tag.color||'var(--accent)'});setShowForm(true)}}
                 ariaLabel={traducir('wiki.editar_etiqueta_n', { nombre: tag.name ?? '' })} title={traducir('wiki.editar_etiqueta')}><Pencil size={13} /></IconButton>
-              <IconButton onClick={()=>{ openConfirmGlobal({ message: traducir('wiki.confirmar_eliminar_etiqueta'), onConfirm: () => del(tag.id), danger: true }) }}
-                ariaLabel={traducir('wiki.eliminar_etiqueta_n', { nombre: tag.name ?? '' })} title={traducir('wiki.eliminar_etiqueta')}
-                className="wk-danger"><Trash2 size={13} /></IconButton>
+              <IconButton variante="caja" tono="peligro" onClick={()=>{ openConfirmGlobal({ message: traducir('wiki.confirmar_eliminar_etiqueta'), onConfirm: () => del(tag.id), danger: true }) }}
+                ariaLabel={traducir('wiki.eliminar_etiqueta_n', { nombre: tag.name ?? '' })} title={traducir('wiki.eliminar_etiqueta')}><Trash2 size={13} /></IconButton>
             </div>
           ))}
         </div>
@@ -647,8 +646,8 @@ export default function WikiPage() {
                       <Button variant="secondary" icon={<Pencil size={14} />} onClick={()=>{setEditPage(page);setPageModal(true)}}>{traducir('wiki.editar')}</Button>
                       <Button variant="secondary" icon={<Play size={14} />} onClick={()=>setPresentMode(true)}>{traducir('wiki.presentar')}</Button>
                       <Button variant="secondary" icon={<History size={14} />} onClick={()=>setShowHistory(true)}>{traducir('wiki.historial')}</Button>
-                      <IconButton onClick={()=>{ openConfirmGlobal({ message: traducir('wiki.confirmar_eliminar_pagina', { titulo: page.title }), onConfirm: () => deletePage(page.id), danger: true }) }}
-                        ariaLabel={traducir('wiki.delete_page')} className="wk-danger"><Trash2 size={15} /></IconButton>
+                      <IconButton variante="caja" tono="peligro" onClick={()=>{ openConfirmGlobal({ message: traducir('wiki.confirmar_eliminar_pagina', { titulo: page.title }), onConfirm: () => deletePage(page.id), danger: true }) }}
+                        ariaLabel={traducir('wiki.delete_page')}><Trash2 size={15} /></IconButton>
                     </div>
                   </div>
                   <div className="wk-page-body">

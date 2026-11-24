@@ -6,7 +6,7 @@ import { useAppLang, useAppT } from '../../i18n/AppLangContext'
 import { useState, useId } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { performanceApi } from '../../services/api'
-import { Button, Checkbox, Modal, Select, Spinner, Input } from '../../components/ui'
+import { Button, Checkbox, Modal, Select, Spinner, Input, IconButton } from '../../components/ui'
 import { Plus, Save, Pencil, Trash2, ListChecks } from 'lucide-react'
 import { useToast } from '../../context/ToastContext'
 import { confirmar } from '../../context/ConfirmContext'
@@ -78,15 +78,15 @@ export function QuestionsEditor({ cycleId, cycleStatus }: { cycleId: string; cyc
                 </div>
               </div>
               {editable && (
-                <div className="perf-row-3">
-                  <Button size="sm" variant="ghost" onClick={() => setEditing(q)} aria-label={t('pagina_perf.editar')}>
+                <div className="ui-acciones">
+                  <IconButton variante="caja" onClick={() => setEditing(q)} ariaLabel={t('pagina_perf.editar')}>
                     <Pencil size={11} />
-                  </Button>
-                  <Button size="sm" variant="ghost" onClick={async () => {
+                  </IconButton>
+                  <IconButton variante="caja" tono="peligro" onClick={async () => {
                     if (await confirmar({ message: t('pagina_perf.eliminar_pregunta', { label: q.label }), danger: true, confirmLabel: t('pagina_perf.eliminar') })) removeQ(q.id)
-                  }} aria-label={t('pagina_perf.eliminar')}>
+                  }} ariaLabel={t('pagina_perf.eliminar')}>
                     <Trash2 size={11} />
-                  </Button>
+                  </IconButton>
                 </div>
               )}
             </div>

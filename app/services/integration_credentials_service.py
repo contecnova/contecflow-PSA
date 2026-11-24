@@ -247,6 +247,19 @@ PROVIDER_REGISTRY: dict[str, dict[str, Any]] = {
             ("client_secret", "str", True,  "Client secret", None),
         ],
     },
+    # «Del ticket al PR» (23-11-2026, docs/integraciones/TICKET_A_PR.md): credenciales Git de la
+    # empresa para abrir PR. Nunca llegan al contenedor del agente. Sin respaldo global.
+    "ticket_pr": {
+        "label": "Ticket to PR — Git (GitHub App / GitLab project token)",
+        "fields": [
+            ("github_app_id",          "str", False, "GitHub App ID", None),
+            ("github_installation_id", "str", False, "GitHub App installation ID", None),
+            ("github_private_key",     "str", True,  "GitHub App private key (PEM)", None),
+            ("github_api_url",         "str", False, "GitHub API URL (https://api.github.com)", None),
+            ("gitlab_base_url",        "str", False, "GitLab URL (https://gitlab.com)", None),
+            ("gitlab_token",           "str", True,  "GitLab project access token (Developer, api)", None),
+        ],
+    },
 }
 
 
@@ -298,7 +311,7 @@ def invalidate_cache(provider: Optional[str] = None) -> None:
 #: respaldo de la fila global» (cada empresa usa SOLO sus credenciales:
 #: traducción y uso de licencias). `_read_row` caía igualmente a la fila global
 #: y una empresa podía usar las claves (y el gasto) de la plataforma.
-_SIN_RESPALDO_GLOBAL = ("deepl", "azure_translator")
+_SIN_RESPALDO_GLOBAL = ("deepl", "azure_translator", "ticket_pr")
 _PREFIJOS_SIN_RESPALDO = ("alm_",)
 
 

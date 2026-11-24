@@ -20,6 +20,8 @@ import { Pulsable } from '../../components/ui'
 import { type DashAnnouncement, type DashDocument, type DashFeatureRequest, type DashInvoice, type DashSurvey, type DashTicket, type DashUat, type PortalDashboardData, type PortalProjectFull } from './PortalDashboardTipos'
 import { DataRow, MetricBlock, QuickLink } from './PortalDashboardPiezas'
 import { calcularPanelDelPortal } from './PortalDashboardCalculos'
+// 23-11-2026: este import se perdió al trocear el fichero y el panel salía sin estilos.
+import './PortalDashboard.css'
 
 const SECTION_GAP = 24
 

@@ -29,6 +29,7 @@ import { SELECTOR_LIST_SIZE } from '../../constants/pagination'
 import './ChangeManagementTab.css'
 import AnalisisDelCambio from '../../components/servicedesk/AnalisisDelCambio'
 import PanelDelCab from '../../components/servicedesk/PanelDelCab'
+import SeccionPir from '../../components/pir/SeccionPir'
 import { cambiosEstandarApi } from '../../services/api/cambiosEstandar'
 
 type ChangeId = string | number
@@ -151,6 +152,8 @@ function ChangeDetailPanel({
           )}
           <PanelCab changeId={c.id} />
           <AnalisisDelCambio cambio={c} />
+          {/* Migración 206 (docs/PIR.md): revisión posterior a la implantación del cambio. */}
+          <SeccionPir origen="change" origenId={c.id} compacta />
           <div className="chgm-facts">
             {[
               ['solicitante', c.requester || '—'],

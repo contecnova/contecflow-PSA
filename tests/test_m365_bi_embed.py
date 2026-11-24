@@ -141,11 +141,11 @@ def test_teams_card_graph_success(client, admin_token, monkeypatch):
 def test_teams_card_fallback_to_webhook(client, admin_token, monkeypatch):
     """Cuando Graph no está disponible, usa el webhook Teams."""
     import app.services.m365_bi_embed_service as embed_svc
-    import app.core.config as cfg_mod
 
     monkeypatch.setattr(embed_svc, "m365_configured", lambda *a, **k: False)
-    monkeypatch.setattr(cfg_mod.settings, "TEAMS_WEBHOOK_URL", "https://webhook.example/hook", raising=False)
-    monkeypatch.setattr(embed_svc.settings, "TEAMS_WEBHOOK_URL", "https://webhook.example/hook", raising=False)
+    # A-MP4 (auditoría 22-11-2026, M365 por empresa): el webhook es el de la EMPRESA
+    # (credencial `ms_graph.teams_webhook` o su ajuste), nunca el global de `settings`.
+    monkeypatch.setattr(embed_svc, "webhook_de_teams_de_la_empresa", lambda db, org: "https://webhook.example/hook")
 
     class _MockResp:
         status_code = 200
@@ -156,7 +156,9 @@ def test_teams_card_fallback_to_webhook(client, admin_token, monkeypatch):
         def __exit__(self, *a): pass
         def post(self, *a, **kw): return _MockResp()
 
-    monkeypatch.setattr(embed_svc.httpx, "Client", lambda **kw: _MockClient())
+    # 23-11-2026 (validador único de URLs salientes): el webhook sale por `cliente_httpx`.
+    import app.core.outbound_url as salida
+    monkeypatch.setattr(salida, "cliente_httpx", lambda **kw: _MockClient())
 
     res = client.post(
         "/api/v1/m365/bi/teams/card",

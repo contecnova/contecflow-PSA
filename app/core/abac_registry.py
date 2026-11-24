@@ -210,10 +210,29 @@ ABAC_EXEMPT_PREFIXES: dict[str, str] = {
     # en `reuniones/consultas.py`), con 404 si no es visible. Sus avisos firmados
     # cuelgan de `/api/v1/webhooks/meetings`, ya exento arriba.
     "/api/v1/meeting-assistant": "Capacidades reuniones.* y visibilidad por reunión (asistentes, responsables, gestor); 404 si no es visible",
+    # Migración 202: «Mi cuaderno». Privado por dueño y compartición expresa
+    # (`services/cuaderno/acceso.py`, 404 fuera); una política ABAC de empresa no
+    # puede abrir notas ajenas. El acceso excepcional va con su propia capacidad.
+    # Migración 203: «Del ticket al PR». Cada ejecución sigue la visibilidad de su ticket
+    # (`scope_ticket_query`) o tarea (proyectos visibles); 404 fuera. Repositorios y
+    # configuración, de la empresa y con `ticket_pr.config`.
+    "/api/v1/ticket-pr": "Ejecuciones acotadas por la visibilidad del ticket o la tarea de origen (servicio.obtener_origen); capacidades ticket_pr.*",
+    "/api/v1/notebook": "Privado por dueño y compartición expresa (cuaderno.acceso); 404 si no es visible; capacidades cuaderno.*",
+    # Migración 206: revisión posterior a la implantación (docs/PIR.md). Capacidades
+    # pir.* por ruta; el servicio acota a la empresa y, con sólo `pir.ver`, a las
+    # revisiones propias (responsable o participante). No hay recurso ABAC por fila.
+    "/api/v1/pir": "Capacidades pir.* por ruta; el servicio acota a la empresa y, sin pir.gestionar, a las revisiones propias",
+    # 23-11-2026: seguridad de cuentas (docs/seguridad/politicas_de_cuenta.md).
+    # Configuración de la empresa activa con `seguridad.administrar` (o
+    # `seguridad.recertificar` / dispositivos propios), auditada en audit_log.
+    "/api/v1/security": "Configuración de seguridad de la empresa activa con capacidades seguridad.*; auditada; sin recurso ABAC por fila",
     # Revisión 2026-11: servidor MCP. Cada herramienta se ejecuta como el dueño
     # de la credencial con sus permisos (execute_tool), bajo la gobernanza del
     # módulo «mcp» (encendido, límite diario, auditoría) y MCP_WRITE_MODE.
-    "/api/v1/mcp": "Herramientas ejecutadas como el dueño de la credencial; gobierno del módulo mcp y MCP_WRITE_MODE",
+    # 23-11-2026 (agentes de código): cada herramienta de trabajo diario aplica el
+    # ABAC del prefijo de su ruta REST equivalente (`mcp_herramientas.aplicar_abac`)
+    # y el de recurso que llame su endpoint (tareas).
+    "/api/v1/mcp": "Herramientas ejecutadas como el dueño de la credencial con el ABAC de su ruta REST equivalente; gobierno del módulo mcp y MCP_WRITE_MODE",
     # Autenticación: ABAC evalúa a un usuario ya autenticado, no puede gobernar el
     # propio flujo de login.
     "/api/v1/auth":            "flujo de autenticación",

@@ -43,8 +43,14 @@ def _uso(db):
 def test_cada_turno_apunta_tokens_y_coste_de_la_empresa(db, monkeypatch):
     respuestas = iter([PIDE, TERMINA])
     monkeypatch.setattr(herr, "_post", lambda *a, **k: next(respuestas))
-    db.info.clear()   # como el worker: sin contexto de empresa en la sesión
-    texto, _pasos, _n = _bucle(db, _usuario(db))
+    # Como el worker (`agente_en_segundo_plano`): sesión sin el contexto del operador
+    # de la prueba y con la empresa de quien lo pidió publicada. Con las sesiones sin
+    # empresa CERRADAS por defecto, «sin contexto» ya no es un estado válido del worker.
+    from app.db.contexto_de_tenant import fijar_contexto
+    usuario = _usuario(db)
+    db.info.clear()
+    fijar_contexto(db, "1", "prueba: worker del agente")
+    texto, _pasos, _n = _bucle(db, usuario)
     assert texto == "Hecho."
     filas = _uso(db)
     assert len(filas) == 2 and {f.organization_id for f in filas} == {"1"}

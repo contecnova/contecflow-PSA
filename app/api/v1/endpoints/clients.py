@@ -112,7 +112,11 @@ def set_primary_contact(cid: str, contact_id: str,
 
 class AccesoAlPortalIn(BaseModel):
     # 23-11-2026 (M10 del 04b): sin contraseña, se genera y se envía al contacto por correo.
-    password: Optional[str] = Field(None, min_length=8, max_length=128)
+    # 23-11-2026 (portal_usuarios): con ella, puesta a mano (política de la empresa),
+    # obligar a cambiarla en el primer acceso y enviarla por correo al titular.
+    password: Optional[str] = Field(None, min_length=1, max_length=1024)
+    must_change_password: Optional[bool] = None
+    send_access: Optional[bool] = None
     language: Optional[str] = Field(None, min_length=2, max_length=10)
     project_ids: Optional[List[str]] = None
 

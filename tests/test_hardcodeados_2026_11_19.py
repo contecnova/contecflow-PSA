@@ -27,12 +27,20 @@ def _bloque(lang: str, nombre: str) -> str:
     return m.group(1)
 
 
+#: 23-11-2026: grupos que se editan en su propia sección con sus propias
+#: etiquetas (`seguridad_cuentas.c_<clave en minúsculas>`), no en «Config. dinámica».
+CON_ETIQUETAS_PROPIAS = {"password_policy": "seguridad_cuentas", "account_security": "seguridad_cuentas"}
+
+
 @pytest.mark.parametrize("lang", ["es", "en", "zh"])
 def test_cada_ajuste_dinamico_tiene_etiqueta_traducida(lang):
     bloque = _bloque(lang, "ajuste_clave")
     definidas = set(re.findall(r"^    ([A-Z0-9_]+):", bloque, re.M))
-    claves = {k for v in RUNTIME_FLAG_GROUPS.values() for k, _, _ in v}
+    claves = {k for g, v in RUNTIME_FLAG_GROUPS.items() if g not in CON_ETIQUETAS_PROPIAS for k, _, _ in v}
     assert sorted(claves - definidas) == []
+    for grupo, nombre in CON_ETIQUETAS_PROPIAS.items():
+        propias = set(re.findall(r"^    c_([a-z0-9_]+):", _bloque(lang, nombre), re.M))
+        assert [k for k, _, _ in RUNTIME_FLAG_GROUPS[grupo] if k.lower() not in propias] == [], grupo
 
 
 def test_stt_sin_idioma_fijo_y_pais_configurable():

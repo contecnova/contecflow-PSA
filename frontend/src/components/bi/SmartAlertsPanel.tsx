@@ -123,7 +123,7 @@ export default function SmartAlertsPanel() {
               <StatusBadge kind={rule.enabled ? 'success' : 'neutral'}>
                 {rule.enabled ? t('smartalerts.activa') : t('smartalerts.pausada')}
               </StatusBadge>
-              <IconButton ariaLabel={t('smartalerts.eliminar_regla', { name: rule.name })} onClick={() => { void deleteRule(rule.id) }}>
+              <IconButton variante="caja" tono="peligro" ariaLabel={t('smartalerts.eliminar_regla', { name: rule.name })} onClick={() => { void deleteRule(rule.id) }}>
                 <Trash2 size={14} aria-hidden="true" />
               </IconButton>
             </div>

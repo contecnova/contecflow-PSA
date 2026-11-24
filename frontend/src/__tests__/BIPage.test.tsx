@@ -29,6 +29,9 @@ vi.mock('../i18n/AppLangContext', async (importOriginal) => ({
 vi.mock('../hooks/useMediaQuery', () => ({ default: () => false }))
 vi.mock('../components/bi/NarrativeCard', () => ({ default: () => null }))
 vi.mock('../components/bi/AskDataWidget', () => ({ default: () => null }))
+// Las métricas incrustadas de ContecIntelligence (conectoresApi) son un bloque aparte
+// con su propio test: aquí solo se prueban los KPI del panel.
+vi.mock('../components/conectores/MetricasIncrustadas', () => ({ default: () => null }))
 vi.mock('../components/layout/PageHeader', () => ({ default: () => null }))
 vi.mock('../components/layout/PageShell', () => ({ default: ({ children }: { children: JSX.Element }) => <div>{children}</div> }))
 

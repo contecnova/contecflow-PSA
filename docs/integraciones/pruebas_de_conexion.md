@@ -47,6 +47,7 @@ Lo que más importa confirmar con un servicio real:
 | OpenExchangeRates | `…/open_exchange_rates/test` | `latest.json` | `credencial_y_uso` | App id |
 | Monitorización, webhooks entrantes | `…/monitoring/test`, `…/webhooks/test` | Nada saliente | `pasivo` | Que el emisor mande un evento firmado |
 | Uso de licencias (M365, Google, Okta, Jamf) | `…/alm_*/test`, `POST /alm/uso/conexiones/{clave}/probar` | La llamada más barata de cada fuente con sus permisos | `credencial_y_uso` | Credencial de la fuente |
+| Del ticket al PR (agente de código) | `POST /ticket-pr/prueba`, `…/ticket_pr/test` | `docker version`, `docker pull` de las imágenes fijadas (motor, proxy, auxiliar), GitHub App (`GET /app/installations/{id}` y token de instalación para un repositorio permitido) o GitLab (`GET /personal_access_tokens/self` y el proyecto), y la lista de modelos del proveedor de IA | `credencial_y_uso` (todo, con un repositorio probado) o `credencial` (Git y modelo); `comprobaciones` por pieza | Docker en el servidor, GitHub App o token de GitLab, proveedor de IA; ver docs/integraciones/TICKET_A_PR.md §11 |
 | contecmind, contecintelligence | `…/{producto}/test`, `POST /conectores/{producto}/probar` | Credencial de la aplicación y salud | `credencial` | Credencial de la aplicación |
 | Xero, QuickBooks | `POST /accounting/xero/test`, `/qb/test` | Organización o empresa del token | (ok/error) | Token OAuth |
 | Reuniones (Teams, Zoom, Meet, bots) | `POST /meeting-assistant/config/test/{conector}` | La prueba de cada conector | (ok/error) | Credencial de cada plataforma |

@@ -33,6 +33,8 @@ CICLOS_PERMITIDOS = {
         "cargador de plugin: idem, NATS",
     ("app.services.collaboration._storage", "app.services.collaboration._storage_s3"):
         "cargador de plugin: `COLLAB_STORAGE_BACKEND=s3|minio` (boto3 opcional); hereda de `_storage.FileStorage`",
+    ("app.services.ticket_a_pr.motor", "app.services.ticket_a_pr.opencode"):
+        "cargador de plugin (23-11-2026): `MOTORES` elige el agente en ejecucion; `MotorOpenCode` hereda de `motor.MotorDeAgente`",
 }
 
 
@@ -161,6 +163,9 @@ ESPERAS_PERMITIDAS = {
     "app/services/collaboration/_thumbnails.py": (1, "subproceso local (ffmpeg)"),
     "app/services/collaboration/_transcription.py": (1, "subproceso local (whisper)"),
     "app/services/stt/whisper_local_stt.py": (1, "subproceso local (whisper)"),
+    # 23-11-2026 (del ticket al PR): la CLI de Docker en local (version, preparar el
+    # espacio, proxy, create, kill, exportar, limpiar), no una llamada de red.
+    "app/services/ticket_a_pr/sandbox.py": (7, "subproceso local (docker CLI)"),
 }
 
 HOSTS = ("graph.microsoft.com", "login.microsoftonline.com", "api.openai.com", "api.anthropic.com",

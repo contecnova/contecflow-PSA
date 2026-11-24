@@ -313,8 +313,8 @@ export function ListaDeLineas({ contrato, editable, onEditar }: {
           </div>
           {editable && (
             <div className="u-row-6">
-              <IconButton onClick={() => onEditar(l)} ariaLabel={t('proveedores.editar_linea')} title={t('proveedores.editar_linea')}><Pencil size={14} aria-hidden /></IconButton>
-              <IconButton className="sub-borrar" onClick={() => quitarLinea(l.id)} ariaLabel={t('proveedores.quitar_linea')} title={t('proveedores.quitar_linea')}><Trash2 size={14} aria-hidden /></IconButton>
+              <IconButton variante="caja" onClick={() => onEditar(l)} ariaLabel={t('proveedores.editar_linea')} title={t('proveedores.editar_linea')}><Pencil size={14} aria-hidden /></IconButton>
+              <IconButton variante="caja" tono="peligro" onClick={() => quitarLinea(l.id)} ariaLabel={t('proveedores.quitar_linea')} title={t('proveedores.quitar_linea')}><Trash2 size={14} aria-hidden /></IconButton>
             </div>
           )}
         </div>

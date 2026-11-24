@@ -108,7 +108,7 @@ function EntryCard({ entry, onDelete }: { entry: ChangelogEntry; onDelete: (id: 
           </div>
           <div className="chl-card-side">
             <span className="u-text3-xs">{entry.entry_date ? fmtDate(entry.entry_date) : ''}</span>
-            <IconButton onClick={() => onDelete(entry.id)} className="chl-delete"
+            <IconButton variante="caja" tono="peligro" onClick={() => onDelete(entry.id)}
               ariaLabel={t('changelog.delete_entry')}><Trash2 size={14} /></IconButton>
           </div>
         </div>

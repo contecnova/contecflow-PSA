@@ -65,6 +65,8 @@ def _semantic_assignee_if_enabled(db: Session, ticket: Ticket, candidate_user_id
         )
         suggested = suggestion.get("suggested_user_id")
         if suggested and suggested in set(candidate_user_ids):
+            # 23-11-2026: se registra (pendiente) en `_finalizar_asignacion`, ya con id.
+            ticket._sugerencia_semantica = suggestion
             return suggested
     except Exception:
         logger.warning("_semantic_assignee_if_enabled: excepcion ignorada", exc_info=True)
@@ -122,6 +124,25 @@ def _finalizar_asignacion(db: Session, ticket: Ticket) -> None:
 
     from app.services.service_desk.ml_routing_service import record_routing_event
     record_routing_event(db, ticket)
+    _registrar_sugerencia_semantica(db, ticket)
+
+
+def _registrar_sugerencia_semantica(db: Session, ticket: Ticket) -> None:
+    """La IA eligió al agente: `SemAssignment` pendiente (23-11-2026). No confirma.
+
+    Se confirma si ese agente lo resuelve y se rechaza si se reasigna
+    (`semantic_engine_service`). Antes los tickets no dejaban rastro y la
+    precisión del motor solo contaba tareas.
+    """
+    sugerencia = getattr(ticket, "_sugerencia_semantica", None)
+    if not sugerencia or ticket.assigned_to_user_id != sugerencia.get("suggested_user_id"):
+        return
+    try:
+        from app.services.semantic_engine_service import registrar_sugerencia_automatica
+        registrar_sugerencia_automatica(db, item_type="ticket", item_id=ticket.id, item_title=ticket.title,
+                                        sugerencia=sugerencia)
+    except Exception:
+        logger.warning("No se pudo registrar la sugerencia de la IA del ticket %s", ticket.id, exc_info=True)
 
 
 def _candidatos_de_asignacion(db: Session, ticket: Ticket) -> list:
@@ -362,7 +383,7 @@ def _validar_referencias_del_portal(db: Session, payload: TicketCreateIn, client
         ci = db.query(ConfigurationItem).filter(ConfigurationItem.id == payload.ci_id).first()
         if (ci is None or not client.project_id or ci.project_id != client.project_id
                 or (org and ci.organization_id not in (None, org))):
-            raise error_con_codigo(404, "no_encontrado", detail="CI no encontrado", que="CI")
+            raise error_con_codigo(404, "no_encontrado", detail="CI no encontrado", que="ci")
 
 
 def build_client_portal_ticket(db: Session, payload: TicketCreateIn, client: ClientUser) -> Ticket:

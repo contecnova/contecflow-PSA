@@ -96,6 +96,7 @@ def _fetch_executive_data(org_id: Optional[str]) -> dict:
         from app.services.olap.query_engine import get_kpi_summary
         return get_kpi_summary(org_id)
     except Exception as exc:
+        logger.debug("_fetch_executive_data: excepcion ignorada", exc_info=True)
         _sin_datos_olap("executive", exc)
 
 
@@ -104,6 +105,7 @@ def _fetch_utilization_data(org_id: Optional[str]) -> list:
         from app.services.olap.query_engine import get_utilization_by_user
         return get_utilization_by_user(org_id)
     except Exception as exc:
+        logger.debug("_fetch_utilization_data: excepcion ignorada", exc_info=True)
         _sin_datos_olap("utilization", exc)
 
 
@@ -112,6 +114,7 @@ def _fetch_pipeline_data(org_id: Optional[str]) -> list:
         from app.services.olap.query_engine import get_pipeline_funnel
         return get_pipeline_funnel(org_id)
     except Exception as exc:
+        logger.debug("_fetch_pipeline_data: excepcion ignorada", exc_info=True)
         _sin_datos_olap("pipeline", exc)
 
 
@@ -120,6 +123,7 @@ def _fetch_portfolio_data(org_id: Optional[str]) -> list:
         from app.services.olap.query_engine import get_portfolio_health
         return get_portfolio_health(org_id)
     except Exception as exc:
+        logger.debug("_fetch_portfolio_data: excepcion ignorada", exc_info=True)
         _sin_datos_olap("portfolio", exc)
 
 

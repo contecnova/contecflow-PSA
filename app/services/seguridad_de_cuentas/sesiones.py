@@ -55,12 +55,11 @@ def al_abrir(db, user, sesion, ip: Optional[str], request=None, pais: Optional[s
 
 
 def _rechazar(codigo: str):
-    from fastapi import status
     from app.core.codigos_de_error import error_http
-    raise error_http(status.HTTP_401_UNAUTHORIZED, codigo, {"WWW-Authenticate": "Bearer"})
+    raise error_http(401, codigo, {"WWW-Authenticate": "Bearer"})
 
 
-def comprobar_sesion(db, user, sid: Optional[str], org: Optional[str]) -> None:
+def comprobar_sesion(db, user, sid: Optional[str], org: Optional[str], p=None) -> None:
     """La sesión `sid` sigue viva, sin pasar la inactividad ni el tope. Si no, 401."""
     if not sid:
         return
@@ -75,7 +74,7 @@ def comprobar_sesion(db, user, sid: Optional[str], org: Optional[str]) -> None:
     ahora = _ahora()
     if s.revoked_at is not None or (_aware(s.expires_at) and _aware(s.expires_at) <= ahora):
         _rechazar("sesion_revocada")
-    p = leer(db, org or getattr(user, "organization_id", None))
+    p = p or leer(db, org or getattr(user, "organization_id", None))
     visto = _aware(s.last_seen_at) or _aware(s.created_at) or ahora
     if p.idle_timeout_enabled and p.idle_timeout_minutes and ahora - visto > timedelta(minutes=p.idle_timeout_minutes):
         s.revoked_at, s.revoke_reason = ahora, "idle_timeout"

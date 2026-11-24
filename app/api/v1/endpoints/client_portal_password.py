@@ -15,6 +15,10 @@ de `app/services/seguridad_de_cuentas/restablecimiento.py`:
 - `POST /portal/clients/{id}/force-password-reset` (equipo, `clientes.gestionar`):
   cambio obligatorio, cierre de sesiones y, si se pide, enlace; con motivo y
   auditoría (`PORTAL_PASSWORD_RESET_FORCED`).
+- `POST /portal/clients/{id}/set-password` (equipo, `clientes.gestionar`,
+  23-11-2026): contraseña puesta a mano con la política de la empresa, obligar a
+  cambiarla en el primer acceso, envío opcional por correo al titular, cierre de
+  TODAS sus sesiones y auditoría (`PORTAL_PASSWORD_SET`) sin la contraseña.
 
 Documentado en docs/seguridad/politicas_de_cuenta.md §«Restablecimiento».
 """
@@ -25,10 +29,9 @@ import time
 
 from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel, EmailStr, Field
-from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.core.codigos_de_error import desde_valor, error, error_http
+from app.core.codigos_de_error import error
 from app.core.config import settings
 from app.core.deps import requiere_capacidad
 from app.core.network import extract_client_ip
@@ -38,7 +41,7 @@ from app.db.session import get_db, publicar_contexto_de_tenant, sesion_de_sistem
 from app.models.client_portal import ClientUser
 from app.models.user import User
 from app.services.seguridad_de_cuentas import restablecimiento as _rest
-from app.services.seguridad_de_cuentas.auditoria import Origen, auditar
+from app.services.seguridad_de_cuentas.auditoria import Origen
 
 router = APIRouter()
 logger = logging.getLogger("contecflow.client_portal")
@@ -56,6 +59,13 @@ class TokenIn(BaseModel):
 
 class RestablecerIn(TokenIn):
     new_password: str = Field(..., min_length=1, max_length=1024)
+
+
+class EstablecerIn(BaseModel):
+    # Sin `min_length`: la longitud la decide la política de la empresa (error con código).
+    password: str = Field(..., min_length=1, max_length=1024, repr=False)
+    must_change_password: bool = Field(default=True, description="Obligar a cambiarla en el primer acceso")
+    send_access: bool = Field(default=False, description="Enviar el acceso (con la contraseña) por correo al titular")
 
 
 class ForzarIn(BaseModel):
@@ -84,20 +94,8 @@ def portal_password_forgot(request: Request, payload: OlvidoIn,
     if ttl > 0:
         raise error(429, "portal_recuperacion_demasiadas_solicitudes", segundos=ttl)
 
-    cliente = db.query(ClientUser).filter(func.lower(ClientUser.email) == correo,
-                                          ClientUser.is_active == True).first()  # noqa: E712
-    if cliente is not None and cliente.hashed_password:
-        try:
-            from app.db.session import exigir_organizacion_activa
-            exigir_organizacion_activa(db, cliente.organization_id)
-            _rest.enviar_enlace_al_cliente(db, cliente)
-            auditar(db, None, "PORTAL_PASSWORD_RESET_REQUEST", cliente, org_id=cliente.organization_id,
-                    origen=Origen.de(request), recurso="client_user")
-            db.commit()
-        except Exception as exc:  # misma respuesta pase lo que pase (sin oráculo)
-            db.rollback()
-            logger.warning("portal: restablecimiento no enviado client_id=%s: %s", cliente.id, type(exc).__name__)
     # Si la cuenta no existe no se apunta nada (RGPD: minimización).
+    _rest.pedir_en_el_portal(db, correo, Origen.de(request))
     _rest.igualar_tiempo(inicio)
     return APIResponse.ok(data=_RESPUESTA_GENERICA)
 
@@ -119,26 +117,10 @@ def portal_password_policy(request: Request, payload: TokenIn,
 @limiter.limit("10/minute")
 def portal_password_reset(request: Request, payload: RestablecerIn,
                           db: Session = Depends(sesion_de_sistema("portal: restablecer contraseña"))):
-    from app.core.codigos_de_error import ErrorConCodigo
-    from app.services.client_portal_service.autenticacion import hash_password, verify_password
-    from app.services.seguridad_de_cuentas.contrasenas import validar_del_portal
     carga = _rest.leer_token_del_portal(payload.token)
     cliente = _cliente_del_token(db, carga)
-    try:
-        validar_del_portal(db, cliente, payload.new_password, settings.MIN_PASSWORD_LENGTH)
-        if cliente.hashed_password and verify_password(payload.new_password, cliente.hashed_password):
-            raise ErrorConCodigo("portal_contrasena_igual_a_la_anterior")
-    except ValueError as e:
-        raise desde_valor(400, e)
-    # Un solo uso: comprobar y borrar el `jti` en una operación.
-    if not _rest.reclamar_token_del_portal(carga):
-        raise error(401, "portal_reset_token_no_valido")
-    cliente.hashed_password = hash_password(payload.new_password)
-    cliente.must_change_password = False
-    _rest.cerrar_sesiones_del_portal(cliente.id)
-    auditar(db, None, "PORTAL_PASSWORD_RESET_COMPLETE", cliente, org_id=cliente.organization_id,
-            origen=Origen.de(request), recurso="client_user", datos={"sessions_revoked": "all"})
-    db.commit()
+    _rest.restablecer_en_el_portal(db, cliente, carga, payload.new_password, settings.MIN_PASSWORD_LENGTH,
+                                   Origen.de(request))
     return APIResponse.ok(data={"ok": True})
 
 
@@ -148,15 +130,20 @@ def portal_force_password_reset(client_id: str, request: Request, payload: Forza
                                 db: Session = Depends(get_db),
                                 current_user: User = Depends(requiere_capacidad("clientes.gestionar"))):
     org = (db.info or {}).get("organization_id") or current_user.organization_id
-    cliente = db.query(ClientUser).filter(ClientUser.id == client_id).first()
-    if cliente is None or (not current_user.is_superadmin and cliente.organization_id != org):
-        raise error_http(404, "no_encontrado", que="cliente")
-    cliente.must_change_password = True
-    _rest.cerrar_sesiones_del_portal(cliente.id)
-    enviado = bool(payload.send_link and cliente.is_active and cliente.hashed_password
-                   and _rest.enviar_enlace_al_cliente(db, cliente, forzado=True))
-    auditar(db, current_user, "PORTAL_PASSWORD_RESET_FORCED", cliente, org_id=cliente.organization_id,
-            origen=Origen.de(request), recurso="client_user",
-            datos={"reason": payload.reason, "link_sent": enviado, "sessions_revoked": "all"})
-    db.commit()
+    enviado = _rest.forzar_en_el_portal(db, current_user, org, client_id, payload.reason, payload.send_link,
+                                        Origen.de(request))
     return APIResponse.ok(data={"ok": True, "link_sent": enviado})
+
+
+@router.post("/clients/{client_id}/set-password",
+             summary="Establecer a mano la contraseña de un usuario del portal (política de la empresa, sesiones cerradas)")
+def portal_set_password(client_id: str, request: Request, payload: EstablecerIn,
+                        db: Session = Depends(get_db),
+                        current_user: User = Depends(requiere_capacidad("clientes.gestionar"))):
+    """23-11-2026 (portal_usuarios). La contraseña no vuelve en la respuesta ni va
+    a los logs ni a la auditoría (que guarda quién, a quién, si obliga a cambiarla
+    y si se envió)."""
+    from app.services.client_portal_service.usuarios import establecer_contrasena
+    return APIResponse.ok(data=establecer_contrasena(
+        db, current_user, client_id, payload.password, obligar_cambio=payload.must_change_password,
+        enviar=payload.send_access, origen=Origen.de(request)))

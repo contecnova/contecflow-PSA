@@ -67,8 +67,8 @@ function PlantillasDeContrato() {
                 </div>
                 <div className="u-row-6">
                   <Button size="xs" variant="secondary" icon={<Plus size={13} />} onClick={() => setLinea({ contrato: p.id, linea: null })}>{t('proveedores.nueva_linea')}</Button>
-                  <IconButton onClick={() => setEditando(p)} ariaLabel={t('proveedores.editar_plantilla')} title={t('proveedores.editar_plantilla')}><Pencil size={14} aria-hidden /></IconButton>
-                  <IconButton onClick={async () => { if (await confirmar({ message: t('proveedores.borrar_plantilla_confirmar', { titulo: p.title }), danger: true })) borrar.mutate(p.id) }}
+                  <IconButton variante="caja" onClick={() => setEditando(p)} ariaLabel={t('proveedores.editar_plantilla')} title={t('proveedores.editar_plantilla')}><Pencil size={14} aria-hidden /></IconButton>
+                  <IconButton variante="caja" tono="peligro" onClick={async () => { if (await confirmar({ message: t('proveedores.borrar_plantilla_confirmar', { titulo: p.title }), danger: true })) borrar.mutate(p.id) }}
                     ariaLabel={t('proveedores.borrar_plantilla')} title={t('proveedores.borrar_plantilla')}><Trash2 size={14} aria-hidden /></IconButton>
                 </div>
               </div>

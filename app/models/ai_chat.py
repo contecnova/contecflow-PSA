@@ -507,3 +507,48 @@ class AskDataExample(Base):
     created_at      = Column(DateTime(timezone=True), server_default=func.now())
     times_used      = Column(Integer, nullable=False, default=0, server_default="0")
     last_used_at    = Column(DateTime(timezone=True), nullable=True)
+
+
+class AskDataConversation(Base):
+    """Conversación de Ask-the-Data de una persona en una empresa (23-11-2026, migración 207).
+
+    Da memoria a las preguntas de seguimiento («¿y en octubre?»): al modelo se le
+    pasan las últimas `ASK_DATA_CONTEXT_TURNS` preguntas de la conversación con
+    su consulta. Es de quien la abrió (nadie más la lee, ni un administrador por
+    la API); se borra a mano, por retención (`ask_data_conversations`, desde la
+    última pregunta) y con la supresión RGPD de la persona. Bloqueable por
+    persona o conversación.
+    """
+    __tablename__ = "ask_data_conversations"
+    __table_args__ = (Index("ix_ask_data_conversations_org_user", "organization_id", "user_id", "updated_at"),)
+
+    id              = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
+    user_id         = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    title           = Column(String(200), nullable=False, default="")
+    created_at      = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at      = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+    turns = relationship("AskDataTurn", back_populates="conversation", cascade="all, delete-orphan",
+                         passive_deletes=True, order_by="AskDataTurn.created_at")
+
+
+class AskDataTurn(Base):
+    """Una pregunta de una conversación de Ask-the-Data y la consulta con la que se respondió (migración 207).
+
+    No se guardan las filas del resultado (pueden traer datos personales): solo
+    la pregunta, la consulta, cuántas filas salieron y el error si lo hubo.
+    """
+    __tablename__ = "ask_data_turns"
+
+    id              = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
+    conversation_id = Column(String(36), ForeignKey("ask_data_conversations.id", ondelete="CASCADE"),
+                             nullable=False, index=True)
+    question        = Column(Text, nullable=False)
+    sql             = Column(Text, nullable=True)
+    row_count       = Column(Integer, nullable=True)
+    error           = Column(Text, nullable=True)
+    created_at      = Column(DateTime(timezone=True), server_default=func.now())
+
+    conversation = relationship("AskDataConversation", back_populates="turns")

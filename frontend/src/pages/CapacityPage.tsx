@@ -270,7 +270,7 @@ function CapCell({ userId, weekStart, plans, capacity, onDrop, onAdd }: {
             <span className="cap-plan__hours">
               {fmtHours(plan.planned_hours)}
             </span>
-            <Pulsable
+            <Pulsable /* eslint-disable-line contec/sin-boton-de-icono-propio -- excepción: aspa de quitar dentro de un chip de plan */
               type="button"
               className="cap-plan__remove"
               aria-label={t('capacity.eliminar_plan', { proyecto: plan.project_name || t('capacity.libre'), horas: fmtHours(plan.planned_hours) })}

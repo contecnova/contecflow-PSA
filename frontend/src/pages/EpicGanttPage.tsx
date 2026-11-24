@@ -296,7 +296,7 @@ export default function EpicGanttPage(): JSX.Element {
                         <span className="egantt-label-7">{dt && t(dt.label)}</span>
                         {dep.lag_days > 0 && <span className="egantt-label-8">+{dep.lag_days}d</span>}
                       </div>
-                      <IconButton className="egantt-borrar" ariaLabel={t('pagina_egantt.eliminar_dependencia')}
+                      <IconButton variante="caja" tono="peligro" ariaLabel={t('pagina_egantt.eliminar_dependencia')}
                         onClick={() => { openConfirmGlobal({ message: t('pagina_egantt.eliminar_dependencia'), onConfirm: () => deleteDep(dep.id), danger: true }) }}><Trash2 size={14} aria-hidden /></IconButton>
                     </div>
                   )

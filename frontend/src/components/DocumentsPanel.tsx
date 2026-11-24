@@ -243,7 +243,7 @@ export default function DocumentsPanel({ projectId, taskId, ticketId, _compact =
                   <IconButton ariaLabel={t('documents_panel.ai_summary_title')} title={t('documents_panel.ai_summary_title')} onClick={() => summaryMutation.mutate(doc.id)}>
                     <Sparkles size={13} />
                   </IconButton>
-                  <IconButton ariaLabel={t('documents_panel.delete_title')} title={t('documents_panel.delete_title')} onClick={() => { openConfirmGlobal({message:`${t('documents_panel.delete_confirm')} "${doc.title}"?`,onConfirm:()=>deleteMutation.mutate(doc.id),danger:true}) }}>
+                  <IconButton variante="caja" tono="peligro" ariaLabel={t('documents_panel.delete_title')} title={t('documents_panel.delete_title')} onClick={() => { openConfirmGlobal({message:`${t('documents_panel.delete_confirm')} "${doc.title}"?`,onConfirm:()=>deleteMutation.mutate(doc.id),danger:true}) }}>
                     <Trash2 size={13} />
                   </IconButton>
                 </div>

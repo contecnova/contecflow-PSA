@@ -61,4 +61,3 @@
 .spl-plan__meta { font-size: var(--text-sm); color: var(--text-2); margin-top: 4px; }
 .spl-plan__detail { border-top: 1px solid var(--surface-4); padding-top: 12px; }
 
-.spl-borrar:hover { color: var(--danger); }

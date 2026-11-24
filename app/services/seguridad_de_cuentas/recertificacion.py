@@ -7,6 +7,7 @@ modificar con un comentario obligatorio: la evidencia. Al cerrar, los Â«revocarÂ
 pueden desactivar la cuenta. Se exporta en CSV o JSON.
 """
 from __future__ import annotations
+import logging
 
 import csv
 import io
@@ -29,6 +30,7 @@ def _foto(db, u) -> dict:
     try:
         caps = capacidades_de(db, u)
     except Exception:
+        logging.getLogger(__name__).debug("_foto: excepcion ignorada", exc_info=True)
         caps = []
     return {"role": getattr(u.role, "value", u.role), "custom_role_id": u.custom_role_id,
             "is_superadmin": bool(u.is_superadmin), "mfa": bool(u.mfa_enabled),

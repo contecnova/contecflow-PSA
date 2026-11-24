@@ -74,14 +74,6 @@
   font-size: var(--text-sm);
   font-family: inherit;
 }
-.set-btn-icon {
-  background: none;
-  border: none;
-  color: var(--text-2);
-  cursor: pointer;
-  font-size: var(--text-sm);
-  flex-shrink: 0;
-}
 .set-btn-dashed {
   padding: 10px;
   border: 1px dashed var(--surface-4);
@@ -111,7 +103,6 @@
 .set-btn-save:focus-visible,
 .set-btn-cancel:focus-visible,
 .set-btn-link:focus-visible,
-.set-btn-icon:focus-visible,
 .set-btn-dashed:focus-visible,
 .set-btn-confirm:focus-visible,
 .set-btn-dismiss:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
@@ -550,7 +541,6 @@
   white-space: nowrap;
 }
 .set-btn-save--sm { padding: 5px 12px; }
-.set-btn-cancel--sm { padding: 5px 9px; }
 .set-add-title { font-size: var(--text-sm); font-weight: 700; color: var(--accent); margin-bottom: 12px; }
 .set-grid-add-field {
   display: grid;
@@ -687,7 +677,6 @@
 .set-color-input--sq { width: 38px; min-height: 38px; }
 .set-check-pb { padding-bottom: 4px; gap: 5px; }
 .set-check-pb6 { padding-bottom: 4px; gap: 6px; }
-.set-btn-confirm-light { color: var(--on-accent-light); padding: 5px 12px; }
 .set-item--wrap { gap: 12px; flex-wrap: wrap; }
 .set-dept-name { flex: 1; font-size: var(--text-base); font-weight: 600; }
 .set-area-tag {

@@ -20,12 +20,14 @@ import { extractErr } from '../../utils/helpers'
 import { useListaDeUsuarios } from '../../hooks/useListas'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import { ArrowUpCircle, CheckCircle2, ChevronDown, ChevronRight, Pause, Pencil, Play, Scissors, Sparkles, Undo2, X, Zap } from 'lucide-react'
-import { Button, Spinner, Modal, Pulsable, Select, Checkbox, Input, Textarea } from '../../components/ui'
+import { Button, Spinner, Modal, Pulsable, Select, Checkbox, Input, Textarea, IconButton } from '../../components/ui'
 import { etiquetaCodigo } from '../../i18n/etiquetaCodigo'
 import DocumentsPanel from '../../components/DocumentsPanel'
 import DocumentosDeFicha from '../../components/conectores/DocumentosDeFicha'
 import LeccionesDeOrigen from '../../components/lecciones/LeccionesDeOrigen'
 import PanelIaDelTicket from '../../components/servicedesk/PanelIaDelTicket'
+import CorregirAsignacion from '../../components/asignacion-ia/CorregirAsignacion'
+import PanelTicketAPr from '../../components/ticket-a-pr/PanelTicketAPr'
 import EstadoDeCicloDeVida from '../../components/servicedesk/EstadoDeCicloDeVida'
 import AvisoDeColision from '../../components/servicedesk/AvisoDeColision'
 import ContextoDelCliente from '../../components/servicedesk/ContextoDelCliente'
@@ -45,6 +47,7 @@ import { ESTADO_TICKET, ESTADOS_TICKET_RESUELTOS, ESTADOS_TICKET_TERMINADOS } fr
 // ── TicketDetail (main) ────────────────────────────────────────────────────────
 export default function TicketDetail({ ticketId, onClose, embedded = false }: { ticketId: string | null | undefined; onClose: () => void; embedded?: boolean }) {
   const t = useAppT()
+  const puedeVerTicketAPr = useAuth().puede('ticket_pr.ver')
   const qc = useQueryClient()
   const toast = useToast()
   const [commentText, setCommentText] = useState('')
@@ -218,7 +221,7 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
             {ticket && (
               <Button size="sm" variant="secondary" icon={<Pencil size={13} />} onClick={() => setShowEdit(true)}>{t('common.edit')}</Button>
             )}
-            <Pulsable onClick={onClose} aria-label={t('ticketdetail.cerrar_detalle')} title={t('ticketdetail.cerrar_detalle')} className="tkd-close"><X size={18} aria-hidden="true" /></Pulsable>
+            <IconButton variante="caja" onClick={onClose} ariaLabel={t('ticketdetail.cerrar_detalle')} title={t('ticketdetail.cerrar_detalle')}><X size={18} aria-hidden="true" /></IconButton>
           </div>
         </div>
         {ticket && (
@@ -357,6 +360,9 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
             <Pulsable aria-expanded={editAssign} onClick={() => setEditAssign(e => !e)} className="tkd-link-btn">
               {editAssign ? <ChevronDown size={14} aria-hidden="true" /> : <ChevronRight size={14} aria-hidden="true" />} {t('ticketdetail.reasignar')}
             </Pulsable>
+            {/* 23-11-2026: la IA eligió mal → persona correcta (aprende el motor) y se reasigna. */}
+            <CorregirAsignacion itemType="ticket" itemId={ticketId} asignadoActual={ticket.assigned_to_id}
+              onCorregida={async uid => { await ticketsApi.update(ticketId, { assigned_to_user_id: uid }); invalidate() }} />
             {editAssign && (
               <div className="tkd-assign-row">
                 <Select suelto placeholder={false} aria-label={t('service_desk.detail_select_agent')} value="" onChange={e => e.target.value && updateTicket({ assigned_to_user_id: e.target.value })} className="tkd-input--flex1">
@@ -418,6 +424,8 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
           <EstadoDeCicloDeVida ticketId={ticket.id} onCambio={invalidate} />
           <ContextoDelCliente ticketId={ticket.id} />
           <PanelIaDelTicket ticketId={ticket.id} tieneGrupo={!!ticket.assigned_group_id} onCambio={invalidate} />
+          {/* «Del ticket al PR» (migración 203): agente de código que propone el arreglo como PR. */}
+          {puedeVerTicketAPr && <PanelTicketAPr tipo="ticket" id={ticket.id} />}
 
           {/* Licencias y hardware, fase 4: el equipo o la licencia del ticket. */}
           <RecursoDelTicket ticketId={ticket.id} />

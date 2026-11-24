@@ -25,15 +25,21 @@ def _bloque_bpm(lang: str) -> str:
 
 
 def _claves() -> list[str]:
-    problemas = set(re.findall(r'Problema\(\s*"([a-z_]+)"', _FUENTE))
-    errores = set(re.findall(r'_fallar\(\s*inst,\s*"([a-z_]+)"', _FUENTE))
+    # 23-11-2026: también los problemas que anota `_comprobar` (`mal("código", …)`)
+    # y los fallos que marca la corrida (`_fallar(self.inst, …)`).
+    problemas = set(re.findall(r'(?:Problema|mal)\(\s*"([a-z_]+)"', _FUENTE))
+    errores = set(re.findall(r'_fallar\(\s*(?:self\.)?inst,\s*"([a-z_]+)"', _FUENTE))
     assert len(problemas) >= 10 and errores >= {"no_route", "loop_limit"}
     tipos = motor._SOPORTADOS
     roles = set(motor._ALIAS_DE_ROL) | {"cualquiera"}
     estados = set(motor.ESTADOS_DE_INSTANCIA) | {"active"}
+    esperas = {motor.ESPERA_TAREA, motor.ESPERA_DECISION, motor.ESPERA_TEMPORIZADOR, motor.ESPERA_UNION,
+               motor.ESPERA_MENSAJE, motor.ESPERA_SUBPROCESO, motor.ESPERA_LLAMADA, motor.ESPERA_TRABAJO,
+               motor.ESPERA_REINTENTO, motor.ESPERA_INCIDENTE, motor.ESPERA_APROBACION}
     return sorted([f"problema_{c}" for c in problemas] + [f"error_{c}" for c in errores]
                   + [f"tipo_{t}" for t in tipos] + [f"rol_{r}" for r in roles]
-                  + [f"estado_{e}" for e in estados])
+                  + [f"estado_{e}" for e in estados] + [f"espera_{e}" for e in esperas]
+                  + [f"vartipo_{t}" for t in motor.TIPOS_DE_VARIABLE])
 
 
 def test_los_codigos_del_motor_tienen_texto_en_cada_idioma():

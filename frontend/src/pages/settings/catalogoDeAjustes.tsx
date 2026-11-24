@@ -102,6 +102,8 @@ export const SECCIONES_DE_AJUSTES: SeccionDeAjustes[] = [
   // 19-11-2026: también el máximo asignable (VACATION_MAX_DAYS_ENTITLED, grupo locale; sólo admin lo edita).
   { id: 'vacations', grupo: 'personas', capacidad: 'personas.config', componente: seccionDe('VacationSection') },
   { id: 'horas-extra', grupo: 'personas', capacidad: 'horas_extra.config', envolver: true, componente: pagina(() => import('../../components/horas-extra/ConfigHorasExtra')) },
+  // 23-11-2026: «Mi cuaderno» — etiquetas por defecto, plantillas, baja, papelera, IA, voz y acceso excepcional (docs/CUADERNO.md).
+  { id: 'cuaderno', grupo: 'personas', capacidad: 'cuaderno.config', envolver: true, componente: pagina(() => import('../../components/cuaderno/ConfigCuaderno')) },
 
   // Proyectos y trabajo
   // 19-11-2026: tipos de proyecto, sectores y categorías de gasto (antes enums cerrados de la BD).
@@ -125,6 +127,8 @@ export const SECCIONES_DE_AJUSTES: SeccionDeAjustes[] = [
   { id: 'sd-voz', grupo: 'servicedesk', capacidad: 'sd.administrar', envolver: true, componente: pagina(() => import('../../components/servicedesk/ConfigAgenteDeVoz')) },
   // 23-11-2026 (A-SD19): catálogo de cambios estándar preaprobados por el CAB.
   { id: 'sd-cambios-estandar', grupo: 'servicedesk', capacidad: 'sd.gestionar', envolver: true, componente: pagina(() => import('../../components/servicedesk/CatalogoDeCambiosEstandar')) },
+  // Migración 206 (docs/PIR.md): revisión posterior a la implantación de cambios y proyectos.
+  { id: 'pir', grupo: 'servicedesk', capacidad: 'pir.administrar', envolver: true, componente: pagina(() => import('../../components/pir/ConfigPir')) },
   // 19-11-2026: CMDB de software y vulnerabilidades (fuentes de avisos, credenciales, plazos, licencias).
   { id: 'cmdb-software', grupo: 'servicedesk', capacidad: 'software.config', envolver: true, componente: pagina(() => import('../../components/cmdb/software/ConfigSoftware')) },
 
@@ -169,6 +173,12 @@ export const SECCIONES_DE_AJUSTES: SeccionDeAjustes[] = [
   { id: 'enterprise', grupo: 'integraciones', capacidad: ADMIN, rutaAntigua: '/enterprise', componente: pagina(() => import('../EnterprisePage')) },
   { id: 'webhook-log', grupo: 'integraciones', capacidad: ADMIN, rutaAntigua: '/webhook-log', componente: pagina(() => import('../WebhookLogPage')) },
   { id: 'developer', grupo: 'integraciones', capacidad: 'integraciones.desarrollo', rutaAntigua: '/developer', componente: pagina(() => import('../DeveloperPortalPage')) },
+  // 23-11-2026 (docs/integraciones/MCP.md): agentes de código (OpenCode, Claude Code) por MCP: estado de la
+  // empresa (lo cambia `gobierno.administrar`), cómo conectar, credenciales propias y herramientas disponibles.
+  { id: 'mcp', grupo: 'integraciones', capacidad: 'mcp.usar', envolver: true, componente: pagina(() => import('../../components/mcp/ConfigMcp')) },
+  // 23-11-2026 (migración 203, docs/integraciones/TICKET_A_PR.md): «Del ticket al PR» — módulo, motor y modelo,
+  // credenciales Git cifradas, repositorios por proyecto, seguridad, límites, plantillas, prueba y coste.
+  { id: 'ticket-a-pr', grupo: 'integraciones', capacidad: 'ticket_pr.config', envolver: true, componente: pagina(() => import('../../components/ticket-a-pr/ConfigTicketAPr')) },
   { id: 'import', grupo: 'integraciones', capacidad: 'integraciones.desarrollo', rutaAntigua: '/import', componente: pagina(() => import('../ImportPage')) },
 
   // Seguridad y GRC

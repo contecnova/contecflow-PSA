@@ -463,7 +463,7 @@ export default function ChangesPage(): JSX.Element {
                         <StatusBadge status={cr.status} />
                         <div className="u-row-6">
                           {cr.status === 'draft' && <>
-                            <IconButton onClick={() => setEditing(cr)} ariaLabel={t('changes.edit_aria', { code: cr.code ?? '' })}><Pencil size={14} /></IconButton>
+                            <IconButton variante="caja" onClick={() => setEditing(cr)} ariaLabel={t('changes.edit_aria', { code: cr.code ?? '' })}><Pencil size={14} /></IconButton>
                             <Button size="sm" onClick={() => submit(cr)} loading={saving}>{t('changes.send')}</Button>
                           </>}
                           {['submitted', 'under_review'].includes(cr.status ?? '') && puede('cambios.gestionar') && (
@@ -472,7 +472,7 @@ export default function ChangesPage(): JSX.Element {
                           {cr.status === 'approved' && (
                             <Button size="sm" icon={<Wrench size={14} />} onClick={() => implement(cr)}>{t('changes.implement')}</Button>
                           )}
-                          <IconButton onClick={() => { openConfirmGlobal({ message: t('changes.delete_confirm'), onConfirm: () => del(cr), danger: true }) }} className="chg-icon-btn--danger" ariaLabel={t('changes.delete_aria', { code: cr.code ?? '' })}><Trash2 size={14} /></IconButton>
+                          <IconButton variante="caja" tono="peligro" onClick={() => { openConfirmGlobal({ message: t('changes.delete_confirm'), onConfirm: () => del(cr), danger: true }) }} ariaLabel={t('changes.delete_aria', { code: cr.code ?? '' })}><Trash2 size={14} /></IconButton>
                         </div>
                       </div>
                     </div>

@@ -82,6 +82,10 @@ FUNCIONES_ENCOLABLES: frozenset[str] = frozenset({
     "app.services.service_desk.canal_slack:procesar_evento",
     "app.services.service_desk.jira_sync_service:run_incremental_sync",
     "app.services.service_desk.kb_calidad:pasada",
+    # «Del ticket al PR» (23-11-2026): las dos fases del agente; idempotentes (cada una
+    # solo avanza desde su estado de cola) y con el id de la ejecución como único argumento.
+    "app.services.ticket_a_pr.servicio:ejecutar_build",
+    "app.services.ticket_a_pr.servicio:ejecutar_plan",
 })
 
 _ENVOLTORIO = "app.core.segundo_plano:_ejecutar_con_contexto"

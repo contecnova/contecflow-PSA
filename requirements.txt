@@ -74,6 +74,12 @@ jmespath==1.1.0
 aiohttp==3.14.4
 httpx==0.27.2
 defusedxml==0.7.1
+# SAML 2.0 (23-11-2026): firma XML (XML-DSig) de las respuestas del IdP. signxml
+# es Python puro sobre lxml + cryptography, con ruedas en Windows, macOS y Linux;
+# python3-saml y pysaml2 necesitan xmlsec nativo (libxmlsec1 / binario xmlsec1),
+# que rompería `pip install` en setup.sh y setup.bat. Ver app/services/auth_service/saml.py.
+signxml==5.3.1
+lxml==6.1.3
 httpcore==1.0.9
 anyio==4.14.2
 sniffio==1.3.1

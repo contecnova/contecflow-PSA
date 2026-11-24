@@ -236,7 +236,7 @@ def _avisar_responsable(db: Session, sub, informe, persona: str) -> None:
     if not destino:
         return
     try:
-        from app.services.textos_de_salida_servicios_m_z import aviso_de
+        from app.services.textos_de_salida import aviso_de
         notify_user(db, destino, "system",
                     **aviso_de(db, destino, "proveedores.informe_nuevo.titulo", "proveedores.informe_nuevo.cuerpo",
                                proveedor=sub.name, tipo=informe.report_type, persona=persona),

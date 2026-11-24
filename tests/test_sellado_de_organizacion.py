@@ -158,12 +158,18 @@ def test_sin_organizacion_en_la_sesion_no_se_sella(db):
     """
     from tests.conftest import TestSession
 
+    from app.db.contexto_de_tenant import trabajo_de_sistema
+
     sesion = TestSession()
     try:
         assert "organization_id" not in sesion.info
         n = _notificacion(user_id="u-de-fondo")
         sesion.add(n)
-        sesion.flush()
+        # Desde el 22-11-2026 (M8) un job declara su contexto de sistema (Celery:
+        # `TareaDeSistema`); sin él el ORM cierra (los avisos leen las preferencias
+        # del destinatario al guardar). Sigue sin empresa: no se sella.
+        with trabajo_de_sistema("prueba: job sin empresa"):
+            sesion.flush()
         assert n.organization_id is None
         sesion.rollback()
     finally:

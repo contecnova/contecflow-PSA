@@ -188,8 +188,14 @@ def test_los_cinco_modelos_estan_en_la_tabla():
     from app.services.key_management import _secretos_a_recifrar
 
     nombres = {spec.modelo.__name__ for spec in _secretos_a_recifrar()}
+    # Auditoría 22-11-2026 (02 A38): de 5 modelos a 17 (credenciales por empresa,
+    # Jira, colaboración, NVD/GHSA, marketplace, Slack, licencias, MFA, discovery,
+    # RGPD, voz y webhooks entrantes). Que no salga ninguno sin decidirlo.
     assert nombres == {
         "AIProvider", "IntegrationConfig", "SSOConfig", "Webhook", "AppSetting",
+        "ALMLicense", "CMDBDiscoveryProvider", "CollaborationIntegration", "GDPRRequest",
+        "IntegrationCredential", "IntegrationInstance", "JiraConfig", "SlackConfig",
+        "SoftwareConfig", "User", "VoiceSession", "WebhookTrigger",
     }, nombres
 
 
@@ -198,8 +204,13 @@ def test_los_campos_de_la_tabla_existen_en_sus_modelos():
     en silencio, porque el acceso es por `getattr` con respaldo."""
     from app.services.key_management import _secretos_a_recifrar
 
+    from sqlalchemy import inspect as _inspect
+
     for spec in _secretos_a_recifrar():
-        columnas = set(spec.modelo.__table__.columns.keys())
+        # Atributos mapeados, no nombres de columna: `ALMLicense._license_key` es la
+        # columna `license_key` (la propiedad `license_key` cifra y descifra), y la
+        # rotación lee el atributo con `getattr`.
+        columnas = set(_inspect(spec.modelo).column_attrs.keys())
         faltan = set(spec.campos) - columnas
         assert not faltan, f"{spec.modelo.__name__} no tiene {faltan}"
 

@@ -79,9 +79,12 @@ def test_EL_HALLAZGO_el_proveedor_activo_sale_en_el_login(client, admin_token, d
     assert client.get("/api/v1/auth/sso/providers").json() == []
 
 
-def test_SAML_no_se_ofrece_porque_no_esta_implementado(client, admin_token, db):
-    r = client.post("/api/v1/enterprise/sso", headers=auth(admin_token), json={"provider": "saml"})
+def test_SAML_activo_exige_entity_id_url_y_certificado(client, admin_token, db):
+    # 23-11-2026: SAML implementado (app/services/auth_service/saml.py); activo
+    # sin lo mínimo para validar la firma no se puede guardar.
+    r = client.post("/api/v1/enterprise/sso", headers=auth(admin_token), json={"provider": "saml", "is_active": True})
     assert r.status_code == 422
+    assert r.json().get("code") == "sso_falta_dato", r.text
 
 
 def test_EL_HALLAZGO_el_proveedor_se_activa_con_un_PATCH_parcial(client, admin_token, db):

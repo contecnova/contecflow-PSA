@@ -344,7 +344,7 @@ export default function BiQueryBuilderPanel() {
                     <Button size="sm" variant="secondary" onClick={() => loadSavedQuery(q)}>{traducir('biquerybuilder.cargar')}</Button>
                     <Button size="sm" icon={<Play size={14} />} onClick={() => execSavedMut.mutate(q.id)}
                       disabled={execSavedMut.isPending}>{traducir('biquerybuilder.ejecutar')}</Button>
-                    <IconButton className="biqubupa-del" ariaLabel={traducir('biquerybuilder.eliminar')} onClick={async () => { if (await confirmar({ message: traducir('biquerybuilder.confirmar_eliminar_consulta'), danger: true, confirmLabel: traducir('biquerybuilder.eliminar') })) deleteMut.mutate(q.id) }}><Trash2 size={14} /></IconButton>
+                    <IconButton variante="caja" tono="peligro" ariaLabel={traducir('biquerybuilder.eliminar')} onClick={async () => { if (await confirmar({ message: traducir('biquerybuilder.confirmar_eliminar_consulta'), danger: true, confirmLabel: traducir('biquerybuilder.eliminar') })) deleteMut.mutate(q.id) }}><Trash2 size={14} /></IconButton>
                   </div>
                 </div>
               ))}

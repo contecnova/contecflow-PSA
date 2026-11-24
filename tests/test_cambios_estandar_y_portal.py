@@ -75,7 +75,10 @@ def test_con_modelo_vigente_se_aprueba_solo_y_cuenta_el_uso(client, admin_token,
     ch = db.get(ITSMChangeRequest, r.json()["data"]["id"])
     assert ch.status.value == "approved" and ch.standard_model_id == m.id
     assert ch.implementation_plan == m.procedure, "la plantilla rellena el plan vacío"
-    assert db.get(StandardChangeModel, m.id).use_count == 1
+    # La API suma el uso en su propia sesión; `m` sigue en el mapa de identidad
+    # de la del test con el valor de antes: se relee de la base.
+    db.refresh(m)
+    assert m.use_count == 1
 
 
 def test_si_el_modelo_caduca_antes_de_enviar_va_al_cab_como_normal(client, admin_token, db, monkeypatch):

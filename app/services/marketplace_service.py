@@ -163,7 +163,7 @@ def _descripcion(db: Session, conector, *, user_id: Optional[str] = None,
     empresa la cambió, o el conector es propio, sale como se guardó.
     """
     from app.services.textos_de_salida import TEXTOS
-    from app.services.textos_de_salida_servicios_m_z import texto_para
+    from app.services.textos_de_salida import texto_para
     clave = f"marketplace.desc.{conector.slug}"
     sembrada = next((i["description"] for i in CONNECTOR_CATALOG if i["slug"] == conector.slug), None)
     if clave in TEXTOS and conector.description == sembrada:

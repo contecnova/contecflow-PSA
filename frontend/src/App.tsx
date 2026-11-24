@@ -97,6 +97,10 @@ const PortfolioPage          = lazy(() => import('./pages/PortfolioPage'))
 // Proyectos — rev. 173: intake de cartera y planificación de recursos
 const CarteraIntakePage      = lazy(() => import('./pages/CarteraIntakePage'))
 const DemandaPage            = lazy(() => import('./pages/DemandaPage'))
+// «Mi cuaderno» (migración 202, docs/CUADERNO.md)
+const CuadernoPage           = lazy(() => import('./pages/CuadernoPage'))
+// PIR (migración 206, docs/PIR.md): revisiones posteriores a la implantación.
+const PirPage                = lazy(() => import('./pages/PirPage'))
 const PlanificacionDeRecursosPage = lazy(() => import('./pages/PlanificacionDeRecursosPage'))
 const GitPage                = lazy(() => import('./pages/GitPage'))
 const SprintChartsPage       = lazy(() => import('./pages/SprintChartsPage'))
@@ -545,6 +549,8 @@ function AppRoutes() {
       <Route path="/portfolio" element={<ProtectedRoute><Layout><PortfolioPage /></Layout></ProtectedRoute>} />
       <Route path="/portfolio/intake" element={<ProtectedRoute><Layout><CarteraIntakePage /></Layout></ProtectedRoute>} />
       <Route path="/demand" element={<ProtectedRoute><Layout><DemandaPage /></Layout></ProtectedRoute>} />
+      <Route path="/notebook" element={<ProtectedRoute><Layout><CuadernoPage /></Layout></ProtectedRoute>} />
+      <Route path="/pir" element={<ProtectedRoute><Layout><PirPage /></Layout></ProtectedRoute>} />
       <Route path="/resources/planning" element={<ProtectedRoute><Layout><PlanificacionDeRecursosPage /></Layout></ProtectedRoute>} />
       <Route path="/git" element={<ProtectedRoute><Layout><GitPage /></Layout></ProtectedRoute>} />
       <Route path="/sprint-charts" element={<ProtectedRoute><Layout><SprintChartsPage /></Layout></ProtectedRoute>} />

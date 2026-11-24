@@ -656,7 +656,6 @@ def _estado_mostrado(due, pause_minutes, guardado, paused_at, now, ticket=None) 
     if ticket is not None and pause_minutes and due is not None and now > aware(due):
         try:
             from sqlalchemy.orm import object_session
-            from app.services.service_desk.sla_del_ticket import calendario_del_ticket
             sesion = object_session(ticket)
             if sesion is not None:
                 cal = calendario_del_ticket(sesion, ticket)
@@ -863,3 +862,16 @@ def ticket_out(t: "Ticket", include_comments: bool = False, include_internal: bo
         ]
 
     return result
+
+
+def calendario_del_ticket(db, ticket):
+    """El calendario del SLA del ticket (el de su politica, o el de los ajustes
+    de su empresa): el mismo con el que se calcularon sus vencimientos.
+
+    Vivia en `service_desk.sla_del_ticket` (que la reexporta); desde alli,
+    `_estado_mostrado` la importaba dentro de una funcion y cerraba un ciclo.
+    """
+    from app.models.service_desk import SLAPolicy
+    politica = (db.query(SLAPolicy).filter(SLAPolicy.id == ticket.sla_policy_id).first()
+                if db is not None and ticket.sla_policy_id else None)
+    return calendario_sla(db, politica, ticket.organization_id)

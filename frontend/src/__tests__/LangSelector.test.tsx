@@ -63,6 +63,9 @@ vi.mock('../i18n/appTranslations', () => {
     ...mod,
     diccionarioCargado: (code: string) => tr[code] ?? tr.es,
     respaldoIngles: () => tr.en,
+    // El idioma por defecto ya no es fijo: usuario > empresa > navegador > inglés
+    // (AppLangContext lo pide con idiomaDelNavegador). En jsdom, el de respaldo.
+    idiomaDelNavegador: () => 'en',
   };
 });
 

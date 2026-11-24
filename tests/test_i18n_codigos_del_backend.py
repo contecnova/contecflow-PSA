@@ -48,7 +48,8 @@ def test_controles_del_informe_de_cumplimiento_tienen_texto():
 
 
 def test_rutas_del_menu_tienen_texto():
-    fuente = (RAIZ / "frontend" / "src" / "components" / "layout" / "Layout.tsx").read_text(encoding="utf-8")
+    # 23-11-2026: el menú lateral (rutas y `PATH_NAV_KEY`) salió de Layout.tsx a menuLateral.tsx.
+    fuente = (RAIZ / "frontend" / "src" / "components" / "layout" / "menuLateral.tsx").read_text(encoding="utf-8")
     m = re.search(r"const PATH_NAV_KEY[^{]*\{(.*?)\n\}", fuente, re.S)
     assert m
     alias = dict(re.findall(r"'([^']+)':\s*'([^']+)'", m.group(1)))

@@ -19,7 +19,7 @@ import {
   Flag, Layers, Shield, BarChart, LayoutGrid,
   Wrench, FolderOpen, ScrollText, ClipboardCheck,
   CalendarRange, Inbox, Database, MessageSquareText, Lightbulb,
-  Laptop, UserMinus, Globe, ClipboardList, Building, Building2, FileSignature,
+  Laptop, UserMinus, Globe, ClipboardList, Building, Building2, FileSignature, NotebookPen,
 } from 'lucide-react'
 
 export interface NavItemConfig {
@@ -71,6 +71,7 @@ export const PATH_NAV_KEY: Record<string, string> = {
   '/settings/project-workflows': 'project_issue_flows',
   '/sd/workflow-designer': 'sd_workflow_designer',
   '/client-portal': 'client_portal', '/contracts-ai': 'contracts_ai',
+  '/notebook': 'notebook',
 }
 
 export function getNavKeyForPath(path: string): string {
@@ -97,6 +98,10 @@ export const NAV_GROUPS: NavGroupConfig[] = [
     { to: '/tasks',           icon: <CheckSquare size={SZ} />,  label: 'Tasks' },
     { to: '/time',            icon: <Clock size={SZ} />,        label: 'Tiempo' },
     { to: '/meetings-ai',     icon: <Mic size={SZ} />,            label: 'Meeting Assistant' },
+    // «Mi cuaderno» (migración 202): notas personales; también desde el icono de la barra superior.
+    { to: '/notebook',        icon: <NotebookPen size={SZ} />,  label: 'My notebook' },
+    // PIR (migración 206): revisiones posteriores a la implantación asignadas, todas e informes.
+    { to: '/pir',             icon: <ClipboardCheck size={SZ} />, label: 'PIR reviews' },
     { to: '/absences',        icon: <Umbrella size={SZ} />,     label: 'Absences' },
     { to: '/overtime',        icon: <AlarmClockPlus size={SZ} />,label: 'Overtime' },
     { to: '/documents',       icon: <FileText size={SZ} />,     label: 'Documents' },

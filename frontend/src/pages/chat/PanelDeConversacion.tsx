@@ -21,7 +21,7 @@ import { useChatRealtime } from '../../context/ChatRealtimeContext'
 import { collabApi } from '../../services/collaborationApi'
 import { useAppLang } from '../../i18n/AppLangContext'
 import { extractErr } from '../../utils/helpers'
-import { EmptyState, Pulsable, Textarea } from '../../components/ui'
+import { EmptyState, Textarea, IconButton } from '../../components/ui'
 import { POLL_FREQUENT_MS, TYPING_IDLE_MS, TYPING_SWEEP_MS } from '../../constants/timings'
 import { CHAT_MESSAGES_PAGE_SIZE } from '../../constants/pagination'
 import { type ChatBot, type Conv, IconBtn, type LinkPicker, type Msg, tituloConv, type TypingDetail, type UserLike } from './compartido'
@@ -431,17 +431,17 @@ export function ConversationPane({ onBack, newConvAction, conv, currentUser, _bo
         {activeThreadRoot && (
           <div className="chat-hint-bar">
             <MessageSquare size={12} aria-hidden="true" /> {traducir('chat.replying_in_thread')}
-            <Pulsable type="button" onClick={() => setActiveThreadRoot(null)} className="chat-icon-close chat-icon-close--end" aria-label={traducir('chat.cancel_reply')}>
+            <IconButton variante="caja" onClick={() => setActiveThreadRoot(null)} className="chat-icon-close--end" ariaLabel={traducir('chat.cancel_reply')}>
               <X size={12} aria-hidden="true" />
-            </Pulsable>
+            </IconButton>
           </div>
         )}
         {editing && (
           <div className="chat-hint-bar">
             <Pencil size={12} aria-hidden="true" /> {traducir('chat.editing_message')}
-            <Pulsable type="button" onClick={() => { setEditing(null); setDraft('') }} className="chat-icon-close chat-icon-close--end" aria-label={traducir('chat.cancel_edit')}>
+            <IconButton variante="caja" onClick={() => { setEditing(null); setDraft('') }} className="chat-icon-close--end" ariaLabel={traducir('chat.cancel_edit')}>
               <X size={12} aria-hidden="true" />
-            </Pulsable>
+            </IconButton>
           </div>
         )}
         <div className="chat-composer__box">

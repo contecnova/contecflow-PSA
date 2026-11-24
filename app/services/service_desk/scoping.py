@@ -1,6 +1,7 @@
 from typing import Optional
 
 from sqlalchemy.orm import Session, object_session
+from sqlalchemy.orm.exc import UnmappedInstanceError
 from sqlalchemy import and_, false, or_
 
 from app.models.clients import Client
@@ -63,7 +64,12 @@ def empresa_activa(user) -> Optional[str]:
         return None
     if getattr(user, "is_superadmin", False):
         return getattr(user, "organization_id", None)
-    sesion = object_session(user)
+    try:
+        sesion = object_session(user)
+    except UnmappedInstanceError:
+        # Un principal que no es una fila (sujeto de sistema, doble de pruebas):
+        # no hay sesion de la que leer la empresa activa; vale la suya.
+        sesion = None
     if sesion is not None and "organization_id" in sesion.info:
         return sesion.info.get("organization_id")
     return getattr(user, "organization_id", None)

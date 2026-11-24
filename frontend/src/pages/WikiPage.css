@@ -159,7 +159,6 @@
   border-radius: var(--radius-md); padding: 10px 14px;
 }
 .wk-tag-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--wk-color); flex-shrink: 0; }
-.wk-danger { color: var(--danger); }
 
 /* ── Página principal ── */
 .wk-search .wk-input--search { flex: 1 1 240px; width: auto; }

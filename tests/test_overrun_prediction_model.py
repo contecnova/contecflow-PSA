@@ -347,6 +347,8 @@ def test_el_modelo_no_revienta_con_ninguna_combinacion_de_umbrales():
     CLAVES = {
         "cost_overrun_prob", "schedule_overrun_prob", "cost_overrun_pct",
         "schedule_overrun_days", "confidence", "signals", "recommendation",
+        # Baja (auditoría 22-11-2026): dice qué es (reglas de umbral, no un modelo entrenado).
+        "method",
     }
 
     for cpi, spi, ovd, load in itertools.product(CPI, SPI, OVD, LOAD):
@@ -358,6 +360,7 @@ def test_el_modelo_no_revienta_con_ninguna_combinacion_de_umbrales():
         assert r["cost_overrun_pct"] >= 0
         assert r["confidence"] in ("low", "medium", "high")
         assert r["recommendation"]
+        assert r["method"] == "rule_based"
         for s in r["signals"]:
             assert set(s) == {"signal", "value", "weight", "type"}
             assert s["type"] in ("cost", "schedule", "both")

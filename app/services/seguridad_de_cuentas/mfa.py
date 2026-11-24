@@ -13,6 +13,7 @@ necesita y qué cuenta como segundo factor.
   (`mfa_configuracion_obligatoria`).
 """
 from __future__ import annotations
+import logging
 
 import hashlib
 import secrets
@@ -20,7 +21,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from app.core.codigos_de_error import error
-from app.services.seguridad_de_cuentas.politica import CAPACIDADES_SENSIBLES, Politica, leer
+from app.services.seguridad_de_cuentas.politica import CAPACIDADES_SENSIBLES, PoliticaDeCuenta, leer
 
 COOKIE_DISPOSITIVO = "trusted_device"
 
@@ -37,7 +38,7 @@ def _rol(user) -> str:
     return getattr(getattr(user, "role", None), "value", getattr(user, "role", "")) or ""
 
 
-def motivo_de_exigencia(db, user, org_id: Optional[str], p: Optional[Politica] = None) -> Optional[str]:
+def motivo_de_exigencia(db, user, org_id: Optional[str], p: Optional[PoliticaDeCuenta] = None) -> Optional[str]:
     """`org`, `rol`, `capacidad` o None (no se le exige)."""
     if getattr(user, "is_superadmin", False):
         return None
@@ -52,11 +53,16 @@ def motivo_de_exigencia(db, user, org_id: Optional[str], p: Optional[Politica] =
             if set(capacidades_de(db, user)) & set(CAPACIDADES_SENSIBLES):
                 return "capacidad"
         except Exception:
-            pass
+            # 24-11-2026: falla CERRADO. Si no se pueden leer las capacidades no se
+            # sabe si la persona tiene alguna sensible: se le exige MFA (con el mismo
+            # periodo de gracia que el motivo «capacidad», así que no bloquea el login
+            # de golpe). Antes se saltaba la exigencia en silencio.
+            logging.getLogger(__name__).warning("MFA: no se pudieron leer las capacidades; se exige MFA", exc_info=True)
+            return "capacidad"
     return None
 
 
-def factores(db, user, p: Politica) -> dict:
+def factores(db, user, p: PoliticaDeCuenta) -> dict:
     """Factores del usuario que cuentan según los métodos permitidos."""
     from app.services.auth_service.webauthn import user_has_passkeys
     metodos = p.metodos()
@@ -65,7 +71,7 @@ def factores(db, user, p: Politica) -> dict:
     return {"totp": totp, "webauthn": llave, "alguno": totp or llave}
 
 
-def estado(db, user, org_id: Optional[str], p: Optional[Politica] = None, *, abrir_gracia: bool = False) -> dict:
+def estado(db, user, org_id: Optional[str], p: Optional[PoliticaDeCuenta] = None, *, abrir_gracia: bool = False) -> dict:
     """Marcas de MFA para la pantalla y para las guardas."""
     p = p or leer(db, org_id)
     motivo = motivo_de_exigencia(db, user, org_id, p)

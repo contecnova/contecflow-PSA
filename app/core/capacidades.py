@@ -103,6 +103,13 @@ CAPACIDADES: dict[str, Capacidad] = {
     # Recertificación de accesos: cada responsable revisa a su gente.
     "seguridad.recertificar": _c(GESTORES, "Revisar los accesos de mi equipo (recertificación)",
                                  sonda=_get("/api/v1/security/access-reviews/mine", True)),
+    # Migración 206 (docs/PIR.md): revisión posterior a la implantación de cambios y proyectos.
+    "pir.ver": _c(INTERNOS, "PIR: ver y rellenar las revisiones en las que participo (el servicio acota)",
+                  sonda=_get("/api/v1/pir/mias", True)),
+    "pir.gestionar": _c(GESTORES, "PIR: programar, reasignar, descartar las opcionales, acciones e informes"),
+    "pir.aprobar": _c(ADMIN_PM_JEFE, "PIR: aprobar, devolver, cerrar y reabrir (con segregación si la empresa la exige)"),
+    "pir.administrar": _c(ADMIN, "PIR: configuración, plantillas y borrado",
+                          sonda=_get("/api/v1/pir/config", True)),
 
     # ── Trabajo diario ───────────────────────────────────────────────────────
     "colaboracion.ver": _c(INTERNOS, "Chat, calendario, documentos, wiki, búsqueda, aprobaciones, informes",
@@ -243,6 +250,30 @@ CAPACIDADES: dict[str, Capacidad] = {
     "reuniones.ver_todas": _c(ADMIN, "Ver y escuchar todas las reuniones de la empresa"),
     "reuniones.config": _c(ADMIN, "Configurar el asistente de reuniones y el RGPD por persona",
                            sonda=_get("/api/v1/meeting-assistant/config", True)),
+    # «Mi cuaderno» (migración 202, docs/CUADERNO.md): notas personales de cada persona con
+    # acceso a gestión (internos y externos; el portal de clientes no). Privado por defecto:
+    # ninguna capacidad deja leer cuadernos ajenos salvo `cuaderno.acceso_excepcional`, que
+    # exige además un bloqueo legal activo o una solicitud RGPD en curso (auditado).
+    "cuaderno.usar": _c(TODOS, "Mi cuaderno: mis cuadernos, notas rápidas y lo compartido conmigo",
+                        sonda=_get("/api/v1/notebook/tags", True)),
+    "cuaderno.config": _c(ADMIN, "Configurar Mi cuaderno: etiquetas por defecto, plantillas, baja, papelera, IA y voz",
+                          sonda=_get("/api/v1/notebook/config", True)),
+    "cuaderno.acceso_excepcional": _c(ADMIN, "Acceso excepcional a los cuadernos de una persona con bloqueo legal "
+                                      "o solicitud RGPD en curso (auditado)"),
+    # Agentes de código por MCP (23-11-2026, docs/integraciones/MCP.md): conectar OpenCode, Claude
+    # Code… al servidor MCP (`POST /api/v1/mcp`) y generar sus credenciales. Cada herramienta pide
+    # además la MISMA capacidad que su ruta REST; la empresa lo enciende en Configuración.
+    "mcp.usar": _c(TODOS, "Agentes de código (MCP): conectar el editor o el terminal y generar sus credenciales",
+                   sonda=_get("/api/v1/mcp/estado")),
+    # «Del ticket al PR» (migración 203, docs/integraciones/TICKET_A_PR.md): módulo opcional por
+    # empresa (apagado). Ver las ejecuciones del ticket o tarea que ya se ve; lanzar el agente;
+    # aprobar o rechazar su plan; configurar (repositorios, límites, credenciales Git, motor).
+    "ticket_pr.ver": _c(INTERNOS, "Del ticket al PR: ver las ejecuciones del agente de código en tickets y tareas",
+                        sonda=_get("/api/v1/ticket-pr/estado", True)),
+    "ticket_pr.lanzar": _c(ADMIN_PM_JEFE, "Del ticket al PR: lanzar el agente de código desde un ticket o una tarea"),
+    "ticket_pr.aprobar_plan": _c(ADMIN_PM_JEFE, "Del ticket al PR: aprobar o rechazar el plan del agente de código"),
+    "ticket_pr.config": _c(ADMIN, "Del ticket al PR: configurar el módulo, repositorios, límites y credenciales Git",
+                           sonda=_get("/api/v1/ticket-pr/config", True)),
 
     # ── Configuración (secciones de /settings) ───────────────────────────────
     "personas.config": _c(ADMIN_RRHH, "Departamentos, usuarios y vacaciones", "settings"),

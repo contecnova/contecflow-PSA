@@ -1,0 +1,23 @@
+{
+ "codigos": {
+  "kb_hueco_ya_tiene_tarea": {
+   "es": "Esta pregunta sin respuesta ya tiene una tarea",
+   "en": "This unanswered question already has a task",
+   "zh": "此未回答问题已有任务"
+  }
+ },
+ "que": {
+  "task": {
+   "es": "tarea",
+   "en": "task",
+   "zh": "任务"
+  },
+  "pregunta_sin_respuesta": {
+   "es": "pregunta sin respuesta",
+   "en": "unanswered question",
+   "zh": "未回答问题"
+  }
+ },
+ "textos": {},
+ "entidades": {}
+}

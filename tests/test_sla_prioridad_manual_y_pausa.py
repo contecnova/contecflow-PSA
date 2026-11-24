@@ -37,9 +37,17 @@ def test_volver_al_estado_anterior_suma_los_minutos_en_pausa(client, admin_token
     tid = _ticket(client, admin_token)
     client.patch(f"/api/v1/sd/tickets/{tid}", headers=auth(admin_token), json={"status": "in_progress"})
     client.patch(f"/api/v1/sd/tickets/{tid}", headers=auth(admin_token), json={"status": "pending_client"})
+    # Auditoria 22-11-2026 (A-SD2): la pausa se mide en minutos del CALENDARIO
+    # del SLA, no de pared. Para que los 90 minutos cuenten enteros a cualquier
+    # hora en que corra la prueba, el ticket va con una politica 24x7.
+    from app.models.service_desk import SLAPolicy
+    politica = SLAPolicy(name="24x7", organization_id="1", business_hours_only=False)
+    db.add(politica)
+    db.flush()
     # La pausa empezo hace 90 minutos.
     db.query(Ticket).filter(Ticket.id == tid).update(
-        {"sla_paused_at": datetime.now(timezone.utc) - timedelta(minutes=90), "sla_pause_minutes": 0})
+        {"sla_paused_at": datetime.now(timezone.utc) - timedelta(minutes=90), "sla_pause_minutes": 0,
+         "sla_policy_id": politica.id})
     db.commit()
     r = client.post(f"/api/v1/sd/tickets/{tid}/restore-pending", headers=auth(admin_token))
     assert r.status_code == 200, r.text

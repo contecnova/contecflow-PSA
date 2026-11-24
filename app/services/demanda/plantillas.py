@@ -254,8 +254,8 @@ def sembrar_plantilla_piloto(db: Session, org_id: Optional[str], usuario_id: Opt
         idioma = idioma_de_salida(db, org_id=org_id)
         ids = _grupos(db, org_id, usuario_id, idioma)
         flujo = DemandFlow(organization_id=org_id, key=CLAVE_FLUJO,
-                           name=_PLANTILLA_NOMBRE.get(idioma) or _PLANTILLA_NOMBRE["es"],
-                           description=_PLANTILLA_DESCRIPCION.get(idioma) or _PLANTILLA_DESCRIPCION["es"],
+                           name=_PLANTILLA_NOMBRE.get(idioma) or _PLANTILLA_NOMBRE[IDIOMA_DE_RESPALDO],
+                           description=_PLANTILLA_DESCRIPCION.get(idioma) or _PLANTILLA_DESCRIPCION[IDIOMA_DE_RESPALDO],
                            definition=json.dumps(definicion_piloto(ids, idioma), ensure_ascii=False), version=1,
                            is_active=True, created_by=usuario_id)
         db.add(flujo)

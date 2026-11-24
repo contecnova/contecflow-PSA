@@ -159,7 +159,7 @@ function ConfigEditor({ config, onSave, saving }: { config: VoiceAgentConfig | u
               className="vap-select">
               {opcionesIntent}
             </Select>
-            <IconButton ariaLabel={t('common.delete')} title={t('common.delete')} onClick={() => removeDtmf(key)} className="vap-icono-btn">
+            <IconButton variante="caja" tono="peligro" ariaLabel={t('common.delete')} title={t('common.delete')} onClick={() => removeDtmf(key)}>
               <Trash2 size={14} aria-hidden="true" />
             </IconButton>
           </div>

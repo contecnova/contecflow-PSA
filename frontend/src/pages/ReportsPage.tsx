@@ -55,7 +55,7 @@ function ReportsDashboard({ saved, onRemove, onOpen }: { saved: SavedReport[]; o
             <div className="u-md-700">{r.name}</div>
             <div className="u-row-6">
               <Button size="xs" variant="ghost" icon={<Pencil size={12} />} onClick={() => onOpen(r)}>{traducir('reportes_ui.editar')}</Button>
-              <IconButton className="rep-icono rep-icono--borrar" type="button" ariaLabel={traducir('reportes_ui.eliminar_informe')} title={traducir('reportes_ui.eliminar_informe')} onClick={() => openConfirmGlobal({ message: traducir('reportes_ui.eliminar_informe_confirm', { nombre: r.name || '' }), danger: true, onConfirm: () => onRemove?.(r.id) })}><Trash2 size={14} aria-hidden /></IconButton>
+              <IconButton variante="caja" tono="peligro" ariaLabel={traducir('reportes_ui.eliminar_informe')} title={traducir('reportes_ui.eliminar_informe')} onClick={() => openConfirmGlobal({ message: traducir('reportes_ui.eliminar_informe_confirm', { nombre: r.name || '' }), danger: true, onConfirm: () => onRemove?.(r.id) })}><Trash2 size={14} aria-hidden /></IconButton>
             </div>
           </div>
           <MiniPanel config={r} />

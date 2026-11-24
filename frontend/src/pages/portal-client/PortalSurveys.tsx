@@ -318,7 +318,7 @@ function RatingRow({ label, hint, value, onChange }: { label: string; hint?: str
         {[1, 2, 3, 4, 5].map(n => {
           const filled = value >= n
           return (
-            <Pulsable className={`portsurv-row-9 portalsu-sx8 portal-surveys-e2 ${filled ? 'portal-surveys-m3' : 'portal-surveys-m4'}`} key={n} onClick={() => onChange(n)} aria-label={rellenar(tp('psv_star_aria'), { n })}
+            <Pulsable /* eslint-disable-line contec/sin-boton-de-icono-propio -- excepción: estrella de valoración */ className={`portsurv-row-9 portalsu-sx8 portal-surveys-e2 ${filled ? 'portal-surveys-m3' : 'portal-surveys-m4'}`} key={n} onClick={() => onChange(n)} aria-label={rellenar(tp('psv_star_aria'), { n })}
               style={{ '--portal-surveys-border': `1px solid ${filled ? 'var(--warning)' : 'var(--surface-4)'}` } as CSSProperties}>
               <Star size={18} fill={filled ? 'currentColor' : 'none'} strokeWidth={1.5} />
             </Pulsable>

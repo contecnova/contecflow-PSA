@@ -7,9 +7,9 @@ alertas de cumplimiento, pasos del asistente de causa raiz, catalogo del
 marketplace...). Operadores: es/en/zh. Lo que redacta una persona o la empresa
 no esta aqui: sale como lo escribio.
 
-`texto_para(db, clave, user_id=..., org_id=..., preferido=...)` resuelve el
-idioma del destinatario con `formato_regional.idioma_de_salida` y compone el
-texto. Este modulo no importa nada de la app al cargarse.
+`texto_para` y `aviso_de` viven en `textos_de_salida` (prueba global
+23-11-2026: aqui cerraban el ciclo textos_de_salida -> este bloque ->
+textos_de_salida). Este modulo solo tiene datos y no importa nada de la app.
 """
 from __future__ import annotations
 
@@ -18,29 +18,8 @@ from typing import Optional
 TEXTOS_SERVICIOS_M_Z: dict[str, dict[str, str]] = {}
 
 
-def texto_para(db, clave: str, *, user_id: Optional[str] = None, org_id: Optional[str] = None,
-               preferido: Optional[str] = None, **params) -> str:
-    """`clave` en el idioma del destinatario (`user_id`/`org_id`/`preferido`)."""
-    from app.services.formato_regional import idioma_de_salida
-    from app.services.textos_de_salida import texto
-    return texto(clave, idioma_de_salida(db, user_id=user_id, org_id=org_id, preferido=preferido), **params)
-
-
 def _bloque(d: dict[str, dict[str, str]]) -> None:
     TEXTOS_SERVICIOS_M_Z.update(d)
-
-
-def aviso_de(db, user_id: str, titulo: str, cuerpo: Optional[str] = None, **params) -> dict:
-    """Argumentos `title`/`body`/`aviso` de `notify_user`: texto en el idioma del destinatario.
-
-    Los textos de respaldo (`title`/`body`) ya salen en su idioma; `aviso` lleva
-    la clave y los datos para el empujon por WebSocket.
-    """
-    return {
-        "title": texto_para(db, titulo, user_id=user_id, **params),
-        "body": texto_para(db, cuerpo, user_id=user_id, **params) if cuerpo else None,
-        "aviso": {"titulo": titulo, "cuerpo": cuerpo, "params": params},
-    }
 
 
 _bloque({

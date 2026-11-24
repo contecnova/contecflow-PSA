@@ -1,0 +1,201 @@
+{
+ "codigos": {
+  "cuaderno_config_no_valida": {
+   "es": "La configuración del cuaderno no es válida ({campo})",
+   "en": "The notebook settings are not valid ({campo})",
+   "zh": "笔记本配置无效（{campo}）"
+  },
+  "cuaderno_etiqueta_no_valida": {
+   "es": "La etiqueta «{clave}» no es válida o está repetida",
+   "en": "The tag «{clave}» is not valid or is repeated",
+   "zh": "标签「{clave}」无效或重复"
+  },
+  "cuaderno_sin_permiso": {
+   "es": "No tienes permiso para hacer esto en este cuaderno",
+   "en": "You do not have permission to do this in this notebook",
+   "zh": "你无权在此笔记本中执行此操作"
+  },
+  "cuaderno_contenido_no_valido": {
+   "es": "El contenido de la página no es válido ({motivo})",
+   "en": "The page content is not valid ({motivo})",
+   "zh": "页面内容无效（{motivo}）"
+  },
+  "cuaderno_pagina_demasiado_grande": {
+   "es": "La página es demasiado grande (máximo {max} KB)",
+   "en": "The page is too large (maximum {max} KB)",
+   "zh": "页面过大（最大 {max} KB）"
+  },
+  "cuaderno_plantilla_no_valida": {
+   "es": "La plantilla no es válida ({campo})",
+   "en": "The template is not valid ({campo})",
+   "zh": "模板无效（{campo}）"
+  },
+  "cuaderno_padre_no_valido": {
+   "es": "Esa página no puede ser la página principal de esta",
+   "en": "That page cannot be the parent of this one",
+   "zh": "该页面不能作为此页面的上级页面"
+  },
+  "cuaderno_conflicto_de_version": {
+   "es": "La página cambió mientras escribías (versión {version}): se guardó tu copia aparte",
+   "en": "The page changed while you were writing (version {version}): your copy was saved separately",
+   "zh": "你编辑时页面已被修改（版本 {version}）：你的副本已另存"
+  },
+  "cuaderno_orden_no_valido": {
+   "es": "El nuevo orden no es válido",
+   "en": "The new order is not valid",
+   "zh": "新的排序无效"
+  },
+  "cuaderno_tipo_no_valido": {
+   "es": "Tipo de elemento del cuaderno no válido",
+   "en": "Invalid notebook item type",
+   "zh": "笔记本项目类型无效"
+  },
+  "cuaderno_casilla_no_encontrada": {
+   "es": "La casilla ya no está en la página",
+   "en": "The checkbox is no longer on the page",
+   "zh": "该复选框已不在页面中"
+  },
+  "cuaderno_demasiadas_etiquetas": {
+   "es": "Has llegado al máximo de etiquetas propias",
+   "en": "You have reached the maximum number of own tags",
+   "zh": "你已达到自定义标签的上限"
+  },
+  "cuaderno_estado_no_valido": {
+   "es": "El estado de colaboración de la página no es válido",
+   "en": "The page collaboration state is not valid",
+   "zh": "页面协作状态无效"
+  },
+  "cuaderno_rapido_no_se_comparte": {
+   "es": "Las notas rápidas son solo tuyas y no se comparten",
+   "en": "Quick notes are only yours and cannot be shared",
+   "zh": "快速笔记仅属于你，不能共享"
+  },
+  "cuaderno_compartir_no_valido": {
+   "es": "Indica con quién compartir y con qué permiso (lectura o edición)",
+   "en": "Choose who to share with and the permission (read or edit)",
+   "zh": "请选择共享对象和权限（只读或编辑）"
+  },
+  "cuaderno_compartir_desactivado": {
+   "es": "La empresa no permite compartir cuadernos con este tipo de destinatario ({tipo})",
+   "en": "The company does not allow sharing notebooks with this kind of recipient ({tipo})",
+   "zh": "公司不允许与此类接收者共享笔记本（{tipo}）"
+  },
+  "cuaderno_compartir_contigo": {
+   "es": "No hace falta compartir un cuaderno contigo",
+   "en": "There is no need to share a notebook with yourself",
+   "zh": "无需与自己共享笔记本"
+  },
+  "cuaderno_fecha_no_valida": {
+   "es": "La fecha no es válida",
+   "en": "The date is not valid",
+   "zh": "日期无效"
+  },
+  "cuaderno_proyecto_obligatorio": {
+   "es": "Para crear una tarea elige un proyecto",
+   "en": "Choose a project to create a task",
+   "zh": "创建任务需要选择项目"
+  },
+  "cuaderno_accion_no_valida": {
+   "es": "Esa acción no está disponible desde una nota",
+   "en": "That action is not available from a note",
+   "zh": "无法从笔记执行该操作"
+  },
+  "cuaderno_accion_sin_texto": {
+   "es": "Selecciona el texto o la casilla que quieres convertir",
+   "en": "Select the text or the checkbox you want to convert",
+   "zh": "请选择要转换的文本或复选框"
+  },
+  "cuaderno_dibujo_no_valido": {
+   "es": "El dibujo no es válido",
+   "en": "The drawing is not valid",
+   "zh": "绘图无效"
+  },
+  "cuaderno_voz_desactivada": {
+   "es": "La empresa no tiene activadas las notas de voz del cuaderno",
+   "en": "The company has not enabled notebook voice notes",
+   "zh": "公司未启用笔记本语音笔记"
+  },
+  "cuaderno_ia_accion_no_valida": {
+   "es": "Acción de IA no válida",
+   "en": "Invalid AI action",
+   "zh": "无效的 AI 操作"
+  },
+  "cuaderno_ia_desactivada": {
+   "es": "La empresa no tiene activada la IA del cuaderno",
+   "en": "The company has not enabled the notebook AI",
+   "zh": "公司未启用笔记本 AI"
+  },
+  "cuaderno_pagina_vacia": {
+   "es": "La página está vacía",
+   "en": "The page is empty",
+   "zh": "页面为空"
+  },
+  "cuaderno_formato_no_valido": {
+   "es": "Formato de exportación no válido (Markdown o PDF)",
+   "en": "Invalid export format (Markdown or PDF)",
+   "zh": "导出格式无效（Markdown 或 PDF）"
+  },
+  "cuaderno_acceso_sin_motivo": {
+   "es": "Para acceder a cuadernos ajenos hace falta un bloqueo legal activo o una solicitud RGPD en curso de esa persona",
+   "en": "Accessing someone else's notebooks requires an active legal hold or an open GDPR request for that person",
+   "zh": "访问他人笔记本需要针对该人员的有效法律保全或进行中的 GDPR 请求"
+  },
+  "cuaderno_acceso_sin_justificacion": {
+   "es": "Escribe la justificación del acceso (al menos 10 caracteres)",
+   "en": "Write the justification for the access (at least 10 characters)",
+   "zh": "请填写访问理由（至少 10 个字符）"
+  }
+ },
+ "que": {
+  "cuaderno": {
+   "es": "Cuaderno",
+   "en": "Notebook",
+   "zh": "笔记本"
+  },
+  "seccion_de_cuaderno": {
+   "es": "Sección",
+   "en": "Section",
+   "zh": "分区"
+  },
+  "pagina_de_cuaderno": {
+   "es": "Página",
+   "en": "Page",
+   "zh": "页面"
+  },
+  "elemento_de_papelera": {
+   "es": "Elemento de la papelera",
+   "en": "Trash item",
+   "zh": "回收站项目"
+  },
+  "tarea_de_cuaderno": {
+   "es": "Casilla de tarea",
+   "en": "Task checkbox",
+   "zh": "任务复选框"
+  },
+  "etiqueta_de_cuaderno": {
+   "es": "Etiqueta",
+   "en": "Tag",
+   "zh": "标签"
+  },
+  "plantilla_de_cuaderno": {
+   "es": "Plantilla",
+   "en": "Template",
+   "zh": "模板"
+  },
+  "comparticion": {
+   "es": "Compartición",
+   "en": "Share",
+   "zh": "共享"
+  },
+  "departamento": {
+   "es": "Departamento",
+   "en": "Department",
+   "zh": "部门"
+  },
+  "dibujo": {
+   "es": "Dibujo",
+   "en": "Drawing",
+   "zh": "绘图"
+  }
+ }
+}

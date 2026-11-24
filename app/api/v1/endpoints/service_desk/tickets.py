@@ -52,7 +52,7 @@ from app.services.service_desk.workload_service import auto_assign_ticket_ml_com
 from app.services.service_desk.kb_service import create_kb_from_ticket
 from app.core.deps import get_current_portal_client
 from app.services.service_desk.semantic_feedback_service import (
-    enqueue_profile_refresh, enqueue_reassign_feedback, enqueue_routing_outcome,
+    enqueue_profile_refresh, enqueue_reassign_feedback, enqueue_routing_outcome, enqueue_cierre_semantico,
 )
 from app.core.constantes import MAX_TAMANO_DE_PAGINA
 
@@ -203,8 +203,11 @@ def update_ticket(
     _org_del_ticket = getattr(ticket, "organization_id", None)
     if effects["refresh_profile"]:
         enqueue_profile_refresh(background_tasks, ticket.assigned_to_user_id, org_id=_org_del_ticket)
+        # 23-11-2026: historial del nivel 3 y veredicto de la sugerencia de la IA.
+        enqueue_cierre_semantico(background_tasks, "ticket", ticket_id, org_id=_org_del_ticket)
     if effects["reassigned"]:
-        enqueue_reassign_feedback(background_tasks, ticket_id, "ticket", org_id=_org_del_ticket)
+        enqueue_reassign_feedback(background_tasks, ticket_id, "ticket", org_id=_org_del_ticket,
+                                  nuevo_user_id=ticket.assigned_to_user_id)
     if effects.get("record_routing_outcome"):
         enqueue_routing_outcome(background_tasks, ticket_id, org_id=_org_del_ticket)
     return APIResponse.ok(data=_ticket_out(ticket))

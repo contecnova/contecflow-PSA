@@ -6,7 +6,8 @@
  * contecintelligence (ERP, CRM, contecflow…), con:
  *  - el progreso en vivo (SSE reenviado por contecflow, sin credenciales en el navegador);
  *  - la respuesta con su tabla o gráfico, la consulta usada y el recibo firmado verificable;
- *  - las métricas certificadas: consultarlas y explicar por qué cambiaron entre dos periodos.
+ *  - las métricas certificadas: consultarlas, explicar por qué cambiaron entre dos periodos
+ *    y (23-11-2026) ver sus anomalías en un periodo.
  * Lo que cada persona ve lo decide contecintelligence con su rol y su filtro de filas.
  */
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -22,6 +23,7 @@ import { useAppT } from '../i18n/AppLangContext'
 import { useAuth } from '../context/AuthContext'
 import { localeActivo, extractErr } from '../utils/helpers'
 import DateInput from '../components/ui/DateInput'
+import AnomaliasDeMetrica from '../components/conectores/AnomaliasDeMetrica'
 import './PreguntarALaEmpresaPage.css'
 import { TOOLTIP_SUPERFICIE_2 } from '../constants/estilosGrafico'
 
@@ -330,6 +332,8 @@ function DetalleMetrica({ m }: { m: Metrica }) {
           </div>
         )}
       </div>
+
+      <AnomaliasDeMetrica key={m.name} m={m} columnaInicial={col} />
     </div>
   )
 }

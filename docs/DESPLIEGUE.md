@@ -8,7 +8,7 @@ pruebas de humo. Todo sale del código (`app/core/config.py`,
 con el prefijo `/api/v1`. Lo que no se ha podido comprobar en ejecución lo dice.
 
 Cabeza de migraciones al revisar esta guía (2026-11-23):
-`201_cadena_colaboracion_y_cronometro` (153 revisiones, una sola cadena; `scripts/migrar.py` se
+`205_portal_usuarios` (157 revisiones, una sola cadena; `scripts/migrar.py` se
 para si hay dos cabezas). La fuente de verdad es siempre `python -m alembic heads`.
 
 Desarrollo en local (`./setup.sh demo|clean|start`, SQLite o Postgres en
@@ -90,7 +90,7 @@ crea compose.
 
 7. Las variables de integraciones (correo entrante, métricas, Stripe, GeoIP,
    passkeys…) y los ajustes por organización están en B.1. La lista completa,
-   con su valor por defecto, está en el README («4.2 Settings fields»).
+   con su valor por defecto, está en docs/REFERENCIA_DE_AJUSTES.md.
    `.env.example` recoge las que necesita un operador y explica al final qué
    familias de ajustes finos se quedan fuera a propósito.
 
@@ -146,8 +146,8 @@ Haz las pruebas de humo de la sección C. Configura en la aplicación lo que va
 por organización (B.1: secreto de Jira, `SLACK_TEAM_ID`, `TEAMS_TENANT_ID`,
 `TWILIO_PHONE_NUMBERS`, secreto propio de correo entrante). Las políticas de
 gastos y las reglas de ausencias (tipos, cupos, turnos, documentos) las
-configura cada empresa: DOCS.md §22 bis a §22 quater y, en el README, «Policies
-& rules engine», «Absences» y «Expenses».
+configura cada empresa: docs/APPROVAL_ENGINE.md (anexo, §22 bis a §22 quater) y, en el README,
+§22 Ausencias, §32 Finanzas (gastos) y §36 Aprobaciones.
 
 ## B. Actualizar un entorno existente
 

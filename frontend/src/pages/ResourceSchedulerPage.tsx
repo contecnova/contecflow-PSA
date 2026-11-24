@@ -25,7 +25,7 @@ import { reservasApi, unwrapList, type ProjectListItem } from '../services/api'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { CalendarDays, Trash2, Users, X } from 'lucide-react'
-import { Button, Spinner, EmptyState, Tabs, useDialogo, Select, Pulsable, Input, confirmarDescarte, hayCambiosSinGuardar } from '../components/ui'
+import { Button, Spinner, EmptyState, Tabs, useDialogo, Select, Pulsable, Input, confirmarDescarte, hayCambiosSinGuardar, IconButton } from '../components/ui'
 import { useAppT } from '../i18n/AppLangContext'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import useMediaQuery from '../hooks/useMediaQuery'
@@ -227,11 +227,11 @@ function BookingPanel({ booking, position, projects, onSave, onDelete, onClose, 
           {isNew ? t('resource_scheduler.create') : t('resource_scheduler.save')}
         </Button>
         {!isNew && (
-          <Button size="sm" variant="danger" icon={<Trash2 size={14} />} onClick={onDelete}
-            title={t('agenda_recursos_ui.eliminar')} />
+          <IconButton variante="caja" tono="peligro" onClick={onDelete}
+            ariaLabel={t('agenda_recursos_ui.eliminar')}><Trash2 size={14} /></IconButton>
         )}
-        <Button size="sm" variant="secondary" icon={<X size={14} />} onClick={onClose}
-          title={t('agenda_recursos_ui.cerrar')} data-cierra-dialogo="" />
+        <IconButton variante="caja" onClick={onClose}
+          ariaLabel={t('agenda_recursos_ui.cerrar')} data-cierra-dialogo=""><X size={14} /></IconButton>
       </div>
     </div>
   )

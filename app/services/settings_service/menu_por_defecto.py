@@ -24,6 +24,7 @@ menú, que vive en el frontend). Ocultar no quita permisos: el menú se filtra
 antes por la matriz de permisos y la ruta oculta se sigue abriendo.
 """
 from __future__ import annotations
+import logging
 
 import json
 import re
@@ -128,6 +129,7 @@ def leer(db: Session, org_id: Optional[str]) -> dict:
     try:
         return normalizar_por_rol(json.loads(crudo))
     except Exception:  # fila antigua o dañada: como si no hubiera
+        logging.getLogger(__name__).debug("leer: excepcion ignorada", exc_info=True)
         return {"version": VERSION, "roles": {}}
 
 

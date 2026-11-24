@@ -31,6 +31,12 @@ export const CAPACIDADES = [
   'ia.ver', 'ia.asignacion', 'ia.asignacion_config',
   // Asistente de reuniones (19-11-2026): usar (internos), ver todas (supervisión) y configurar.
   'reuniones.usar', 'reuniones.ver_todas', 'reuniones.config',
+  // Mi cuaderno (migración 202): usar (todos los de gestión), configurar y acceso excepcional (admin, auditado).
+  'cuaderno.usar', 'cuaderno.config', 'cuaderno.acceso_excepcional',
+  // Agentes de código por MCP (23-11-2026): conectar el editor o el terminal y generar credenciales.
+  'mcp.usar',
+  // Del ticket al PR (migración 203): ver ejecuciones, lanzar el agente, aprobar su plan y configurar.
+  'ticket_pr.ver', 'ticket_pr.lanzar', 'ticket_pr.aprobar_plan', 'ticket_pr.config',
   // Proveedores y externalización (19-11-2026): ver (gestores y RRHH), gestionar y configurar (admin/PM).
   'proveedores.ver', 'proveedores.gestionar', 'proveedores.config',
   // Portal del proveedor (migración 191): solo externos marcados como contacto del portal de su proveedor.
@@ -45,6 +51,8 @@ export const CAPACIDADES = [
   'interno.portal', 'interno.gestionar', 'interno.cargos',
   // Seguridad de cuentas (23-11-2026): administrar políticas (admin) y recertificar accesos (responsables).
   'seguridad.administrar', 'seguridad.recertificar',
+  // PIR (migración 206, docs/PIR.md): ver y rellenar las propias, gestionar, aprobar (con segregación) y administrar.
+  'pir.ver', 'pir.gestionar', 'pir.aprobar', 'pir.administrar',
   // >>> guardas_a_capacidades (generado: scripts/codemods/guardas_a_capacidades.py --aplicar)
   // Auditoría 22-11-2026 (M9): capacidades de las guardas de la API que eran de rol.
   'alertas.administrar', 'alertas.gestionar', 'alertas.usar', 'alm.administrar', 'analitica.gestionar',

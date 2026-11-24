@@ -69,8 +69,16 @@ def review_expense(
     rejection_reason: Optional[str],
     current_user: User,
     db: Session,
+    *,
+    por_regla: bool = False,
 ) -> dict:
-    """Approve or reject a submitted expense. Sends notification and writes audit log."""
+    """Approve or reject a submitted expense. Sends notification and writes audit log.
+
+    `por_regla` (23-11-2026): la aprobó una regla o política (auto-aprobación de la
+    bandeja), no una persona; no es autoaprobación, así que no se aplica la
+    segregación y no queda revisor. Sin esto, el gasto auto-aprobado se quedaba
+    «enviado» con la solicitud ya aprobada.
+    """
 
     # M88 (auditoría 22-11-2026): la fila se bloquea (dos revisores a la vez no
     # deciden dos veces) y nadie aprueba su propio gasto (segregación de funciones).
@@ -83,8 +91,9 @@ def review_expense(
         raise ErrorDeDominio(404)
     if expense.status != ExpenseStatus.submitted:
         raise error(400, "gasto_no_pendiente")
-    from app.services.approval_engine._base import exigir_que_no_sea_suyo
-    exigir_que_no_sea_suyo(db, expense.user_id, current_user, "expense", expense.id)
+    if not por_regla:
+        from app.services.approval_engine._base import exigir_que_no_sea_suyo
+        exigir_que_no_sea_suyo(db, expense.user_id, current_user, "expense", expense.id)
     # Rev. 166 (#27): los niveles que pidió una política se deciden en la bandeja
     # de aprobaciones; revisar aquí los saltaría.
     from app.services.gastos_politicas import pendiente_con_pasos_de_politica
@@ -96,7 +105,7 @@ def review_expense(
         from app.services.presupuestos_seguir import control_de_gasto
         avisos = control_de_gasto(db, expense)
 
-    expense.reviewed_by = current_user.id
+    expense.reviewed_by = None if por_regla else current_user.id
     expense.reviewed_at = datetime.now(timezone.utc)
 
     if approved:
@@ -604,7 +613,11 @@ def recall_expense_record(db: Session, expense_id: str, user_id: str) -> dict:
     expense.status = ExpenseStatus.draft
     expense.submitted_at = None
     from app.services.approval_engine import fuentes
-    fuentes.cerrar(db, "expense", expense.id, "cancelled", _tx_aprob("gasto.retirado", db, current_user))
+    # Aquí solo llega el id de quien retira (antes `current_user`, inexistente: NameError → 500).
+    from app.services.formato_regional import idioma_de_salida
+    from app.services.textos_de_salida import texto
+    fuentes.cerrar(db, "expense", expense.id, "cancelled",
+                   texto("gasto.retirado", idioma_de_salida(db, user_id=user_id)))
     db.commit()
     return {"ok": True}
 

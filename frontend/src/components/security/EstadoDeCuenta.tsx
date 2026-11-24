@@ -161,7 +161,7 @@ export function DispositivosDeConfianza() {
           {q.data.map(d => (
             <li key={d.id}>
               {d.device_name ?? '—'} · {d.ip_address ?? '—'} · {t('seguridad_cuentas.hasta', { fecha: fmtDateTime(d.expires_at) })}
-              {' '}<IconButton ariaLabel={t('seguridad_cuentas.olvidar')} onClick={() => olvidar(d.id)}><Trash2 size={14} /></IconButton>
+              {' '}<IconButton variante="caja" tono="peligro" ariaLabel={t('seguridad_cuentas.olvidar')} onClick={() => olvidar(d.id)}><Trash2 size={14} /></IconButton>
             </li>
           ))}
         </ul>

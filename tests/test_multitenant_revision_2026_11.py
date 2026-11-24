@@ -98,8 +98,11 @@ def test_EL_HALLAZGO_los_ajustes_de_un_ticket_van_con_su_organizacion(db):
     ops.save_pending_snapshot(db, t)
     db.commit()
     filas = db.query(AppSetting).filter(AppSetting.key.like("sd.ticket.%")).all()
-    assert sorted((f.key.split(".")[2], f.organization_id) for f in filas) == [
-        ("dynamic_fields", "1"), ("pending_snapshot", "1")]
+    assert sorted((f.key.split(".")[2], f.organization_id) for f in filas) == [("dynamic_fields", "1")]
+    # Migración 200 (23-11-2026): la foto de «en espera» ya no es una clave de
+    # AppSetting sino una fila de `sd_ticket_hold_snapshots`, con la empresa del ticket.
+    from app.models.service_desk import TicketHoldSnapshot
+    assert db.get(TicketHoldSnapshot, t.id).organization_id == "1"
     assert campos.get_ticket_dynamic_fields(db, t.id) == {"modelo": "X1"}
 
 

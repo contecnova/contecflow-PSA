@@ -24,7 +24,7 @@ import {
   AlertTriangle, ArrowRight, CalendarDays, Check, CheckCircle2, Circle, Clock, Flag, FolderKanban,
   FolderOpen, Inbox, ListTodo, Plus, Receipt, RotateCcw, Send, X, XCircle,
 } from 'lucide-react'
-import { Button, Card, EmptyState, FormField, Input, Modal, Select, Tabs, useErroresDeCampo, Textarea } from '../components/ui'
+import { Button, Card, EmptyState, FormField, Input, Modal, Select, Switch, Tabs, useErroresDeCampo, Textarea } from '../components/ui'
 import { useAppT } from '../i18n/AppLangContext'
 import DsBadge from '../components/ui/StatusBadge'
 import type { StatusBadgeKind } from '../components/ui/StatusBadge'
@@ -120,6 +120,7 @@ function MilestoneCard({ m, projectName, onRefresh }: { m: MilestoneItem; projec
         <div className="u-flex1-min0">
           <div className="mbill-hito__estado">
             <StatusBadge status={m.billing_status} />
+            {m.is_go_live && <DsBadge kind="info" caps={false}>{t('pir.go_live')}</DsBadge>}
             {m.due_date && (
               <span className="mbill-meta"><CalendarDays size={13} aria-hidden />{fmtDate(m.due_date)}</span>
             )}
@@ -203,7 +204,7 @@ function NewMilestoneModal({ projectId, onClose, onSave }: { projectId: string; 
   const fmtMoneda = useFormatoMoneda()
   const t = useAppT()
   const toast = useToast()
-  const [form, setForm] = useState({ name: '', description: '', due_date: '', billing_amount: '', billing_pct: '' })
+  const [form, setForm] = useState({ name: '', description: '', due_date: '', billing_amount: '', billing_pct: '', is_go_live: false })
   const campos = useErroresDeCampo()
   const msg = (k: string) => campos.de(k) ? <div className="u-field-error">{campos.de(k)}</div> : null
   const { mutate, isPending } = useMutation({
@@ -236,6 +237,9 @@ function NewMilestoneModal({ projectId, onClose, onSave }: { projectId: string; 
           <Textarea value={form.description} onChange={e => { campos.limpiar('description'); setForm(f => ({ ...f, description: e.target.value })) }} inputClassName="mbill-textarea" />
         </FormField>
         {msg('description')}
+        {/* Migración 206 (docs/PIR.md): el hito de puesta en marcha programa la PIR del proyecto. */}
+        <Switch checked={form.is_go_live} onChange={v => setForm(f => ({ ...f, is_go_live: v }))}
+          label={t('pir.go_live_hito')} ayuda={t('pir.go_live_hito_ayuda')} />
       </div>
       <div className="mbill-acciones-modal">
         <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>

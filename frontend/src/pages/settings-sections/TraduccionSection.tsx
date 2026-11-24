@@ -435,8 +435,8 @@ function Glosario() {
       key: 'acciones', label: <span className="u-sr-only">{t('traduccion_admin.acciones')}</span>, sortable: false,
       render: (_v, f) => (
         <div className="u-row-6">
-          <IconButton ariaLabel={t('traduccion_admin.editar_x', { termino: f.term })} title={t('traduccion_admin.editar')} onClick={() => setEditando(f)}><Pencil size={14} aria-hidden="true" /></IconButton>
-          <IconButton ariaLabel={t('traduccion_admin.borrar_x', { termino: f.term })} title={t('traduccion_admin.borrar')} onClick={async () => {
+          <IconButton variante="caja" ariaLabel={t('traduccion_admin.editar_x', { termino: f.term })} title={t('traduccion_admin.editar')} onClick={() => setEditando(f)}><Pencil size={14} aria-hidden="true" /></IconButton>
+          <IconButton variante="caja" tono="peligro" ariaLabel={t('traduccion_admin.borrar_x', { termino: f.term })} title={t('traduccion_admin.borrar')} onClick={async () => {
             if (await confirmar({ title: t('traduccion_admin.borrar_termino_titulo'), message: t('traduccion_admin.borrar_termino_desc', { termino: f.term ?? '' }), danger: true })) borrar.mutate(f.id)
           }}><Trash2 size={14} aria-hidden="true" /></IconButton>
         </div>
@@ -517,7 +517,7 @@ export function ModalDeTermino({ termino, onClose, onGuardado }: { termino: Term
                 {[fila.idioma, ...libres].filter(Boolean).map(c => <option key={c} value={c}>{nombreDeIdioma(c, lang)}</option>)}
               </Select>
               <Input aria-label={t('traduccion_admin.texto_en', { idioma: nombreDeIdioma(fila.idioma, lang) })} value={fila.texto} onChange={e => cambiarFila(i, { texto: e.target.value })} />
-              <IconButton ariaLabel={t('traduccion_admin.quitar_idioma', { idioma: nombreDeIdioma(fila.idioma, lang) })} onClick={() => quitarFila(i)}>
+              <IconButton variante="caja" tono="peligro" ariaLabel={t('traduccion_admin.quitar_idioma', { idioma: nombreDeIdioma(fila.idioma, lang) })} onClick={() => quitarFila(i)}>
                 <Trash size={14} aria-hidden="true" />
               </IconButton>
             </div>

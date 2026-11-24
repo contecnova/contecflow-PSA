@@ -31,7 +31,7 @@ import { collabApi } from '../../services/collaborationApi'
 import { useAppLang } from '../../i18n/AppLangContext'
 import { fmtDateTime, fmtNumber } from '../../utils/helpers'
 import { sanitizeUrl } from '../../utils/security'
-import { Button, Pulsable, Input } from '../../components/ui'
+import { Button, Pulsable, Input, IconButton } from '../../components/ui'
 import TextoTraducido from '../../components/traduccion/TextoTraducido'
 import { useTraducirBajoDemanda } from '../../components/traduccion/useTraducirBajoDemanda'
 import { POLL_FREQUENT_MS, STALE_1_HOUR_MS } from '../../constants/timings'
@@ -309,7 +309,7 @@ export function ThreadPanel({ conv, rootId, onClose }: { conv: Conv; rootId: str
     <aside className="chat-thread" aria-label={traducir('chat.thread')}>
       <div className="chat-thread__head">
         <h2 className="u-sm-700 chat-reset-h">{traducir('chat.thread_replies', { count: thread.length })}</h2>
-        <Pulsable type="button" onClick={onClose} className="chat-icon-close" aria-label={traducir('chat.close')}><X size={14} aria-hidden="true" /></Pulsable>
+        <IconButton variante="caja" onClick={onClose} ariaLabel={traducir('chat.close')}><X size={14} aria-hidden="true" /></IconButton>
       </div>
       <div className="chat-thread__body">
         {thread.length === 0 && <div className="u-text3-xs">{traducir('chat.sin_respuestas_todavia')}</div>}

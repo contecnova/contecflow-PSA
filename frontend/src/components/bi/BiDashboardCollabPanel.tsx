@@ -347,13 +347,12 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDash
                     <span className="chip-dato" style={chipColor(PERMISSION_COLOR[s.permission] || 'var(--text-3)')}>
                       {t(`bidashboardcollab.permiso_${s.permission}`, s.permission)}
                     </span>
-                    <IconButton ariaLabel={t('bidashboardcollab.revocar_acceso')}
+                    <IconButton variante="caja" tono="peligro" ariaLabel={t('bidashboardcollab.revocar_acceso')}
                       onClick={async () => {
                         if (await confirmar({ message: t('bidashboardcollab.revocar_acceso_de', { nombre: s.user_name || s.user_id }), danger: true, confirmLabel: t('bidashboardcollab.revocar') })) {
                           revokeShareMutation.mutate(s.id)
                         }
                       }}
-                      className="bidacopa-borrar"
                     >
                       <Trash2 size={14} aria-hidden />
                     </IconButton>

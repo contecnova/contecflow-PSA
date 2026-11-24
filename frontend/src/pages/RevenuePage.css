@@ -52,7 +52,6 @@ textarea.rev-input { resize: vertical; }
 .rev-metodo svg { flex-shrink: 0; color: var(--accent); }
 
 .rev-btn:focus-visible,
-.rev-icon-btn:focus-visible,
 .rev-close__reopen:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
@@ -175,18 +174,6 @@ textarea.rev-input { resize: vertical; }
 .rev-ob__extra { margin-left: 8px; }
 .rev-ob__done { margin-left: 8px; color: var(--success); display: inline-flex; align-items: center; gap: 3px; }
 .rev-ob__actions { display: flex; gap: 6px; flex-shrink: 0; }
-.rev-icon-btn {
-  background: none;
-  border: 1px solid var(--surface-4);
-  border-radius: var(--radius-sm);
-  padding: 4px 7px;
-  cursor: pointer;
-  font-size: var(--text-xs);
-  color: var(--text-2);
-  display: inline-flex;
-  align-items: center;
-}
-.rev-icon-btn--danger { border-color: var(--danger-border); color: var(--danger); }
 .rev-ob-form {
   border: 0.5px solid var(--surface-4);
   border-radius: 8px;

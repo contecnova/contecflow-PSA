@@ -13,11 +13,12 @@ import { etiquetaCodigo } from '../../i18n/etiquetaCodigo'
 import { Input, Pulsable } from '../ui'
 import { useAuth } from '../../context/AuthContext'
 import { puedeAbrir } from '../../permisos/navegacion'
-import { Calendar, CheckSquare, Clock, FileText, FolderOpen, Megaphone, Receipt, Search, Settings, Ticket, Timer, User } from 'lucide-react'
+import { Calendar, CheckSquare, Clock, FileText, FolderOpen, Megaphone, NotebookPen, Receipt, Search, Settings, Ticket, Timer, User } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import './GlobalSearch.css'
 
-const ICON_MAP: Record<string, LucideIcon> = { project: FolderOpen, task: CheckSquare, ticket: Ticket, user: User, invoice: FileText, opportunity: Megaphone }
+// 23-11-2026: `note` = páginas de «Mi cuaderno» (solo las propias o compartidas con quien busca).
+const ICON_MAP: Record<string, LucideIcon> = { project: FolderOpen, task: CheckSquare, ticket: Ticket, user: User, invoice: FileText, opportunity: Megaphone, note: NotebookPen }
 
 interface QuickAction {
   /** Texto: `globalsearch.accion_<clave>` y `globalsearch.pista_<clave>`. */

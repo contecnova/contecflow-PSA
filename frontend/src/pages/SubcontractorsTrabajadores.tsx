@@ -255,7 +255,7 @@ export function WorkersPanel({ subId, permitirAlta = true }: { subId: string; pe
                     {t('subcontractors.edit')}
                   </Button>
                   {w.is_active && (
-                    <IconButton className="sub-borrar" onClick={() => setDeactivateTarget(w)}
+                    <IconButton variante="caja" tono="peligro" onClick={() => setDeactivateTarget(w)}
                       ariaLabel={t('subcontractors.desactivar_a', { name: w.name })} title={t('subcontractors.desactivar_a', { name: w.name })}>
                       <Trash2 size={15} aria-hidden />
                     </IconButton>

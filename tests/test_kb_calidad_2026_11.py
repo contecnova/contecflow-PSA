@@ -65,9 +65,10 @@ def test_lo_que_no_es_relevante_no_se_cita(client, pm_token, db, ia):
 
 def _cliente_del_portal(client, admin_token):
     pid = _create_project(client, admin_token, "KBQ1", "Calidad KB")
-    _create_portal_client(client, admin_token, [pid], "kbq@cliente.com", "Portal-KBQ-2026!")
+    # La política del portal rechaza claves con trozos del correo o del nombre («Portal …»).
+    _create_portal_client(client, admin_token, [pid], "kbq@cliente.com", "Kq7!mZ2pLx9w-2026")
     client.cookies.clear()
-    _portal_login(client, "kbq@cliente.com", "Portal-KBQ-2026!")
+    _portal_login(client, "kbq@cliente.com", "Kq7!mZ2pLx9w-2026")
 
 
 def _portal_chat(client, texto):

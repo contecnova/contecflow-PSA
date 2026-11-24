@@ -27,6 +27,7 @@ from sqlalchemy.orm import Session
 from app.db.session import sesion_de_sistema
 
 from app.core.deps import get_current_user, get_db, requiere_capacidad
+from app.core.network import ip_del_cliente
 from app.core.responses import APIListResponse, APIResponse
 from app.models.esign import ESignEnvelope, ESignProvider, ESignStatus
 from app.models.user import User, UserRole
@@ -333,7 +334,7 @@ def mark_signer_signed(
     envelope = esign_service.get_envelope(db, envelope_id)
     # M87 (auditoría 22-11-2026): con evidencia (quién, IP, agente, huella del documento).
     esign_service.mark_signer_signed(db, signer, envelope, actor=_, evidencia={
-        "ip": request.client.host if request.client else None,
+        "ip": ip_del_cliente(request),
         "user_agent": (request.headers.get("user-agent") or "")[:300]})
     return APIResponse.ok(data={"signer_id": signer_id, "signed": True})
 

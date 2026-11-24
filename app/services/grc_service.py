@@ -257,8 +257,15 @@ def get_role_permission(db: Session, role: str, module: str, action: str,
     with sin_filtro_de_tenant(db):
         base = db.query(RolePermission).filter(RolePermission.role == role, RolePermission.module == module,
                                                RolePermission.action == action)
-        fila = base.filter(RolePermission.organization_id == organization_id).first() if organization_id else None
-        fila = fila or base.filter(RolePermission.organization_id.is_(None)).first()
+        # Una sola consulta (se evalúa en cada petición): la de la empresa y la
+        # global; manda la de la empresa.
+        if organization_id:
+            filas = base.filter((RolePermission.organization_id == organization_id)
+                                | RolePermission.organization_id.is_(None)).all()
+            fila = (next((f for f in filas if f.organization_id == organization_id), None)
+                    or next((f for f in filas if f.organization_id is None), None))
+        else:
+            fila = base.filter(RolePermission.organization_id.is_(None)).first()
     return _Casilla(fila.role, fila.module, fila.action, fila.allowed, fila.organization_id) if fila else None
 
 

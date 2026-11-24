@@ -69,9 +69,8 @@ export function RelationsModal({ item, allItems, onClose }: { item: CI; allItems
             {rels.map(r => (
               <div key={r.id} className="cmdb-rel-row">
                 <RelLinea r={r} ciId={item.id} />
-                <IconButton ariaLabel={t('cmdb.delete_relation')}
-                  onClick={() => openConfirmGlobal({ message: t('cmdb.delete_relation_q'), onConfirm: () => deleteRel(r.id), danger: true })}
-                  className="cmdb-del"><Trash2 size={14} /></IconButton>
+                <IconButton variante="caja" tono="peligro" ariaLabel={t('cmdb.delete_relation')}
+                  onClick={() => openConfirmGlobal({ message: t('cmdb.delete_relation_q'), onConfirm: () => deleteRel(r.id), danger: true })}><Trash2 size={14} /></IconButton>
               </div>
             ))}
           </div>

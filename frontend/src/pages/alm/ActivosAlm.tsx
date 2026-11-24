@@ -19,7 +19,7 @@ import { Buscador,
   Checkbox,
   useErroresDeCampo,
   Input,
-  Textarea,
+  Textarea, IconButton,
 } from '../../components/ui'
 import { usePeriodo } from '../../hooks/usePeriodo'
 import { SIN_HORA } from '../../utils/periodo'
@@ -416,12 +416,11 @@ export function AssetsTab() {
                   {a.lease_expiry && <span>{t('alm.expiry_lease')}: {fmtDate(a.lease_expiry)}</span>}
                   {a.next_maintenance_date && <span>{t('alm.expiry_maintenance')}: {fmtDate(a.next_maintenance_date)}</span>}
                 </div>
-                <div className="alm-actions alm-actions--end">
-                  <Pulsable type="button" aria-label={t('alm.aria_detail', { name: a.name })} title={t('alm.asset_detail')} onClick={() => setFicha(a.id)} className="alm-icon-btn alm-icon-btn--md"><History size={15} aria-hidden="true" /></Pulsable>
-                  <Pulsable type="button" aria-label={`${t('alm.renewal_open_ticket')} — ${a.name}`} title={t('alm.renewal_open_ticket')} onClick={() => renovar(a)} className="alm-icon-btn alm-icon-btn--md"><RefreshCw size={15} aria-hidden="true" /></Pulsable>
-                  <Pulsable type="button" aria-label={t('alm.aria_edit_asset', { name: a.name })} onClick={() => setModal(a)} className="alm-icon-btn alm-icon-btn--md"><Pencil size={15} aria-hidden="true" /></Pulsable>
-                  <Pulsable type="button" aria-label={t('alm.aria_delete_asset', { name: a.name })} onClick={() => { openConfirmGlobal({ message: t('alm.assets_delete_confirm', { name: a.name }), onConfirm: () => del(a.id), danger: true }) }}
-                    className="alm-icon-btn alm-icon-btn--md alm-icon-btn--danger"><Trash2 size={15} aria-hidden="true" /></Pulsable>
+                <div className="ui-acciones">
+                  <IconButton variante="caja" ariaLabel={t('alm.aria_detail', { name: a.name })} title={t('alm.asset_detail')} onClick={() => setFicha(a.id)}><History size={15} aria-hidden="true" /></IconButton>
+                  <IconButton variante="caja" ariaLabel={`${t('alm.renewal_open_ticket')} — ${a.name}`} title={t('alm.renewal_open_ticket')} onClick={() => renovar(a)}><RefreshCw size={15} aria-hidden="true" /></IconButton>
+                  <IconButton variante="caja" ariaLabel={t('alm.aria_edit_asset', { name: a.name })} onClick={() => setModal(a)}><Pencil size={15} aria-hidden="true" /></IconButton>
+                  <IconButton variante="caja" tono="peligro" ariaLabel={t('alm.aria_delete_asset', { name: a.name })} onClick={() => { openConfirmGlobal({ message: t('alm.assets_delete_confirm', { name: a.name }), onConfirm: () => del(a.id), danger: true }) }}><Trash2 size={15} aria-hidden="true" /></IconButton>
                 </div>
               </div>
             )

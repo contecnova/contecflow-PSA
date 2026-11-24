@@ -139,7 +139,7 @@ def _resolver_usuario(request: Request, credentials, db: Session) -> User:
 
 
 def _usuario_de_credencial_delegada(db: Session, request: Request, user_id: str, alcances: list, tipo: str,
-                                    empresa: Optional[str] = None) -> User:
+                                    empresa: Optional[str] = None, credencial_id: Optional[str] = None) -> User:
     from app.core import credenciales_delegadas as _delegadas
     user = db.query(User).filter(User.id == user_id, User.is_active == True).first()
     if not user:
@@ -165,7 +165,8 @@ def _usuario_de_credencial_delegada(db: Session, request: Request, user_id: str,
         from app.db.session import exigir_organizacion_activa
         exigir_organizacion_activa(db, db.info["organization_id"])
     db.info["current_user"] = user
-    request.state.credencial_delegada = {"tipo": tipo, "alcances": alcances}
+    # 23-11-2026: también el id de la credencial (auditoría y límite de uso de MCP).
+    request.state.credencial_delegada = {"tipo": tipo, "alcances": alcances, "id": credencial_id}
     # Auditoría 22-11-2026 (A2): la clave de API y el token OAuth pasan por la
     # matriz GRC y la ABAC igual que la sesión.
     _aplicar_politicas(db, user, request)

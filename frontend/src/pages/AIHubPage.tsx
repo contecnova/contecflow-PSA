@@ -5,7 +5,7 @@ import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { predictiveObservabilityApi, aiProvidersApi } from '../services/api'
 import type { ProveedorIa as AiProvider, CatalogoIa as ProviderCatalog, EstadisticasIa as AiStats, DiagnosticoIa as Diagnostics } from '../services/api/tipos-grc'
-import { Button, Spinner, Tabs, Page, KpiCard, EmptyState, EstadoDeError, StatusBadge, SelectorDePeriodo, Pulsable } from '../components/ui'
+import { Button, Spinner, Tabs, Page, KpiCard, EmptyState, EstadoDeError, StatusBadge, SelectorDePeriodo, IconButton } from '../components/ui'
 import { sanitizeUrl } from '../utils/security'
 import { usePeriodo } from '../hooks/usePeriodo'
 import { CON_HORA, codigoDeErrorDePeriodo } from '../utils/periodo'
@@ -178,7 +178,7 @@ export default function AIHubPage(): JSX.Element {
                 <div className="u-md-700">
                   {traducir('aihub.diagnostico_resumen', { healthy: diagResults.healthy, total: diagResults.total })}
                 </div>
-                <Pulsable type="button" onClick={() => setDiagResults(null)} aria-label={t('common.close')} className="aih-close aih-close--lg"><X size={16} aria-hidden="true" /></Pulsable>
+                <IconButton variante="caja" onClick={() => setDiagResults(null)} ariaLabel={t('common.close')}><X size={16} aria-hidden="true" /></IconButton>
               </div>
               <div className="u-stack-8">
                 {(diagResults.providers || []).map(pr => {

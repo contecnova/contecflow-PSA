@@ -57,3 +57,10 @@ class AutomationsSettingsMixin:
     # megas en una fila y el motor los parseaba en cada paso.
     BPMN_MAX_XML_BYTES: int = Field(default=2_000_000, env="BPMN_MAX_XML_BYTES")
     BPMN_MAX_VARIABLES_BYTES: int = Field(default=65_536, env="BPMN_MAX_VARIABLES_BYTES")
+    # Revision BPM 2026-11-23 (docs/BPM.md): reintentos de una accion automatica
+    # antes del incidente, horas sin moverse para dar una instancia por atascada
+    # y segregacion de funciones (quien diseña o publica una version no aprueba
+    # en sus instancias).
+    BPMN_SERVICE_RETRIES: int = Field(default=3, env="BPMN_SERVICE_RETRIES")
+    BPMN_STUCK_HOURS: int = Field(default=72, env="BPMN_STUCK_HOURS")
+    BPMN_SEGREGACION_DE_FUNCIONES: bool = Field(default=False, env="BPMN_SEGREGACION_DE_FUNCIONES")

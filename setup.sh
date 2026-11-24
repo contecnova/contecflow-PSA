@@ -13,6 +13,10 @@
 #                          Prometheus, Alertmanager, Grafana y exporters
 #    ./setup.sh docker-stop   → para todos los contenedores (conserva los datos)
 #    ./setup.sh docker-status → estado de los contenedores y URLs
+#    ./setup.sh backup        → copia local (SQLite o PostgreSQL + uploads/) en backups/
+#    ./setup.sh restore <carpeta> → verifica y restaura una copia local
+#  Variables: BACKEND_PORT, FRONTEND_PORT, CF_POSTGRES_PORT, CF_REDIS_PORT,
+#             CONTECFLOW_TAREAS=auto|celery|integrado
 # ============================================================
 
 set -e
@@ -129,13 +133,6 @@ resolve_venv_bins() {
     PY_BIN="$VENV_DIR/bin/python"
     PIP_BIN="$VENV_DIR/bin/pip"
   fi
-}
-
-get_demo_password() {
-  # Sin fallback: inventar una contraseña por defecto aquí significaba que un
-  # .env sin DEFAULT_USER_PASSWORD acababa con usuarios cuya contraseña estaba
-  # escrita en este script. Si no está definida, quien llama debe abortar.
-  grep -E '^DEFAULT_USER_PASSWORD=' .env 2>/dev/null | tail -1 | cut -d'=' -f2-
 }
 
 # Entorno declarado en .env. Fail-closed: si no se puede determinar, se asume
@@ -607,6 +604,14 @@ setup_docker_infra() {
   ensure_compose_required_env
   ensure_persistent_volumes
 
+  # Puertos del host (23-11-2026): CF_POSTGRES_PORT / CF_REDIS_PORT mueven también
+  # la publicación del compose (POSTGRES_PORT / REDIS_PORT), no solo la URL del .env.
+  if [ -n "${CF_POSTGRES_PORT:-}" ] && [ -z "${POSTGRES_PORT:-}" ]; then
+    export POSTGRES_PORT="127.0.0.1:${CF_POSTGRES_PORT}"
+  fi
+  if [ -n "${CF_REDIS_PORT:-}" ] && [ -z "${REDIS_PORT:-}" ]; then
+    export REDIS_PORT="127.0.0.1:${CF_REDIS_PORT}"
+  fi
   log "Docker detectado. Levantando la infraestructura (Postgres + Redis)..."
   # El almacén S3 (versitygw) va bajo perfil: en desarrollo la app guarda en
   # `uploads/` y no lo usa. Se levanta con `docker compose --profile s3 up -d`.
@@ -651,7 +656,7 @@ setup_docker_infra() {
   done
 
   USE_DOCKER=1
-  log "Postgres (127.0.0.1:5434) y Redis (127.0.0.1:6381) listos"
+  log "Postgres (127.0.0.1:${CF_POSTGRES_PORT:-5434}) y Redis (127.0.0.1:${CF_REDIS_PORT:-6381}) listos"
 
   # Patch .env to use Docker service URLs (only if .env is still using SQLite)
   PATCH_RESULT=$(patch_env_for_docker)
@@ -823,6 +828,18 @@ if is_placeholder(get_var('WEBHOOK_SECRET')):
 env_path.write_text('\n'.join(lines) + '\n', encoding='utf-8')
 PY
 
+  # ENVIRONMENT que Settings acepte (23-11-2026): canónico o alias, que Settings
+  # normaliza (ver .env.example). Antes un valor desconocido pasaba el setup y
+  # la API no arrancaba.
+  case "$(get_environment | tr '[:upper:]' '[:lower:]')" in
+    development|dev|local|demo|test|testing|staging|stage|pre|preprod|production|prod|prd) ;;
+    *)
+      error "ENVIRONMENT=$(get_environment) en .env no es válido: la API no arrancaría."
+      error "Usa development, test, staging o production (alias: dev, local, demo, testing, stage, pre, preprod, prod, prd)."
+      exit 1
+      ;;
+  esac
+
   # Rotate SECRET_KEY when it still uses placeholders or weak defaults.
   SECRET_STATUS=$("$PYTHON" - <<'PY'
 import secrets
@@ -983,67 +1000,52 @@ setup_frontend() {
   cd "$SCRIPT_DIR"
 }
 
-# ── Sync demo user passwords to match current DEFAULT_USER_PASSWORD ──────────
+# ── Contraseñas de los usuarios demo alineadas con el .env ──────────────────
+# 23-11-2026: toda la lógica en scripts/sincronizar_contrasenas_demo.py:
+#  - puerta de entorno (auditoría 2026-08, P0-4): solo development/test y alias;
+#  - admin (superadmin) con SUPERADMIN_PASSWORD y el resto con
+#    DEFAULT_USER_PASSWORD, igual que la semilla (antes admin recibía aquí
+#    DEFAULT_USER_PASSWORD y en la semilla SUPERADMIN_PASSWORD);
+#  - centinela con el SHA-256 de las dos (nunca en claro).
 sync_demo_passwords() {
   cd "$SCRIPT_DIR"
   resolve_venv_bins
+  local salida
+  salida=$("$PY_BIN" scripts/sincronizar_contrasenas_demo.py --centinela "$VENV_DIR/.pwd_hash" 2>/dev/null | tail -1)
+  case "$salida" in
+    ok:*)        log "Contraseñas demo alineadas con .env (${salida#ok:} usuario(s))" ;;
+    sin-cambios) log "Contraseñas demo sin cambios, omitiendo rehash" ;;
+    omitido:*)   warn "Sincronización de contraseñas demo omitida: ${salida#omitido:}" ;;
+    *)           warn "No se pudieron sincronizar las contraseñas demo: $salida" ;;
+  esac
+}
 
-  # ── Gate de entorno (auditoría 2026-08, P0-4) ────────────────────────────────
-  # Esta función reescribe el hash de contraseña de admin/ana.torres/luis.vega/
-  # rrhh con DEFAULT_USER_PASSWORD del .env. Sin esta guarda, un ./setup.sh
-  # ejecutado contra producción — algo que la vía Docker soporta — dejaba la
-  # cuenta admin con una contraseña conocida y compartida.
-  if ! is_safe_for_destructive_ops; then
-    warn "ENVIRONMENT=$(get_environment): se OMITE la sincronización de contraseñas demo."
-    warn "Reescribir credenciales solo se permite en development/test/demo."
-    return 0
-  fi
-
-  DEMO_PWD=$(get_demo_password)
-  if [ -z "$DEMO_PWD" ]; then
-    warn "DEFAULT_USER_PASSWORD no está definida en .env: se omite la sincronización."
-    return 0
-  fi
-
-  # Use a hash of the password as a change-detection sentinel
-  if check_command shasum; then
-    PWD_HASH=$(echo -n "$DEMO_PWD" | shasum -a 256 | awk '{print $1}')
+# ── Modo de las tareas en segundo plano ──────────────────────────────────────
+# 23-11-2026: antes se lanzaban SIEMPRE worker y beat de Celery y la API sin
+# planificador; sin Redis (p. ej. SQLite sin Docker) morían y no corría ninguna
+# tarea programada. scripts/modo_tareas.py busca un Redis que responda
+# (REDIS_URL del .env, 6379 local o el de Docker en CF_REDIS_PORT) y escribe
+# REDIS_URL si faltaba. celery → worker + beat; integrado → APScheduler en la API.
+decidir_modo_tareas() {
+  local salida
+  salida=$("$PY_BIN" scripts/modo_tareas.py 2>/dev/null | tail -1)
+  TAREAS_MODO="${salida%% *}"
+  TAREAS_DETALLE="${salida#* }"
+  if [ "$TAREAS_MODO" = "celery" ]; then
+    RUN_APSCHEDULER=0
+    RUN_CELERY_BEAT=1
+    log "Tareas en segundo plano: Celery con Redis $TAREAS_DETALLE"
   else
-    PWD_HASH=$(echo -n "$DEMO_PWD" | md5sum 2>/dev/null | awk '{print $1}' || echo "nocheck")
-  fi
-  PWD_HASH_FILE="$VENV_DIR/.pwd_hash"
-
-  if [ -f "$PWD_HASH_FILE" ] && [ "$(cat $PWD_HASH_FILE)" = "$PWD_HASH" ]; then
-    log "Contraseñas demo sin cambios, omitiendo rehash"
-    return 0
-  fi
-
-  log "Sincronizando contraseñas demo con DEFAULT_USER_PASSWORD..."
-  SYNC_RESULT=$(DEMO_PWD="$DEMO_PWD" "$PY_BIN" -c "
-import os, sys
-from app.db.session import SessionLocal, declarar_sistema
-from app.models.user import User
-from app.core.security import get_password_hash
-
-pwd = os.environ['DEMO_PWD']
-db = declarar_sistema(SessionLocal(), 'setup: contraseñas demo')
-
-updated = 0
-for username in ['admin', 'ana.torres', 'luis.vega', 'rrhh']:
-    user = db.query(User).filter(User.username == username).first()
-    if user:
-        user.hashed_password = get_password_hash(pwd)
-        updated += 1
-db.commit()
-db.close()
-print('ok:' + str(updated))
-" 2>&1)
-  if echo "$SYNC_RESULT" | grep -q '^ok:'; then
-    UPDATED=$(echo "$SYNC_RESULT" | grep -o '[0-9]*$')
-    log "Contraseñas actualizadas para $UPDATED usuario(s) demo"
-    echo "$PWD_HASH" > "$PWD_HASH_FILE"
-  else
-    warn "No se pudieron sincronizar las contraseñas demo: $SYNC_RESULT"
+    TAREAS_MODO="integrado"
+    RUN_APSCHEDULER=1
+    RUN_CELERY_BEAT=0
+    echo ""
+    warn "Sin Redis ($TAREAS_DETALLE): se arranca SIN Celery."
+    warn "Las tareas programadas (SLA, buzón, avisos...) las ejecuta el planificador"
+    warn "integrado de la API (APScheduler). No se lanzan worker ni beat."
+    warn "Lo que se encola al momento (.delay) no corre. Para usar Celery, arranca"
+    warn "Redis (6379, o el de Docker en ${CF_REDIS_PORT:-6381}) y vuelve a ejecutar ./setup.sh start."
+    echo ""
   fi
 }
 
@@ -1134,6 +1136,7 @@ start_services() {
 
   # Always sync demo passwords before starting — ensures hash matches .env even on 'start'
   sync_demo_passwords
+  decidir_modo_tareas
 
   # Kill any existing processes on our ports
   lsof -ti:$BACKEND_PORT | xargs kill -9 2>/dev/null || true
@@ -1142,11 +1145,11 @@ start_services() {
   sleep 1
 
   log "Arrancando backend en puerto $BACKEND_PORT..."
-  # Las tareas programadas las corre Celery beat (abajo), no la API: con los
-  # dos activos cada tarea se ejecutaria dos veces y la API se niega a arrancar.
+  # Un solo planificador (con los dos activos la API se niega a arrancar):
+  # Celery beat si hay Redis; si no, el integrado (decidir_modo_tareas).
   # Auditoría 22-11-2026 (01 B2): solo en este equipo (127.0.0.1); para abrirlo a la
   # red local, BACKEND_HOST=0.0.0.0 ./setup.sh start. Docker no pasa por aquí.
-  ENABLE_APSCHEDULER=0 ENABLE_CELERY_BEAT=1 "$PY_BIN" -m uvicorn app.main:app \
+  ENABLE_APSCHEDULER=$RUN_APSCHEDULER ENABLE_CELERY_BEAT=$RUN_CELERY_BEAT "$PY_BIN" -m uvicorn app.main:app \
     --host "${BACKEND_HOST:-127.0.0.1}" \
     --port $BACKEND_PORT \
     --log-level info \
@@ -1157,7 +1160,8 @@ start_services() {
   # Wait for backend to be ready
   echo -n "  Esperando backend"
   BACKEND_READY=0
-  for i in $(seq 1 60); do
+  # 600 s: con la máquina cargada el arranque tarda varios minutos (23-11-2026).
+  for i in $(seq 1 600); do
     if curl -s http://localhost:$BACKEND_PORT/health > /dev/null 2>&1; then
       echo " ✓ (${i}s)"
       BACKEND_READY=1
@@ -1191,7 +1195,9 @@ start_services() {
     exit 1
   fi
 
-  start_background_jobs
+  if [ "$TAREAS_MODO" = "celery" ]; then
+    start_background_jobs
+  fi
 
   # Solo limpiar caché de Vite si los modelos del frontend cambiaron
   mkdir -p frontend/node_modules
@@ -1231,7 +1237,7 @@ start_services() {
 
   # Wait for frontend
   echo -n "  Esperando frontend"
-  for i in $(seq 1 20); do
+  for i in $(seq 1 300); do
     if curl -s http://localhost:$FRONTEND_PORT > /dev/null 2>&1; then
       echo " ✓"
       break
@@ -1252,17 +1258,16 @@ start_services() {
   echo -e "  🌐 App:      ${BOLD}http://localhost:$FRONTEND_PORT${NC}"
   echo -e "  📡 API:      http://localhost:$BACKEND_PORT/api/v1/docs"
   echo -e "  📋 Logs:     /tmp/contecflow-backend.log"
-  echo -e "  ⏱  Tareas:   /tmp/contecflow-worker.log y /tmp/contecflow-beat.log"
+  if [ "$TAREAS_MODO" = "celery" ]; then
+    echo -e "  ⏱  Tareas:   Celery (/tmp/contecflow-worker.log y /tmp/contecflow-beat.log)"
+  else
+    echo -e "  ⏱  Tareas:   planificador integrado de la API (sin Redis ni Celery)"
+  fi
   echo ""
-  DEMO_PASSWORD=$(get_demo_password)
-  echo -e "  ${BOLD}Usuarios de prueba:${NC}"
-  echo -e "  admin      / ${DEMO_PASSWORD}  → Dirección"
-  echo -e "  ana.torres / ${DEMO_PASSWORD}  → PM"
-  echo -e "  luis.vega  / ${DEMO_PASSWORD}  → Empleado"
-  echo -e "  rrhh       / ${DEMO_PASSWORD}  → RRHH"
-  echo ""
-  echo -e "  ${YELLOW}⚠  Contraseña por defecto mostrada arriba.${NC}"
-  echo -e "  ${YELLOW}   Cámbiala en .env (DEFAULT_USER_PASSWORD) antes de usar en producción.${NC}"
+  # 23-11-2026: el banner anunciaba DEFAULT_USER_PASSWORD también para admin,
+  # cuya contraseña es SUPERADMIN_PASSWORD. Ahora cada usuario con la suya,
+  # solo los que existen y sin contraseñas fuera de development/test.
+  "$PY_BIN" scripts/credenciales_iniciales.py || true
   echo ""
   echo -e "  ${YELLOW}Presiona Ctrl+C para parar${NC}"
   echo ""
@@ -1424,6 +1429,25 @@ case "${1:-}" in
       warn "Docker no disponible o docker-compose.yml no encontrado"
     fi
     ;;
+  backup)
+    # 23-11-2026: copia local (SQLite o PostgreSQL + uploads/). Para el stack
+    # Docker (PostgreSQL del contenedor y volumen S3): scripts/backup.sh.
+    cd "$SCRIPT_DIR"
+    resolve_venv_bins
+    [ -x "$PY_BIN" ] || { error "Falta el entorno virtual. Ejecuta antes ./setup.sh clean o demo"; exit 1; }
+    "$PY_BIN" scripts/copia_local.py backup
+    ;;
+  restore)
+    cd "$SCRIPT_DIR"
+    resolve_venv_bins
+    [ -n "${2:-}" ] || { error "Uso: ./setup.sh restore <carpeta de la copia en backups/>"; exit 1; }
+    [ -x "$PY_BIN" ] || { error "Falta el entorno virtual. Ejecuta antes ./setup.sh clean o demo"; exit 1; }
+    # Primero se verifica sin tocar nada; solo si es íntegra se para la app.
+    "$PY_BIN" scripts/copia_local.py verificar "$2" || { error "La copia no supera la verificación: no se restaura nada."; exit 1; }
+    stop_services >/dev/null 2>&1 || true
+    "$PY_BIN" scripts/copia_local.py restore "$2"
+    log "Restaurado. Arranca con: ./setup.sh start"
+    ;;
   update)
     log "Modo: actualizar"
     setup_backend
@@ -1441,6 +1465,11 @@ case "${1:-}" in
     echo "  ./setup.sh docker-status → estado de los contenedores y URLs"
     echo "  ./setup.sh docker-stop   → para todos los contenedores (conserva datos)"
     echo "  ./setup.sh docker-clean  → para Docker y borra los volúmenes regenerables (conserva PostgreSQL y S3)"
+    echo "  ./setup.sh backup        → copia local: base (SQLite o PostgreSQL) + uploads/ en backups/"
+    echo "  ./setup.sh restore <carpeta> → verifica, para la app y restaura (pide confirmación)"
+    echo ""
+    echo "  Puertos: BACKEND_PORT=8010 FRONTEND_PORT=3010 CF_REDIS_PORT=6381 ./setup.sh start"
+    echo "  Tareas:  CONTECFLOW_TAREAS=auto|celery|integrado (auto: Celery si hay Redis; si no, integrado)"
     exit 1
     ;;
 esac

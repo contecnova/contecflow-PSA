@@ -21,7 +21,6 @@
 
 .cfl-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 8px; }
 
-
 .cfl-table { width: 100%; border-collapse: collapse; font-size: var(--text-base); }
 .cfl-table th { text-align: left; padding: 8px 12px; font-size: var(--text-xs); color: var(--text-2);letter-spacing: 0.06em; }
 .cfl-table tbody tr { border-bottom: 1px solid var(--surface-4); }
@@ -33,9 +32,6 @@
 .cfl-tag { font-size: var(--text-xs); padding: 2px 8px; border-radius: var(--radius-sm); background: color-mix(in srgb, var(--text-1) 6%, transparent); color: var(--text-3); }
 .cfl-tag--danger { background: var(--danger-bg); color: var(--danger); }
 .cfl-tag--accent { background: var(--accent-muted); color: var(--accent); }
-
-.cfl-del { color: var(--text-3); }
-.cfl-del:hover { color: var(--danger); }
 
 .cfl-legend { margin-top: 20px; padding: 14px 16px; background: var(--surface-3); border-radius: 8px; border: 1px solid var(--surface-4); }
 .cfl-legend__title { font-size: var(--text-xs); color: var(--text-3); font-weight: 600;letter-spacing: 0.07em; margin: 0 0 10px; }

@@ -171,8 +171,9 @@ def serialize_change(change: ITSMChangeRequest, full: bool = False) -> dict:
         "owner": change.owner.full_name if change.owner else None,
         "approved_by": change.approved_by,
         "approved_at": str(change.approved_at) if change.approved_at else None,
-        "pir_success": change.pir_success,
-        "pir_date": str(change.pir_date) if change.pir_date else None,
+        # Migración 206 (docs/PIR.md): la PIR vive en `pir_revisiones`; `pir_success`,
+        # `pir_date` y `pir_notes` se mantienen en la respuesta por compatibilidad.
+        **_resumen_pir(change, full),
         "downtime_minutes": change.downtime_minutes,
         "created_at": str(change.created_at),
         "affected_cis": _lista_json(change.affected_cis),
@@ -194,13 +195,32 @@ def serialize_change(change: ITSMChangeRequest, full: bool = False) -> dict:
                 "rollback_plan": change.rollback_plan,
                 "test_plan": change.test_plan,
                 "impact_description": change.impact_description,
-                "pir_notes": change.pir_notes,
                 # 19-11-2026: nombre y tipo de cada CI afectado, para que la
                 # pantalla (pestaña Impacto, simulación) no enseñe el id.
                 "affected_ci_details": _detalles_de_cis(change),
             }
         )
     return base
+
+
+def _resumen_pir(change: ITSMChangeRequest, full: bool) -> dict:
+    """Estado de la PIR del cambio (`app/services/pir`). En la lista, solo lo compatible."""
+    from sqlalchemy.orm import object_session
+    vacio = {"pir_success": None, "pir_date": None, "pir_estado": None, "pir_obligatoria_pendiente": False}
+    db = object_session(change)
+    if db is None or not change.id:
+        return {**vacio, "pir_notes": None} if full else vacio
+    try:
+        with db.begin_nested():   # sin la migración 206 aplicada, la ficha sigue saliendo
+            from app.services.pir.servicio import resumen_de_cambio
+            r = resumen_de_cambio(db, change.id)
+    except Exception:
+        logging.getLogger(__name__).warning("_resumen_pir: sin tabla de PIR", exc_info=True)
+        return {**vacio, "pir_notes": None} if full else vacio
+    salida = {k: r[k] for k in ("pir_success", "pir_date", "pir_estado", "pir_obligatoria_pendiente")}
+    if full:
+        salida.update(pir_notes=r["pir_notes"], pir_id=r["pir_id"], pir_vencida=r["pir_vencida"])
+    return salida
 
 
 def _detalles_de_cis(change: ITSMChangeRequest) -> list[dict]:
@@ -300,8 +320,6 @@ def apply_change_update(change: ITSMChangeRequest, payload: dict, current_user_i
         "business_justification",
         "impact_description",
         "downtime_minutes",
-        "pir_notes",
-        "pir_success",
         "owner_id",
         "release_id",
     ):
@@ -311,7 +329,7 @@ def apply_change_update(change: ITSMChangeRequest, payload: dict, current_user_i
         cis = payload["affected_cis"]
         change.affected_cis = json.dumps(list(cis)) if isinstance(cis, (list, tuple)) else cis
 
-    for dt_field in ("planned_start", "planned_end", "actual_start", "actual_end", "pir_date"):
+    for dt_field in ("planned_start", "planned_end", "actual_start", "actual_end"):
         if dt_field in payload and payload[dt_field]:
             setattr(change, dt_field, _a_utc(payload[dt_field]))
 
@@ -378,6 +396,9 @@ def _aplicar_estado(db: Session, change: ITSMChangeRequest, nuevo: str, current_
     if nuevo in _CIERRES:
         from app.services.service_desk.cambios_estandar_service import anotar_cierre
         anotar_cierre(db, change, _CIERRES[nuevo], current_user)
+    # Migración 206 (docs/PIR.md): al implantar o cerrar, la PIR obligatoria se programa sola.
+    from app.services.pir.programacion import al_cambiar_estado_de_cambio
+    al_cambiar_estado_de_cambio(db, change, nuevo, current_user)
 
 
 def approve_change_request(change: ITSMChangeRequest, approved: bool, approver_id: str, reason: Optional[str]) -> None:

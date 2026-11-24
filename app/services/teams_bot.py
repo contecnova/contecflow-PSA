@@ -32,7 +32,7 @@ from urllib.parse import urlparse
 import httpx
 from app.services.settings_service import outbound_http_timeout
 from app.core.config import settings  # topes de tokens de IA (19-11-2026)
-from app.services.textos_de_salida_servicios_m_z import texto_para
+from app.services.textos_de_salida import texto_para
 
 logger = logging.getLogger(__name__)
 

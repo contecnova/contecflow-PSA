@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Header, Response
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 from typing import Optional
+from datetime import date
 
 from app.db.session import get_db
 from app.core.deps import get_current_user, requiere_capacidad
@@ -149,6 +150,46 @@ def estado_hueco(gap_id: str, payload: EstadoIn, db: Session = Depends(get_db),
                  current_user: User = Depends(get_current_user), _rol: User = Depends(requiere_capacidad("sd.completo"))):
     from app.models.service_desk.kb_calidad import KBGap
     return _cambiar_estado(KBGap, gap_id, payload, db, current_user)
+
+
+class SeguimientoIn(BaseModel):
+    owner_id: Optional[str] = Field(None, max_length=36)
+    due_date: Optional[date] = None
+    follow_status: Optional[str] = Field(None, max_length=20)
+
+
+class TareaDeHuecoIn(BaseModel):
+    project_id: str = Field(..., min_length=1, max_length=36)
+    owner_id: Optional[str] = Field(None, max_length=36)
+    due_date: Optional[date] = None
+
+
+class ArticuloDeHuecoIn(BaseModel):
+    article_id: Optional[str] = Field(None, max_length=36)
+
+
+@router.patch("/kb/gaps/{gap_id}/seguimiento", summary="Responsable, plazo y estado de seguimiento de una pregunta sin respuesta")
+def seguimiento_hueco(gap_id: str, payload: SeguimientoIn, db: Session = Depends(get_db),
+                      current_user: User = Depends(requiere_capacidad("sd.completo"))):
+    from app.services.service_desk.kb_calidad import actualizar_seguimiento
+    return APIResponse.ok(data=actualizar_seguimiento(db, current_user, gap_id, payload.model_dump(exclude_unset=True)))
+
+
+@router.post("/kb/gaps/{gap_id}/tarea", summary="Convertir una pregunta sin respuesta en tarea (avisa al responsable)")
+def tarea_de_hueco(gap_id: str, payload: TareaDeHuecoIn, db: Session = Depends(get_db),
+                   current_user: User = Depends(requiere_capacidad("sd.completo"))):
+    from app.services.service_desk.kb_calidad import convertir_en_tarea
+    # La tarea se crea con las mismas reglas que `POST /tasks` (ABAC y proyecto visible).
+    enforce_abac(db, current_user, "task", action="create")
+    return APIResponse.ok(data=convertir_en_tarea(db, current_user, gap_id, payload.project_id,
+                                                  payload.owner_id, payload.due_date))
+
+
+@router.put("/kb/gaps/{gap_id}/articulo", summary="Enlazar el artículo que responderá la pregunta (al publicarlo, se cierra)")
+def articulo_de_hueco(gap_id: str, payload: ArticuloDeHuecoIn, db: Session = Depends(get_db),
+                      current_user: User = Depends(requiere_capacidad("sd.completo"))):
+    from app.services.service_desk.kb_calidad import enlazar_articulo
+    return APIResponse.ok(data=enlazar_articulo(db, current_user, gap_id, payload.article_id))
 
 
 @router.patch("/kb/findings/{finding_id}", summary="Dar por resuelto o descartar un aviso")

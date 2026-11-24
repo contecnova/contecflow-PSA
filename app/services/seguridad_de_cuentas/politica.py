@@ -6,6 +6,7 @@ por `guardar()` (vía `PUT /security/policy`), que valida, aplica la separación
 funciones y audita; el editor genérico de ajustes rechaza estos grupos.
 """
 from __future__ import annotations
+import logging
 
 import ipaddress
 import re
@@ -30,7 +31,7 @@ METODOS_MFA = ("totp", "webauthn")
 
 
 @dataclass
-class Politica:
+class PoliticaDeCuenta:
     # Contraseñas
     MIN_PASSWORD_LENGTH: int = 8
     PASSWORD_MAX_LENGTH: int = 128
@@ -172,7 +173,7 @@ def olvidar_cache() -> None:
     _CACHE.clear()
 
 
-def leer(db, org_id: Optional[str]) -> Politica:
+def leer(db, org_id: Optional[str]) -> PoliticaDeCuenta:
     """La política efectiva de la empresa (empresa → global → entorno). Caché de 30 s."""
     import time
     from app.core.entorno import en_pruebas
@@ -185,16 +186,17 @@ def leer(db, org_id: Optional[str]) -> Politica:
     return p
 
 
-def _leer(db, org_id: Optional[str]) -> Politica:
+def _leer(db, org_id: Optional[str]) -> PoliticaDeCuenta:
     from app.services.settings_service import get_runtime_bool, get_runtime_int, get_runtime_str
-    p = Politica()
-    for f in fields(Politica):
+    p = PoliticaDeCuenta()
+    for f in fields(PoliticaDeCuenta):
         if f.name == "require_mfa" or f.name in GENERALES:
             continue
         lector = {bool: get_runtime_bool, int: get_runtime_int}.get(type(getattr(p, f.name)), get_runtime_str)
         try:
             valor = lector(db, f.name, org_id)
         except Exception:
+            logging.getLogger(__name__).debug("_leer: excepcion ignorada", exc_info=True)
             valor = None
         if valor is not None:
             setattr(p, f.name, valor)
@@ -204,12 +206,21 @@ def _leer(db, org_id: Optional[str]) -> Politica:
         with sin_filtro_de_tenant(db):
             org = db.get(Organization, org_id)
         p.require_mfa = bool(getattr(org, "require_mfa", False))
-    from app.services.informe_de_cumplimiento import _ajuste_general
     try:
-        p.idle_timeout_enabled = str(_ajuste_general(db, "idle_timeout_enabled", org_id) or "false").lower() == "true"
-        p.idle_timeout_minutes = int(_ajuste_general(db, "idle_timeout_minutes", org_id) or 30)
+        # Los dos ajustes generales en UNA consulta (la de la empresa manda sobre
+        # la global), igual que `informe_de_cumplimiento._ajuste_general`.
+        from app.models.settings import AppSetting
+        claves = ("idle_timeout_enabled", "idle_timeout_minutes")
+        filas = db.query(AppSetting).filter(
+            AppSetting.key.in_(claves),
+            (AppSetting.organization_id == org_id) | AppSetting.organization_id.is_(None)).all()
+        valor = {}
+        for f in sorted(filas, key=lambda f: f.organization_id == org_id):
+            valor[f.key] = f.value
+        p.idle_timeout_enabled = str(valor.get("idle_timeout_enabled") or "false").lower() == "true"
+        p.idle_timeout_minutes = int(valor.get("idle_timeout_minutes") or 30)
     except Exception:
-        pass
+        logging.getLogger(__name__).warning("_leer: excepcion ignorada", exc_info=True)
     return p
 
 
@@ -242,9 +253,9 @@ def _normalizar(clave: str, valor: Any, tipo: type) -> Any:
     return str(valor or "").strip()
 
 
-def validar(cambios: dict, actual: Politica) -> dict:
+def validar(cambios: dict, actual: PoliticaDeCuenta) -> dict:
     """Normaliza y valida `cambios` (solo claves conocidas). Devuelve lo que cambia."""
-    conocidos = {f.name: type(getattr(actual, f.name)) for f in fields(Politica)}
+    conocidos = {f.name: type(getattr(actual, f.name)) for f in fields(PoliticaDeCuenta)}
     limpio: dict = {}
     for clave, valor in (cambios or {}).items():
         if clave not in conocidos:
@@ -252,7 +263,7 @@ def validar(cambios: dict, actual: Politica) -> dict:
         nuevo = _normalizar(clave, valor, conocidos[clave])
         if nuevo != getattr(actual, clave):
             limpio[clave] = nuevo
-    futura = Politica(**{**actual.a_dict(), **limpio})
+    futura = PoliticaDeCuenta(**{**actual.a_dict(), **limpio})
     if futura.PASSWORD_MAX_LENGTH < futura.MIN_PASSWORD_LENGTH:
         raise error(422, "politica_longitudes_incoherentes")
     if futura.PASSWORD_EXPIRY_DAYS and futura.PASSWORD_EXPIRY_WARNING_DAYS >= futura.PASSWORD_EXPIRY_DAYS:

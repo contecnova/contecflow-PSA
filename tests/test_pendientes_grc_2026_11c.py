@@ -98,7 +98,10 @@ def test_el_informe_mide_revocacion_de_sesiones_y_politica_sso(db):
         return next(c for c in informe.generar(db, "1")["controls"] if c["id"] == id_)
 
     rev = control("session_revocation")
-    assert rev["status"] == "pass" and rev["measured"]["on_password_change"] and rev["measured"]["on_password_reset"]
+    # M99 (auditoría 22-11-2026): «pass» sólo con EVIDENCIA (sesiones revocadas de
+    # verdad por cambio o restablecimiento de contraseña); sin ninguna, «info».
+    assert rev["status"] == "info" and rev["measured"]["on_password_change"] and rev["measured"]["on_password_reset"]
+    assert rev["measured"]["sessions_revoked_by_password_events"] == 0
     assert control("sso_policy")["status"] == "info"                       # sin SSO
     sso = SSOConfig(provider=SSOProvider.oidc, is_active=True, organization_id="1", auto_create_users=True, name="IdP")
     db.add(sso)

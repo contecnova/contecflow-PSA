@@ -19,7 +19,7 @@ from app.core import timeutil
 def _etiqueta(db, org_id, grupo: str, valor, defecto=None) -> str:
     """Etiqueta de `valor` en el idioma de la empresa (`metricas.<grupo>.<valor>`); si no hay, el propio valor."""
     from app.services.textos_de_salida import TEXTOS
-    from app.services.textos_de_salida_servicios_m_z import texto_para
+    from app.services.textos_de_salida import texto_para
     valor = getattr(valor, "value", valor)
     clave = f"metricas.{grupo}.{valor}"
     if clave not in TEXTOS:

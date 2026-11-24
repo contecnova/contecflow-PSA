@@ -237,6 +237,17 @@ def validate_sql(sql: str, org_id: Optional[str] = None) -> tuple[str, dict]:
     return _inyectar_filtro_de_tenant(sql), {"org_id": org_id}
 
 
+# ── Memoria de conversación (23-11-2026) ─────────────────────────────────────
+#
+# Las preguntas anteriores de la conversación (`ask_memoria.contexto`) llegan a
+# `_generate_sql` por esta variable de contexto, también en el reintento con
+# valores reales, sin cambiar la firma de las funciones.
+import contextvars as _contextvars  # noqa: E402
+
+_CONTEXTO_DE_CONVERSACION: "_contextvars.ContextVar[str]" = _contextvars.ContextVar(
+    "ask_contexto_de_conversacion", default="")
+
+
 # ── LLM SQL generation ────────────────────────────────────────────────────────
 
 def _generate_sql(
@@ -253,8 +264,12 @@ def _generate_sql(
     from app.services.ai_provider_service import call_ai
 
     user_prompt = question
+    previas = _CONTEXTO_DE_CONVERSACION.get()
+    if previas:
+        user_prompt = f"{previas}\n\nPregunta actual:\n{question}"
     if feedback:
         user_prompt = (
+            (f"{previas}\n\n" if previas else "") +
             f"Pregunta original:\n{question}\n\n"
             f"Feedback de validación/ejecución:\n{feedback}\n\n"
             "Devuelve una consulta SQL DuckDB completa y corregida. "
@@ -522,6 +537,41 @@ def ask(
     org_id: Optional[str] = None,
     user_id: Optional[str] = None,
     is_superadmin: bool = False,
+    conversation_id: Optional[str] = None,
+) -> dict:
+    """Pregunta en lenguaje natural con memoria de conversación (23-11-2026).
+
+    Con `user_id` la pregunta va a una conversación de esa persona en su
+    empresa (`conversation_id`, o una nueva) y el modelo recibe las últimas
+    `ASK_DATA_CONTEXT_TURNS` preguntas con su consulta, para entender las de
+    seguimiento («¿y en octubre?»). Devuelve lo de siempre más `conversation_id`.
+    Sin persona (llamadas internas) se comporta como antes, sin memoria.
+    """
+    if not user_id or (not org_id and not is_superadmin):
+        return _ask(question, db, org_id, user_id, is_superadmin)
+    from app.services import ask_memoria
+    conv = ask_memoria.abrir(db, org_id, user_id, conversation_id, question)
+    previas = ask_memoria.contexto(db, conv, ask_memoria.turnos_de_contexto(db, org_id))
+    marca = _CONTEXTO_DE_CONVERSACION.set(previas)
+    try:
+        resultado = _ask(question, db, org_id, user_id, is_superadmin)
+    finally:
+        _CONTEXTO_DE_CONVERSACION.reset(marca)
+    try:
+        ask_memoria.guardar_turno(db, conv, question, resultado)
+    except Exception:
+        db.rollback()
+        logger.warning("ask_the_data: no se pudo guardar la pregunta en la conversación", exc_info=True)
+        return {**resultado, "conversation_id": None, "with_context": bool(previas)}
+    return {**resultado, "conversation_id": conv.id, "with_context": bool(previas)}
+
+
+def _ask(
+    question: str,
+    db: Session,
+    org_id: Optional[str] = None,
+    user_id: Optional[str] = None,
+    is_superadmin: bool = False,
 ) -> dict:
     """Process a natural-language question and return structured results.
 
@@ -548,7 +598,7 @@ def ask(
     validated_sql = ""
     # Revisión 2026-11: el banco de preguntas validadas de la empresa.
     from app.services import ask_banco
-    reutilizada = _con_ejemplo_validado(question, db, org_id)
+    reutilizada = None if _CONTEXTO_DE_CONVERSACION.get() else _con_ejemplo_validado(question, db, org_id)
     if reutilizada is not None:
         return reutilizada
     try:

@@ -9,7 +9,8 @@ import api from '../services/api'
 import { useAuth } from '../context/AuthContext'
 import { applyAccent, applyDensity } from '../utils/appearance'
 import { ELEGIDO_KEY } from '../i18n/AppLangContext'
-import { idiomaDelNavegador } from '../i18n/appTranslations'
+// Con extensión: sin ella Vite resuelve a `appTranslations.mjs`, que no la exporta.
+import { idiomaDelNavegador } from '../i18n/appTranslations.ts'
 import { PREFERENCES_SAVE_DEBOUNCE_MS, STALE_5_MIN_MS } from '../constants/timings'
 
 export type ThemeMode = 'freight' | 'dark' | 'light' | 'high-contrast' | 'midnight' | 'slate' | 'system' | string

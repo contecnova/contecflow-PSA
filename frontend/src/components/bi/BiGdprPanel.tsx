@@ -258,15 +258,14 @@ function ConsentTab() {
                 </div>
               </div>
               <span className="bi-gdpr-panel-badge" style={varsBadge(c.consented ? 'var(--success)' : 'var(--danger)')}>{c.consented ? t('bigdpr.concedido') : t('bigdpr.revocado')}</span>
-              <Pulsable className={`bigdpa-row-13 ${c.consented ? 'bi-gdpr-panel-m18' : 'bi-gdpr-panel-m19'}`} onClick={() => toggleMut.mutate({ c, consented: !c.consented })} disabled={toggleMut.isPending}
+              <Pulsable /* eslint-disable-line contec/sin-boton-de-icono-propio -- excepción: interruptor conceder/revocar (icono de palanca), no es una acción de fila */ className={`bigdpa-row-13 ${c.consented ? 'bi-gdpr-panel-m18' : 'bi-gdpr-panel-m19'}`} onClick={() => toggleMut.mutate({ c, consented: !c.consented })} disabled={toggleMut.isPending}
                 title={c.consented ? t('bigdpr.revocar') : t('bigdpr.conceder')} aria-label={c.consented ? t('bigdpr.revocar') : t('bigdpr.conceder')}>
                 {c.consented ? <ToggleRight size={18} /> : <ToggleLeft size={18} />}
               </Pulsable>
-              <Pulsable aria-label={t('bigdpr.ver_historial')} onClick={() => setHistUser(histUserId === c.user_id ? null : c.user_id)}
-                title={t('bigdpr.ver_historial')}
-                className="bigdpa-row-4">
+              <IconButton variante="caja" ariaLabel={t('bigdpr.ver_historial')} onClick={() => setHistUser(histUserId === c.user_id ? null : c.user_id)}
+                title={t('bigdpr.ver_historial')}>
                 <Clock size={14} />
-              </Pulsable>
+              </IconButton>
             </div>
           ))}
           {!consents.length && (

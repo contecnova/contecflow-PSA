@@ -112,7 +112,7 @@ function FieldForm({ field, projectId, onClose }: { field: CustomField | null; p
               {form.options.map((o) => (
                 <span key={o} className="cfl-option">
                   {o}
-                  <Pulsable type="button" className="cfl-option__remove"
+                  <Pulsable /* eslint-disable-line contec/sin-boton-de-icono-propio -- excepción: aspa de quitar dentro de un chip de opción */ type="button" className="cfl-option__remove"
                     aria-label={traducir('customfields.quitar_opcion', { opcion: o })}
                     onClick={() => set('options')(form.options.filter(x => x !== o))}><X size={12} aria-hidden="true" /></Pulsable>
                 </span>
@@ -260,11 +260,11 @@ export default function CustomFieldsPage(): JSX.Element {
                       </td>
                       <td>
                         <div className="u-row-8">
-                          <IconButton ariaLabel={traducir('customfields.editar_campo_n', { nombre: f.name })}
+                          <IconButton variante="caja" ariaLabel={traducir('customfields.editar_campo_n', { nombre: f.name })}
                             onClick={() => { setEditing(f); setShowForm(true) }}>
                             <Pencil size={14} />
                           </IconButton>
-                          <IconButton className="cfl-del" ariaLabel={traducir('customfields.eliminar_campo_n', { nombre: f.name })}
+                          <IconButton variante="caja" tono="peligro" ariaLabel={traducir('customfields.eliminar_campo_n', { nombre: f.name })}
                             onClick={() => { openConfirmGlobal({ message: traducir('customfields.confirmar_eliminar', { nombre: f.name }), onConfirm: () => deleteField(f.id), danger: true }) }}>
                             <Trash2 size={14} />
                           </IconButton>

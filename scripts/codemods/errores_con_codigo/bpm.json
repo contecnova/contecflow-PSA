@@ -1,0 +1,99 @@
+{
+ "codigos": {
+  "bpm_sin_version_publicada": {
+   "es": "El proceso no tiene ninguna versión publicada (las demás están retiradas): publica una para iniciarlo",
+   "en": "The process has no published version (the others are retired): publish one to start it",
+   "zh": "该流程没有已发布的版本（其他版本已停用）：请发布一个版本后再启动"
+  },
+  "bpm_variable_tipo_no_valido": {
+   "es": "La variable «{nombre}» debe ser de tipo {tipo}",
+   "en": "Variable «{nombre}» must be of type {tipo}",
+   "zh": "变量「{nombre}」必须是 {tipo} 类型"
+  },
+  "bpm_variable_no_declarada": {
+   "es": "Estos datos no son del formulario de la tarea: {nombres}",
+   "en": "These fields are not in the task form: {nombres}",
+   "zh": "这些字段不属于任务表单：{nombres}"
+  },
+  "bpm_campo_obligatorio": {
+   "es": "Falta un campo obligatorio: {nombre}",
+   "en": "A required field is missing: {nombre}",
+   "zh": "缺少必填字段：{nombre}"
+  },
+  "bpm_segregacion_de_funciones": {
+   "es": "Segregación de funciones: quien diseñó o publicó esta versión del proceso no puede aprobar en ella",
+   "en": "Segregation of duties: whoever designed or published this process version cannot approve in it",
+   "zh": "职责分离：设计或发布此流程版本的人不能在其中审批"
+  },
+  "bpm_error_sin_captura": {
+   "es": "Esta tarea no tiene un evento de error que capture «{codigo}»",
+   "en": "This task has no error event that catches «{codigo}»",
+   "zh": "此任务没有可捕获「{codigo}」的错误事件"
+  },
+  "bpm_instancia_no_en_curso": {
+   "es": "Solo se puede suspender una instancia en curso",
+   "en": "Only a running instance can be suspended",
+   "zh": "只能暂停运行中的实例"
+  },
+  "bpm_instancia_no_suspendida": {
+   "es": "La instancia no está suspendida",
+   "en": "The instance is not suspended",
+   "zh": "该实例未暂停"
+  },
+  "bpm_migracion_incompatible": {
+   "es": "No se puede migrar: estos pasos pendientes no existen igual en la versión destino: {elementos}",
+   "en": "Cannot migrate: these pending steps do not exist in the same way in the target version: {elementos}",
+   "zh": "无法迁移：以下待处理步骤在目标版本中不一致：{elementos}"
+  },
+  "bpm_mensaje_sin_destino": {
+   "es": "Indica la instancia o la clave de negocio que recibe el mensaje",
+   "en": "Give the instance or the business key that receives the message",
+   "zh": "请指定接收消息的实例或业务键"
+  },
+  "bpm_mensaje_sin_receptor": {
+   "es": "Ninguna instancia espera el mensaje «{mensaje}»",
+   "en": "No instance is waiting for message «{mensaje}»",
+   "zh": "没有实例在等待消息「{mensaje}」"
+  },
+  "bpm_accion_sin_iniciador": {
+   "es": "La acción automática no tiene con qué identidad ejecutarse: quien inició la instancia ya no está activo",
+   "en": "The automatic action has no identity to run with: whoever started the instance is no longer active",
+   "zh": "自动操作没有可用的执行身份：启动实例的人已不再活跃"
+  },
+  "bpm_accion_desconocida": {
+   "es": "Acción automática desconocida: {accion}",
+   "en": "Unknown automatic action: {accion}",
+   "zh": "未知的自动操作：{accion}"
+  },
+  "bpm_accion_config_no_valida": {
+   "es": "La configuración de la acción «{accion}» no es válida",
+   "en": "The configuration of action «{accion}» is not valid",
+   "zh": "操作「{accion}」的配置无效"
+  },
+  "bpm_esquema_no_valido": {
+   "es": "Las variables declaradas del proceso no son válidas",
+   "en": "The declared process variables are not valid",
+   "zh": "流程声明的变量无效"
+  },
+  "bpm_version_ya_retirada": {
+   "es": "Esa versión ya está retirada",
+   "en": "That version is already retired",
+   "zh": "该版本已停用"
+  },
+  "bpm_formulario_no_lista": {
+   "es": "El formulario (formFields) no es una lista de campos",
+   "en": "The form (formFields) is not a list of fields",
+   "zh": "表单（formFields）不是字段列表"
+  },
+  "bpm_formulario_campo_sin_nombre": {
+   "es": "Un campo del formulario no tiene un nombre válido",
+   "en": "A form field has no valid name",
+   "zh": "表单中有字段没有有效的名称"
+  },
+  "bpm_formulario_tipo_no_valido": {
+   "es": "Tipo de campo del formulario no válido: {tipo}",
+   "en": "Invalid form field type: {tipo}",
+   "zh": "表单字段类型无效：{tipo}"
+  }
+ }
+}

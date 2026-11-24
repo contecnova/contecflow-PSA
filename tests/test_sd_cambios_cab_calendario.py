@@ -102,7 +102,10 @@ def test_un_estandar_de_bajo_riesgo_se_aprueba_solo_sin_inventar_usuario(client,
     c = _cambio(client, admin_token, change_type="standard", standard_model_id=modelo.id)
     ch = db.get(ITSMChangeRequest, c["id"])
     assert ch.status.value == "approved" and ch.approved_by is None
-    assert db.get(StandardChangeModel, modelo.id).use_count == 1
+    # La API suma el uso en su propia sesión; `modelo` sigue en el mapa de identidad
+    # de la del test con el valor de antes: se relee de la base.
+    db.refresh(modelo)
+    assert modelo.use_count == 1
 
 
 def test_no_se_programa_en_una_congelacion_salvo_emergencia(client, admin_token, pm_token, cab, db):

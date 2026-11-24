@@ -12,7 +12,7 @@ import React, { useState } from 'react';
 import type { CSSProperties } from 'react';
 import PageShell from '../components/layout/PageShell'
 import PageHeader from '../components/layout/PageHeader'
-import { Buscador, useDialogo, Button, Card, EmptyState, Input, KpiCard, Modal, Select, Spinner, Pulsable, TablaSimple, Textarea } from '../components/ui'
+import { Buscador, useDialogo, Button, Card, EmptyState, Input, KpiCard, Modal, Select, Spinner, Pulsable, TablaSimple, Textarea, IconButton } from '../components/ui'
 import StatusBadge from '../components/ui/StatusBadge'
 import type { StatusBadgeKind } from '../components/ui/StatusBadge'
 import { openConfirmGlobal } from '../context/ConfirmContext'
@@ -246,7 +246,7 @@ function PortfolioDashboard({ portfolioId, onClose }: { portfolioId: string | nu
               <Button icon={<Plus size={14} />} onClick={() => setShowAddProject(true)}>
                 {t('portfolio.anadir_proyecto')}
               </Button>
-              <Pulsable className="pf-cerrar" aria-label={t('common.close')} onClick={onClose}><X size={16} aria-hidden /></Pulsable>
+              <IconButton variante="caja" ariaLabel={t('common.close')} onClick={onClose}><X size={16} aria-hidden /></IconButton>
             </div>
           </div>
 
@@ -324,7 +324,7 @@ function PortfolioDashboard({ portfolioId, onClose }: { portfolioId: string | nu
                           ) : <span className="u-text3-xs">—</span>}
                         </td>
                         <td className="pf-td">
-                          <Pulsable className="pf-quitar" aria-label={t('portfolio_ui.quitar')} title={t('portfolio_ui.quitar')} onClick={ev => { ev.stopPropagation(); openConfirmGlobal({message:t('portfolio_ui.quitar_confirm'),onConfirm:()=>removeProject(p.project_id),danger:true}) }}><X size={13} aria-hidden /></Pulsable>
+                          <IconButton variante="caja" tono="peligro" ariaLabel={t('portfolio_ui.quitar')} title={t('portfolio_ui.quitar')} onClick={ev => { ev.stopPropagation(); openConfirmGlobal({message:t('portfolio_ui.quitar_confirm'),onConfirm:()=>removeProject(p.project_id),danger:true}) }}><X size={13} aria-hidden /></IconButton>
                         </td>
                       </tr>
                       {isExpanded && (

@@ -371,7 +371,7 @@ export default function DependenciesPage(): JSX.Element {
                             {(e.lag_days ?? 0) > 0 ? t('pagina_deps.d', { lag_days: e.lag_days }) : '—'}
                           </td>
                           <td className="u-pad-10-12">
-                            <IconButton className="deps-borrar" ariaLabel={t('pagina_deps.eliminar_esta_dependencia')}
+                            <IconButton variante="caja" tono="peligro" ariaLabel={t('pagina_deps.eliminar_esta_dependencia')}
                               onClick={() => { openConfirmGlobal({ message: t('pagina_deps.eliminar_esta_dependencia'), onConfirm: () => deleteEdge(e.id), danger: true }) }}>
                               <Trash2 size={14} aria-hidden />
                             </IconButton>

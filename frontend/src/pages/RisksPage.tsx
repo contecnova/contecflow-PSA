@@ -286,11 +286,11 @@ export default function RisksPage() {
 
   const botones = (r: RiskItem) => (
     <>
-      <IconButton type="button" onClick={() => setEditing(r)} className="rsk-icon-btn"
+      <IconButton variante="caja" type="button" onClick={() => setEditing(r)}
         ariaLabel={t('risks_page.editar_riesgo', { titulo: r.title })} title={t('risks_page.editar')}>
         <Pencil size={14} aria-hidden />
       </IconButton>
-      <IconButton type="button" onClick={() => confirmarBorrado(r)} className="rsk-icon-btn rsk-icon-btn--danger"
+      <IconButton variante="caja" tono="peligro" type="button" onClick={() => confirmarBorrado(r)}
         ariaLabel={t('risks_page.eliminar_riesgo', { titulo: r.title })} title={t('risks_page.eliminar')}>
         <Trash2 size={14} aria-hidden />
       </IconButton>

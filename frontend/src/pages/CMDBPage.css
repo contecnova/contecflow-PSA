@@ -60,18 +60,6 @@ textarea.cmdb-input { min-height: 70px; resize: vertical; }
 .cmdb-chip--bold { font-weight: 700; }
 .cmdb-chip--gap { margin-left: 6px; }
 
-.cmdb-icon-btn {
-  background: none;
-  border: 1px solid var(--surface-4);
-  border-radius: var(--radius-sm);
-  padding: 4px 8px;
-  color: var(--text-2);
-  cursor: pointer;
-  font-size: var(--text-xs);
-}
-.cmdb-icon-btn--danger { color: var(--danger); border-color: var(--danger-border); }
-.cmdb-icon-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-.cmdb-icon-btn:focus-visible,
 .cmdb-link-btn:focus-visible,
 .cmdb-sort-btn:focus-visible {
   outline: 2px solid var(--accent);
@@ -272,6 +260,4 @@ textarea.cmdb-input { min-height: 70px; resize: vertical; }
 
 /* Pasada de diseño 16-11-2026 */
 .cmdb-ci-ref { display: inline-flex; align-items: center; gap: 4px; }
-.cmdb-del { color: var(--text-3); }
-.cmdb-del:hover { color: var(--danger); }
 .cmdb-section-title--mb10 { display: flex; align-items: center; gap: 6px; }

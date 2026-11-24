@@ -47,8 +47,12 @@ export type CambioItsm = {
   owner: string | null
   approved_by: string | null
   approved_at: string | null
+  /** Migración 206 (docs/PIR.md): calculados desde la PIR más reciente del cambio (compatibilidad). */
   pir_success: boolean | null
   pir_date: string | null
+  pir_estado?: string | null
+  /** Cerrado pero con PIR obligatoria sin aprobar: no cuenta como cerrado del todo. */
+  pir_obligatoria_pendiente?: boolean
   downtime_minutes: number | null
   created_at: string
   affected_cis: string[]
@@ -72,6 +76,8 @@ export type CambioItsmDetalle = CambioItsm & {
   test_plan: string | null
   impact_description: string | null
   pir_notes: string | null
+  pir_id?: string | null
+  pir_vencida?: boolean
 }
 
 /** `cancelar_cambio` (DELETE `/sd/changes/{id}`): cancela, no borra. */

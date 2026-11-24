@@ -125,7 +125,10 @@ def test_EL_HALLAZGO_el_webhook_cab_registra_en_la_empresa_del_disparador(db):
     trigger = db.get(WebhookTrigger, "wt-b")
     db.info["organization_id"], db.info["is_superadmin"] = None, None  # peticion sin usuario
     log_webhook_fire(trigger, "{}", "{}", db)
-    assert db.query(WebhookTriggerLog).filter_by(trigger_id="wt-b").one().organization_id == "org-b"
+    # M8 (22-11-2026): la sesión sin contexto ya no lee; se mira entre empresas.
+    from app.db.session import sin_filtro_de_tenant
+    with sin_filtro_de_tenant(db):
+        assert db.query(WebhookTriggerLog).filter_by(trigger_id="wt-b").one().organization_id == "org-b"
 
 
 def test_el_webhook_cab_de_una_empresa_desactivada_no_entra(db):
@@ -219,7 +222,10 @@ def test_EL_HALLAZGO_la_clave_de_api_trabaja_en_la_empresa_en_la_que_se_creo(db)
     from app.core.deps import _usuario_de_credencial_delegada
     _miembro_de_b(db)
     db.info.clear()
-    usuario = _usuario_de_credencial_delegada(db, _peticion(), "pm-test-id", ["read"], "api_key", "org-b")
+    # Como `get_current_user`: la identidad se resuelve en contexto de sistema (M8).
+    from app.db.contexto_de_tenant import contexto_de_sistema
+    with contexto_de_sistema(db, "identidad"):
+        usuario = _usuario_de_credencial_delegada(db, _peticion(), "pm-test-id", ["read"], "api_key", "org-b")
     assert db.info["organization_id"] == "org-b" and usuario.organization_id == "org-b"
 
 
@@ -229,7 +235,8 @@ def test_la_clave_de_api_de_una_empresa_que_ya_no_es_suya_no_vale(db):
     _empresa_b(db)
     db.commit()
     db.info.clear()
-    with pytest.raises(HTTPException) as e:
+    from app.db.contexto_de_tenant import contexto_de_sistema
+    with pytest.raises(HTTPException) as e, contexto_de_sistema(db, "identidad"):
         _usuario_de_credencial_delegada(db, _peticion(), "pm-test-id", ["read"], "api_key", "org-b")
     assert e.value.status_code == 401
 

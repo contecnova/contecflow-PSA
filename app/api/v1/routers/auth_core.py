@@ -512,7 +512,18 @@ def logout(
     quitar_fin_de_sesion(response)
     response.delete_cookie("refresh_token", path=_svc.REFRESH_COOKIE_PATH, **_COOKIE_OPTS)
     response.delete_cookie("refresh_token", path=_svc.REFRESH_COOKIE_PATH_ANTIGUA, **_COOKIE_OPTS)
-    return {"detail": "Sesión cerrada correctamente"}
+    return {"detail": "Sesión cerrada correctamente", "saml_logout_url": _url_slo_saml(db, current_user)}
+
+
+def _url_slo_saml(db: Session, usuario: User):
+    """SLO SAML (23-11-2026): si entró por SAML y su IdP tiene SLO, la URL a la
+    que el frontend redirige para cerrar también la sesión del IdP."""
+    try:
+        from app.services.auth_service.saml import url_de_logout_del_usuario
+        return url_de_logout_del_usuario(db, usuario)
+    except Exception:  # noqa: BLE001 - el cierre local ya está hecho
+        logger.warning("SLO SAML: no se pudo construir la LogoutRequest", exc_info=True)
+        return None
 
 
 @router.post("/password/forgot", summary="Solicitar enlace para restablecer contraseña")

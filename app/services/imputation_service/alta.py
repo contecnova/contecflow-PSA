@@ -216,7 +216,7 @@ def _crear_imputacion(payload, current_user: User, db: Session) -> Imputation:
         hours=payload.hours,
         description=payload.description,
         is_billable=payload.is_billable,
-        hourly_rate_snapshot=rate,   # en la moneda del perfil de coste
+        hourly_rate_snapshot=rate,   # M7: en la moneda de la empresa (cost_per_hour ya convierte)
         # Revisión 2026-11: el coste, siempre en la moneda de la empresa (con el tipo de la fecha).
         # Antes se guardaba en la del perfil y nadie lo convertía.
         cost_amount=_cost_svc.cost_amount(db, current_user, payload.hours, payload.date,

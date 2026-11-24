@@ -117,6 +117,11 @@ def test_conflictos_de_reservas_con_la_jornada_de_la_empresa(db):
     from app.services.capacity_planning_service import get_booking_conflicts
     _proyecto(db)
     update_setting("DEFAULT_WORKING_HOURS_PER_DAY", "6", "1", db)
+    # M35 (auditoría 22-11-2026): la capacidad sale del horario efectivo de la
+    # persona, y su `weekly_capacity_hours` manda sobre la jornada de la empresa.
+    # Sin capacidad propia, rige la jornada de su empresa, que es lo que se mide.
+    from app.models.user import User
+    db.get(User, "dev-test-id").weekly_capacity_hours = None
     db.add(ResourceBooking(id=str(uuid.uuid4()), user_id="dev-test-id", project_id="p-iva", organization_id="1",
                            start_date=date(2026, 11, 16), end_date=date(2026, 11, 16), hours_per_day=7))
     db.commit()

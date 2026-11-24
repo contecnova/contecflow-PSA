@@ -621,6 +621,8 @@ export interface PortalUsuario {
   company: string | null
   phone: string | null
   is_active: boolean
+  /** 23-11-2026 (portal_usuarios): archivado (solo con `include_archived`). */
+  archived_at: string | null
   can_approve_deliverables: boolean
   can_request_changes: boolean
   can_view_budget: boolean
@@ -629,6 +631,12 @@ export interface PortalUsuario {
   created_at: string
   portal_url: string
 }
+
+/** usuarios.establecer_contrasena: la contraseña no vuelve nunca. */
+export interface PortalContrasenaEstablecida { id: string; email: string; must_change_password: boolean; credenciales_enviadas: boolean | null }
+
+/** usuarios.eliminar_o_archivar: lo decide el servidor según el historial (filas por `tabla.columna`). */
+export interface PortalUsuarioEliminado { id: string; resultado: 'eliminado' | 'archivado'; historial: Record<string, number>; total: number; ya_estaba_archivado?: boolean }
 
 /** clientes.create_client. */
 export interface PortalUsuarioCreado { id: string; email: string; project_ids: string[]; portal_url: string; message: string; /** 23-11-2026: null si se dio la contraseña a mano (API). */ credenciales_enviadas?: boolean | null }

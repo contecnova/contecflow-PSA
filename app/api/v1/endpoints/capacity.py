@@ -349,7 +349,7 @@ def get_resource_leveling(
     usuarios = {
         u.id: u for u in capacity_service.get_active_users(db, current_user.organization_id)
     }
-    planes = capacity_service.get_plans_for_leveling(
+    planes = capacity_service.get_plans_for_period(  # `get_plans_for_leveling` se retiró (copia literal)
         db, week_from, week_to, list(usuarios.keys()),
     )
 

@@ -110,7 +110,7 @@ def _idioma(db: Session, usuario=None, org_id: Optional[str] = None) -> str:
 
 def _t(db: Session, clave: str, usuario=None, org_id: Optional[str] = None, **datos) -> str:
     """Texto de Slack en el idioma de `usuario` (o de la empresa `org_id`)."""
-    from app.services.textos_de_salida_servicios_m_z import texto_para
+    from app.services.textos_de_salida import texto_para
     return texto_para(db, clave, user_id=getattr(usuario, "id", None),
                       org_id=getattr(usuario, "organization_id", None) or org_id, **datos)
 

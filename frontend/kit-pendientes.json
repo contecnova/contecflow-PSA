@@ -2,6 +2,7 @@
   "_leeme": "Excepciones temporales de la migración al kit: cupo de incumplimientos por regla y fichero. Solo puede encoger. Regenera con node scripts/kit_pendientes.mjs (ver cabecera del script).",
   "eslint": {
     "contec/sin-boton-nativo": {},
+    "contec/sin-boton-de-icono-propio": {},
     "contec/sin-tabla-propia": {},
     "contec/sin-select-nativo": {},
     "contec/sin-casilla-suelta": {},
@@ -26,6 +27,7 @@
       "src/components/alm/almIntegracion.css": 2,
       "src/components/planificador/planificador.css": 5,
       "src/pages/TimesheetsPage.css": 1
-    }
+    },
+    "botonDeIcono": {}
   }
 }

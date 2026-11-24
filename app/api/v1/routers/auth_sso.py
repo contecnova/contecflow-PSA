@@ -428,6 +428,80 @@ def _validar_id_token_y_extraer_identidad(
     return claims, email, name
 
 
+def completar_login_federado(db, request: Request, response: Response, config, email: str, name,
+                             claims: dict, metodo: str) -> dict:
+    """Alta JIT, empresa, MFA, sesión y auditoría tras un SSO validado (OIDC o SAML).
+
+    23-11-2026: era el final de `sso_callback`; SAML (`auth_saml.py`) sigue el
+    mismo camino para que las dos vías apliquen las mismas reglas
+    (`create_or_update_sso_user`, `entrada_service.confirmar`, MFA de la
+    empresa). Ahora además queda en audit_log (`LOGIN`, con el método), como
+    el login con contraseña; antes el SSO no dejaba rastro.
+    """
+    from app.services.audit import audit_log
+    from app.core.network import extract_client_ip
+
+    # Buscar o crear usuario
+    user = _svc.create_or_update_sso_user(db, config, email, name, claims)
+    # La empresa es la del proveedor SSO (revision multitenant 2026-11).
+    from app.services import entrada_service as _entrada
+    org = _entrada.confirmar(db, user, request, config.organization_id)
+    audit_log(db, user, "LOGIN", "users", user.id, user.full_name,
+              metadata={"metodo": metodo, "sso_config_id": config.id,
+                        "proveedor": str(getattr(config.provider, "value", config.provider))},
+              ip_address=(extract_client_ip(request) or None),
+              user_agent=(request.headers.get("user-agent") or "")[:500] or None)
+
+    # Enforce MFA for SSO users too (TOTP or WebAuthn passkeys).
+    has_totp    = bool(user.mfa_enabled and user.mfa_secret)
+    has_passkeys = _svc.user_has_passkeys(db, user.id)
+    # Auditoria 2026-11 (#45): la organizacion que exige MFA tambien lo
+    # exige por SSO; antes el login por contrasena bloqueaba y el SSO no.
+    if not (has_totp or has_passkeys) and _svc.organizacion_exige_mfa(db, user, org):
+        _svc.commit_db(db)
+        raise error_http(403, "mfa_obligatorio_org", detail="Tu organización requiere MFA. Configura un autenticador (TOTP o passkey) antes de poder iniciar sesión.")
+    if has_totp or has_passkeys:
+        methods = []
+        if has_totp:
+            methods.append("totp")
+        if has_passkeys:
+            methods.append("webauthn")
+        reto = _issue_mfa_challenge(db, user, org)
+        _svc.commit_db(db)
+        return {
+            "token_type":         "bearer",
+            "mfa_required":       True,
+            "mfa_challenge_token": reto,
+            "mfa_methods":        methods,
+            "user": {
+                "id": user.id, "email": user.email,
+                "full_name": user.full_name,
+                "role": user.role.value if hasattr(user.role, "value") else str(user.role),
+            },
+        }
+
+    access_token, new_refresh_token, new_jti = _entrada.emitir_tokens(user, org)
+    register_or_rotate_user_session(
+        db=db,
+        user_id=user.id,
+        request=request,
+        refresh_token_jti=new_jti,
+        auth_method=metodo,
+    )
+    _svc.commit_db(db)
+    _set_auth_cookies(response, access_token, new_refresh_token)
+    return {
+        "access_token":  access_token,
+        "refresh_token": new_refresh_token,
+        "token_type":    "bearer",
+        "user": {
+            "id": user.id, "email": user.email,
+            "full_name": user.full_name,
+            "role": user.role.value if hasattr(user.role, "value") else str(user.role),
+        },
+    }
+
+
 @router.post("/sso/{config_id}/callback", summary="Callback OIDC — intercambiar code por token")
 @limiter.limit(settings.SSO_RATE_LIMIT)
 def sso_callback(
@@ -457,58 +531,7 @@ def sso_callback(
             config, tokens, expected_nonce, config_id
         )
 
-        # Buscar o crear usuario
-        user = _svc.create_or_update_sso_user(db, config, email, name, claims)
-        # La empresa es la del proveedor SSO (revision multitenant 2026-11).
-        from app.services import entrada_service as _entrada
-        org = _entrada.confirmar(db, user, request, config.organization_id)
-
-        # Enforce MFA for SSO users too (TOTP or WebAuthn passkeys).
-        has_totp    = bool(user.mfa_enabled and user.mfa_secret)
-        has_passkeys = _svc.user_has_passkeys(db, user.id)
-        # Auditoria 2026-11 (#45): la organizacion que exige MFA tambien lo
-        # exige por SSO; antes el login por contrasena bloqueaba y el SSO no.
-        if not (has_totp or has_passkeys) and _svc.organizacion_exige_mfa(db, user, org):
-            _svc.commit_db(db)
-            raise error_http(403, "mfa_obligatorio_org", detail="Tu organización requiere MFA. Configura un autenticador (TOTP o passkey) antes de poder iniciar sesión.")
-        if has_totp or has_passkeys:
-            methods = []
-            if has_totp:
-                methods.append("totp")
-            if has_passkeys:
-                methods.append("webauthn")
-            return {
-                "token_type":         "bearer",
-                "mfa_required":       True,
-                "mfa_challenge_token": _issue_mfa_challenge(db, user, org),
-                "mfa_methods":        methods,
-                "user": {
-                    "id": user.id, "email": user.email,
-                    "full_name": user.full_name,
-                    "role": user.role.value if hasattr(user.role, "value") else str(user.role),
-                },
-            }
-
-        access_token, new_refresh_token, new_jti = _entrada.emitir_tokens(user, org)
-        register_or_rotate_user_session(
-            db=db,
-            user_id=user.id,
-            request=request,
-            refresh_token_jti=new_jti,
-            auth_method="sso",
-        )
-        _svc.commit_db(db)
-        _set_auth_cookies(response, access_token, new_refresh_token)
-        return {
-            "access_token":  access_token,
-            "refresh_token": new_refresh_token,
-            "token_type":    "bearer",
-            "user": {
-                "id": user.id, "email": user.email,
-                "full_name": user.full_name,
-                "role": user.role.value if hasattr(user.role, "value") else str(user.role),
-            },
-        }
+        return completar_login_federado(db, request, response, config, email, name, claims, "sso")
 
     except (HTTPException, ErrorDeDominio):
         raise

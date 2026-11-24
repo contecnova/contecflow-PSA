@@ -216,9 +216,8 @@ export default function VisualQueryBuilderWidget() {
                       >
                         {item.name}
                       </Pulsable>
-                      <IconButton
+                      <IconButton variante="caja" tono="peligro"
                         onClick={() => deleteTemplateMutation.mutate(item.id)}
-                        className="viqubuwi-del"
                         ariaLabel={t('visual_query_builder.delete_btn')}
                       >
                         <Trash2 size={13} />
