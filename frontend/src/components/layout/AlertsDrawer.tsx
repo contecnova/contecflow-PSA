@@ -15,13 +15,14 @@ interface SeverityCfg {
   dot: string
   bg: string
   border: string
-  label: string
+  /** Clave del texto (`alerts.severity_<x>`); 24-11-2026: antes un literal en castellano. */
+  labelKey: string
 }
 
 const SEVERITY_CFG: Record<string, SeverityCfg> = {
-  critical: { dot: 'var(--danger)',  bg: 'var(--danger-bg)',  border: 'var(--danger-border)',  label: 'Crítica' },
-  warning:  { dot: 'var(--warning)', bg: 'var(--warning-bg)', border: 'var(--warning-border)', label: 'Aviso' },
-  info:     { dot: 'var(--accent)',  bg: 'var(--accent-muted)', border: 'var(--accent-glow)',   label: 'Info' },
+  critical: { dot: 'var(--danger)',  bg: 'var(--danger-bg)',  border: 'var(--danger-border)', labelKey: 'alerts.severity_critical' },
+  warning:  { dot: 'var(--warning)', bg: 'var(--warning-bg)', border: 'var(--warning-border)', labelKey: 'alerts.severity_warning' },
+  info:     { dot: 'var(--accent)',  bg: 'var(--accent-muted)', border: 'var(--accent-glow)',   labelKey: 'alerts.severity_info' },
 }
 
 const TYPE_ICONS: Record<string, string> = {
@@ -88,9 +89,9 @@ export default function AlertsDrawer({ onClose }: Props) {
         {alerts.length > 0 && (
           <div className="alerdraw-row-3">
             {[
-              { label: 'Críticas', count: critical.length, color: 'var(--danger)' },
-              { label: 'Avisos',   count: warning.length,  color: 'var(--warning)' },
-              { label: 'Info',     count: info.length,     color: 'var(--accent)' },
+              { label: t('alerts.critical_count'), count: critical.length, color: 'var(--danger)' },
+              { label: t('alerts.warning_count'),  count: warning.length,  color: 'var(--warning)' },
+              { label: t('alerts.info_count'),     count: info.length,     color: 'var(--accent)' },
             ].map(({ label, count, color }) => count > 0 && (
               <div key={label} className="alerdraw-box-2">
                 <div className="alerdraw-txt-7 alerts-drawer-e1" style={{ '--alerts-drawer-color': color } as CSSProperties}>{count}</div>

@@ -1,0 +1,70 @@
+/* BotonConContador y Contador (24-11-2026): el contador de pendientes estándar. Sin pendientes,
+   neutro; con pendientes, el botón entero toma el tono y el número va AL LADO del icono (el de la
+   bandeja). Solo tokens: vale en claro, oscuro y en el portal de clientes. */
+.ui-boton-contador {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  box-sizing: border-box;
+  height: var(--alto-control-sm);
+  min-width: var(--alto-control-sm);
+  padding: 0 var(--space-2);
+  border: 1px solid var(--surface-4);
+  border-radius: var(--radius-sm);
+  background: var(--surface-3);
+  color: var(--text-2);
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: var(--font-semibold);
+  line-height: 1;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+}
+.ui-boton-contador > svg { flex: none; width: 14px; height: 14px; }
+.ui-boton-contador__numero { font-variant-numeric: tabular-nums; }
+.ui-boton-contador:hover,
+.ui-boton-contador--activo { color: var(--accent); border-color: var(--accent-border); background: var(--accent-muted); }
+.ui-boton-contador:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.ui-boton-contador:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* Con pendientes: fondo, borde e icono del tono. */
+.ui-boton-contador--aviso,
+.ui-boton-contador--aviso:hover { background: var(--warning-bg); border-color: var(--warning-border); color: var(--warning); }
+.ui-boton-contador--peligro,
+.ui-boton-contador--peligro:hover { background: var(--danger-bg); border-color: var(--danger-border); color: var(--danger); }
+.ui-boton-contador--acento,
+.ui-boton-contador--acento:hover { background: var(--accent-muted); border-color: var(--accent-border); color: var(--accent); }
+
+/* Barra superior en móvil: misma altura que el resto de botones de la barra (index.css). */
+@media (width <= 640px) {
+  .app-topbar-right .ui-boton-contador { height: 34px; min-width: 34px; }
+}
+
+/* Contador como pastilla (menús) o punto (menú plegado). */
+.ui-contador {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-full);
+  font-size: var(--text-2xs);
+  font-weight: var(--font-bold);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.ui-contador--aviso { background: var(--warning-bg); border-color: var(--warning-border); color: var(--warning); }
+.ui-contador--peligro { background: var(--danger-bg); border-color: var(--danger-border); color: var(--danger); }
+.ui-contador--acento { background: var(--accent-muted); border-color: var(--accent-border); color: var(--accent); }
+.ui-contador--punto { min-width: 0; width: 7px; height: 7px; padding: 0; border: 0; }
+.ui-contador--punto.ui-contador--aviso { background: var(--warning); }
+.ui-contador--punto.ui-contador--peligro { background: var(--danger); }
+.ui-contador--punto.ui-contador--acento { background: var(--accent); }

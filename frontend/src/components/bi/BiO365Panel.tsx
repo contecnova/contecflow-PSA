@@ -9,27 +9,24 @@
  * 19-11-2026: la pestaña «Configuración» (tenant, client id, secreto, activar)
  * vive en Configuración → Integraciones → Informes de Microsoft 365
  * (`/settings/m365-informes`, ConfigBiO365.tsx). Aquí queda solo el
- * enlace «Ir a Configuración» solo si falta configurar y se tiene `org.administrar`.
+ * aviso de que falta configurar (`AvisoDeConfiguracion` del kit: enlace solo a quien puede abrir la sección).
  */
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
 import { tooltipDelTema } from '../../constants/estilosGrafico'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { biO365Api } from '../../services/api'
 import { useAppT } from '../../i18n/AppLangContext'
 import { useChartTheme } from '../../charts/useChartTheme'
 import { BarChart3, Cloud, RefreshCw, Users } from 'lucide-react'
-import { Button, EmptyState, Tabs } from '../ui'
+import { AvisoDeConfiguracion, Button, EmptyState, Tabs } from '../ui'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 import { extractErr, localeActivo } from '../../utils/helpers'
 import { useToast } from '../../context/ToastContext'
-import { useAuth } from '../../context/AuthContext'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import './BiO365Panel.css'
 
 export default function BiO365Panel() {
   const t             = useAppT()
-  const configura     = useAuth().puede('org.administrar')
   const toast         = useToast()
   const { tokens }    = useChartTheme()
   const qc            = useQueryClient()
@@ -102,10 +99,7 @@ export default function BiO365Panel() {
       </div>
 
       {config && !puedeSincronizar && (
-        <p className="bio3pa-box-2" role="status">
-          {t('bio365.falta_configurar')}{' '}
-          {configura && <Link to="/settings/m365-informes">{t('bio365.ir_a_configuracion')}</Link>}
-        </p>
+        <AvisoDeConfiguracion seccion="m365-informes">{t('bio365.falta_configurar')}</AvisoDeConfiguracion>
       )}
 
       {/* Tab navigation */}

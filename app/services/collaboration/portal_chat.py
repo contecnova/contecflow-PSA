@@ -20,10 +20,13 @@ operador, iniciar en una conversación con clientes exige `clientes.llamar` y
 que la empresa tenga activadas las llamadas (y el vídeo) del portal
 (`exigir_llamada_permitida`, desde `calls.start_call`).
 
-**Sin grabación con clientes.** En una conversación con clientes no se graba,
-no se activa el asistente de reuniones ni se transcribe: 409
-`portal_llamada_no_se_graba` (`exigir_sin_grabacion`). El cliente lo ve en el
-aviso de llamada.
+**Grabación solo con consentimiento** (24-11-2026, migración 214, §11). En una
+conversación con clientes se graba, se transcribe o se activa el asistente de
+reuniones solo si la empresa lo permite (si no, 409
+`portal_grabacion_desactivada`) y todos los clientes de la llamada han dado su
+consentimiento (si no, 409 `portal_grabacion_sin_consentimiento`):
+`exigir_grabacion_consentida`, que delega en
+`portal_conversation_service.grabacion`.
 
 **Validación también para el operador.** Un adjunto que sube el equipo a una
 conversación con clientes pasa por las mismas reglas de la empresa
@@ -121,16 +124,25 @@ def exigir_llamada_permitida(db: Session, user, conversation_id: str, kind: str)
         raise error(403, "portal_llamada_sin_capacidad")
 
 
-def exigir_sin_grabacion(db: Session, conversation_id: Optional[str]) -> None:
-    """Grabar, transcribir o activar el asistente: nunca con clientes en la conversación."""
-    if conversacion_con_clientes(db, conversation_id):
-        raise error(409, "portal_llamada_no_se_graba")
+def exigir_grabacion_consentida(db: Session, call_id: str, *, transcripcion: bool = False) -> Optional[str]:
+    """Grabar, transcribir o activar el asistente con clientes: solo con permiso de la empresa y su consentimiento.
 
-
-def exigir_sin_grabacion_de_llamada(db: Session, call_id: str) -> None:
+    Sin clientes en la conversación no aplica (`None`). Con clientes devuelve el
+    id de la grabación de la ronda consentida o lanza 409
+    `portal_grabacion_desactivada` / `portal_transcripcion_desactivada` /
+    `portal_grabacion_sin_consentimiento`.
+    """
     call = db.query(CollaborationCall).filter(CollaborationCall.id == call_id).first()
-    if call is not None:
-        exigir_sin_grabacion(db, call.conversation_id)
+    if call is None or not conversacion_con_clientes(db, call.conversation_id):
+        return None
+    from app.services.portal_conversation_service import grabacion
+    return grabacion.exigir_consentimiento(db, "colaboracion", call.id, call.organization_id,
+                                           transcripcion=transcripcion)
+
+
+def _grabando(db: Session, call) -> bool:
+    from app.services.portal_conversation_service import grabacion
+    return grabacion.grabando(db, "colaboracion", call.id, call.organization_id)
 
 
 def validar_si_hay_clientes(db: Session, organization_id: str, conversation_id: str, nombre: str,
@@ -442,7 +454,7 @@ def sonando(db: Session, client) -> list[dict]:
     ).order_by(CollaborationCall.started_at.desc()).all()
     return [{"id": c.id, "conversation_id": c.conversation_id, "kind": getattr(c.kind, "value", c.kind),
              "status": "ringing", "created_at": c.started_at.isoformat() if c.started_at else None,
-             "is_recorded": False}
+             "is_recorded": _grabando(db, c)}
             for c in filas if _participacion(db, c.id, client.id) is None]
 
 
@@ -482,7 +494,8 @@ def aceptar(db: Session, client, call_id: str) -> dict:
     kind = getattr(call.kind, "value", call.kind)
     return {
         "id": call.id, "conversation_id": call.conversation_id, "kind": kind, "status": "active",
-        "role": "participant", "is_recorded": False, "livekit_url": url(), "livekit_room": call.livekit_room,
+        "role": "participant", "is_recorded": _grabando(db, call), "livekit_url": url(),
+        "livekit_room": call.livekit_room,
         "livekit_token": issue_access_token(room=call.livekit_room, identity=f"client:{client.id}",
                                             name=client.full_name, is_recorder=False, ttl_seconds=TTL_DEL_TOKEN),
     }

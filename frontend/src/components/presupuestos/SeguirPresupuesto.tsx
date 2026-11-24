@@ -241,8 +241,7 @@ export function PedidosYTraspasos({ p, dinero, onCambio }: { p: FichaPresupuesto
             <Input label={t('pres.proveedor')} aria-label={t('pres.proveedor')} value={ped.proveedor} onChange={e => setPed(v => ({ ...v, proveedor: e.target.value }))} />
             <Input label={t('pres.referencia')} aria-label={t('pres.referencia')} value={ped.referencia} onChange={e => setPed(v => ({ ...v, referencia: e.target.value }))} />
             <Input label={t('pres.importe')} aria-label={t('pres.importe')} type="number" min={0} step="any" value={ped.importe} onChange={e => setPed(v => ({ ...v, importe: e.target.value }))} />
-            <label><span className="uiinde-estiloetiqueta">{t('pres.mes')}</span>
-              <input aria-label={t('pres.mes')} type="month" value={ped.mes} min={p.periodo_desde.slice(0, 7)} max={p.periodo_hasta.slice(0, 7)} onChange={e => setPed(v => ({ ...v, mes: e.target.value }))} className={CLASE_CAMPO} /></label>
+            <Input label={t('pres.mes')} type="month" value={ped.mes} min={p.periodo_desde.slice(0, 7)} max={p.periodo_hasta.slice(0, 7)} onChange={e => setPed(v => ({ ...v, mes: e.target.value }))} />
             <div><Button size="sm" disabled={!ped.descripcion.trim() || !(Number(ped.importe) > 0) || !ped.mes} loading={ocupado === 'pedido'}
               onClick={() => hacer('pedido', () => presupuestosApi.crearPedido(p.id, { ...ped, importe: Number(ped.importe), proveedor: ped.proveedor || null, referencia: ped.referencia || null }), () => setPed(vacioP))}>{t('pres.comprometer')}</Button></div>
           </div>

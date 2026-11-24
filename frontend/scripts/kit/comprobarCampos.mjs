@@ -26,7 +26,8 @@ const CONTROLES = new Set([
 const DE_CONTEXTO = new Set(['Select', 'ProjectSelect', 'ClientSelect'])
 const RE_CLASE_ETIQUETA = /(^|[\s_-])(label|lbl|etiqueta|ls)([\s_-]|$)|__label|\{\s*(ls|LS|labelStyle)\s*\}/i
 const RE_VALOR_DE_CONTEXTO = /^(selected)?(project|client|sprint|unit|unidad|proyecto|cliente)(id)?$/i
-const CONTENEDORES_DE_FORMULARIO = new Set(['Modal', 'Drawer', 'FormField', 'SelectorDeContexto', 'form'])
+// 24-11-2026: también un diálogo propio (`role="dialog"`, p. ej. la ficha flotante de una reserva): es un formulario.
+const CONTENEDORES_DE_FORMULARIO = new Set(['Modal', 'Drawer', 'FormField', 'SelectorDeContexto', 'form', 'dialog'])
 const DEL_KIT_O_FUERA = /^src\/(components\/ui\/|__tests__\/)|\.test\.tsx$/
 
 const nombre = (n) => (n.openingElement || n).tagName.getText()
@@ -94,7 +95,8 @@ export function recuentoCampos(raiz) {
         if (ident && RE_VALOR_DE_CONTEXTO.test(ident) && !ancestros.some((x) => CONTENEDORES_DE_FORMULARIO.has(x))) suma('selectorDeContextoAMano')
       }
       const nom = esElemento(n) || n.kind === K.JsxElement ? nombre(n) : null
-      const sig = nom ? [...ancestros, nom] : ancestros
+      const rol = esElemento(n) ? atributo(n, 'role')?.initializer?.getText() : null
+      const sig = nom ? [...ancestros, nom, ...(rol === '"dialog"' ? ['dialog'] : [])] : ancestros
       ts.forEachChild(n, (c) => visitar(c, sig))
     }
     visitar(sf, [])

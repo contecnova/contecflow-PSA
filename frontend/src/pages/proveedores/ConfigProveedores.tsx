@@ -12,9 +12,8 @@
  */
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Link } from 'react-router-dom'
 import { FileText, Pencil, Plus, SlidersHorizontal, Trash2 } from 'lucide-react'
-import { Button, Card, IconButton, Input, Spinner } from '../../components/ui'
+import { AvisoDeConfiguracion, Button, Card, IconButton, Input, Spinner } from '../../components/ui'
 import SeccionDeAjustes from '../settings-sections/SeccionDeAjustes'
 import { Catalogo } from '../settings/CatalogosDeClave'
 import { confirmar } from '../../context/ConfirmContext'
@@ -107,7 +106,7 @@ function UmbralesEnCaliente() {
     <SeccionDeAjustes icon={<SlidersHorizontal size={18} />} title={t('proveedores.umbrales')} description={t('proveedores.umbrales_d')}>
       {isError || items.length === 0 ? (
         <p className="u-text2-sm">{t('proveedores.umbrales_en_config_dinamica')}{' '}
-          {esAdmin && <Link to="/settings/runtime-flags">{t('proveedores.abrir_config_dinamica')}</Link>}
+          <AvisoDeConfiguracion seccion="runtime-flags" variante="enlace" texto={t('proveedores.abrir_config_dinamica')} />
         </p>
       ) : (
         <div className="u-stack-8">

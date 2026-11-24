@@ -226,8 +226,8 @@ function NuevoPresupuesto({ onClose, onCreado }: { onClose: () => void; onCreado
         <div className="u-text3-xs">{t(`pres.ambito_${f.ambito}_ayuda`)}</div>
         {f.ambito === 'area' && (areas.data ?? []).length === 0 && <div role="status" className="bud-aviso">{t('pres.sin_areas')}</div>}
         <div className="bud-rejilla">
-          <label><span className="uiinde-estiloetiqueta">{t('pres.desde')}</span><input aria-label={t('pres.desde')} type="month" value={f.desde} onChange={set('desde')} className="bud-campo" /></label>
-          <label><span className="uiinde-estiloetiqueta">{t('pres.hasta')}</span><input aria-label={t('pres.hasta')} type="month" value={f.hasta} onChange={set('hasta')} className="bud-campo" /></label>
+          <Input label={t('pres.desde')} type="month" value={f.desde} onChange={set('desde')} />
+          <Input label={t('pres.hasta')} type="month" value={f.hasta} onChange={set('hasta')} />
           <Select label={t('pres.moneda')} placeholder={false} aria-label={t('pres.moneda')} value={f.currency || currency} onChange={set('currency')}>
               {currencies.map(c => <option key={c} value={c}>{c}</option>)}
             </Select>

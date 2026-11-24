@@ -96,6 +96,9 @@ export type CustomFieldValue = ValorDeCampoPersonalizado
 
 export type CustomValues = Record<string, string | number>
 
+/** Etiqueta de un campo personalizado para la prop `label` del kit (con «*» si es obligatorio). */
+export const etiquetaDeCampo = (f: Pick<CustomField, 'name' | 'is_required'>): string => `${f.name}${f.is_required ? ' *' : ''}`
+
 export type StatusOption = { value: string; icon: string; label: string }
 
 export type IssueType = TipoDeIncidencia

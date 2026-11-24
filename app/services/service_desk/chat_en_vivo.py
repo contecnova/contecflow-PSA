@@ -22,8 +22,11 @@ Solo para conversaciones `livechat` (WhatsApp, Slack y Teams siguen con lo suyo)
 iniciar existe a propósito y SIEMPRE responde 403 `portal_llamada_solo_operador`
 (auditado: `livechat.call_start_denied`). El cliente solo acepta (si suena o está
 en curso; único modo de recibir su token), rechaza (si suena) o cuelga.
-**Sin grabación ni transcripción**: el token no lleva permiso de grabador y la
-ruta de grabar responde siempre 409 `portal_llamada_no_se_graba`.
+**Grabación solo con consentimiento** (24-11-2026, migración 214, §11): la
+propone el operador si la empresa lo permite y se graba solo si el cliente
+consiente (`portal_conversation_service.grabacion`); la ruta antigua de grabar
+responde 409 `portal_grabacion_desactivada` / `portal_grabacion_sin_consentimiento`
+(`grabar_denegado`). Al colgar se para.
 
 **Aislamiento de empresa.** Todo se busca por `organization_id` de la
 conversación; el cliente, además, por `client_user_id` y su empresa.
@@ -420,7 +423,16 @@ def _llamada_salida(c: ChannelCall) -> dict:
             "created_at": str(c.created_at)[:19] if c.created_at else None,
             "answered_at": str(c.answered_at)[:19] if c.answered_at else None,
             "ended_at": str(c.ended_at)[:19] if c.ended_at else None,
-            "duration_seconds": c.duration_seconds or 0, "is_recorded": False}
+            "duration_seconds": c.duration_seconds or 0, "is_recorded": _grabando(c)}
+
+
+def _grabando(c: ChannelCall) -> bool:
+    """Se graba ahora con el consentimiento del cliente (migración 214)."""
+    from sqlalchemy.orm import object_session
+    from app.services.portal_conversation_service import grabacion
+    db = object_session(c)
+    return bool(db is not None and c.status in ("ringing", "active")
+                and grabacion.grabando(db, "en_vivo", c.id, c.organization_id))
 
 
 def _con_token(c: ChannelCall, *, identidad: str, nombre: str, rol: str) -> dict:
@@ -520,11 +532,23 @@ def iniciar_como_cliente(db: Session, conv_id: str, cliente, kind: Optional[str]
 
 
 def grabar_denegado(db: Session, conv: ChannelConversation, call_id: Optional[str], *, usuario=None,
-                    cliente=None) -> None:
-    """Las llamadas con clientes no se graban ni se transcriben: siempre 409 (auditado)."""
-    _auditar(db, conv, "call_recording_denied", call_id, None, usuario=usuario, cliente=cliente)
-    db.commit()
-    raise error(409, "portal_llamada_no_se_graba")
+                    cliente=None) -> dict:
+    """Ruta antigua de «grabar» (24-11-2026, migración 214): ya no graba por sí sola.
+
+    Se graba por la propuesta del operador y el consentimiento del cliente
+    (`/portal-call-recording/...`). Aquí: si se está grabando con consentimiento,
+    devuelve el estado; si no, 409 `portal_grabacion_desactivada` (la empresa no
+    lo permite) o `portal_grabacion_sin_consentimiento` (auditado).
+    """
+    from app.services.portal_conversation_service import grabacion
+    try:
+        grabacion.exigir_consentimiento(db, "en_vivo", call_id or "", conv.organization_id)
+    except Exception:
+        _auditar(db, conv, "call_recording_denied", call_id, None, usuario=usuario, cliente=cliente)
+        db.commit()
+        raise
+    llamada = grabacion.cargar(db, "en_vivo", call_id or "", conv.organization_id)
+    return grabacion.estado(db, llamada, cliente=cliente)
 
 
 def aceptar(db: Session, conv: ChannelConversation, call_id: str, cliente) -> dict:
@@ -561,6 +585,8 @@ def colgar(db: Session, conv: ChannelConversation, call_id: str, *, usuario=None
     ahora = _ahora()
     if c.status == "active" and c.answered_at is not None:
         c.duration_seconds = max(0, int((ahora - _aware(c.answered_at)).total_seconds()))
+    from app.services.portal_conversation_service import grabacion
+    grabacion.al_terminar_llamada(db, "en_vivo", c.id, c.organization_id)
     c.status, c.ended_at = "ended", ahora
     c.ended_by_user_id = usuario.id if usuario is not None else None
     c.ended_by_client_id = cliente.id if cliente is not None else None

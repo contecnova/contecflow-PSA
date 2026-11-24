@@ -7,6 +7,7 @@ import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { AlertTriangle } from 'lucide-react'
 import StatusBadge from '../../components/ui/StatusBadge'
+import AvisoDeConfiguracion from '../../components/ui/AvisoDeConfiguracion'
 import { useAppT } from '../../i18n/AppLangContext'
 import { STALE_REFERENCE_DATA_MS } from '../../constants/timings'
 import { clientesInternosApi } from '../../services/api/clientesInternos'
@@ -35,19 +36,32 @@ export function useOpcionesInternas(activo = true): OpcionesInternas {
   return data ?? SIN_OPCIONES
 }
 
-/** Avisos contextuales de configuración que faltan, con enlace a donde se arregla. */
+/** Avisos contextuales de configuración que faltan, con enlace a donde se arregla.
+ *  24-11-2026: los que se arreglan en Configuración son el `AvisoDeConfiguracion` del kit
+ *  (enlace solo a quien puede abrir la sección; al resto, «Pídeselo a tu administrador»). */
+const AJUSTES = '/settings/'
 export function AvisosInternos({ avisos }: { avisos: AvisoInterno[] | null | undefined }) {
   const t = useT()
   if (!avisos?.length) return null
   return (
     <div className="int-avisos" role="status">
-      {avisos.map(a => (
-        <div key={a} className="int-aviso">
-          <AlertTriangle size={14} aria-hidden />
-          <span className="u-flex1">{t(`internos.aviso_${a}`)}</span>
-          <Link to={destinoDeAviso(a)}>{t('internos.aviso_arreglar')}</Link>
-        </div>
-      ))}
+      {avisos.map(a => {
+        const destino = destinoDeAviso(a)
+        if (destino.startsWith(AJUSTES)) {
+          return (
+            <AvisoDeConfiguracion key={a} seccion={destino.slice(AJUSTES.length)} texto={t('internos.aviso_arreglar')}>
+              {t(`internos.aviso_${a}`)}
+            </AvisoDeConfiguracion>
+          )
+        }
+        return (
+          <div key={a} className="int-aviso">
+            <AlertTriangle size={14} aria-hidden />
+            <span className="u-flex1">{t(`internos.aviso_${a}`)}</span>
+            <Link to={destino}>{t('internos.aviso_arreglar')}</Link>
+          </div>
+        )
+      })}
     </div>
   )
 }

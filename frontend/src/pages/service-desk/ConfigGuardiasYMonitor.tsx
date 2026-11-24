@@ -17,7 +17,7 @@ import { openConfirmGlobal } from '../../context/ConfirmContext'
 import { useListaDeUsuarios } from '../../hooks/useListas'
 import { extractErr, fmtDateTime } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
-import { Button, EmptyState, Modal, Select, Spinner, StatusBadge, TablaSimple, Input, IconButton } from '../../components/ui'
+import { AvisoDeConfiguracion, Button, EmptyState, Modal, Select, Spinner, StatusBadge, TablaSimple, Input, IconButton } from '../../components/ui'
 import { sdGroupsApi, sdMonitoringApi, sdOnCallApi, apiUrlAbsoluta, type UserListItem } from '../../services/api'
 import type { SdCalendarioDeGuardia } from '../../services/api/tipos-sd'
 import DateInput from '../../components/ui/DateInput'
@@ -162,7 +162,7 @@ export function MonitorizacionConfig() {
         </div>
         <div className="u-text2-sm">{t('sd_cfg.mon_url_help')}</div>
         <div className="u-text2-sm">
-          {t('sd_cfg.mon_token')} <Link to="/settings/integrations" className="u-accent">{t('sd_cfg.mail_credentials')}</Link>
+          {t('sd_cfg.mon_token')} <AvisoDeConfiguracion seccion="integrations" variante="enlace" texto={t('sd_cfg.mail_credentials')} />
         </div>
       </div>
       <div>

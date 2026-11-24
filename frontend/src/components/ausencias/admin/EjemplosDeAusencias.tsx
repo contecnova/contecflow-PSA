@@ -14,13 +14,14 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { CheckCircle2, Sparkles } from 'lucide-react'
 import { ausenciasApi } from '../../../services/api/ausencias'
-import { Button, Pulsable } from '../../ui'
-import { useAuth } from '../../../context/AuthContext'
+import { Button, Pulsable, rutaDeConfiguracion, usePuedeConfigurar } from '../../ui'
 import { AvisoDeError, useT } from './comun'
 
 export default function EjemplosDeAusencias({ puedeCargar, onIr }: { puedeCargar: boolean; onIr: (tab: string) => void }) {
   const { ta } = useT()
-  const esAdmin = useAuth().puede('org.administrar')
+  // 24-11-2026: el paso enlaza a Configuración solo si quien mira puede abrir esa sección.
+  const puedePoliticas = usePuedeConfigurar('policies')
+  const puedeFlujos = usePuedeConfigurar('approval-workflows')
   const qc = useQueryClient()
   const cargar = useMutation({
     mutationFn: ausenciasApi.cargarEjemplos,
@@ -51,11 +52,11 @@ export default function EjemplosDeAusencias({ puedeCargar, onIr }: { puedeCargar
           <ol className="ausadm-puntos">
             {r.pasos_siguientes.map(p => (
               <li key={p}>
-                {p === 'publicar_politica' && (esAdmin
-                  ? <Link to="/settings/policies?dominio=ausencias">{ta('paso_publicar_politica')}</Link>
+                {p === 'publicar_politica' && (puedePoliticas
+                  ? <Link to={rutaDeConfiguracion('policies', 'dominio=ausencias')}>{ta('paso_publicar_politica')}</Link>
                   : ta('paso_publicar_politica'))}
-                {p === 'activar_flujo' && (esAdmin
-                  ? <Link to="/settings/approval-workflows">{ta('paso_activar_flujo')}</Link>
+                {p === 'activar_flujo' && (puedeFlujos
+                  ? <Link to={rutaDeConfiguracion('approval-workflows')}>{ta('paso_activar_flujo')}</Link>
                   : ta('paso_activar_flujo'))}
                 {p === 'elegir_flujo_en_vacaciones' && <Pulsable className="ausadm-enlace" onClick={() => onIr('tipos')}>{ta('paso_elegir_flujo')}</Pulsable>}
                 {p === 'asignar_cuadrante' && <Link to="/absences?tab=cuadrante">{ta('paso_asignar_cuadrante')}</Link>}

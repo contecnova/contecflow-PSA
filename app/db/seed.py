@@ -31,6 +31,7 @@ from app.db.seed_parts.config_versions import seed_v14, seed_v15, seed_v16
 from app.db.seed_parts.itsm import seed_itsm_v2
 from app.db.seed_parts.alm import seed_alm
 from app.db.seed_parts.demanda import seed_demanda  # rev. 195: flujo de demanda
+from app.db.seed_parts.chats_demo import seed_chats_demo  # 24-11-2026: chats de ejemplo
 
 if __name__ == "__main__":
     from app.core.entorno import exigir_entorno_no_productivo
@@ -76,3 +77,6 @@ if __name__ == "__main__":
     seed_v16(db_main)
     db_main.close()
     seed_demanda()
+    # 24-11-2026: conversaciones de ejemplo en el chat interno y los tres chats del
+    # portal (idempotente; docs/portal/CHAT_DEL_PORTAL.md §12).
+    seed_chats_demo()

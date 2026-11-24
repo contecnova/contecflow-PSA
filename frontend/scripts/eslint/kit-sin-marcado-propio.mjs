@@ -81,7 +81,8 @@ function crearRegla({ mensaje, detectar }) {
   }
 }
 
-const TIPOS_DE_TEXTO = new Set(['', 'text', 'search', 'email', 'number', 'password', 'url', 'tel'])
+// 24-11-2026: también `month` (el `Input` del kit lo admite: `<Input label=… type="month" />`).
+const TIPOS_DE_TEXTO = new Set(['', 'text', 'search', 'email', 'number', 'password', 'url', 'tel', 'month'])
 
 // ── Botón de solo icono (23-11-2026) ─────────────────────────────────────────
 // Los nombres locales que el fichero importa de lucide-react (por programa).

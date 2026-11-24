@@ -30,8 +30,11 @@ from app.services.certificaciones import (
     auditorias, catalogo, certificados, comun, evidencias, externos, generacion, nis2, panel, programas,
     proveedores, rgpd,
 )
+from app.services.certificaciones.traduccion import RutaTraducida, idioma_de_peticion
 
-router = APIRouter()
+# 24-11-2026 (barrido de traducciones): las respuestas salen con el contenido de la
+# biblioteca en el idioma de la interfaz (`X-Idioma`); ver services/certificaciones/traduccion.py.
+router = APIRouter(route_class=RutaTraducida)
 
 VER = "certificaciones.ver"
 GESTIONAR = "certificaciones.gestionar"
@@ -365,9 +368,9 @@ def crear_programa(payload: ProgramaIn, db: Session = Depends(get_db),
 
 @router.post("/programas/desde-plantilla", summary="Generar programa, proyecto, declaración y documentos (§4)",
              status_code=201)
-def desde_plantilla(payload: DesdePlantillaIn, db: Session = Depends(get_db),
+def desde_plantilla(payload: DesdePlantillaIn, request: Request, db: Session = Depends(get_db),
                     current_user: User = Depends(requiere_capacidad("certificaciones.gestionar"))):
-    return _ok(generacion.generar(db, current_user, _d(payload)))
+    return _ok(generacion.generar(db, current_user, _d(payload), idioma=idioma_de_peticion(request)))
 
 
 @router.get("/programas/{programa_id}", summary="Un programa")

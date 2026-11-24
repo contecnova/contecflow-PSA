@@ -161,6 +161,13 @@ if [[ "$MODE" != "--info" ]]; then
   # y `m365` eran texto en ingles copiado de otros dos modulos.
   run_gate bloqueante "variables {x} coherentes entre idiomas"     bash -c 'cd frontend && node scripts/check_i18n_variables.mjs'
 
+  # 24-11-2026 (barrido de traducciones): nada nuevo sin traducir. Valores de en/zh
+  # copiados del castellano, claves que faltan o sobran en los 8 idiomas del portal,
+  # literales en castellano fuera de t() (también `label: '...'`, toasts, confirm) y
+  # claves pedidas a t() que no existen. Trinquete con lista blanca
+  # (frontend/scripts/i18n_traducido_baseline.json). Guía: docs/GUIA_DE_DISENO.md §10.
+  run_gate bloqueante "todo traducido (en/zh y portal, sin copias)"  bash -c 'cd frontend && node scripts/check_i18n_traducido.mjs'
+
   # Claves duplicadas en los ficheros de idioma (hallazgo 16). Encontrado al
   # intentar cerrar la traducción: `en.mjs` tenía el namespace `client_portal`
   # declarado DOS VECES, y en JavaScript gana la última — así que 73 traducciones

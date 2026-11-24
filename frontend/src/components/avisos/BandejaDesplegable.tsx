@@ -14,7 +14,7 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
 import { Bell, CheckCheck } from 'lucide-react'
-import IconButton from '../ui/IconButton'
+import { BotonConContador, textoDeContador } from '../ui/BotonConContador'
 import { Button, EmptyState, Pulsable, Spinner } from '../ui'
 import { fmtRelative } from '../../utils/helpers'
 import { COLOR_DE_TONO, estiloDeAviso, sinEmojis } from './iconosDeAviso'
@@ -63,10 +63,8 @@ interface Props {
   claseBoton?: string
 }
 
-/** «99+» a partir de 100. */
-export function textoDelContador(n: number): string {
-  return n > 99 ? '99+' : String(n)
-}
+/** «99+» a partir de 100 (24-11-2026: el del kit, `textoDeContador`). */
+export const textoDelContador = textoDeContador
 
 /** La lista de avisos (la usa el panel y, en el portal, la página completa). */
 export function ListaDeAvisos({ avisos, noLeido, onElegir }: {
@@ -157,7 +155,7 @@ export default function BandejaDesplegable({
       if (e.key !== 'Escape') return
       e.stopPropagation()
       setAbierta(false)
-      // IconButton no reenvía la ref: se busca el botón dentro de la raíz.
+      // Se busca el botón dentro de la raíz.
       el.querySelector<HTMLButtonElement>('[data-boton-campana]')?.focus()
     }
     const salir = (e: globalThis.FocusEvent) => {
@@ -193,21 +191,20 @@ export default function BandejaDesplegable({
 
   return (
     <div className="bandeja-desplegable" ref={raiz}>
-      <IconButton
+      {/* 24-11-2026: el contador estándar del kit (color de aviso y número al lado, como la bandeja). */}
+      <BotonConContador
+        icono={<Bell aria-hidden />}
+        contador={contador}
+        tono="aviso"
+        activo={abierta}
         ariaLabel={nombre}
-        title={nombre}
-        className={`bandeja-desplegable__boton${claseBoton ? ` ${claseBoton}` : ''}${abierta ? ' bandeja-desplegable__boton--abierta' : ''}`}
+        className={claseBoton}
         onClick={alternar}
         aria-expanded={abierta}
         aria-haspopup="dialog"
         aria-controls={abierta ? idPanel : undefined}
         data-boton-campana=""
-      >
-        <Bell size={15} aria-hidden />
-        {contador > 0 && (
-          <span className="bandeja-desplegable__contador" aria-hidden>{textoDelContador(contador)}</span>
-        )}
-      </IconButton>
+      />
 
       {abierta && (
         <div

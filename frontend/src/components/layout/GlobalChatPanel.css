@@ -64,7 +64,7 @@
   border-bottom: 1px solid var(--surface-4);
   display: flex;
   gap: 8px;
-  align-items: center;
+  align-items: flex-end;
   background: var(--surface-2);
 }
 .glchpa-row-8 {
@@ -127,19 +127,6 @@
   justify-content: space-between;
   gap: 6px;
 }
-.glchpa-row-11 {
-  min-width: 16px;
-  height: 16px;
-  border-radius: var(--radius-full);
-  background: var(--danger);
-  color: var(--on-accent-light);
-  font-size: var(--text-3xs);
-  font-weight: 800;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0 4px;
-}
 .glchpa-box-6 {
   padding: 12px;
   color: var(--text-3);
@@ -191,20 +178,6 @@
   cursor: pointer;
   transition: transform .18s ease, opacity .18s ease;
 }
-.glchpa-row-15 {
-  min-width: 18px;
-  height: 18px;
-  border-radius: var(--radius-full);
-  background: var(--danger);
-  color: var(--on-accent-light);
-  font-size: var(--text-3xs);
-  font-weight: 800;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0 4px;
-  transition: opacity .12s ease, transform .12s ease;
-}
 .glchpa-box-10 {
   position: fixed;
   inset: 0;
@@ -228,19 +201,6 @@
   font-size: var(--text-sm);
 }
 
-.glchpa-fieldstyle3 {
-  box-sizing: border-box;
-  background: var(--surface-3);
-  border: 1px solid var(--surface-4);
-  border-radius: 8px;
-  color: var(--text-1);
-  outline: none;
-  font-family: inherit;
-  width: auto;
-  max-width: 140px;
-  padding: 4px 8px;
-  font-size: var(--text-xs);
-}
 
 /* ── Estilos estaticos extraidos de GlobalChatPanel.tsx (#17) ── */
 .globalch-sx1.globalch-sx1 {
@@ -256,14 +216,6 @@
 .global-chat-panel-m2 {
   transform: translateY(10px);
   opacity: 0;
-}
-.global-chat-panel-m3 {
-  opacity: 1;
-  transform: scale(1);
-}
-.global-chat-panel-m4 {
-  opacity: 0;
-  transform: scale(0.9);
 }
 .global-chat-panel-m5 {
   background: var(--overlay-chat);

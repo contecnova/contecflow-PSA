@@ -279,6 +279,9 @@ from app.models.certificaciones import (  # noqa: F401,E402
     CertAuditoria, CertHallazgo, CertAccion, CertCertificado, CertIncidente, CertComunicacion, CertProveedor,
     CertPaquete,
 )
+# Grabación con consentimiento de las llamadas con clientes del portal (rev. 214, 24-11-2026,
+# docs/portal/CHAT_DEL_PORTAL.md §11)
+from app.models.grabacion_con_clientes import PortalCallRecordingConsent  # noqa: F401,E402
 
 # Listeners de sesión que dependen de modelos (viven en app/db). Se registran aquí,
 # con todos los modelos ya cargados, y no desde el propio modelo: un modelo no

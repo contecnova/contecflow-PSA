@@ -170,17 +170,10 @@
   color: var(--accent);
 }
 .chat-rail__badge {
+  /* 24-11-2026: el número es el `Contador` del kit; aquí solo se coloca. */
   position: absolute;
   top: 6px;
   right: 8px;
-  background: var(--danger);
-  color: var(--on-accent-light);
-  font-size: var(--text-3xs);
-  font-weight: 800;
-  padding: 1px 5px;
-  border-radius: var(--radius-full);
-  min-width: 14px;
-  text-align: center;
 }
 
 /* ── Lista de conversaciones ──────────────────────────────────────────── */

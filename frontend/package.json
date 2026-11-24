@@ -99,6 +99,7 @@
     "check:i18n:literales": "node scripts/check_i18n_literales.mjs",
     "check:i18n:sin-definir": "node scripts/check_i18n_claves_sin_definir.mjs",
     "check:i18n:variables": "node scripts/check_i18n_variables.mjs",
+    "check:i18n:traducido": "node scripts/check_i18n_traducido.mjs",
     "i18n:missing": "node scripts/i18n_missing.mjs"
   }
 }

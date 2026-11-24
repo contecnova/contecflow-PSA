@@ -1,0 +1,1233 @@
+# Traducción al inglés del contenido de la biblioteca de Certificaciones (24-11-2026).
+# Formato: catálogo por texto de origen (como gettext): «texto en castellano»: «traducción».
+# Cubre nombre/version/descripcion de marcos.yaml; titulo/descripcion/evidencia_sugerida de
+# controles.yaml; nombre de plantillas, fases, tareas y documentos, entregables y riesgos
+# (titulo/mitigacion) de plantillas/*.yaml. Lo que falte se muestra en castellano (respaldo) y
+# tests/test_certificaciones_traduccion_2026_11.py falla. Ver docs/CERTIFICACIONES_CONTENIDO.md §9.
+ISO/IEC 27001:2022: ISO/IEC 27001:2022
+2022 (incluye la modificación 1:2024): 2022 (including Amendment 1:2024)
+'Sistema de gestión de seguridad de la información certificable: cláusulas 4 a 10 y los 93 controles del Anexo A.': 'Certifiable information security management system: clauses 4 to 10 and the 93 Annex A controls.'
+TISAX (catálogo VDA ISA): TISAX (VDA ISA catalogue)
+ISA 6: ISA 6
+? Evaluación de seguridad de la información del sector de automoción (ENX). AL2 y AL3 evalúan los mismos requisitos de seguridad de la información con distinta profundidad; el módulo de prototipos exige AL3.
+: Information security assessment for the automotive sector (ENX). AL2 and AL3 assess the same information security requirements at different depth; the prototypes module requires AL3.
+NIS2 — Directiva (UE) 2022/2555: NIS2 — Directive (EU) 2022/2555
+2022/2555: 2022/2555
+? 'Directiva de ciberseguridad de la UE para entidades esenciales e importantes. No es certificable: se demuestra ante la autoridad.'
+: 'EU cybersecurity directive for essential and important entities. It is not certifiable: compliance is demonstrated to the authority.'
+Ley Sarbanes-Oxley (SOX): Sarbanes-Oxley Act (SOX)
+2002 (secciones 302, 404, 802 y 906): 2002 (sections 302, 404, 802 and 906)
+? Control interno sobre la información financiera de sociedades cotizadas en EE. UU. Los códigos ITGC/FC/ELC/ITAC son un catálogo de referencia propio; los de sección son de la ley.
+: Internal control over financial reporting for US-listed companies. The ITGC/FC/ELC/ITAC codes are our own reference catalogue; the section codes are from the Act.
+J-SOX (Ley de Instrumentos Financieros y Mercados de Japón): J-SOX (Japan Financial Instruments and Exchange Act)
+Normas de evaluación y auditoría revisadas en 2023 (vigentes desde el ejercicio 2024): Assessment and audit standards revised in 2023 (in force from fiscal year 2024)
+? Régimen japonés de informe y auditoría del control interno sobre la información financiera. Los códigos FIEA son artículos de la ley; el resto, catálogo de referencia propio.
+: Japanese regime for reporting on and auditing internal control over financial reporting. The FIEA codes are articles of the Act; the rest is our own reference catalogue.
+ISA/IEC 62443: ISA/IEC 62443
+2-1:2024, 3-2:2020, 3-3:2013, 4-1:2018, 4-2:2019: 2-1:2024, 3-2:2020, 3-3:2013, 4-1:2018, 4-2:2019
+? Ciberseguridad de sistemas de automatización y control industrial. Cada parte es un nivel; el nivel de seguridad objetivo (SL-T) se fija por zona en el programa.
+: Cybersecurity of industrial automation and control systems. Each part is a level; the target security level (SL-T) is set per zone in the programme.
+Programa de seguridad del propietario del activo: Asset owner security programme
+Evaluación de riesgos y diseño de zonas y conductos: Risk assessment and design of zones and conduits
+Requisitos de seguridad del sistema y niveles de seguridad: System security requirements and security levels
+Ciclo de vida de desarrollo seguro del producto: Secure product development lifecycle
+Requisitos técnicos de seguridad de componentes: Technical security requirements for components
+Contexto de la organización y partes interesadas: Context of the organisation and interested parties
+? Se identifican las cuestiones internas y externas y las expectativas de las partes interesadas que condicionan la seguridad, y se revisan al menos una vez al año.
+: Internal and external issues and the expectations of interested parties that affect security are identified and reviewed at least once a year.
+Análisis de contexto aprobado: Approved context analysis
+Registro de partes interesadas y requisitos: Register of interested parties and requirements
+Alcance del sistema de gestión: Scope of the management system
+? El alcance (entidades, sedes, procesos, sistemas, plantas OT y servicios) está definido, justificado y aprobado, con sus exclusiones motivadas.
+: The scope (entities, sites, processes, systems, OT plants and services) is defined, justified and approved, with any exclusions duly reasoned.
+Documento de alcance aprobado: Approved scope document
+Mapa de sedes y entidades incluidas: Map of included sites and entities
+Objetivos de seguridad medibles: Measurable security objectives
+? Hay objetivos de seguridad medibles, con responsable, plazo y recursos, alineados con la política y revisados periódicamente.
+: Measurable security objectives exist, with an owner, deadline and resources, aligned with the policy and reviewed periodically.
+Cuadro de objetivos e indicadores: Table of objectives and indicators
+Actas de seguimiento: Follow-up minutes
+Recursos y competencia del personal clave: Resources and competence of key personnel
+? Se asignan recursos suficientes y se asegura y documenta la competencia de quienes tienen funciones de seguridad o desarrollo seguro.
+: Sufficient resources are allocated, and the competence of those with security or secure development roles is ensured and documented.
+Matriz de competencias: Competence matrix
+Certificados y planes de formación: Certificates and training plans
+Control de la información documentada: Control of documented information
+Las políticas, procedimientos y registros se crean, aprueban, versionan, distribuyen y conservan con un flujo controlado.: Policies, procedures and records are created, approved, versioned, distributed and retained through a controlled workflow.
+Listado maestro de documentos: Master list of documents
+Historial de versiones y aprobaciones: Version and approval history
+Seguimiento, medición y eficacia de las medidas: Monitoring, measurement and effectiveness of measures
+Se define qué se mide, cómo y cuándo, y se analizan los resultados para evaluar la eficacia de las medidas de seguridad.: What is measured, how and when is defined, and the results are analysed to assess the effectiveness of security measures.
+Cuadro de mando de indicadores: Indicator dashboard
+Informe periódico de eficacia: Periodic effectiveness report
+Programa de auditoría interna: Internal audit programme
+? Se planifica y ejecuta un programa de auditorías internas independientes que cubre todo el alcance y los requisitos de cada norma.
+: A programme of independent internal audits is planned and carried out, covering the whole scope and the requirements of each standard.
+Programa anual de auditoría: Annual audit programme
+Informes de auditoría interna: Internal audit reports
+Revisión por la dirección: Management review
+? La dirección revisa a intervalos planificados el desempeño del sistema, los riesgos, los hallazgos y las oportunidades de mejora, y deja constancia de sus decisiones.
+: Management reviews at planned intervals the performance of the system, risks, findings and opportunities for improvement, and records its decisions.
+Acta de revisión por la dirección: Management review minutes
+Plan de acciones derivado: Resulting action plan
+No conformidades y acciones correctivas: Nonconformities and corrective actions
+? Cada no conformidad se registra, se analiza su causa, se corrige con plan y responsable y se verifica la eficacia antes del cierre.
+: Each nonconformity is recorded, its cause is analysed, it is corrected with a plan and an owner, and effectiveness is verified before closure.
+Registro de hallazgos y CAPA: Register of findings and CAPA
+Verificaciones de eficacia: Effectiveness checks
+Mejora continua: Continuous improvement
+? Se identifican y priorizan mejoras del sistema de gestión y del proceso de desarrollo a partir de indicadores, auditorías e incidentes.
+: Improvements to the management system and the development process are identified and prioritised on the basis of indicators, audits and incidents.
+Registro de mejoras: Register of improvements
+Lecciones aprendidas incorporadas: Lessons learned incorporated
+Política de seguridad y políticas temáticas: Security policy and topic-specific policies
+? La dirección aprueba una política de seguridad y las políticas temáticas necesarias, las comunica y las revisa cuando hay cambios relevantes.
+: Management approves a security policy and the necessary topic-specific policies, communicates them and reviews them when relevant changes occur.
+Política aprobada y firmada: Approved and signed policy
+Evidencia de comunicación: Evidence of communication
+Funciones y responsabilidades de seguridad: Security roles and responsibilities
+? Las funciones de seguridad están definidas y asignadas, incluido un responsable de seguridad con autoridad y acceso a la dirección.
+: Security roles are defined and assigned, including a Security Officer with authority and access to management.
+Organigrama de seguridad: Security organisation chart
+Nombramientos firmados: Signed appointments
+Segregación de funciones: Segregation of duties
+? Las funciones incompatibles se separan o, si no es posible, se compensan con controles de supervisión; los conflictos se detectan y se revisan.
+: Incompatible duties are separated or, where that is not possible, compensated by supervisory controls; conflicts are detected and reviewed.
+Matriz de incompatibilidades (SoD): Incompatibility matrix (SoD)
+Informe de conflictos y compensaciones: Report of conflicts and compensations
+Compromiso y responsabilidad de la dirección: Management commitment and accountability
+? La dirección aprueba las medidas de gestión de riesgos, supervisa su aplicación y responde de su cumplimiento; exige a todo el personal que aplique las políticas.
+: Management approves risk management measures, oversees their implementation and is accountable for compliance; it requires all staff to apply the policies.
+Acta de aprobación de medidas por el órgano de dirección: Minutes of approval of measures by the management body
+Informes de supervisión periódicos: Periodic oversight reports
+Formación en ciberseguridad del órgano de dirección: Cybersecurity training for the management body
+? Los miembros del órgano de dirección reciben formación periódica para identificar riesgos y valorar las prácticas de gestión de ciberseguridad.
+: Members of the management body receive regular training to identify risks and assess cybersecurity management practices.
+Registro de asistencia de la dirección: Management attendance record
+Contenido de la formación: Training content
+Relación con autoridades: Contact with authorities
+Se mantienen los contactos con autoridades competentes, CSIRT y fuerzas de seguridad, con quién comunica qué y cuándo.: Contacts are maintained with competent authorities, CSIRTs and law enforcement, with who communicates what and when.
+Directorio de autoridades y CSIRT: Directory of authorities and CSIRTs
+Registro de comunicaciones: Record of communications
+Relación con grupos especializados: Contact with special interest groups
+La organización participa en foros, asociaciones sectoriales y redes de intercambio de información de seguridad.: The organisation takes part in forums, industry associations and security information-sharing networks.
+Membresías y suscripciones: Memberships and subscriptions
+Boletines recibidos: Bulletins received
+Inteligencia de amenazas: Threat intelligence
+Se recoge y analiza información sobre amenazas relevantes para el sector y los activos, y se usa para ajustar controles.: Information on threats relevant to the sector and the assets is collected and analysed, and used to adjust controls.
+Informes de inteligencia: Intelligence reports
+Acciones derivadas: Resulting actions
+Seguridad en la gestión de proyectos: Security in project management
+Todo proyecto evalúa sus riesgos de seguridad desde el inicio e incorpora los requisitos de seguridad en su plan.: Every project assesses its security risks from the outset and incorporates security requirements into its plan.
+Plantilla de proyecto con apartado de seguridad: Project template with a security section
+Evaluaciones de riesgo de proyectos: Project risk assessments
+Evaluación de riesgos de seguridad: Security risk assessment
+? Se aplica una metodología repetible para identificar, analizar y valorar los riesgos de seguridad, con propietarios y criterios de aceptación aprobados.
+: A repeatable methodology is applied to identify, analyse and evaluate security risks, with owners and approved acceptance criteria.
+Metodología de riesgos aprobada: Approved risk methodology
+Registro de riesgos actualizado: Updated risk register
+Tratamiento de riesgos y declaración de aplicabilidad: Risk treatment and Statement of Applicability
+? Se eligen las opciones de tratamiento, se comparan con la biblioteca de controles y se justifica en la declaración de aplicabilidad qué aplica y qué no.
+: Treatment options are chosen and compared against the control library, and the Statement of Applicability justifies what applies and what does not.
+Plan de tratamiento aprobado: Approved treatment plan
+Declaración de aplicabilidad firmada: Signed Statement of Applicability
+Planificación operacional y de cambios en el sistema: Operational planning and changes to the system
+Los procesos del sistema de gestión y sus cambios se planifican y controlan, incluidos los subcontratados.: The management system processes and their changes are planned and controlled, including outsourced ones.
+Plan operativo anual: Annual operating plan
+Registro de cambios del sistema de gestión: Management system change log
+Comunicación interna y externa sobre seguridad: Internal and external communication on security
+Se define qué se comunica sobre seguridad, a quién, cuándo y por qué canal.: It is defined what is communicated about security, to whom, when and through which channel.
+Plan de comunicación: Communication plan
+'Alcance de la evaluación: cuentas, procesos y sistemas significativos': 'Assessment scope: significant accounts, processes and systems'
+? Se determinan con criterios cuantitativos y cualitativos las entidades, cuentas, procesos y aplicaciones dentro del alcance de la evaluación del control interno.
+: The entities, accounts, processes and applications within the scope of the internal control assessment are determined using quantitative and qualitative criteria.
+Análisis de materialidad y alcance: Materiality and scoping analysis
+Listado de procesos y aplicaciones en alcance: List of processes and applications in scope
+Inventario de activos de información: Information asset inventory
+Existe un inventario actualizado de información, sistemas, componentes OT y servicios, con propietario y criticidad.: An up-to-date inventory of information, systems, OT components and services exists, with owner and criticality.
+Extracto de la CMDB: CMDB extract
+Revisión periódica del inventario: Periodic review of the inventory
+Uso aceptable de la información y los activos: Acceptable use of information and assets
+Las normas de uso de la información y los activos están escritas, se comunican y se aceptan expresamente.: The rules for use of information and assets are written down, communicated and expressly accepted.
+Normas de uso aceptadas: Accepted rules of use
+Registro de aceptación: Acceptance record
+Devolución de activos: Return of assets
+Al terminar la relación laboral o contractual se recuperan todos los activos y la información entregados.: When the employment or contractual relationship ends, all assets and information handed over are recovered.
+Lista de comprobación de salida: Exit checklist
+Acta de devolución: Return record
+Clasificación de la información: Classification of information
+? La información se clasifica por confidencialidad, integridad y disponibilidad según un esquema único y se protege conforme a su clase.
+: Information is classified by confidentiality, integrity and availability under a single scheme and protected according to its class.
+Esquema de clasificación: Classification scheme
+Inventario con clasificación asignada: Inventory with classification assigned
+Etiquetado de la información: Labelling of information
+La información clasificada se marca de forma visible o en sus metadatos según el esquema aprobado.: Classified information is marked visibly or in its metadata according to the approved scheme.
+Procedimiento de etiquetado: Labelling procedure
+Muestras de documentos etiquetados: Samples of labelled documents
+Intercambio de información: Information transfer
+Las transferencias de información dentro y fuera de la organización siguen normas y acuerdos que protegen su clase.: Transfers of information within and outside the organisation follow rules and agreements that protect its class.
+Normas de transferencia: Transfer rules
+Acuerdos de intercambio firmados: Signed transfer agreements
+Uso seguro de servicios en la nube y externos: Secure use of cloud and external services
+? Los servicios de TI externos y en la nube se evalúan, aprueban, gestionan y abandonan según criterios de seguridad definidos.
+: External IT and cloud services are assessed, approved, managed and exited according to defined security criteria.
+Registro de servicios externos aprobados: Register of approved external services
+Evaluaciones de seguridad del servicio: Service security assessments
+Software autorizado en sistemas operativos: Authorised software on operating systems
+Solo se instala software evaluado y aprobado, mediante un proceso controlado y con inventario.: Only assessed and approved software is installed, through a controlled process and with an inventory.
+Lista de software autorizado: List of authorised software
+Registro de instalaciones: Installation log
+Política de control de acceso: Access control policy
+El acceso a la información y los sistemas se concede por necesidad de conocer y mínimo privilegio, según reglas escritas.: Access to information and systems is granted on a need-to-know and least-privilege basis, under written rules.
+Modelo de roles: Role model
+Ciclo de vida de identidades: Identity lifecycle
+? Cada identidad es única, tiene responsable y se gestiona desde el alta hasta la baja; las cuentas compartidas son excepción justificada.
+: Each identity is unique, has an owner and is managed from creation to removal; shared accounts are a justified exception.
+Procedimiento de identidades: Identity procedure
+Listado de cuentas con responsable: List of accounts with owner
+Gestión de credenciales y contraseñas: Credential and password management
+Las credenciales se entregan de forma segura y cumplen una política de calidad, renovación y protección.: Credentials are delivered securely and comply with a policy on quality, renewal and protection.
+Política de contraseñas configurada: Configured password policy
+Informe de cumplimiento de la política: Policy compliance report
+Alta y modificación de accesos con aprobación: Access provisioning and changes with approval
+Los accesos se conceden o cambian solo con solicitud y aprobación del propietario, dejando constancia.: Access is granted or changed only on request and with the owner's approval, and is recorded.
+Solicitudes aprobadas: Approved requests
+Muestra de altas cotejada con aprobaciones: Sample of provisioning checked against approvals
+Retirada oportuna de accesos: Timely removal of access
+Los accesos se retiran en plazo definido tras una baja o cambio de puesto, y se comprueba que no quedan cuentas activas.: Access is removed within a defined period after a leaver or role change, and it is checked that no active accounts remain.
+Informe de bajas frente a cuentas activas: Leavers versus active accounts report
+Plazos de retirada medidos: Measured removal times
+Recertificación periódica de accesos: Periodic access recertification
+Los propietarios revisan periódicamente quién tiene acceso a qué y se corrigen las desviaciones detectadas.: Owners periodically review who has access to what, and detected deviations are corrected.
+Campañas de recertificación cerradas: Closed recertification campaigns
+Correcciones aplicadas: Corrections applied
+Accesos privilegiados: Privileged access
+Los privilegios elevados se limitan, se conceden de forma temporal y justificada y su uso queda registrado y revisado.: Elevated privileges are limited, granted temporarily and with justification, and their use is recorded and reviewed.
+Inventario de cuentas privilegiadas: Inventory of privileged accounts
+Revisión del registro de actividad privilegiada: Review of the privileged activity log
+Autorización y restricción del acceso: Authorisation and restriction of access
+Los sistemas aplican las autorizaciones definidas a cada usuario, proceso o dispositivo y bloquean lo no autorizado.: Systems enforce the defined authorisations for each user, process or device and block what is not authorised.
+Configuración de permisos: Permissions configuration
+Pruebas de autorización: Authorisation tests
+Acceso directo a datos y bases de datos financieras: Direct access to data and financial databases
+El acceso directo a bases de datos y tablas con información financiera se restringe a perfiles autorizados y se supervisa.: Direct access to databases and tables holding financial information is restricted to authorised profiles and monitored.
+Listado de accesos directos: List of direct accesses
+Revisión del registro de consultas y cambios: Review of the query and change log
+Cuentas de servicio, genéricas y de dispositivos: Service, generic and device accounts
+? Los procesos de software y los dispositivos se identifican y autentican; las cuentas de servicio y genéricas tienen responsable y uso restringido.
+: Software processes and devices are identified and authenticated; service and generic accounts have an owner and restricted use.
+Inventario de cuentas de servicio: Inventory of service accounts
+Rotación de secretos documentada: Documented rotation of secrets
+Autenticación robusta y multifactor: Strong and multi-factor authentication
+? La autenticación es proporcional al riesgo, con multifactor para accesos remotos y privilegiados, bloqueo tras intentos fallidos y sin revelar información en el proceso.
+: Authentication is proportionate to risk, with multi-factor for remote and privileged access, lockout after failed attempts and no disclosure of information in the process.
+Informe de cobertura MFA: MFA coverage report
+Configuración de bloqueo: Lockout configuration
+Control de sesiones: Session control
+? Las sesiones se bloquean por inactividad, pueden terminarse en remoto y se limita la concurrencia cuando el riesgo lo exige.
+: Sessions are locked after inactivity, can be terminated remotely, and concurrency is limited where risk requires it.
+Configuración de sesiones: Session configuration
+Prueba de bloqueo y cierre: Lock and logout test
+Aviso de uso del sistema: System use notification
+Antes de acceder, el sistema muestra un aviso configurable sobre su uso autorizado.: Before access, the system displays a configurable notice about authorised use.
+Captura del aviso de acceso: Capture of the access notice
+Acceso desde redes no confiables: Access from untrusted networks
+? El acceso desde redes no confiables (incluido el remoto a planta) se controla, se autentica con fuerza y se aprueba explícitamente.
+: Access from untrusted networks (including remote access to the plant) is controlled, strongly authenticated and explicitly approved.
+Arquitectura de acceso remoto: Remote access architecture
+Registro de sesiones remotas aprobadas: Record of approved remote sessions
+Control del acceso inalámbrico: Wireless access control
+Las redes inalámbricas se autorizan, autentican y supervisan, y su uso se restringe según la zona.: Wireless networks are authorised, authenticated and monitored, and their use is restricted according to the zone.
+Inventario de redes inalámbricas: Inventory of wireless networks
+Configuración de autenticación: Authentication configuration
+Certificados y autenticación por clave pública: Certificates and public-key authentication
+? Los certificados y claves públicas se emiten, validan, renuevan y revocan de forma controlada; la autenticación por clave tiene fuerza suficiente.
+: Certificates and public keys are issued, validated, renewed and revoked in a controlled way; key-based authentication is sufficiently strong.
+Inventario de certificados: Certificate inventory
+Procedimiento de renovación y revocación: Renewal and revocation procedure
+No repudio de acciones: Non-repudiation of actions
+Las acciones relevantes quedan atribuidas de forma inequívoca a quien las realizó.: Relevant actions are unequivocally attributed to whoever performed them.
+Registro de auditoría con usuario: Audit log with user
+Firma de aprobaciones: Signing of approvals
+Acceso al código fuente: Access to source code
+El código fuente, las herramientas y las bibliotecas de desarrollo tienen acceso restringido y registrado.: Source code, tools and development libraries have restricted and logged access.
+Permisos del repositorio: Repository permissions
+Revisión de accesos al repositorio: Review of repository access
+Seguridad en la relación con proveedores: Security in supplier relationships
+? Se identifican los proveedores con impacto en la seguridad, se evalúan antes de contratarlos y se gestionan sus riesgos durante toda la relación.
+: Suppliers with an impact on security are identified, assessed before engagement and their risks managed throughout the relationship.
+Registro de proveedores con criticidad: Supplier register with criticality
+Evaluaciones de seguridad: Security assessments
+Requisitos de seguridad en contratos: Security requirements in contracts
+? Los contratos con proveedores incluyen requisitos de seguridad, confidencialidad, notificación de incidentes, auditoría y salida.
+: Supplier contracts include requirements on security, confidentiality, incident notification, audit and exit.
+Cláusulas tipo de seguridad: Standard security clauses
+Contratos firmados con anexo de seguridad: Signed contracts with security annex
+Seguridad de la cadena de suministro TIC: ICT supply chain security
+? Se valoran las vulnerabilidades y prácticas de desarrollo de cada proveedor directo y de los componentes de terceros incorporados.
+: The vulnerabilities and development practices of each direct supplier and of the third-party components incorporated are assessed.
+Evaluación de proveedores TIC críticos: Assessment of critical ICT suppliers
+Análisis de componentes de terceros: Analysis of third-party components
+Seguimiento de servicios de proveedores e informes de aseguramiento: Monitoring of supplier services and assurance reports
+? El servicio de los proveedores se supervisa, se revisan sus informes de aseguramiento (SOC 1/SOC 2, etiquetas TISAX) y se gestionan sus cambios.
+: Supplier service is monitored, their assurance reports (SOC 1/SOC 2, TISAX labels) are reviewed and their changes are managed.
+Revisiones periódicas de proveedores: Periodic supplier reviews
+Informes SOC revisados con controles complementarios: SOC reports reviewed with complementary controls
+Desarrollo externalizado: Outsourced development
+El desarrollo encargado a terceros se dirige, supervisa y verifica con los mismos requisitos de seguridad que el propio.: Development commissioned from third parties is directed, supervised and verified against the same security requirements as in-house development.
+Requisitos de seguridad en el encargo: Security requirements in the commission
+Revisiones de entregas del tercero: Reviews of third-party deliverables
+Preparación para la gestión de incidentes: Incident management readiness
+Hay un proceso de gestión de incidentes con funciones, canales, clasificación y escalado, probado periódicamente.: An incident management process exists with roles, channels, classification and escalation, tested periodically.
+Procedimiento de incidentes: Incident procedure
+Informe de simulacro: Exercise report
+Evaluación y clasificación de eventos: Event assessment and classification
+? Los eventos se evalúan con criterios definidos para decidir si son incidentes y si son significativos a efectos regulatorios.
+: Events are assessed against defined criteria to decide whether they are incidents and whether they are significant for regulatory purposes.
+Criterios de clasificación: Classification criteria
+Registro de decisiones de clasificación: Record of classification decisions
+Respuesta a incidentes: Incident response
+Los incidentes se contienen, erradican y recuperan según procedimientos, con coordinación de las partes implicadas.: Incidents are contained, eradicated and recovered from according to procedures, with coordination of the parties involved.
+Tickets de incidentes con cronología: Incident tickets with timeline
+Informes de cierre: Closure reports
+Aprendizaje de los incidentes: Learning from incidents
+Tras cada incidente relevante se analizan causas y se incorporan mejoras a controles y procedimientos.: After each relevant incident the causes are analysed and improvements are incorporated into controls and procedures.
+Informes post-incidente: Post-incident reports
+Acciones de mejora derivadas: Resulting improvement actions
+Recogida y custodia de evidencias: Collection and custody of evidence
+Las evidencias de incidentes se recogen y custodian de forma que conserven su valor probatorio.: Incident evidence is collected and held in a way that preserves its evidential value.
+Procedimiento forense: Forensic procedure
+Registros de cadena de custodia: Chain of custody records
+Comunicación de eventos por el personal: Reporting of events by staff
+Cualquier persona puede comunicar sin demora eventos de seguridad por canales conocidos y sencillos.: Anyone can report security events without delay through well-known and simple channels.
+Canal de comunicación publicado: Published reporting channel
+Estadística de comunicaciones recibidas: Statistics of reports received
+Notificación de incidentes significativos: Notification of significant incidents
+? Los incidentes con impacto significativo en los servicios se notifican sin demora indebida al CSIRT o a la autoridad competente, siguiendo un flujo con responsables.
+: Incidents with a significant impact on services are notified without undue delay to the CSIRT or the competent authority, following a workflow with named owners.
+Flujo de notificación aprobado: Approved notification workflow
+Registro de notificaciones enviadas: Record of notifications sent
+Alerta temprana en 24 horas: Early warning within 24 hours
+? En las 24 horas siguientes a tener conocimiento de un incidente significativo se envía una alerta temprana indicando si se sospecha de un acto ilícito o de efecto transfronterizo.
+: Within 24 hours of becoming aware of a significant incident, an early warning is sent indicating whether an unlawful act or a cross-border effect is suspected.
+Alertas tempranas con sello de tiempo: Time-stamped early warnings
+Medición del plazo: Measurement of the deadline
+Notificación del incidente en 72 horas: Incident notification within 72 hours
+? En las 72 horas siguientes se actualiza la alerta con una evaluación inicial de gravedad, impacto e indicadores de compromiso.
+: Within 72 hours the early warning is updated with an initial assessment of severity, impact and indicators of compromise.
+Notificaciones a 72 h: 72-hour notifications
+Informe intermedio a petición: Intermediate report on request
+Si la autoridad lo solicita, se remite un informe intermedio con la evolución del incidente.: If the authority so requests, an intermediate report is submitted on the progress of the incident.
+Informes intermedios remitidos: Intermediate reports submitted
+Informe final en un mes: Final report within one month
+? En el mes siguiente a la notificación se remite un informe final con descripción, causa, medidas y efecto transfronterizo, o un informe de situación si el incidente sigue en curso.
+: Within one month of the notification a final report is submitted with a description, cause, measures and cross-border effect, or a progress report if the incident is still ongoing.
+Informes finales y de situación: Final and progress reports
+Comunicación a los destinatarios del servicio: Communication to service recipients
+? Cuando procede, se informa a los destinatarios afectados del incidente o de una amenaza significativa y de las medidas que pueden adoptar.
+: Where appropriate, affected recipients are informed of the incident or significant threat and of the measures they can take.
+Comunicaciones a clientes: Communications to customers
+Criterios de comunicación: Communication criteria
+Clasificación y registro como entidad NIS2: Classification and registration as a NIS2 entity
+? Se determina si la organización es entidad esencial o importante en cada Estado miembro y se facilita la información de registro a la autoridad.
+: It is determined whether the organisation is an essential or important entity in each Member State, and registration information is provided to the authority.
+Análisis de clasificación por país: Classification analysis by country
+Justificante de registro: Proof of registration
+Comunicaciones seguras y de emergencia: Secure and emergency communications
+Se usan comunicaciones de voz, vídeo y texto seguras y existe un sistema de comunicación de emergencia para crisis.: Secure voice, video and text communications are used, and an emergency communication system exists for crises.
+Herramientas aprobadas: Approved tools
+Prueba del canal de emergencia: Emergency channel test
+Seguridad durante una interrupción: Security during a disruption
+Los planes de continuidad mantienen el nivel de seguridad necesario también durante una crisis o interrupción.: Business continuity plans maintain the necessary level of security also during a crisis or disruption.
+Planes con requisitos de seguridad: Plans with security requirements
+Informe de ejercicio: Exercise report
+Gestión de crisis: Crisis management
+? Existe un comité y un plan de crisis con funciones, comunicación y criterios de activación, probado al menos una vez al año.
+: A crisis committee and plan exist with roles, communication and activation criteria, tested at least once a year.
+Plan de crisis: Crisis plan
+Informe del ejercicio de crisis: Crisis exercise report
+Continuidad y recuperación de TI y OT: IT and OT continuity and recovery
+? La disponibilidad de la TI y de los sistemas de control se planifica, implanta y prueba según los objetivos de recuperación del negocio.
+: The availability of IT and control systems is planned, implemented and tested according to the business recovery objectives.
+Análisis de impacto (BIA): Business impact analysis (BIA)
+Pruebas de recuperación con RTO/RPO medidos: Recovery tests with measured RTO/RPO
+Copias de seguridad y restauración: Backup and restoration
+Se hacen copias de información, software y configuraciones según una política, se protegen y se prueba su restauración.: Information, software and configurations are backed up under a policy, protected, and restoration is tested.
+Informe de ejecución de copias: Backup execution report
+Pruebas de restauración: Restoration tests
+Redundancia de instalaciones de tratamiento: Redundancy of processing facilities
+Los sistemas críticos tienen redundancia suficiente para cumplir los requisitos de disponibilidad.: Critical systems have sufficient redundancy to meet availability requirements.
+Arquitectura de alta disponibilidad: High-availability architecture
+Pruebas de conmutación: Failover tests
+Suministros de apoyo y alimentación de emergencia: Supporting utilities and emergency power
+? Los equipos están protegidos frente a fallos de electricidad y otros suministros, con alimentación de emergencia donde sea crítica.
+: Equipment is protected against power and other utility failures, with emergency power where critical.
+Mantenimiento de SAI y grupos: UPS and generator maintenance
+Pruebas de alimentación de emergencia: Emergency power tests
+Requisitos legales, reglamentarios y contractuales: Legal, statutory, regulatory and contractual requirements
+Se identifican, documentan y mantienen al día los requisitos legales y contractuales de seguridad aplicables en cada país.: The applicable legal and contractual security requirements in each country are identified, documented and kept up to date.
+Registro de requisitos legales: Register of legal requirements
+Revisión anual: Annual review
+Derechos de propiedad intelectual: Intellectual property rights
+Se protege la propiedad intelectual propia y se respetan las licencias de software y contenidos de terceros.: Own intellectual property is protected and third-party software and content licences are respected.
+Inventario de licencias: Licence inventory
+Revisión de cumplimiento de licencias: Licence compliance review
+Protección y conservación de registros: Protection and retention of records
+? Los registros se protegen contra pérdida, destrucción, falsificación y acceso indebido, y se conservan los plazos legales, con bloqueo legal cuando procede.
+: Records are protected against loss, destruction, falsification and improper access, and are retained for the legal periods, with legal hold where applicable.
+Calendario de retención: Retention schedule
+Registros de bloqueo legal: Legal hold records
+Privacidad y protección de datos personales: Privacy and protection of personal data
+? Los datos personales se tratan conforme al RGPD y demás normas aplicables, con registro de actividades y medidas adecuadas.
+: Personal data is processed in accordance with the GDPR and other applicable rules, with a record of activities and appropriate measures.
+Registro de actividades de tratamiento: Record of processing activities
+Evaluaciones de impacto: Impact assessments
+Revisión independiente de la seguridad: Independent review of security
+La gestión de la seguridad se revisa de forma independiente a intervalos planificados o cuando hay cambios importantes.: The management of security is reviewed independently at planned intervals or when significant changes occur.
+Informe de revisión independiente: Independent review report
+Plan de acción: Action plan
+Comprobación del cumplimiento de políticas y normas: Compliance checks with policies and standards
+Los responsables comprueban regularmente que se cumplen las políticas, normas y requisitos técnicos en su ámbito.: Managers regularly check that policies, standards and technical requirements are met in their area.
+Informes de comprobación: Check reports
+Desviaciones y acciones: Deviations and actions
+Procedimientos de operación documentados: Documented operating procedures
+? Las operaciones de TI y OT están documentadas y disponibles para quien las necesita, incluidas guías de operación segura del producto.
+: IT and OT operations are documented and available to those who need them, including secure product operation guides.
+Manuales de operación: Operating manuals
+Guía de operación segura del producto: Secure product operation guide
+Verificación de antecedentes: Background verification
+Se comprueban los antecedentes de candidatos de forma proporcionada al puesto y a la legislación local.: Candidates' backgrounds are checked in a manner proportionate to the role and to local law.
+Procedimiento de verificación: Verification procedure
+Registros de verificación: Verification records
+Obligaciones de seguridad en el contrato: Security obligations in the contract
+Los contratos y normas internas recogen las responsabilidades de seguridad del personal y de los colaboradores.: Contracts and internal rules set out the security responsibilities of staff and collaborators.
+Cláusulas de seguridad en contratos: Security clauses in contracts
+Aceptación de normas internas: Acceptance of internal rules
+Formación y concienciación: Training and awareness
+? Todo el personal recibe concienciación periódica y formación específica según su función, incluidas prácticas básicas de ciberhigiene.
+: All staff receive periodic awareness and role-specific training, including basic cyber hygiene practices.
+Plan anual de formación: Annual training plan
+Registros de asistencia y resultados: Attendance and results records
+Proceso disciplinario: Disciplinary process
+Hay un proceso disciplinario conocido para incumplimientos de la política de seguridad.: A known disciplinary process exists for breaches of the security policy.
+Procedimiento disciplinario: Disciplinary procedure
+Comunicación al personal: Communication to staff
+Obligaciones tras la baja o el cambio: Obligations after termination or change
+Las obligaciones de seguridad que siguen vigentes tras la baja o el cambio de puesto se comunican y se exigen.: Security obligations that remain valid after termination or change of role are communicated and enforced.
+Comunicación de salida firmada: Signed exit communication
+Acuerdos de confidencialidad: Confidentiality agreements
+Se firman acuerdos de confidencialidad acordes con la información a la que se accede y se revisan periódicamente.: Confidentiality agreements appropriate to the information accessed are signed and reviewed periodically.
+Modelos de NDA: NDA templates
+Registro de NDA firmados: Register of signed NDAs
+Teletrabajo y trabajo móvil: Remote and mobile working
+El trabajo fuera de las instalaciones sigue normas que protegen la información y los equipos.: Working off premises follows rules that protect information and equipment.
+Normas de teletrabajo: Remote working rules
+Configuración de equipos remotos: Remote equipment configuration
+Perímetros de seguridad física: Physical security perimeters
+Se definen zonas de seguridad con perímetros adecuados a la información y los equipos que protegen.: Security zones are defined with perimeters appropriate to the information and equipment they protect.
+Plano de zonas de seguridad: Security zones plan
+Inspección del perímetro: Perimeter inspection
+Control de entrada física: Physical entry control
+La entrada a las zonas protegidas se controla y registra; los visitantes se identifican y acompañan.: Entry to protected areas is controlled and recorded; visitors are identified and escorted.
+Registros de acceso físico: Physical access records
+Revisión de tarjetas activas: Review of active cards
+Seguridad de oficinas, salas e instalaciones: Securing offices, rooms and facilities
+Las oficinas, salas técnicas e instalaciones se protegen según la información que contienen.: Offices, technical rooms and facilities are protected according to the information they contain.
+Inspecciones de seguridad física: Physical security inspections
+Vigilancia de la seguridad física: Physical security monitoring
+Las instalaciones se supervisan de forma continua para detectar accesos no autorizados.: Premises are monitored continuously to detect unauthorised access.
+Sistema de vídeo y alarmas: Video and alarm system
+Registro de alarmas atendidas: Record of alarms handled
+Protección frente a amenazas físicas y ambientales: Protection against physical and environmental threats
+Se protegen las instalaciones frente a incendio, inundación, temperatura y otras amenazas físicas o ambientales.: Facilities are protected against fire, flood, temperature and other physical or environmental threats.
+Análisis de amenazas físicas: Physical threat analysis
+Mantenimiento de protecciones: Maintenance of protections
+Trabajo en zonas seguras: Working in secure areas
+Hay normas específicas para trabajar en zonas seguras.: Specific rules exist for working in secure areas.
+Normas de zonas seguras: Secure area rules
+Puesto despejado y pantalla bloqueada: Clear desk and clear screen
+Se aplica una norma de mesa limpia y bloqueo de pantalla en puestos y salas.: A clear desk and screen lock rule is applied at workstations and in rooms.
+Norma publicada: Published rule
+Rondas de comprobación: Check rounds
+Ubicación y protección de equipos: Equipment siting and protection
+Los equipos se ubican y protegen para reducir riesgos físicos y de acceso no autorizado.: Equipment is sited and protected to reduce physical risks and the risk of unauthorised access.
+Inspecciones de salas técnicas: Technical room inspections
+Activos fuera de las instalaciones: Assets off premises
+Los equipos y la información fuera de las instalaciones se protegen teniendo en cuenta sus riesgos.: Equipment and information off premises are protected taking their risks into account.
+Normas de equipos móviles: Mobile equipment rules
+Inventario de equipos asignados: Inventory of assigned equipment
+Soportes de almacenamiento: Storage media
+'Los soportes se gestionan durante todo su ciclo de vida: uso, transporte, almacenamiento y destrucción.': 'Media are managed throughout their lifecycle: use, transport, storage and destruction.'
+Normas de soportes: Media rules
+Registro de soportes extraíbles: Register of removable media
+Seguridad del cableado: Cabling security
+El cableado de energía y datos se protege frente a interceptación, interferencia y daños.: Power and data cabling is protected against interception, interference and damage.
+Inspección de cableado: Cabling inspection
+Mantenimiento de equipos: Equipment maintenance
+Los equipos se mantienen de forma que conserven su disponibilidad, integridad y confidencialidad.: Equipment is maintained so as to preserve its availability, integrity and confidentiality.
+Plan de mantenimiento: Maintenance plan
+Registros de intervenciones: Intervention records
+Eliminación o reutilización segura de equipos: Secure disposal or re-use of equipment
+? Antes de eliminar o reutilizar un equipo se borra o destruye de forma segura la información; el producto incluye instrucciones de retirada segura.
+: Before equipment is disposed of or re-used, information is securely erased or destroyed; the product includes secure decommissioning instructions.
+Certificados de destrucción: Destruction certificates
+Guía de retirada segura del producto: Secure product decommissioning guide
+Dispositivos de usuario y móviles: User endpoint and mobile devices
+Los dispositivos finales y móviles se configuran, gestionan y protegen de forma centralizada.: Endpoint and mobile devices are configured, managed and protected centrally.
+Informe de la herramienta de gestión de dispositivos: Device management tool report
+Política de dispositivos: Device policy
+Capacidad y gestión de recursos: Capacity and resource management
+Se vigila y ajusta la capacidad de sistemas y almacenamiento de registros para evitar degradaciones.: The capacity of systems and log storage is monitored and adjusted to avoid degradation.
+Informes de capacidad: Capacity reports
+Umbrales y alertas: Thresholds and alerts
+Protección contra código malicioso: Protection against malicious code
+? Se previene, detecta y corrige el código malicioso en TI y OT con herramientas adecuadas a cada entorno y concienciación del usuario.
+: Malicious code is prevented, detected and remedied in IT and OT with tools suited to each environment and user awareness.
+Cobertura del antimalware: Anti-malware coverage
+Listas blancas en OT: Whitelisting in OT
+Control del código móvil: Mobile code control
+Se restringe y controla la ejecución de código móvil (scripts, macros, applets) según el riesgo de la zona.: The execution of mobile code (scripts, macros, applets) is restricted and controlled according to the risk of the zone.
+Configuración de restricciones de scripts: Script restriction configuration
+Gestión de vulnerabilidades técnicas: Management of technical vulnerabilities
+? Se identifican, valoran y corrigen las vulnerabilidades técnicas en plazos definidos según su gravedad, incluidas las de OT con su ventana de mantenimiento.
+: Technical vulnerabilities are identified, assessed and remediated within defined periods according to severity, including OT ones within their maintenance window.
+Informe de escaneos: Scan report
+Cumplimiento de plazos de parcheo: Patching deadline compliance
+Gestión de la configuración: Configuration management
+? Las configuraciones de seguridad de sistemas, redes y aplicaciones financieras se establecen, documentan, supervisan y revisan.
+: Security configurations of systems, networks and financial applications are established, documented, monitored and reviewed.
+Líneas base de configuración: Configuration baselines
+Informe de desviaciones: Deviation report
+Mínima funcionalidad y bastionado: Least functionality and hardening
+Se desactivan funciones, puertos, servicios y protocolos innecesarios.: Unnecessary functions, ports, services and protocols are disabled.
+Guías de bastionado aplicadas: Hardening guides applied
+Escaneo de puertos y servicios: Port and service scan
+Borrado de información y persistencia: Information deletion and persistence
+La información que ya no se necesita se borra de forma segura en sistemas, dispositivos y servicios externos.: Information that is no longer needed is securely deleted from systems, devices and external services.
+Registros de borrado: Deletion records
+Procedimiento de borrado seguro: Secure deletion procedure
+Enmascaramiento de datos: Data masking
+Los datos sensibles se enmascaran, seudonimizan o anonimizan cuando el uso no requiere verlos.: Sensitive data is masked, pseudonymised or anonymised when the use does not require seeing it.
+Reglas de enmascaramiento: Masking rules
+Muestras de datos enmascarados: Samples of masked data
+Prevención de fuga de datos: Data leakage prevention
+Se aplican medidas para detectar y evitar la salida no autorizada de información sensible.: Measures are applied to detect and prevent unauthorised exfiltration of sensitive information.
+Reglas de prevención de fuga: Leakage prevention rules
+Alertas tratadas: Alerts handled
+Registro de eventos: Event logging
+? Se generan, almacenan y protegen registros de actividades, excepciones y eventos de seguridad, accesibles para su análisis y con respuesta ante fallos del registro.
+: Logs of activities, exceptions and security events are generated, stored and protected, available for analysis and with a response to logging failures.
+Política de registros: Logging policy
+Muestra de registros: Log sample
+Integridad del registro de auditoría: Audit log integrity
+? El registro de auditoría es inalterable y se protege frente a modificación y borrado; cualquier manipulación es detectable.
+: The audit log is tamper-proof and protected against modification and deletion; any manipulation is detectable.
+Verificación de la cadena de huellas: Hash chain verification
+Permisos sobre el registro: Permissions on the log
+Supervisión continua: Continuous monitoring
+Redes, sistemas y aplicaciones se supervisan para detectar comportamientos anómalos y actuar.: Networks, systems and applications are monitored to detect anomalous behaviour and act on it.
+Casos de uso del SOC/SIEM: SOC/SIEM use cases
+Sincronización de relojes: Clock synchronisation
+Los relojes de los sistemas se sincronizan con fuentes aprobadas para que las marcas de tiempo sean fiables.: System clocks are synchronised with approved sources so that timestamps are reliable.
+Configuración NTP/PTP: NTP/PTP configuration
+Comprobación de deriva: Drift check
+Programas de utilidad privilegiados: Privileged utility programs
+Las utilidades capaces de saltarse controles se restringen y su uso se controla.: Utilities capable of bypassing controls are restricted and their use is controlled.
+Inventario de utilidades: Inventory of utilities
+Permisos restringidos: Restricted permissions
+Planificación y supervisión de procesos por lotes: Batch job scheduling and monitoring
+? Los procesos programados que afectan a la información financiera se planifican, autorizan y supervisan, y sus fallos se resuelven y documentan.
+: Scheduled jobs affecting financial reporting are planned, authorised and monitored, and their failures are resolved and documented.
+Calendario de trabajos: Job schedule
+Registro de fallos y resolución: Failure and resolution log
+Incidencias de operación de TI: IT operations incidents
+Las incidencias de operación que afectan a sistemas financieros se registran, priorizan y resuelven con trazabilidad.: Operations incidents affecting financial systems are logged, prioritised and resolved with traceability.
+Tickets de incidencias: Incident tickets
+Informe de SLA: SLA report
+Protección de los sistemas durante auditorías técnicas: Protection of systems during technical audits
+Las pruebas de auditoría sobre sistemas en producción se planifican y acotan para no afectar a la operación.: Audit tests on production systems are planned and bounded so as not to affect operations.
+Plan de pruebas aprobado: Approved test plan
+Informe de auditoría técnica: Technical audit report
+Seguridad de las redes: Network security
+Las redes y sus dispositivos se gestionan y protegen para salvaguardar la información en sistemas y aplicaciones.: Networks and their devices are managed and protected to safeguard information in systems and applications.
+Diagrama de red: Network diagram
+Configuración de dispositivos de red: Network device configuration
+Seguridad de los servicios de red: Security of network services
+Se definen y supervisan los mecanismos de seguridad y niveles de servicio de los servicios de red, propios o contratados.: The security mechanisms and service levels of network services, whether own or outsourced, are defined and monitored.
+Acuerdos de servicio de red: Network service agreements
+Revisión de cumplimiento: Compliance review
+Segmentación de redes y protección de fronteras: Network segmentation and boundary protection
+Las redes se separan por grupos de servicios, usuarios y sistemas; las fronteras entre zonas se protegen y supervisan.: Networks are separated by groups of services, users and systems; boundaries between zones are protected and monitored.
+Diagrama de segmentación: Segmentation diagram
+Reglas de cortafuegos revisadas: Reviewed firewall rules
+Filtrado web y restricción de comunicaciones personales: Web filtering and restriction of personal communications
+Se limita el acceso a sitios externos y el uso de correo o mensajería de propósito general desde zonas sensibles.: Access to external sites and the use of general-purpose email or messaging from sensitive zones are limited.
+Política de filtrado: Filtering policy
+Informe de bloqueos: Block report
+Particionado de aplicaciones: Application partitioning
+Los datos y aplicaciones se separan según su criticidad para limitar el impacto de un compromiso.: Data and applications are separated according to their criticality to limit the impact of a compromise.
+Arquitectura de particionado: Partitioning architecture
+Integridad de las comunicaciones: Communications integrity
+Se protege la integridad de la información transmitida y se detectan alteraciones.: The integrity of transmitted information is protected and alterations are detected.
+Configuración de protocolos con integridad: Protocol configuration with integrity
+Confidencialidad de la información en reposo y en tránsito: Confidentiality of information at rest and in transit
+La información que lo requiera se protege en confidencialidad tanto almacenada como en tránsito.: Information that requires it is protected for confidentiality both when stored and in transit.
+Inventario de cifrado aplicado: Inventory of encryption applied
+Resistencia a la denegación de servicio: Denial-of-service resilience
+Los sistemas siguen funcionando en modo degradado ante eventos de denegación de servicio.: Systems continue to operate in degraded mode under denial-of-service events.
+Pruebas de carga y DoS: Load and DoS tests
+Protecciones configuradas: Protections configured
+Uso de la criptografía y gestión de claves: Use of cryptography and key management
+La criptografía se usa según una política que fija algoritmos, longitudes y gestión del ciclo de vida de las claves.: Cryptography is used under a policy that sets algorithms, lengths and key lifecycle management.
+Política criptográfica: Cryptographic policy
+Inventario de claves y algoritmos: Inventory of keys and algorithms
+Protección de claves privadas de firma del producto: Protection of product signing private keys
+Las claves privadas para firmar código y actualizaciones se custodian con controles estrictos (HSM, acceso dual).: Private keys for signing code and updates are held under strict controls (HSM, dual access).
+Inventario de claves de firma: Inventory of signing keys
+Registro de uso del HSM: HSM usage log
+Ciclo de vida de desarrollo seguro: Secure development lifecycle
+El software y los dispositivos se desarrollan con un proceso definido que integra la seguridad en todas las fases.: Software and devices are developed with a defined process that integrates security into all phases.
+Proceso de desarrollo seguro aprobado: Approved secure development process
+Evidencias por versión: Evidence per release
+Alcance y aplicabilidad del proceso de desarrollo seguro: Scope and applicability of the secure development process
+Se define a qué productos, versiones y componentes se aplica el proceso y qué prácticas aplican a cada uno.: It is defined to which products, versions and components the process applies and which practices apply to each.
+Matriz de aplicabilidad por producto: Applicability matrix by product
+Requisitos de seguridad de las aplicaciones y productos: Security requirements for applications and products
+Los requisitos de seguridad se identifican, especifican, revisan y aprueban antes del diseño.: Security requirements are identified, specified, reviewed and approved before design.
+Especificación de requisitos de seguridad: Security requirements specification
+Acta de revisión de requisitos: Requirements review minutes
+Contexto de seguridad del producto: Product security context
+Se documenta el entorno previsto de uso del producto y las suposiciones de seguridad sobre él.: The intended environment of use of the product and the security assumptions about it are documented.
+Documento de contexto de seguridad: Security context document
+Modelado de amenazas: Threat modelling
+Cada producto y cambio relevante tiene un modelo de amenazas actualizado que guía requisitos, diseño y pruebas.: Each product and relevant change has an up-to-date threat model that guides requirements, design and testing.
+Modelos de amenazas versionados: Versioned threat models
+Principios de arquitectura e ingeniería segura: Secure architecture and engineering principles
+La arquitectura aplica principios de diseño seguro y defensa en profundidad documentados.: The architecture applies documented secure design principles and defence in depth.
+Principios de arquitectura: Architecture principles
+Documentos de diseño: Design documents
+Revisión de seguridad del diseño: Security design review
+Los diseños se revisan desde el punto de vista de seguridad antes de implementarlos.: Designs are reviewed from a security standpoint before implementation.
+Actas de revisión de diseño: Design review minutes
+Codificación segura: Secure coding
+Se aplican normas de codificación segura y herramientas de análisis estático.: Secure coding standards and static analysis tools are applied.
+Norma de codificación: Coding standard
+Informes SAST: SAST reports
+Revisión de seguridad de la implementación: Security review of the implementation
+La implementación se revisa por alguien distinto del autor, con foco en seguridad, antes de liberar la versión.: The implementation is reviewed by someone other than the author, with a security focus, before the release.
+Registro de revisiones por versión: Review log per release
+Validación de entradas y gestión de errores: Input validation and error handling
+Las entradas se validan y los errores se gestionan sin revelar información ni dejar el sistema en estado inseguro.: Inputs are validated and errors are handled without disclosing information or leaving the system in an insecure state.
+Pruebas de validación: Validation tests
+Revisión de mensajes de error: Review of error messages
+Salidas en estado seguro: Fail-safe outputs
+Ante un fallo o ataque, las salidas del sistema de control pasan a un estado predefinido y seguro.: On a failure or attack, the control system outputs go to a predefined, safe state.
+Especificación de estados seguros: Safe states specification
+Pruebas de fallo: Failure tests
+Integridad de las sesiones: Session integrity
+Se protege la autenticidad de las sesiones y se rechazan identificadores inválidos o reutilizados.: The authenticity of sessions is protected and invalid or reused identifiers are rejected.
+Pruebas de gestión de sesión: Session management tests
+Integridad del software y la información: Software and information integrity
+Se detectan cambios no autorizados en software, firmware, configuración e información.: Unauthorised changes to software, firmware, configuration and information are detected.
+Verificación de firmas o huellas: Signature or hash verification
+Alertas de integridad: Integrity alerts
+Verificación de las funciones de seguridad: Verification of security functions
+Las funciones de seguridad se verifican periódicamente y tras cambios para confirmar que operan como se espera.: Security functions are verified periodically and after changes to confirm that they operate as expected.
+Informe de verificación: Verification report
+Pruebas de seguridad en desarrollo y aceptación: Security testing in development and acceptance
+Se prueban los requisitos de seguridad, la mitigación de amenazas y las vulnerabilidades antes de liberar.: Security requirements, threat mitigation and vulnerabilities are tested before release.
+Plan y resultados de pruebas de seguridad: Security test plan and results
+Análisis de dependencias: Dependency analysis
+Pruebas de intrusión: Penetration testing
+Se realizan pruebas de intrusión periódicas y antes de versiones importantes, con corrección de hallazgos.: Penetration tests are carried out periodically and before major releases, with remediation of findings.
+Informes de pruebas de intrusión: Penetration test reports
+Seguimiento de hallazgos: Follow-up of findings
+Independencia de quien prueba: Independence of the tester
+Las pruebas de seguridad las realiza personal con independencia adecuada respecto a quien desarrolló.: Security tests are carried out by staff with adequate independence from those who developed.
+Asignación de probadores: Assignment of testers
+Matriz de independencia: Independence matrix
+Pruebas de aceptación de usuario: User acceptance testing
+Los desarrollos y cambios relevantes se aceptan formalmente por el usuario propietario antes de producción.: Relevant developments and changes are formally accepted by the owner user before production.
+Actas de aceptación: Acceptance records
+Migración y conversión de datos: Data migration and conversion
+Las migraciones de datos se planifican, prueban y concilian para asegurar su integridad y completitud.: Data migrations are planned, tested and reconciled to ensure their integrity and completeness.
+Plan de migración: Migration plan
+Conciliación de cargas: Load reconciliation
+Separación de entornos y seguridad del entorno de desarrollo: Separation of environments and security of the development environment
+? Desarrollo, pruebas y producción están separados; quien desarrolla no tiene acceso de escritura a producción y el entorno de desarrollo está protegido.
+: Development, test and production are separated; developers have no write access to production and the development environment is protected.
+Arquitectura de entornos: Environment architecture
+Listado de accesos a producción: List of production access
+Gestión de cambios: Change management
+Los cambios en sistemas e infraestructuras se solicitan, evalúan, prueban, aprueban y documentan antes de aplicarse.: Changes to systems and infrastructure are requested, assessed, tested, approved and documented before being applied.
+Registro de cambios con aprobación: Change log with approval
+Actas del CAB: CAB minutes
+Pruebas de los cambios: Testing of changes
+Cada cambio se prueba en un entorno distinto de producción y se documenta el resultado.: Each change is tested in an environment separate from production and the result is documented.
+Evidencias de pruebas por cambio: Test evidence per change
+Aprobación independiente del paso a producción: Independent approval of the move to production
+El paso a producción lo aprueba alguien distinto de quien hizo el cambio, por versión y con registro.: The move to production is approved by someone other than whoever made the change, per release and with a record.
+Aprobaciones por versión: Approvals per release
+Comparativa autor frente a aprobador: Author versus approver comparison
+Cambios de emergencia: Emergency changes
+Los cambios urgentes siguen un procedimiento abreviado con aprobación posterior documentada en plazo.: Urgent changes follow an abbreviated procedure with documented subsequent approval within a set period.
+Registro de cambios de emergencia: Emergency change log
+Aprobaciones a posteriori: After-the-fact approvals
+Datos de prueba: Test data
+Los datos de prueba se seleccionan, protegen y gestionan; no se usan datos reales sin protección.: Test data is selected, protected and managed; real data is not used without protection.
+Normas de datos de prueba: Test data rules
+Integridad de los artefactos de desarrollo: Integrity of development artefacts
+El código, los artefactos de compilación y las versiones publicadas se protegen frente a modificaciones no autorizadas.: Code, build artefacts and published releases are protected against unauthorised modification.
+Firmas de versiones: Release signatures
+Huellas de artefactos: Artefact hashes
+SBOM y versiones etiquetadas y firmadas: SBOM and tagged, signed releases
+Cada versión publicada lleva una lista de componentes (SBOM), etiqueta y firma verificable.: Each published release carries a bill of materials (SBOM), a tag and a verifiable signature.
+SBOM por versión: SBOM per release
+Verificación de firma: Signature verification
+Recepción de avisos de vulnerabilidades del producto: Receipt of product vulnerability reports
+Existe un canal público para recibir avisos de problemas de seguridad del producto y se acusa recibo.: A public channel exists to receive reports of product security issues, and receipt is acknowledged.
+Política de divulgación publicada: Published disclosure policy
+Registro de avisos recibidos: Register of reports received
+Gestión de defectos de seguridad del producto: Handling of product security defects
+? Los problemas de seguridad del producto se revisan, valoran y corrigen según su gravedad, y la práctica se revisa periódicamente.
+: Product security issues are reviewed, assessed and fixed according to severity, and the practice is reviewed periodically.
+Registro de defectos de seguridad: Register of security defects
+Revisión periódica de la práctica: Periodic review of the practice
+Divulgación coordinada de vulnerabilidades: Coordinated vulnerability disclosure
+Las vulnerabilidades del producto se comunican a clientes y autoridades de forma coordinada y oportuna.: Product vulnerabilities are communicated to customers and authorities in a coordinated and timely manner.
+Avisos de seguridad publicados: Published security advisories
+Actualizaciones de seguridad del producto: Product security updates
+? Las actualizaciones de seguridad se cualifican, documentan, entregan de forma verificable y a tiempo, incluidas las de componentes dependientes.
+: Security updates are qualified, documented and delivered in a verifiable and timely way, including those for dependent components.
+Notas de actualización: Update notes
+Plazos de entrega medidos: Measured delivery times
+Guías de seguridad para el usuario del producto: Product user security guides
+El producto incluye guías de defensa en profundidad, bastionado y entorno esperado, revisadas en cada versión.: The product includes guides on defence in depth, hardening and the expected environment, reviewed at each release.
+Guías publicadas por versión: Guides published per release
+Revisión de documentación: Documentation review
+Interfaces físicas de diagnóstico y prueba: Physical diagnostic and test interfaces
+Las interfaces físicas de diagnóstico y prueba de los dispositivos se protegen frente a uso no autorizado.: The physical diagnostic and test interfaces of devices are protected against unauthorised use.
+Diseño de interfaces protegidas: Protected interface design
+Resistencia y detección de manipulación física: Physical tamper resistance and detection
+Los dispositivos resisten o detectan la manipulación física según su nivel de seguridad.: Devices resist or detect physical tampering according to their security level.
+Pruebas de manipulación: Tamper tests
+Raíces de confianza del fabricante y del propietario: Roots of trust of the manufacturer and the owner
+Los dispositivos permiten aprovisionar y proteger raíces de confianza del fabricante y del propietario del activo.: Devices allow the roots of trust of the manufacturer and of the asset owner to be provisioned and protected.
+Procedimiento de aprovisionamiento de claves: Key provisioning procedure
+Integridad del proceso de arranque: Boot process integrity
+El dispositivo verifica la integridad del firmware y del software en el arranque.: The device verifies the integrity of firmware and software at boot.
+Pruebas de arranque seguro: Secure boot tests
+Programa de seguridad para sistemas de automatización: Security programme for automation systems
+El propietario del activo mantiene un programa de seguridad OT con organización, políticas y responsables en cada planta.: The asset owner maintains an OT security programme with organisation, policies and owners at each plant.
+Programa de seguridad OT aprobado: Approved OT security programme
+Responsables por planta: Owners per plant
+Definición del sistema bajo consideración: Definition of the system under consideration
+Se delimita cada sistema de automatización bajo consideración, con sus activos, fronteras y puntos de acceso.: Each automation system under consideration is delimited, with its assets, boundaries and access points.
+Documento del sistema bajo consideración: System under consideration document
+Inventario OT: OT inventory
+Evaluación de riesgos de ciberseguridad OT: OT cybersecurity risk assessment
+? Se hace una evaluación inicial y otra detallada de riesgos de ciberseguridad por zona, comparándolos con el riesgo tolerable.
+: An initial and a detailed cybersecurity risk assessment are carried out per zone, compared against the tolerable risk.
+Evaluación inicial de riesgos OT: Initial OT risk assessment
+Evaluación detallada por zona: Detailed assessment per zone
+Zonas y conductos: Zones and conduits
+Los activos OT se agrupan en zonas y sus comunicaciones en conductos, documentados y reflejados en la CMDB.: OT assets are grouped into zones and their communications into conduits, documented and reflected in the CMDB.
+Diagrama de zonas y conductos: Zones and conduits diagram
+Relaciones en la CMDB: Relationships in the CMDB
+Nivel de seguridad objetivo por zona: Target security level per zone
+Cada zona y conducto tiene un nivel de seguridad objetivo (SL-T) justificado y se compara con el alcanzado (SL-A).: Each zone and conduit has a justified target security level (SL-T), compared with the achieved one (SL-A).
+Registro de SL-T y SL-A por zona: Register of SL-T and SL-A per zone
+Análisis de brecha: Gap analysis
+Especificación de requisitos de ciberseguridad del sistema: System cybersecurity requirements specification
+Se documentan los requisitos, suposiciones y restricciones de ciberseguridad de cada zona para su diseño e implantación.: The cybersecurity requirements, assumptions and constraints of each zone are documented for its design and implementation.
+Especificación de requisitos (CRS): Requirements specification (CRS)
+Aprobación por el propietario del activo: Approval by the asset owner
+El propietario del activo aprueba formalmente los resultados de la evaluación de riesgos y la partición.: The asset owner formally approves the results of the risk assessment and the partitioning.
+Acta de aprobación: Approval record
+Protección de los datos de los sistemas de automatización: Protection of automation system data
+Los datos de configuración, recetas y producción se clasifican y protegen en confidencialidad e integridad.: Configuration, recipe and production data are classified and protected for confidentiality and integrity.
+Clasificación de datos OT: OT data classification
+Medidas aplicadas: Measures applied
+Gestión de eventos e incidentes en planta: Event and incident management at the plant
+Los eventos de seguridad de planta se detectan, comunican y gestionan coordinados con la respuesta corporativa.: Plant security events are detected, reported and managed in coordination with the corporate response.
+Procedimiento de incidentes OT: OT incident procedure
+Ejercicio conjunto TI/OT: Joint IT/OT exercise
+Certificación de los estados financieros por la dirección: Management certification of financial statements
+? El consejero delegado y el director financiero certifican los informes periódicos y la eficacia de los controles de divulgación, apoyados en subcertificaciones.
+: The chief executive officer and chief financial officer certify the periodic reports and the effectiveness of disclosure controls, supported by sub-certifications.
+Certificaciones firmadas: Signed certifications
+Subcertificaciones de responsables: Sub-certifications by managers
+Evaluación por la dirección del control interno sobre la información financiera: Management assessment of internal control over financial reporting
+? La dirección evalúa anualmente el diseño y la eficacia operativa del control interno sobre la información financiera con pruebas documentadas, población y muestreo.
+: Management assesses annually the design and operating effectiveness of internal control over financial reporting, with documented testing, population and sampling.
+Informe de la dirección: Management report
+Pruebas de diseño y de eficacia: Design and effectiveness tests
+Atestación del auditor externo: External auditor attestation
+Se coordina la auditoría externa del control interno y se le facilitan evidencias y muestras.: The external audit of internal control is coordinated and evidence and samples are provided to it.
+Plan de auditoría externa: External audit plan
+Informe del auditor: Auditor's report
+Ambiente de control, ética y canal de denuncias: Control environment, ethics and whistleblowing channel
+Hay un código ético aceptado, un canal de denuncias independiente y un tono adecuado desde la dirección.: An accepted code of ethics, an independent whistleblowing channel and an appropriate tone from management exist.
+Código ético aceptado: Accepted code of ethics
+Informe del canal de denuncias: Whistleblowing channel report
+Supervisión por el comité de auditoría: Audit committee oversight
+El comité de auditoría supervisa la información financiera, el control interno y a los auditores.: The audit committee oversees financial reporting, internal control and the auditors.
+Actas del comité de auditoría: Audit committee minutes
+Evaluación del riesgo de fraude: Fraud risk assessment
+Se evalúa periódicamente el riesgo de fraude en la información financiera y se definen controles que lo mitiguen.: The risk of fraud in financial reporting is assessed periodically and controls to mitigate it are defined.
+Evaluación de riesgo de fraude: Fraud risk assessment
+Evaluación y comunicación de deficiencias de control: Assessment and communication of control deficiencies
+? Las deficiencias se valoran por gravedad (deficiencia, significativa, debilidad material) y se comunican a quien corresponde.
+: Deficiencies are assessed by severity (deficiency, significant deficiency, material weakness) and communicated to the right people.
+Resumen de deficiencias: Summary of deficiencies
+Comunicación al comité: Communication to the committee
+Cierre de periodos contables: Period-end close
+Los periodos cerrados se bloquean y cualquier reapertura requiere autorización y queda registrada.: Closed periods are locked and any reopening requires authorisation and is recorded.
+Calendario de cierre: Close calendar
+Registro de reaperturas autorizadas: Record of authorised reopenings
+Asientos manuales: Manual journal entries
+Los asientos manuales y de ajuste se preparan, revisan y aprueban por personas distintas, con soporte.: Manual and adjusting entries are prepared, reviewed and approved by different people, with support.
+Listado de asientos con aprobación: List of entries with approval
+Conciliaciones de cuentas: Account reconciliations
+Las cuentas significativas se concilian periódicamente y las partidas se investigan y resuelven.: Significant accounts are reconciled periodically and items are investigated and resolved.
+Conciliaciones firmadas: Signed reconciliations
+Hojas de cálculo y herramientas de usuario críticas: Critical spreadsheets and end-user tools
+Las hojas de cálculo que intervienen en la información financiera se inventarían y protegen frente a cambios y errores.: Spreadsheets involved in financial reporting are inventoried and protected against changes and errors.
+Inventario de hojas críticas: Inventory of critical spreadsheets
+Controles de versión y revisión: Version and review controls
+Exactitud y completitud de los informes del sistema: Accuracy and completeness of system reports
+Los informes que se usan como evidencia de control se validan en exactitud y completitud.: Reports used as control evidence are validated for accuracy and completeness.
+Validaciones de informes: Report validations
+Controles automáticos de las aplicaciones: Automated application controls
+Los controles automáticos de las aplicaciones financieras (validaciones, cálculos, interfaces) se identifican y prueban.: The automated controls of financial applications (validations, calculations, interfaces) are identified and tested.
+Inventario de controles automáticos: Inventory of automated controls
+Pruebas de controles automáticos: Automated control tests
+Comprensión del entorno de TI relevante: Understanding of the relevant IT environment
+Se documentan las aplicaciones, bases de datos, infraestructura y proveedores que soportan la información financiera.: The applications, databases, infrastructure and suppliers that support financial reporting are documented.
+Mapa de sistemas relevantes: Map of relevant systems
+Concepto de seguridad para prototipos: Security concept for prototypes
+Existe un concepto de seguridad física y organizativa específico para proteger prototipos, aprobado y revisado.: A physical and organisational security concept specific to protecting prototypes exists, approved and reviewed.
+Concepto de seguridad de prototipos: Prototype security concept
+Perímetro de las instalaciones con prototipos: Perimeter of facilities with prototypes
+El recinto donde hay prototipos tiene protección perimetral que impide la entrada no autorizada.: The site where prototypes are held has perimeter protection that prevents unauthorised entry.
+Plano de seguridad: Security plan
+Envolvente de las áreas protegidas: Envelope of protected areas
+Los muros, puertas y ventanas de las áreas de prototipos impiden la apertura o retirada sin dejar rastro.: The walls, doors and windows of prototype areas prevent opening or removal without leaving a trace.
+Inspección de la envolvente: Envelope inspection
+Protección frente a vistas no autorizadas: Protection against unauthorised viewing
+Los prototipos no pueden verse desde el exterior ni desde zonas no autorizadas.: Prototypes cannot be seen from outside or from unauthorised areas.
+Comprobación de visibilidad: Visibility check
+Control de entrada a áreas de prototipos: Entry control to prototype areas
+La entrada a áreas de prototipos se limita a personas autorizadas, con registro y detección de intrusión.: Entry to prototype areas is limited to authorised persons, with logging and intrusion detection.
+Registro de accesos a áreas: Area access log
+Pruebas de alarmas: Alarm tests
+Normas para visitantes en áreas de prototipos: Rules for visitors in prototype areas
+Los visitantes conocen y aceptan normas específicas y siempre van acompañados.: Visitors know and accept specific rules and are always escorted.
+Normas de visitantes: Visitor rules
+Registro de visitas: Visit log
+Obligaciones contractuales sobre prototipos: Contractual obligations on prototypes
+Los contratos con clientes y colaboradores fijan las obligaciones de protección de prototipos.: Contracts with customers and collaborators set out the obligations to protect prototypes.
+Contratos con cláusulas de prototipos: Contracts with prototype clauses
+Requisitos de protección para subcontratistas: Protection requirements for subcontractors
+Los subcontratistas que manejan prototipos asumen y demuestran los mismos requisitos.: Subcontractors handling prototypes take on and demonstrate the same requirements.
+Evaluaciones de subcontratistas: Subcontractor assessments
+Etiquetas TISAX de subcontratistas: Subcontractor TISAX labels
+Formación y compromiso del personal en prototipos: Training and commitment of prototype staff
+El personal y los colaboradores con acceso a prototipos reciben formación específica y firman su compromiso.: Staff and collaborators with access to prototypes receive specific training and sign their commitment.
+Registro de formación específica: Record of specific training
+Compromisos firmados: Signed commitments
+Clasificación de proyectos con prototipos: Classification of projects with prototypes
+Cada proyecto con prototipos tiene una clasificación de protección y medidas asociadas.: Each project with prototypes has a protection classification and associated measures.
+Listado de proyectos clasificados: List of classified projects
+Autorización de acceso a proyectos de prototipos: Authorisation of access to prototype projects
+Hay un proceso para conceder, revisar y retirar el acceso a proyectos y áreas de prototipos.: A process exists to grant, review and withdraw access to prototype projects and areas.
+Autorizaciones vigentes: Current authorisations
+Revisiones periódicas: Periodic reviews
+Normas sobre fotografía y grabación: Rules on photography and recording
+Se regula el uso de cámaras y dispositivos de grabación en presencia de prototipos.: The use of cameras and recording devices in the presence of prototypes is regulated.
+Normas publicadas: Published rules
+Registros de autorizaciones de grabación: Recording authorisation records
+Transporte de prototipos: Transport of prototypes
+Los prototipos se transportan con medidas acordadas con el cliente y según su clasificación.: Prototypes are transported with measures agreed with the customer and according to their classification.
+Instrucciones de transporte: Transport instructions
+Registros de envíos: Shipment records
+Estacionamiento y almacenamiento de prototipos: Parking and storage of prototypes
+Los prototipos se estacionan y almacenan en lugares protegidos frente a acceso y vista.: Prototypes are parked and stored in places protected against access and viewing.
+Inspección de áreas de almacenamiento: Inspection of storage areas
+Camuflaje de vehículos de prueba: Camouflage of test vehicles
+Los vehículos de prueba se camuflan según los requisitos del cliente y se controla su estado.: Test vehicles are camouflaged according to customer requirements and their condition is checked.
+Instrucciones de camuflaje: Camouflage instructions
+Comprobaciones previas a la salida: Pre-departure checks
+Pruebas en vía pública y pistas: Testing on public roads and tracks
+Las pruebas en exterior siguen normas de conducta, ruta y comunicación ante incidentes.: Outdoor tests follow rules of conduct, route and communication in the event of incidents.
+Normas de pruebas: Test rules
+Registro de salidas: Departure log
+Eventos y presentaciones con prototipos: Events and presentations with prototypes
+La presencia de prototipos en eventos y presentaciones se planifica y autoriza con medidas específicas.: The presence of prototypes at events and presentations is planned and authorised with specific measures.
+Plan de seguridad del evento: Event security plan
+Rodajes y sesiones fotográficas: Film shoots and photo sessions
+Las sesiones de foto y vídeo con prototipos se autorizan y supervisan, y el material se custodia.: Photo and video sessions with prototypes are authorised and supervised, and the material is held securely.
+Autorizaciones de rodaje: Shoot authorisations
+Custodia del material: Custody of material
+Programa IEC 62443 (2-1, 3-2, 3-3, 4-1 y 4-2): IEC 62443 programme (2-1, 3-2, 3-3, 4-1 and 4-2)
+Arranque y alcance: Start-up and scope
+Constituir el comité del programa y nombrar al patrocinador de la dirección: Set up the programme committee and appoint the management sponsor
+Acta de constitución del comité: Committee constitution minutes
+Analizar el contexto, las partes interesadas y los requisitos legales por país: Analyse the context, interested parties and legal requirements by country
+Análisis de contexto: Context analysis
+Definir y aprobar el alcance (entidades, sedes, plantas, sistemas y procesos): Define and approve the scope (entities, sites, plants, systems and processes)
+Nombrar coordinadores por sede y acordar el modelo de muestreo multisede: Appoint coordinators per site and agree the multi-site sampling model
+Red de coordinadores por sede: Network of site coordinators
+Plan de muestreo de sedes: Site sampling plan
+Elaborar el plan del programa, el calendario y el presupuesto: Prepare the programme plan, schedule and budget
+Plan del programa: Programme plan
+Presupuesto aprobado: Approved budget
+Establecer el programa de seguridad OT del propietario del activo (2-1): Establish the asset owner's OT security programme (2-1)
+Programa OT aprobado: Approved OT programme
+Definir a qué productos y versiones se aplica el desarrollo seguro (4-1): Define to which products and versions secure development applies (4-1)
+Análisis de carencias: Gap analysis
+Inventariar activos, sistemas, servicios externos y proveedores del alcance en la CMDB: Inventory the assets, systems, external services and suppliers in scope in the CMDB
+Inventario de activos en la CMDB: Asset inventory in the CMDB
+Listado de proveedores en alcance: List of suppliers in scope
+Analizar carencias frente a la biblioteca de controles: Analyse gaps against the control library
+Informe de carencias por control y sede: Gap report by control and site
+Estimación de esfuerzo de cierre: Estimate of closure effort
+Definir los sistemas bajo consideración de cada planta (ZCR 1): Define the systems under consideration for each plant (ZCR 1)
+Analizar carencias del proceso de desarrollo frente a 4-1: Analyse gaps in the development process against 4-1
+Informe de carencias 4-1: 4-1 gap report
+Análisis y tratamiento de riesgos: Risk analysis and treatment
+Aprobar la metodología de riesgos y los criterios de aceptación: Approve the risk methodology and acceptance criteria
+Evaluar los riesgos con los propietarios de los procesos: Assess the risks with the process owners
+Registro de riesgos: Risk register
+Elaborar el plan de tratamiento de riesgos y aceptar los residuales: Prepare the risk treatment plan and accept residual risks
+Plan de tratamiento de riesgos: Risk treatment plan
+Aceptación de riesgos residuales: Acceptance of residual risks
+Evaluación inicial de riesgos de ciberseguridad OT (ZCR 2): Initial OT cybersecurity risk assessment (ZCR 2)
+Evaluación inicial OT: Initial OT assessment
+Particionar en zonas y conductos y reflejarlos en la CMDB (ZCR 3): Partition into zones and conduits and reflect them in the CMDB (ZCR 3)
+Evaluación detallada y nivel de seguridad objetivo por zona (ZCR 4 y 5): Detailed assessment and target security level per zone (ZCR 4 and 5)
+Registro de SL-T por zona: Register of SL-T per zone
+Modelar las amenazas de cada producto (4-1 SR-2): Model the threats of each product (4-1 SR-2)
+Modelos de amenazas: Threat models
+Declaración de aplicabilidad y matriz de controles: Statement of Applicability and control matrix
+Elaborar la declaración de aplicabilidad y la matriz control × norma × sede: Prepare the Statement of Applicability and the control × standard × site matrix
+Declaración de aplicabilidad: Statement of Applicability
+Matriz cruzada de controles: Cross-reference matrix of controls
+Aprobar la declaración de aplicabilidad: Approve the Statement of Applicability
+Declaración de aplicabilidad aprobada (flujo de Documentos): Approved Statement of Applicability (Documents workflow)
+Especificar los requisitos de ciberseguridad y obtener la aprobación del propietario (ZCR 6 y 7): Specify the cybersecurity requirements and obtain the owner's approval (ZCR 6 and 7)
+Especificación aprobada: Approved specification
+Comparar el SL objetivo con el alcanzado por zona usando los requisitos de 3-3: Compare the target SL with the achieved SL per zone using the 3-3 requirements
+Análisis de brecha SL: SL gap analysis
+Seleccionar las mejoras de requisitos para zonas con SL3 o SL4: Select the requirement enhancements for zones with SL3 or SL4
+Lista de mejoras de requisitos por zona: List of requirement enhancements per zone
+Diseño e implantación: Design and implementation
+Redactar y aprobar políticas y procedimientos con el flujo de Documentos: Draft and approve policies and procedures with the Documents workflow
+Políticas y procedimientos aprobados: Approved policies and procedures
+'Implantar controles: Gobierno del sistema de gestión': 'Implement controls: Management system governance'
+Controles de gobierno del sistema de gestión implantados con evidencia: Management system governance controls implemented with evidence
+'Implantar controles: Gestión de riesgos': 'Implement controls: Risk management'
+Controles de gestión de riesgos implantados con evidencia: Risk management controls implemented with evidence
+'Implantar controles: Activos y clasificación de la información': 'Implement controls: Assets and information classification'
+Controles de activos y clasificación de la información implantados con evidencia: Asset and information classification controls implemented with evidence
+'Implantar controles: Identidades y control de acceso': 'Implement controls: Identities and access control'
+Controles de identidades y control de acceso implantados con evidencia: Identity and access control controls implemented with evidence
+'Implantar controles: Criptografía': 'Implement controls: Cryptography'
+Controles de criptografía implantados con evidencia: Cryptography controls implemented with evidence
+'Implantar controles: Seguridad ligada a las personas': 'Implement controls: People security'
+Controles de seguridad ligada a las personas implantados con evidencia: People security controls implemented with evidence
+'Implantar controles: Seguridad física y del entorno': 'Implement controls: Physical and environmental security'
+Controles de seguridad física y del entorno implantados con evidencia: Physical and environmental security controls implemented with evidence
+'Implantar controles: Seguridad en las operaciones (1/2)': 'Implement controls: Operations security (1/2)'
+Controles de seguridad en las operaciones implantados con evidencia: Operations security controls implemented with evidence
+'Implantar controles: Seguridad en las operaciones (2/2)': 'Implement controls: Operations security (2/2)'
+'Implantar controles: Redes y comunicaciones': 'Implement controls: Networks and communications'
+Controles de redes y comunicaciones implantados con evidencia: Network and communications controls implemented with evidence
+'Implantar controles: Desarrollo y gestión de cambios (1/2)': 'Implement controls: Development and change management (1/2)'
+Controles de desarrollo y gestión de cambios implantados con evidencia: Development and change management controls implemented with evidence
+'Implantar controles: Desarrollo y gestión de cambios (2/2)': 'Implement controls: Development and change management (2/2)'
+'Implantar controles: Seguridad del producto (software y dispositivos) (1/2)': 'Implement controls: Product security (software and devices) (1/2)'
+Controles de seguridad del producto (software y dispositivos) implantados con evidencia: Product security controls (software and devices) implemented with evidence
+'Implantar controles: Seguridad del producto (software y dispositivos) (2/2)': 'Implement controls: Product security (software and devices) (2/2)'
+'Implantar controles: Proveedores y cadena de suministro': 'Implement controls: Suppliers and supply chain'
+Controles de proveedores y cadena de suministro implantados con evidencia: Supplier and supply chain controls implemented with evidence
+'Implantar controles: Incidentes y notificaciones': 'Implement controls: Incidents and notifications'
+Controles de incidentes y notificaciones implantados con evidencia: Incident and notification controls implemented with evidence
+'Implantar controles: Continuidad y recuperación': 'Implement controls: Business continuity and recovery'
+Controles de continuidad y recuperación implantados con evidencia: Business continuity and recovery controls implemented with evidence
+'Implantar controles: Seguridad de los sistemas de automatización (OT)': 'Implement controls: Security of automation systems (OT)'
+Controles de seguridad de los sistemas de automatización (ot) implantados con evidencia: Security controls for automation systems (OT) implemented with evidence
+Activar la medición automática de los controles que mide la plataforma: Activate the automatic measurement of the controls that the platform measures
+Controles medibles en verde o rojo con evidencia automática: Measurable controls in green or red with automatic evidence
+Implantar la segmentación y la protección de conductos en planta: Implement segmentation and conduit protection at the plant
+Segmentación implantada y verificada: Segmentation implemented and verified
+Plan de parcheo y antimalware OT por ventanas de mantenimiento: OT patching and anti-malware plan by maintenance windows
+Plan de parcheo OT: OT patching plan
+Implantar las prácticas 4-1 (SM, SR, SD, SI, SVV, DM, SUM, SG) en el desarrollo: Implement the 4-1 practices (SM, SR, SD, SI, SVV, DM, SUM, SG) in development
+Proceso de desarrollo seguro implantado: Secure development process implemented
+SBOM, versiones etiquetadas y firmadas y revisión independiente por versión: SBOM, tagged and signed releases and independent review per release
+Firma verificable: Verifiable signature
+Verificar los requisitos de componente 4-2 en dispositivos y aplicaciones: Verify the 4-2 component requirements on devices and applications
+Matriz de cumplimiento CR por componente: CR compliance matrix per component
+Definir el plan de formación por perfiles: Define the training plan by profile
+Plan de formación: Training plan
+Campaña de concienciación para todo el personal: Awareness campaign for all staff
+Registros de asistencia: Attendance records
+Resultados de evaluación: Assessment results
+Formación específica de responsables de control y equipos técnicos: Specific training for control owners and technical teams
+Registros de formación específica: Specific training records
+Auditoría interna: Internal audit
+Planificar la auditoría interna (independiente de quien implantó): Plan the internal audit (independent of whoever implemented)
+Programa y plan de auditoría: Audit programme and plan
+Ejecutar la auditoría interna en todas las normas y sedes del muestreo: Carry out the internal audit across all standards and the sampled sites
+Papeles de trabajo: Working papers
+Hallazgos registrados: Findings recorded
+Informe de auditoría interna y apertura de acciones correctivas: Internal audit report and opening of corrective actions
+Informe de auditoría interna: Internal audit report
+CAPA abiertas: Open CAPAs
+Revisión por la dirección del programa: Management review of the programme
+Auditorías de certificación o evaluación: Certification or assessment audits
+Evaluación de certificación del proceso 4-1 (organismo acreditado): Certification assessment of the 4-1 process (accredited body)
+Certificado 4-1: 4-1 certificate
+Certificación de componentes 4-2: 4-2 component certification
+Certificados de componente: Component certificates
+Evaluación de los sistemas de planta frente a 3-3 y del programa 2-1: Assessment of plant systems against 3-3 and of the 2-1 programme
+Informe de evaluación OT: OT assessment report
+Cierre de hallazgos: Closure of findings
+Analizar causas y planificar las acciones correctivas de todos los hallazgos externos: Analyse causes and plan the corrective actions for all external findings
+Plan de acciones correctivas: Corrective action plan
+Verificar la eficacia de las acciones (quien verifica no es quien corrigió): Verify the effectiveness of the actions (the verifier is not the person who corrected)
+Cerrar formalmente los hallazgos y comunicar al auditor externo: Formally close the findings and notify the external auditor
+Hallazgos cerrados: Findings closed
+Seguimiento y mejora continua: Follow-up and continuous improvement
+Supervisar los controles medibles y la caducidad de las evidencias: Monitor the measurable controls and the expiry of evidence
+Panel de cumplimiento continuo: Continuous compliance dashboard
+Campañas trimestrales de recertificación de accesos: Quarterly access recertification campaigns
+Campañas cerradas con evidencia: Campaigns closed with evidence
+Actualizar el análisis de riesgos y la declaración de aplicabilidad: Update the risk analysis and the Statement of Applicability
+Auditoría interna anual: Annual internal audit
+Informe de auditoría interna anual: Annual internal audit report
+Revisión anual por la dirección: Annual management review
+Acta anual de revisión por la dirección: Annual management review minutes
+Revisión anual de zonas, conductos y SL alcanzado: Annual review of zones, conduits and achieved SL
+Registro de zonas actualizado: Updated zone register
+Gestión continua de avisos de vulnerabilidad y actualizaciones del producto: Ongoing management of vulnerability reports and product updates
+Avisos publicados: Advisories published
+Plazos de parcheo medidos: Measured patching times
+Falta de patrocinio real de la dirección: Lack of real management sponsorship
+Patrocinador nombrado en el arranque, revisión mensual del avance en el comité y objetivos ligados a la dirección.: Sponsor appointed at start-up, monthly review of progress in the committee and objectives linked to management.
+Recursos internos insuficientes para implantar y mantener los controles: Insufficient internal resources to implement and maintain the controls
+Plan de capacidad por rol, apoyo externo acotado y priorización por riesgo.: Capacity plan by role, limited external support and prioritisation by risk.
+Evidencias dispersas, caducadas o sin flujo de aprobación: Evidence that is scattered, expired or without an approval workflow
+Evidencias solo en Documentos con flujo, caducidad y avisos; medición automática donde sea posible.: Evidence held only in Documents with workflow, expiry and alerts; automatic measurement wherever possible.
+Alcance mal definido o cambiante: Poorly defined or changing scope
+Alcance aprobado por la dirección y control de cambios del alcance en el comité.: Scope approved by management and scope change control in the committee.
+Resistencia al cambio de procesos y herramientas: Resistance to changes in processes and tools
+Comunicación, formación por perfiles y responsables de control en cada área.: Communication, training by profile and control owners in each area.
+Parada de planta al aplicar controles en OT: Plant shutdown when applying controls in OT
+Pruebas en entorno de réplica, ventanas de mantenimiento y vuelta atrás planificada.: Testing in a replica environment, maintenance windows and a planned rollback.
+Sistemas OT antiguos sin soporte que no alcanzan el SL objetivo: Old unsupported OT systems that do not reach the target SL
+Contramedidas compensatorias por zona, aislamiento y plan de renovación.: Compensating countermeasures per zone, isolation and a renewal plan.
+Revisión de versiones sin independencia real: Release review without real independence
+Revisión por versión por persona distinta del autor, registrada en la plataforma.: Review per release by someone other than the author, recorded in the platform.
+Política de desarrollo seguro: Secure development policy
+Política de seguridad de los sistemas de automatización: Automation systems security policy
+Procedimiento de gestión de incidentes: Incident management procedure
+Procedimiento de gestión de vulnerabilidades: Vulnerability management procedure
+Procedimiento de zonas, conductos y nivel de seguridad: Procedure for zones, conduits and security level
+Procedimiento de gestión de defectos de seguridad del producto: Product security defect management procedure
+Procedimiento de actualizaciones de seguridad del producto: Product security updates procedure
+Inventario de activos: Asset inventory
+Registro de zonas, conductos y niveles de seguridad: Register of zones, conduits and security levels
+Registro de hallazgos y acciones correctivas: Register of findings and corrective actions
+Registro de versiones, SBOM y firmas: Register of releases, SBOMs and signatures
+Certificación ISO/IEC 27001:2022: ISO/IEC 27001:2022 certification
+Seleccionar la entidad de certificación acreditada y acordar el calendario: Select the accredited certification body and agree the schedule
+Contrato con la entidad de certificación: Contract with the certification body
+'Implantar controles: Gobierno del sistema de gestión (1/2)': 'Implement controls: Management system governance (1/2)'
+'Implantar controles: Gobierno del sistema de gestión (2/2)': 'Implement controls: Management system governance (2/2)'
+'Implantar controles: Seguridad física y del entorno (1/2)': 'Implement controls: Physical and environmental security (1/2)'
+'Implantar controles: Seguridad física y del entorno (2/2)': 'Implement controls: Physical and environmental security (2/2)'
+'Implantar controles: Seguridad del producto (software y dispositivos)': 'Implement controls: Product security (software and devices)'
+'Implantar controles: Cumplimiento legal y privacidad': 'Implement controls: Legal compliance and privacy'
+Controles de cumplimiento legal y privacidad implantados con evidencia: Legal compliance and privacy controls implemented with evidence
+'Implantar controles: Protección de prototipos': 'Implement controls: Prototype protection'
+Controles de protección de prototipos implantados con evidencia: Prototype protection controls implemented with evidence
+Auditoría de certificación ISO 27001 fase 1 (documental y preparación): ISO 27001 certification audit stage 1 (documentation and readiness)
+Informe de fase 1: Stage 1 report
+Resolver las observaciones de la fase 1: Resolve the stage 1 observations
+Observaciones resueltas: Observations resolved
+Auditoría de certificación ISO 27001 fase 2 (in situ, muestreo de sedes): ISO 27001 certification audit stage 2 (on site, site sampling)
+Informe de fase 2: Stage 2 report
+Registrar el certificado ISO 27001 en el punto de control (vencimientos y avisos): Record the ISO 27001 certificate at the control point (expiry dates and alerts)
+Certificado registrado: Certificate recorded
+Auditorías de seguimiento de los años 1 y 2: Surveillance audits in years 1 and 2
+Informes de seguimiento: Surveillance reports
+Auditoría de renovación del año 3: Year 3 renewal audit
+Certificado renovado: Certificate renewed
+No conformidad mayor en la fase 2 que retrase el certificado: Major nonconformity in stage 2 that delays the certificate
+Auditoría interna completa y simulacro de fase 2 antes de la auditoría externa.: Full internal audit and a stage 2 rehearsal before the external audit.
+Política de seguridad de la información: Information security policy
+Normas de uso aceptable: Acceptable use rules
+Política de clasificación y tratamiento de la información: Information classification and handling policy
+Política criptográfica y de gestión de claves: Cryptographic and key management policy
+Política de seguridad con proveedores: Supplier security policy
+Política de continuidad y recuperación: Business continuity and recovery policy
+Política de teletrabajo y dispositivos móviles: Remote working and mobile devices policy
+Política de conservación de registros: Records retention policy
+Política de gestión de cambios: Change management policy
+Procedimiento de gestión de riesgos: Risk management procedure
+Procedimiento de altas, cambios y bajas de accesos: Access provisioning, change and removal procedure
+Procedimiento de recertificación de accesos: Access recertification procedure
+Procedimiento de cambios y paso a producción: Change and release to production procedure
+Procedimiento de copias y restauración: Backup and restoration procedure
+Procedimiento de auditoría interna: Internal audit procedure
+Procedimiento de revisión por la dirección: Management review procedure
+Procedimiento de no conformidades y acciones correctivas: Nonconformities and corrective actions procedure
+Registro de incidentes y notificaciones: Record of incidents and notifications
+Registro de formación y concienciación: Record of training and awareness
+Registro de proveedores críticos: Register of critical suppliers
+Actas de revisión por la dirección: Management review minutes
+Programa J-SOX: J-SOX programme
+Determinar el alcance J-SOX (controles a nivel de empresa, procesos significativos y cierre): Determine the J-SOX scope (entity-level controls, significant processes and period-end close)
+Memorando de alcance J-SOX: J-SOX scoping memorandum
+'Elaborar los tres documentos: diagrama de flujo, descripción del proceso y RCM': 'Prepare the three documents: flowchart, process description and RCM'
+Diagramas: Diagrams
+Descripciones: Descriptions
+RCM: RCM
+'Implantar controles: Seguridad en las operaciones': 'Implement controls: Operations security'
+'Implantar controles: Desarrollo y gestión de cambios': 'Implement controls: Development and change management'
+'Implantar controles: Control interno sobre la información financiera (1/2)': 'Implement controls: Internal control over financial reporting (1/2)'
+Controles de control interno sobre la información financiera implantados con evidencia: Internal control over financial reporting controls implemented with evidence
+'Implantar controles: Control interno sobre la información financiera (2/2)': 'Implement controls: Internal control over financial reporting (2/2)'
+Evaluar los controles a nivel de empresa y del entorno de TI: Assess the entity-level controls and the IT environment
+Evaluación de controles de empresa: Entity-level controls assessment
+Evaluar la eficacia operativa (procesos, ITGC y cierre): Assess operating effectiveness (processes, ITGC and period-end close)
+Papeles de evaluación: Assessment working papers
+Informe de control interno (art. 24-4-4) y carta de confirmación (art. 24-4-2): Internal control report (Art. 24-4-4) and confirmation letter (Art. 24-4-2)
+Informe de control interno: Internal control report
+Carta de confirmación: Confirmation letter
+Auditoría del informe de control interno (art. 193-2-2): Audit of the internal control report (Art. 193-2-2)
+Informe de auditoría de control interno: Internal control audit report
+Presentar el informe junto con el informe anual de valores: File the report together with the annual securities report
+Justificante de presentación: Filing receipt
+'Ciclo anual J-SOX: actualizar alcance, documentos y evaluaciones': 'Annual J-SOX cycle: update scope, documents and assessments'
+Plan anual J-SOX: Annual J-SOX plan
+Retraso del informe de control interno respecto al informe anual: Internal control report delayed with respect to the annual report
+Calendario sincronizado con el cierre y reutilización de las pruebas SOX.: Calendar synchronised with the period-end close and reuse of the SOX tests.
+Diferencias de criterio entre auditores de EE. UU. y Japón: Differences in criteria between US and Japanese auditors
+Matriz única con correspondencias y acuerdos de muestreo comunes.: Single matrix with cross-references and common sampling agreements.
+Procedimiento de cierre de periodos contables: Period-end close procedure
+Procedimiento de pruebas de controles (SOX y J-SOX): Control testing procedure (SOX and J-SOX)
+Matriz de segregación de funciones: Segregation of duties matrix
+Registro de pruebas de controles: Record of control tests
+Cumplimiento NIS2 (entidad esencial o importante): NIS2 compliance (essential or important entity)
+Determinar si cada entidad es esencial o importante por Estado miembro: Determine whether each entity is essential or important per Member State
+Análisis de clasificación: Classification analysis
+Registrar la entidad ante la autoridad competente de cada país: Register the entity with the competent authority of each country
+Justificantes de registro: Registration proofs
+Aprobación de las medidas de gestión de riesgos por el órgano de dirección (art. 20): Approval of the risk management measures by the management body (Art. 20)
+Acuerdo del órgano de dirección: Resolution of the management body
+Configurar el flujo de incidente notificable (24 h, 72 h y 1 mes) en el Service Desk: Configure the reportable incident workflow (24 h, 72 h and 1 month) in the Service Desk
+Flujo configurado: Workflow configured
+Plantillas de notificación: Notification templates
+Simulacro de incidente significativo con notificación a la autoridad: Drill of a significant incident with notification to the authority
+Informe del simulacro con plazos medidos: Drill report with measured deadlines
+Evaluar la seguridad de los proveedores directos críticos: Assess the security of critical direct suppliers
+Evaluaciones de proveedores críticos: Critical supplier assessments
+Registro de asistencia: Attendance record
+Preparar el expediente de cumplimiento para la autoridad: Prepare the compliance file for the authority
+Expediente de cumplimiento NIS2: NIS2 compliance file
+Preparar la supervisión proactiva (inspecciones y auditorías de seguridad): Prepare for proactive supervision (inspections and security audits)
+Plan de atención a la supervisión: Supervision response plan
+Preparar la supervisión a posteriori: Prepare for ex post supervision
+Revisar anualmente las medidas, la formación de la dirección y los plazos de notificación: Review annually the measures, management training and notification deadlines
+Informe anual NIS2: Annual NIS2 report
+Incumplir el plazo de 24 h o 72 h en un incidente significativo: Missing the 24 h or 72 h deadline in a significant incident
+Flujo con relojes, guardias definidas, plantillas y simulacros semestrales.: Workflow with clocks, defined on-call rotas, templates and six-monthly drills.
+Responsabilidad personal de la dirección por falta de supervisión: Personal liability of management for lack of oversight
+Aprobación formal de medidas, formación de la dirección y actas de supervisión.: Formal approval of measures, management training and oversight minutes.
+Procedimiento de notificación de incidentes significativos (NIS2): Significant incident notification procedure (NIS2)
+Procedimiento de gestión de crisis: Crisis management procedure
+'Programa integrado: ISO 27001, TISAX, NIS2, SOX, J-SOX e IEC 62443': 'Integrated programme: ISO 27001, TISAX, NIS2, SOX, J-SOX and IEC 62443'
+Registrarse en el portal ENX y definir el alcance y los objetivos de evaluación: Register on the ENX portal and define the scope and assessment objectives
+Registro ENX: ENX registration
+Alcance de evaluación: Assessment scope
+Seleccionar el proveedor de auditoría TISAX: Select the TISAX audit provider
+Contrato con el proveedor de auditoría: Contract with the audit provider
+Determinar la materialidad, cuentas significativas, procesos y aplicaciones en alcance: Determine materiality, significant accounts, and the processes and applications in scope
+Memorando de alcance SOX: SOX scoping memorandum
+Autoevaluación con el catálogo VDA ISA (madurez objetivo 3): Self-assessment with the VDA ISA catalogue (target maturity 3)
+Autoevaluación ISA cumplimentada: Completed ISA self-assessment
+Documentar los procesos (narrativas y diagramas) y hacer los recorridos: Document the processes (narratives and diagrams) and carry out walkthroughs
+Narrativas: Narratives
+Recorridos documentados: Documented walkthroughs
+Elaborar la matriz de riesgos y controles con ITGC y controles automáticos: Prepare the risk and control matrix with ITGCs and automated controls
+Matriz de riesgos y controles (RCM): Risk and control matrix (RCM)
+'Unificar la matriz: un control común con sus correspondencias en las seis normas': 'Unify the matrix: one common control with its cross-references in the six standards'
+Matriz única control × norma × sede: Single control × standard × site matrix
+'Implantar controles: Identidades y control de acceso (1/2)': 'Implement controls: Identities and access control (1/2)'
+'Implantar controles: Identidades y control de acceso (2/2)': 'Implement controls: Identities and access control (2/2)'
+'Implantar controles: Seguridad en las operaciones (1/3)': 'Implement controls: Operations security (1/3)'
+'Implantar controles: Seguridad en las operaciones (2/3)': 'Implement controls: Operations security (2/3)'
+'Implantar controles: Seguridad en las operaciones (3/3)': 'Implement controls: Operations security (3/3)'
+'Implantar controles: Redes y comunicaciones (1/2)': 'Implement controls: Networks and communications (1/2)'
+'Implantar controles: Redes y comunicaciones (2/2)': 'Implement controls: Networks and communications (2/2)'
+'Implantar controles: Incidentes y notificaciones (1/2)': 'Implement controls: Incidents and notifications (1/2)'
+'Implantar controles: Incidentes y notificaciones (2/2)': 'Implement controls: Incidents and notifications (2/2)'
+'Implantar controles: Protección de prototipos (1/2)': 'Implement controls: Prototype protection (1/2)'
+'Implantar controles: Protección de prototipos (2/2)': 'Implement controls: Prototype protection (2/2)'
+Delimitar las áreas de prototipos y clasificar los proyectos: Delimit the prototype areas and classify the projects
+Plano de áreas: Area plan
+Proyectos clasificados: Classified projects
+Obtener informes SOC 1 tipo II de proveedores y validar los controles complementarios: Obtain suppliers' SOC 1 Type II reports and validate the complementary controls
+Revisión de informes SOC 1: Review of SOC 1 reports
+Probar el diseño de los controles: Test the design of the controls
+Pruebas de diseño: Design tests
+Plan único de pruebas de control reutilizable por SOX, J-SOX, ISO 27001 y TISAX: Single control test plan reusable for SOX, J-SOX, ISO 27001 and TISAX
+Plan único de pruebas: Single test plan
+Pruebas intermedias de eficacia operativa (población, muestreo; quien prueba no implantó): Interim operating effectiveness tests (population, sampling; the tester did not implement)
+Pruebas de eficacia operativa: Operating effectiveness tests
+Pruebas de actualización al cierre del ejercicio: Roll-forward tests at fiscal year-end
+Pruebas de actualización: Roll-forward tests
+Evaluar y agregar las deficiencias de control: Assess and aggregate the control deficiencies
+Subcertificaciones y certificaciones de las secciones 302 y 906: Sub-certifications and certifications under sections 302 and 906
+Informe de la dirección sobre el control interno (sección 404(a)): Management report on internal control (section 404(a))
+Informe 404(a): 404(a) report
+Calendario integrado de auditorías externas (sin solapes y con muestras compartidas): Integrated calendar of external audits (no overlaps and with shared samples)
+Calendario integrado: Integrated calendar
+Preparar la evaluación in situ AL3 (agenda, entrevistas y muestras): Prepare the AL3 on-site assessment (agenda, interviews and samples)
+Agenda de evaluación: Assessment agenda
+Evaluación inicial TISAX (AL2 remota; AL3 in situ): Initial TISAX assessment (AL2 remote; AL3 on site)
+Informe de evaluación inicial: Initial assessment report
+Acordar con el auditor el plan de medidas correctoras: Agree the corrective measures plan with the auditor
+Plan de medidas aceptado: Accepted measures plan
+Auditoría externa integrada del control interno (sección 404(b)): Integrated external audit of internal control (section 404(b))
+Informe del auditor externo: External auditor's report
+Presentar los resultados al comité de auditoría: Present the results to the audit committee
+Acta del comité: Committee minutes
+Evaluación de cierre TISAX: TISAX closing assessment
+Informe de cierre: Closing report
+Publicar las etiquetas TISAX en ENX y registrarlas en el punto de control (3 años): Publish the TISAX labels on ENX and record them at the control point (3 years)
+Etiquetas publicadas: Labels published
+Comprobar las etiquetas de los subcontratistas que manejan prototipos: Check the labels of subcontractors handling prototypes
+Registro de etiquetas de subcontratistas: Register of subcontractor labels
+Preparar la reevaluación antes del vencimiento de las etiquetas: Prepare the reassessment before the labels expire
+Plan de reevaluación: Reassessment plan
+'Ciclo anual SOX: actualizar alcance y RCM y probar trimestralmente': 'Annual SOX cycle: update scope and RCM and test quarterly'
+Plan anual SOX: Annual SOX plan
+Áreas de prototipos que no cumplen los requisitos físicos: Prototype areas that do not meet the physical requirements
+Inspección temprana de áreas y obras planificadas antes de la evaluación.: Early inspection of areas and planned works before the assessment.
+Caducidad de la etiqueta TISAX sin reevaluación: TISAX label expiry without reassessment
+Aviso de vencimiento en el punto de control con 9 meses de antelación.: Expiry alert at the control point 9 months in advance.
+Debilidad material en ITGC que afecte a la opinión del auditor: Material weakness in ITGCs that affects the auditor's opinion
+Pruebas intermedias tempranas, corrección antes del cierre y roll-forward.: Early interim tests, correction before the close and roll-forward.
+Conflictos de segregación de funciones en el ERP: Segregation of duties conflicts in the ERP
+Matriz SoD, detección automática y controles compensatorios documentados.: SoD matrix, automatic detection and documented compensating controls.
+Trabajo duplicado entre normas y auditores: Duplicated work across standards and auditors
+Biblioteca única de controles, matriz única y plan único de pruebas reutilizable.: Single control library, single matrix and single reusable test plan.
+Política de protección de prototipos: Prototype protection policy
+Procedimiento de transporte y almacenamiento de prototipos: Prototype transport and storage procedure
+Registro de acceso a áreas de prototipos: Record of access to prototype areas
+Programa SOX (secciones 302 y 404): SOX programme (sections 302 and 404)
+Evaluación TISAX AL3 con protección de prototipos: TISAX AL3 assessment with prototype protection

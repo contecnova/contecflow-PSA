@@ -19,7 +19,7 @@
  */
 import { type HTMLAttributes, type ReactNode } from 'react'
 import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react'
-import { Buscador, EmptyState, Pulsable } from '../ui'
+import { Buscador, Contador, EmptyState, Pulsable } from '../ui'
 import { BotonDeChat } from './BotonDeChat'
 import './chat.css'
 
@@ -98,9 +98,7 @@ export function FilaDeConversacion({ titulo, activa, onClick, icono, avatar, san
         ? <span className="chat-avatar" aria-hidden="true">{(titulo || '?').charAt(0).toUpperCase()}</span>
         : avatar}
       <span className="chat-ellipsis">{titulo}</span>
-      {(noLeidos ?? 0) > 0 && (
-        <span className="chat-conv-row__sin-leer" aria-label={etiquetaNoLeidos}>{(noLeidos ?? 0) > 99 ? '99+' : noLeidos}</span>
-      )}
+      <Contador n={noLeidos ?? 0} tono="acento" className="chat-conv-row__sin-leer" ariaLabel={etiquetaNoLeidos} />
     </Pulsable>
   )
 }

@@ -147,6 +147,8 @@ Orden (decidido por el usuario ~16:00): el cierre (fila 21: migraciones con setu
   (`docs/seguridad/empresa_obligatoria.md` §6.x).
 
 - Burbujas en todos los chats («como WhatsApp o Teams») ✅ hecho (sin probar; se verifica en la prueba general): `FilaDeMensaje` con `propio` (derecha, acento suave) / ajeno (izquierda, avatar y nombre), hora y ✓/✓✓ dentro de la burbuja, agrupación, separadores de día, mensajes de sistema en pastilla, barra de acciones al lado de la burbuja; extendida al hilo del interno, panel flotante, chat de la llamada y asistentes de IA (NexusAssist, asistente y widget de IA del portal, Nexus Agent, Preguntar a la empresa) con `EditorDeChat`; CSS propio sin uso borrado; vigilante `comprobarChatUnico` ampliado (`OTROS_CHATS`, `propio`/`esBot` obligatorio). Claves nuevas `chat.pensando` y `chat.tu` (es/en/zh). Doc: `docs/GUIA_DE_DISENO.md` §17.1, `docs/portal/CHAT_DEL_PORTAL.md` §11.1, README §37.1, `DESIGN_SYSTEM.md`.
+- Barrido de traducciones («estoy en inglés y no está todo traducido») ✅ hecho (sin probar; tests escritos, se ejecutan en la prueba general): biblioteca de Certificaciones en en/zh (catálogo `app/data/certificaciones/i18n/{en,zh}.yaml` con 1.166 textos de marcos, controles y plantillas; 44 esqueletos `.md` × 2 idiomas; respuestas del router traducidas por `X-Idioma`, que ahora manda el cliente; generación desde plantilla en el idioma de quien genera, roles RACI con nombre); niveles con etiqueta (`cert.nivel_*`, 19); resto de la interfaz medido con un barrido propio (diccionarios del operador y del portal completos; arreglados literales/respaldos que salían en castellano: resumen de alertas, ajustes avanzados «Informes» y «Semáforos», eventos de paneles BI, título del cronómetro, «Cerrar menú», «No disponible», alertas configurables y métricas BI en Ajustes, ejemplo de configuración BPM); preguntas por defecto de evaluaciones sembradas en el idioma de la empresa; `ValueError` sin código de `certificaciones/catalogo.py`. Vigilantes: `frontend/scripts/check_i18n_traducido.mjs` (puerta en `scripts/ci_local.sh`) y `tests/test_certificaciones_traduccion_2026_11.py`. Docs: `docs/GUIA_DE_DISENO.md` §10.1, `docs/CERTIFICACIONES_CONTENIDO.md` §9.
+
 ## 7. Programa de estabilidad de diseño (medido el 24-11-2026, en cola tras «campos al kit»)
 
 Medición estática de `frontend/src` (sin contar `components/ui`), script en el scratchpad `medir_diseno.py`:
@@ -171,11 +173,19 @@ Medición estática de `frontend/src` (sin contar `components/ui`), script en el
 | Enlaces a Configuración desde otras pantallas | 28 en 25 ficheros, solo unos 5 comprueban permiso | Componente `AvisoDeConfiguracion` del kit: con permiso, aviso + enlace; sin permiso, aviso + «Pídeselo a tu administrador», sin enlace (decidido por el usuario el 24-11-2026) |
 
 Orden (un agente detrás de otro, máximo 3 a la vez):
-0. `AvisoDeConfiguracion` (los 28 enlaces).
+0. ✅ hecho (24-11-2026, sin probar; se verifica en la prueba general) `AvisoDeConfiguracion` (los 28 enlaces).
    Con él, los restos de «campos al kit»:
    - 14 campos con etiqueta propia y 1 selector de contexto en el chat del portal y el chat global;
    - campos dinámicos de `AltaDeTarea` y `DetalleDeTarea`;
    - `type="month"`, que falta en el `Input` del kit (`BudgetsPage`, `FormularioDePartida`).
+   Resultado: kit `AvisoDeConfiguracion` (+ `usePuedeConfigurar`, `rutaDeConfiguracion`) en los 28 enlaces de 25 ficheros
+   (aviso, enlace o botón; el permiso es el del menú de Configuración), y `BotonConContador`/`Contador` (pedido con
+   captura: color del tono y número al lado) en la campana del operador y del portal, la bandeja, el chat de la barra,
+   los menús laterales del operador y del portal y las listas del chat. Campos: `campoConEtiquetaPropia` 14 → 0,
+   `selectorDeContextoAMano` 6 → 5 (queda: filtro de proyecto en la barra del chat del portal, que no se mete en una
+   tarjeta sin decidirlo con el usuario, y 4 filtros/formularios). `Input type="month"` en presupuestos (5 campos) y
+   ESLint marca el nativo. Vigilantes nuevos con cupo 0: `enlaceAConfiguracionAMano` y `contadorAMano` (sección
+   `avisos`). Reglas: `docs/GUIA_DE_DISENO.md` §8.10-§8.11.
 1. Cabeceras.
 2. Tarjetas.
 3. Modales.

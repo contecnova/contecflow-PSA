@@ -1,5 +1,5 @@
 // Panel de politicas de conversacion del portal. 23-11-2026: troceado de GovernedConversations sin cambio de comportamiento.
-import { useEffect, useState, useId } from 'react'
+import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { portalConversationsApi, sdGroupsApi } from '../../services/api'
 import { useToast } from '../../context/ToastContext'
@@ -11,7 +11,6 @@ import StatusBadge from '../ui/StatusBadge'
 import { type AgentGroup, type ConversationPolicy, EMPTY_LIST, POLICY_FLAGS, type PolicyDraft, type PolicyPayload, etiquetaDeTema } from './GovernedConversationsComun'
 
 export function ConversationPoliciesPanel() {
-  const idCampo = useId()
   const { t } = useAppLang()
   const toast = useToast()
   const qc = useQueryClient()
@@ -80,38 +79,31 @@ export function ConversationPoliciesPanel() {
 
             <div className="goveconv-grid-2">
               <div>
-                <label htmlFor={`${idCampo}-${policy.id}-modo`} className="goveconv-labelstyle">{t('governedconversations.modo_de_asignacion')}</label>
-                <Select suelto placeholder={false} id={`${idCampo}-${policy.id}-modo`} value={draft.assignment_mode || 'manual'} onChange={(event) => setDrafts((prev) => ({ ...prev, [policy.topic_type]: { ...prev[policy.topic_type], assignment_mode: event.target.value } }))} className="goveconv-inputstyle">
+                <Select label={t('governedconversations.modo_de_asignacion')} placeholder={false} value={draft.assignment_mode || 'manual'} onChange={(event) => setDrafts((prev) => ({ ...prev, [policy.topic_type]: { ...prev[policy.topic_type], assignment_mode: event.target.value } }))}>
                   <option value="manual">{t('governedconversations.manual')}</option>
                   <option value="owner_based">{t('governedconversations.owner_del_proyecto')}</option>
                   <option value="role_pool">{t('governedconversations.pool_rol')}</option>
                 </Select>
               </div>
               <div>
-                <label className="goveconv-labelstyle">{t('governedconversations.rol_por_defecto')}</label>
-                <Input aria-label={t('governedconversations.rol_por_defecto')} value={draft.default_role_key || ''} onChange={(event) => setDrafts((prev) => ({ ...prev, [policy.topic_type]: { ...prev[policy.topic_type], default_role_key: event.target.value } }))} placeholder="admin, manager, pm..." inputClassName="goveconv-inputstyle" />
+                <Input label={t('governedconversations.rol_por_defecto')} value={draft.default_role_key || ''} onChange={(event) => setDrafts((prev) => ({ ...prev, [policy.topic_type]: { ...prev[policy.topic_type], default_role_key: event.target.value } }))} placeholder="admin, manager, pm..." />
               </div>
               <div>
-                <label id={`${idCampo}-${policy.id}-et-pool`} htmlFor={`${idCampo}-${policy.id}-pool`} className="goveconv-labelstyle">{t('governedconversations.pool_de_asignacion')}</label>
-                <Select suelto placeholder={t('governedconversations.sin_pool')} id={`${idCampo}-${policy.id}-pool`} value={draft.default_group_id || ''} onChange={(event) => setDrafts((prev) => ({ ...prev, [policy.topic_type]: { ...prev[policy.topic_type], default_group_id: event.target.value } }))} className="goveconv-inputstyle">
+                <Select label={t('governedconversations.pool_de_asignacion')} placeholder={t('governedconversations.sin_pool')} value={draft.default_group_id || ''} onChange={(event) => setDrafts((prev) => ({ ...prev, [policy.topic_type]: { ...prev[policy.topic_type], default_group_id: event.target.value } }))}>
                   {agentGroups.map(group => <option key={group.id} value={group.id}>{group.name}</option>)}
                 </Select>
               </div>
               <div>
-                <label id={`${idCampo}-${policy.id}-et-fr`} htmlFor={`${idCampo}-${policy.id}-fr`} className="goveconv-labelstyle">{t('governedconversations.primera_respuesta_sla_h')}</label>
-                <Input id={`${idCampo}-${policy.id}-fr`} aria-labelledby={`${idCampo}-${policy.id}-et-fr`} type="number" min={0} value={draft.first_response_hours || 0} onChange={(event) => setDrafts((prev) => ({ ...prev, [policy.topic_type]: { ...prev[policy.topic_type], first_response_hours: Number(event.target.value) } }))} inputClassName="goveconv-inputstyle" />
+                <Input label={t('governedconversations.primera_respuesta_sla_h')} type="number" min={0} value={draft.first_response_hours || 0} onChange={(event) => setDrafts((prev) => ({ ...prev, [policy.topic_type]: { ...prev[policy.topic_type], first_response_hours: Number(event.target.value) } }))} />
               </div>
               <div>
-                <label id={`${idCampo}-${policy.id}-et-esc`} htmlFor={`${idCampo}-${policy.id}-esc`} className="goveconv-labelstyle">{t('governedconversations.escalado_sla_h')}</label>
-                <Input id={`${idCampo}-${policy.id}-esc`} aria-labelledby={`${idCampo}-${policy.id}-et-esc`} type="number" min={0} value={draft.escalation_hours || 0} onChange={(event) => setDrafts((prev) => ({ ...prev, [policy.topic_type]: { ...prev[policy.topic_type], escalation_hours: Number(event.target.value) } }))} inputClassName="goveconv-inputstyle" />
+                <Input label={t('governedconversations.escalado_sla_h')} type="number" min={0} value={draft.escalation_hours || 0} onChange={(event) => setDrafts((prev) => ({ ...prev, [policy.topic_type]: { ...prev[policy.topic_type], escalation_hours: Number(event.target.value) } }))} />
               </div>
               <div>
-                <label id={`${idCampo}-${policy.id}-et-apr`} htmlFor={`${idCampo}-${policy.id}-apr`} className="goveconv-labelstyle">{t('governedconversations.rol_aprobador')}</label>
-                <Input id={`${idCampo}-${policy.id}-apr`} aria-labelledby={`${idCampo}-${policy.id}-et-apr`} value={draft.approval_role_key || ''} onChange={(event) => setDrafts((prev) => ({ ...prev, [policy.topic_type]: { ...prev[policy.topic_type], approval_role_key: event.target.value } }))} placeholder="admin" inputClassName="goveconv-inputstyle" />
+                <Input label={t('governedconversations.rol_aprobador')} value={draft.approval_role_key || ''} onChange={(event) => setDrafts((prev) => ({ ...prev, [policy.topic_type]: { ...prev[policy.topic_type], approval_role_key: event.target.value } }))} placeholder="admin" />
               </div>
               <div>
-                <label id={`${idCampo}-${policy.id}-et-kw`} htmlFor={`${idCampo}-${policy.id}-kw`} className="goveconv-labelstyle">{t('governedconversations.keywords_sensibles')}</label>
-                <Input id={`${idCampo}-${policy.id}-kw`} aria-labelledby={`${idCampo}-${policy.id}-et-kw`} value={draft.sensitive_keywords || ''} onChange={(event) => setDrafts((prev) => ({ ...prev, [policy.topic_type]: { ...prev[policy.topic_type], sensitive_keywords: event.target.value } }))} placeholder="password, token, iban" inputClassName="goveconv-inputstyle" />
+                <Input label={t('governedconversations.keywords_sensibles')} value={draft.sensitive_keywords || ''} onChange={(event) => setDrafts((prev) => ({ ...prev, [policy.topic_type]: { ...prev[policy.topic_type], sensitive_keywords: event.target.value } }))} placeholder="password, token, iban" />
               </div>
             </div>
 

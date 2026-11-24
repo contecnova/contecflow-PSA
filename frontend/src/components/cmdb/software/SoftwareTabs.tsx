@@ -25,13 +25,13 @@ import { cmdbSoftwareApi } from '../../../services/api/cmdbSoftware'
 import type { SdCi } from '../../../services/api/tipos-sd'
 import type { InstanciaSw, Severidad } from '../../../services/api/cmdbSoftware'
 import type { RawEdge, RawNode } from '../CMDBTopologyGraph'
-import { Buscador, Button, Checkbox, EmptyState, KpiCard, Modal, Section, Select, Spinner, StatusBadge, TablaSimple, Input } from '../../ui'
+import { AvisoDeConfiguracion, Buscador, Button, Checkbox, EmptyState, KpiCard, Modal, Section, Select, Spinner, StatusBadge, TablaSimple, Input } from '../../ui'
 import {
   BotonFichero, CicloBadge, EXCEPCION_KIND, ListaKv, ORDEN_SEV, Opciones, PosibleBadge, SeveridadBadge, VersionTexto,
   descargar, useAvisoDeImportacion, useErr, useEtiquetaSw, useMetaSw, valorLegible,
 } from './comun'
 import FichaDeSoftware, { EditarProductoModal, InstanciaModal } from './FichaDeSoftware'
-import { AvisoDeConfiguracion, PanelDeEscaneos } from './Escaneos'
+import { PanelDeEscaneos } from './Escaneos'
 import { TablaHallazgos, TablaInstancias } from './tablas'
 import DetalleDeHallazgo from './DetalleDeHallazgo'
 import '../../servicedesk/sdMercado.css'
@@ -517,7 +517,7 @@ export function VulnerabilidadesTab() {
         </div>
       )}
 
-      {(sinFuentes || (c && c.sources_active && c.sources_active.length === 0)) && <AvisoDeConfiguracion>{t('sw.sin_fuentes_activas')}</AvisoDeConfiguracion>}
+      {(sinFuentes || (c && c.sources_active && c.sources_active.length === 0)) && <AvisoDeConfiguracion seccion="cmdb-software">{t('sw.sin_fuentes_activas')}</AvisoDeConfiguracion>}
 
       <Section title={t('sw.hallazgos')} subtitle={t('sw.hallazgos_desc')}
         actions={<div className="u-wrap-8">

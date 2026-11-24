@@ -16,6 +16,9 @@ export interface PageProps {
   rightActions?: ReactNode
   /** alias compatible (PageHeader nativo usa 'actions') */
   actions?: ReactNode
+  /** Botón «Exportar Excel» de la cabecera (por defecto sí, como PageHeader). `false` en un
+   *  contenedor de páginas incrustadas: el botón lo pone la pantalla incrustada (GUIA §7.1). */
+  showListExport?: boolean
   children?: ReactNode
 }
 
@@ -25,6 +28,7 @@ export default function Page({
   subtitle,
   rightActions,
   actions,
+  showListExport,
   children,
 }: PageProps) {
   // PageHeader espera la prop con nombre 'actions'. Aceptamos ambos nombres
@@ -38,6 +42,7 @@ export default function Page({
           title={title}
           subtitle={subtitle}
           actions={headerActions}
+          showListExport={showListExport}
         />
       )}
       <div className="ds-page">{children}</div>

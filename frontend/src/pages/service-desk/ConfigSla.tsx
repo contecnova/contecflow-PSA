@@ -2,14 +2,13 @@
 import { useState, useId, useEffect } from 'react'
 import type { ChangeEvent } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Link } from 'react-router-dom'
 import { openConfirmGlobal } from '../../context/ConfirmContext'
 import { extractErr } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import { useToast } from '../../context/ToastContext'
 import { useAppT } from '../../i18n/AppLangContext'
 import { CalendarDays, Pencil, Plus, Timer, Trash2 } from 'lucide-react'
-import { Button, Spinner, EmptyState, Modal, StatusBadge, Pulsable, Select, Checkbox, Input } from '../../components/ui'
+import { AvisoDeConfiguracion, Button, Spinner, EmptyState, Modal, StatusBadge, Pulsable, Select, Checkbox, Input } from '../../components/ui'
 import { settingsApi, sdSlaPoliciesApi, slaCalendarsApi, clientsApi, contractsApi } from '../../services/api'
 import { PBadge } from './sdUtils'
 import { SELECTOR_LIST_SIZE } from '../../constants/pagination'
@@ -253,7 +252,7 @@ function NewSLAForm({ LS, onSave, isPending, onClose, initial }: { LS: string; o
             <option value="own">{t('sd_cfg.schedule_own')}</option>
           </Select>
           <div className="sdcfg-hint">
-            {t('sd_cfg.schedule_hint')} <Link to="/sla-calendars" className="u-accent">{t('sd_cfg.manage_calendars')}</Link>
+            {t('sd_cfg.schedule_hint')} <AvisoDeConfiguracion seccion="sla-calendars" variante="enlace" texto={t('sd_cfg.manage_calendars')} />
           </div>
         </div>
         {propio && (

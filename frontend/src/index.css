@@ -1556,7 +1556,8 @@ input::placeholder, textarea::placeholder { color: var(--texto-campo-vacio); opa
   .app-topbar-right > button,
   .app-topbar-right > a,
   .app-topbar-right > div { height: 34px !important; min-height: 34px; box-sizing: border-box; display: flex; align-items: center; }
-  .app-topbar-right > button:not(:has(.app-topbar-texto)) { width: 34px !important; justify-content: center; padding: 0 !important; }
+  /* 24-11-2026: los contadores (BotonConContador) no se fuerzan a 34 px de ancho: el número va al lado del icono. */
+  .app-topbar-right > button:not(:has(.app-topbar-texto)):not(.ui-boton-contador) { width: 34px !important; justify-content: center; padding: 0 !important; }
 }
 
 /* ── Print media ──────────────────────────────────────────────── */

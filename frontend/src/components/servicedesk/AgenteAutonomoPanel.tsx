@@ -17,7 +17,6 @@
  * `sd.administrar`.
  */
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Bot, Check, Plus, Trash2, X } from 'lucide-react'
 import { useAppT } from '../../i18n/AppLangContext'
@@ -26,7 +25,7 @@ import { useAuth } from '../../context/AuthContext'
 import { confirmar } from '../../context/ConfirmContext'
 import { extractErr } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
-import { Button, Checkbox, EmptyState, KpiCard, Modal, Section, Select, Spinner, StatusBadge, Tabs, useErroresDeCampo, Input, Textarea } from '../ui'
+import { AvisoDeConfiguracion, Button, Checkbox, EmptyState, KpiCard, Modal, Section, Select, Spinner, StatusBadge, Tabs, useErroresDeCampo, Input, Textarea } from '../ui'
 import type { StatusBadgeKind } from '../ui/StatusBadge'
 import Pagination from '../ui/Pagination'
 import { etiquetaCodigo } from '../../i18n/etiquetaCodigo'
@@ -54,10 +53,7 @@ export default function AgenteAutonomoPanel() {
     <Section title={<span className="u-row-center-6"><Bot size={16} aria-hidden="true" />{t('sd_mercado.agente_titulo')}</span>}
       subtitle={t('sd_mercado.agente_desc')}>
       {apagado && (
-        <p className="u-text2-xs" role="status">
-          {t('sd_mercado.agente_apagado')}{' '}
-          <Link to="/settings/sd-agente">{t('sd_mercado.ir_a_configuracion')}</Link>
-        </p>
+        <AvisoDeConfiguracion seccion="sd-agente">{t('sd_mercado.agente_apagado')}</AvisoDeConfiguracion>
       )}
       <Tabs active={vista} onChange={setVista} ariaLabel={t('sd_mercado.agente_titulo')} items={[
         { id: 'registro', label: t('sd_mercado.agente_registro') },

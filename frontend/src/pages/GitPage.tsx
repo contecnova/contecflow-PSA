@@ -14,16 +14,15 @@
  */
 
 import { useState } from 'react'
-import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom'
+import { Link, Navigate, useSearchParams } from 'react-router-dom'
 import { sanitizeUrl } from '../utils/security'
 import { useQuery } from '@tanstack/react-query'
 import { gitApi } from '../services/api'
 import type { EstadoDeDespliegue, EstadoDePullRequest } from '../services/api/tipos-proyectos'
 import {
-  CheckCircle2, GitBranch, GitMerge, GitPullRequest, Rocket, Settings2, XCircle,
+  CheckCircle2, GitBranch, GitMerge, GitPullRequest, Rocket, XCircle,
 } from 'lucide-react'
-import { Button, EmptyState, KpiCard, Page, Spinner, StatusBadge, Table, Tabs } from '../components/ui'
-import { useAuth } from '../context/AuthContext'
+import { AvisoDeConfiguracion, EmptyState, KpiCard, Page, Spinner, StatusBadge, Table, Tabs, usePuedeConfigurar } from '../components/ui'
 import type { StatusBadgeKind } from '../components/ui/StatusBadge'
 import { useAppT } from '../i18n/AppLangContext'
 import { fmtDateTime } from '../utils/helpers'
@@ -61,9 +60,8 @@ function DeployPill({ status }: { status?: EstadoDeDespliegue }) {
 export default function GitPage(): JSX.Element {
   const t = useAppT()
   const [tab, setTab] = useState<string>('prs')
-  const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const configura = useAuth().puede('proyectos.gobierno')
+  const configura = usePuedeConfigurar('git')
 
   const { data: prs = [], isLoading: loadPR } = useQuery({
     queryKey: ['git-prs'],
@@ -83,8 +81,8 @@ export default function GitPage(): JSX.Element {
 
   // Nada recibido todavía por webhook: lo normal es que falte conectar los repositorios.
   const sinNada = !loadPR && !loadDep && prs.length === 0 && deploys.length === 0
-  const conectar = sinNada && configura
-    ? <Button variant="secondary" icon={<Settings2 size={14} />} onClick={() => navigate('/settings/git')}>{t('git_integration.conectar_repositorios')}</Button>
+  const conectar = sinNada
+    ? <AvisoDeConfiguracion seccion="git" variante="boton" texto={t('git_integration.conectar_repositorios')} />
     : undefined
 
   const pestanas = [

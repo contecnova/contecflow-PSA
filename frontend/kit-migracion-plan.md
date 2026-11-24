@@ -34,8 +34,18 @@ contexto de una pantalla (proyecto, cliente, sprint, unidad…) va SIEMPRE en `<
 
 | Regla | Incumplimientos | Ficheros |
 |---|---:|---:|
-| `campoConEtiquetaPropia` | 14 | 4 |
-| `selectorDeContextoAMano` | 6 | 6 |
+| `campoConEtiquetaPropia` | 0 | 0 |
+| `selectorDeContextoAMano` | 5 | 5 |
+
+## Avisos de configuración y contadores (vigilante `avisos`)
+
+Desde fuera de Configuración se enlaza SIEMPRE con `AvisoDeConfiguracion` (enlace solo a quien puede abrir la sección); los
+contadores de pendientes son `BotonConContador` (barras) o `Contador` (menús y listas). Cupo que solo puede bajar:
+
+| Regla | Incumplimientos | Ficheros |
+|---|---:|---:|
+| `enlaceAConfiguracionAMano` | 0 | 0 |
+| `contadorAMano` | 0 | 0 |
 
 ## Reparto
 

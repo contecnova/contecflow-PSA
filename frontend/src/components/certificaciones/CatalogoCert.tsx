@@ -14,6 +14,7 @@ import { useToast } from '../../context/ToastContext'
 import { extractErr } from '../../utils/helpers'
 import { CLAVES_CERT, certApi } from '../../services/api/certificaciones'
 import type { Control, Marco } from '../../services/api/certificaciones'
+import { etiquetaNivel } from './comun'
 
 export default function CatalogoCert() {
   const t = useAppT()
@@ -45,7 +46,7 @@ export default function CatalogoCert() {
             <div className="cert-celda"><span>{m.version ?? '—'}</span>
               {m.version_anterior && <span className="cert-apagado">{t('cert.antes', { version: m.version_anterior })}</span>}</div>) },
           { key: 'publico', label: t('cert.texto'), render: (_v, m) => (m.publico ? t('cert.texto_publico') : t('cert.texto_con_licencia')) },
-          { key: 'niveles', label: t('cert.niveles'), render: (_v, m) => m.niveles.join(', ') || '—' },
+          { key: 'niveles', label: t('cert.niveles'), render: (_v, m) => m.niveles.map(n => etiquetaNivel(t, n)).join(', ') || '—' },
           { key: 'controles', label: t('cert.controles'), alinear: 'derecha' },
         ]} />
       {administrar && validacion && (
@@ -102,7 +103,7 @@ function FichaControl({ control: c, onClose }: { control: Control; onClose: () =
             { key: 'id_control', label: t('cert.identificador'), render: (_v, r) => (
               <div className="cert-celda"><span>{r.id_control}</span>
                 {r.id_semilla && r.id_semilla !== r.id_control && <span className="cert-apagado">{t('cert.antes', { version: r.id_semilla })}</span>}</div>) },
-            { key: 'nivel', label: t('cert.nivel'), render: (_v, r) => r.nivel || '—' },
+            { key: 'nivel', label: t('cert.nivel'), render: (_v, r) => etiquetaNivel(t, r.nivel) },
             { key: 'texto_oficial', label: t('cert.texto_oficial'), render: (_v, r) => (r.texto_oficial
               ? <span className="cert-texto">{r.texto_oficial}</span> : <span className="cert-apagado">{t('cert.sin_texto_oficial')}</span>) },
             { key: 'afectado', label: t('cert.version'), sortable: false, render: (_v, r) => (r.afectado_por_version

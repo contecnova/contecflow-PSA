@@ -28,6 +28,16 @@ export function Estado({ valor }: { valor: string | null | undefined }) {
   return <StatusBadge kind={TONO[valor] ?? 'neutral'} caps={false}>{t(`cert.estado_${valor}`)}</StatusBadge>
 }
 
+/**
+ * Nombre de un nivel de marco (`anexo_a`, `itgc`, `AL3`, `3-3`…) en el idioma de la interfaz
+ * (24-11-2026: antes salía la clave cruda). Un nivel sin etiqueta (texto libre de un
+ * certificado) se muestra tal cual.
+ */
+export function etiquetaNivel(t: (clave: string, respaldo?: string) => string, nivel: string | null | undefined): string {
+  if (!nivel) return '—'
+  return t(`cert.nivel_${nivel}`, nivel)
+}
+
 /** Descarga un objeto como JSON (paquete del auditor, copia RGPD). */
 export function descargarJson(nombre: string, datos: unknown) {
   const blob = new Blob([JSON.stringify(datos, null, 2)], { type: 'application/json' })

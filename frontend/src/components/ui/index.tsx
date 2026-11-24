@@ -25,6 +25,11 @@ export { default as Tabs, TabPanel } from './Tabs'
 export { default as Toolbar } from './Toolbar'
 export { default as SelectorDeContexto } from './SelectorDeContexto'
 export type { SelectorDeContextoProps } from './SelectorDeContexto'
+// 24-11-2026: el único enlace a Configuración desde fuera de ella (con o sin permiso) y el contador estándar.
+export { default as AvisoDeConfiguracion, usePuedeConfigurar, rutaDeConfiguracion } from './AvisoDeConfiguracion'
+export type { AvisoDeConfiguracionProps, VarianteAvisoDeConfiguracion, TonoAvisoDeConfiguracion } from './AvisoDeConfiguracion'
+export { BotonConContador, Contador, textoDeContador } from './BotonConContador'
+export type { BotonConContadorProps, ContadorProps, TonoDeContador } from './BotonConContador'
 export { default as FormField } from './FormField'
 // Design system v2 primitivos
 export { default as Page } from './Page'
@@ -410,6 +415,8 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(function Inp
     else if (ref) ref.current = nodo
   }, [ref])
   // 16-11-2026: fecha, fecha y hora u hora → el selector propio del kit (nunca el nativo).
+  // 24-11-2026: `type="month"` (AAAA-MM, con `min`/`max`) es el campo de mes del kit: el control nativo con el
+  // aspecto, la etiqueta y el alto del kit (presupuestos, cargos internos). Nunca un <input type="month"> suelto.
   const modoFecha = type === 'date' ? 'fecha' : type === 'datetime-local' ? 'fechaHora' : type === 'time' ? 'hora' : null
   if (modoFecha) {
     return (

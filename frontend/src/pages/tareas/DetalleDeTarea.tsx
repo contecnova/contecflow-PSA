@@ -35,6 +35,7 @@ import {
   type Task,
   type TaskBody,
   type TaskForm,
+  etiquetaDeCampo,
 } from './compartido'
 import { HistorialDeMovimientos, useWorkflowStatusOptions } from './TarjetasKanban'
 import CorregirAsignacion from '../../components/asignacion-ia/CorregirAsignacion'
@@ -475,34 +476,25 @@ export function TaskDetailModal({ task, open, onClose }: { task: Task | null; op
               <div className="u-grid2-12">
                 {customFields.map(f => (
                   <div key={f.id} className={(f.field_type === 'text' || f.field_type === 'url') ? 'u-col-full' : undefined}>
-                    <label id={`${idCampo}-cf-${f.id}-et`} htmlFor={`${idCampo}-cf-${f.id}`} className="uiinde-estiloetiqueta">{f.name}{f.is_required ? ' *' : ''}</label>
+                    {/* 24-11-2026 (campos al kit): la etiqueta es la prop `label` del control del kit. */}
                     {f.field_type === 'select' ? (
-                      <Select suelto placeholder={false} id={`${idCampo}-cf-${f.id}`} value={customValues[f.id] ?? ''} onChange={e => setCustomValues(v => ({ ...v, [f.id]: e.target.value }))} className="tsk-input">
+                      <Select label={etiquetaDeCampo(f)} placeholder={false} value={customValues[f.id] ?? ''} onChange={e => setCustomValues(v => ({ ...v, [f.id]: e.target.value }))}>
                         <option value="">{t('tasks.select_option')}</option>
                         {(f.options || []).map(o => <option key={o} value={o}>{o}</option>)}
                       </Select>
                     ) : f.field_type === 'boolean' ? (
-                      <div className="tsk-check-row">
-                        <Checkbox id={`${idCampo}-cf-${f.id}`} checked={customValues[f.id] === 'true'} onChange={m => setCustomValues(v => ({ ...v, [f.id]: m ? 'true' : 'false' }))} className="tsk-check tsk-check--lg" />
-                        <span className="u-text2-base">{customValues[f.id] === 'true' ? t('common.yes') : t('common.no')}</span>
-                      </div>
+                      <Checkbox label={etiquetaDeCampo(f)} checked={customValues[f.id] === 'true'} onChange={m => setCustomValues(v => ({ ...v, [f.id]: m ? 'true' : 'false' }))} />
+                    ) : f.field_type === 'date' ? (
+                      <DateInput label={etiquetaDeCampo(f)}
+                        value={String(customValues[f.id] ?? '')}
+                        onChange={e => setCustomValues(v => ({ ...v, [f.id]: e.target.value }))}
+                      />
                     ) : (
-                      f.field_type === 'date' ? (
-                        <DateInput
-                          id={`${idCampo}-cf-${f.id}`} aria-labelledby={`${idCampo}-cf-${f.id}-et`}
-                          value={String(customValues[f.id] ?? '')}
-                          onChange={e => setCustomValues(v => ({ ...v, [f.id]: e.target.value }))}
-                          className="tsk-input"
-                        />
-                      ) : (
-                        <Input
-                          id={`${idCampo}-cf-${f.id}`} aria-labelledby={`${idCampo}-cf-${f.id}-et`}
-                          type={f.field_type === 'number' ? 'number' : f.field_type === 'url' ? 'url' : 'text'}
-                          value={customValues[f.id] ?? ''}
-                          onChange={e => setCustomValues(v => ({ ...v, [f.id]: e.target.value }))}
-                          inputClassName="tsk-input"
-                        />
-                      )
+                      <Input label={etiquetaDeCampo(f)}
+                        type={f.field_type === 'number' ? 'number' : f.field_type === 'url' ? 'url' : 'text'}
+                        value={customValues[f.id] ?? ''}
+                        onChange={e => setCustomValues(v => ({ ...v, [f.id]: e.target.value }))}
+                      />
                     )}
                   </div>
                 ))}

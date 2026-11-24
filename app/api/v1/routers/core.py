@@ -61,6 +61,10 @@ router.include_router(demanda.router,         prefix="/demand",          tags=["
 # Auditoria 2026-11: habia un segundo montaje en /portal/conversations que
 # producia /portal/conversations/conversations/... y era el unico documentado.
 router.include_router(portal_conversations.router, prefix="/portal",                tags=["Portal Conversations"])
+# 24-11-2026 (migración 214): grabación con consentimiento de las llamadas con clientes
+# de los tres chats del portal (docs/portal/CHAT_DEL_PORTAL.md §11).
+from app.api.v1.endpoints import grabacion_con_clientes  # noqa: E402
+router.include_router(grabacion_con_clientes.router)
 router.include_router(service_desk.router,    prefix="/sd",              tags=["Service Desk"])
 router.include_router(sprints.router,         prefix="/sprints",         tags=["Sprints"])
 router.include_router(expenses.router,        prefix="/expenses",        tags=["Gastos"])

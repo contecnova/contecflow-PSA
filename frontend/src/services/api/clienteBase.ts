@@ -30,8 +30,27 @@ function leerCookie(nombre: string): string | null {
  * `CSRF_DOUBLE_SUBMIT=1` el portal no podía guardar nada tras entrar (ni el
  * cambio de contraseña obligatorio del primer acceso): 403 «missing csrf token».
  */
+/**
+ * Idioma de la interfaz de operador (24-11-2026, barrido de traducciones). Va en la
+ * cabecera `X-Idioma` de cada petición para que el servidor devuelva en ese idioma
+ * el contenido que traduce él (biblioteca de Certificaciones: marcos, controles,
+ * plantillas). Se lee de `localStorage` (misma clave que `AppLangContext.STORAGE_KEY`,
+ * sin importarlo para no meter el contexto de React en el cliente HTTP).
+ */
+export function idiomaDeLaInterfaz(): string {
+  try {
+    return (typeof localStorage !== 'undefined' && localStorage.getItem('contecflow_operator_lang')) || 'es'
+  } catch {
+    return 'es'
+  }
+}
+
 export function crearClienteDeApi(extra: CreateAxiosDefaults = {}): AxiosInstance {
   const instancia = axios.create({ baseURL: API_BASE_URL, timeout: TIMEOUT_API_MS, ...extra })
+  instancia.interceptors.request.use((config) => {
+    config.headers.set('X-Idioma', idiomaDeLaInterfaz())
+    return config
+  })
   if (extra.withCredentials) {
     instancia.interceptors.request.use((config) => {
       const metodo = (config.method || 'get').toUpperCase()

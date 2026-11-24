@@ -459,9 +459,72 @@ Claves de etiqueta comunes (es/en/zh): `uikit.etiqueta_proyecto`, `etiqueta_clie
 `etiqueta_unidad`. Varios campos (proyecto + sprint, proyecto + periodo con `SelectorDePeriodo` bajo una
 `<span className="uiinde-estiloetiqueta">`) caben en el mismo `SelectorDeContexto`. Los selectores dentro de un `Modal`,
 `Drawer` o `FormField` son campos de formulario, no contexto. El vigilante `selectorDeContextoAMano` cuenta los
-`Select`/`ProjectSelect`/`ClientSelect` de contexto fuera de `SelectorDeContexto`.
+`Select`/`ProjectSelect`/`ClientSelect` de contexto fuera de `SelectorDeContexto`. Un diálogo propio (`role="dialog"`,
+p. ej. la ficha flotante de una reserva) cuenta como formulario, igual que un `Modal` (24-11-2026).
+
+### 8.10 Enlaces a Configuración: `AvisoDeConfiguracion` (24-11-2026)
+
+> **Regla (decidida por el usuario el 24-11-2026): desde fuera de Configuración, a Configuración solo se llega con
+> `AvisoDeConfiguracion`.** Antes había 28 enlaces a `/settings/…` en 25 pantallas y solo unos 5 miraban el permiso:
+> quien no podía configurar pulsaba y acababa en un 403.
+
+El componente dice **qué pasa** (el estado: «Ningún proveedor de firma configurado») y:
+
+- a quien **puede** abrir la sección (la misma regla que el menú de Configuración: capacidad de la sección + bloqueo por
+  ruta, `puedeVerSeccion`), le añade el enlace «Ir a Configuración › <sección>»;
+- a quien **no puede**, le enseña el mismo aviso con «Pídeselo a tu administrador.» y **sin enlace**.
+
+```tsx
+// Aviso (caja con fondo y borde del tono): lo ve todo el mundo.
+<AvisoDeConfiguracion seccion="esign">{t('esign.sin_proveedor_configurado')}</AvisoDeConfiguracion>
+<AvisoDeConfiguracion seccion="cmdb-software" tono="peligro">{t('sw.esc_fallo', { nombre })}</AvisoDeConfiguracion>
+<AvisoDeConfiguracion seccion="proveedores" tono="info">{mensaje}</AvisoDeConfiguracion>
+// Solo el enlace, en una ayuda o una barra (sin permiso no pinta nada):
+<AvisoDeConfiguracion seccion="policies" consulta="dominio=licencias" variante="enlace" texto={t('alm_uso.ir_a_politicas')} />
+// Botón de un estado vacío o de una fila de botones (sin permiso no pinta nada):
+<AvisoDeConfiguracion seccion="git" variante="boton" texto={t('git_integration.conectar_repositorios')} />
+```
+
+- **Tonos:** `aviso` (falta configurar, por defecto), `peligro` (algo falla por la configuración), `info` (aún no hay
+  catálogo). Icono, fondo y borde salen de los tokens `--warning-*`, `--danger-*`, `--info-*`.
+- **Texto del enlace:** por defecto «Ir a Configuración › <nombre de la sección>» (`uikit.config_ir_a` + `ajustes.s_<id>`);
+  `texto` solo cuando la acción tiene nombre propio («Conectar repositorios», «Credenciales»).
+- **Tarjetas o pasos de una lista** (Ausencias → Políticas/Flujos, pasos de los ejemplos): `usePuedeConfigurar(seccion)` +
+  `rutaDeConfiguracion(seccion, consulta)`; nunca la ruta escrita a mano.
+- Dentro de un modal, `alPulsar={onClose}` lo cierra al navegar.
+- **Vigilante:** `enlaceAConfiguracionAMano` (`scripts/kit/comprobarAvisosYContadores.mjs`, sección `avisos` de
+  `kit-pendientes.json`, cupo 0): `<Link to>`, `navigate()`, `href` o `to:` a `/settings/…` o a una ruta antigua de
+  Configuración fuera de Configuración, del menú, del buscador y de las rutas. No cuentan las redirecciones
+  (`<Navigate … replace />`).
+
+### 8.11 Contadores de pendientes: `BotonConContador` y `Contador` (24-11-2026)
+
+> **Regla (pedida por el usuario con captura el 24-11-2026): un contador de pendientes es siempre el de la bandeja.**
+> Antes la bandeja (sobre) se ponía del color de aviso con el número AL LADO, y la campana y el chat llevaban una
+> pelotita roja con el número ENCIMA sin cambiar de color.
+
+- **`BotonConContador`** — botones de barra con pendientes (campana de avisos del operador y del portal, bandeja, chat):
+  32 px (`--alto-control-sm`; 34 px en la barra superior en móvil), radio `--radius-sm`. Sin pendientes: neutro
+  (`--surface-3`, borde `--surface-4`, icono `--text-2`). Con pendientes: **el botón entero toma el tono** (fondo, borde e
+  icono) y **el número va al lado del icono** («99+» desde 100). Abierto o activo: acento. El nombre accesible lleva el
+  número (`ariaLabel`: «Bandeja de entrada: 3 pendientes»); el número visible es `aria-hidden`.
+
+  ```tsx
+  <BotonConContador to="/inbox" icono={<Inbox aria-hidden />} contador={total}
+    tono={alertas > 0 ? 'peligro' : 'aviso'} ariaLabel={t('layoutshell.bandeja_pendientes', { n: total })} />
+  ```
+
+- **`Contador`** — la misma cifra como pastilla en menús y listas (menú lateral del operador y del portal, lista y raíl
+  del chat, panel flotante del chat). `punto` es la marca sin número del menú plegado; la clase propia solo lo coloca.
+- **Tonos:** `peligro` = alertas; `aviso` = pendientes de hacer (bandeja, aprobaciones, avisos sin leer, pendientes del
+  portal); `acento` = mensajes sin leer del chat.
+- **Vigilante:** `contadorAMano` (literal «99+» fuera del kit, cupo 0).
 
 ## 9. Formularios
+
+> **Mes (24-11-2026):** `<Input label=… type="month" />` es el campo de mes del kit (AAAA-MM, `min`/`max`); nunca
+> `<input type="month">` suelto (lo marca `contec/sin-input-nativo`). Los campos personalizados de las tareas también
+> van con la prop `label` (`etiquetaDeCampo(f)` añade el «*» de obligatorio; el booleano es `Checkbox label`).
 
 > **Regla (24-11-2026): los campos con etiqueta siempre con la prop del componente del kit; nunca `<label>` + control sueltos.**
 > `<Select label=… />`, `<Input label=… />`, `<Textarea label=… />`, `<CampoFecha label=… />` / `<DateInput label=… />`,
@@ -580,6 +643,47 @@ campos con icono y filas de filtros».
   `d.toLocaleDateString(localeActivo(), { month: 'short' })`. Con el `lang` del
   hook, `localeActivo(lang)`. Un idioma guardado que `Intl` no reconoce cae a
   castellano en vez de romper la pantalla.
+
+### 10.1 Todo traducido: la regla y su vigilante (24-11-2026)
+
+**Regla.** Todo lo que lee el usuario sale de `t()` con su clave en es/en/zh (y,
+si es del portal de clientes, en sus 8 idiomas: `src/i18n/portal/*.ts`). En
+inglés y chino **no vale copiar el castellano**; sólo se repite un texto si es un
+nombre propio, una sigla, una marca o un código. Tampoco vale un literal en
+castellano fuera del JSX que acabe en pantalla: `label: 'Pendiente'`,
+`toast.error('No se pudo…')`, `confirm('¿Seguro…?')`, `{x ? 'Sí' : 'No'}`. El
+respaldo de `t('mod.clave', respaldo)` no cuenta como traducción: si la clave no
+existe, el inglés ve el respaldo en castellano.
+
+**Contenido que viene del servidor.** Lo que siembra el servidor (catálogos,
+plantillas, preguntas por defecto) o se traduce en el cliente por clave
+(`catalogos.*`, `cert.nivel_*`, `alerts.alert_type_*`…), o el servidor lo
+devuelve en el idioma de la interfaz: el cliente manda la cabecera `X-Idioma`
+en cada petición (`services/api/clienteBase.ts::idiomaDeLaInterfaz`) y, por
+ejemplo, la biblioteca de Certificaciones se traduce con un catálogo
+(`app/data/certificaciones/i18n/*.yaml`, docs/CERTIFICACIONES_CONTENIDO.md §9).
+Lo que el servidor escribe y guarda (avisos, tareas generadas, preguntas
+sembradas) se escribe en el idioma del destinatario o de la empresa con
+`textos_de_salida.texto(clave, idioma)`. Una clave del modelo (`anexo_a`,
+`itgc`, `responsable_cumplimiento`) nunca se pinta cruda.
+
+**Vigilante.** `node scripts/check_i18n_traducido.mjs` (`npm run
+check:i18n:traducido`, puerta de `scripts/ci_local.sh`) falla si aparece algo
+nuevo de esto:
+
+| Mide | Ejemplo |
+|---|---|
+| valores de en/zh (operador) o de los 7 idiomas del portal iguales al castellano | `en.cert.nivel_ley: "ley"` |
+| claves que faltan o sobran en un idioma del portal | `portal.pt:dem_titulo` |
+| literales en castellano fuera de `t()` (JSX, atributos, `label:`/`title:`/`placeholder:`…, toasts, `confirm`, `new Error`, plantillas) | `label: 'Críticas'` |
+| claves pedidas a `t()` que no existen ni en el operador ni en el portal | `t('layoutshell.x')` |
+
+Es un trinquete con lista blanca (`scripts/i18n_traducido_baseline.json`): lo
+de hoy que es legítimo (siglas, marcas, nombres, respaldos de claves que sí
+existen) está apuntado; si algo de la lista se resuelve, `--actualizar` la
+encoge. `--detalle` dice fichero y línea. El contenido del servidor lo vigila
+`tests/test_certificaciones_traduccion_2026_11.py` (catálogo y documentos de
+Certificaciones completos en en/zh, sin copias).
 
 ---
 

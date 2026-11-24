@@ -26,9 +26,6 @@ ul.sw-incumplimientos { list-style: none; display: flex; flex-direction: column;
 .sw-aviso-config > svg { flex: none; margin-top: 2px; }
 .sw-aviso-config--warning { background: var(--warning-bg); border: 1px solid var(--warning-border); }
 .sw-aviso-config--warning > svg { color: var(--warning); }
-.sw-aviso-config--danger { background: var(--danger-bg); border: 1px solid var(--danger-border); }
-.sw-aviso-config--danger > svg { color: var(--danger); }
-.sw-aviso-config__enlace { color: var(--accent); font-weight: var(--font-semibold); white-space: nowrap; }
 .sw-campo-ancho { grid-column: 1 / -1; }
 .sw-version-desconocida { font-style: italic; color: var(--text-3); }
 

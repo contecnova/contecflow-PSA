@@ -1,0 +1,1233 @@
+# Traducción al chino simplificado del contenido de la biblioteca de Certificaciones (24-11-2026).
+# Formato: catálogo por texto de origen (como gettext): «texto en castellano»: «traducción».
+# Cubre nombre/version/descripcion de marcos.yaml; titulo/descripcion/evidencia_sugerida de
+# controles.yaml; nombre de plantillas, fases, tareas y documentos, entregables y riesgos
+# (titulo/mitigacion) de plantillas/*.yaml. Lo que falte se muestra en castellano (respaldo) y
+# tests/test_certificaciones_traduccion_2026_11.py falla. Ver docs/CERTIFICACIONES_CONTENIDO.md §9.
+ISO/IEC 27001:2022: ISO/IEC 27001:2022
+2022 (incluye la modificación 1:2024): 2022（含 2024 年第 1 号修订）
+'Sistema de gestión de seguridad de la información certificable: cláusulas 4 a 10 y los 93 controles del Anexo A.': 可认证的信息安全管理体系：第 4 至 10 条款及附录 A 的 93 项控制措施。
+TISAX (catálogo VDA ISA): TISAX（VDA ISA 目录）
+ISA 6: ISA 6
+? Evaluación de seguridad de la información del sector de automoción (ENX). AL2 y AL3 evalúan los mismos requisitos de seguridad de la información con distinta profundidad; el módulo de prototipos exige AL3.
+: 汽车行业信息安全评估（ENX）。AL2 和 AL3 评估相同的信息安全要求，但深度不同；原型件模块要求达到 AL3。
+NIS2 — Directiva (UE) 2022/2555: NIS2 — 指令 (EU) 2022/2555
+2022/2555: 2022/2555
+? 'Directiva de ciberseguridad de la UE para entidades esenciales e importantes. No es certificable: se demuestra ante la autoridad.'
+: 适用于关键实体和重要实体的欧盟网络安全指令。不可认证：需向主管机构证明合规。
+Ley Sarbanes-Oxley (SOX): 萨班斯-奥克斯利法案（SOX）
+2002 (secciones 302, 404, 802 y 906): 2002 年（第 302、404、802 和 906 条）
+? Control interno sobre la información financiera de sociedades cotizadas en EE. UU. Los códigos ITGC/FC/ELC/ITAC son un catálogo de referencia propio; los de sección son de la ley.
+: 美国上市公司财务报告内部控制。ITGC/FC/ELC/ITAC 编码为自有参考目录；条款编码来自法案。
+J-SOX (Ley de Instrumentos Financieros y Mercados de Japón): J-SOX（日本金融商品交易法）
+Normas de evaluación y auditoría revisadas en 2023 (vigentes desde el ejercicio 2024): 2023 年修订的评价与审计准则（自 2024 财年起生效）
+? Régimen japonés de informe y auditoría del control interno sobre la información financiera. Los códigos FIEA son artículos de la ley; el resto, catálogo de referencia propio.
+: 日本针对财务报告内部控制的报告与审计制度。FIEA 编码为法律条文；其余为自有参考目录。
+ISA/IEC 62443: ISA/IEC 62443
+2-1:2024, 3-2:2020, 3-3:2013, 4-1:2018, 4-2:2019: 2-1:2024、3-2:2020、3-3:2013、4-1:2018、4-2:2019
+? Ciberseguridad de sistemas de automatización y control industrial. Cada parte es un nivel; el nivel de seguridad objetivo (SL-T) se fija por zona en el programa.
+: 工业自动化和控制系统的网络安全。每个部分对应一个层级；目标安全等级（SL-T）在方案中按区域设定。
+Programa de seguridad del propietario del activo: 资产所有者安全方案
+Evaluación de riesgos y diseño de zonas y conductos: 风险评估及区域与管道设计
+Requisitos de seguridad del sistema y niveles de seguridad: 系统安全要求与安全等级
+Ciclo de vida de desarrollo seguro del producto: 产品安全开发生命周期
+Requisitos técnicos de seguridad de componentes: 组件技术安全要求
+Contexto de la organización y partes interesadas: 组织所处环境与相关方
+? Se identifican las cuestiones internas y externas y las expectativas de las partes interesadas que condicionan la seguridad, y se revisan al menos una vez al año.
+: 识别影响安全的内部和外部问题以及相关方的期望，并至少每年评审一次。
+Análisis de contexto aprobado: 已批准的环境分析
+Registro de partes interesadas y requisitos: 相关方及要求登记册
+Alcance del sistema de gestión: 管理体系范围
+? El alcance (entidades, sedes, procesos, sistemas, plantas OT y servicios) está definido, justificado y aprobado, con sus exclusiones motivadas.
+: 范围（实体、场所、流程、系统、OT 工厂和服务）已界定、论证并获批准，排除项均有正当理由。
+Documento de alcance aprobado: 已批准的范围文件
+Mapa de sedes y entidades incluidas: 纳入范围的场所与实体地图
+Objetivos de seguridad medibles: 可衡量的安全目标
+? Hay objetivos de seguridad medibles, con responsable, plazo y recursos, alineados con la política y revisados periódicamente.
+: 设有可衡量的安全目标，明确责任人、期限和资源，与政策保持一致并定期评审。
+Cuadro de objetivos e indicadores: 目标与指标表
+Actas de seguimiento: 跟进会议纪要
+Recursos y competencia del personal clave: 资源与关键人员能力
+? Se asignan recursos suficientes y se asegura y documenta la competencia de quienes tienen funciones de seguridad o desarrollo seguro.
+: 分配充足的资源，并确保且记录承担安全或安全开发职责人员的能力。
+Matriz de competencias: 能力矩阵
+Certificados y planes de formación: 证书与培训计划
+Control de la información documentada: 成文信息控制
+Las políticas, procedimientos y registros se crean, aprueban, versionan, distribuyen y conservan con un flujo controlado.: 政策、程序和记录通过受控流程创建、批准、版本管理、分发和保存。
+Listado maestro de documentos: 文件主清单
+Historial de versiones y aprobaciones: 版本与批准历史
+Seguimiento, medición y eficacia de las medidas: 监视、测量与措施有效性
+Se define qué se mide, cómo y cuándo, y se analizan los resultados para evaluar la eficacia de las medidas de seguridad.: 规定测量对象、方法和时间，并分析结果以评价安全措施的有效性。
+Cuadro de mando de indicadores: 指标仪表板
+Informe periódico de eficacia: 定期有效性报告
+Programa de auditoría interna: 内部审核方案
+? Se planifica y ejecuta un programa de auditorías internas independientes que cubre todo el alcance y los requisitos de cada norma.
+: 策划并实施独立的内部审核方案，覆盖全部范围及各标准的要求。
+Programa anual de auditoría: 年度审核方案
+Informes de auditoría interna: 内部审核报告
+Revisión por la dirección: 管理评审
+? La dirección revisa a intervalos planificados el desempeño del sistema, los riesgos, los hallazgos y las oportunidades de mejora, y deja constancia de sus decisiones.
+: 管理层按策划的时间间隔评审体系绩效、风险、发现项和改进机会，并记录其决定。
+Acta de revisión por la dirección: 管理评审会议纪要
+Plan de acciones derivado: 由此产生的行动计划
+No conformidades y acciones correctivas: 不符合项与纠正措施
+? Cada no conformidad se registra, se analiza su causa, se corrige con plan y responsable y se verifica la eficacia antes del cierre.
+: 每项不符合项均予记录、分析原因，并通过带有计划和责任人的措施予以纠正，关闭前验证有效性。
+Registro de hallazgos y CAPA: 发现项与 CAPA 登记册
+Verificaciones de eficacia: 有效性验证
+Mejora continua: 持续改进
+? Se identifican y priorizan mejoras del sistema de gestión y del proceso de desarrollo a partir de indicadores, auditorías e incidentes.
+: 基于指标、审核和事件，识别并确定管理体系和开发过程改进事项的优先级。
+Registro de mejoras: 改进登记册
+Lecciones aprendidas incorporadas: 已纳入的经验教训
+Política de seguridad y políticas temáticas: 安全政策与专题政策
+? La dirección aprueba una política de seguridad y las políticas temáticas necesarias, las comunica y las revisa cuando hay cambios relevantes.
+: 管理层批准安全政策及必要的专题政策，予以传达，并在发生相关变化时进行评审。
+Política aprobada y firmada: 已批准并签署的政策
+Evidencia de comunicación: 传达证据
+Funciones y responsabilidades de seguridad: 安全角色与职责
+? Las funciones de seguridad están definidas y asignadas, incluido un responsable de seguridad con autoridad y acceso a la dirección.
+: 已界定并分配安全角色，包括拥有权限并可直接接触管理层的安全负责人。
+Organigrama de seguridad: 安全组织架构图
+Nombramientos firmados: 已签署的任命书
+Segregación de funciones: 职责分离
+? Las funciones incompatibles se separan o, si no es posible, se compensan con controles de supervisión; los conflictos se detectan y se revisan.
+: 不相容职责予以分离，无法分离时通过监督性控制措施补偿；冲突应被识别并评审。
+Matriz de incompatibilidades (SoD): 不相容职责矩阵（SoD）
+Informe de conflictos y compensaciones: 冲突与补偿情况报告
+Compromiso y responsabilidad de la dirección: 管理层承诺与责任
+? La dirección aprueba las medidas de gestión de riesgos, supervisa su aplicación y responde de su cumplimiento; exige a todo el personal que aplique las políticas.
+: 管理层批准风险管理措施，监督其实施并对合规负责；要求全体人员执行相关政策。
+Acta de aprobación de medidas por el órgano de dirección: 管理机构批准措施的会议纪要
+Informes de supervisión periódicos: 定期监督报告
+Formación en ciberseguridad del órgano de dirección: 管理机构网络安全培训
+? Los miembros del órgano de dirección reciben formación periódica para identificar riesgos y valorar las prácticas de gestión de ciberseguridad.
+: 管理机构成员定期接受培训，以识别风险并评估网络安全管理实践。
+Registro de asistencia de la dirección: 管理层出席记录
+Contenido de la formación: 培训内容
+Relación con autoridades: 与主管机构的联系
+Se mantienen los contactos con autoridades competentes, CSIRT y fuerzas de seguridad, con quién comunica qué y cuándo.: 与主管机构、CSIRT 和执法部门保持联系，明确由谁在何时沟通何事。
+Directorio de autoridades y CSIRT: 主管机构与 CSIRT 通讯录
+Registro de comunicaciones: 沟通记录
+Relación con grupos especializados: 与专业团体的联系
+La organización participa en foros, asociaciones sectoriales y redes de intercambio de información de seguridad.: 组织参与论坛、行业协会和安全信息共享网络。
+Membresías y suscripciones: 会员资格与订阅
+Boletines recibidos: 收到的通报
+Inteligencia de amenazas: 威胁情报
+Se recoge y analiza información sobre amenazas relevantes para el sector y los activos, y se usa para ajustar controles.: 收集并分析与行业和资产相关的威胁信息，用于调整控制措施。
+Informes de inteligencia: 情报报告
+Acciones derivadas: 由此产生的行动
+Seguridad en la gestión de proyectos: 项目管理中的安全
+Todo proyecto evalúa sus riesgos de seguridad desde el inicio e incorpora los requisitos de seguridad en su plan.: 每个项目从启动时即评估其安全风险，并将安全要求纳入项目计划。
+Plantilla de proyecto con apartado de seguridad: 含安全章节的项目模板
+Evaluaciones de riesgo de proyectos: 项目风险评估
+Evaluación de riesgos de seguridad: 安全风险评估
+? Se aplica una metodología repetible para identificar, analizar y valorar los riesgos de seguridad, con propietarios y criterios de aceptación aprobados.
+: 采用可重复的方法来识别、分析和评价安全风险，并明确风险责任人和经批准的接受准则。
+Metodología de riesgos aprobada: 已批准的风险方法论
+Registro de riesgos actualizado: 更新后的风险登记册
+Tratamiento de riesgos y declaración de aplicabilidad: 风险处置与适用性声明
+? Se eligen las opciones de tratamiento, se comparan con la biblioteca de controles y se justifica en la declaración de aplicabilidad qué aplica y qué no.
+: 选择风险处置方案并与控制措施库比对，在适用性声明中说明哪些适用、哪些不适用及其理由。
+Plan de tratamiento aprobado: 已批准的处置计划
+Declaración de aplicabilidad firmada: 已签署的适用性声明
+Planificación operacional y de cambios en el sistema: 运行策划与体系变更
+Los procesos del sistema de gestión y sus cambios se planifican y controlan, incluidos los subcontratados.: 管理体系的过程及其变更均经策划和控制，包括外包过程。
+Plan operativo anual: 年度运行计划
+Registro de cambios del sistema de gestión: 管理体系变更记录
+Comunicación interna y externa sobre seguridad: 安全相关的内部与外部沟通
+Se define qué se comunica sobre seguridad, a quién, cuándo y por qué canal.: 规定就安全沟通的内容、对象、时间和渠道。
+Plan de comunicación: 沟通计划
+'Alcance de la evaluación: cuentas, procesos y sistemas significativos': 评价范围：重要账户、流程和系统
+? Se determinan con criterios cuantitativos y cualitativos las entidades, cuentas, procesos y aplicaciones dentro del alcance de la evaluación del control interno.
+: 采用定量和定性标准，确定纳入内部控制评价范围的实体、账户、流程和应用系统。
+Análisis de materialidad y alcance: 重要性与范围分析
+Listado de procesos y aplicaciones en alcance: 范围内的流程与应用系统清单
+Inventario de activos de información: 信息资产清单
+Existe un inventario actualizado de información, sistemas, componentes OT y servicios, con propietario y criticidad.: 存在最新的信息、系统、OT 组件和服务清单，并注明责任人和关键程度。
+Extracto de la CMDB: CMDB 导出数据
+Revisión periódica del inventario: 清单定期复核
+Uso aceptable de la información y los activos: 信息和资产的可接受使用
+Las normas de uso de la información y los activos están escritas, se comunican y se aceptan expresamente.: 信息和资产使用规则已成文、传达，并获明确接受。
+Normas de uso aceptadas: 已接受的使用规则
+Registro de aceptación: 接受记录
+Devolución de activos: 资产归还
+Al terminar la relación laboral o contractual se recuperan todos los activos y la información entregados.: 雇佣或合同关系终止时，收回所有已交付的资产和信息。
+Lista de comprobación de salida: 离职检查清单
+Acta de devolución: 归还记录
+Clasificación de la información: 信息分类
+? La información se clasifica por confidencialidad, integridad y disponibilidad según un esquema único y se protege conforme a su clase.
+: 信息依据单一分类方案按保密性、完整性和可用性分级，并按级别予以保护。
+Esquema de clasificación: 分类方案
+Inventario con clasificación asignada: 已标注分类的清单
+Etiquetado de la información: 信息标识
+La información clasificada se marca de forma visible o en sus metadatos según el esquema aprobado.: 已分类的信息按批准的方案以可见方式或在元数据中标识。
+Procedimiento de etiquetado: 标识程序
+Muestras de documentos etiquetados: 已标识文件样本
+Intercambio de información: 信息传输
+Las transferencias de información dentro y fuera de la organización siguen normas y acuerdos que protegen su clase.: 组织内外的信息传输遵循保护其级别的规则和协议。
+Normas de transferencia: 传输规则
+Acuerdos de intercambio firmados: 已签署的传输协议
+Uso seguro de servicios en la nube y externos: 云服务与外部服务的安全使用
+? Los servicios de TI externos y en la nube se evalúan, aprueban, gestionan y abandonan según criterios de seguridad definidos.
+: 按既定安全准则对外部 IT 服务和云服务进行评估、批准、管理和退出。
+Registro de servicios externos aprobados: 已批准外部服务登记册
+Evaluaciones de seguridad del servicio: 服务安全评估
+Software autorizado en sistemas operativos: 操作系统上的授权软件
+Solo se instala software evaluado y aprobado, mediante un proceso controlado y con inventario.: 仅安装经评估和批准的软件，通过受控流程并建立清单。
+Lista de software autorizado: 授权软件清单
+Registro de instalaciones: 安装记录
+Política de control de acceso: 访问控制政策
+El acceso a la información y los sistemas se concede por necesidad de conocer y mínimo privilegio, según reglas escritas.: 依据书面规则，按需知和最小权限原则授予对信息和系统的访问权限。
+Modelo de roles: 角色模型
+Ciclo de vida de identidades: 身份生命周期
+? Cada identidad es única, tiene responsable y se gestiona desde el alta hasta la baja; las cuentas compartidas son excepción justificada.
+: 每个身份唯一且有责任人，并从创建到注销全程管理；共享账户属于有正当理由的例外。
+Procedimiento de identidades: 身份管理程序
+Listado de cuentas con responsable: 含责任人的账户清单
+Gestión de credenciales y contraseñas: 凭据与密码管理
+Las credenciales se entregan de forma segura y cumplen una política de calidad, renovación y protección.: 凭据以安全方式交付，并符合关于强度、更新和保护的政策。
+Política de contraseñas configurada: 已配置的密码策略
+Informe de cumplimiento de la política: 政策合规报告
+Alta y modificación de accesos con aprobación: 经批准的访问权限开通与变更
+Los accesos se conceden o cambian solo con solicitud y aprobación del propietario, dejando constancia.: 仅在提出申请并经所有者批准后授予或变更访问权限，并予以记录。
+Solicitudes aprobadas: 已批准的申请
+Muestra de altas cotejada con aprobaciones: 开通样本与批准记录核对
+Retirada oportuna de accesos: 及时撤销访问权限
+Los accesos se retiran en plazo definido tras una baja o cambio de puesto, y se comprueba que no quedan cuentas activas.: 人员离职或岗位变动后在规定期限内撤销访问权限，并核查不存在遗留的有效账户。
+Informe de bajas frente a cuentas activas: 离职人员与有效账户对比报告
+Plazos de retirada medidos: 已测量的撤销时限
+Recertificación periódica de accesos: 定期访问权限复核
+Los propietarios revisan periódicamente quién tiene acceso a qué y se corrigen las desviaciones detectadas.: 所有者定期复核谁拥有哪些访问权限，并纠正发现的偏差。
+Campañas de recertificación cerradas: 已关闭的复核活动
+Correcciones aplicadas: 已实施的纠正
+Accesos privilegiados: 特权访问
+Los privilegios elevados se limitan, se conceden de forma temporal y justificada y su uso queda registrado y revisado.: 提升的权限受到限制，仅临时授予并有正当理由，其使用情况予以记录和复核。
+Inventario de cuentas privilegiadas: 特权账户清单
+Revisión del registro de actividad privilegiada: 特权活动日志复核
+Autorización y restricción del acceso: 访问授权与限制
+Los sistemas aplican las autorizaciones definidas a cada usuario, proceso o dispositivo y bloquean lo no autorizado.: 系统对每个用户、进程或设备执行既定授权，并阻止未经授权的访问。
+Configuración de permisos: 权限配置
+Pruebas de autorización: 授权测试
+Acceso directo a datos y bases de datos financieras: 对数据及财务数据库的直接访问
+El acceso directo a bases de datos y tablas con información financiera se restringe a perfiles autorizados y se supervisa.: 对存放财务信息的数据库和数据表的直接访问仅限于授权人员，并受到监控。
+Listado de accesos directos: 直接访问清单
+Revisión del registro de consultas y cambios: 查询与变更日志复核
+Cuentas de servicio, genéricas y de dispositivos: 服务账户、通用账户和设备账户
+? Los procesos de software y los dispositivos se identifican y autentican; las cuentas de servicio y genéricas tienen responsable y uso restringido.
+: 软件进程和设备均经识别和认证；服务账户和通用账户有责任人且使用受限。
+Inventario de cuentas de servicio: 服务账户清单
+Rotación de secretos documentada: 已记录的密钥轮换
+Autenticación robusta y multifactor: 强认证与多因素认证
+? La autenticación es proporcional al riesgo, con multifactor para accesos remotos y privilegiados, bloqueo tras intentos fallidos y sin revelar información en el proceso.
+: 认证强度与风险相称，远程访问和特权访问采用多因素认证，多次失败后锁定，且过程中不泄露信息。
+Informe de cobertura MFA: MFA 覆盖率报告
+Configuración de bloqueo: 锁定配置
+Control de sesiones: 会话控制
+? Las sesiones se bloquean por inactividad, pueden terminarse en remoto y se limita la concurrencia cuando el riesgo lo exige.
+: 会话在闲置后锁定，可远程终止，并在风险需要时限制并发会话。
+Configuración de sesiones: 会话配置
+Prueba de bloqueo y cierre: 锁定与注销测试
+Aviso de uso del sistema: 系统使用通知
+Antes de acceder, el sistema muestra un aviso configurable sobre su uso autorizado.: 访问之前，系统显示关于授权使用的可配置通知。
+Captura del aviso de acceso: 访问通知截图
+Acceso desde redes no confiables: 来自不可信网络的访问
+? El acceso desde redes no confiables (incluido el remoto a planta) se controla, se autentica con fuerza y se aprueba explícitamente.
+: 来自不可信网络的访问（包括对工厂的远程访问）受到控制、采用强认证并经明确批准。
+Arquitectura de acceso remoto: 远程访问架构
+Registro de sesiones remotas aprobadas: 已批准远程会话记录
+Control del acceso inalámbrico: 无线访问控制
+Las redes inalámbricas se autorizan, autentican y supervisan, y su uso se restringe según la zona.: 无线网络经授权、认证和监控，并按区域限制其使用。
+Inventario de redes inalámbricas: 无线网络清单
+Configuración de autenticación: 认证配置
+Certificados y autenticación por clave pública: 证书与公钥认证
+? Los certificados y claves públicas se emiten, validan, renuevan y revocan de forma controlada; la autenticación por clave tiene fuerza suficiente.
+: 证书和公钥的签发、验证、更新和吊销均受控；基于密钥的认证具有足够强度。
+Inventario de certificados: 证书清单
+Procedimiento de renovación y revocación: 更新与吊销程序
+No repudio de acciones: 行为不可否认性
+Las acciones relevantes quedan atribuidas de forma inequívoca a quien las realizó.: 相关行为可明确归属于执行者。
+Registro de auditoría con usuario: 含用户信息的审计日志
+Firma de aprobaciones: 批准签署
+Acceso al código fuente: 源代码访问
+El código fuente, las herramientas y las bibliotecas de desarrollo tienen acceso restringido y registrado.: 源代码、工具和开发库的访问受到限制并有记录。
+Permisos del repositorio: 代码库权限
+Revisión de accesos al repositorio: 代码库访问权限复核
+Seguridad en la relación con proveedores: 供应商关系中的安全
+? Se identifican los proveedores con impacto en la seguridad, se evalúan antes de contratarlos y se gestionan sus riesgos durante toda la relación.
+: 识别对安全有影响的供应商，在签约前进行评估，并在整个合作期间管理其风险。
+Registro de proveedores con criticidad: 含关键程度的供应商登记册
+Evaluaciones de seguridad: 安全评估
+Requisitos de seguridad en contratos: 合同中的安全要求
+? Los contratos con proveedores incluyen requisitos de seguridad, confidencialidad, notificación de incidentes, auditoría y salida.
+: 供应商合同包含安全、保密、事件通报、审计和退出方面的要求。
+Cláusulas tipo de seguridad: 标准安全条款
+Contratos firmados con anexo de seguridad: 含安全附件的已签署合同
+Seguridad de la cadena de suministro TIC: ICT 供应链安全
+? Se valoran las vulnerabilidades y prácticas de desarrollo de cada proveedor directo y de los componentes de terceros incorporados.
+: 评估每个直接供应商及所集成第三方组件的漏洞和开发实践。
+Evaluación de proveedores TIC críticos: 关键 ICT 供应商评估
+Análisis de componentes de terceros: 第三方组件分析
+Seguimiento de servicios de proveedores e informes de aseguramiento: 供应商服务监督与鉴证报告
+? El servicio de los proveedores se supervisa, se revisan sus informes de aseguramiento (SOC 1/SOC 2, etiquetas TISAX) y se gestionan sus cambios.
+: 监督供应商的服务，评审其鉴证报告（SOC 1/SOC 2、TISAX 标签），并管理其变更。
+Revisiones periódicas de proveedores: 供应商定期评审
+Informes SOC revisados con controles complementarios: 已评审的 SOC 报告及互补性控制措施
+Desarrollo externalizado: 外包开发
+El desarrollo encargado a terceros se dirige, supervisa y verifica con los mismos requisitos de seguridad que el propio.: 委托第三方开展的开发按与自有开发相同的安全要求进行指导、监督和验证。
+Requisitos de seguridad en el encargo: 委托中的安全要求
+Revisiones de entregas del tercero: 第三方交付物评审
+Preparación para la gestión de incidentes: 事件管理准备
+Hay un proceso de gestión de incidentes con funciones, canales, clasificación y escalado, probado periódicamente.: 建立事件管理流程，包含角色、渠道、分级和升级机制，并定期测试。
+Procedimiento de incidentes: 事件处理程序
+Informe de simulacro: 演练报告
+Evaluación y clasificación de eventos: 事件评估与分级
+? Los eventos se evalúan con criterios definidos para decidir si son incidentes y si son significativos a efectos regulatorios.
+: 依据既定准则评估事件，以判定其是否构成安全事件以及对监管而言是否重大。
+Criterios de clasificación: 分级准则
+Registro de decisiones de clasificación: 分级决定记录
+Respuesta a incidentes: 事件响应
+Los incidentes se contienen, erradican y recuperan según procedimientos, con coordinación de las partes implicadas.: 依据程序对事件进行遏制、根除和恢复，并协调相关方。
+Tickets de incidentes con cronología: 含时间线的事件工单
+Informes de cierre: 关闭报告
+Aprendizaje de los incidentes: 从事件中学习
+Tras cada incidente relevante se analizan causas y se incorporan mejoras a controles y procedimientos.: 每次相关事件发生后分析原因，并将改进纳入控制措施和程序。
+Informes post-incidente: 事件后报告
+Acciones de mejora derivadas: 由此产生的改进措施
+Recogida y custodia de evidencias: 证据收集与保管
+Las evidencias de incidentes se recogen y custodian de forma que conserven su valor probatorio.: 事件证据的收集和保管方式应保持其证据价值。
+Procedimiento forense: 取证程序
+Registros de cadena de custodia: 证据链记录
+Comunicación de eventos por el personal: 人员报告事件
+Cualquier persona puede comunicar sin demora eventos de seguridad por canales conocidos y sencillos.: 任何人均可通过众所周知且简便的渠道及时报告安全事件。
+Canal de comunicación publicado: 已发布的报告渠道
+Estadística de comunicaciones recibidas: 收到报告的统计
+Notificación de incidentes significativos: 重大事件通报
+? Los incidentes con impacto significativo en los servicios se notifican sin demora indebida al CSIRT o a la autoridad competente, siguiendo un flujo con responsables.
+: 对服务有重大影响的事件，按照明确责任人的流程，不得无故延迟地通报 CSIRT 或主管机构。
+Flujo de notificación aprobado: 已批准的通报流程
+Registro de notificaciones enviadas: 已发送通报记录
+Alerta temprana en 24 horas: 24 小时内早期预警
+? En las 24 horas siguientes a tener conocimiento de un incidente significativo se envía una alerta temprana indicando si se sospecha de un acto ilícito o de efecto transfronterizo.
+: 在获悉重大事件后 24 小时内发送早期预警，说明是否怀疑存在非法行为或跨境影响。
+Alertas tempranas con sello de tiempo: 带时间戳的早期预警
+Medición del plazo: 时限测量
+Notificación del incidente en 72 horas: 72 小时内事件通报
+? En las 72 horas siguientes se actualiza la alerta con una evaluación inicial de gravedad, impacto e indicadores de compromiso.
+: 72 小时内更新早期预警，补充对严重程度、影响和入侵指标的初步评估。
+Notificaciones a 72 h: 72 小时通报
+Informe intermedio a petición: 应请求提交的中期报告
+Si la autoridad lo solicita, se remite un informe intermedio con la evolución del incidente.: 如主管机构提出要求，则提交说明事件进展的中期报告。
+Informes intermedios remitidos: 已提交的中期报告
+Informe final en un mes: 一个月内提交最终报告
+? En el mes siguiente a la notificación se remite un informe final con descripción, causa, medidas y efecto transfronterizo, o un informe de situación si el incidente sigue en curso.
+: 通报后一个月内提交最终报告，包括描述、原因、措施和跨境影响；如事件仍在持续，则提交进展报告。
+Informes finales y de situación: 最终报告与进展报告
+Comunicación a los destinatarios del servicio: 向服务接收方通报
+? Cuando procede, se informa a los destinatarios afectados del incidente o de una amenaza significativa y de las medidas que pueden adoptar.
+: 在适当情况下，告知受影响的接收方有关事件或重大威胁及其可采取的措施。
+Comunicaciones a clientes: 向客户的通报
+Criterios de comunicación: 通报准则
+Clasificación y registro como entidad NIS2: NIS2 实体分类与登记
+? Se determina si la organización es entidad esencial o importante en cada Estado miembro y se facilita la información de registro a la autoridad.
+: 确定组织在各成员国是否为关键实体或重要实体，并向主管机构提供登记信息。
+Análisis de clasificación por país: 按国家的分类分析
+Justificante de registro: 登记证明
+Comunicaciones seguras y de emergencia: 安全通信与应急通信
+Se usan comunicaciones de voz, vídeo y texto seguras y existe un sistema de comunicación de emergencia para crisis.: 使用安全的语音、视频和文本通信，并设有用于危机的应急通信系统。
+Herramientas aprobadas: 已批准的工具
+Prueba del canal de emergencia: 应急渠道测试
+Seguridad durante una interrupción: 中断期间的安全
+Los planes de continuidad mantienen el nivel de seguridad necesario también durante una crisis o interrupción.: 业务连续性计划在危机或中断期间同样维持必要的安全水平。
+Planes con requisitos de seguridad: 含安全要求的计划
+Informe de ejercicio: 演练报告
+Gestión de crisis: 危机管理
+? Existe un comité y un plan de crisis con funciones, comunicación y criterios de activación, probado al menos una vez al año.
+: 设有危机委员会和危机计划，明确角色、沟通和启动准则，并至少每年测试一次。
+Plan de crisis: 危机计划
+Informe del ejercicio de crisis: 危机演练报告
+Continuidad y recuperación de TI y OT: IT 与 OT 业务连续性和恢复
+? La disponibilidad de la TI y de los sistemas de control se planifica, implanta y prueba según los objetivos de recuperación del negocio.
+: 按照业务恢复目标策划、实施并测试 IT 和控制系统的可用性。
+Análisis de impacto (BIA): 业务影响分析（BIA）
+Pruebas de recuperación con RTO/RPO medidos: 含实测 RTO/RPO 的恢复测试
+Copias de seguridad y restauración: 备份与恢复
+Se hacen copias de información, software y configuraciones según una política, se protegen y se prueba su restauración.: 依据政策对信息、软件和配置进行备份并加以保护，且测试恢复能力。
+Informe de ejecución de copias: 备份执行报告
+Pruebas de restauración: 恢复测试
+Redundancia de instalaciones de tratamiento: 处理设施冗余
+Los sistemas críticos tienen redundancia suficiente para cumplir los requisitos de disponibilidad.: 关键系统具备足够冗余以满足可用性要求。
+Arquitectura de alta disponibilidad: 高可用架构
+Pruebas de conmutación: 切换测试
+Suministros de apoyo y alimentación de emergencia: 支持性设施与应急供电
+? Los equipos están protegidos frente a fallos de electricidad y otros suministros, con alimentación de emergencia donde sea crítica.
+: 设备受到保护，免受电力及其他公用设施故障影响，关键处配备应急供电。
+Mantenimiento de SAI y grupos: UPS 与发电机维护
+Pruebas de alimentación de emergencia: 应急供电测试
+Requisitos legales, reglamentarios y contractuales: 法律、法规、监管和合同要求
+Se identifican, documentan y mantienen al día los requisitos legales y contractuales de seguridad aplicables en cada país.: 识别、记录并及时更新各国适用的法律和合同安全要求。
+Registro de requisitos legales: 法律要求登记册
+Revisión anual: 年度评审
+Derechos de propiedad intelectual: 知识产权
+Se protege la propiedad intelectual propia y se respetan las licencias de software y contenidos de terceros.: 保护自有知识产权，并遵守第三方软件和内容的许可。
+Inventario de licencias: 许可清单
+Revisión de cumplimiento de licencias: 许可合规评审
+Protección y conservación de registros: 记录的保护与保存
+? Los registros se protegen contra pérdida, destrucción, falsificación y acceso indebido, y se conservan los plazos legales, con bloqueo legal cuando procede.
+: 记录受到保护，防止丢失、毁损、伪造和不当访问，并按法定期限保存，必要时实施法律保全。
+Calendario de retención: 保存期限表
+Registros de bloqueo legal: 法律保全记录
+Privacidad y protección de datos personales: 隐私与个人数据保护
+? Los datos personales se tratan conforme al RGPD y demás normas aplicables, con registro de actividades y medidas adecuadas.
+: 个人数据依据 GDPR 及其他适用规定进行处理，并设有处理活动记录和适当措施。
+Registro de actividades de tratamiento: 处理活动记录
+Evaluaciones de impacto: 影响评估
+Revisión independiente de la seguridad: 安全独立评审
+La gestión de la seguridad se revisa de forma independiente a intervalos planificados o cuando hay cambios importantes.: 按策划的时间间隔或发生重大变化时，对安全管理进行独立评审。
+Informe de revisión independiente: 独立评审报告
+Plan de acción: 行动计划
+Comprobación del cumplimiento de políticas y normas: 政策与标准合规检查
+Los responsables comprueban regularmente que se cumplen las políticas, normas y requisitos técnicos en su ámbito.: 负责人定期检查其职责范围内是否遵守政策、标准和技术要求。
+Informes de comprobación: 检查报告
+Desviaciones y acciones: 偏差与措施
+Procedimientos de operación documentados: 成文的操作程序
+? Las operaciones de TI y OT están documentadas y disponibles para quien las necesita, incluidas guías de operación segura del producto.
+: IT 和 OT 运行已形成文件，并向有需要的人员提供，包括产品安全运行指南。
+Manuales de operación: 操作手册
+Guía de operación segura del producto: 产品安全运行指南
+Verificación de antecedentes: 背景审查
+Se comprueban los antecedentes de candidatos de forma proporcionada al puesto y a la legislación local.: 按与岗位和当地法律相称的方式对候选人进行背景审查。
+Procedimiento de verificación: 审查程序
+Registros de verificación: 审查记录
+Obligaciones de seguridad en el contrato: 合同中的安全义务
+Los contratos y normas internas recogen las responsabilidades de seguridad del personal y de los colaboradores.: 合同和内部规定载明员工及合作人员的安全责任。
+Cláusulas de seguridad en contratos: 合同中的安全条款
+Aceptación de normas internas: 内部规定的接受
+Formación y concienciación: 培训与意识
+? Todo el personal recibe concienciación periódica y formación específica según su función, incluidas prácticas básicas de ciberhigiene.
+: 全体人员定期接受意识培训和针对其职责的专项培训，包括基本的网络卫生实践。
+Plan anual de formación: 年度培训计划
+Registros de asistencia y resultados: 出席与成绩记录
+Proceso disciplinario: 纪律处分流程
+Hay un proceso disciplinario conocido para incumplimientos de la política de seguridad.: 对违反安全政策的行为设有众所周知的纪律处分流程。
+Procedimiento disciplinario: 纪律处分程序
+Comunicación al personal: 向员工传达
+Obligaciones tras la baja o el cambio: 离职或变动后的义务
+Las obligaciones de seguridad que siguen vigentes tras la baja o el cambio de puesto se comunican y se exigen.: 离职或岗位变动后仍然有效的安全义务予以传达并要求履行。
+Comunicación de salida firmada: 已签署的离职告知书
+Acuerdos de confidencialidad: 保密协议
+Se firman acuerdos de confidencialidad acordes con la información a la que se accede y se revisan periódicamente.: 签署与所接触信息相适应的保密协议，并定期评审。
+Modelos de NDA: 保密协议模板
+Registro de NDA firmados: 已签署保密协议登记册
+Teletrabajo y trabajo móvil: 远程办公与移动办公
+El trabajo fuera de las instalaciones sigue normas que protegen la información y los equipos.: 场所外工作遵循保护信息和设备的规定。
+Normas de teletrabajo: 远程办公规定
+Configuración de equipos remotos: 远程设备配置
+Perímetros de seguridad física: 物理安全边界
+Se definen zonas de seguridad con perímetros adecuados a la información y los equipos que protegen.: 划定安全区域，其边界与所保护的信息和设备相适应。
+Plano de zonas de seguridad: 安全区域平面图
+Inspección del perímetro: 边界检查
+Control de entrada física: 物理出入控制
+La entrada a las zonas protegidas se controla y registra; los visitantes se identifican y acompañan.: 受保护区域的出入受到控制并记录；访客经身份识别并有人陪同。
+Registros de acceso físico: 物理访问记录
+Revisión de tarjetas activas: 有效门禁卡复核
+Seguridad de oficinas, salas e instalaciones: 办公室、房间和设施的安全保护
+Las oficinas, salas técnicas e instalaciones se protegen según la información que contienen.: 办公室、技术机房和设施根据其中所含信息予以保护。
+Inspecciones de seguridad física: 物理安全检查
+Vigilancia de la seguridad física: 物理安全监控
+Las instalaciones se supervisan de forma continua para detectar accesos no autorizados.: 对场所进行持续监控，以发现未经授权的访问。
+Sistema de vídeo y alarmas: 视频与报警系统
+Registro de alarmas atendidas: 已处理报警记录
+Protección frente a amenazas físicas y ambientales: 防范物理和环境威胁
+Se protegen las instalaciones frente a incendio, inundación, temperatura y otras amenazas físicas o ambientales.: 设施受到保护，防范火灾、水浸、温度及其他物理或环境威胁。
+Análisis de amenazas físicas: 物理威胁分析
+Mantenimiento de protecciones: 防护设施维护
+Trabajo en zonas seguras: 在安全区域工作
+Hay normas específicas para trabajar en zonas seguras.: 对在安全区域工作设有专门规定。
+Normas de zonas seguras: 安全区域规定
+Puesto despejado y pantalla bloqueada: 桌面清理与屏幕锁定
+Se aplica una norma de mesa limpia y bloqueo de pantalla en puestos y salas.: 在工位和房间执行桌面清理和屏幕锁定规定。
+Norma publicada: 已发布的规定
+Rondas de comprobación: 巡查检查
+Ubicación y protección de equipos: 设备布置与保护
+Los equipos se ubican y protegen para reducir riesgos físicos y de acceso no autorizado.: 设备的布置和保护旨在降低物理风险和未经授权访问的风险。
+Inspecciones de salas técnicas: 技术机房检查
+Activos fuera de las instalaciones: 场所外资产
+Los equipos y la información fuera de las instalaciones se protegen teniendo en cuenta sus riesgos.: 对场所外的设备和信息，结合其风险予以保护。
+Normas de equipos móviles: 移动设备规定
+Inventario de equipos asignados: 已分配设备清单
+Soportes de almacenamiento: 存储介质
+'Los soportes se gestionan durante todo su ciclo de vida: uso, transporte, almacenamiento y destrucción.': 在存储介质的整个生命周期内进行管理：使用、运输、存放和销毁。
+Normas de soportes: 介质规定
+Registro de soportes extraíbles: 可移动介质登记册
+Seguridad del cableado: 布线安全
+El cableado de energía y datos se protege frente a interceptación, interferencia y daños.: 电力和数据布线受到保护，防止窃听、干扰和损坏。
+Inspección de cableado: 布线检查
+Mantenimiento de equipos: 设备维护
+Los equipos se mantienen de forma que conserven su disponibilidad, integridad y confidencialidad.: 设备的维护应保持其可用性、完整性和保密性。
+Plan de mantenimiento: 维护计划
+Registros de intervenciones: 维修作业记录
+Eliminación o reutilización segura de equipos: 设备的安全处置或再利用
+? Antes de eliminar o reutilizar un equipo se borra o destruye de forma segura la información; el producto incluye instrucciones de retirada segura.
+: 设备处置或再利用前，须安全擦除或销毁信息；产品包含安全退役说明。
+Certificados de destrucción: 销毁证明
+Guía de retirada segura del producto: 产品安全退役指南
+Dispositivos de usuario y móviles: 用户终端与移动设备
+Los dispositivos finales y móviles se configuran, gestionan y protegen de forma centralizada.: 终端和移动设备实行集中配置、管理和保护。
+Informe de la herramienta de gestión de dispositivos: 设备管理工具报告
+Política de dispositivos: 设备政策
+Capacidad y gestión de recursos: 容量与资源管理
+Se vigila y ajusta la capacidad de sistemas y almacenamiento de registros para evitar degradaciones.: 监控并调整系统容量和日志存储容量，以避免性能下降。
+Informes de capacidad: 容量报告
+Umbrales y alertas: 阈值与告警
+Protección contra código malicioso: 恶意代码防护
+? Se previene, detecta y corrige el código malicioso en TI y OT con herramientas adecuadas a cada entorno y concienciación del usuario.
+: 采用适合各环境的工具并结合用户意识，在 IT 和 OT 中预防、检测和处置恶意代码。
+Cobertura del antimalware: 反恶意软件覆盖率
+Listas blancas en OT: OT 白名单
+Control del código móvil: 移动代码控制
+Se restringe y controla la ejecución de código móvil (scripts, macros, applets) según el riesgo de la zona.: 按区域风险限制并控制移动代码（脚本、宏、小程序）的执行。
+Configuración de restricciones de scripts: 脚本限制配置
+Gestión de vulnerabilidades técnicas: 技术漏洞管理
+? Se identifican, valoran y corrigen las vulnerabilidades técnicas en plazos definidos según su gravedad, incluidas las de OT con su ventana de mantenimiento.
+: 识别、评估技术漏洞，并按严重程度在规定期限内修复，包括在维护窗口内修复 OT 漏洞。
+Informe de escaneos: 扫描报告
+Cumplimiento de plazos de parcheo: 补丁修复时限合规
+Gestión de la configuración: 配置管理
+? Las configuraciones de seguridad de sistemas, redes y aplicaciones financieras se establecen, documentan, supervisan y revisan.
+: 建立、记录、监控并评审系统、网络和财务应用的安全配置。
+Líneas base de configuración: 配置基线
+Informe de desviaciones: 偏差报告
+Mínima funcionalidad y bastionado: 最小功能与加固
+Se desactivan funciones, puertos, servicios y protocolos innecesarios.: 停用不必要的功能、端口、服务和协议。
+Guías de bastionado aplicadas: 已应用的加固指南
+Escaneo de puertos y servicios: 端口与服务扫描
+Borrado de información y persistencia: 信息删除与残留
+La información que ya no se necesita se borra de forma segura en sistemas, dispositivos y servicios externos.: 不再需要的信息从系统、设备和外部服务中安全删除。
+Registros de borrado: 删除记录
+Procedimiento de borrado seguro: 安全删除程序
+Enmascaramiento de datos: 数据脱敏
+Los datos sensibles se enmascaran, seudonimizan o anonimizan cuando el uso no requiere verlos.: 当使用无需查看敏感数据时，对其进行屏蔽、假名化或匿名化。
+Reglas de enmascaramiento: 脱敏规则
+Muestras de datos enmascarados: 脱敏数据样本
+Prevención de fuga de datos: 数据防泄露
+Se aplican medidas para detectar y evitar la salida no autorizada de información sensible.: 采取措施检测并防止敏感信息被未经授权外泄。
+Reglas de prevención de fuga: 防泄露规则
+Alertas tratadas: 已处理的告警
+Registro de eventos: 事件日志记录
+? Se generan, almacenan y protegen registros de actividades, excepciones y eventos de seguridad, accesibles para su análisis y con respuesta ante fallos del registro.
+: 生成、存储并保护活动、异常和安全事件日志，可供分析，并对日志记录故障设有响应措施。
+Política de registros: 日志政策
+Muestra de registros: 日志样本
+Integridad del registro de auditoría: 审计日志完整性
+? El registro de auditoría es inalterable y se protege frente a modificación y borrado; cualquier manipulación es detectable.
+: 审计日志不可篡改，并受到保护防止修改和删除；任何篡改均可被发现。
+Verificación de la cadena de huellas: 哈希链验证
+Permisos sobre el registro: 日志权限
+Supervisión continua: 持续监控
+Redes, sistemas y aplicaciones se supervisan para detectar comportamientos anómalos y actuar.: 监控网络、系统和应用以发现异常行为并采取行动。
+Casos de uso del SOC/SIEM: SOC/SIEM 用例
+Sincronización de relojes: 时钟同步
+Los relojes de los sistemas se sincronizan con fuentes aprobadas para que las marcas de tiempo sean fiables.: 系统时钟与经批准的时间源同步，以确保时间戳可靠。
+Configuración NTP/PTP: NTP/PTP 配置
+Comprobación de deriva: 时钟漂移检查
+Programas de utilidad privilegiados: 特权实用程序
+Las utilidades capaces de saltarse controles se restringen y su uso se controla.: 能够绕过控制措施的实用程序受到限制，其使用受到控制。
+Inventario de utilidades: 实用程序清单
+Permisos restringidos: 受限权限
+Planificación y supervisión de procesos por lotes: 批处理作业调度与监控
+? Los procesos programados que afectan a la información financiera se planifican, autorizan y supervisan, y sus fallos se resuelven y documentan.
+: 对影响财务报告的计划作业进行策划、授权和监控，其失败情况应予解决并记录。
+Calendario de trabajos: 作业日程表
+Registro de fallos y resolución: 故障与解决记录
+Incidencias de operación de TI: IT 运行事件
+Las incidencias de operación que afectan a sistemas financieros se registran, priorizan y resuelven con trazabilidad.: 对影响财务系统的运行事件进行记录、确定优先级并可追溯地解决。
+Tickets de incidencias: 事件工单
+Informe de SLA: SLA 报告
+Protección de los sistemas durante auditorías técnicas: 技术审核期间的系统保护
+Las pruebas de auditoría sobre sistemas en producción se planifican y acotan para no afectar a la operación.: 对生产系统的审核测试经过策划并限定范围，以免影响运行。
+Plan de pruebas aprobado: 已批准的测试计划
+Informe de auditoría técnica: 技术审核报告
+Seguridad de las redes: 网络安全
+Las redes y sus dispositivos se gestionan y protegen para salvaguardar la información en sistemas y aplicaciones.: 对网络及其设备进行管理和保护，以保障系统和应用中的信息安全。
+Diagrama de red: 网络拓扑图
+Configuración de dispositivos de red: 网络设备配置
+Seguridad de los servicios de red: 网络服务安全
+Se definen y supervisan los mecanismos de seguridad y niveles de servicio de los servicios de red, propios o contratados.: 对自有或外包网络服务的安全机制和服务水平予以界定并监控。
+Acuerdos de servicio de red: 网络服务协议
+Revisión de cumplimiento: 合规评审
+Segmentación de redes y protección de fronteras: 网络分段与边界防护
+Las redes se separan por grupos de servicios, usuarios y sistemas; las fronteras entre zonas se protegen y supervisan.: 网络按服务、用户和系统分组隔离；区域之间的边界受到保护和监控。
+Diagrama de segmentación: 分段示意图
+Reglas de cortafuegos revisadas: 已复核的防火墙规则
+Filtrado web y restricción de comunicaciones personales: 网页过滤与个人通信限制
+Se limita el acceso a sitios externos y el uso de correo o mensajería de propósito general desde zonas sensibles.: 限制敏感区域访问外部网站以及使用通用电子邮件或即时通讯。
+Política de filtrado: 过滤政策
+Informe de bloqueos: 拦截报告
+Particionado de aplicaciones: 应用分区
+Los datos y aplicaciones se separan según su criticidad para limitar el impacto de un compromiso.: 数据和应用按其关键程度分隔，以限制入侵造成的影响。
+Arquitectura de particionado: 分区架构
+Integridad de las comunicaciones: 通信完整性
+Se protege la integridad de la información transmitida y se detectan alteraciones.: 保护传输信息的完整性，并检测篡改。
+Configuración de protocolos con integridad: 带完整性保护的协议配置
+Confidencialidad de la información en reposo y en tránsito: 静态和传输中信息的保密性
+La información que lo requiera se protege en confidencialidad tanto almacenada como en tránsito.: 对有保密要求的信息，在存储和传输过程中均予以保密保护。
+Inventario de cifrado aplicado: 已应用加密清单
+Resistencia a la denegación de servicio: 抗拒绝服务能力
+Los sistemas siguen funcionando en modo degradado ante eventos de denegación de servicio.: 系统在遭遇拒绝服务事件时仍能以降级模式继续运行。
+Pruebas de carga y DoS: 负载与 DoS 测试
+Protecciones configuradas: 已配置的防护措施
+Uso de la criptografía y gestión de claves: 密码技术使用与密钥管理
+La criptografía se usa según una política que fija algoritmos, longitudes y gestión del ciclo de vida de las claves.: 依据规定算法、密钥长度和密钥生命周期管理的政策使用密码技术。
+Política criptográfica: 密码政策
+Inventario de claves y algoritmos: 密钥与算法清单
+Protección de claves privadas de firma del producto: 产品签名私钥保护
+Las claves privadas para firmar código y actualizaciones se custodian con controles estrictos (HSM, acceso dual).: 用于签署代码和更新的私钥受严格控制保管（HSM、双人访问）。
+Inventario de claves de firma: 签名密钥清单
+Registro de uso del HSM: HSM 使用日志
+Ciclo de vida de desarrollo seguro: 安全开发生命周期
+El software y los dispositivos se desarrollan con un proceso definido que integra la seguridad en todas las fases.: 软件和设备按既定流程开发，将安全融入所有阶段。
+Proceso de desarrollo seguro aprobado: 已批准的安全开发流程
+Evidencias por versión: 各版本证据
+Alcance y aplicabilidad del proceso de desarrollo seguro: 安全开发流程的范围与适用性
+Se define a qué productos, versiones y componentes se aplica el proceso y qué prácticas aplican a cada uno.: 规定该流程适用于哪些产品、版本和组件，以及各自适用哪些实践。
+Matriz de aplicabilidad por producto: 按产品的适用性矩阵
+Requisitos de seguridad de las aplicaciones y productos: 应用与产品的安全要求
+Los requisitos de seguridad se identifican, especifican, revisan y aprueban antes del diseño.: 在设计之前识别、明确、评审并批准安全要求。
+Especificación de requisitos de seguridad: 安全要求规格说明
+Acta de revisión de requisitos: 要求评审会议纪要
+Contexto de seguridad del producto: 产品安全环境
+Se documenta el entorno previsto de uso del producto y las suposiciones de seguridad sobre él.: 记录产品的预期使用环境及对该环境的安全假设。
+Documento de contexto de seguridad: 安全环境文件
+Modelado de amenazas: 威胁建模
+Cada producto y cambio relevante tiene un modelo de amenazas actualizado que guía requisitos, diseño y pruebas.: 每个产品和相关变更均有最新的威胁模型，用于指导需求、设计和测试。
+Modelos de amenazas versionados: 带版本的威胁模型
+Principios de arquitectura e ingeniería segura: 安全架构与工程原则
+La arquitectura aplica principios de diseño seguro y defensa en profundidad documentados.: 架构应用已成文的安全设计原则和纵深防御。
+Principios de arquitectura: 架构原则
+Documentos de diseño: 设计文件
+Revisión de seguridad del diseño: 安全设计评审
+Los diseños se revisan desde el punto de vista de seguridad antes de implementarlos.: 设计在实施之前从安全角度进行评审。
+Actas de revisión de diseño: 设计评审会议纪要
+Codificación segura: 安全编码
+Se aplican normas de codificación segura y herramientas de análisis estático.: 应用安全编码规范和静态分析工具。
+Norma de codificación: 编码规范
+Informes SAST: SAST 报告
+Revisión de seguridad de la implementación: 实现的安全评审
+La implementación se revisa por alguien distinto del autor, con foco en seguridad, antes de liberar la versión.: 在发布版本之前，由作者以外的人员以安全为重点评审实现。
+Registro de revisiones por versión: 各版本评审记录
+Validación de entradas y gestión de errores: 输入验证与错误处理
+Las entradas se validan y los errores se gestionan sin revelar información ni dejar el sistema en estado inseguro.: 对输入进行验证，错误处理不泄露信息，也不使系统处于不安全状态。
+Pruebas de validación: 验证测试
+Revisión de mensajes de error: 错误信息评审
+Salidas en estado seguro: 故障安全输出
+Ante un fallo o ataque, las salidas del sistema de control pasan a un estado predefinido y seguro.: 发生故障或攻击时，控制系统输出转入预定义的安全状态。
+Especificación de estados seguros: 安全状态规格说明
+Pruebas de fallo: 故障测试
+Integridad de las sesiones: 会话完整性
+Se protege la autenticidad de las sesiones y se rechazan identificadores inválidos o reutilizados.: 保护会话的真实性，并拒绝无效或被重复使用的标识符。
+Pruebas de gestión de sesión: 会话管理测试
+Integridad del software y la información: 软件与信息完整性
+Se detectan cambios no autorizados en software, firmware, configuración e información.: 检测对软件、固件、配置和信息的未经授权更改。
+Verificación de firmas o huellas: 签名或哈希验证
+Alertas de integridad: 完整性告警
+Verificación de las funciones de seguridad: 安全功能验证
+Las funciones de seguridad se verifican periódicamente y tras cambios para confirmar que operan como se espera.: 定期并在变更后验证安全功能，以确认其按预期运行。
+Informe de verificación: 验证报告
+Pruebas de seguridad en desarrollo y aceptación: 开发与验收中的安全测试
+Se prueban los requisitos de seguridad, la mitigación de amenazas y las vulnerabilidades antes de liberar.: 发布前测试安全要求、威胁缓解措施和漏洞。
+Plan y resultados de pruebas de seguridad: 安全测试计划与结果
+Análisis de dependencias: 依赖项分析
+Pruebas de intrusión: 渗透测试
+Se realizan pruebas de intrusión periódicas y antes de versiones importantes, con corrección de hallazgos.: 定期以及在重大版本发布前开展渗透测试，并整改发现项。
+Informes de pruebas de intrusión: 渗透测试报告
+Seguimiento de hallazgos: 发现项跟踪
+Independencia de quien prueba: 测试人员的独立性
+Las pruebas de seguridad las realiza personal con independencia adecuada respecto a quien desarrolló.: 安全测试由与开发人员保持适当独立性的人员执行。
+Asignación de probadores: 测试人员分配
+Matriz de independencia: 独立性矩阵
+Pruebas de aceptación de usuario: 用户验收测试
+Los desarrollos y cambios relevantes se aceptan formalmente por el usuario propietario antes de producción.: 相关开发和变更在投入生产前由所有者用户正式验收。
+Actas de aceptación: 验收记录
+Migración y conversión de datos: 数据迁移与转换
+Las migraciones de datos se planifican, prueban y concilian para asegurar su integridad y completitud.: 数据迁移经策划、测试和核对，以确保其完整性和完备性。
+Plan de migración: 迁移计划
+Conciliación de cargas: 加载核对
+Separación de entornos y seguridad del entorno de desarrollo: 环境分离与开发环境安全
+? Desarrollo, pruebas y producción están separados; quien desarrolla no tiene acceso de escritura a producción y el entorno de desarrollo está protegido.
+: 开发、测试和生产环境相互分离；开发人员对生产环境无写入权限，且开发环境受到保护。
+Arquitectura de entornos: 环境架构
+Listado de accesos a producción: 生产环境访问清单
+Gestión de cambios: 变更管理
+Los cambios en sistemas e infraestructuras se solicitan, evalúan, prueban, aprueban y documentan antes de aplicarse.: 对系统和基础设施的变更在实施前须经申请、评估、测试、批准并形成文件。
+Registro de cambios con aprobación: 含批准信息的变更记录
+Actas del CAB: CAB 会议纪要
+Pruebas de los cambios: 变更测试
+Cada cambio se prueba en un entorno distinto de producción y se documenta el resultado.: 每项变更均在与生产环境分离的环境中测试，并记录结果。
+Evidencias de pruebas por cambio: 各变更的测试证据
+Aprobación independiente del paso a producción: 投产的独立批准
+El paso a producción lo aprueba alguien distinto de quien hizo el cambio, por versión y con registro.: 投产由变更实施者以外的人员按版本批准，并留有记录。
+Aprobaciones por versión: 各版本批准记录
+Comparativa autor frente a aprobador: 作者与批准人比对
+Cambios de emergencia: 紧急变更
+Los cambios urgentes siguen un procedimiento abreviado con aprobación posterior documentada en plazo.: 紧急变更遵循简化程序，并在规定期限内补办并记录批准。
+Registro de cambios de emergencia: 紧急变更记录
+Aprobaciones a posteriori: 事后批准
+Datos de prueba: 测试数据
+Los datos de prueba se seleccionan, protegen y gestionan; no se usan datos reales sin protección.: 测试数据经选择、保护和管理；未经保护不得使用真实数据。
+Normas de datos de prueba: 测试数据规定
+Integridad de los artefactos de desarrollo: 开发制品完整性
+El código, los artefactos de compilación y las versiones publicadas se protegen frente a modificaciones no autorizadas.: 代码、构建制品和已发布版本受到保护，防止未经授权的修改。
+Firmas de versiones: 版本签名
+Huellas de artefactos: 制品哈希值
+SBOM y versiones etiquetadas y firmadas: SBOM 及带标签、已签名的版本
+Cada versión publicada lleva una lista de componentes (SBOM), etiqueta y firma verificable.: 每个已发布版本均附带组件清单（SBOM）、标签和可验证的签名。
+SBOM por versión: 各版本 SBOM
+Verificación de firma: 签名验证
+Recepción de avisos de vulnerabilidades del producto: 产品漏洞报告接收
+Existe un canal público para recibir avisos de problemas de seguridad del producto y se acusa recibo.: 设有公开渠道接收产品安全问题报告，并确认收到。
+Política de divulgación publicada: 已发布的披露政策
+Registro de avisos recibidos: 已收到报告登记册
+Gestión de defectos de seguridad del producto: 产品安全缺陷处理
+? Los problemas de seguridad del producto se revisan, valoran y corrigen según su gravedad, y la práctica se revisa periódicamente.
+: 产品安全问题按严重程度进行审查、评估和修复，并定期评审该实践。
+Registro de defectos de seguridad: 安全缺陷登记册
+Revisión periódica de la práctica: 实践定期评审
+Divulgación coordinada de vulnerabilidades: 协调漏洞披露
+Las vulnerabilidades del producto se comunican a clientes y autoridades de forma coordinada y oportuna.: 产品漏洞以协调、及时的方式通报客户和主管机构。
+Avisos de seguridad publicados: 已发布的安全公告
+Actualizaciones de seguridad del producto: 产品安全更新
+? Las actualizaciones de seguridad se cualifican, documentan, entregan de forma verificable y a tiempo, incluidas las de componentes dependientes.
+: 安全更新经过验证、形成文件，并以可验证、及时的方式交付，包括所依赖组件的更新。
+Notas de actualización: 更新说明
+Plazos de entrega medidos: 已测量的交付时限
+Guías de seguridad para el usuario del producto: 产品用户安全指南
+El producto incluye guías de defensa en profundidad, bastionado y entorno esperado, revisadas en cada versión.: 产品附带关于纵深防御、加固和预期环境的指南，并在每个版本中评审。
+Guías publicadas por versión: 各版本发布的指南
+Revisión de documentación: 文档评审
+Interfaces físicas de diagnóstico y prueba: 物理诊断与测试接口
+Las interfaces físicas de diagnóstico y prueba de los dispositivos se protegen frente a uso no autorizado.: 设备的物理诊断和测试接口受到保护，防止未经授权使用。
+Diseño de interfaces protegidas: 受保护接口设计
+Resistencia y detección de manipulación física: 物理防篡改与篡改检测
+Los dispositivos resisten o detectan la manipulación física según su nivel de seguridad.: 设备根据其安全等级抵御或检测物理篡改。
+Pruebas de manipulación: 篡改测试
+Raíces de confianza del fabricante y del propietario: 制造商与所有者的信任根
+Los dispositivos permiten aprovisionar y proteger raíces de confianza del fabricante y del propietario del activo.: 设备支持配置并保护制造商和资产所有者的信任根。
+Procedimiento de aprovisionamiento de claves: 密钥配置程序
+Integridad del proceso de arranque: 启动过程完整性
+El dispositivo verifica la integridad del firmware y del software en el arranque.: 设备在启动时验证固件和软件的完整性。
+Pruebas de arranque seguro: 安全启动测试
+Programa de seguridad para sistemas de automatización: 自动化系统安全方案
+El propietario del activo mantiene un programa de seguridad OT con organización, políticas y responsables en cada planta.: 资产所有者维护 OT 安全方案，在各工厂设有组织、政策和责任人。
+Programa de seguridad OT aprobado: 已批准的 OT 安全方案
+Responsables por planta: 各工厂责任人
+Definición del sistema bajo consideración: 被考虑系统的界定
+Se delimita cada sistema de automatización bajo consideración, con sus activos, fronteras y puntos de acceso.: 界定每个被考虑的自动化系统及其资产、边界和访问点。
+Documento del sistema bajo consideración: 被考虑系统文件
+Inventario OT: OT 清单
+Evaluación de riesgos de ciberseguridad OT: OT 网络安全风险评估
+? Se hace una evaluación inicial y otra detallada de riesgos de ciberseguridad por zona, comparándolos con el riesgo tolerable.
+: 按区域开展初步和详细的网络安全风险评估，并与可容忍风险比较。
+Evaluación inicial de riesgos OT: OT 初步风险评估
+Evaluación detallada por zona: 各区域详细评估
+Zonas y conductos: 区域与管道
+Los activos OT se agrupan en zonas y sus comunicaciones en conductos, documentados y reflejados en la CMDB.: 将 OT 资产分组为区域，其通信分组为管道，形成文件并在 CMDB 中体现。
+Diagrama de zonas y conductos: 区域与管道图
+Relaciones en la CMDB: CMDB 中的关系
+Nivel de seguridad objetivo por zona: 各区域目标安全等级
+Cada zona y conducto tiene un nivel de seguridad objetivo (SL-T) justificado y se compara con el alcanzado (SL-A).: 每个区域和管道均有经论证的目标安全等级（SL-T），并与已达到的等级（SL-A）比较。
+Registro de SL-T y SL-A por zona: 各区域 SL-T 与 SL-A 登记册
+Análisis de brecha: 差距分析
+Especificación de requisitos de ciberseguridad del sistema: 系统网络安全要求规格说明
+Se documentan los requisitos, suposiciones y restricciones de ciberseguridad de cada zona para su diseño e implantación.: 记录每个区域的网络安全要求、假设和约束，用于其设计和实施。
+Especificación de requisitos (CRS): 要求规格说明（CRS）
+Aprobación por el propietario del activo: 资产所有者批准
+El propietario del activo aprueba formalmente los resultados de la evaluación de riesgos y la partición.: 资产所有者正式批准风险评估和分区的结果。
+Acta de aprobación: 批准记录
+Protección de los datos de los sistemas de automatización: 自动化系统数据保护
+Los datos de configuración, recetas y producción se clasifican y protegen en confidencialidad e integridad.: 对配置、配方和生产数据进行分类，并保护其保密性和完整性。
+Clasificación de datos OT: OT 数据分类
+Medidas aplicadas: 已实施的措施
+Gestión de eventos e incidentes en planta: 工厂事件管理
+Los eventos de seguridad de planta se detectan, comunican y gestionan coordinados con la respuesta corporativa.: 工厂安全事件的检测、报告和管理与企业级响应相协调。
+Procedimiento de incidentes OT: OT 事件处理程序
+Ejercicio conjunto TI/OT: IT/OT 联合演练
+Certificación de los estados financieros por la dirección: 管理层对财务报表的认证
+? El consejero delegado y el director financiero certifican los informes periódicos y la eficacia de los controles de divulgación, apoyados en subcertificaciones.
+: 首席执行官和首席财务官认证定期报告及披露控制的有效性，并以下级认证作为支持。
+Certificaciones firmadas: 已签署的认证
+Subcertificaciones de responsables: 管理人员的下级认证
+Evaluación por la dirección del control interno sobre la información financiera: 管理层对财务报告内部控制的评价
+? La dirección evalúa anualmente el diseño y la eficacia operativa del control interno sobre la información financiera con pruebas documentadas, población y muestreo.
+: 管理层每年评价财务报告内部控制的设计和运行有效性，并保留已记录的测试、总体和抽样。
+Informe de la dirección: 管理层报告
+Pruebas de diseño y de eficacia: 设计与运行有效性测试
+Atestación del auditor externo: 外部审计师鉴证
+Se coordina la auditoría externa del control interno y se le facilitan evidencias y muestras.: 协调内部控制的外部审计，并向其提供证据和样本。
+Plan de auditoría externa: 外部审计计划
+Informe del auditor: 审计师报告
+Ambiente de control, ética y canal de denuncias: 控制环境、道德与举报渠道
+Hay un código ético aceptado, un canal de denuncias independiente y un tono adecuado desde la dirección.: 设有已被接受的道德准则、独立的举报渠道，且管理层树立适当的基调。
+Código ético aceptado: 已接受的道德准则
+Informe del canal de denuncias: 举报渠道报告
+Supervisión por el comité de auditoría: 审计委员会监督
+El comité de auditoría supervisa la información financiera, el control interno y a los auditores.: 审计委员会监督财务报告、内部控制和审计师。
+Actas del comité de auditoría: 审计委员会会议纪要
+Evaluación del riesgo de fraude: 舞弊风险评估
+Se evalúa periódicamente el riesgo de fraude en la información financiera y se definen controles que lo mitiguen.: 定期评估财务报告中的舞弊风险，并设计缓解该风险的控制措施。
+Evaluación de riesgo de fraude: 舞弊风险评估
+Evaluación y comunicación de deficiencias de control: 控制缺陷的评价与沟通
+? Las deficiencias se valoran por gravedad (deficiencia, significativa, debilidad material) y se comunican a quien corresponde.
+: 按严重程度（缺陷、重大缺陷、重大漏洞）评价控制缺陷，并通报相关人员。
+Resumen de deficiencias: 缺陷汇总
+Comunicación al comité: 向委员会通报
+Cierre de periodos contables: 期末结账
+Los periodos cerrados se bloquean y cualquier reapertura requiere autorización y queda registrada.: 已结账期间予以锁定，任何重新开启均需授权并予以记录。
+Calendario de cierre: 结账日程表
+Registro de reaperturas autorizadas: 已授权重新开启记录
+Asientos manuales: 手工记账凭证
+Los asientos manuales y de ajuste se preparan, revisan y aprueban por personas distintas, con soporte.: 手工和调整分录由不同人员编制、复核和批准，并附有支持文件。
+Listado de asientos con aprobación: 含批准信息的分录清单
+Conciliaciones de cuentas: 账户调节
+Las cuentas significativas se concilian periódicamente y las partidas se investigan y resuelven.: 定期对重要账户进行调节，并调查和解决差异项。
+Conciliaciones firmadas: 已签署的调节表
+Hojas de cálculo y herramientas de usuario críticas: 关键电子表格与终端用户工具
+Las hojas de cálculo que intervienen en la información financiera se inventarían y protegen frente a cambios y errores.: 对涉及财务报告的电子表格建立清单，并防止其被更改和出错。
+Inventario de hojas críticas: 关键电子表格清单
+Controles de versión y revisión: 版本与复核控制
+Exactitud y completitud de los informes del sistema: 系统报告的准确性与完整性
+Los informes que se usan como evidencia de control se validan en exactitud y completitud.: 对用作控制证据的报告验证其准确性和完整性。
+Validaciones de informes: 报告验证
+Controles automáticos de las aplicaciones: 应用自动化控制
+Los controles automáticos de las aplicaciones financieras (validaciones, cálculos, interfaces) se identifican y prueban.: 识别并测试财务应用的自动化控制（校验、计算、接口）。
+Inventario de controles automáticos: 自动化控制清单
+Pruebas de controles automáticos: 自动化控制测试
+Comprensión del entorno de TI relevante: 对相关 IT 环境的了解
+Se documentan las aplicaciones, bases de datos, infraestructura y proveedores que soportan la información financiera.: 记录支撑财务报告的应用、数据库、基础设施和供应商。
+Mapa de sistemas relevantes: 相关系统地图
+Concepto de seguridad para prototipos: 原型件安全方案
+Existe un concepto de seguridad física y organizativa específico para proteger prototipos, aprobado y revisado.: 设有专门保护原型件的物理与组织安全方案，经批准并定期评审。
+Concepto de seguridad de prototipos: 原型件安全方案
+Perímetro de las instalaciones con prototipos: 存放原型件设施的边界
+El recinto donde hay prototipos tiene protección perimetral que impide la entrada no autorizada.: 存放原型件的场地设有边界防护，防止未经授权进入。
+Plano de seguridad: 安全平面图
+Envolvente de las áreas protegidas: 受保护区域围护结构
+Los muros, puertas y ventanas de las áreas de prototipos impiden la apertura o retirada sin dejar rastro.: 原型件区域的墙壁、门窗可防止在不留痕迹的情况下被打开或拆除。
+Inspección de la envolvente: 围护结构检查
+Protección frente a vistas no autorizadas: 防止未经授权观看
+Los prototipos no pueden verse desde el exterior ni desde zonas no autorizadas.: 从外部或未授权区域无法看到原型件。
+Comprobación de visibilidad: 可见性检查
+Control de entrada a áreas de prototipos: 原型件区域出入控制
+La entrada a áreas de prototipos se limita a personas autorizadas, con registro y detección de intrusión.: 原型件区域仅限授权人员进入，并设有记录和入侵检测。
+Registro de accesos a áreas: 区域访问记录
+Pruebas de alarmas: 报警测试
+Normas para visitantes en áreas de prototipos: 原型件区域访客规定
+Los visitantes conocen y aceptan normas específicas y siempre van acompañados.: 访客知晓并接受专门规定，且始终有人陪同。
+Normas de visitantes: 访客规定
+Registro de visitas: 来访记录
+Obligaciones contractuales sobre prototipos: 关于原型件的合同义务
+Los contratos con clientes y colaboradores fijan las obligaciones de protección de prototipos.: 与客户和合作方的合同载明保护原型件的义务。
+Contratos con cláusulas de prototipos: 含原型件条款的合同
+Requisitos de protección para subcontratistas: 分包商保护要求
+Los subcontratistas que manejan prototipos asumen y demuestran los mismos requisitos.: 处理原型件的分包商承担并证明满足相同要求。
+Evaluaciones de subcontratistas: 分包商评估
+Etiquetas TISAX de subcontratistas: 分包商 TISAX 标签
+Formación y compromiso del personal en prototipos: 原型件人员培训与承诺
+El personal y los colaboradores con acceso a prototipos reciben formación específica y firman su compromiso.: 可接触原型件的员工和合作人员接受专项培训并签署承诺书。
+Registro de formación específica: 专项培训记录
+Compromisos firmados: 已签署的承诺书
+Clasificación de proyectos con prototipos: 含原型件项目的分级
+Cada proyecto con prototipos tiene una clasificación de protección y medidas asociadas.: 每个含原型件的项目均有保护分级及相应措施。
+Listado de proyectos clasificados: 已分级项目清单
+Autorización de acceso a proyectos de prototipos: 原型件项目访问授权
+Hay un proceso para conceder, revisar y retirar el acceso a proyectos y áreas de prototipos.: 设有授予、复核和撤销原型件项目及区域访问权限的流程。
+Autorizaciones vigentes: 现行授权
+Revisiones periódicas: 定期复核
+Normas sobre fotografía y grabación: 摄影与录制规定
+Se regula el uso de cámaras y dispositivos de grabación en presencia de prototipos.: 规范在原型件所在场所使用相机和录制设备。
+Normas publicadas: 已发布的规定
+Registros de autorizaciones de grabación: 录制授权记录
+Transporte de prototipos: 原型件运输
+Los prototipos se transportan con medidas acordadas con el cliente y según su clasificación.: 原型件按与客户商定的措施并依据其分级运输。
+Instrucciones de transporte: 运输指引
+Registros de envíos: 发运记录
+Estacionamiento y almacenamiento de prototipos: 原型件停放与存放
+Los prototipos se estacionan y almacenan en lugares protegidos frente a acceso y vista.: 原型件停放和存放在可防止接触和观看的受保护场所。
+Inspección de áreas de almacenamiento: 存放区域检查
+Camuflaje de vehículos de prueba: 试验车辆伪装
+Los vehículos de prueba se camuflan según los requisitos del cliente y se controla su estado.: 试验车辆按客户要求进行伪装，并检查其状态。
+Instrucciones de camuflaje: 伪装指引
+Comprobaciones previas a la salida: 出发前检查
+Pruebas en vía pública y pistas: 公共道路与赛道测试
+Las pruebas en exterior siguen normas de conducta, ruta y comunicación ante incidentes.: 室外测试遵循行为、路线以及发生事件时的沟通规定。
+Normas de pruebas: 测试规定
+Registro de salidas: 出车记录
+Eventos y presentaciones con prototipos: 含原型件的活动与展示
+La presencia de prototipos en eventos y presentaciones se planifica y autoriza con medidas específicas.: 原型件在活动和展示中的出现经策划并获授权，并采取专门措施。
+Plan de seguridad del evento: 活动安全计划
+Rodajes y sesiones fotográficas: 拍摄与摄影活动
+Las sesiones de foto y vídeo con prototipos se autorizan y supervisan, y el material se custodia.: 含原型件的摄影和录像活动须经授权和监督，素材应妥善保管。
+Autorizaciones de rodaje: 拍摄授权
+Custodia del material: 素材保管
+Programa IEC 62443 (2-1, 3-2, 3-3, 4-1 y 4-2): IEC 62443 方案（2-1、3-2、3-3、4-1 和 4-2）
+Arranque y alcance: 启动与范围
+Constituir el comité del programa y nombrar al patrocinador de la dirección: 成立方案委员会并任命管理层发起人
+Acta de constitución del comité: 委员会成立会议纪要
+Analizar el contexto, las partes interesadas y los requisitos legales por país: 分析各国的环境、相关方和法律要求
+Análisis de contexto: 环境分析
+Definir y aprobar el alcance (entidades, sedes, plantas, sistemas y procesos): 界定并批准范围（实体、场所、工厂、系统和流程）
+Nombrar coordinadores por sede y acordar el modelo de muestreo multisede: 为各场所任命协调员并商定多场所抽样模型
+Red de coordinadores por sede: 场所协调员网络
+Plan de muestreo de sedes: 场所抽样计划
+Elaborar el plan del programa, el calendario y el presupuesto: 编制方案计划、日程和预算
+Plan del programa: 方案计划
+Presupuesto aprobado: 已批准的预算
+Establecer el programa de seguridad OT del propietario del activo (2-1): 建立资产所有者的 OT 安全方案（2-1）
+Programa OT aprobado: 已批准的 OT 方案
+Definir a qué productos y versiones se aplica el desarrollo seguro (4-1): 界定安全开发适用的产品和版本（4-1）
+Análisis de carencias: 差距分析
+Inventariar activos, sistemas, servicios externos y proveedores del alcance en la CMDB: 在 CMDB 中盘点范围内的资产、系统、外部服务和供应商
+Inventario de activos en la CMDB: CMDB 中的资产清单
+Listado de proveedores en alcance: 范围内供应商清单
+Analizar carencias frente a la biblioteca de controles: 对照控制措施库分析差距
+Informe de carencias por control y sede: 按控制措施和场所的差距报告
+Estimación de esfuerzo de cierre: 整改工作量估算
+Definir los sistemas bajo consideración de cada planta (ZCR 1): 界定各工厂被考虑的系统（ZCR 1）
+Analizar carencias del proceso de desarrollo frente a 4-1: 对照 4-1 分析开发过程差距
+Informe de carencias 4-1: 4-1 差距报告
+Análisis y tratamiento de riesgos: 风险分析与处置
+Aprobar la metodología de riesgos y los criterios de aceptación: 批准风险方法论和接受准则
+Evaluar los riesgos con los propietarios de los procesos: 与流程责任人共同评估风险
+Registro de riesgos: 风险登记册
+Elaborar el plan de tratamiento de riesgos y aceptar los residuales: 编制风险处置计划并接受剩余风险
+Plan de tratamiento de riesgos: 风险处置计划
+Aceptación de riesgos residuales: 剩余风险接受
+Evaluación inicial de riesgos de ciberseguridad OT (ZCR 2): OT 网络安全初步风险评估（ZCR 2）
+Evaluación inicial OT: OT 初步评估
+Particionar en zonas y conductos y reflejarlos en la CMDB (ZCR 3): 划分区域与管道并在 CMDB 中体现（ZCR 3）
+Evaluación detallada y nivel de seguridad objetivo por zona (ZCR 4 y 5): 各区域详细评估与目标安全等级（ZCR 4 和 5）
+Registro de SL-T por zona: 各区域 SL-T 登记册
+Modelar las amenazas de cada producto (4-1 SR-2): 为各产品建立威胁模型（4-1 SR-2）
+Modelos de amenazas: 威胁模型
+Declaración de aplicabilidad y matriz de controles: 适用性声明与控制措施矩阵
+Elaborar la declaración de aplicabilidad y la matriz control × norma × sede: 编制适用性声明及控制措施 × 标准 × 场所矩阵
+Declaración de aplicabilidad: 适用性声明
+Matriz cruzada de controles: 控制措施交叉对照矩阵
+Aprobar la declaración de aplicabilidad: 批准适用性声明
+Declaración de aplicabilidad aprobada (flujo de Documentos): 已批准的适用性声明（文档流程）
+Especificar los requisitos de ciberseguridad y obtener la aprobación del propietario (ZCR 6 y 7): 明确网络安全要求并取得所有者批准（ZCR 6 和 7）
+Especificación aprobada: 已批准的规格说明
+Comparar el SL objetivo con el alcanzado por zona usando los requisitos de 3-3: 依据 3-3 的要求，按区域比较目标 SL 与已达到的 SL
+Análisis de brecha SL: SL 差距分析
+Seleccionar las mejoras de requisitos para zonas con SL3 o SL4: 为 SL3 或 SL4 区域选择增强要求
+Lista de mejoras de requisitos por zona: 各区域增强要求清单
+Diseño e implantación: 设计与实施
+Redactar y aprobar políticas y procedimientos con el flujo de Documentos: 通过文档流程起草并批准政策和程序
+Políticas y procedimientos aprobados: 已批准的政策和程序
+'Implantar controles: Gobierno del sistema de gestión': 实施控制措施：管理体系治理
+Controles de gobierno del sistema de gestión implantados con evidencia: 管理体系治理控制措施已实施并有证据
+'Implantar controles: Gestión de riesgos': 实施控制措施：风险管理
+Controles de gestión de riesgos implantados con evidencia: 风险管理控制措施已实施并有证据
+'Implantar controles: Activos y clasificación de la información': 实施控制措施：资产与信息分类
+Controles de activos y clasificación de la información implantados con evidencia: 资产与信息分类控制措施已实施并有证据
+'Implantar controles: Identidades y control de acceso': 实施控制措施：身份与访问控制
+Controles de identidades y control de acceso implantados con evidencia: 身份与访问控制措施已实施并有证据
+'Implantar controles: Criptografía': 实施控制措施：密码技术
+Controles de criptografía implantados con evidencia: 密码技术控制措施已实施并有证据
+'Implantar controles: Seguridad ligada a las personas': 实施控制措施：人员安全
+Controles de seguridad ligada a las personas implantados con evidencia: 人员安全控制措施已实施并有证据
+'Implantar controles: Seguridad física y del entorno': 实施控制措施：物理与环境安全
+Controles de seguridad física y del entorno implantados con evidencia: 物理与环境安全控制措施已实施并有证据
+'Implantar controles: Seguridad en las operaciones (1/2)': 实施控制措施：运行安全（1/2）
+Controles de seguridad en las operaciones implantados con evidencia: 运行安全控制措施已实施并有证据
+'Implantar controles: Seguridad en las operaciones (2/2)': 实施控制措施：运行安全（2/2）
+'Implantar controles: Redes y comunicaciones': 实施控制措施：网络与通信
+Controles de redes y comunicaciones implantados con evidencia: 网络与通信控制措施已实施并有证据
+'Implantar controles: Desarrollo y gestión de cambios (1/2)': 实施控制措施：开发与变更管理（1/2）
+Controles de desarrollo y gestión de cambios implantados con evidencia: 开发与变更管理控制措施已实施并有证据
+'Implantar controles: Desarrollo y gestión de cambios (2/2)': 实施控制措施：开发与变更管理（2/2）
+'Implantar controles: Seguridad del producto (software y dispositivos) (1/2)': 实施控制措施：产品安全（软件和设备）（1/2）
+Controles de seguridad del producto (software y dispositivos) implantados con evidencia: 产品安全控制措施（软件和设备）已实施并有证据
+'Implantar controles: Seguridad del producto (software y dispositivos) (2/2)': 实施控制措施：产品安全（软件和设备）（2/2）
+'Implantar controles: Proveedores y cadena de suministro': 实施控制措施：供应商与供应链
+Controles de proveedores y cadena de suministro implantados con evidencia: 供应商与供应链控制措施已实施并有证据
+'Implantar controles: Incidentes y notificaciones': 实施控制措施：事件与通报
+Controles de incidentes y notificaciones implantados con evidencia: 事件与通报控制措施已实施并有证据
+'Implantar controles: Continuidad y recuperación': 实施控制措施：业务连续性与恢复
+Controles de continuidad y recuperación implantados con evidencia: 业务连续性与恢复控制措施已实施并有证据
+'Implantar controles: Seguridad de los sistemas de automatización (OT)': 实施控制措施：自动化系统（OT）安全
+Controles de seguridad de los sistemas de automatización (ot) implantados con evidencia: 自动化系统（OT）安全控制措施已实施并有证据
+Activar la medición automática de los controles que mide la plataforma: 启用平台可测量控制措施的自动测量
+Controles medibles en verde o rojo con evidencia automática: 可测量的控制措施以绿色或红色显示并附自动证据
+Implantar la segmentación y la protección de conductos en planta: 在工厂实施分段和管道防护
+Segmentación implantada y verificada: 分段已实施并验证
+Plan de parcheo y antimalware OT por ventanas de mantenimiento: 按维护窗口制定的 OT 补丁与反恶意软件计划
+Plan de parcheo OT: OT 补丁计划
+Implantar las prácticas 4-1 (SM, SR, SD, SI, SVV, DM, SUM, SG) en el desarrollo: 在开发中实施 4-1 实践（SM、SR、SD、SI、SVV、DM、SUM、SG）
+Proceso de desarrollo seguro implantado: 安全开发流程已实施
+SBOM, versiones etiquetadas y firmadas y revisión independiente por versión: SBOM、带标签且已签名的版本及各版本独立评审
+Firma verificable: 可验证的签名
+Verificar los requisitos de componente 4-2 en dispositivos y aplicaciones: 在设备和应用上验证 4-2 组件要求
+Matriz de cumplimiento CR por componente: 各组件 CR 合规矩阵
+Definir el plan de formación por perfiles: 按岗位画像制定培训计划
+Plan de formación: 培训计划
+Campaña de concienciación para todo el personal: 面向全体人员的意识宣贯活动
+Registros de asistencia: 出席记录
+Resultados de evaluación: 考核结果
+Formación específica de responsables de control y equipos técnicos: 面向控制措施责任人和技术团队的专项培训
+Registros de formación específica: 专项培训记录
+Auditoría interna: 内部审核
+Planificar la auditoría interna (independiente de quien implantó): 策划内部审核（独立于实施人员）
+Programa y plan de auditoría: 审核方案与计划
+Ejecutar la auditoría interna en todas las normas y sedes del muestreo: 对所有标准及抽样场所开展内部审核
+Papeles de trabajo: 工作底稿
+Hallazgos registrados: 已记录的发现项
+Informe de auditoría interna y apertura de acciones correctivas: 内部审核报告及纠正措施启动
+Informe de auditoría interna: 内部审核报告
+CAPA abiertas: 未关闭的 CAPA
+Revisión por la dirección del programa: 方案的管理评审
+Auditorías de certificación o evaluación: 认证或评估审核
+Evaluación de certificación del proceso 4-1 (organismo acreditado): 4-1 流程认证评估（认可机构）
+Certificado 4-1: 4-1 证书
+Certificación de componentes 4-2: 4-2 组件认证
+Certificados de componente: 组件证书
+Evaluación de los sistemas de planta frente a 3-3 y del programa 2-1: 对照 3-3 评估工厂系统并评估 2-1 方案
+Informe de evaluación OT: OT 评估报告
+Cierre de hallazgos: 发现项关闭
+Analizar causas y planificar las acciones correctivas de todos los hallazgos externos: 分析原因并为所有外部发现项策划纠正措施
+Plan de acciones correctivas: 纠正措施计划
+Verificar la eficacia de las acciones (quien verifica no es quien corrigió): 验证措施有效性（验证人不得为纠正人）
+Cerrar formalmente los hallazgos y comunicar al auditor externo: 正式关闭发现项并通知外部审核员
+Hallazgos cerrados: 已关闭的发现项
+Seguimiento y mejora continua: 跟踪与持续改进
+Supervisar los controles medibles y la caducidad de las evidencias: 监控可测量的控制措施及证据到期情况
+Panel de cumplimiento continuo: 持续合规看板
+Campañas trimestrales de recertificación de accesos: 季度访问权限复核活动
+Campañas cerradas con evidencia: 已关闭并附证据的复核活动
+Actualizar el análisis de riesgos y la declaración de aplicabilidad: 更新风险分析和适用性声明
+Auditoría interna anual: 年度内部审核
+Informe de auditoría interna anual: 年度内部审核报告
+Revisión anual por la dirección: 年度管理评审
+Acta anual de revisión por la dirección: 年度管理评审会议纪要
+Revisión anual de zonas, conductos y SL alcanzado: 区域、管道及已达到 SL 的年度评审
+Registro de zonas actualizado: 更新后的区域登记册
+Gestión continua de avisos de vulnerabilidad y actualizaciones del producto: 漏洞报告与产品更新的持续管理
+Avisos publicados: 已发布的公告
+Plazos de parcheo medidos: 已测量的补丁修复时限
+Falta de patrocinio real de la dirección: 缺乏管理层的切实支持
+Patrocinador nombrado en el arranque, revisión mensual del avance en el comité y objetivos ligados a la dirección.: 在启动时任命发起人，委员会每月评审进展，并将目标与管理层挂钩。
+Recursos internos insuficientes para implantar y mantener los controles: 内部资源不足，无法实施和维持控制措施
+Plan de capacidad por rol, apoyo externo acotado y priorización por riesgo.: 按角色制定产能计划，限定外部支持范围，并按风险确定优先级。
+Evidencias dispersas, caducadas o sin flujo de aprobación: 证据分散、过期或缺少批准流程
+Evidencias solo en Documentos con flujo, caducidad y avisos; medición automática donde sea posible.: 证据仅保存在具备流程、到期和提醒功能的文档中；尽可能采用自动测量。
+Alcance mal definido o cambiante: 范围界定不清或不断变化
+Alcance aprobado por la dirección y control de cambios del alcance en el comité.: 范围经管理层批准，并由委员会对范围变更进行控制。
+Resistencia al cambio de procesos y herramientas: 对流程和工具变更的抵触
+Comunicación, formación por perfiles y responsables de control en cada área.: 沟通、按岗位画像培训，并在各领域设置控制措施责任人。
+Parada de planta al aplicar controles en OT: 在 OT 中实施控制措施时导致工厂停产
+Pruebas en entorno de réplica, ventanas de mantenimiento y vuelta atrás planificada.: 在复制环境中测试、利用维护窗口并规划回退方案。
+Sistemas OT antiguos sin soporte que no alcanzan el SL objetivo: 不再受支持的旧 OT 系统无法达到目标 SL
+Contramedidas compensatorias por zona, aislamiento y plan de renovación.: 按区域采取补偿性控制措施、隔离及更新换代计划。
+Revisión de versiones sin independencia real: 版本评审缺乏真正的独立性
+Revisión por versión por persona distinta del autor, registrada en la plataforma.: 每个版本由作者以外的人员评审，并记录在平台中。
+Política de desarrollo seguro: 安全开发政策
+Política de seguridad de los sistemas de automatización: 自动化系统安全政策
+Procedimiento de gestión de incidentes: 事件管理程序
+Procedimiento de gestión de vulnerabilidades: 漏洞管理程序
+Procedimiento de zonas, conductos y nivel de seguridad: 区域、管道与安全等级程序
+Procedimiento de gestión de defectos de seguridad del producto: 产品安全缺陷管理程序
+Procedimiento de actualizaciones de seguridad del producto: 产品安全更新程序
+Inventario de activos: 资产清单
+Registro de zonas, conductos y niveles de seguridad: 区域、管道与安全等级登记册
+Registro de hallazgos y acciones correctivas: 发现项与纠正措施登记册
+Registro de versiones, SBOM y firmas: 版本、SBOM 与签名登记册
+Certificación ISO/IEC 27001:2022: ISO/IEC 27001:2022 认证
+Seleccionar la entidad de certificación acreditada y acordar el calendario: 选择认可的认证机构并商定日程
+Contrato con la entidad de certificación: 与认证机构的合同
+'Implantar controles: Gobierno del sistema de gestión (1/2)': 实施控制措施：管理体系治理（1/2）
+'Implantar controles: Gobierno del sistema de gestión (2/2)': 实施控制措施：管理体系治理（2/2）
+'Implantar controles: Seguridad física y del entorno (1/2)': 实施控制措施：物理与环境安全（1/2）
+'Implantar controles: Seguridad física y del entorno (2/2)': 实施控制措施：物理与环境安全（2/2）
+'Implantar controles: Seguridad del producto (software y dispositivos)': 实施控制措施：产品安全（软件和设备）
+'Implantar controles: Cumplimiento legal y privacidad': 实施控制措施：法律合规与隐私
+Controles de cumplimiento legal y privacidad implantados con evidencia: 法律合规与隐私控制措施已实施并有证据
+'Implantar controles: Protección de prototipos': 实施控制措施：原型件保护
+Controles de protección de prototipos implantados con evidencia: 原型件保护控制措施已实施并有证据
+Auditoría de certificación ISO 27001 fase 1 (documental y preparación): ISO 27001 认证审核第一阶段（文件审查与准备情况）
+Informe de fase 1: 第一阶段报告
+Resolver las observaciones de la fase 1: 解决第一阶段的观察项
+Observaciones resueltas: 已解决的观察项
+Auditoría de certificación ISO 27001 fase 2 (in situ, muestreo de sedes): ISO 27001 认证审核第二阶段（现场审核，场所抽样）
+Informe de fase 2: 第二阶段报告
+Registrar el certificado ISO 27001 en el punto de control (vencimientos y avisos): 在控制点登记 ISO 27001 证书（到期日及提醒）
+Certificado registrado: 证书已登记
+Auditorías de seguimiento de los años 1 y 2: 第 1 年和第 2 年监督审核
+Informes de seguimiento: 监督审核报告
+Auditoría de renovación del año 3: 第 3 年换证审核
+Certificado renovado: 证书已更新
+No conformidad mayor en la fase 2 que retrase el certificado: 第二阶段出现严重不符合项，导致证书延迟颁发
+Auditoría interna completa y simulacro de fase 2 antes de la auditoría externa.: 在外部审核前进行完整的内部审核和第二阶段模拟演练。
+Política de seguridad de la información: 信息安全政策
+Normas de uso aceptable: 可接受使用规则
+Política de clasificación y tratamiento de la información: 信息分类与处理政策
+Política criptográfica y de gestión de claves: 密码与密钥管理政策
+Política de seguridad con proveedores: 供应商安全政策
+Política de continuidad y recuperación: 业务连续性与恢复政策
+Política de teletrabajo y dispositivos móviles: 远程办公与移动设备政策
+Política de conservación de registros: 记录保存政策
+Política de gestión de cambios: 变更管理政策
+Procedimiento de gestión de riesgos: 风险管理程序
+Procedimiento de altas, cambios y bajas de accesos: 访问权限开通、变更与撤销程序
+Procedimiento de recertificación de accesos: 访问权限复核程序
+Procedimiento de cambios y paso a producción: 变更与投产程序
+Procedimiento de copias y restauración: 备份与恢复程序
+Procedimiento de auditoría interna: 内部审核程序
+Procedimiento de revisión por la dirección: 管理评审程序
+Procedimiento de no conformidades y acciones correctivas: 不符合项与纠正措施程序
+Registro de incidentes y notificaciones: 事件与通报记录
+Registro de formación y concienciación: 培训与意识记录
+Registro de proveedores críticos: 关键供应商登记册
+Actas de revisión por la dirección: 管理评审会议纪要
+Programa J-SOX: J-SOX 方案
+Determinar el alcance J-SOX (controles a nivel de empresa, procesos significativos y cierre): 确定 J-SOX 范围（公司层面控制、重要流程和期末结账）
+Memorando de alcance J-SOX: J-SOX 范围备忘录
+'Elaborar los tres documentos: diagrama de flujo, descripción del proceso y RCM': 编制三份文件：流程图、流程描述和 RCM
+Diagramas: 图表
+Descripciones: 描述文件
+RCM: RCM
+'Implantar controles: Seguridad en las operaciones': 实施控制措施：运行安全
+'Implantar controles: Desarrollo y gestión de cambios': 实施控制措施：开发与变更管理
+'Implantar controles: Control interno sobre la información financiera (1/2)': 实施控制措施：财务报告内部控制（1/2）
+Controles de control interno sobre la información financiera implantados con evidencia: 财务报告内部控制措施已实施并有证据
+'Implantar controles: Control interno sobre la información financiera (2/2)': 实施控制措施：财务报告内部控制（2/2）
+Evaluar los controles a nivel de empresa y del entorno de TI: 评价公司层面控制和 IT 环境
+Evaluación de controles de empresa: 公司层面控制评价
+Evaluar la eficacia operativa (procesos, ITGC y cierre): 评价运行有效性（流程、ITGC 和期末结账）
+Papeles de evaluación: 评价工作底稿
+Informe de control interno (art. 24-4-4) y carta de confirmación (art. 24-4-2): 内部控制报告（第 24-4-4 条）及确认书（第 24-4-2 条）
+Informe de control interno: 内部控制报告
+Carta de confirmación: 确认书
+Auditoría del informe de control interno (art. 193-2-2): 内部控制报告审计（第 193-2-2 条）
+Informe de auditoría de control interno: 内部控制审计报告
+Presentar el informe junto con el informe anual de valores: 将报告与有价证券年度报告一并提交
+Justificante de presentación: 提交回执
+'Ciclo anual J-SOX: actualizar alcance, documentos y evaluaciones': J-SOX 年度周期：更新范围、文件和评价
+Plan anual J-SOX: J-SOX 年度计划
+Retraso del informe de control interno respecto al informe anual: 内部控制报告较年度报告延迟
+Calendario sincronizado con el cierre y reutilización de las pruebas SOX.: 日程与期末结账同步，并复用 SOX 测试。
+Diferencias de criterio entre auditores de EE. UU. y Japón: 美国与日本审计师之间的标准差异
+Matriz única con correspondencias y acuerdos de muestreo comunes.: 统一矩阵，含对应关系和共同的抽样约定。
+Procedimiento de cierre de periodos contables: 期末结账程序
+Procedimiento de pruebas de controles (SOX y J-SOX): 控制测试程序（SOX 与 J-SOX）
+Matriz de segregación de funciones: 职责分离矩阵
+Registro de pruebas de controles: 控制测试记录
+Cumplimiento NIS2 (entidad esencial o importante): NIS2 合规（关键实体或重要实体）
+Determinar si cada entidad es esencial o importante por Estado miembro: 确定各实体在各成员国是关键实体还是重要实体
+Análisis de clasificación: 分类分析
+Registrar la entidad ante la autoridad competente de cada país: 向各国主管机构登记该实体
+Justificantes de registro: 登记证明
+Aprobación de las medidas de gestión de riesgos por el órgano de dirección (art. 20): 管理机构批准风险管理措施（第 20 条）
+Acuerdo del órgano de dirección: 管理机构决议
+Configurar el flujo de incidente notificable (24 h, 72 h y 1 mes) en el Service Desk: 在服务台配置须通报事件流程（24 小时、72 小时和 1 个月）
+Flujo configurado: 流程已配置
+Plantillas de notificación: 通报模板
+Simulacro de incidente significativo con notificación a la autoridad: 重大事件演练及向主管机构通报
+Informe del simulacro con plazos medidos: 含实测时限的演练报告
+Evaluar la seguridad de los proveedores directos críticos: 评估关键直接供应商的安全
+Evaluaciones de proveedores críticos: 关键供应商评估
+Registro de asistencia: 出席记录
+Preparar el expediente de cumplimiento para la autoridad: 为主管机构准备合规档案
+Expediente de cumplimiento NIS2: NIS2 合规档案
+Preparar la supervisión proactiva (inspecciones y auditorías de seguridad): 为主动监督（检查和安全审计）做准备
+Plan de atención a la supervisión: 监督应对计划
+Preparar la supervisión a posteriori: 为事后监督做准备
+Revisar anualmente las medidas, la formación de la dirección y los plazos de notificación: 每年评审措施、管理层培训和通报时限
+Informe anual NIS2: NIS2 年度报告
+Incumplir el plazo de 24 h o 72 h en un incidente significativo: 在重大事件中未能满足 24 小时或 72 小时时限
+Flujo con relojes, guardias definidas, plantillas y simulacros semestrales.: 流程设有计时、明确的值班安排、模板和半年一次的演练。
+Responsabilidad personal de la dirección por falta de supervisión: 管理层因监督不力而承担的个人责任
+Aprobación formal de medidas, formación de la dirección y actas de supervisión.: 正式批准措施、管理层培训及监督会议纪要。
+Procedimiento de notificación de incidentes significativos (NIS2): 重大事件通报程序（NIS2）
+Procedimiento de gestión de crisis: 危机管理程序
+'Programa integrado: ISO 27001, TISAX, NIS2, SOX, J-SOX e IEC 62443': 整合方案：ISO 27001、TISAX、NIS2、SOX、J-SOX 与 IEC 62443
+Registrarse en el portal ENX y definir el alcance y los objetivos de evaluación: 在 ENX 门户注册，并界定范围和评估目标
+Registro ENX: ENX 注册
+Alcance de evaluación: 评估范围
+Seleccionar el proveedor de auditoría TISAX: 选择 TISAX 审核服务机构
+Contrato con el proveedor de auditoría: 与审核服务机构的合同
+Determinar la materialidad, cuentas significativas, procesos y aplicaciones en alcance: 确定重要性、重要账户及范围内的流程和应用系统
+Memorando de alcance SOX: SOX 范围备忘录
+Autoevaluación con el catálogo VDA ISA (madurez objetivo 3): 使用 VDA ISA 目录进行自评（目标成熟度 3）
+Autoevaluación ISA cumplimentada: 已完成的 ISA 自评
+Documentar los procesos (narrativas y diagramas) y hacer los recorridos: 记录流程（叙述和图表）并开展穿行测试
+Narrativas: 流程叙述
+Recorridos documentados: 已记录的穿行测试
+Elaborar la matriz de riesgos y controles con ITGC y controles automáticos: 编制含 ITGC 和自动化控制的风险与控制矩阵
+Matriz de riesgos y controles (RCM): 风险与控制矩阵（RCM）
+'Unificar la matriz: un control común con sus correspondencias en las seis normas': 统一矩阵：一个通用控制措施及其在六项标准中的对应关系
+Matriz única control × norma × sede: 统一的控制措施 × 标准 × 场所矩阵
+'Implantar controles: Identidades y control de acceso (1/2)': 实施控制措施：身份与访问控制（1/2）
+'Implantar controles: Identidades y control de acceso (2/2)': 实施控制措施：身份与访问控制（2/2）
+'Implantar controles: Seguridad en las operaciones (1/3)': 实施控制措施：运行安全（1/3）
+'Implantar controles: Seguridad en las operaciones (2/3)': 实施控制措施：运行安全（2/3）
+'Implantar controles: Seguridad en las operaciones (3/3)': 实施控制措施：运行安全（3/3）
+'Implantar controles: Redes y comunicaciones (1/2)': 实施控制措施：网络与通信（1/2）
+'Implantar controles: Redes y comunicaciones (2/2)': 实施控制措施：网络与通信（2/2）
+'Implantar controles: Incidentes y notificaciones (1/2)': 实施控制措施：事件与通报（1/2）
+'Implantar controles: Incidentes y notificaciones (2/2)': 实施控制措施：事件与通报（2/2）
+'Implantar controles: Protección de prototipos (1/2)': 实施控制措施：原型件保护（1/2）
+'Implantar controles: Protección de prototipos (2/2)': 实施控制措施：原型件保护（2/2）
+Delimitar las áreas de prototipos y clasificar los proyectos: 划定原型件区域并对项目分级
+Plano de áreas: 区域平面图
+Proyectos clasificados: 已分级项目
+Obtener informes SOC 1 tipo II de proveedores y validar los controles complementarios: 获取供应商的 SOC 1 Type II 报告并验证互补性控制措施
+Revisión de informes SOC 1: SOC 1 报告评审
+Probar el diseño de los controles: 测试控制措施的设计
+Pruebas de diseño: 设计测试
+Plan único de pruebas de control reutilizable por SOX, J-SOX, ISO 27001 y TISAX: 可复用于 SOX、J-SOX、ISO 27001 和 TISAX 的统一控制测试计划
+Plan único de pruebas: 统一测试计划
+Pruebas intermedias de eficacia operativa (población, muestreo; quien prueba no implantó): 中期运行有效性测试（总体、抽样；测试人员未参与实施）
+Pruebas de eficacia operativa: 运行有效性测试
+Pruebas de actualización al cierre del ejercicio: 会计年度末更新测试
+Pruebas de actualización: 更新测试
+Evaluar y agregar las deficiencias de control: 评价并汇总控制缺陷
+Subcertificaciones y certificaciones de las secciones 302 y 906: 第 302 条和第 906 条的下级认证与认证
+Informe de la dirección sobre el control interno (sección 404(a)): 管理层内部控制报告（第 404(a) 条）
+Informe 404(a): 404(a) 报告
+Calendario integrado de auditorías externas (sin solapes y con muestras compartidas): 外部审计整合日程（无重叠并共享样本）
+Calendario integrado: 整合日程
+Preparar la evaluación in situ AL3 (agenda, entrevistas y muestras): 准备 AL3 现场评估（议程、访谈和样本）
+Agenda de evaluación: 评估议程
+Evaluación inicial TISAX (AL2 remota; AL3 in situ): TISAX 初始评估（AL2 远程；AL3 现场）
+Informe de evaluación inicial: 初始评估报告
+Acordar con el auditor el plan de medidas correctoras: 与审核员商定纠正措施计划
+Plan de medidas aceptado: 已接受的措施计划
+Auditoría externa integrada del control interno (sección 404(b)): 内部控制整合外部审计（第 404(b) 条）
+Informe del auditor externo: 外部审计师报告
+Presentar los resultados al comité de auditoría: 向审计委员会汇报结果
+Acta del comité: 委员会会议纪要
+Evaluación de cierre TISAX: TISAX 关闭评估
+Informe de cierre: 关闭报告
+Publicar las etiquetas TISAX en ENX y registrarlas en el punto de control (3 años): 在 ENX 发布 TISAX 标签并在控制点登记（3 年）
+Etiquetas publicadas: 已发布的标签
+Comprobar las etiquetas de los subcontratistas que manejan prototipos: 核查处理原型件的分包商的标签
+Registro de etiquetas de subcontratistas: 分包商标签登记册
+Preparar la reevaluación antes del vencimiento de las etiquetas: 在标签到期前准备重新评估
+Plan de reevaluación: 重新评估计划
+'Ciclo anual SOX: actualizar alcance y RCM y probar trimestralmente': SOX 年度周期：更新范围和 RCM 并按季度测试
+Plan anual SOX: SOX 年度计划
+Áreas de prototipos que no cumplen los requisitos físicos: 原型件区域不满足物理要求
+Inspección temprana de áreas y obras planificadas antes de la evaluación.: 在评估前对区域和计划中的工程进行提前检查。
+Caducidad de la etiqueta TISAX sin reevaluación: TISAX 标签到期但未重新评估
+Aviso de vencimiento en el punto de control con 9 meses de antelación.: 在控制点提前 9 个月发出到期提醒。
+Debilidad material en ITGC que afecte a la opinión del auditor: ITGC 中的重大缺陷影响审计师意见
+Pruebas intermedias tempranas, corrección antes del cierre y roll-forward.: 尽早开展中期测试，在结账前整改并进行更新测试。
+Conflictos de segregación de funciones en el ERP: ERP 中的职责分离冲突
+Matriz SoD, detección automática y controles compensatorios documentados.: SoD 矩阵、自动检测及已记录的补偿性控制措施。
+Trabajo duplicado entre normas y auditores: 各标准和审计师之间的重复工作
+Biblioteca única de controles, matriz única y plan único de pruebas reutilizable.: 统一的控制措施库、统一矩阵和统一的可复用测试计划。
+Política de protección de prototipos: 原型件保护政策
+Procedimiento de transporte y almacenamiento de prototipos: 原型件运输与存放程序
+Registro de acceso a áreas de prototipos: 原型件区域访问记录
+Programa SOX (secciones 302 y 404): SOX 方案（第 302 和 404 条）
+Evaluación TISAX AL3 con protección de prototipos: 含原型件保护的 TISAX AL3 评估

@@ -11,10 +11,10 @@
  */
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Link, useSearchParams } from 'react-router-dom'
+import { useSearchParams } from 'react-router-dom'
 import { FileText, Plus, Scale, Sparkles, Table2 } from 'lucide-react'
 import { politicasApi } from '../services/api'
-import { Button, EmptyState, Page, Spinner, Tabs, Pulsable } from '../components/ui'
+import { AvisoDeConfiguracion, Button, EmptyState, Page, Spinner, Tabs, Pulsable } from '../components/ui'
 import { extractErr } from '../utils/helpers'
 import EditorDePolitica from '../components/politicas/EditorDePolitica'
 import EditorDeTablas from '../components/politicas/EditorDeTablas'
@@ -62,7 +62,7 @@ export default function PoliticasPage() {
               )}
               {actual && catalogo.data?.dominios.find(d => d.clave === actual)?.tiene_ejemplos && <CargarEjemplos dominio={actual} />}
               {actual && <Lista dominio={actual} onAbrir={setAbierta} onNueva={() => setNueva(actual)} />}
-              <p className="pol-ayuda pol-mt">{t('pol.flujos_aqui')} <Link className="polp-enlace" to="/settings/approval-workflows">{t('pol.ir_a_flujos')}</Link></p>
+              <p className="pol-ayuda pol-mt">{t('pol.flujos_aqui')} <AvisoDeConfiguracion seccion="approval-workflows" variante="enlace" texto={t('pol.ir_a_flujos')} /></p>
             </>
           ))}
         {tab === 'tablas' && <EditorDeTablas />}

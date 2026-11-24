@@ -7,6 +7,8 @@ Cada usuario recibe la MISMA contraseña que le da la semilla
 
 * el superadmin (`admin`): `SUPERADMIN_PASSWORD`;
 * el resto (`ana.torres`, `luis.vega`, `rrhh`): `DEFAULT_USER_PASSWORD`.
+* los usuarios del portal de la demo que crea la siembra de chats de ejemplo
+  (`app/db/seed_parts/chats_demo.py`, 24-11-2026): `DEFAULT_USER_PASSWORD`.
 
 Antes (hasta el 23-11-2026) ponía `DEFAULT_USER_PASSWORD` a todos, también al
 admin, mientras la semilla le ponía `SUPERADMIN_PASSWORD`: según qué se hubiera
@@ -79,6 +81,13 @@ def main(argv: list[str] | None = None) -> int:
         actualizados = 0
         for u in db.query(User).filter(User.username.in_(USUARIOS_DEMO)).all():
             u.hashed_password = get_password_hash(contrasena_para(u, pwd_usuarios, pwd_superadmin))
+            actualizados += 1
+        # 24-11-2026: los usuarios del portal de la demo (chats de ejemplo).
+        from app.db.seed_parts.chats_demo import CLIENTES_DEMO
+        from app.models.client_portal import ClientUser
+        correos = [c[0] for c in CLIENTES_DEMO]
+        for cu in db.query(ClientUser).filter(ClientUser.email.in_(correos)).all():
+            cu.hashed_password = get_password_hash(pwd_usuarios)
             actualizados += 1
         db.commit()
     except Exception as exc:  # noqa: BLE001 - el setup solo necesita saber que falló

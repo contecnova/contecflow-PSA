@@ -7,14 +7,15 @@
  * NIS2, proveedores críticos y biblioteca. `?tab=` abre una pestaña (enlace de los avisos) y
  * `?programa=` el programa.
  */
-import { useQuery } from '@tanstack/react-query'
+import { useEffect, useRef } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
 import {
   Award, BookOpen, ClipboardList, FileCheck2, Grid3x3, LayoutDashboard, ListChecks, Search, ShieldCheck, Siren, Truck,
   Users,
 } from 'lucide-react'
 import { Page, SelectRico, SelectorDeContexto, Tabs } from '../components/ui'
-import { useAppT } from '../i18n/AppLangContext'
+import { useAppLang, useAppT } from '../i18n/AppLangContext'
 import { CLAVES_CERT, certApi } from '../services/api/certificaciones'
 import PanelCert from '../components/certificaciones/PanelCert'
 import ProgramasCert from '../components/certificaciones/ProgramasCert'
@@ -41,6 +42,16 @@ const ICONOS: Record<Pestana, JSX.Element> = {
 
 export default function CertificacionesPage(): JSX.Element {
   const t = useAppT()
+  // 24-11-2026 (barrido de traducciones): el servidor devuelve la biblioteca en el idioma
+  // de la interfaz (`X-Idioma`); al cambiar de idioma se vuelve a pedir lo que hay en caché.
+  const { lang } = useAppLang()
+  const qc = useQueryClient()
+  const idiomaAnterior = useRef(lang)
+  useEffect(() => {
+    if (idiomaAnterior.current === lang) return
+    idiomaAnterior.current = lang
+    qc.invalidateQueries({ queryKey: CLAVES_CERT.todo })
+  }, [lang, qc])
   const [params, setParams] = useSearchParams()
   const pedida = params.get('tab') as Pestana | null
   const tab: Pestana = pedida && PESTANAS.includes(pedida) ? pedida : 'panel'

@@ -11,12 +11,10 @@ import { documentsApi, solicitudesDeFirmaApi } from '../services/api'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { AlertTriangle, CheckCircle2, Clock, ExternalLink, FileSignature, PenLine, Plus, X, XCircle } from 'lucide-react'
-import { Button, Spinner, EmptyState, Modal, KpiCard, IconButton, Pulsable, Select, TablaSimple, Input, Textarea, EstadoDeError } from '../components/ui'
+import { AvisoDeConfiguracion, Button, Spinner, EmptyState, Modal, KpiCard, IconButton, Pulsable, Select, TablaSimple, Input, Textarea, EstadoDeError } from '../components/ui'
 import { useAppT } from '../i18n/AppLangContext'
 import { extractErr, fmtDate } from '../utils/helpers'
 import { sanitizeUrl } from '../utils/security'
-import { useAuth } from '../context/AuthContext'
-import { Link } from 'react-router-dom'
 import StatusBadge from '../components/ui/StatusBadge'
 import type { StatusBadgeKind } from '../components/ui/StatusBadge'
 import './ESignPage.css'
@@ -204,7 +202,6 @@ export default function ESignPage(): JSX.Element {
   const [detail, setDetail]       = useState<Envelope | null>(null)
   const qc = useQueryClient()
 
-  const { puede } = useAuth()
   const { data: stats } = useQuery<ESignStats>({
     queryKey: ['esign-stats'],
     queryFn: () => solicitudesDeFirmaApi.estadisticas<ESignStats>().then(r => r.data),
@@ -244,13 +241,11 @@ export default function ESignPage(): JSX.Element {
       <div className="esign-row-3">
         <ProviderBadge label="DocuSign" ok={!!docusignOk} />
         <ProviderBadge label="Adobe Sign" ok={!!adobeOk} />
-        {/* 23-11-2026 (M7 del 04): aviso contextual sin recarga y solo para quien puede configurarlo. */}
-        {!docusignOk && !adobeOk && puede('org.administrar') && (
-          <Link to="/settings/esign" className="esign-link">
-            {t('esign.configura_las_credenciales_en_settings_e_firma')}
-          </Link>
-        )}
       </div>
+      {/* 24-11-2026: aviso del kit; el enlace a Configuración solo a quien puede abrir la sección. */}
+      {!docusignOk && !adobeOk && (
+        <AvisoDeConfiguracion seccion="esign">{t('esign.sin_proveedor_configurado')}</AvisoDeConfiguracion>
+      )}
 
       {/* KPI row */}
       {stats && (

@@ -4,11 +4,9 @@
  * transcripción. La recogida automática se activa en «Mis preferencias».
  */
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { useAuth } from '../../context/AuthContext'
 import { Download } from 'lucide-react'
-import { Button, Input, Modal, Segmentado } from '../ui'
+import { AvisoDeConfiguracion, Button, Input, Modal, Segmentado } from '../ui'
 import { useAppT } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
 import { extractErr } from '../../utils/helpers'
@@ -27,7 +25,6 @@ interface Props {
 export default function ModalImportar({ onClose, onCreada, disponibles }: Props) {
   const t = useAppT()
   const toast = useToast()
-  const configura = useAuth().puede('reuniones.config')
   const qc = useQueryClient()
   const [plataforma, setPlataforma] = useState<PlataformaImportable>('teams')
   const [referencia, setReferencia] = useState('')
@@ -55,10 +52,7 @@ export default function ModalImportar({ onClose, onCreada, disponibles }: Props)
         <Segmentado aria-label={t('reuniones.campo.plataforma')} valor={plataforma} onChange={v => setPlataforma(v as PlataformaImportable)}
           opciones={opciones.map(o => ({ ...o, disabled: disponibles ? disponibles[o.valor] === false : false }))} />
         {disponibles && Object.values(disponibles).some(v => v === false) && (
-          <p className="u-text3-xs" role="status">
-            {t('reuniones.importar.sin_conector')}{' '}
-            {configura && <Link to="/settings/reuniones" onClick={onClose}>{t('reuniones.ir_a_configuracion')}</Link>}
-          </p>
+          <AvisoDeConfiguracion seccion="reuniones" alPulsar={onClose}>{t('reuniones.importar.sin_conector')}</AvisoDeConfiguracion>
         )}
         <Input label={t('reuniones.importar.referencia')} required value={referencia} onChange={e => setReferencia(e.target.value)}
           hint={t(`reuniones.importar.ayuda_${plataforma}`)} />

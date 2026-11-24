@@ -141,7 +141,8 @@ def test_sin_capacidad_no_se_llama_a_clientes(db):
         portal_chat.conversacion_con_clientes = original
 
 
-def test_no_se_graba_con_clientes(client, admin_token, db, livekit):
+def test_no_se_graba_con_clientes_sin_permiso_de_la_empresa(client, admin_token, db, livekit):
+    # 24-11-2026 (migración 214): la grabación con clientes está apagada por defecto.
     e = _escenario(client, admin_token, db, "CC4")
     call_id = client.post("/api/v1/collaboration/calls/start", headers=auth(admin_token),
                           json={"conversation_id": e.conv, "kind": "audio"}).json()["data"]["call_id"]
@@ -149,7 +150,7 @@ def test_no_se_graba_con_clientes(client, admin_token, db, livekit):
     from app.services.collaboration import calls
     with pytest.raises(ErrorDeDominio) as err:
         calls.start_recording(db, e.admin, call_id)
-    assert err.value.code == "portal_llamada_no_se_graba"
+    assert err.value.code == "portal_grabacion_desactivada"
 
 
 # ── Adjuntos ─────────────────────────────────────────────────────────────────
@@ -296,7 +297,8 @@ def test_codigos_nuevos_en_los_idiomas():
     import pathlib
     from app.core import codigos_de_error as cde
     raiz = pathlib.Path(__file__).resolve().parents[1]
-    for codigo in ("portal_llamada_sin_capacidad", "portal_llamada_no_se_graba"):
+    for codigo in ("portal_llamada_sin_capacidad", "portal_grabacion_desactivada",
+                   "portal_grabacion_sin_consentimiento"):
         assert codigo in cde.MENSAJES
         for idioma in ("es", "en", "de", "fr", "it", "pl", "pt", "zh"):
             assert f'"err_srv.{codigo}"' in (raiz / f"frontend/src/i18n/portal/{idioma}.ts").read_text(encoding="utf-8")

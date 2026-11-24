@@ -17,9 +17,9 @@ Por empresa (`ajustes`): llamadas y vídeo activables (`PORTAL_CHAT_CALLS_ENABLE
 `portal_videollamadas_desactivadas`. Una llamada que suena más de
 `PORTAL_CHAT_CALL_RING_SECONDS` pasa a perdida (`missed`).
 
-Sin grabación ni transcripción: la sala es de LiveKit con tokens sin permiso de
-grabador y la llamada no pasa por el asistente de reuniones. El aviso al
-cliente lo dice («esta llamada no se graba»).
+Grabación (24-11-2026, migración 214, §11): solo si la empresa lo permite, la
+propone el operador y la consienten los clientes (`grabacion.py`). `is_recorded`
+dice si se está grabando ahora; al colgar se para (`al_terminar_llamada`).
 
 Auditoría (`portal_conversation_audits`): `call_started`, `call_accepted`,
 `call_declined`, `call_missed`, `call_joined`, `call_ended` y
@@ -95,8 +95,17 @@ def _salida(call: PortalConversationCall) -> dict:
         "answered_at": str(call.answered_at)[:19] if call.answered_at else None,
         "ended_at": str(call.ended_at)[:19] if call.ended_at else None,
         "duration_seconds": call.duration_seconds or 0,
-        "is_recorded": False,
+        "is_recorded": _grabando(call),
     }
+
+
+def _grabando(call: PortalConversationCall) -> bool:
+    """Se graba ahora con el consentimiento de los clientes (migración 214)."""
+    from sqlalchemy.orm import object_session
+    from app.services.portal_conversation_service import grabacion
+    db = object_session(call)
+    return bool(db is not None and call.status in VIVAS
+                and grabacion.grabando(db, "conversacion", call.id, call.organization_id))
 
 
 def _con_token(call: PortalConversationCall, *, identidad: str, nombre: str, rol: str) -> dict:
@@ -289,6 +298,8 @@ def _terminar(db: Session, conversation, call: PortalConversationCall, *, user_i
     ahora = _now()
     if call.status == "active" and call.answered_at is not None:
         call.duration_seconds = max(0, int((ahora - _aware(call.answered_at)).total_seconds()))
+    from app.services.portal_conversation_service import grabacion
+    grabacion.al_terminar_llamada(db, "conversacion", call.id, call.organization_id)
     call.status = "ended"
     call.ended_at = ahora
     call.ended_by_user_id = user_id

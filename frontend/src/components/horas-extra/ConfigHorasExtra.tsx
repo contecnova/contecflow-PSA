@@ -10,7 +10,6 @@
  * recibía 403); RRHH ve el aviso `ajustes.reglas_solo_admin`.
  */
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Pencil, Plus, RefreshCw, Save, Scale, Sparkles, Trash2 } from 'lucide-react'
 import {
@@ -19,7 +18,7 @@ import {
   type PresupuestoHeIn,
 } from '../../services/api/horas-extra'
 import {
-  Button, Checkbox, GrupoDeOpciones, Input, LoadBar, Modal, ProjectSelect, FormField, Section, Select, Spinner, StatusBadge, Switch,
+  AvisoDeConfiguracion, Button, Checkbox, GrupoDeOpciones, Input, LoadBar, Modal, ProjectSelect, FormField, Section, Select, Spinner, StatusBadge, Switch,
   Tabla, type ColumnaTabla,
 } from '../ui'
 import { confirmar } from '../../context/ConfirmContext'
@@ -243,7 +242,7 @@ function Reglas() {
       {esAdmin ? (
         <>
           <div className="hext-fila">
-            <Link className="hext-enlace" to="/settings/policies?dominio=horas_extra"><Scale size={14} aria-hidden /> {th('ir_a_politicas')}</Link>
+            <AvisoDeConfiguracion seccion="policies" consulta="dominio=horas_extra" variante="enlace" icono={<Scale size={14} aria-hidden />} texto={th('ir_a_politicas')} />
             <Button variant="secondary" icon={<Sparkles size={14} />} loading={m.isPending} onClick={() => m.mutate()}>{th('cargar_ejemplos')}</Button>
           </div>
           <p className="hext-ayuda">{th('cargar_ejemplos_ayuda')}</p>

@@ -14,9 +14,8 @@ import { useToast } from '../../../../context/ToastContext'
 import { useAuth } from '../../../../context/AuthContext'
 import { cmdbRiesgoApi } from '../../../../services/api/cmdbRiesgo'
 import type { ResultadoDeImportacionDeTerceros } from '../../../../services/api/cmdbRiesgo'
-import { Checkbox, EmptyState, Section, Select, Spinner } from '../../../ui'
+import { AvisoDeConfiguracion, Checkbox, EmptyState, Section, Select, Spinner } from '../../../ui'
 import { BotonFichero, ListaKv, useErr } from '../comun'
-import { AvisoDeConfiguracion } from '../Escaneos'
 import { useEtiquetaSwr, useMetaRiesgo } from './comunRiesgo'
 
 export default function Importar() {
@@ -85,7 +84,7 @@ export default function Importar() {
           )}
         </div>
       </Section>
-      <AvisoDeConfiguracion tono="warning">{t('swr.conexiones_api')}</AvisoDeConfiguracion>
+      <AvisoDeConfiguracion seccion="cmdb-software">{t('swr.conexiones_api')}</AvisoDeConfiguracion>
     </div>
   )
 }

@@ -5,7 +5,8 @@ bandeja de canales) con lo mismo que los otros dos. Se comprueba:
 
 - «Solo el operador llama», en el servidor: el cliente recibe SIEMPRE 403
   `portal_llamada_solo_operador` (auditado); el operador llama; el cliente
-  acepta, rechaza o cuelga; grabar da 409 `portal_llamada_no_se_graba`.
+  acepta, rechaza o cuelga; grabar sin permiso de la empresa da 409
+  `portal_grabacion_desactivada` (migración 214).
 - Adjuntos validados por contenido y descarga solo por la API, con cabeceras seguras.
 - Editar y borrar el propio mensaje con rastro (versiones + auditoría) y plazo.
 - Reacciones (poner/quitar, emoji válido).
@@ -100,11 +101,11 @@ def test_el_operador_llama_el_cliente_acepta_y_no_se_graba(client, admin_token, 
     assert r.status_code == 200, r.text
     assert r.json()["data"]["status"] == "active" and r.json()["data"]["livekit_token"]
 
-    # Grabar o transcribir con clientes: nunca, desde ningún lado.
+    # Grabar con clientes sin que la empresa lo permita (apagado por defecto): 409, desde los dos lados.
     r = client.post(f"{_ope(e.conv)}/calls/{llamada['id']}/recording", headers=auth(admin_token))
-    assert r.status_code == 409 and _codigo(r) == "portal_llamada_no_se_graba"
+    assert r.status_code == 409 and _codigo(r) == "portal_grabacion_desactivada"
     r = client.post(f"{_cli(e.conv)}/calls/{llamada['id']}/recording")
-    assert r.status_code == 409 and _codigo(r) == "portal_llamada_no_se_graba"
+    assert r.status_code == 409 and _codigo(r) == "portal_grabacion_desactivada"
 
     r = client.post(f"{_cli(e.conv)}/calls/{llamada['id']}/end")
     assert r.status_code == 200 and r.json()["data"]["status"] == "ended"

@@ -480,6 +480,12 @@ RUNTIME_FLAG_GROUPS: dict[str, list[tuple[str, str, str]]] = {
         ("PORTAL_CHAT_MAX_FILE_MB", "int", "Portal chat — maximum attachment size (MB; never above the global maximum)"),
         ("PORTAL_CHAT_EDIT_WINDOW_MINUTES", "int", "Portal chat — minutes to edit or delete one's own message (0: no limit)"),
         ("PORTAL_CHAT_CALL_RING_SECONDS", "int", "Portal chat — seconds a call rings before it counts as missed"),
+        # 24-11-2026 (migración 214): grabación con aviso y consentimiento del cliente.
+        ("PORTAL_CHAT_RECORDING_ENABLED", "bool", "Portal chat — calls may be recorded (operator proposes; customer must consent)"),
+        ("PORTAL_CHAT_TRANSCRIPTION_ENABLED", "bool", "Portal chat — recorded calls may be transcribed (with the same consent)"),
+        ("PORTAL_CHAT_RECORDING_RETENTION_DAYS", "int", "Portal chat — days recordings are kept (legal hold prevails)"),
+        ("PORTAL_CHAT_TRANSCRIPT_RETENTION_DAYS", "int", "Portal chat — days transcripts are kept (legal hold prevails)"),
+        ("PORTAL_CHAT_RECORDING_NOTICE", "str", "Portal chat — recording notice the customer accepts (empty: default text)"),
     ],
     "security_network": [
         ("TRUST_PROXY_HEADERS", "bool", "Trust X-Forwarded-* headers"),

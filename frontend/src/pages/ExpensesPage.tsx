@@ -18,7 +18,7 @@ import { expensesApi, gastosApi } from '../services/api'
 import { useListaDeProyectos } from '../hooks/useListas'
 import { sanitizeUrl } from '../utils/security'
 import type { FiltrosDeGastos, GastoConPoliticas } from '../services/api/gastos'
-import { Button, Modal, Spinner, EmptyState, useSort, SortableTH, Buscador, FilterSelect, KpiCard, Tabs, IconButton, Pulsable, Select, Checkbox, useErroresDeCampo, Input, Textarea } from '../components/ui'
+import { AvisoDeConfiguracion, Button, Modal, Spinner, EmptyState, useSort, SortableTH, Buscador, FilterSelect, KpiCard, Tabs, IconButton, Pulsable, Select, Checkbox, useErroresDeCampo, Input, Textarea } from '../components/ui'
 import Pagination from '../components/ui/Pagination'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -29,7 +29,6 @@ import {
 import type { LucideIcon } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { useAppLang, useAppT } from '../i18n/AppLangContext'
-import { Link } from 'react-router-dom'
 import { CODIGOS_DE_PAIS, nombreDePais } from '../constants/paises'
 import { useOrgSettings } from '../hooks/useOrgSettings'
 import {
@@ -733,7 +732,7 @@ export default function ExpensesPage(): JSX.Element {
         subtitle={t('expenses.subtitle')}
         showListExport={false}
         actions={<>
-          {puede('org.administrar') && <Link to="/settings/policies" className="u-text2-sm">{t('gas.politicas_de_gasto')}</Link>}
+          <AvisoDeConfiguracion seccion="policies" variante="enlace" texto={t('gas.politicas_de_gasto')} />
           <Button variant="secondary" icon={<FileSpreadsheet size={14} />}
             onClick={async () => {
               // Por el cliente (refresco de sesión y errores); antes abría la URL en otra pestaña.

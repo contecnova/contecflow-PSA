@@ -142,10 +142,8 @@ export default function FormularioDePartida({ p, inicial, onGuardar, onCancelar,
           </Select>
       )}
       {f.sentido === 'gasto' && f.naturaleza === 'capex' && entrada({ k: 'vida_meses', label: t('pres.vida_meses') })}
-      <label><span className="uiinde-estiloetiqueta">{t('pres.desde_mes')}</span>
-        <input aria-label={t('pres.desde_mes')} type="month" min={desde} max={hasta} value={f.mes_desde} onChange={set('mes_desde')} className="fodepa-campo" /></label>
-      <label><span className="uiinde-estiloetiqueta">{t('pres.hasta_mes')}</span>
-        <input aria-label={t('pres.hasta_mes')} type="month" min={desde} max={hasta} value={f.mes_hasta} onChange={set('mes_hasta')} className="fodepa-campo" /></label>
+      <Input label={t('pres.desde_mes')} type="month" min={desde} max={hasta} value={f.mes_desde} onChange={set('mes_desde')} />
+      <Input label={t('pres.hasta_mes')} type="month" min={desde} max={hasta} value={f.mes_hasta} onChange={set('mes_hasta')} />
       <Textarea label={t('pres.justificacion')} aria-label={t('pres.justificacion')} value={f.justificacion} onChange={set('justificacion')} rows={2} placeholder={t('pres.justificacion_ayuda')} />
       <div className="fodepa-row-1">
         {onCancelar && <Button variant="secondary" onClick={onCancelar}>{t('pres.cancelar')}</Button>}

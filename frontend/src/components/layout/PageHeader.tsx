@@ -5,7 +5,7 @@ import { FileSpreadsheet } from 'lucide-react'
 import './PageHeader.css'
 import { useTextoUi } from '../ui/useTextoUi'
 import { Pulsable } from '../ui'
-import { useIncrustadaEnAjustes } from './incrustacion'
+import { usePaginaIncrustada } from './incrustacion'
 
 interface ExtractedTable {
   headers: string[]
@@ -216,6 +216,9 @@ interface PageHeaderProps {
 /**
  * PageHeader — Cabecera de página consistente con icono, título, breadcrumb, acciones y métricas.
  * Props: title, subtitle, icon, actions, meta, breadcrumb, sticky (fija al scroll).
+ * Toda pantalla del operador la usa dentro de `PageShell` (o `<Page>`); dentro de otra pantalla
+ * (Configuración o una pestaña) se adapta sola con `PaginaIncrustada` (incrustacion.ts).
+ * Regla: docs/GUIA_DE_DISENO.md §7.1. Vigilante: `paginaSinCabecera` / `h1AMano` (kit_pendientes).
  */
 export default function PageHeader({
   title,
@@ -229,21 +232,48 @@ export default function PageHeader({
   exportTargetSelector,
   exportFilePrefix,
 }: PageHeaderProps) {
-  // 18-11-2026: dentro de Configuración el título es de sección (h2), no de página.
-  const incrustada = useIncrustadaEnAjustes()
+  // 24-11-2026 (paso 1 de estabilidad de diseño): página incrustada en Configuración o en una
+  // pestaña (incrustacion.ts). No repite la cabecera de página: título de sección del contenedor
+  // (h2) o, si el contenedor ya la nombra, solo la barra de acciones. Sin migas ni cabecera fija.
+  const incrustacion = usePaginaIncrustada()
+  const incrustada = incrustacion !== null
+  const exportar = showListExport && <AutoListExportButton exportTargetSelector={exportTargetSelector} exportFilePrefix={exportFilePrefix} />
+  const metas = meta && meta.length > 0 && meta.map((m, i) => (
+    <div key={i} className="pagehead-row-5">
+      {m.icon && <span className="pagehead-box-3">{m.icon}</span>}
+      <span className="page-header-e7" style={{ '--page-header-color': m.color || 'var(--text-2)' } as CSSProperties}>{m.value}</span>
+      {m.label && <span className="u-text3">{m.label}</span>}
+    </div>
+  ))
+  if (incrustacion && !incrustacion.titulo) {
+    if (!actions && !exportar && !metas) return null
+    return (
+      <div className="pagehead-barra">
+        {metas && <div className="pagehead-row-7 page-header-m6 pagehead-barra__meta">{metas}</div>}
+        <div className="pagehead-row-6 pagehead-barra__acciones">
+          {actions}
+          {exportar}
+        </div>
+      </div>
+    )
+  }
+  // En Configuración: el título y la descripción son los de la sección (los mismos que la navegación).
+  const titulo = incrustacion ? incrustacion.titulo : title
+  const subtitulo = incrustacion ? incrustacion.descripcion : subtitle
+  const migas = incrustacion ? undefined : breadcrumb
   const Titulo = incrustada ? 'h2' : 'h1'
   return (
     <div className={`${sticky && !incrustada ? 'sticky-top sticky-top--shadow' : ''} pagehead-sx1 ${sticky && !incrustada ? 'page-header-m1' : 'page-header-m2'}${incrustada ? ' pagehead--incrustada' : ''}`}>
       {/* Breadcrumb */}
-      {breadcrumb && (
+      {migas && (
         <div className="pagehead-row-2">
-          {breadcrumb.map((crumb, i) => (
+          {migas.map((crumb, i) => (
             <span key={i} className="u-row-center-6">
               {i > 0 && <span className="pagehead-txt-1">›</span>}
               {crumb.onClick ? (
-                <Pulsable className={`pagehead-box-4 ${i === breadcrumb.length - 1 ? 'page-header-m3' : 'page-header-m4'}`} onClick={crumb.onClick}>{crumb.label}</Pulsable>
+                <Pulsable className={`pagehead-box-4 ${i === migas.length - 1 ? 'page-header-m3' : 'page-header-m4'}`} onClick={crumb.onClick}>{crumb.label}</Pulsable>
               ) : (
-                <span className={`pagehead-txt-2 ${i === breadcrumb.length - 1 ? 'page-header-m3' : 'page-header-m4'}`}>{crumb.label}</span>
+                <span className={`pagehead-txt-2 ${i === migas.length - 1 ? 'page-header-m3' : 'page-header-m4'}`}>{crumb.label}</span>
               )}
             </span>
           ))}
@@ -262,32 +292,26 @@ export default function PageHeader({
               </div>
             )}
             <Titulo className="pagehead-box-2">
-              {title}
+              {titulo}
             </Titulo>
           </div>
-          {subtitle && (
+          {subtitulo && (
             <p className={`pagehead-box-5 ${icon ? 'page-header-m5' : 'page-header-m6'}`}>
-              {subtitle}
+              {subtitulo}
             </p>
           )}
           {/* Meta tags */}
-          {meta && meta.length > 0 && (
+          {metas && (
             <div className={`pagehead-row-7 ${icon ? 'page-header-m5' : 'page-header-m6'}`}>
-              {meta.map((m, i) => (
-                <div key={i} className="pagehead-row-5">
-                  {m.icon && <span className="pagehead-box-3">{m.icon}</span>}
-                  <span className="page-header-e7" style={{ '--page-header-color': m.color || 'var(--text-2)' } as CSSProperties}>{m.value}</span>
-                  {m.label && <span className="u-text3">{m.label}</span>}
-                </div>
-              ))}
+              {metas}
             </div>
           )}
         </div>
         {/* Actions slot */}
-        {(actions || showListExport) && (
+        {(actions || exportar) && (
           <div className="pagehead-row-6">
             {actions}
-            {showListExport && <AutoListExportButton exportTargetSelector={exportTargetSelector} exportFilePrefix={exportFilePrefix} />}
+            {exportar}
           </div>
         )}
       </div>

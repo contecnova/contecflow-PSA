@@ -72,7 +72,19 @@ function ficheros(dir) {
   return salida
 }
 
+// 24-11-2026 (barrido de traducciones): las pantallas del portal piden a t() claves
+// del diccionario del portal (`src/i18n/portal/es.ts`, claves planas con punto:
+// "portal_avisos.titulo"); no son claves rotas del operador.
+const CLAVES_PORTAL = (() => {
+  const src = readFileSync(join(FUENTES, 'i18n', 'portal', 'es.ts'), 'utf8')
+  const js = ts.transpileModule(src, { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText
+  const m = { exports: {} }
+  new Function('module', 'exports', 'require', js)(m, m.exports, () => ({}))
+  return new Set(Object.keys(m.exports.default || {}))
+})()
+
 function existe(clave) {
+  if (CLAVES_PORTAL.has(clave)) return true
   const partes = clave.split('.')
   let nodo = es
   for (const paso of partes) {

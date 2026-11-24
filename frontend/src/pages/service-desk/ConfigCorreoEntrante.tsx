@@ -12,12 +12,12 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Copy, Inbox, KeyRound } from 'lucide-react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { useAppT } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
 import { extractErr, fmtDateTime } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
-import { Button, EmptyState, Spinner, StatusBadge, TablaSimple, Input } from '../../components/ui'
+import { AvisoDeConfiguracion, Button, EmptyState, Spinner, StatusBadge, TablaSimple, Input } from '../../components/ui'
 import type { StatusBadgeKind } from '../../components/ui/StatusBadge'
 import { sdInboundApi, apiUrlAbsoluta } from '../../services/api'
 import type { SdPruebaDeBuzon } from '../../services/api/tipos-sd'
@@ -30,7 +30,6 @@ const KIND_RESULTADO: Record<string, StatusBadgeKind> = {
 
 export default function ConfigCorreoEntrante() {
   const t = useAppT()
-  const navigate = useNavigate()
   const toast = useToast()
   const qc = useQueryClient()
   const [prueba, setPrueba] = useState<SdPruebaDeBuzon | null>(null)
@@ -66,7 +65,7 @@ export default function ConfigCorreoEntrante() {
           <span className="cocoen-ls">{t('sd_cfg.mail_mailbox')}</span>
           <div className="u-text2-sm">{t('sd_cfg.mail_mailbox_help')}</div>
           <div className="u-wrap-8">
-            <Button variant="secondary" icon={<KeyRound size={14} />} onClick={() => navigate('/settings/integrations?sub=sd_mailbox')}>{t('sd_cfg.mail_credentials')}</Button>
+            <AvisoDeConfiguracion seccion="integrations" consulta="sub=sd_mailbox" variante="boton" icono={<KeyRound size={14} />} texto={t('sd_cfg.mail_credentials')} />
             <Button variant="secondary" onClick={() => probar.mutate()} loading={probar.isPending}>{t('sd_cfg.mail_test')}</Button>
             <Button onClick={() => leer.mutate()} loading={leer.isPending}>{t('sd_cfg.mail_run')}</Button>
           </div>

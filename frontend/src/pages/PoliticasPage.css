@@ -4,11 +4,3 @@
 .polp-dominios {
   margin-bottom: 12px;
 }
-.polp-enlace {
-  color: var(--accent);
-  font-weight: 600;
-  text-decoration: none;
-}
-.polp-enlace:hover {
-  text-decoration: underline;
-}

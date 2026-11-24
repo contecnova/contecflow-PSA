@@ -5,7 +5,7 @@
 import { type ReactNode, useState } from 'react'
 import { Hash, MessageSquare, Users, Phone, Bell } from 'lucide-react'
 import { useAppLang } from '../../i18n/AppLangContext'
-import { Pulsable } from '../../components/ui'
+import { Contador, Pulsable } from '../../components/ui'
 import { FilaDeConversacion, GrupoDeChats, ListaDeChats } from '../../components/chat'
 import { type Channel, type Conv, type Presence, type Team, tituloConv } from './compartido'
 import { ActivityList, Loader } from './PanelDeContexto'
@@ -29,9 +29,7 @@ export function NavRail({ activeTab, onTab, unreadNotifs }: { activeTab: string;
             className="chat-rail__btn" aria-current={active ? 'page' : undefined}>
             <Icon size={20} aria-hidden="true" />
             <span className="u-xs">{it.label}</span>
-            {(it.badge ?? 0) > 0 && (
-              <span className="chat-rail__badge" aria-label={traducir('chat.unread_count', { count: it.badge ?? 0 })}>{(it.badge ?? 0) > 99 ? '99+' : it.badge}</span>
-            )}
+            <Contador n={it.badge ?? 0} tono="acento" className="chat-rail__badge" ariaLabel={traducir('chat.unread_count', { count: it.badge ?? 0 })} />
           </Pulsable>
         )
       })}

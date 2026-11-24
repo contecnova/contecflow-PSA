@@ -14,7 +14,7 @@ import type { AdopcionO365, AlertaDisparadaBi, AvisoDePanelBi, BorradoDeDsr, Cap
 import type { AlertasDeMetricas, AnomaliasDeImputacion, DesgloseDeMargen, FiltroDeMargen, BusquedaGlobal, CargaDeRecurso, CargaOlapRealizada, Cartera, CatalogoDeMetricas, CierreAutomatico, ClusterFusionado, ClustersDeAlertas, ComandoDeVoz, ComandoDeVozTranscrito, ConfigDeAutoResolucion, ConfigDelAgenteDeVoz, ConfigDelMotorSemantico, ConfigDelMotorSemanticoGuardada, ConfirmacionAnalitica, ConsultaDeMetrica, Conversacion, CorreccionDeAsignacion, CasoDudoso, ConversacionDeAsk, ConversacionResumen, ConversacionesArchivadas, DecisionDePasoDelAgente, EjecucionDelAgente, EjecucionDelAgenteEnCola, EjecucionDelAgenteResumen, EjemploDeAskGuardado, EmbeddingsReconstruidos, EntrenamientoDelModelo, EscaneoDeCorrelacion, EstadisticasDeAutoResolucion, EstadisticasDeCorrelacion, EstadisticasDelMotorSemantico, EstadoDelAgente, EstadoDelAlmacenOlap, EstimacionDelBacklog, EtapaDelEmbudoOlap, HorasPorSemana, InstantaneasDeAgotamiento, KpisDelCuadroDeMando, KpisOlap, MargenMensualOlap, ModeloDePrediccion, MonitorDeAgotamiento, NarrativaEjecutiva, OpcionesDeFiltroAnalitico, PanelDeCartera, PerfilSemantico, PerfilSemanticoGuardado, PerfilesSemanticosGenerados, PlanificacionSugerida, PrediccionDeDesvio, PrediccionImposible, ProductividadDelEquipo, RegistroDePrediccion, RentabilidadDeProyecto, RespuestaDeAskTheData, RespuestaDelAsistente, RiesgoDeLaCartera, SaludDeProyecto, SaludDeProyectoOlap, SesionDeVoz, SesionDeVozCreada, SesionesDeVoz, SugerenciaDeAsignacionDeTicket, SugerenciasDelGantt, TextoTransformado, TicketDeSesionDeVoz, TrabajoDeAutoResolucion, UtilizacionAvanzada, UtilizacionOlap, ValoracionDeRespuesta } from './tipos-analitica'
 import type { ParamsPeriodoApi } from '../../utils/periodo'
 import { API_BASE_URL } from './urls'
-import { TIMEOUT_API_MS, desenvolverSobre } from './clienteBase'
+import { TIMEOUT_API_MS, desenvolverSobre, idiomaDeLaInterfaz } from './clienteBase'
 import { trasEscritura } from './refrescoTrasEscritura'
 import { ESCALATION_LOGS_LIMIT, GOVERNANCE_LOGS_LIMIT, INBOUND_MESSAGES_LIMIT, MONITORING_ALERTS_LIMIT } from '../../constants/pagination'
 
@@ -61,6 +61,10 @@ api.interceptors.request.use((config) => {
   if (RUTAS_DE_IA.test(config.url || '') && (config.timeout ?? 0) < TIMEOUT_DE_IA_MS) {
     config.timeout = TIMEOUT_DE_IA_MS
   }
+  // 24-11-2026 (barrido de traducciones): idioma de la interfaz para el contenido que
+  // traduce el servidor (biblioteca de Certificaciones…). Ver clienteBase.idiomaDeLaInterfaz.
+  config.headers = (config.headers || {}) as typeof config.headers
+  ;(config.headers as Record<string, string>)['X-Idioma'] = idiomaDeLaInterfaz()
   const method = (config.method || 'get').toUpperCase()
   if (method !== 'GET' && method !== 'HEAD' && method !== 'OPTIONS') {
     const csrf = _readCookie('csrf_token')

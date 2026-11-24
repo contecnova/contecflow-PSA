@@ -9,6 +9,9 @@ Se leen por empresa con respaldo global y de entorno (`app/core/config.py`).
   el catálogo aprobado de `app/core/uploads.py` (una empresa no puede abrir lo
   que la plataforma bloquea: SVG, comprimidos, ejecutables); tamaño máximo que
   nunca pasa del global `MAX_FILE_SIZE_MB`.
+- Grabación (24-11-2026, migración 214): apagada por defecto; con ella, el
+  operador puede proponer grabar y solo se graba con el consentimiento del
+  cliente (`grabacion.py`). Transcripción, días de retención y texto del aviso.
 """
 from __future__ import annotations
 
@@ -33,10 +36,19 @@ class AjustesDelChat:
     max_mb: int
     minutos_de_edicion: int
     segundos_de_tono: int
+    # 24-11-2026 (migración 214): grabación con aviso y consentimiento del cliente.
+    grabacion: bool = False
+    transcripcion: bool = False
+    dias_grabaciones: int = 90
+    dias_transcripciones: int = 365
+    aviso_de_grabacion: str = ""
 
     def salida(self) -> dict:
         d = asdict(self)
         return {
+            "recording_enabled": d["llamadas"] and d["grabacion"],
+            "transcription_enabled": d["llamadas"] and d["grabacion"] and d["transcripcion"],
+            "recording_notice": d["aviso_de_grabacion"],
             "calls_enabled": d["llamadas"],
             "video_enabled": d["llamadas"] and d["video"],
             "attachments_enabled": d["adjuntos"],
@@ -87,4 +99,10 @@ def leer(db: Session, organization_id: Optional[str]) -> AjustesDelChat:
         max_mb=max_mb,
         minutos_de_edicion=max(0, _i("PORTAL_CHAT_EDIT_WINDOW_MINUTES")),
         segundos_de_tono=max(10, _i("PORTAL_CHAT_CALL_RING_SECONDS")),
+        grabacion=_b("PORTAL_CHAT_RECORDING_ENABLED"),
+        transcripcion=_b("PORTAL_CHAT_TRANSCRIPTION_ENABLED"),
+        dias_grabaciones=max(1, _i("PORTAL_CHAT_RECORDING_RETENTION_DAYS")),
+        dias_transcripciones=max(1, _i("PORTAL_CHAT_TRANSCRIPT_RETENTION_DAYS")),
+        aviso_de_grabacion=(get_runtime_str(db, "PORTAL_CHAT_RECORDING_NOTICE", organization_id)
+                            or getattr(settings, "PORTAL_CHAT_RECORDING_NOTICE", "") or "").strip()[:2000],
     )

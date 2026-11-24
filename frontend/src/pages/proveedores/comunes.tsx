@@ -2,10 +2,10 @@
  * Proveedores (19-11-2026): piezas compartidas por la lista, la ficha y Configuración.
  */
 import type { ReactNode } from 'react'
-import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { Building2, Info, ShieldAlert, UserRound } from 'lucide-react'
+import { Building2, ShieldAlert, UserRound } from 'lucide-react'
 import StatusBadge from '../../components/ui/StatusBadge'
+import AvisoDeConfiguracion from '../../components/ui/AvisoDeConfiguracion'
 import { proveedoresApi } from '../../services/api/proveedores'
 import { projectsApi } from '../../services/api/projects'
 import { useAppT } from '../../i18n/AppLangContext'
@@ -48,18 +48,12 @@ export function useReferencias({ projectId, subId }: { projectId?: string | null
 
 /**
  * Aviso de que a una acción le falta configuración (catálogo vacío, sin plantillas…).
- * Explica qué falta y, solo a quien puede configurar proveedores, enlaza a
- * Configuración → Proveedores (los módulos no llevan botón «Configurar»).
+ * Es el `AvisoDeConfiguracion` del kit (24-11-2026): explica qué falta y, solo a
+ * quien puede abrir Configuración → Proveedores, enlaza allí; al resto, «Pídeselo a
+ * tu administrador» (los módulos no llevan botón «Configurar»).
  */
 export function FaltaConfigurar({ mensaje }: { mensaje: string }) {
-  const t = useT()
-  const { puede } = useAuth()
-  return (
-    <div className="prv-aviso" role="note">
-      <Info size={13} aria-hidden /> {mensaje}
-      {puede('proveedores.config') && <> <Link to="/settings/proveedores">{t('proveedores.ir_a_configuracion')}</Link></>}
-    </div>
-  )
+  return <AvisoDeConfiguracion seccion="proveedores" tono="info">{mensaje}</AvisoDeConfiguracion>
 }
 
 /** Quién puede escribir y configurar (capacidades del backend). */

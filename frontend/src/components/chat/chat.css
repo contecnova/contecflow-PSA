@@ -456,15 +456,8 @@
 }
 /* No leídos al final de la fila de la lista. */
 .chat-conv-row__sin-leer {
+  /* 24-11-2026: el número es el `Contador` del kit; aquí solo se coloca. */
   margin-left: auto;
-  min-width: 18px;
-  padding: 0 5px;
-  border-radius: var(--radius-full);
-  background: var(--accent);
-  color: var(--on-accent);
-  font-size: var(--text-2xs);
-  font-weight: 700;
-  text-align: center;
 }
 /* Indicador de la cabecera («Con supervisión»): la etiqueta del chat interno junto al título. */
 .chat-pane__indicador { margin-left: 8px; vertical-align: middle; cursor: help; }

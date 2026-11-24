@@ -1,14 +1,14 @@
-import React, { Fragment, useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { MessageSquare, X, ExternalLink, Plus, User, Minus, Volume2, VolumeX, Hash, Users } from 'lucide-react'
-import { Buscador, Checkbox, EmptyState, IconButton, Pulsable, Select, TextoConEnlaces } from '../ui'
+import { Buscador, Checkbox, Contador, EmptyState, IconButton, Pulsable, Select, TextoConEnlaces } from '../ui'
 import { EditorDeChat, Escribiendo, FilaDeMensaje, SeparadorDeDia, cambiaDeDia } from '../chat'
 import { collabApi } from '../../services/collaborationApi'
 import { useToast } from '../../context/ToastContext'
 import { useAuth } from '../../context/AuthContext'
 import { useChatRealtime } from '../../context/ChatRealtimeContext'
 import { useAppLang } from '../../i18n/AppLangContext'
-import { ANIMATION_FAST_MS, NOTIFICATION_BEEP_MS, POLL_ACTIVE_CHAT_MS, POLL_FREQUENT_MS, STALE_DEFAULT_MS, TYPING_SWEEP_PANEL_MS } from '../../constants/timings'
+import { NOTIFICATION_BEEP_MS, POLL_ACTIVE_CHAT_MS, POLL_FREQUENT_MS, STALE_DEFAULT_MS, TYPING_SWEEP_PANEL_MS } from '../../constants/timings'
 import { CHAT_MESSAGES_PAGE_SIZE, MENTION_SUGGESTIONS_COMPACT_LIMIT } from '../../constants/pagination'
 import './GlobalChatPanel.css'
 
@@ -119,7 +119,6 @@ interface Props {
 }
 
 export default function GlobalChatPanel({ open, unread = 0, onClose, onOpenFull }: Props) {
-  const idCampo = React.useId()
   const { t } = useAppLang()
   const { user } = useAuth()
   const toast = useToast()
@@ -138,8 +137,6 @@ export default function GlobalChatPanel({ open, unread = 0, onClose, onOpenFull 
   const [soundEnabled, setSoundEnabled] = useState<boolean>(() => safeLsGet(LS_SOUND_KEY, '1') !== '0')
   const [typingUsers, setTypingUsers] = useState<Record<string, number>>({})
   const [clearedUnreadMap, setClearedUnreadMap] = useState<Record<string, boolean>>({})
-  const [panelBadgeVisible, setPanelBadgeVisible] = useState<boolean>(unread > 0)
-  const [panelBadgeCount, setPanelBadgeCount] = useState<number>(unread)
   const [notifyMode, setNotifyMode] = useState<string>('all')
   const [dndEnabled, setDndEnabled] = useState<boolean>(false)
   const [stickToBottom, setStickToBottom] = useState<boolean>(true)
@@ -162,16 +159,6 @@ export default function GlobalChatPanel({ open, unread = 0, onClose, onOpenFull 
   useEffect(() => {
     safeLsSet(LS_SOUND_KEY, soundEnabled ? '1' : '0')
   }, [soundEnabled])
-
-  useEffect(() => {
-    if (unread > 0) {
-      setPanelBadgeCount(unread)
-      setPanelBadgeVisible(true)
-      return undefined
-    }
-    const id = setTimeout(() => setPanelBadgeVisible(false), ANIMATION_FAST_MS)
-    return () => clearTimeout(id)
-  }, [unread])
 
   useEffect(() => {
     if (!open) return
@@ -469,9 +456,8 @@ export default function GlobalChatPanel({ open, unread = 0, onClose, onOpenFull 
       >
         <MessageSquare size={16} aria-hidden="true" />
         <span className="u-sm-700">{t('nav.chat')}</span>
-        {panelBadgeVisible && (
-          <span className={`glchpa-row-15 ${unread > 0 ? 'global-chat-panel-m3' : 'global-chat-panel-m4'}`}>{panelBadgeCount > 99 ? '99+' : panelBadgeCount}</span>
-        )}
+        {/* 24-11-2026: el contador del kit. */}
+        <Contador n={unread} tono="acento" />
       </Pulsable>
     )
   }
@@ -521,11 +507,9 @@ export default function GlobalChatPanel({ open, unread = 0, onClose, onOpenFull 
         </div>
 
         <div className="glchpa-row-7">
-          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="u-text3-xs">{t('nav.notifications')}</label>
-          <Select suelto placeholder={false} id={`${idCampo}-1`}
+          <Select label={t('nav.notifications')} placeholder={false} tamano="sm"
             value={notifyMode}
             onChange={(e) => updateNotifyMode(e.target.value)}
-            className="glchpa-fieldstyle3"
           >
             <option value="all">{t('globalchat.todas')}</option>
             <option value="mentions">{t('globalchat.solo_menciones')}</option>
@@ -573,11 +557,7 @@ export default function GlobalChatPanel({ open, unread = 0, onClose, onOpenFull 
                   <div className="glchpa-box-5"><IconoConversacion kind={c.kind} /><span className="glchpa-ellipsis">{labelForConversation(c, t)}</span></div>
                   <div className="glchpa-row-10">
                     <span>{t(c.kind === 'channel' ? 'chat.tab_channel' : c.kind === 'group' ? 'chat.tab_group' : 'chat.tab_direct')}</span>
-                    {convUnread > 0 && (
-                      <span className="glchpa-row-11">
-                        {convUnread > 99 ? '99+' : convUnread}
-                      </span>
-                    )}
+                    <Contador n={convUnread} tono="acento" />
                   </div>
                 </Pulsable>
               )

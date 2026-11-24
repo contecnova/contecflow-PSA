@@ -244,15 +244,20 @@ def _validar_plantilla(p: dict, marcos: dict, controles: dict, documentos: dict,
     return fallos
 
 
+class ParametroNoValido(ValueError):
+    """Valor de parámetro de plantilla que no vale (24-11-2026). No llega a la pantalla: quien llama
+    lo convierte en `error(422, "cert_parametro_no_valido")` (generación) o en un fallo de validación."""
+
+
 def normalizar_parametro(par: dict, valor):
-    """Convierte y comprueba el valor de un parámetro de plantilla (ValueError si no vale)."""
+    """Convierte y comprueba el valor de un parámetro de plantilla (`ParametroNoValido` si no vale)."""
     tipo = par.get("tipo")
     if tipo == "entero":
         if isinstance(valor, bool):
-            raise ValueError(par.get("clave"))
+            raise ParametroNoValido(par.get("clave"))
         v = int(valor)
         if v < 0:
-            raise ValueError(par.get("clave"))
+            raise ParametroNoValido(par.get("clave"))
         return v
     if tipo == "booleano":
         if isinstance(valor, bool):
@@ -261,12 +266,12 @@ def normalizar_parametro(par: dict, valor):
             return True
         if str(valor).lower() in ("false", "0", "no"):
             return False
-        raise ValueError(par.get("clave"))
+        raise ParametroNoValido(par.get("clave"))
     if tipo == "opcion":
         if valor not in (par.get("opciones") or []):
-            raise ValueError(par.get("clave"))
+            raise ParametroNoValido(par.get("clave"))
         return valor
-    raise ValueError(par.get("clave"))
+    raise ParametroNoValido(par.get("clave"))
 
 
 # ── Siembra por empresa ──────────────────────────────────────────────────────

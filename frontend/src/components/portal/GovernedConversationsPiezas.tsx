@@ -1,6 +1,6 @@
 // Piezas de la bandeja de conversaciones gobernadas (burbuja, redactor y modal de alta). 23-11-2026: troceado de GovernedConversations sin cambio de comportamiento.
 // 24-11-2026 («un solo chat»): la fila de la lista es `FilaDeConversacion` de components/chat (se fue la fila de lista propia).
-import { useEffect, useState, useId } from 'react'
+import { useEffect, useState } from 'react'
 import { useDialogo, Button, Checkbox, GrupoDeOpciones, Select, Input, Textarea, TextoConEnlaces } from '../ui'
 import { type AccionDeMensaje, AvisoDelEditor, EditorDeChat, EstadoDeEntrega, EtiquetaDeAutor, FilaDeMensaje, agruparReacciones, cambiaDeDia } from '../chat'
 import { Check, History, Pencil, Reply, Trash2, X } from 'lucide-react'
@@ -207,7 +207,6 @@ export interface CreateConversationForm {
 }
 
 export function CreateConversationModal({ mode, open, onClose, onSubmit, projectOptions, defaultProjectId, teamUsers, clientUsers, saving }: CreateConversationModalProps) {
-  const idCampo = useId()
   const t = useTextoConversacion(mode)
   const [form, setForm] = useState<CreateConversationForm>({
     title: '',
@@ -240,18 +239,15 @@ export function CreateConversationModal({ mode, open, onClose, onSubmit, project
         <div className="goveconv-box-4">{t(mode === 'team' ? 'governedconversations.nueva_con_cliente' : 'governedconversations.nueva_con_equipo')}</div>
         <div className="u-grid2-14">
           <div className="u-col-full">
-            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="goveconv-labelstyle">{t('governedconversations.titulo')}</label>
-            <Input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.title} onChange={(event) => setForm((prev) => ({ ...prev, title: event.target.value }))} inputClassName="goveconv-inputstyle" />
+            <Input label={t('governedconversations.titulo')} value={form.title} onChange={(event) => setForm((prev) => ({ ...prev, title: event.target.value }))} />
           </div>
           <div>
-            <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="goveconv-labelstyle">{t('alm.type')}</label>
-            <Select suelto placeholder={false} id={`${idCampo}-2`} value={form.topic_type} onChange={(event) => setForm((prev) => ({ ...prev, topic_type: event.target.value }))} className="goveconv-inputstyle">
+            <Select label={t('alm.type')} placeholder={false} value={form.topic_type} onChange={(event) => setForm((prev) => ({ ...prev, topic_type: event.target.value }))}>
               {TOPIC_OPTIONS.map((tema) => <option key={tema} value={tema}>{etiquetaDeTema(t, tema)}</option>)}
             </Select>
           </div>
           <div>
-            <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="goveconv-labelstyle">{t('gas.proyecto')}</label>
-            <Select suelto placeholder={t('governedconversations.sin_proyecto')} id={`${idCampo}-3`} value={form.project_id} onChange={(event) => setForm((prev) => ({ ...prev, project_id: event.target.value }))} className="goveconv-inputstyle">
+            <Select label={t('gas.proyecto')} placeholder={t('governedconversations.sin_proyecto')} value={form.project_id} onChange={(event) => setForm((prev) => ({ ...prev, project_id: event.target.value }))}>
               {projectOptions.map((project) => <option key={project.id} value={project.id}>{project.code ? `${project.code} — ` : ''}{project.name}</option>)}
             </Select>
           </div>
@@ -266,8 +262,7 @@ export function CreateConversationModal({ mode, open, onClose, onSubmit, project
             </>
           )}
           <div className="u-col-full">
-            <label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} className="goveconv-labelstyle">{t('governedconversations.primer_mensaje')}</label>
-            <Textarea id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} value={form.body} onChange={(event) => setForm((prev) => ({ ...prev, body: event.target.value }))} rows={5} inputClassName="goveconv-inputstyle4" />
+            <Textarea label={t('governedconversations.primer_mensaje')} value={form.body} onChange={(event) => setForm((prev) => ({ ...prev, body: event.target.value }))} rows={5} />
           </div>
         </div>
         <div className="goveconv-row-5">

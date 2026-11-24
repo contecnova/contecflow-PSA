@@ -123,7 +123,7 @@ describe('contador', () => {
     envolver(<CampanaDeAvisos />)
     await waitFor(() => expect(h.http.get).toHaveBeenCalledWith('/enterprise/notifications/unread-count'))
     expect(campana()).toHaveAccessibleName('campana.titulo')
-    expect(campana().querySelector('.bandeja-desplegable__contador')).toBeNull()
+    expect(campana().querySelector('.ui-boton-contador__numero')).toBeNull() // 24-11-2026: contador del kit
   })
 
   it('más de 99 se escribe «99+» y el nombre lleva el número', async () => {

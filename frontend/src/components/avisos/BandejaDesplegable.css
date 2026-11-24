@@ -5,40 +5,6 @@
   display: inline-flex;
 }
 
-.bandeja-desplegable__boton {
-  position: relative;
-  width: 30px;
-  min-height: 30px;
-  padding: 0;
-  background: var(--surface-3);
-  border: 1px solid var(--surface-4);
-  border-radius: 8px;
-  color: var(--text-2);
-}
-.bandeja-desplegable__boton:hover,
-.bandeja-desplegable__boton--abierta {
-  color: var(--accent);
-  border-color: var(--accent-border);
-}
-
-.bandeja-desplegable__contador {
-  position: absolute;
-  top: -5px;
-  right: -5px;
-  min-width: 16px;
-  height: 16px;
-  padding: 0 4px;
-  border-radius: var(--radius-full);
-  background: var(--danger);
-  color: var(--on-accent-light);
-  font-size: var(--text-3xs);
-  font-weight: 800;
-  line-height: 16px;
-  text-align: center;
-  box-sizing: border-box;
-  pointer-events: none;
-}
-
 .bandeja-desplegable__panel {
   position: absolute;
   top: calc(100% + 8px);
@@ -183,9 +149,5 @@
     right: 8px;
     width: auto;
     max-height: calc(100vh - var(--bandeja-arriba, 56px) - 16px);
-  }
-  .app-topbar-right .bandeja-desplegable__boton {
-    width: 34px;
-    min-height: 34px;
   }
 }

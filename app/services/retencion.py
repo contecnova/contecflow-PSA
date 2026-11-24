@@ -207,4 +207,12 @@ def pasada_diaria(db, org) -> dict:
         except Exception:
             db.rollback()
             logger.exception("retención del chat de %s", org)
+        # 24-11-2026 (migración 214): grabaciones, transcripciones y consentimientos de
+        # las llamadas con clientes del portal, con los días del grupo `portal_chat`.
+        try:
+            from app.services.portal_conversation_service.grabacion import purgar_caducadas
+            informe["grabaciones_del_portal"] = purgar_caducadas(db, org)
+        except Exception:
+            db.rollback()
+            logger.exception("retención de grabaciones del portal de %s", org)
     return informe

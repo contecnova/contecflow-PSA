@@ -5,7 +5,7 @@ import { LayoutDashboard, FlaskConical, Lightbulb, Map, BookOpen, FileText, Rece
 import { useClientAuth, useLang } from './portalClientContext'
 import PortalQuickCreateMenu from './PortalQuickCreateMenu'
 import CampanaDelPortal from './CampanaDelPortal'
-import { Buscador, Pulsable } from '../../components/ui'
+import { Buscador, Contador, Pulsable } from '../../components/ui'
 
 // ── Section configuration (grouped like the backoffice) ──────────────────────
 export const PORTAL_NAV_GROUPS = [
@@ -178,12 +178,9 @@ export function PortalShell({ section, onSection, branding, badges, avisosEnVivo
                     >
                       <Icon size={16} aria-hidden="true" className="portal-ui-icono-fijo" />
                       {!collapsed && <span className="portui-box-8">{tr(it.labelKey, it.fallback)}</span>}
-                      {!collapsed && badge != null && badge > 0 && (
-                        <span className="portui-box-34">{badge > 99 ? '99+' : badge}</span>
-                      )}
-                      {collapsed && badge != null && badge > 0 && (
-                        <span className="portui-box-35" />
-                      )}
+                      {/* 24-11-2026: el contador del kit (mismo que el menú del operador). */}
+                      {!collapsed && <Contador n={badge ?? 0} tono="aviso" />}
+                      {collapsed && <Contador n={badge ?? 0} tono="aviso" punto className="portui-box-35" />}
                     </Pulsable>
                   )
                 })}

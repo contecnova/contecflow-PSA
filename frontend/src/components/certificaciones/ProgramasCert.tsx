@@ -15,7 +15,7 @@ import { extractErr, fmtDate } from '../../utils/helpers'
 import { useListaDeUsuarios } from '../../hooks/useListas'
 import { CLAVES_CERT, certApi } from '../../services/api/certificaciones'
 import type { Plantilla, Programa } from '../../services/api/certificaciones'
-import { Estado, descargarJson } from './comun'
+import { Estado, descargarJson, etiquetaNivel } from './comun'
 
 const ESTADOS = ['borrador', 'en_curso', 'certificado', 'suspendido', 'cerrado']
 
@@ -59,7 +59,7 @@ export default function ProgramasCert({ onElegir }: { onElegir: (id: string) => 
           { key: 'codigo', label: t('cert.codigo'), cabeceraDeFila: true },
           { key: 'nombre', label: t('cert.nombre'), render: (_v, p) => (
             <div className="cert-celda"><span>{p.nombre}</span>
-              <span className="cert-apagado">{p.objetivos.map(o => t(`cert.marco_${o.marco}`) + (o.nivel ? ` ${o.nivel}` : '')).join(' · ')}</span></div>) },
+              <span className="cert-apagado">{p.objetivos.map(o => t(`cert.marco_${o.marco}`) + (o.nivel ? ` ${etiquetaNivel(t, o.nivel)}` : '')).join(' · ')}</span></div>) },
           { key: 'estado', label: t('cert.estado'), render: (_v, p) => (gestionar
             ? <SelectRico aria-label={t('cert.estado')} valor={p.estado} onChange={v => estado.mutate({ id: p.id, valor: v })}
                 opciones={ESTADOS.map(e => ({ valor: e, etiqueta: t(`cert.estado_${e}`) }))} />

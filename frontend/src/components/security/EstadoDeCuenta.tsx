@@ -9,9 +9,8 @@
  */
 import { lazy, Suspense, useState, type ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Link } from 'react-router-dom'
 import { Lock, Trash2 } from 'lucide-react'
-import { Button, Card, IconButton, Input, Section, Spinner } from '../ui'
+import { AvisoDeConfiguracion, Button, Card, IconButton, Input, Section, Spinner } from '../ui'
 import { seguridadApi } from '../../services/api/seguridadDeCuentas'
 import { useAuth, type User } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
@@ -129,7 +128,7 @@ function BandaDeAviso({ e }: { e: EstadoDeSeguridad }) {
   return (
     <div className="segc-banda" role="status">
       <span>{textos.join(' ')}</span>
-      {e.mfa_required && e.mfa_grace_until && <Link to="/settings/mfa">{t('seguridad_cuentas.configurar_mfa')}</Link>}
+      {e.mfa_required && e.mfa_grace_until && <AvisoDeConfiguracion seccion="mfa" variante="enlace" texto={t('seguridad_cuentas.configurar_mfa')} />}
       <Button size="xs" variant="ghost" onClick={() => setOculta(true)}>{t('seguridad_cuentas.ocultar')}</Button>
     </div>
   )

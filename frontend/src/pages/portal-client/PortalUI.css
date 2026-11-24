@@ -562,24 +562,11 @@
   font-variant-numeric: tabular-nums;
 }
 
-.portui-box-34 {
-  font-size: var(--text-2xs, 10px);
-  font-weight: 700;
-  background: var(--danger-bg);
-  color: var(--danger);
-  border-radius: var(--radius-full);
-  padding: 1px 7px;
-  min-width: 20px;
-  text-align: center;
-}
 .portui-box-35 {
+  /* 24-11-2026: solo coloca la marca (tamaño y color: `Contador punto` del kit). */
   position: absolute;
   top: 4px;
   right: 4px;
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--danger);
 }
 .portui-row-30 {
   width: 32px;

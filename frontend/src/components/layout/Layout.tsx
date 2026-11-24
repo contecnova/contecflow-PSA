@@ -4,7 +4,7 @@ import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { createPortal } from 'react-dom'
 import { useQuery } from '@tanstack/react-query'
 import { useAuth } from '../../context/AuthContext'
-import { Avatar, Button, IconButton, Pulsable } from '../ui'
+import { Avatar, BotonConContador, Button, Contador, IconButton, Pulsable, type TonoDeContador } from '../ui'
 import { armazonApi, imputationsApi, projectsApi, tasksApi } from '../../services/api'
 import GlobalSearch from './GlobalSearch'
 import QuickCreateMenu from './QuickCreateMenu'
@@ -27,7 +27,7 @@ import {
   Calendar, MessageSquare, Brain, Search, LogOut, ChevronRight, ChevronLeft, Menu, X,
   Timer, Keyboard, Plus, Inbox, Mic, SlidersHorizontal, RotateCcw, NotebookPen,
 } from 'lucide-react'
-import { ANIMATION_FAST_MS, CLOCK_TICK_MS, DROPDOWN_DELAY_MS, POLL_FAST_MS, STALE_5_MIN_MS, STALE_LIVE_MS } from '../../constants/timings'
+import { CLOCK_TICK_MS, DROPDOWN_DELAY_MS, POLL_FAST_MS, STALE_5_MIN_MS, STALE_LIVE_MS } from '../../constants/timings'
 import './Layout.css'
 // 23-11-2026 (menú personalizable): categorías y pestañas en `menuLateral.tsx`;
 // orden y ocultas de cada persona en `permisos/menuPersonal.ts`.
@@ -201,9 +201,10 @@ function NavItem({ item, collapsed, alertCount, approvalCount, t }: NavItemProps
               : item.to === '/approvals' ? approvalCount
               : item.to === '/chat' ? chatUnread
               : 0) ?? 0
-  const badgeColor = item.to === '/approvals' ? 'var(--warning)'
-                   : item.to === '/chat' ? 'var(--accent)'
-                   : 'var(--danger)'
+  // 24-11-2026: el contador del kit (mismos tonos que la barra superior).
+  const tonoBadge: TonoDeContador = item.to === '/approvals' ? 'aviso'
+                   : item.to === '/chat' ? 'acento'
+                   : 'peligro'
   const displayLabel = getNavLabel(item.to || '', item.label, t)
   return (
     <div className="layo-box-3">
@@ -221,14 +222,10 @@ function NavItem({ item, collapsed, alertCount, approvalCount, t }: NavItemProps
       >
         <span className="layo-row-2">
           {item.icon}
-          {collapsed && badge > 0 && (
-            <span className="layo-box-20 layout-e1" style={{ '--layout-background': badgeColor } as CSSProperties} />
-          )}
+          {collapsed && <Contador n={badge} tono={tonoBadge} punto className="layo-box-20" />}
         </span>
         {!collapsed && <span className="layo-box-4">{displayLabel}</span>}
-        {!collapsed && badge > 0 && (
-          <span className="layo-box-21 layout-e2" style={{ '--layout-color': badgeColor } as CSSProperties}>{badge}</span>
-        )}
+        {!collapsed && <Contador n={badge} tono={tonoBadge} />}
       </NavLink>
     </div>
   )
@@ -316,7 +313,7 @@ function NavGroup({ group, collapsed, alertCount, approvalCount, t, panel, open,
     const icono = (
       <span className="layo-row-2">
         {group.icon}
-        {conAviso && <span className="layo-box-20 layout-e1" style={{ '--layout-background': 'var(--danger)' } as CSSProperties} />}
+        <Contador n={conAviso ? 1 : 0} tono="peligro" punto className="layo-box-20" />
       </span>
     )
     return (
@@ -472,19 +469,6 @@ function TopAppBar({ onSearchOpen, onAiToggle, aiOpen, onChatToggle, chatOpen, c
   const { puede } = useAuth()
   const { t: traducir } = useAppLang()
   const location = useLocation()
-  const [chatBadgeVisible, setChatBadgeVisible] = useState<boolean>(chatUnread > 0)
-  const [chatBadgeCount, setChatBadgeCount] = useState<number>(chatUnread)
-
-  useEffect(() => {
-    if (chatUnread > 0) {
-      setChatBadgeCount(chatUnread)
-      setChatBadgeVisible(true)
-      return undefined
-    }
-    const id = setTimeout(() => setChatBadgeVisible(false), ANIMATION_FAST_MS)
-    return () => clearTimeout(id)
-  }, [chatUnread])
-
   const grupoFuera = GRUPO_DE_RUTA_FUERA_DEL_MENU[location.pathname]
   const section = getSectionLabel(location.pathname, t) || (grupoFuera && t ? t('nav', grupoFuera) : null)
   const currentNavItem = allNavItems
@@ -607,14 +591,10 @@ function TopAppBar({ onSearchOpen, onAiToggle, aiOpen, onChatToggle, chatOpen, c
         >
           <Mic size={14} />
         </IconButton>
-        <Pulsable className={`layo-row-19 layout-sx3 layout-e13 ${chatOpen ? 'layout-m14' : 'layout-m15'}`} onClick={onChatToggle} title={traducir('layoutshell.abrir_chat')} aria-label={traducir('layoutshell.abrir_chat')} aria-pressed={chatOpen} style={{ '--layout-border': `1px solid ${chatOpen ? 'color-mix(in srgb, var(--accent) 35%, transparent)' : 'var(--surface-4)'}` } as CSSProperties}>
-          <MessageSquare size={13} />
-          {chatBadgeVisible && (
-            <span className={`layo-row-20 ${chatUnread > 0 ? 'layout-m16' : 'layout-m17'}`}>
-              {chatBadgeCount > 99 ? '99+' : chatBadgeCount}
-            </span>
-          )}
-        </Pulsable>
+        {/* 24-11-2026: contadores de la barra con el componente del kit (color del tono y número al lado). */}
+        <BotonConContador icono={<MessageSquare aria-hidden />} contador={chatUnread} tono="acento" activo={chatOpen}
+          onClick={onChatToggle} aria-pressed={chatOpen}
+          ariaLabel={chatUnread > 0 ? traducir('layoutshell.abrir_chat_sin_leer', { n: chatUnread }) : traducir('layoutshell.abrir_chat')} />
         {/* Campana de avisos sin leer (16-11-2026): contador y panel con los últimos. */}
         {user && <CampanaDeAvisos />}
         {/* 19-11-2026: Calendario y Chat salen del menú lateral y quedan como iconos
@@ -634,7 +614,7 @@ function TopAppBar({ onSearchOpen, onAiToggle, aiOpen, onChatToggle, chatOpen, c
         )}
         {activeTimer && !activeTimer.paused_at && (
           <NavLink to="/timer"
-            title={topbarTimerSubtitle ? `Cronómetro activo: ${topbarTimerSubtitle}` : 'Cronómetro activo — click para gestionar'} className="layout-sx4"
+            title={topbarTimerSubtitle ? traducir('layoutshell.cronometro_activo', { detalle: topbarTimerSubtitle }) : traducir('layoutshell.cronometro_activo_gestionar')} className="layout-sx4"
           >
             <span className="layo-box-10" />
             <Timer size={12} />
@@ -651,18 +631,10 @@ function TopAppBar({ onSearchOpen, onAiToggle, aiOpen, onChatToggle, chatOpen, c
         {(() => {
           const total = (alertCount || 0) + (approvalCount || 0)
           if (total === 0) return null
-          const tone = (alertCount || 0) > 0 ? 'danger' : 'warning'
-          const bg = tone === 'danger' ? 'var(--danger-bg)' : 'var(--warning-bg)'
-          const border = tone === 'danger' ? 'var(--danger-border)' : 'var(--warning-border)'
-          const color = tone === 'danger' ? 'var(--danger)' : 'var(--warning)'
           return (
-            <NavLink to="/inbox"
-              className="layout-e18" style={{ '--layout-background': bg, '--layout-border': `1px solid ${border}`, '--layout-color': color } as CSSProperties}
-              title={`${total} pendientes en bandeja`}
-              aria-label={`Bandeja de entrada — ${total} pendientes`}
-            >
-              <Inbox size={13} aria-hidden /><span>{total}</span>
-            </NavLink>
+            <BotonConContador to="/inbox" icono={<Inbox aria-hidden />} contador={total}
+              tono={(alertCount || 0) > 0 ? 'peligro' : 'aviso'}
+              ariaLabel={traducir('layoutshell.bandeja_pendientes', { n: total })} />
           )
         })()}
         {user && <SelectorDeEmpresa />}
@@ -910,7 +882,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
           {isOverlayNav && mobileOpen && (
             <IconButton
               onClick={() => setMobileOpen(false)}
-              ariaLabel={text.close_menu || 'Cerrar menú'}
+              ariaLabel={t('layout_texto.close_menu')}
               className="layout-e35"
             >
               <X size={16} />

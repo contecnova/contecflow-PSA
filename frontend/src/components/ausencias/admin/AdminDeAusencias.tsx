@@ -20,7 +20,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { CalendarClock, CalendarRange, CalendarX2, Clock, FileText, Scale, ShieldCheck, Sparkles, Umbrella, Users, Workflow } from 'lucide-react'
-import { Tabs } from '../../ui'
+import { Tabs, rutaDeConfiguracion, usePuedeConfigurar } from '../../ui'
 import { useAuth } from '../../../context/AuthContext'
 import { useT } from './comun'
 import EditorDeTipos from './EditorDeTipos'
@@ -38,6 +38,9 @@ export default function AdminDeAusencias({ subInicial }: { subInicial?: string }
   const { puede } = useAuth()
   const esAdmin = puede('org.administrar')
   const esRrhh = puede('ausencias.config')
+  // 24-11-2026: enlaces a Configuración solo a quien puede abrir esa sección (misma regla que el menú).
+  const puedePoliticas = usePuedeConfigurar('policies')
+  const puedeFlujos = usePuedeConfigurar('approval-workflows')
   const items = [
     { id: 'tipos', label: ta('tab_tipos'), icon: <Umbrella size={14} /> },
     { id: 'documentos', label: ta('tab_documentos'), icon: <FileText size={14} /> },
@@ -52,14 +55,14 @@ export default function AdminDeAusencias({ subInicial }: { subInicial?: string }
   const [tab, setTab] = useState(() => (subInicial && items.some(x => x.id === subInicial) ? subInicial : 'tipos'))
   return (
     <div className="ausadm">
-      {esAdmin ? (
+      {puedePoliticas || puedeFlujos ? (
         <nav className="ausadm-enlaces" aria-label={ta('mas_configuracion')}>
-          <Link to="/settings/policies?dominio=ausencias" className="ausadm-enlace-tarjeta">
+          {puedePoliticas && <Link to={rutaDeConfiguracion('policies', 'dominio=ausencias')} className="ausadm-enlace-tarjeta">
             <Scale size={16} aria-hidden /><span><strong>{ta('ir_a_politicas')}</strong><span className="ausadm-ayuda">{ta('ir_a_politicas_texto')}</span></span>
-          </Link>
-          <Link to="/settings/approval-workflows" className="ausadm-enlace-tarjeta">
+          </Link>}
+          {puedeFlujos && <Link to={rutaDeConfiguracion('approval-workflows')} className="ausadm-enlace-tarjeta">
             <Workflow size={16} aria-hidden /><span><strong>{ta('ir_a_flujos')}</strong><span className="ausadm-ayuda">{ta('ir_a_flujos_texto')}</span></span>
-          </Link>
+          </Link>}
         </nav>
       ) : <p className="ausadm-ayuda">{t('ajustes.reglas_solo_admin')}</p>}
       <Tabs active={tab} onChange={setTab} items={items} />

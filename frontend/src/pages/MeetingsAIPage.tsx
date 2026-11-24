@@ -3,9 +3,9 @@
  *
  * Pantalla operativa (la configuración vive en Configuración → IA e idiomas →
  * Asistente de reuniones, `/settings/reuniones`, con `reuniones.config`).
- * Sin botón «Configurar»: solo un aviso con enlace «Ir a Configuración» donde
- * una acción no funciona por falta de configuración (bot, conectores) y solo
- * con `reuniones.config`. Diseño: docs/ASISTENTE_DE_REUNIONES.md.
+ * Sin botón «Configurar»: solo un aviso (`AvisoDeConfiguracion` del kit) donde
+ * una acción no funciona por falta de configuración (bot, conectores), con el
+ * enlace solo a quien puede abrir la sección. Diseño: docs/ASISTENTE_DE_REUNIONES.md.
  *
  * - Cabecera: Grabar (micrófono o pestaña, aviso obligatorio), Invitar el bot,
  *   Traer de Teams/Zoom/Meet, Pegar transcripción y Mis preferencias.
@@ -18,16 +18,15 @@
  * Ruta `/meetings-ai` con la capacidad `reuniones.usar` (antes `proyectos.trabajo`).
  */
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import {
   Bot, ClipboardPaste, Download, ListChecks, Loader2, Mic, MousePointerClick, Search, ShieldAlert, SlidersHorizontal,
 } from 'lucide-react'
-import { Buscador, Button, Card, EmptyState, KpiCard, Pulsable, Select, Spinner } from '../components/ui'
+import { AvisoDeConfiguracion, Buscador, Button, Card, EmptyState, KpiCard, Pulsable, Select, Spinner } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { useAppT } from '../i18n/AppLangContext'
-import { useAuth } from '../context/AuthContext'
 import useMediaQuery from '../hooks/useMediaQuery'
 import { fmtDate } from '../utils/helpers'
 import { reunionesApi, ESTADOS_REUNION } from '../services/api/reuniones'
@@ -54,7 +53,6 @@ function useRetrasado<T>(valor: T, ms = 350): T {
 
 export default function MeetingsAIPage() {
   const t = useAppT()
-  const configura = useAuth().puede('reuniones.config')
   const isNarrow = useMediaQuery('(max-width: 900px)')
   const [modal, setModal] = useState<ModalAbierto>(null)
   const [params] = useSearchParams()
@@ -116,10 +114,7 @@ export default function MeetingsAIPage() {
 
       <div className="u-stack-16">
         {botDesactivado && (
-          <p className="u-text3-xs" role="status">
-            {t('reuniones.bot_sin_activar')}{' '}
-            {configura && <Link to="/settings/reuniones">{t('reuniones.ir_a_configuracion')}</Link>}
-          </p>
+          <AvisoDeConfiguracion seccion="reuniones">{t('reuniones.bot_sin_activar')}</AvisoDeConfiguracion>
         )}
         <div className="meet-filtros">
           <Buscador className="meet-filtros__buscar" aria-label={t('reuniones.buscar')} placeholder={t('reuniones.buscar_placeholder')}

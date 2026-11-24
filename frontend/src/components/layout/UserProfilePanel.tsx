@@ -18,7 +18,7 @@ import { useToast } from '../../context/ToastContext'
 import useUserPreferences from '../../hooks/useUserPreferences'
 import { useAppLang } from '../../i18n/AppLangContext'
 import { Bell, Languages, Palette, ShieldCheck, SlidersHorizontal, UserRound } from 'lucide-react'
-import { Avatar, Button, Checkbox, IconButton, Pulsable, useErroresDeCampo, Input, cambiosGuardados } from '../ui'
+import { Avatar, Button, Checkbox, IconButton, Pulsable, useErroresDeCampo, Input, cambiosGuardados, rutaDeConfiguracion } from '../ui'
 import { EVENTO_PERSONALIZAR_MENU } from './menuLateral'
 import { Drawer } from '../ui/Drawer'
 import { useTabListKeys } from '../ui/Tabs'
@@ -393,7 +393,7 @@ export default function UserProfilePanel({ onClose }: Props) {
                     ? new Date(user.last_login as string).toLocaleDateString(localeActivo(), {
                         day:'2-digit', month:'short', year:'numeric',
                         hour:'2-digit', minute:'2-digit' })
-                    : 'No disponible'}
+                    : traducir('userprofile.no_disponible')}
                 </div>
                 <div className="usprpa-box-19">
                   MFA: {user?.mfa_enabled ? '✅ Activado' : '⚠️ Desactivado'}
@@ -440,7 +440,7 @@ export default function UserProfilePanel({ onClose }: Props) {
                     ? traducir('userprofilepanel.mfa_activado')
                     : traducir('userprofilepanel.mfa_desactivado')}
                 </div>
-                <Pulsable className={`usprpa-box-31 ${user?.mfa_enabled ? 'user-profile-panel-m18' : 'user-profile-panel-m19'}`} onClick={() => { navigate('/settings/mfa'); onClose() }}>
+                <Pulsable className={`usprpa-box-31 ${user?.mfa_enabled ? 'user-profile-panel-m18' : 'user-profile-panel-m19'}`} onClick={() => { navigate(rutaDeConfiguracion('mfa')); onClose() }}>
                   {user?.mfa_enabled ? traducir('userprofilepanel.gestionar_mfa') : `🛡 ${traducir('userprofilepanel.activar_mfa')}`}
                 </Pulsable>
               </div>

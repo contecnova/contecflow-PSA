@@ -5,11 +5,11 @@
  * (tipos y flujos) vive en Configuración → Aprobaciones y políticas → Flujos de demanda.
  */
 import { useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ClipboardList, Info, Plus } from 'lucide-react'
+import { ClipboardList, Plus } from 'lucide-react'
 import Page from '../components/ui/Page'
-import { Buscador, Button, Checkbox, EmptyState, Tabs, Input, Modal, ProjectSelect, Pulsable, Select, Spinner, TablaSimple } from '../components/ui'
+import { AvisoDeConfiguracion, Buscador, Button, Checkbox, EmptyState, Tabs, Input, Modal, ProjectSelect, Pulsable, Select, Spinner, TablaSimple } from '../components/ui'
 import DetalleDemanda from '../components/demanda/DetalleDemanda'
 import { EstadoDeDemandaBadge, SlaBadge, etiquetaDe, opcionesDe, useCatalogoDemanda } from '../components/demanda/comunes'
 import { EntradaDeCampo } from '../components/demanda/PestanasDemanda'
@@ -238,10 +238,7 @@ export default function DemandaPage() {
         </span>
       )}>
       {sinTipos && (
-        <div className="dem-aviso" role="note">
-          <Info size={13} aria-hidden /> {t('demanda.sin_tipos_configurados')}
-          {auth.puede('demanda.config') && <> <Link to="/settings/demanda">{t('demanda.ir_a_configuracion')}</Link></>}
-        </div>
+        <AvisoDeConfiguracion seccion="demanda" tono="info">{t('demanda.sin_tipos_configurados')}</AvisoDeConfiguracion>
       )}
       {abierta ? <DetalleDemanda id={abierta} onVolver={() => abrir('')} /> : (
         <div className="u-stack-16">

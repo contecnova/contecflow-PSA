@@ -547,6 +547,17 @@ class Settings(
     PORTAL_CHAT_EDIT_WINDOW_MINUTES: int = Field(default=60, env="PORTAL_CHAT_EDIT_WINDOW_MINUTES")
     # Segundos que suena una llamada sin respuesta antes de darla por perdida.
     PORTAL_CHAT_CALL_RING_SECONDS: int = Field(default=60, env="PORTAL_CHAT_CALL_RING_SECONDS")
+    # Grabación con consentimiento (24-11-2026, migración 214, docs/portal/CHAT_DEL_PORTAL.md §11).
+    # Apagada por defecto: el operador solo puede PROPONER grabar si la empresa la
+    # activa, y solo se graba con el consentimiento explícito del cliente.
+    PORTAL_CHAT_RECORDING_ENABLED: bool = Field(default=False, env="PORTAL_CHAT_RECORDING_ENABLED")
+    PORTAL_CHAT_TRANSCRIPTION_ENABLED: bool = Field(default=False, env="PORTAL_CHAT_TRANSCRIPTION_ENABLED")
+    # Días que se guardan las grabaciones y las transcripciones (los consentimientos,
+    # como evidencia, lo que dure la mayor de las dos). Respetan el bloqueo legal.
+    PORTAL_CHAT_RECORDING_RETENTION_DAYS: int = Field(default=90, env="PORTAL_CHAT_RECORDING_RETENTION_DAYS")
+    PORTAL_CHAT_TRANSCRIPT_RETENTION_DAYS: int = Field(default=365, env="PORTAL_CHAT_TRANSCRIPT_RETENTION_DAYS")
+    # Texto del aviso que acepta el cliente (vacío: el texto por defecto en su idioma).
+    PORTAL_CHAT_RECORDING_NOTICE: str = Field(default="", env="PORTAL_CHAT_RECORDING_NOTICE")
 
     # NOTE: OpenAI fallback key & STT models live in AISettingsMixin.
 

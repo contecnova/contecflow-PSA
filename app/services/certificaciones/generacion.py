@@ -31,7 +31,7 @@ from sqlalchemy.orm import Session
 
 from app.core.codigos_de_error import error
 from app.models.certificaciones import CertAplicabilidad, CertControl, CertControlTarea, CertEvidencia
-from app.services.certificaciones import catalogo, expresiones
+from app.services.certificaciones import catalogo, expresiones, traduccion
 from app.services.certificaciones import programas as prog
 from app.services.certificaciones.comun import auditar, config, fecha, hoy, org_de
 
@@ -125,18 +125,32 @@ def tareas_que_aplican(plantilla: dict, params: dict) -> tuple[list[dict], dict[
     return fases, deps
 
 
-def _descripcion(t: dict, controles: dict) -> str:
+def _txt(clave: str, idioma: str, **datos) -> str:
+    from app.services.textos_de_salida import texto
+    return texto(f"cert.generacion.{clave}", idioma, **datos)
+
+
+def _rol(rol: Optional[str], idioma: str) -> str:
+    """Nombre del rol RACI en el idioma (24-11-2026: antes salía la clave cruda, `responsable_cumplimiento`)."""
+    if not rol:
+        return "—"
+    nombre = _txt(f"rol.{rol}", idioma)
+    return rol if nombre == f"cert.generacion.rol.{rol}" else nombre
+
+
+def _descripcion(t: dict, controles: dict, idioma: str = "es") -> str:
     raci = t.get("raci") or {}
-    lineas = [f"R: {raci.get('R')} · A: {raci.get('A')}",
-              f"C: {', '.join(raci.get('C') or []) or '—'} · I: {', '.join(raci.get('I') or []) or '—'}"]
+    lineas = [f"R: {_rol(raci.get('R'), idioma)} · A: {_rol(raci.get('A'), idioma)}",
+              f"C: {', '.join(_rol(r, idioma) for r in raci.get('C') or []) or '—'} · "
+              f"I: {', '.join(_rol(r, idioma) for r in raci.get('I') or []) or '—'}"]
     if t.get("controles"):
-        lineas.append("Controles: " + ", ".join(t["controles"]))
+        lineas.append(f"{_txt('controles', idioma)}: " + ", ".join(t["controles"]))
     if t.get("entregables"):
-        lineas.append("Entregables: " + "; ".join(t["entregables"]))
+        lineas.append(f"{_txt('entregables', idioma)}: " + "; ".join(t["entregables"]))
     return "\n".join(lineas)
 
 
-def datos_de_proyecto(plantilla: dict, params: dict, nombre: str) -> dict:
+def datos_de_proyecto(plantilla: dict, params: dict, nombre: str, idioma: str = "es") -> dict:
     """El cuerpo de `plantillas_de_proyecto.crear` con solo lo que aplica."""
     fases, deps = tareas_que_aplican(plantilla, params)
     controles = catalogo.cargar()["controles"]
@@ -145,7 +159,7 @@ def datos_de_proyecto(plantilla: dict, params: dict, nombre: str) -> dict:
         dias = max((t.get("dias") or 1) for t in f["tareas"])
         phases.append({"name": f["nombre"], "order": i, "estimated_weeks": max(1, math.ceil(dias / 5)),
                        "tasks": [{"key": t["clave"], "title": t["nombre"][:255],
-                                  "description": _descripcion(t, controles),
+                                  "description": _descripcion(t, controles, idioma),
                                   "role_name": (t.get("raci") or {}).get("R"),
                                   "duration_days": t.get("dias") or 1, "order": j}
                                  for j, t in enumerate(f["tareas"])]})
@@ -155,7 +169,8 @@ def datos_de_proyecto(plantilla: dict, params: dict, nombre: str) -> dict:
                 "impact": _IMPACTO.get(r.get("impacto"), "moderate"), "mitigation_plan": r.get("mitigacion")}
                for r in plantilla.get("riesgos") or []]
     documentos = [{"name": d["nombre"][:255], "document_type": d.get("tipo"), "is_required": True,
-                   "description": f"Plantilla {d['clave']}"} for d in plantilla.get("documentos") or []]
+                   "description": _txt("documento_plantilla", idioma, clave=d["clave"])}
+                  for d in plantilla.get("documentos") or []]
     return {"name": f"{nombre} · {plantilla['nombre']}"[:255], "description": plantilla["nombre"],
             "project_type": None, "phases": phases, "dependencies": dependencias, "risks": riesgos,
             "documents": documentos}
@@ -167,8 +182,12 @@ def _rellenar(texto: str, valores: dict) -> str:
     return texto
 
 
-def generar(db: Session, usuario, datos: dict) -> dict:
-    """Programa, proyecto, declaración, enlaces tarea↔control y documentos desde una plantilla."""
+def generar(db: Session, usuario, datos: dict, idioma: str = "es") -> dict:
+    """Programa, proyecto, declaración, enlaces tarea↔control y documentos desde una plantilla.
+
+    `idioma` (24-11-2026): fases, tareas, riesgos, documentos y sus textos se crean en el idioma
+    de quien genera (catálogo `app/data/certificaciones/i18n/`; castellano si falta).
+    """
     from app.models.advanced_config import ProjectTemplate
     from app.models.documents import ApprovalStatus, Document, DocumentCategory
     from app.models.project import ProjectPhase
@@ -177,13 +196,14 @@ def generar(db: Session, usuario, datos: dict) -> dict:
 
     org = org_de(usuario)
     catalogo.asegurar_sembrado(db, org)
-    p = catalogo.plantilla(datos.get("plantilla") or "")
+    idioma = traduccion.normalizar(idioma)
+    p = traduccion.traducir(catalogo.plantilla(datos.get("plantilla") or ""), idioma)
     params = parametros(p, datos.get("parametros"))
     nombre = (datos.get("nombre") or p["nombre"]).strip()[:300]
     inicio = fecha(datos.get("fecha_inicio"), "fecha_inicio") or hoy()
 
     # 1) Proyecto (reutiliza las plantillas de proyecto y el planificador; confirman ellas).
-    cuerpo = datos_de_proyecto(p, params, nombre)
+    cuerpo = datos_de_proyecto(p, params, nombre, idioma)
     derivada = plantillas_de_proyecto.crear(db, usuario, cuerpo)
     proyecto = plantillas_de_proyecto.instanciar(db, usuario, derivada.id, {
         "name": nombre, "start_date": inicio.isoformat(), "pm_id": datos.get("responsable_id") or usuario.id,
@@ -193,7 +213,7 @@ def generar(db: Session, usuario, datos: dict) -> dict:
         tpl.is_active = False
 
     # 2) Programa y declaración de aplicabilidad.
-    sedes = [f"Sede {i}" for i in range(1, min(int(params.get("num_sedes") or 1), 50) + 1)] \
+    sedes = [_txt("sede", idioma, n=i) for i in range(1, min(int(params.get("num_sedes") or 1), 50) + 1)] \
         if int(params.get("num_sedes") or 1) > 1 else []
     zonas = [{"nombre": "OT", "sl_objetivo": params.get("sl_objetivo")}] if params.get("tiene_ot") else []
     programa = prog.crear(db, usuario, {
@@ -238,7 +258,8 @@ def generar(db: Session, usuario, datos: dict) -> dict:
     documentos = 0
     for d in p.get("documentos") or []:
         doc = Document(organization_id=org, title=d["nombre"][:255],
-                       description=_rellenar(textos.get(d["clave"], ""), valores) or None,
+                       description=_rellenar(traduccion.documento(d["clave"], idioma, textos.get(d["clave"], "")),
+                                             valores) or None,
                        category=categoria.get(d.get("tipo"), DocumentCategory.other),
                        project_id=proyecto["project_id"], requires_approval=True,
                        approval_status=ApprovalStatus.pending, created_by=usuario.id)

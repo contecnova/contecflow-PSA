@@ -131,7 +131,7 @@ export default function BpmPropiedades({ modelador }: { modelador: unknown }): J
           {attr('action') && (
             <>
               <Textarea label={t('bpm.props_config')} value={attr('actionConfig')} rows={3} onChange={e => ponerAttr('actionConfig', e.target.value)}
-                placeholder='{"title":"Alta de ${nombre}"}' hint={t('bpm.props_config_ayuda')} inputClassName="ds-codigo" />
+                placeholder={t('bpm.props_config_ejemplo')} hint={t('bpm.props_config_ayuda')} inputClassName="ds-codigo" />
               <Input label={t('bpm.props_reintentos')} type="number" min={0} max={20} value={attr('retries')} onChange={e => ponerAttr('retries', e.target.value)} />
             </>
           )}

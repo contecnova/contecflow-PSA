@@ -81,3 +81,26 @@ for _clave, ((_t_es, _t_en, _t_zh), (_c_es, _c_en, _c_zh)) in _AVISOS.items():
 for _clave, ((_a_es, _a_en, _a_zh), (_x_es, _x_en, _x_zh)) in _NIS2.items():
     TEXTOS_CERTIFICACIONES[f"cert.nis2.{_clave}.asunto"] = {"es": _a_es, "en": _a_en, "zh": _a_zh}
     TEXTOS_CERTIFICACIONES[f"cert.nis2.{_clave}.contenido"] = {"es": _x_es, "en": _x_en, "zh": _x_zh}
+
+# 24-11-2026 (barrido de traducciones): lo que escribe la generación desde plantilla
+# (`generacion.py`) en la descripción de cada tarea y en el alcance del programa.
+# Los roles RACI de las plantillas son claves (`responsable_cumplimiento`): nunca
+# se escriben crudas, se escribe su nombre en el idioma de quien genera.
+_GENERACION = {
+    "controles": ("Controles", "Controls", "控制措施"),
+    "entregables": ("Entregables", "Deliverables", "交付物"),
+    "sede": ("Sede {n}", "Site {n}", "场所 {n}"),
+    "documento_plantilla": ("Plantilla {clave}", "Template {clave}", "模板 {clave}"),
+    "rol.auditoria_interna": ("Auditoría interna", "Internal audit", "内部审计"),
+    "rol.direccion": ("Dirección", "Management", "管理层"),
+    "rol.finanzas": ("Finanzas", "Finance", "财务部门"),
+    "rol.ot": ("OT", "OT", "运营技术（OT）部门"),
+    "rol.propietario_proceso": ("Propietario del proceso", "Process owner", "流程负责人"),
+    "rol.proveedor": ("Proveedor", "Supplier", "供应商"),
+    "rol.responsable_cumplimiento": ("Responsable de cumplimiento", "Compliance Officer", "合规负责人"),
+    "rol.responsable_seguridad": ("Responsable de seguridad", "Security Officer", "安全负责人"),
+    "rol.rrhh": ("RR. HH.", "HR", "人力资源部门"),
+    "rol.ti": ("TI", "IT", "信息技术（IT）部门"),
+}
+for _clave, (_g_es, _g_en, _g_zh) in _GENERACION.items():
+    TEXTOS_CERTIFICACIONES[f"cert.generacion.{_clave}"] = {"es": _g_es, "en": _g_en, "zh": _g_zh}

@@ -14,7 +14,7 @@ import { useToast } from '../../context/ToastContext'
 import { extractErr, fmtDate } from '../../utils/helpers'
 import { CLAVES_CERT, certApi } from '../../services/api/certificaciones'
 import type { Certificado } from '../../services/api/certificaciones'
-import { Estado } from './comun'
+import { Estado, etiquetaNivel } from './comun'
 import type { PropsDePestana } from './comun'
 
 export default function CertificadosCert({ programaId }: PropsDePestana) {
@@ -32,7 +32,7 @@ export default function CertificadosCert({ programaId }: PropsDePestana) {
         onFila={gestionar ? setFicha : undefined} vacio={{ icono: <Award size={28} />, titulo: t('cert.sin_certificados') }}
         columnas={[
           { key: 'numero', label: t('cert.numero'), cabeceraDeFila: true },
-          { key: 'marco', label: t('cert.marco'), render: (_v, c) => `${c.marco ? t(`cert.marco_${c.marco}`) : '—'}${c.nivel ? ` ${c.nivel}` : ''}` },
+          { key: 'marco', label: t('cert.marco'), render: (_v, c) => `${c.marco ? t(`cert.marco_${c.marco}`) : '—'}${c.nivel ? ` ${etiquetaNivel(t, c.nivel)}` : ''}` },
           { key: 'entidad', label: t('cert.entidad'), render: (_v, c) => c.entidad || '—' },
           { key: 'emitido_el', label: t('cert.emitido'), render: (_v, c) => fmtDate(c.emitido_el) },
           { key: 'valido_hasta', label: t('cert.valido_hasta'), render: (_v, c) => (

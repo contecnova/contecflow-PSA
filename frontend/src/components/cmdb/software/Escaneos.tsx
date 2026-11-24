@@ -8,24 +8,22 @@
  *   «Quitar» = `'__borrar__'`).
  * - `PanelDeEscaneos`: lo operativo en la CMDB (`software.gestionar`):
  *   último estado, próxima ejecución, «Escanear ahora» y el historial.
- * - `AvisoDeConfiguracion`: aviso contextual cuando algo no funciona por falta
- *   de configuración. Los módulos no llevan botón «Configurar»: el enlace a
- *   Configuración solo sale a quien tiene `software.config`.
+ * - El aviso de «falta configurar» es el `AvisoDeConfiguracion` del kit
+ *   (24-11-2026; antes vivía aquí): el enlace a Configuración solo sale a quien
+ *   puede abrir la sección `cmdb-software`; al resto, «Pídeselo a tu administrador».
  */
 import { useState } from 'react'
 import type { ReactNode } from 'react'
-import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AlertTriangle, History, Play, PlugZap, Plus, Radar, Trash2 } from 'lucide-react'
 import { useAppT } from '../../../i18n/AppLangContext'
 import { useToast } from '../../../context/ToastContext'
-import { useAuth } from '../../../context/AuthContext'
 import { confirmar } from '../../../context/ConfirmContext'
 import { fmtDateTime } from '../../../utils/helpers'
 import { etiquetaCodigo } from '../../../i18n/etiquetaCodigo'
 import { cmdbSoftwareApi } from '../../../services/api/cmdbSoftware'
 import type { ConexionDeEscaneo, ResultadoDeEscaneo, TipoDeConexion } from '../../../services/api/cmdbSoftware'
-import { Button, Checkbox, EmptyState, IconButton, Modal, Section, Select, Spinner, StatusBadge, TablaSimple, Textarea, Input } from '../../ui'
+import { AvisoDeConfiguracion, Button, Checkbox, EmptyState, IconButton, Modal, Section, Select, Spinner, StatusBadge, TablaSimple, Textarea, Input } from '../../ui'
 import { ListaKv, useErr, useEtiquetaSw, useMetaSw } from './comun'
 import '../../servicedesk/sdMercado.css'
 import './software.css'
@@ -45,23 +43,6 @@ const INTERVALO_MIN = 15
 function useTextoOpcional() {
   const t = useAppT()
   return (clave: string) => { const r = t(clave); return r === clave ? '' : r }
-}
-
-/** Aviso contextual: lo que falta y, a quien puede, el enlace a Configuración. */
-export function AvisoDeConfiguracion({ children, tono = 'warning' }: { children: ReactNode; tono?: 'warning' | 'danger' }) {
-  const t = useAppT()
-  const { puede } = useAuth()
-  return (
-    <div className={`sw-aviso-config sw-aviso-config--${tono}`} role="status">
-      <AlertTriangle size={14} />
-      <div className="u-flex1-min0">
-        {children}{' '}
-        {puede('software.config')
-          ? <Link to="/settings/cmdb-software" className="sw-aviso-config__enlace">{t('sw.ir_a_configuracion')}</Link>
-          : <span className="u-text3-xs">{t('sw.pide_a_la_direccion')}</span>}
-      </div>
-    </div>
-  )
 }
 
 // ── Configuración: alta, edición y prueba ────────────────────────────────────
@@ -251,7 +232,7 @@ export function PanelDeEscaneos() {
     <Section title={t('sw.esc_titulo')} subtitle={t('sw.esc_titulo_desc')}>
       <div className="u-stack-12">
         {isLoading ? <Spinner size={16} /> : conexiones.length === 0
-          ? <AvisoDeConfiguracion>{t('sw.esc_sin_conexiones_aviso')}</AvisoDeConfiguracion>
+          ? <AvisoDeConfiguracion seccion="cmdb-software">{t('sw.esc_sin_conexiones_aviso')}</AvisoDeConfiguracion>
           : <>
             {conError.map(c => <UltimoError key={c.id} conexion={c} />)}
             <TablaSimple etiqueta={t('sw.esc_titulo')} densidad="compacta">
@@ -285,7 +266,7 @@ function UltimoError({ conexion }: { conexion: ConexionDeEscaneo }) {
   const { data } = useQuery({ queryKey: ['sw', 'ejecuciones-conexion', conexion.id], queryFn: () => cmdbSoftwareApi.ejecucionesDeConexion(conexion.id) })
   const ultimo = data?.find(x => x.error)?.error
   return (
-    <AvisoDeConfiguracion tono="danger">
+    <AvisoDeConfiguracion seccion="cmdb-software" tono="peligro">
       {t('sw.esc_fallo', { nombre: conexion.name })}{ultimo ? `: ${ultimo}` : ''}
     </AvisoDeConfiguracion>
   )

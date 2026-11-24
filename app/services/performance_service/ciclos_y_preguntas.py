@@ -101,11 +101,21 @@ def list_questions(db: Session, cycle_id: str):
 
 
 def seed_default_questions_for_cycle(db: Session, cycle: ReviewCycle) -> None:
+    # 24-11-2026 (barrido de traducciones): las preguntas se escriben en el idioma de la
+    # empresa (`evaluacion.pregunta.<clave>` en textos_de_salida); castellano si falta.
+    from app.services.formato_regional import idioma
+    from app.services.textos_de_salida import TEXTOS
+    lengua = idioma(db, org_id=cycle.organization_id)
+
+    def _texto(clave: str, respaldo: str) -> str:
+        return (TEXTOS.get(clave) or {}).get(lengua) or respaldo
+
     for q in DEFAULT_QUESTIONS:
         db.add(ReviewQuestion(
             id=str(_uuid.uuid4()), cycle_id=cycle.id,
             organization_id=cycle.organization_id,
-            key=q["key"], label=q["label"], hint=q["hint"],
+            key=q["key"], label=_texto(f"evaluacion.pregunta.{q['key']}", q["label"]),
+            hint=_texto(f"evaluacion.ayuda.{q['key']}", q["hint"]),
             kind=q["kind"], order=q["order"], required=q["required"],
             scale_min=q["scale_min"], scale_max=q["scale_max"],
         ))

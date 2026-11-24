@@ -175,3 +175,31 @@ módulo muestra qué controles comunes se ven afectados (§3.1 de la propuesta).
 - **Retención y bloqueo legal:** `politica-retencion-registros` y el control `proteccion-registros` (A.5.33, SOX 802).
 - **Privilegios:** las plantillas fijan la segregación (quien prueba no implanta; quien cierra un hallazgo no lo
   corrigió; aprobación del paso a producción por persona distinta del autor), coherente con §3.10 de la propuesta.
+
+## 9. Traducciones (24-11-2026)
+
+El contenido se redacta en castellano y se muestra en el idioma de la interfaz (es/en/zh), con respaldo al
+castellano.
+
+- **Textos cortos** (`nombre`, `version`, `descripcion` de marcos; `titulo`, `descripcion`, `evidencia_sugerida`
+  de controles; `nombre` de plantillas, fases, tareas y documentos, `entregables`, `titulo`/`mitigacion` de
+  riesgos): catálogo por texto de origen, como gettext, en `i18n/en.yaml` e `i18n/zh.yaml`
+  (`«texto en castellano»: «traducción»`; 1.166 textos). Se eligió frente a campos `*_i18n` dentro de cada YAML
+  porque traduce también lo ya sembrado en la base de datos sin migrar nada: un control que sigue igual que la
+  semilla se ve traducido y uno que la empresa editó (texto propio) se ve tal cual.
+- **Esqueletos de documentos**: `documentos/en/<clave>.md` y `documentos/zh/<clave>.md`, misma estructura y
+  mismos marcadores `{{...}}`. La generación desde plantilla crea los documentos en el idioma de quien genera.
+- **Dónde se aplica**: `app/services/certificaciones/traduccion.py`. Todas las respuestas JSON del router de
+  Certificaciones pasan por `RutaTraducida`, que traduce según la cabecera `X-Idioma` (la manda el cliente con el
+  idioma de la interfaz; si no, `Accept-Language`). Los identificadores (`clave`, `marco`, `nivel`, `id_control`,
+  `dominio`, `estado`, `tipo`…) nunca se traducen. La generación (`generacion.generar(..., idioma)`) escribe fases,
+  tareas, riesgos, documentos, sedes («Site 1») y la descripción RACI de cada tarea (roles con nombre:
+  `cert.generacion.rol.*` en `textos_de_salida_certificaciones.py`) en ese idioma.
+- **Niveles** (`anexo_a`, `itgc`, `AL3`, `3-3`…): la pantalla los pinta con `cert.nivel_<nivel>`
+  (`etiquetaNivel` en `components/certificaciones/comun.tsx`), nunca la clave cruda.
+- **Al cambiar un texto en castellano** hay que añadir su traducción en los dos catálogos (y quitar la vieja):
+  `tests/test_certificaciones_traduccion_2026_11.py` falla si falta, sobra, está vacía o es una copia del
+  castellano (salvo nombres de normas y códigos), y si un documento no tiene su versión en/zh con los mismos
+  marcadores.
+- **Límite conocido**: la búsqueda de controles (`q`) compara con el texto guardado (castellano o el editado por la
+  empresa); buscar con palabras en inglés o chino no encuentra los controles sembrados.

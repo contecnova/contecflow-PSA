@@ -16,6 +16,7 @@ import { extractErr } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import SeccionDeAjustes from './SeccionDeAjustes'
 import { etiquetaCodigo } from '../../i18n/etiquetaCodigo'
+import { etiquetaMetricaBi } from '../../i18n/catalogoMetricas'
 import { type AlertConfig, type InputChange, type MetricForm, type NotifyKey, type RuleForm } from './tiposDeAjustes'
 
 // ── Alert configs section ─────────────────────────────────────────────────────
@@ -84,12 +85,12 @@ export function AlertConfigSection() {
               <div className="set-alert-head">
                 <div>
                   <div className="set-alert-title">
-                    <span className="u-base-700">{cfg.label}</span>
-                    <span className="set-sev">{cfg.severity}</span>
+                    <span className="u-base-700">{t(`alerts.alert_type_${cfg.alert_type}`, cfg.label)}</span>
+                    <span className="set-sev">{t(`alerts.severity_${cfg.severity}`, cfg.severity)}</span>
                   </div>
-                  {cfg.description && <div className="u-text2-sm">{cfg.description}</div>}
+                  {cfg.description && <div className="u-text2-sm">{t(`alerts.alert_desc_${cfg.alert_type}`, cfg.description)}</div>}
                 </div>
-                <Checkbox className="set-toggle" aria-label={cfg.label} label={<span className="u-text2-sm">{cfg.is_enabled ? t('settings_sections.activa') : t('settings_sections.inactiva')}</span>} checked={cfg.is_enabled} onChange={m => update({ type: cfg.alert_type, data: { is_enabled: m } })} />
+                <Checkbox className="set-toggle" aria-label={t(`alerts.alert_type_${cfg.alert_type}`, cfg.label)} label={<span className="u-text2-sm">{cfg.is_enabled ? t('settings_sections.activa') : t('settings_sections.inactiva')}</span>} checked={cfg.is_enabled} onChange={m => update({ type: cfg.alert_type, data: { is_enabled: m } })} />
               </div>
               {cfg.is_enabled && (
                 <div className="set-alert-body">
@@ -132,7 +133,7 @@ export function AlertConfigSection() {
                     <span className="set-sev">{rule.severity}</span>
                   </div>
                   <div className="u-text2-xs">
-                    {metrics.find(m => m.key === rule.metric_key)?.label ?? rule.metric_key} · {condLabel(rule.condition)}{rule.threshold != null ? ` · ${t('settings_sections.umbral_valor', { valor: rule.threshold })}` : ''}
+                    {etiquetaMetricaBi(t, rule.metric_key, metrics.find(m => m.key === rule.metric_key)?.label ?? rule.metric_key)} · {condLabel(rule.condition)}{rule.threshold != null ? ` · ${t('settings_sections.umbral_valor', { valor: rule.threshold })}` : ''}
                   </div>
                 </div>
                 <div className="set-rule-actions">
@@ -150,7 +151,7 @@ export function AlertConfigSection() {
           <div className="u-stack-14">
             <Input label={t('common.name')} id={`${idCampo}-1`} value={ruleForm.name} onChange={setR('name')} placeholder={t('settings.ej_ingresos_por_debajo_del_objetivo')} />
             <Select label={t('settings.metrica')} placeholder={t('settings.selecciona_una_metrica')} id={`${idCampo}-2`} value={ruleForm.metric_key} onChange={setR('metric_key')}>
-                {metrics.map(m => <option key={m.key} value={m.key}>{m.label}</option>)}
+                {metrics.map(m => <option key={m.key} value={m.key}>{etiquetaMetricaBi(t, m.key, m.label)}</option>)}
               </Select>
             <div className="u-grid2-12">
               <Select label={t('settings.condicion')} placeholder={false} id={`${idCampo}-3`} value={ruleForm.condition} onChange={setR('condition')}>
@@ -213,9 +214,9 @@ export function MetricsSection() {
   const setF = (k: keyof MetricForm) => (e: InputChange) => setForm(f => ({ ...f, [k]: e.target.value }))
 
   const preview = (() => {
-    const la = builtinMetrics.find(m => m.key === form.operand_a)?.label ?? form.operand_a
+    const la = etiquetaMetricaBi(t, form.operand_a, builtinMetrics.find(m => m.key === form.operand_a)?.label ?? form.operand_a)
     const lb = form.operand_b_type === 'metric'
-      ? (builtinMetrics.find(m => m.key === form.operand_b)?.label ?? form.operand_b)
+      ? (etiquetaMetricaBi(t, form.operand_b, builtinMetrics.find(m => m.key === form.operand_b)?.label ?? form.operand_b))
       : form.operand_b
     if (!form.operand_a) return ''
     const scaled = parseFloat(String(form.scale)) !== 1 ? ` × ${form.scale}` : ''
@@ -236,7 +237,7 @@ export function MetricsSection() {
         <div className="set-metrics-grid">
           {builtinMetrics.map(m => (
             <div key={m.key} className="set-metric-tile">
-              <div className="u-text1-sm-600">{m.label}</div>
+              <div className="u-text1-sm-600">{etiquetaMetricaBi(t, m.key, m.label)}</div>
               <div className="ds-codigo set-metric-key">{m.key}</div>
             </div>
           ))}
@@ -255,9 +256,9 @@ export function MetricsSection() {
           <div className="u-stack-8">
             {customMetrics.map(cm => {
               const f = cm.formula
-              const la = builtinMetrics.find(m => m.key === f.operand_a)?.label ?? f.operand_a
+              const la = etiquetaMetricaBi(t, f.operand_a, builtinMetrics.find(m => m.key === f.operand_a)?.label ?? f.operand_a)
               const lb = f.operand_b_type === 'metric'
-                ? (builtinMetrics.find(m => m.key === f.operand_b)?.label ?? f.operand_b)
+                ? (etiquetaMetricaBi(t, f.operand_b, builtinMetrics.find(m => m.key === f.operand_b)?.label ?? f.operand_b))
                 : f.operand_b
               const scale = f.scale !== 1 ? ` × ${f.scale}` : ''
               return (
@@ -287,7 +288,7 @@ export function MetricsSection() {
               <div className="set-formula-title">{t('settings.formula_a_operador_b_escala')}</div>
               <div className="set-formula-grid">
                 <Select label={t('settings.metrica_a')} placeholder={t('settings_sections.selecciona')} id={`${idCampo}-3`} value={form.operand_a} onChange={setF('operand_a')}>
-                    {builtinMetrics.map(m => <option key={m.key} value={m.key}>{m.label}</option>)}
+                    {builtinMetrics.map(m => <option key={m.key} value={m.key}>{etiquetaMetricaBi(t, m.key, m.label)}</option>)}
                   </Select>
                 <Select label={<span title={t('settings_sections.operador')}>{t('settings_sections.op')}</span>} placeholder={false} id={`${idCampo}-4`} value={form.operator} onChange={setF('operator')}>
                     {Object.entries(OPERATOR_KEYS).map(([k, v]) => <option key={k} value={k}>{k} ({t(v)})</option>)}
@@ -302,7 +303,7 @@ export function MetricsSection() {
                   <label id={`${idCampo}-etopb`} htmlFor={`${idCampo}-opb`} className="set-label">{form.operand_b_type === 'metric' ? t('settings_sections.metrica_b') : t('settings_sections.valor_constante')}</label>
                   {form.operand_b_type === 'metric' ? (
                     <Select suelto placeholder={t('settings_sections.selecciona')} id={`${idCampo}-opb`} value={form.operand_b} onChange={setF('operand_b')} className="set-input">
-                      {builtinMetrics.filter(m => m.key !== form.operand_a).map(m => <option key={m.key} value={m.key}>{m.label}</option>)}
+                      {builtinMetrics.filter(m => m.key !== form.operand_a).map(m => <option key={m.key} value={m.key}>{etiquetaMetricaBi(t, m.key, m.label)}</option>)}
                     </Select>
                   ) : (
                     <Input id={`${idCampo}-opb`} aria-labelledby={`${idCampo}-etopb`} type="number" value={form.operand_b} onChange={setF('operand_b')} placeholder="0" inputClassName="set-input" />

@@ -68,27 +68,6 @@
   margin-top: 16px;
 }
 
-.goveconv-labelstyle {
-  font-size: var(--text-xs);
-  font-weight: 700;
-  color: var(--text-2);
-
-  letter-spacing: 0.07em;
-  display: block;
-  margin-bottom: 5px;
-}
-.goveconv-inputstyle {
-  width: 100%;
-  background: var(--surface-3);
-  border: 1px solid var(--surface-4);
-  border-radius: 8px;
-  padding: 9px 12px;
-  color: var(--text-1);
-  font-size: var(--text-base);
-  outline: none;
-  font-family: inherit;
-  box-sizing: border-box;
-}
 
 .goveconv-cardstyle {
   /* 24-11-2026: sin flex ni gap el botón «Enviar» quedaba pegado al cuadro de texto. */
@@ -119,19 +98,6 @@
   background: var(--surface-3);
   border: 1px solid var(--surface-4);
   border-radius: 8px;
-}
-.goveconv-inputstyle4 {
-  width: 100%;
-  background: var(--surface-3);
-  border: 1px solid var(--surface-4);
-  border-radius: 8px;
-  padding: 9px 12px;
-  color: var(--text-1);
-  font-size: var(--text-base);
-  outline: none;
-  font-family: inherit;
-  box-sizing: border-box;
-  resize: vertical;
 }
 
 .goveconv-cardstyle4 {

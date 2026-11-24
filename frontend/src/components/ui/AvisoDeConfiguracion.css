@@ -1,0 +1,30 @@
+/* AvisoDeConfiguracion (24-11-2026): el aviso de «falta configurar» con enlace a Configuración o
+   «Pídeselo a tu administrador». Es el aviso de Software y vulnerabilidades (`sw-aviso-config`)
+   llevado al kit: solo tokens. */
+.ui-aviso-config {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+  color: var(--text-1);
+}
+.ui-aviso-config > svg { flex: none; margin-top: 2px; }
+.ui-aviso-config__texto { flex: 1 1 auto; min-width: 0; }
+.ui-aviso-config--aviso { background: var(--warning-bg); border: 1px solid var(--warning-border); }
+.ui-aviso-config--aviso > svg { color: var(--warning); }
+.ui-aviso-config--peligro { background: var(--danger-bg); border: 1px solid var(--danger-border); }
+.ui-aviso-config--peligro > svg { color: var(--danger); }
+.ui-aviso-config--info { background: var(--info-bg); border: 1px solid var(--info-border); }
+.ui-aviso-config--info > svg { color: var(--info); }
+.ui-aviso-config__enlace {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--accent);
+  font-weight: var(--font-semibold);
+  white-space: nowrap;
+}
+.ui-aviso-config__enlace:hover { text-decoration: underline; }
+.ui-aviso-config__pedir { color: var(--text-2); font-size: var(--text-xs); }

@@ -58,13 +58,6 @@
   margin-bottom: 20px;
 }
 
-.esign-link {
-  font-size: var(--text-sm);
-  color: var(--accent);
-  align-self: center;
-  text-decoration: underline;
-}
-
 .esign-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(130px, 100%), 1fr));

@@ -298,6 +298,10 @@ def process_gdpr_request(request_id: str, current_user, db: Session) -> dict:
             from app.services.service_desk import chat_en_vivo as chat_de_soporte
             chat_de_soporte.exigir_sin_bloqueo_legal_rgpd(
                 db, [u.id for u in contactos_rgpd.usuarios_del_portal_de(db, email, org)], org)
+            # 24-11-2026 (migración 214): y sus consentimientos, grabaciones y transcripciones.
+            from app.services.portal_conversation_service import grabacion as grabaciones_del_portal
+            grabaciones_del_portal.exigir_sin_bloqueo_legal_rgpd(
+                db, [u.id for u in contactos_rgpd.usuarios_del_portal_de(db, email, org)], org)
 
     # A64: todo en UNA transacción. Antes se confirmaba «processing» y, si la
     # supresión fallaba a medias, la solicitud quedaba atascada en curso con
@@ -336,6 +340,8 @@ def _ejecutar_solicitud(db: Session, req, tipo, user, email, es_contacto: bool, 
         chat_colab_suprimido = chat_colaboracion.suprimir_rgpd(db, cuentas_del_portal, org) if cuentas_del_portal else None
         from app.services.service_desk import chat_en_vivo as chat_de_soporte
         chat_soporte_suprimido = chat_de_soporte.suprimir_rgpd(db, cuentas_del_portal, org) if cuentas_del_portal else None
+        from app.services.portal_conversation_service import grabacion as grabaciones_del_portal
+        grabaciones_suprimidas = grabaciones_del_portal.suprimir_rgpd(db, cuentas_del_portal, org) if cuentas_del_portal else None
         # Primero sus fichas de contacto (con el email original), luego la cuenta.
         contactos_suprimidos = contactos_rgpd.anonimizar(db, email, org) if es_contacto else None
         reuniones_suprimidas = rgpd_reuniones.suprimir(db, org, email=email) if en_reuniones else None
@@ -350,6 +356,8 @@ def _ejecutar_solicitud(db: Session, req, tipo, user, email, es_contacto: bool, 
             export_data["portal_collaboration_chat"] = chat_colab_suprimido
         if chat_soporte_suprimido is not None:
             export_data["livechat"] = chat_soporte_suprimido
+        if grabaciones_suprimidas is not None:
+            export_data["portal_call_recordings"] = grabaciones_suprimidas
     elif tipo in _CON_COPIA:
         # Revisión GRC 16-11-2026: «acceso» (art. 15) se marcaba completada sin
         # entregar nada; da la misma copia que la portabilidad.
@@ -363,6 +371,8 @@ def _ejecutar_solicitud(db: Session, req, tipo, user, email, es_contacto: bool, 
                 export_data.update(chat_colaboracion.copia_rgpd(db, cuentas_del_portal, org))
                 from app.services.service_desk import chat_en_vivo as chat_de_soporte
                 export_data.update(chat_de_soporte.copia_rgpd(db, cuentas_del_portal, org))
+                from app.services.portal_conversation_service import grabacion as grabaciones_del_portal
+                export_data.update(grabaciones_del_portal.copia_rgpd(db, cuentas_del_portal, org))
         if en_reuniones:
             export_data["meetings"] = rgpd_reuniones.copia(db, org, email=email)["meetings"]
     elif tipo == GDPRRequestType.rectification:

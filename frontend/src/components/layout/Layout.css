@@ -285,20 +285,10 @@
 }
 
 .layo-box-20 {
+  /* 24-11-2026: solo coloca la marca (el tamaño y el color los da `Contador punto` del kit). */
   position: absolute;
   top: -3px;
   right: -4px;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-}
-.layo-box-21 {
-  background: color-mix(in srgb, var(--warning) 15%, transparent);
-  border-radius: 9px;
-  padding: 1px 5px;
-  font-size: var(--text-3xs-h);
-  font-weight: 700;
-  flex-shrink: 0;
 }
 .layo-box-23 {
   left: 52px;
@@ -345,23 +335,9 @@
   font-weight: 600;
   font-family: inherit;
   position: relative;
-}
-.layo-row-20 {
-  position: absolute;
-  top: -5px;
-  right: -5px;
-  min-width: 16px;
-  height: 16px;
-  border-radius: var(--radius-full);
-  background: var(--danger);
-  color: var(--on-accent-light);
-  font-size: var(--text-3xs);
-  font-weight: 800;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0 4px;
-  transition: opacity .12s ease, transform .12s ease;
+  /* 24-11-2026: misma altura que los contadores del kit (BotonConContador). */
+  box-sizing: border-box;
+  min-height: var(--alto-control-sm);
 }
 .layo-box-25 {
   background: color-mix(in srgb, var(--warning) 15%, transparent);
@@ -462,30 +438,11 @@
 }
 
 /* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
-.layout-e1 {
-  background: var(--layout-background);
-}
-.layout-e2 {
-  color: var(--layout-color);
-}
 .layout-e5 {
   top: var(--layout-top);
 }
 .layout-e13 {
   border: var(--layout-border);
-}
-.layout-e18 {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  padding: 5px 9px;
-  background: var(--layout-background);
-  border: var(--layout-border);
-  border-radius: 8px;
-  color: var(--layout-color);
-  text-decoration: none;
-  font-size: var(--text-sm);
-  font-weight: 600;
 }
 .layout-e19 {
   transform: var(--layout-transform);
@@ -563,14 +520,6 @@
 .layout-m15 {
   background: var(--surface-3);
   color: var(--text-2);
-}
-.layout-m16 {
-  opacity: 1;
-  transform: scale(1);
-}
-.layout-m17 {
-  opacity: 0;
-  transform: scale(0.9);
 }
 .layout-m20 {
   width: 46px;

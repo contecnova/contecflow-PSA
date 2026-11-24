@@ -476,6 +476,35 @@ from app.services.textos_de_salida_certificaciones import TEXTOS_CERTIFICACIONES
 
 TEXTOS.update(_TEXTOS_CERT)
 
+# 24-11-2026 (barrido de traducciones): preguntas que se siembran en un ciclo de evaluación
+# nuevo (`performance_service.ciclos_y_preguntas.DEFAULT_QUESTIONS`), en el idioma de la empresa.
+_PREGUNTAS_EVALUACION = {
+    "score_quality": (("Calidad del trabajo", "Quality of work", "工作质量"),
+                      ("Precisión, rigor y atención al detalle", "Accuracy, rigour and attention to detail",
+                       "准确性、严谨性和对细节的关注")),
+    "score_delivery": (("Cumplimiento de plazos", "Meeting deadlines", "按期交付"),
+                       ("Entregas a tiempo y compromiso con fechas", "On-time delivery and commitment to dates",
+                        "按时交付并遵守日期承诺")),
+    "score_teamwork": (("Trabajo en equipo", "Teamwork", "团队合作"),
+                       ("Colaboración, comunicación y disponibilidad", "Collaboration, communication and availability",
+                        "协作、沟通和响应能力")),
+    "score_leadership": (("Liderazgo", "Leadership", "领导力"),
+                         ("Influencia, mentoría y toma de decisiones", "Influence, mentoring and decision-making",
+                          "影响力、指导他人和决策能力")),
+    "score_innovation": (("Innovación", "Innovation", "创新"),
+                         ("Propuestas de mejora y pensamiento creativo", "Improvement proposals and creative thinking",
+                          "改进建议和创造性思维")),
+    "strengths": (("Puntos fuertes", "Strengths", "优势"),
+                  ("¿Qué hace especialmente bien?", "What does this person do especially well?", "此人哪些方面做得特别好？")),
+    "improvements": (("Áreas de mejora", "Areas for improvement", "待改进领域"),
+                     ("¿Qué podría mejorar?", "What could they improve?", "哪些方面可以改进？")),
+    "goals_next": (("Objetivos próximo período", "Goals for the next period", "下一周期目标"),
+                   ("¿En qué debería focalizarse?", "What should they focus on?", "应重点关注什么？")),
+}
+for _clave, ((_p_es, _p_en, _p_zh), (_a_es, _a_en, _a_zh)) in _PREGUNTAS_EVALUACION.items():
+    TEXTOS[f"evaluacion.pregunta.{_clave}"] = {"es": _p_es, "en": _p_en, "zh": _p_zh}
+    TEXTOS[f"evaluacion.ayuda.{_clave}"] = {"es": _a_es, "en": _a_en, "zh": _a_zh}
+
 
 def texto(clave: str, idioma: Optional[str] = None, **params) -> str:
     """El texto `clave` en `idioma` (castellano si no lo hay) con sus datos.

@@ -141,7 +141,12 @@ MENSAJES: dict[str, str] = {
     "portal_llamada_terminada": "La llamada ya ha terminado",
     "portal_llamada_solo_operador": "Solo el equipo puede iniciar llamadas y videollamadas",
     "portal_llamada_sin_capacidad": "No tienes permiso para llamar a clientes",
-    "portal_llamada_no_se_graba": "Las llamadas con clientes del portal no se graban ni se transcriben",
+    # 24-11-2026 (migración 214, docs/portal/CHAT_DEL_PORTAL.md §11): grabar con
+    # aviso y consentimiento del cliente (sustituye a `portal_llamada_no_se_graba`).
+    "portal_grabacion_desactivada": "La empresa no permite grabar las llamadas con clientes del portal",
+    "portal_grabacion_sin_consentimiento": "El cliente no ha dado su consentimiento para grabar esta llamada",
+    "portal_transcripcion_desactivada": "La empresa no permite transcribir las llamadas con clientes del portal",
+    "portal_grabacion_sin_propuesta": "No hay ninguna propuesta de grabación para ti en esta llamada",
     # Validacion de la peticion (17-11-2026, `app/core/validacion.py`): el
     # detalle por campo va en `params.errores`; la interfaz pinta cada error
     # junto a su campo (`validacion.<tipo>`).

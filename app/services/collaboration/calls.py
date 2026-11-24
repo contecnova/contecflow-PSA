@@ -192,6 +192,9 @@ def end_call(db: Session, user, call_id: str) -> bool:
     if call.status == "ended":
         return False
 
+    # 24-11-2026 (migración 214): si se grababa con consentimiento de clientes, se para.
+    from app.services.portal_conversation_service import grabacion as _grabacion_del_portal
+    _grabacion_del_portal.al_terminar_llamada(db, "colaboracion", call.id, org)
     ahora = utcnow()
     call.status = "ended"
     call.ended_at = ahora
@@ -210,9 +213,13 @@ def start_recording(db: Session, user, call_id: str) -> str:
     """Marca la llamada como grabada y crea la fila de la grabación."""
     org = _org(user)
     call = _llamada_de_la_org(db, call_id, org)
-    # 24-11-2026: con clientes en la conversación no se graba (docs/portal/CHAT_DEL_PORTAL.md).
+    # 24-11-2026 (migración 214, docs/portal/CHAT_DEL_PORTAL.md §11): con clientes en
+    # la conversación, solo si la empresa lo permite y todos han consentido; la
+    # grabación ya la abrió la ronda consentida (no se crea otra).
     from app.services.collaboration import portal_chat
-    portal_chat.exigir_sin_grabacion(db, call.conversation_id)
+    consentida = portal_chat.exigir_grabacion_consentida(db, call.id)
+    if consentida:
+        return consentida
     call.is_recorded = True
     rec = CollaborationRecording(
         organization_id=org, call_id=call_id,

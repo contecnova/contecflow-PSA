@@ -334,6 +334,22 @@ def _llamada_del_chat_en_vivo():
     return ChannelCall
 
 
+# Migracion 214 (grabacion con consentimiento, docs/portal/CHAT_DEL_PORTAL.md §11).
+def _consentimiento_de_grabacion():
+    from app.models.grabacion_con_clientes import PortalCallRecordingConsent
+    return PortalCallRecordingConsent
+
+
+def _grabacion_de_llamada():
+    from app.models.collaboration import CollaborationRecording
+    return CollaborationRecording
+
+
+def _transcripcion_de_llamada():
+    from app.models.collaboration import CollaborationTranscript
+    return CollaborationTranscript
+
+
 # Migracion 212 (certificaciones, docs/CERTIFICACIONES.md §GRC): definidas ANTES de TIPOS.
 def _cert_modelo(nombre: str):
     def _m():
@@ -525,6 +541,20 @@ TIPOS: dict[str, Tipo] = {
     "sd_channel_calls": Tipo(_llamada_del_chat_en_vivo, lambda M: func.coalesce(M.ended_at, M.created_at),
                              lambda M: M.status.in_(("ended", "declined", "missed")),
                              ("id", "conversation_id", "initiated_by_user_id", "answered_by_client_id")),
+    # Migracion 214 (docs/portal/CHAT_DEL_PORTAL.md §11): grabacion de llamadas con
+    # clientes con su consentimiento. Consentimientos (evidencia; desde que se cerro
+    # la ronda), grabaciones (desde que acabaron) y transcripciones (desde su alta).
+    # Ademas de las politicas generales, `grabacion.purgar_caducadas` aplica los dias
+    # del grupo `portal_chat`; las dos respetan el bloqueo.
+    "portal_call_recording_consents": Tipo(_consentimiento_de_grabacion,
+                                           lambda M: func.coalesce(M.recording_ended_at, M.withdrawn_at,
+                                                                   M.decided_at, M.proposed_at),
+                                           lambda M: M.status != "pending",
+                                           ("id", "call_id", "conversation_id", "client_user_id",
+                                            "proposed_by_user_id")),
+    "collaboration_recordings": Tipo(_grabacion_de_llamada, lambda M: func.coalesce(M.ended_at, M.created_at),
+                                     lambda M: M.ended_at.isnot(None), ("id", "call_id")),
+    "collaboration_transcripts": Tipo(_transcripcion_de_llamada, lambda M: M.created_at, None, ("id", "call_id")),
     # Migracion 212 (certificaciones): evidencias (desde su alta), auditorias cerradas
     # (con hallazgos y CAPA en cascada; desde el cierre), programas cerrados, incidentes
     # NIS2 cerrados o descartados (con sus comunicaciones), auditores externos (dato

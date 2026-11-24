@@ -10,8 +10,10 @@
   24-11-2026 (docs/portal/CHAT_DEL_PORTAL.md §10): imagenes y ficheros,
   reacciones, citas, editar/borrar con rastro y llamadas que SOLO inicia el
   operador (`clientes.llamar`); la ruta del cliente para iniciar responde
-  siempre 403 `portal_llamada_solo_operador` y grabar, 409
-  `portal_llamada_no_se_graba`.
+  siempre 403 `portal_llamada_solo_operador`. Grabar (migracion 214): solo
+  con la propuesta del operador y el consentimiento del cliente
+  (`/portal-call-recording/...`); la ruta antigua responde 409
+  `portal_grabacion_desactivada` o `portal_grabacion_sin_consentimiento`.
 
 Los webhooks no llevan sesion: se autentican por firma y la empresa sale del
 workspace o del numero. El chat del portal va con la sesion del cliente; la
@@ -260,10 +262,12 @@ def livechat_call_end(conv_id: str, call_id: str, db: Session = Depends(get_db),
     return APIResponse.ok(data=_vivo.colgar(db, conv, call_id, cliente=client))
 
 
-@router.post("/livechat/{conv_id}/calls/{call_id}/recording", summary="Portal: grabar (nunca: 409)")
+@router.post("/livechat/{conv_id}/calls/{call_id}/recording",
+             summary="Portal: estado de la grabación (solo con consentimiento; si no, 409)")
 def livechat_call_recording(conv_id: str, call_id: str, db: Session = Depends(get_db),
                             client=Depends(get_current_portal_client)):
-    _vivo.grabar_denegado(db, _vivo.conversacion_del_cliente(db, conv_id, client), call_id, cliente=client)
+    return APIResponse.ok(data=_vivo.grabar_denegado(db, _vivo.conversacion_del_cliente(db, conv_id, client), call_id,
+                                                     cliente=client))
 
 
 # ── Bandeja del agente ────────────────────────────────────────────────────────
@@ -396,11 +400,12 @@ def operator_call_end(conv_id: str, call_id: str, db: Session = Depends(get_db),
     return APIResponse.ok(data=_vivo.colgar(db, conv, call_id, usuario=current_user))
 
 
-@router.post("/conversations/{conv_id}/calls/{call_id}/recording", summary="Chat en vivo: grabar (nunca: 409)")
+@router.post("/conversations/{conv_id}/calls/{call_id}/recording",
+             summary="Chat en vivo: estado de la grabación (solo con consentimiento; si no, 409)")
 def operator_call_recording(conv_id: str, call_id: str, db: Session = Depends(get_db),
                             current_user: User = Depends(requiere_capacidad("sd.completo"))):
     conv = _vivo.conversacion_del_operador(db, conv_id, current_user, "portal_llamada_no_disponible")
-    _vivo.grabar_denegado(db, conv, call_id, usuario=current_user)
+    return APIResponse.ok(data=_vivo.grabar_denegado(db, conv, call_id, usuario=current_user))
 
 
 @router.get("/status", summary="Qué canales tiene configurados la empresa (admin)")

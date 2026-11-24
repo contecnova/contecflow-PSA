@@ -1,9 +1,8 @@
 /** Recuperación de licencias sin uso: procesos en curso, decisiones y simulador de la política actual. */
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CheckCircle2, Coins, FlaskConical, Hourglass, ListChecks, Recycle, ShieldCheck, Undo2, XCircle } from 'lucide-react'
-import { Button, DataTable, EmptyState, KpiCard, Section, Spinner, Tabs } from '../../../components/ui'
+import { AvisoDeConfiguracion, Button, DataTable, EmptyState, KpiCard, Section, Spinner, Tabs } from '../../../components/ui'
 import type { ColumnaDeTabla } from '../../../components/ui'
 import { confirmar, pedirTexto } from '../../../context/ConfirmContext'
 import { useToast } from '../../../context/ToastContext'
@@ -138,7 +137,7 @@ export default function RecuperacionPanel() {
       <div className="u-row-between almu-barra">
         <Tabs size="sm" ariaLabel={t('alm_uso.filtro_aria')} active={filtro} onChange={setFiltro}
           items={FILTROS.map(f => ({ id: f, label: etiquetaCodigo(t, 'alm_uso.filtro', f) }))} />
-        <Link className="almu-enlace" to="/settings/policies?dominio=licencias">{t('alm_uso.ir_a_politicas')}</Link>
+        <AvisoDeConfiguracion seccion="policies" consulta="dominio=licencias" variante="enlace" texto={t('alm_uso.ir_a_politicas')} />
       </div>
       {isLoading ? <Spinner /> : (data?.items.length ?? 0) === 0 ? (
         <EmptyState svgIcon={<Recycle size={28} aria-hidden="true" />} title={t('alm_uso.sin_recuperaciones')}
