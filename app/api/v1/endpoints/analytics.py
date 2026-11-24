@@ -483,13 +483,13 @@ CATALOGUE = {
     "nps_by_client": {
         "label": "NPS por cliente",
         "category": "NPS",
-        "description": "Puntuación NPS media por cliente en el período",
+        "description": "NPS por cliente en el período (−100 a 100: % promotores − % detractores)",
         "x_label": "Cliente", "y_label": "NPS", "default_chart": "bar",
     },
     "nps_trend": {
         "label": "Evolución mensual del NPS",
         "category": "NPS",
-        "description": "Tendencia mensual de la puntuación NPS media",
+        "description": "Tendencia mensual del NPS (−100 a 100)",
         "x_label": "Mes", "y_label": "NPS", "default_chart": "line",
     },
     "nps_distribution": {

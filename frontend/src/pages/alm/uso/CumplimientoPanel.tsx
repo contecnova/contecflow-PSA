@@ -69,9 +69,7 @@ export default function CumplimientoPanel() {
         </div>
       )}
       <div className="almu-barra almu-export">
-        <label className="almu-campo almu-campo--linea">{t('alm_uso.filtrar_producto')}
-          <Buscador value={producto} onChange={setProducto} placeholder={t('alm_uso.filtrar_producto_ph')} inputClassName="alm-input alm-input--compact" />
-        </label>
+        <Buscador label={t('alm_uso.filtrar_producto')} value={producto} onChange={setProducto} placeholder={t('alm_uso.filtrar_producto_ph')} />
         <Button size="sm" variant="secondary" icon={<Download size={14} />} loading={exportando === 'csv'}
           onClick={() => exportar('csv')}>{t('alm_uso.exportar_csv')}</Button>
         <Button size="sm" variant="secondary" icon={<FileSpreadsheet size={14} />} loading={exportando === 'xlsx'}

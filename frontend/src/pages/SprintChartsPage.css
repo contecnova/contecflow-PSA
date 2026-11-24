@@ -2,18 +2,6 @@
    16-11-2026: fuera el ancho máximo centrado, el select gris propio y las
    tarjetas/KPIs a mano (ahora Card, Section, KpiCard y ds-input). */
 
-.spc-filtros { padding: 16px 20px; }
-.spc-selectors { display: flex; gap: 14px; flex-wrap: wrap; }
-.spc-field { flex: 1; min-width: 200px; }
-.spc-field--sprint { min-width: 180px; }
-.spc-label {
-  font-size: var(--text-xs);
-  font-weight: 600;
-  color: var(--text-2);
-  display: block;
-  margin-bottom: 6px;
-}
-
 .spc-titulo { display: inline-flex; align-items: center; gap: 8px; }
 .spc-dato { color: var(--text-1); }
 .spc-note { font-size: var(--text-sm); color: var(--text-2); margin: 0 0 16px; }

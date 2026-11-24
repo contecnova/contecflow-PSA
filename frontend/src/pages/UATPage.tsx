@@ -13,7 +13,7 @@ import { useId, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { uatApi, tasksApi } from '../services/api'
 import type { CasoUat, InformeUat } from '../services/api/tipos-proyectos'
-import { Spinner, EmptyState, Button, Modal, KpiCard, IconButton, StatusBadge, Select, Input, Textarea } from '../components/ui'
+import { Spinner, EmptyState, Button, Modal, KpiCard, IconButton, StatusBadge, Select, Input, Textarea, SelectorDeContexto } from '../components/ui'
 import type { StatusBadgeKind } from '../components/ui/StatusBadge'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -70,8 +70,6 @@ const PRIORITY_META: Record<UATPriority, { label: string; kind: StatusBadgeKind 
   low:      { label: 'uat.prioridad_low',      kind: 'neutral' },
 }
 
-const fs = 'ds-input uat-input'
-const ls = 'uat-label'
 
 function CaseFormModal({ open, onClose, onSave, initial, tasks = [] }: { open: boolean; onClose: () => void; onSave: (data: UATFormData) => void; initial?: UATCase | null; tasks?: TaskItem[] }) {
   const traducir = useAppT()
@@ -92,58 +90,34 @@ function CaseFormModal({ open, onClose, onSave, initial, tasks = [] }: { open: b
   return (
     <Modal open={open} onClose={onClose} title={isEdit ? traducir('uat.editar_caso') : traducir('uat.nuevo_caso_titulo')} width={640}>
       <div className="u-stack-14">
-        <div>
-          <label htmlFor={`${idPrefix}-title`} id={`${idPrefix}-title-etiqueta`} className={ls}>{traducir('uat.titulo')}</label>
-          <Input id={`${idPrefix}-title`} aria-labelledby={`${idPrefix}-title-etiqueta`} value={form.title} onChange={s('title')} placeholder={traducir('uat.titulo_del_caso_uat')} inputClassName="uat-input" />
-        </div>
+        <Input label={traducir('uat.titulo')} id={`${idPrefix}-title`} value={form.title} onChange={s('title')} placeholder={traducir('uat.titulo_del_caso_uat')} />
 
         <div className="uat-grid3">
-          <div>
-            <label htmlFor={`${idPrefix}-status`} className={ls}>{traducir('uat.estado')}</label>
-            <Select suelto placeholder={false} id={`${idPrefix}-status`} value={form.status} onChange={s('status')} className={fs}>
+          <Select label={traducir('uat.estado')} placeholder={false} id={`${idPrefix}-status`} value={form.status} onChange={s('status')}>
               {Object.entries(STATUS_META).map(([v, m]) => (
                 <option key={v} value={v}>{traducir(m.label)}</option>
               ))}
             </Select>
-          </div>
-          <div>
-            <label htmlFor={`${idPrefix}-priority`} className={ls}>{traducir('uat.prioridad')}</label>
-            <Select suelto placeholder={false} id={`${idPrefix}-priority`} value={form.priority} onChange={s('priority')} className={fs}>
+          <Select label={traducir('uat.prioridad')} placeholder={false} id={`${idPrefix}-priority`} value={form.priority} onChange={s('priority')}>
               {Object.entries(PRIORITY_META).map(([v, m]) => (
                 <option key={v} value={v}>{traducir(m.label)}</option>
               ))}
             </Select>
-          </div>
-          <div>
-            <label htmlFor={`${idPrefix}-task-id`} className={ls}>{traducir('uat.tarea_vinculada')}</label>
-            <Select suelto placeholder={false} id={`${idPrefix}-task-id`} value={form.task_id} onChange={s('task_id')} className={fs}>
+          <Select label={traducir('uat.tarea_vinculada')} placeholder={false} id={`${idPrefix}-task-id`} value={form.task_id} onChange={s('task_id')}>
               <option value="">{traducir('uat.sin_tarea')}</option>
               {tasks.map(t => (
                 <option key={t.id} value={String(t.id)}>{t.title}</option>
               ))}
             </Select>
-          </div>
         </div>
 
-        <div>
-          <label htmlFor={`${idPrefix}-description`} id={`${idPrefix}-description-etiqueta`} className={ls}>{traducir('uat.pasos_para_ejecutar_el_test')}</label>
-          <Textarea id={`${idPrefix}-description`} aria-labelledby={`${idPrefix}-description-etiqueta`} value={form.description} onChange={s('description')} rows={3} placeholder={traducir('uat.pasos_para_ejecutar_el_test')} inputClassName="uat-input uat-textarea" />
-        </div>
+        <Textarea label={traducir('uat.pasos_para_ejecutar_el_test')} id={`${idPrefix}-description`} value={form.description} onChange={s('description')} rows={3} placeholder={traducir('uat.pasos_para_ejecutar_el_test')} />
 
-        <div>
-          <label htmlFor={`${idPrefix}-expected-result`} id={`${idPrefix}-expected-result-etiqueta`} className={ls}>{traducir('uat.resultado_esperado_req')}</label>
-          <Textarea id={`${idPrefix}-expected-result`} aria-labelledby={`${idPrefix}-expected-result-etiqueta`} value={form.expected_result} onChange={s('expected_result')} rows={2} placeholder={traducir('uat.resultado_esperado')} inputClassName="uat-input uat-textarea" />
-        </div>
+        <Textarea label={traducir('uat.resultado_esperado_req')} id={`${idPrefix}-expected-result`} value={form.expected_result} onChange={s('expected_result')} rows={2} placeholder={traducir('uat.resultado_esperado')} />
 
-        <div>
-          <label htmlFor={`${idPrefix}-actual-result`} id={`${idPrefix}-actual-result-etiqueta`} className={ls}>{traducir('uat.resultado_obtenido_rellenar_al_ejecutar')}</label>
-          <Textarea id={`${idPrefix}-actual-result`} aria-labelledby={`${idPrefix}-actual-result-etiqueta`} value={form.actual_result} onChange={s('actual_result')} rows={2} placeholder={traducir('uat.resultado_obtenido')} inputClassName="uat-input uat-textarea" />
-        </div>
+        <Textarea label={traducir('uat.resultado_obtenido_rellenar_al_ejecutar')} id={`${idPrefix}-actual-result`} value={form.actual_result} onChange={s('actual_result')} rows={2} placeholder={traducir('uat.resultado_obtenido')} />
 
-        <div>
-          <label htmlFor={`${idPrefix}-notes`} id={`${idPrefix}-notes-etiqueta`} className={ls}>{traducir('uat.notas_internas')}</label>
-          <Textarea id={`${idPrefix}-notes`} aria-labelledby={`${idPrefix}-notes-etiqueta`} value={form.notes} onChange={s('notes')} rows={2} placeholder={traducir('uat.notas_internas')} inputClassName="uat-input uat-textarea" />
-        </div>
+        <Textarea label={traducir('uat.notas_internas')} id={`${idPrefix}-notes`} value={form.notes} onChange={s('notes')} rows={2} placeholder={traducir('uat.notas_internas')} />
 
         <div className="uat-form-actions">
           <Button variant="secondary" onClick={onClose}>{traducir('common.cancel')}</Button>
@@ -274,26 +248,24 @@ export default function UATPage({ projectId }: { projectId?: string } = {}) {
 
       <div className="ds-page">
       {(!projectId || selectedProject) && (
-        <div className="ds-toolbar uat-filters">
-          {!projectId && <Select suelto placeholder={false}
+        <SelectorDeContexto>
+          {!projectId && <Select label={t('uikit.etiqueta_proyecto')} placeholder={false}
             value={selectedProject}
             onChange={e => { setSelectedProject(e.target.value); setStatusFilter('') }}
-            className={`${fs} uat-input--project`}
-            aria-label={traducir('uat.selecciona_un_proyecto_2')}
           >
             <option value="">{traducir('uat.selecciona_un_proyecto')}</option>
             {projects.map(p => <option key={p.id} value={String(p.id)}>{p.name}</option>)}
           </Select>}
 
           {selectedProject && (
-            <Select suelto placeholder={false} value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className={`${fs} uat-input--status`} aria-label={traducir('uat.estado')}>
+            <Select label={traducir('uat.estado')} placeholder={false} value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
               <option value="">{traducir('uat.todos_los_estados')}</option>
               {Object.entries(STATUS_META).map(([v, m]) => (
                 <option key={v} value={v}>{traducir(m.label)}</option>
               ))}
             </Select>
           )}
-        </div>
+        </SelectorDeContexto>
       )}
 
       {selectedProject && stats.total > 0 && (

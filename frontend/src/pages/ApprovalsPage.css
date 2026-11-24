@@ -66,10 +66,6 @@
 .apv-ooo summary { cursor: pointer; font-weight: 600; font-size: var(--text-sm); }
 .apv-ooo__fila { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; margin-top: 10px; }
 .apv-ooo__delegado { min-width: 220px; }
-.apv-ooo__fecha {
-  padding: 6px 10px; border-radius: 8px; background: var(--surface-3); border: 1px solid var(--surface-4);
-  color: var(--text-1); font-family: inherit;
-}
 
 /* Bandeja */
 .apv-kpi { padding: 12px 14px; gap: 4px; }
@@ -189,7 +185,7 @@
 .apv-flujo__texto { font-size: var(--text-sm); color: var(--text-2); margin-bottom: 10px; }
 .apv-flujo__acciones { display: flex; justify-content: flex-end; gap: 6px; flex-wrap: wrap; }
 
-@media (max-width: 720px) {
+@media (width <= 720px) {
   .apv-rejilla-2, .apv-simulador__rejilla, .apv-kpis-4, .apv-dos-columnas, .apv-paso-borrador__fila { grid-template-columns: 1fr; }
   .apv-span-2 { grid-column: auto; }
 }

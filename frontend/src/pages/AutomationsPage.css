@@ -42,7 +42,6 @@
   font-family: inherit; box-sizing: border-box;
 }
 .aut-input:focus-visible { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
-.aut-input--mono { font-variant-numeric: tabular-nums; }
 
 .aut-section { border-radius: var(--radius-md); padding: 14px 16px; }
 .aut-section--if   { background: var(--purple-bg); border: 1px solid var(--purple-border); }
@@ -71,7 +70,7 @@
 /* --aut-cols: cuántos parámetros tiene la acción (1 a 3), lo pone el componente. */
 .aut-params { display: grid; grid-template-columns: repeat(var(--aut-cols, 1), minmax(0, 1fr)); gap: 10px; }
 
-@media (max-width: 640px) {
+@media (width <= 640px) {
   .aut-box--grid2, .aut-params, .aut-cond-row { grid-template-columns: minmax(0, 1fr); }
 }
 

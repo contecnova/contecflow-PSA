@@ -17,8 +17,14 @@ import { Tabla } from './Tabla'
 export { default as EstadoDeError } from './EstadoDeError'
 export type { EstadoDeErrorProps } from './EstadoDeError'
 export { default as IconButton } from './IconButton'
+// 24-11-2026 (chat del portal completo): selector de emoji y texto con enlaces seguros.
+export { SelectorDeEmoji, REACCIONES_RAPIDAS, EMOJIS_DEL_SELECTOR } from './SelectorDeEmoji'
+export type { SelectorDeEmojiProps } from './SelectorDeEmoji'
+export { default as TextoConEnlaces, partirEnlaces } from './TextoConEnlaces'
 export { default as Tabs, TabPanel } from './Tabs'
 export { default as Toolbar } from './Toolbar'
+export { default as SelectorDeContexto } from './SelectorDeContexto'
+export type { SelectorDeContextoProps } from './SelectorDeContexto'
 export { default as FormField } from './FormField'
 // Design system v2 primitivos
 export { default as Page } from './Page'
@@ -618,6 +624,8 @@ interface SelectProps {
   /** Nombre accesible cuando no hay `label` visible. */
   'aria-label'?: string
   'aria-describedby'?: string
+  /** Marca el campo como erróneo (borde rojo) sin pintar mensaje: el mensaje lo pone quien llama. */
+  'aria-invalid'?: boolean
   /** Texto de la opción vacía inicial («Selecciona…» por defecto); `false`
    *  la quita (cuando siempre hay un valor elegido). */
   placeholder?: string | false
@@ -628,7 +636,7 @@ interface SelectProps {
   [atributoData: `data-${string}`]: string | undefined
 }
 
-export function Select({ label, value, onChange, options = [], children, className, style, hint, error, id, disabled, required, 'aria-label': ariaLabel, 'aria-describedby': ariaDescribedBy, placeholder, suelto = false, tamano = 'md', ...resto }: SelectProps) {
+export function Select({ label, value, onChange, options = [], children, className, style, hint, error, id, disabled, required, 'aria-label': ariaLabel, 'aria-describedby': ariaDescribedBy, 'aria-invalid': ariaInvalid, placeholder, suelto = false, tamano = 'md', ...resto }: SelectProps) {
   const t = useTextoUi()
   const { base, idHint, idError, describedBy } = useIdsDeCampo(id, hint, error)
   const vacio = value === undefined || value === null || value === ''
@@ -639,9 +647,9 @@ export function Select({ label, value, onChange, options = [], children, classNa
       value={value} onChange={onChange}
       disabled={disabled} required={required || undefined}
       aria-label={label ? undefined : ariaLabel}
-      aria-invalid={error ? true : undefined}
+      aria-invalid={error || ariaInvalid ? true : undefined}
       aria-describedby={[describedBy, ariaDescribedBy].filter(Boolean).join(' ') || undefined}
-      style={{ ...(suelto ? style : null), '--ui-index-border': `1px solid ${error ? 'var(--danger-border)' : 'var(--surface-4)'}` } as CSSProperties}
+      style={{ ...(suelto ? style : null), '--ui-index-border': `1px solid ${error || ariaInvalid ? 'var(--danger-border)' : 'var(--surface-4)'}` } as CSSProperties}
     >
       {placeholder !== false && <option value="">{placeholder ?? t('invoices.select')}</option>}
       {options.map(o => <option key={o.value} value={o.value} disabled={o.disabled || undefined}>{o.label}</option>)}

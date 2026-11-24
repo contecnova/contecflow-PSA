@@ -66,9 +66,13 @@ def _leer(db: Session, token: str):
     from app.db.session import exigir_organizacion_activa
     exigir_organizacion_activa(db, req.organization_id)
     publicar_contexto_de_tenant(db, usuario)
+    if req.organization_id:
+        # 24-11-2026 (migración 208): también con un superadmin aprobador (antes
+        # su sesión quedaba en su empresa de ficha, o en ninguna, y el rastro de
+        # la decisión no tenía de dónde sacar la empresa). Su ficha no se toca.
+        db.info["organization_id"] = req.organization_id
     if req.organization_id and not usuario.is_superadmin:
         from sqlalchemy.orm.attributes import set_committed_value
-        db.info["organization_id"] = req.organization_id
         set_committed_value(usuario, "organization_id", req.organization_id)
     if req.status != "pending" or req.current_step != datos.get("step"):
         raise error(410, "aprobacion_ya_decidida_o_cambio_paso")

@@ -24,7 +24,7 @@ import {
   AlertTriangle, ArrowRight, CalendarDays, Check, CheckCircle2, Circle, Clock, Flag, FolderKanban,
   FolderOpen, Inbox, ListTodo, Plus, Receipt, RotateCcw, Send, X, XCircle,
 } from 'lucide-react'
-import { Button, Card, EmptyState, FormField, Input, Modal, Select, Switch, Tabs, useErroresDeCampo, Textarea } from '../components/ui'
+import { Button, Card, EmptyState, FormField, Input, Modal, Select, Switch, Tabs, useErroresDeCampo, Textarea, SelectorDeContexto } from '../components/ui'
 import { useAppT } from '../i18n/AppLangContext'
 import DsBadge from '../components/ui/StatusBadge'
 import type { StatusBadgeKind } from '../components/ui/StatusBadge'
@@ -287,11 +287,10 @@ export default function MilestoneBillingPage({ projectId }: { projectId?: string
   const vistaProyecto = (
     <>
       {!projectId && (
-        <Card className="mbill-filtros">
+        <SelectorDeContexto>
           <Select label={t('pagina_mbill.proyecto')} value={selectedProject} onChange={e => setSelectedProject(e.target.value)}
-            className="mbill-filtros__proyecto"
             options={projects.map(p => ({ value: String(p.id), label: p.code ? `${p.code} — ${p.name}` : p.name }))} />
-        </Card>
+        </SelectorDeContexto>
       )}
       {projectId && botonNuevo && <div className="mbill-barra">{botonNuevo}</div>}
 

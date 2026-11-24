@@ -200,8 +200,7 @@ function FormularioRegla({ inicial, colas, personas, pendiente, onCancelar, onGu
 
   return (
     <div className="u-stack-16">
-      <div><label className="coesya-ls" htmlFor="esc-name">{t('sd_cfg.esc_name')} *</label>
-        <Input id="esc-name" aria-label={t('sd_cfg.esc_name')} value={f.name} onChange={e => set('name', e.target.value)} /></div>
+      <Input label={<>{t('sd_cfg.esc_name')}*</>} id="esc-name" aria-label={t('sd_cfg.esc_name')} value={f.name} onChange={e => set('name', e.target.value)} />
 
       <div role="group" aria-labelledby="esc-grupo-when" className="ds-card coesya-grupo">
         <div id="esc-grupo-when" className="coesya-ls">{t('sd_cfg.esc_when')}</div>
@@ -209,18 +208,16 @@ function FormularioRegla({ inicial, colas, personas, pendiente, onCancelar, onGu
           {DISPARADORES.map(d => <option key={d} value={d}>{t(`sd_cfg.esc_trigger_${d}`)}</option>)}
         </Select>
         {f.trigger === 'idle_hours' && (
-          <div><label className="coesya-ls" htmlFor="esc-idle">{t('sd_cfg.esc_idle_hours')}</label>
-            <Input id="esc-idle" aria-label={t('sd_cfg.esc_idle_hours')} type="number" min={1} value={f.idle} onChange={e => set('idle', e.target.value)} inputClassName="coesya-corto" /></div>
+          <Input label={t('sd_cfg.esc_idle_hours')} id="esc-idle" aria-label={t('sd_cfg.esc_idle_hours')} type="number" min={1} value={f.idle} onChange={e => set('idle', e.target.value)} />
         )}
         <div><span className="coesya-ls">{t('sd_cfg.esc_priorities')}</span>
           <div className="u-wrap-6">
             {PRIORIDADES.map(p => <Chip key={p} activo={f.prioridades.includes(p)} onClick={() => alternar('prioridades', p)}>{PRIORITY_LABEL_MAP[p]}</Chip>)}
           </div></div>
-        <div><label className="coesya-ls" htmlFor="esc-group">{t('sd_cfg.esc_group')}</label>
-          <Select suelto placeholder={false} className="coesya-sel" id="esc-group" value={f.group_id} onChange={e => set('group_id', e.target.value)}>
+        <Select label={t('sd_cfg.esc_group')} placeholder={false} id="esc-group" value={f.group_id} onChange={e => set('group_id', e.target.value)}>
             <option value="">{t('sd_cfg.esc_any_group')}</option>
             {colas.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </Select></div>
+          </Select>
       </div>
 
       <div role="group" aria-labelledby="esc-grupo-then" className="ds-card coesya-grupo">
@@ -229,17 +226,15 @@ function FormularioRegla({ inicial, colas, personas, pendiente, onCancelar, onGu
           {ACCIONES.map(a => <option key={a} value={a}>{t(`sd_cfg.esc_action_${a}`)}</option>)}
         </Select>
         {f.action === 'reassign_group' && (
-          <div><label className="coesya-ls" htmlFor="esc-target">{t('sd_cfg.esc_target_group')} *</label>
-            <Select suelto placeholder={false} className="coesya-sel" id="esc-target" value={f.target_group_id} onChange={e => set('target_group_id', e.target.value)}>
+          <Select label={<>{t('sd_cfg.esc_target_group')}*</>} placeholder={false} id="esc-target" value={f.target_group_id} onChange={e => set('target_group_id', e.target.value)}>
               <option value="">—</option>
               {colas.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </Select></div>
+            </Select>
         )}
         {f.action === 'elevate_priority' && (
-          <div><label className="coesya-ls" htmlFor="esc-prio">{t('sd_cfg.esc_target_priority')}</label>
-            <Select suelto placeholder={false} className="coesya-sel" id="esc-prio" value={f.target_priority} onChange={e => set('target_priority', e.target.value)}>
+          <Select label={t('sd_cfg.esc_target_priority')} placeholder={false} id="esc-prio" value={f.target_priority} onChange={e => set('target_priority', e.target.value)}>
               {PRIORIDADES.map(p => <option key={p} value={p}>{PRIORITY_LABEL_MAP[p]}</option>)}
-            </Select></div>
+            </Select>
         )}
         {f.action === 'notify_custom' && (
           <div><span className="coesya-ls">{t('sd_cfg.esc_users')} *</span>
@@ -387,11 +382,10 @@ function FormularioAviso({ texto, pendiente, onCancelar, onGuardar, onRestaurar 
   return (
     <div className="coesya-grid-1">
       <div className="u-stack-12">
-        <div><label className="coesya-ls" htmlFor="ntf-subject">{t('sd_cfg.ntf_subject')}</label>
-          <Input id="ntf-subject" aria-label={t('sd_cfg.ntf_subject')} value={subject} onChange={e => setSubject(e.target.value)} />
+        <div>
+          <Input label={t('sd_cfg.ntf_subject')} id="ntf-subject" aria-label={t('sd_cfg.ntf_subject')} value={subject} onChange={e => setSubject(e.target.value)} />
           <div className="u-hint">{t('sd_cfg.ntf_subject_hint')}</div></div>
-        <div><label className="coesya-ls" htmlFor="ntf-body">{t('sd_cfg.ntf_body')}</label>
-          <Textarea id="ntf-body" aria-label={t('sd_cfg.ntf_body')} ref={cuerpoRef} value={body} onChange={e => setBody(e.target.value)} rows={10} inputClassName="coesya-codigo ds-campo-codigo" /></div>
+        <Textarea label={t('sd_cfg.ntf_body')} id="ntf-body" aria-label={t('sd_cfg.ntf_body')} ref={cuerpoRef} value={body} onChange={e => setBody(e.target.value)} rows={10} inputClassName="ds-campo-codigo" />
         <div><span className="coesya-ls">{t('sd_cfg.ntf_variables')}</span>
           <div className="u-wrap-6">
             {VARIABLES.map(v => <Chip key={v} activo={false} onClick={() => insertar(v)}>{v}</Chip>)}

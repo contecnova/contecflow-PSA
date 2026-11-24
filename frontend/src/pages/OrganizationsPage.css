@@ -24,7 +24,7 @@
   align-items: start;
 }
 .orgs-layout--detalle { grid-template-columns: minmax(0, 1fr) 380px; }
-@media (max-width: 1000px) {
+@media (width <= 1000px) {
   .orgs-layout--detalle { grid-template-columns: minmax(0, 1fr); }
 }
 
@@ -189,7 +189,6 @@
   color: var(--text-2);
   margin-top: -6px;
 }
-.orgs-textarea { resize: vertical; }
 .orgs-check {
   display: flex;
   align-items: flex-start;

@@ -98,9 +98,9 @@ export function NumberingSection() {
                 <div className="set-seq-preview">{s.next_preview}</div>
               </div>
               <div className="set-seq-fields">
-                <div><label htmlFor={`${idCampo}-${s.entity}-c1038`} className="set-label set-label--xs">{t('settings_sections.prefijo')}</label><Input aria-label={t('settings_sections.prefijo')} id={`${idCampo}-${s.entity}-c1038`} defaultValue={s.prefix} onBlur={e => update({ entity: s.entity, data: { ...s, prefix: e.target.value } })} placeholder={t('settings_sections.prefijo')} inputClassName="set-input set-input--w70" /></div>
-                <div><label id={`${idCampo}-${s.entity}-etc1039`} htmlFor={`${idCampo}-${s.entity}-c1039`} className="set-label set-label--xs" title={t('settings_sections.separador')}>{t('settings_sections.sep')}</label><Input id={`${idCampo}-${s.entity}-c1039`} aria-labelledby={`${idCampo}-${s.entity}-etc1039`} defaultValue={s.separator} onBlur={e => update({ entity: s.entity, data: { ...s, separator: e.target.value } })} inputClassName="set-input set-input--w40" /></div>
-                <div><label id={`${idCampo}-${s.entity}-etc1040`} htmlFor={`${idCampo}-${s.entity}-c1040`} className="set-label set-label--xs">{t('settings.digitos')}</label><Input id={`${idCampo}-${s.entity}-c1040`} aria-labelledby={`${idCampo}-${s.entity}-etc1040`} type="number" min="1" max="8" defaultValue={s.padding} onBlur={e => update({ entity: s.entity, data: { ...s, padding: +e.target.value } })} inputClassName="set-input set-input--w60" /></div>
+                <Input label={t('settings_sections.prefijo')} aria-label={t('settings_sections.prefijo')} id={`${idCampo}-${s.entity}-c1038`} defaultValue={s.prefix} onBlur={e => update({ entity: s.entity, data: { ...s, prefix: e.target.value } })} placeholder={t('settings_sections.prefijo')} />
+                <Input label={<span title={t('settings_sections.separador')}>{t('settings_sections.sep')}</span>} id={`${idCampo}-${s.entity}-c1039`} defaultValue={s.separator} onBlur={e => update({ entity: s.entity, data: { ...s, separator: e.target.value } })} />
+                <Input label={t('settings.digitos')} id={`${idCampo}-${s.entity}-c1040`} type="number" min="1" max="8" defaultValue={s.padding} onBlur={e => update({ entity: s.entity, data: { ...s, padding: +e.target.value } })} />
                 <Checkbox className="set-check-muted" label={t('settings.incluir_ano')} checked={!!s.include_year} onChange={m => update({ entity: s.entity, data: { ...s, include_year: m } })} />
               </div>
               <div className="set-shrink0">
@@ -143,14 +143,14 @@ export function OfficesSection() {
           <div key={o.id}>
             {editingId === o.id ? (
               <div className="set-edit-panel">
-                <div className="set-fld-name"><label id={`${idCampo}-${o.id}-etc1457`} htmlFor={`${idCampo}-${o.id}-c1457`} className="set-label">{t('common.name')} *</label>
-                  <Input id={`${idCampo}-${o.id}-c1457`} aria-labelledby={`${idCampo}-${o.id}-etc1457`} value={editForm.name} onChange={e => setEditForm(f=>({...f,name:e.target.value}))} autoFocus inputClassName="set-input" /></div>
-                <div className="set-fld-sm"><label id={`${idCampo}-${o.id}-etc1459`} htmlFor={`${idCampo}-${o.id}-c1459`} className="set-label">{t('settings.pais')}</label>
-                  <Input id={`${idCampo}-${o.id}-c1459`} aria-labelledby={`${idCampo}-${o.id}-etc1459`} value={editForm.country} onChange={e => setEditForm(f=>({...f,country:e.target.value}))} inputClassName="set-input" /></div>
-                <div className="set-fld-sm"><label id={`${idCampo}-${o.id}-etc1461`} htmlFor={`${idCampo}-${o.id}-c1461`} className="set-label">{t('settings_sections.ciudad')}</label>
-                  <Input id={`${idCampo}-${o.id}-c1461`} aria-labelledby={`${idCampo}-${o.id}-etc1461`} value={editForm.city} onChange={e => setEditForm(f=>({...f,city:e.target.value}))} inputClassName="set-input" /></div>
-                <div className="set-fld-tz"><label id={`${idCampo}-${o.id}-etc1463`} htmlFor={`${idCampo}-${o.id}-c1463`} className="set-label">{t('settings.timezone')}</label>
-                  <Select suelto placeholder={false} id={`${idCampo}-${o.id}-c1463`} value={editForm.timezone} onChange={e => setEditForm(f=>({...f,timezone:e.target.value}))} className="set-input">
+                <div className="set-fld-name">
+                  <Input label={<>{t('common.name')}*</>} id={`${idCampo}-${o.id}-c1457`} value={editForm.name} onChange={e => setEditForm(f=>({...f,name:e.target.value}))} autoFocus /></div>
+                <div className="set-fld-sm">
+                  <Input label={t('settings.pais')} id={`${idCampo}-${o.id}-c1459`} value={editForm.country} onChange={e => setEditForm(f=>({...f,country:e.target.value}))} /></div>
+                <div className="set-fld-sm">
+                  <Input label={t('settings_sections.ciudad')} id={`${idCampo}-${o.id}-c1461`} value={editForm.city} onChange={e => setEditForm(f=>({...f,city:e.target.value}))} /></div>
+                <div className="set-fld-tz">
+                  <Select label={t('settings.timezone')} placeholder={false} id={`${idCampo}-${o.id}-c1463`} value={editForm.timezone} onChange={e => setEditForm(f=>({...f,timezone:e.target.value}))}>
                     {timezoneOptions(editForm.timezone).map(tz => <option key={tz} value={tz}>{tz}</option>)}
                   </Select></div>
                 <div className="set-actions-inline">
@@ -174,10 +174,10 @@ export function OfficesSection() {
         {offices.length === 0 && <EmptyState svgIcon={<Building2 size={36} />} title={t('settings.sin_sedes_registradas')} description={t('settings_sections.sedes_vacio_desc')} />}
       </div>
       <div className="set-add-panel">
-        <div className="set-flex2"><label htmlFor={`${idCampo}-c1491`} className="set-label">{t('common.name')} *</label><Input aria-label={t('common.name')} id={`${idCampo}-c1491`} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder={t('settings.nombre_de_la_sede')} inputClassName="set-input" /></div>
-        <div className="u-flex1"><label htmlFor={`${idCampo}-pais`} className="set-label">{t('settings.pais')}</label><Input aria-label={t('settings.pais')} id={`${idCampo}-pais`} value={form.country} onChange={e => setForm(f => ({ ...f, country: e.target.value }))} placeholder={t('settings.pais')} inputClassName="set-input" /></div>
-        <div className="u-flex1"><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="set-label">{t('settings_sections.ciudad')}</label><Input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.city} onChange={e => setForm(f => ({ ...f, city: e.target.value }))} inputClassName="set-input" /></div>
-        <div className="u-flex1"><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="set-label">{t('settings.timezone')}</label><Select suelto placeholder={false} id={`${idCampo}-2`} value={form.timezone} onChange={e => setForm(f => ({ ...f, timezone: e.target.value }))} className="set-input">{timezoneOptions(form.timezone).map(tz => <option key={tz} value={tz}>{tz}</option>)}</Select></div>
+        <div className="set-flex2"><Input label={<>{t('common.name')}*</>} aria-label={t('common.name')} id={`${idCampo}-c1491`} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder={t('settings.nombre_de_la_sede')} /></div>
+        <div className="u-flex1"><Input label={t('settings.pais')} aria-label={t('settings.pais')} id={`${idCampo}-pais`} value={form.country} onChange={e => setForm(f => ({ ...f, country: e.target.value }))} placeholder={t('settings.pais')} /></div>
+        <div className="u-flex1"><Input label={t('settings_sections.ciudad')} id={`${idCampo}-1`} value={form.city} onChange={e => setForm(f => ({ ...f, city: e.target.value }))} /></div>
+        <div className="u-flex1"><Select label={t('settings.timezone')} placeholder={false} id={`${idCampo}-2`} value={form.timezone} onChange={e => setForm(f => ({ ...f, timezone: e.target.value }))}>{timezoneOptions(form.timezone).map(tz => <option key={tz} value={tz}>{tz}</option>)}</Select></div>
         <Button onClick={() => { create(form, { onSuccess: () => setForm({ name: '', country: '', city: '', timezone: defaultTimezone }) }) }} disabled={!form.name}>{t('settings.anadir')}</Button>
       </div>
     </SeccionDeAjustes>

@@ -12,7 +12,7 @@ import { useState } from 'react'
 import type { ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Building, ClipboardCheck, Flag, FolderKanban, Inbox, LayoutDashboard, Target, Ticket, Wallet } from 'lucide-react'
-import { EmptyState, Select, Spinner, Tabs } from '../../components/ui'
+import { EmptyState, Select, Spinner, Tabs, SelectorDeContexto } from '../../components/ui'
 import StatusBadge from '../../components/ui/StatusBadge'
 import PageHeader from '../../components/layout/PageHeader'
 import PageShell from '../../components/layout/PageShell'
@@ -54,16 +54,14 @@ export default function MiDepartamentoPage() {
     <PageShell>
       <PageHeader icon={<Building size={18} />} title={t('internos.titulo_portal')}
         subtitle={[unidad.name, etiquetaInterna(t, 'subtipo_', unidad.internal_type)].filter(Boolean).join(' · ')} showListExport={false} />
-      <div className="int-barra">
-        <div className="int-barra__filtros">
+      <SelectorDeContexto>
           {yo.units.length > 1 && (
             <Select label={t('internos.col_unidad')} value={unidad.id} placeholder={false} onChange={e => setElegida(e.target.value)}
               options={yo.units.map(u => ({ value: u.id, label: u.name }))} />
           )}
           <StatusBadge kind="accent" caps={false}>{etiquetaInterna(t, 'rol_', unidad.role)}</StatusBadge>
           {yo.is_direction && <StatusBadge kind="purple" caps={false}>{t('internos.vista_direccion')}</StatusBadge>}
-        </div>
-      </div>
+      </SelectorDeContexto>
       <Tabs items={pestanas} active={activa} onChange={v => setTab(v as Pestana)} ariaLabel={t('internos.titulo_portal')} />
       <div className="int-mt" key={unidad.id}>
         {activa === 'summary' && <Resumen unidad={unidad} />}

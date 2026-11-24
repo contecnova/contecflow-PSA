@@ -9,7 +9,7 @@
   align-items: end;
   justify-content: start;
 }
-@media (max-width: 640px) {
+@media (width <= 640px) {
   .bianpa-controles { grid-template-columns: minmax(0, 1fr); }
 }
 

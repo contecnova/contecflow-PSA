@@ -73,11 +73,10 @@ export function ControlDelPresupuesto({ p, dinero, accion, ocupado }: { p: Ficha
             <div key={x.tipo} className="segupres-caja">
               <div className="segupres-row-1">
                 <strong className="u-sm">{t(`pres.tipo_${x.tipo}`, x.tipo)}</strong>
-                <label className="segupres-row-2">{t('pres.metodo_prevision')}
-                  <Select suelto aria-label={`${t('pres.metodo_prevision')} · ${x.tipo}`} value={manual?.tipo === x.tipo ? 'manual' : x.metodo} disabled={!p.puedo_gestionar || ocupado === `prev-${x.tipo}`}
-                    onChange={e => elegir(x.tipo, e.target.value as MetodoPrevision)} className={`${CLASE_CAMPO} fodepa-campo--auto fodepa-campo--compacto`} placeholder={false}>
+                <Select label={t('pres.metodo_prevision')} aria-label={`${t('pres.metodo_prevision')} · ${x.tipo}`} value={manual?.tipo === x.tipo ? 'manual' : x.metodo} disabled={!p.puedo_gestionar || ocupado === `prev-${x.tipo}`}
+                    onChange={e => elegir(x.tipo, e.target.value as MetodoPrevision)} placeholder={false}>
                     {(['plan', 'ritmo', 'manual'] as const).map(m => <option key={m} value={m}>{t(`pres.metodo_${m}`)}</option>)}
-                  </Select></label>
+                  </Select>
               </div>
               <div role="progressbar" aria-label={`${t('pres.consumo')} · ${x.tipo}`} aria-valuenow={Math.round(x.consumo_pct ?? 0)} aria-valuemin={0} aria-valuemax={100}
                 className="segupres-row-3">
@@ -94,8 +93,7 @@ export function ControlDelPresupuesto({ p, dinero, accion, ocupado }: { p: Ficha
               {manual?.tipo === x.tipo && (
                 <div className="segupres-rejilla2">
                   {restantes.map(m => (
-                    <label key={m}><span className="segupres-lbl">{m}</span>
-                      <Input aria-label={`${x.tipo} ${m}`} type="number" min={0} step="any" value={manual.meses[m] ?? ''} onChange={e => setManual(v => v && ({ ...v, meses: { ...v.meses, [m]: e.target.value } }))} /></label>
+                    <Input key={m} label={m} aria-label={`${x.tipo} ${m}`} type="number" min={0} step="any" value={manual.meses[m] ?? ''} onChange={e => setManual(v => v && ({ ...v, meses: { ...v.meses, [m]: e.target.value } }))} />
                   ))}
                   <div className="u-row-6">
                     <Button size="sm" loading={ocupado === `prev-${x.tipo}`} onClick={() => accion(`prev-${x.tipo}`, () => presupuestosApi.prevision(p.id, x.tipo, 'manual',
@@ -237,18 +235,13 @@ export function PedidosYTraspasos({ p, dinero, onCambio }: { p: FichaPresupuesto
         <div className="segupres-box-10">{t('pres.pedidos_ayuda')}</div>
         {p.puedo_gestionar && (
           <div className="segupres-rejilla">
-            <label><span className="segupres-lbl">{t('pres.tipo')}</span>
-              <Select suelto aria-label={t('pres.tipo')} value={ped.tipo} onChange={e => setPed(v => ({ ...v, tipo: e.target.value }))} className={CLASE_CAMPO} placeholder={false}>
-                {p.tipos.map(tp => <option key={tp} value={tp}>{t(`pres.tipo_${tp}`, tp)}</option>)}</Select></label>
-            <label className="u-col-full"><span className="segupres-lbl">{t('pres.descripcion')}</span>
-              <Input aria-label={t('pres.descripcion')} value={ped.descripcion} onChange={e => setPed(v => ({ ...v, descripcion: e.target.value }))} /></label>
-            <label><span className="segupres-lbl">{t('pres.proveedor')}</span>
-              <Input aria-label={t('pres.proveedor')} value={ped.proveedor} onChange={e => setPed(v => ({ ...v, proveedor: e.target.value }))} /></label>
-            <label><span className="segupres-lbl">{t('pres.referencia')}</span>
-              <Input aria-label={t('pres.referencia')} value={ped.referencia} onChange={e => setPed(v => ({ ...v, referencia: e.target.value }))} /></label>
-            <label><span className="segupres-lbl">{t('pres.importe')}</span>
-              <Input aria-label={t('pres.importe')} type="number" min={0} step="any" value={ped.importe} onChange={e => setPed(v => ({ ...v, importe: e.target.value }))} /></label>
-            <label><span className="segupres-lbl">{t('pres.mes')}</span>
+            <Select label={t('pres.tipo')} aria-label={t('pres.tipo')} value={ped.tipo} onChange={e => setPed(v => ({ ...v, tipo: e.target.value }))} placeholder={false}>
+                {p.tipos.map(tp => <option key={tp} value={tp}>{t(`pres.tipo_${tp}`, tp)}</option>)}</Select>
+            <Input label={t('pres.descripcion')} aria-label={t('pres.descripcion')} value={ped.descripcion} onChange={e => setPed(v => ({ ...v, descripcion: e.target.value }))} />
+            <Input label={t('pres.proveedor')} aria-label={t('pres.proveedor')} value={ped.proveedor} onChange={e => setPed(v => ({ ...v, proveedor: e.target.value }))} />
+            <Input label={t('pres.referencia')} aria-label={t('pres.referencia')} value={ped.referencia} onChange={e => setPed(v => ({ ...v, referencia: e.target.value }))} />
+            <Input label={t('pres.importe')} aria-label={t('pres.importe')} type="number" min={0} step="any" value={ped.importe} onChange={e => setPed(v => ({ ...v, importe: e.target.value }))} />
+            <label><span className="uiinde-estiloetiqueta">{t('pres.mes')}</span>
               <input aria-label={t('pres.mes')} type="month" value={ped.mes} min={p.periodo_desde.slice(0, 7)} max={p.periodo_hasta.slice(0, 7)} onChange={e => setPed(v => ({ ...v, mes: e.target.value }))} className={CLASE_CAMPO} /></label>
             <div><Button size="sm" disabled={!ped.descripcion.trim() || !(Number(ped.importe) > 0) || !ped.mes} loading={ocupado === 'pedido'}
               onClick={() => hacer('pedido', () => presupuestosApi.crearPedido(p.id, { ...ped, importe: Number(ped.importe), proveedor: ped.proveedor || null, referencia: ped.referencia || null }), () => setPed(vacioP))}>{t('pres.comprometer')}</Button></div>
@@ -270,10 +263,8 @@ export function PedidosYTraspasos({ p, dinero, onCambio }: { p: FichaPresupuesto
               </span>}
               {factura?.id === x.id && (
                 <div className="segupres-rejilla3">
-                  <label><span className="segupres-lbl">{t('pres.fecha_factura')}</span>
-                    <DateInput aria-label={t('pres.fecha_factura')} value={factura.fecha} onChange={e => setFactura(v => v && ({ ...v, fecha: e.target.value }))} className={CLASE_CAMPO} /></label>
-                  <label><span className="segupres-lbl">{t('pres.importe_facturado')}</span>
-                    <Input aria-label={t('pres.importe_facturado')} type="number" min={0} step="any" value={factura.importe} onChange={e => setFactura(v => v && ({ ...v, importe: e.target.value }))} /></label>
+                  <DateInput label={t('pres.fecha_factura')} aria-label={t('pres.fecha_factura')} value={factura.fecha} onChange={e => setFactura(v => v && ({ ...v, fecha: e.target.value }))} />
+                  <Input label={t('pres.importe_facturado')} aria-label={t('pres.importe_facturado')} type="number" min={0} step="any" value={factura.importe} onChange={e => setFactura(v => v && ({ ...v, importe: e.target.value }))} />
                   <div className="u-row-6">
                     <Button size="sm" disabled={!factura.fecha} loading={ocupado === `fact-${x.id}`}
                       onClick={() => hacer(`fact-${x.id}`, () => presupuestosApi.estadoDePedido(x.id, { estado: 'facturado', fecha_factura: factura.fecha, importe_facturado: Number(factura.importe || 0) }), () => setFactura(null))}>{t('pres.guardar')}</Button>
@@ -290,19 +281,14 @@ export function PedidosYTraspasos({ p, dinero, onCambio }: { p: FichaPresupuesto
         <div className="segupres-box-10">{t('pres.traspasos_ayuda')}</div>
         {p.puedo_gestionar && (
           <div className="segupres-rejilla">
-            <label><span className="segupres-lbl">{t('pres.desde_partida')}</span>
-              <Select suelto aria-label={t('pres.desde_partida')} value={tr.desde} onChange={e => setTr(v => ({ ...v, desde: e.target.value }))} className={CLASE_CAMPO} placeholder={t('pres.ampliacion')}>
-                {gastos.map(l => <option key={l.id} value={l.id}>{l.descripcion}</option>)}</Select></label>
-            <label><span className="segupres-lbl">{t('pres.hacia_partida')}</span>
-              <Select suelto aria-label={t('pres.hacia_partida')} value={tr.hacia} onChange={e => setTr(v => ({ ...v, hacia: e.target.value }))} className={CLASE_CAMPO} placeholder={t('pres.partida_nueva')}>
-                {gastos.filter(l => l.id !== tr.desde).map(l => <option key={l.id} value={l.id}>{l.descripcion}</option>)}</Select></label>
-            {!tr.hacia && <label><span className="segupres-lbl">{t('pres.tipo')}</span>
-              <Select suelto aria-label={t('pres.tipo_de_la_nueva')} value={tr.hacia_tipo} onChange={e => setTr(v => ({ ...v, hacia_tipo: e.target.value }))} className={CLASE_CAMPO} placeholder={false}>
-                {p.tipos.map(tp => <option key={tp} value={tp}>{t(`pres.tipo_${tp}`, tp)}</option>)}</Select></label>}
-            <label><span className="segupres-lbl">{t('pres.importe')}</span>
-              <Input aria-label={`${t('pres.importe')} · ${t('pres.traspasos')}`} type="number" min={0} step="any" value={tr.importe} onChange={e => setTr(v => ({ ...v, importe: e.target.value }))} /></label>
-            <label className="u-col-full"><span className="segupres-lbl">{t('pres.motivo')}</span>
-              <Input aria-label={`${t('pres.motivo')} · ${t('pres.traspasos')}`} value={tr.motivo} onChange={e => setTr(v => ({ ...v, motivo: e.target.value }))} /></label>
+            <Select label={t('pres.desde_partida')} aria-label={t('pres.desde_partida')} value={tr.desde} onChange={e => setTr(v => ({ ...v, desde: e.target.value }))} placeholder={t('pres.ampliacion')}>
+                {gastos.map(l => <option key={l.id} value={l.id}>{l.descripcion}</option>)}</Select>
+            <Select label={t('pres.hacia_partida')} aria-label={t('pres.hacia_partida')} value={tr.hacia} onChange={e => setTr(v => ({ ...v, hacia: e.target.value }))} placeholder={t('pres.partida_nueva')}>
+                {gastos.filter(l => l.id !== tr.desde).map(l => <option key={l.id} value={l.id}>{l.descripcion}</option>)}</Select>
+            {!tr.hacia && <Select label={t('pres.tipo')} aria-label={t('pres.tipo_de_la_nueva')} value={tr.hacia_tipo} onChange={e => setTr(v => ({ ...v, hacia_tipo: e.target.value }))} placeholder={false}>
+                {p.tipos.map(tp => <option key={tp} value={tp}>{t(`pres.tipo_${tp}`, tp)}</option>)}</Select>}
+            <Input label={t('pres.importe')} aria-label={`${t('pres.importe')} · ${t('pres.traspasos')}`} type="number" min={0} step="any" value={tr.importe} onChange={e => setTr(v => ({ ...v, importe: e.target.value }))} />
+            <Input label={t('pres.motivo')} aria-label={`${t('pres.motivo')} · ${t('pres.traspasos')}`} value={tr.motivo} onChange={e => setTr(v => ({ ...v, motivo: e.target.value }))} />
             <div><Button size="sm" disabled={!(Number(tr.importe) > 0) || !tr.motivo.trim()} loading={ocupado === 'traspaso'}
               onClick={() => hacer('traspaso', () => presupuestosApi.pedirTraspaso(p.id, {
                 desde_linea_id: tr.desde || null, hacia_linea_id: tr.hacia || null, hacia_tipo: tr.hacia ? null : tr.hacia_tipo,

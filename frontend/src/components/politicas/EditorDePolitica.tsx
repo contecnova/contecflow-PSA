@@ -137,8 +137,7 @@ export default function EditorDePolitica({ id, nuevoDominio, onVolver, onAbrir }
             {doc.reglas.map((r, i) => (
               <section key={i} className={`pol-tarjeta${r.activa ? '' : ' pol-tarjeta--inactiva'}`} aria-label={t('pol.regla_n', { n: i + 1 })}>
                 <div className="pol-fila">
-                  <span className="pol-conector">{t('pol.regla_n', { n: i + 1 })}</span>
-                  <Input aria-label={t('pol.nombre_de_la_regla')} placeholder={t('pol.nombre_de_la_regla')} value={r.nombre} onChange={e => setRegla(i, { ...r, nombre: e.target.value })} className="pol-campo--ancho" />
+                  <Input label={t('pol.regla_n', { n: i + 1 })} aria-label={t('pol.nombre_de_la_regla')} placeholder={t('pol.nombre_de_la_regla')} value={r.nombre} onChange={e => setRegla(i, { ...r, nombre: e.target.value })} />
                   <Checkbox className="pol-chip" label={t('pol.activa')} checked={r.activa} onChange={m => setRegla(i, { ...r, activa: m })} />
                   <span title={t('pol.detener_ayuda')}><Checkbox className="pol-chip" label={t('pol.detener')} checked={r.detener} onChange={m => setRegla(i, { ...r, detener: m })} /></span>
                   <Button size="xs" variant="ghost" icon={<ArrowUp size={13} />} disabled={i === 0} onClick={() => mover(i, -1)} title={t('pol.subir')}><span className="u-sr-only">{t('pol.subir')}</span></Button>
@@ -181,21 +180,16 @@ function Definicion({ doc, set, errorDe }: {
   return (
     <div className="u-stack-14">
       <div className="pol-grid-2">
-        <label><span className="pol-etiqueta">{t('pol.nombre')}</span>
-          <Input value={doc.nombre} aria-invalid={errorDe('nombre').length > 0} onChange={e => set('nombre', e.target.value)} required className="pol-campo--ancho" /></label>
-        <label><span className="pol-etiqueta">{t('pol.prioridad')}</span>
-          <Input type="number" value={doc.prioridad} onChange={e => set('prioridad', Number(e.target.value))} inputClassName="pol-campo pol-campo--corto" />
-          <span className="pol-ayuda"> {t('pol.prioridad_ayuda')}</span></label>
-        <label><span className="pol-etiqueta">{t('pol.vigente_desde')}</span>
-          <DateInput className="pol-campo" value={doc.vigente_desde ?? ''} onChange={e => set('vigente_desde', e.target.value || null)} /></label>
-        <label><span className="pol-etiqueta">{t('pol.vigente_hasta')}</span>
-          <DateInput className="pol-campo" value={doc.vigente_hasta ?? ''} onChange={e => set('vigente_hasta', e.target.value || null)} /></label>
+        <Input label={t('pol.nombre')} value={doc.nombre} aria-invalid={errorDe('nombre').length > 0} onChange={e => set('nombre', e.target.value)} required />
+        <div>
+          <Input label={t('pol.prioridad')} type="number" value={doc.prioridad} onChange={e => set('prioridad', Number(e.target.value))} />
+          <span className="pol-ayuda"> {t('pol.prioridad_ayuda')}</span></div>
+        <DateInput label={t('pol.vigente_desde')} value={doc.vigente_desde ?? ''} onChange={e => set('vigente_desde', e.target.value || null)} />
+        <DateInput label={t('pol.vigente_hasta')} value={doc.vigente_hasta ?? ''} onChange={e => set('vigente_hasta', e.target.value || null)} />
       </div>
       {errorDe('vigente_hasta').map((e, i) => <p key={i} className="pol-error">{e.mensaje}</p>)}
-      <label><span className="pol-etiqueta">{t('pol.descripcion')}</span>
-        <Textarea rows={2} value={doc.descripcion ?? ''} onChange={e => set('descripcion', e.target.value)} className="pol-campo--ancho" /></label>
-      <label><span className="pol-etiqueta">{t('pol.nota_de_version')}</span>
-        <Input value={doc.nota_de_version ?? ''} onChange={e => set('nota_de_version', e.target.value)} className="pol-campo--ancho" /></label>
+      <Textarea label={t('pol.descripcion')} rows={2} value={doc.descripcion ?? ''} onChange={e => set('descripcion', e.target.value)} />
+      <Input label={t('pol.nota_de_version')} value={doc.nota_de_version ?? ''} onChange={e => set('nota_de_version', e.target.value)} />
       <section className="pol-tarjeta" aria-labelledby="pol-ambito">
         <h3 id="pol-ambito" className="pol-titulo">{t('pol.ambito')}</h3>
         <p className="pol-ayuda">{t('pol.ambito_ayuda')}</p>

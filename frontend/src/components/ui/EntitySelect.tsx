@@ -11,7 +11,8 @@
  *   <UserSelect   value={form.user_id}   onChange={(id, user)   => setForm(...)} />
  *   <ProjectSelect value={form.project_id} onChange={(id, proj) => setForm(...)} />
  */
-import type { CSSProperties } from 'react'
+import { useId } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import type { Client, Contract, Epic, Sprint } from '../../services/api/tipos'
 import type { HitoDeFacturacion } from '../../services/api/tipos-finanzas'
@@ -98,6 +99,17 @@ export interface SubcontractorEntity {
   company?: string | null
 }
 
+/** Envuelve un selector de catálogo en un campo del kit (`ui-field` + etiqueta estándar) si lleva `label`. */
+function ConEtiqueta({ label, id, children }: { label?: ReactNode; id: string; children: ReactNode }) {
+  if (!label) return <>{children}</>
+  return (
+    <div className="ui-field">
+      <label htmlFor={id} className="uiinde-estiloetiqueta">{label}</label>
+      {children}
+    </div>
+  )
+}
+
 // ── ClientSelect ──────────────────────────────────────────────────────────────
 export interface ClientSelectProps {
   value?: string
@@ -109,10 +121,14 @@ export interface ClientSelectProps {
   /** Id del <select>, para asociarlo con una <label htmlFor>. */
   id?: string
   'aria-labelledby'?: string
+  /** Etiqueta del campo (estándar del kit). */
+  label?: ReactNode
 }
 
-export function ClientSelect({ value = '', onChange, placeholder, required = false, className, style, id, 'aria-labelledby': ariaLabelledby }: ClientSelectProps) {
+export function ClientSelect({ value = '', onChange, placeholder, required = false, className, style, id: idProp, 'aria-labelledby': ariaLabelledby, label }: ClientSelectProps) {
   const t = useTextoUi()
+  const generado = useId()
+  const id = idProp ?? (label ? generado : undefined)
   const textoVacio = placeholder ?? t('uikit.sel_client')
   const { data: clients = [], isLoading } = useQuery<ClientEntity[]>({
     queryKey: ['clients'],
@@ -131,6 +147,7 @@ export function ClientSelect({ value = '', onChange, placeholder, required = fal
   }
 
   return (
+    <ConEtiqueta label={label} id={id ?? ''}>
     <select
       id={id}
       aria-labelledby={ariaLabelledby}
@@ -146,6 +163,7 @@ export function ClientSelect({ value = '', onChange, placeholder, required = fal
         <option key={c.id} value={c.id}>{c.name}</option>
       ))}
     </select>
+    </ConEtiqueta>
   )
 }
 
@@ -159,10 +177,15 @@ export interface UserSelectProps {
   className?: string
   style?: CSSProperties
   filterFn?: (user: UserEntity) => boolean
+  /** Etiqueta del campo (estándar del kit). */
+  label?: ReactNode
+  id?: string
 }
 
-export function UserSelect({ value = '', onChange, placeholder, filterRole, required = false, className, style, filterFn }: UserSelectProps) {
+export function UserSelect({ value = '', onChange, placeholder, filterRole, required = false, className, style, filterFn, label, id: idProp }: UserSelectProps) {
   const t = useTextoUi()
+  const generado = useId()
+  const id = idProp ?? generado
   const textoVacio = placeholder ?? t('uikit.sel_user')
   // Selector de personas: `/users/directory` (ficha mínima) sirve a cualquier rol; `/users` da 403 al subcontratado.
   const { data: rawUsers = [], isLoading } = useQuery<UserEntity[]>({
@@ -182,7 +205,9 @@ export function UserSelect({ value = '', onChange, placeholder, filterRole, requ
   }
 
   return (
+    <ConEtiqueta label={label} id={id}>
     <select
+      id={id}
       value={value}
       onChange={handleChange}
       required={required}
@@ -195,6 +220,7 @@ export function UserSelect({ value = '', onChange, placeholder, filterRole, requ
         <option key={u.id} value={u.id}>{u.full_name} ({textoMarcaExterno(t, u) ?? u.role})</option>
       ))}
     </select>
+    </ConEtiqueta>
   )
 }
 
@@ -206,10 +232,15 @@ export interface ProjectSelectProps {
   filterStatus?: string
   required?: boolean
   style?: CSSProperties
+  /** Etiqueta del campo (estándar del kit). */
+  label?: ReactNode
+  id?: string
 }
 
-export function ProjectSelect({ value = '', onChange, placeholder, filterStatus, required = false, style }: ProjectSelectProps) {
+export function ProjectSelect({ value = '', onChange, placeholder, filterStatus, required = false, style, label, id: idProp }: ProjectSelectProps) {
   const t = useTextoUi()
+  const generado = useId()
+  const id = idProp ?? generado
   const textoVacio = placeholder ?? t('uikit.sel_project')
   const { data: rawProjects = [], isLoading } = useQuery<ProjectEntity[]>({
     queryKey: ['projects'],
@@ -232,7 +263,9 @@ export function ProjectSelect({ value = '', onChange, placeholder, filterStatus,
   }
 
   return (
+    <ConEtiqueta label={label} id={id}>
     <select
+      id={id}
       value={value}
       onChange={handleChange}
       required={required}
@@ -244,6 +277,7 @@ export function ProjectSelect({ value = '', onChange, placeholder, filterStatus,
         <option key={p.id} value={p.id}>{p.name}{p.code ? ` [${p.code}]` : ''}</option>
       ))}
     </select>
+    </ConEtiqueta>
   )
 }
 

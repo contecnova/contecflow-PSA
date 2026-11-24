@@ -281,72 +281,61 @@ function ExpenseModal({ expense, onClose }: { expense?: Expense; onClose: () => 
       )}
       <div className="u-grid2-14">
         <div className="u-col-full ds-field">
-          <label htmlFor={id('desc')} className="ds-field__label">{t('expenses.descripcion')}</label>
-          <Input id={id('desc')} value={form.description} onChange={set('description')} placeholder={t('expenses.descripcion_del_gasto')} />
+          <Input label={t('expenses.descripcion')} id={id('desc')} value={form.description} onChange={set('description')} placeholder={t('expenses.descripcion_del_gasto')} />
           {msg('description')}
         </div>
         <div className="ds-field">
-          <label htmlFor={id('cat')} className="ds-field__label">{t('expenses.category')}</label>
-          <Select suelto placeholder={false} id={id('cat')} value={form.category} onChange={set('category')} className="ds-input">
+          <Select label={t('expenses.category')} placeholder={false} id={id('cat')} value={form.category} onChange={set('category')}>
             {categorias.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
           </Select>
           {msg('category')}
         </div>
         <div className="ds-field">
-          <label htmlFor={id('proy')} className="ds-field__label">{t('expenses.proyecto')}</label>
-          <Select suelto placeholder={false} id={id('proy')} value={form.project_id} onChange={set('project_id')} className="ds-input">
+          <Select label={t('expenses.proyecto')} placeholder={false} id={id('proy')} value={form.project_id} onChange={set('project_id')}>
             <option value="">{t('expenses.sin_proyecto')}</option>
             {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
           </Select>
           {msg('project_id')}
         </div>
         <div className="ds-field">
-          <label htmlFor={id('imp')} className="ds-field__label">{t('expenses.importe_obligatorio')}</label>
-          <Input id={id('imp')} type="number" step="0.01" value={form.km ? '' : form.amount} disabled={!!form.km} onChange={set('amount')} placeholder={form.km ? t('gas.importe_por_km') : t('expenses.amount')} />
+          <Input label={t('expenses.importe_obligatorio')} id={id('imp')} type="number" step="0.01" value={form.km ? '' : form.amount} disabled={!!form.km} onChange={set('amount')} placeholder={form.km ? t('gas.importe_por_km') : t('expenses.amount')} />
           {msg('amount')}
         </div>
         <div className="ds-field">
-          <label htmlFor={id('km')} className="ds-field__label">{t('gas.km')}</label>
-          <Input id={id('km')} type="number" step="0.1" min={0} value={form.km} onChange={set('km')} placeholder={t('gas.km_ayuda')} />
+          <Input label={t('gas.km')} id={id('km')} type="number" step="0.1" min={0} value={form.km} onChange={set('km')} placeholder={t('gas.km_ayuda')} />
           {msg('km')}
         </div>
         <div className="ds-field">
-          <label htmlFor={id('mon')} className="ds-field__label">{t('expenses.currency')}</label>
-          <Select suelto placeholder={false} id={id('mon')} value={form.currency} onChange={set('currency')} className="ds-input">
+          <Select label={t('expenses.currency')} placeholder={false} id={id('mon')} value={form.currency} onChange={set('currency')}>
             {monedasDeLaEmpresa.map(c => <option key={c} value={c}>{c}</option>)}
           </Select>
           {msg('currency')}
         </div>
         <div className="ds-field">
-          <label htmlFor={id('fecha')} className="ds-field__label">{t('expenses.fecha_del_gasto')}</label>
-          <DateInput id={id('fecha')} value={form.expense_date} onChange={set('expense_date')} className="ds-input" />
+          <DateInput label={t('expenses.fecha_del_gasto')} id={id('fecha')} value={form.expense_date} onChange={set('expense_date')} />
           {msg('expense_date')}
         </div>
         <div className="ds-field">
-          <label htmlFor={id('pais')} className="ds-field__label">{t('gas.pais')}</label>
-          <Select suelto placeholder={false} id={id('pais')} value={form.country} onChange={set('country')} className="ds-input">
+          <Select label={t('gas.pais')} placeholder={false} id={id('pais')} value={form.country} onChange={set('country')}>
             <option value="">{t('gas.sin_pais')}</option>
             {paises.map(c => <option key={c} value={c}>{nombreDePais(c, lang)} ({c})</option>)}
           </Select>
           {msg('country')}
         </div>
         <div className="ds-field">
-          <label htmlFor={id('ciudad')} className="ds-field__label">{t('gas.ciudad')}</label>
-          <Input id={id('ciudad')} list={id('ciudades')} value={form.city} onChange={set('city')} maxLength={120} />
+          <Input label={t('gas.ciudad')} id={id('ciudad')} list={id('ciudades')} value={form.city} onChange={set('city')} maxLength={120} />
           {msg('city')}
           <datalist id={id('ciudades')}>{ciudades.map(c => <option key={c} value={c} aria-label={c} />)}</datalist>
         </div>
         {form.category === 'meals' && (
           <div className="ds-field">
-            <label htmlFor={id('asis')} className="ds-field__label">{t('gas.asistentes')}</label>
-            <Input id={id('asis')} type="number" min={1} step={1} value={form.attendees} onChange={set('attendees')} aria-describedby={id('asis-ayuda')} />
+            <Input label={t('gas.asistentes')} id={id('asis')} type="number" min={1} step={1} value={form.attendees} onChange={set('attendees')} aria-describedby={id('asis-ayuda')} />
           {msg('attendees')}
             <span id={id('asis-ayuda')} className="ds-field__hint">{t('gas.asistentes_ayuda')}</span>
           </div>
         )}
         <div className="ds-field">
-          <label htmlFor={id('viaje')} className="ds-field__label">{t('gas.viaje')}</label>
-          <Input id={id('viaje')} list={id('viajes')} value={form.trip} onChange={set('trip')} maxLength={120} aria-describedby={id('viaje-ayuda')} />
+          <Input label={t('gas.viaje')} id={id('viaje')} list={id('viajes')} value={form.trip} onChange={set('trip')} maxLength={120} aria-describedby={id('viaje-ayuda')} />
           {msg('trip')}
           <datalist id={id('viajes')}>{viajes.map(c => <option key={c} value={c} aria-label={c} />)}</datalist>
           <span id={id('viaje-ayuda')} className="ds-field__hint">{t('gas.viaje_ayuda')}</span>
@@ -356,8 +345,7 @@ function ExpenseModal({ expense, onClose }: { expense?: Expense; onClose: () => 
           <label htmlFor={id('fact')}>{t('expenses.gasto_facturable_al_cliente')}</label>
         </div>
         <div className="u-col-full ds-field">
-          <label htmlFor={id('notas')} className="ds-field__label">{t('expenses.notas_adicionales')}</label>
-          <Textarea id={id('notas')} value={form.notes} onChange={set('notes')} rows={2} placeholder={t('expenses.notas_adicionales')} inputClassName="exp-textarea" />
+          <Textarea label={t('expenses.notas_adicionales')} id={id('notas')} value={form.notes} onChange={set('notes')} rows={2} placeholder={t('expenses.notas_adicionales')} />
           {msg('notes')}
         </div>
         <div className="exp-nota">{t('gas.justificantes_en_el_detalle')}</div>
@@ -410,8 +398,7 @@ function ReviewModal({ expense, onClose }: { expense: Expense; onClose: () => vo
         )}
       </div>
       <div className="u-mb-16 ds-field">
-        <label htmlFor={`${idCampo}-motivo`} className="ds-field__label">{t('expenses.motivo_de_rechazo_si_aplica')}</label>
-        <Input id={`${idCampo}-motivo`} value={reason} onChange={e => setReason(e.target.value)} placeholder={t('expenses.motivo_de_rechazo')} />
+        <Input label={t('expenses.motivo_de_rechazo_si_aplica')} id={`${idCampo}-motivo`} value={reason} onChange={e => setReason(e.target.value)} placeholder={t('expenses.motivo_de_rechazo')} />
       </div>
       <div className="u-actions-10">
         <Button variant="secondary" onClick={onClose}>{t('expenses.cancelar')}</Button>
@@ -643,13 +630,11 @@ function TeamExpenses() {
   return (
     <div>
       <div className="exp-filtros">
-        <label htmlFor={`${idCampo}-proy`} className="u-sr-only">{t('expenses.proyecto')}</label>
-        <Select suelto placeholder={false} id={`${idCampo}-proy`} value={projectFilter} onChange={e => { setProjectFilter(e.target.value); lista.setPage(1) }} className="ds-input exp-select">
+        <Select label={t('expenses.proyecto')} placeholder={false} id={`${idCampo}-proy`} value={projectFilter} onChange={e => { setProjectFilter(e.target.value); lista.setPage(1) }}>
           <option value="">{t('expenses.todos_los_proyectos')}</option>
           {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
         </Select>
-        <label htmlFor={`${idCampo}-est`} className="u-sr-only">{t('expenses.estado')}</label>
-        <Select suelto placeholder={false} id={`${idCampo}-est`} value={statusFilter} onChange={e => { setStatusFilter(e.target.value); lista.setPage(1) }} className="ds-input exp-select">
+        <Select label={t('expenses.estado')} placeholder={false} id={`${idCampo}-est`} value={statusFilter} onChange={e => { setStatusFilter(e.target.value); lista.setPage(1) }}>
           <option value="">{t('expenses.todos_los_estados')}</option>
           {Object.keys(STATUSES).map(v => <option key={v} value={v}>{estado(v)}</option>)}
         </Select>

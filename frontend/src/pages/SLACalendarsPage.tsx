@@ -80,24 +80,20 @@ function CalendarForm({ cal, onClose }: { cal?: SlaCalendar | null; onClose: () 
     <Modal open onClose={onClose} title={isEdit ? t('sla_calendars_page.editar_calendario') : t('sla_calendars_page.nuevo_calendario')}>
       <div className="u-stack-14">
         <div>
-          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="slac-label">{t('sla_calendars_page.nombre')}</label>
-          <Input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.name} onChange={e => set('name')(e.target.value)} placeholder={t('sla_calendars_page.nombre_ph')} inputClassName="slac-input" />{msg('name')}
+          <Input label={t('sla_calendars_page.nombre')} id={`${idCampo}-1`} value={form.name} onChange={e => set('name')(e.target.value)} placeholder={t('sla_calendars_page.nombre_ph')} />{msg('name')}
         </div>
         <div>
-          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="slac-label">{t('sla_calendars_page.zona_horaria')}</label>
-          <Select suelto placeholder={false} id={`${idCampo}-2`} className="slac-input" value={form.timezone} onChange={e => set('timezone')(e.target.value)}>
+          <Select label={t('sla_calendars_page.zona_horaria')} placeholder={false} id={`${idCampo}-2`} value={form.timezone} onChange={e => set('timezone')(e.target.value)}>
             {timezoneOptions(form.timezone).map(tz => <option key={tz} value={tz}>{tz}</option>)}
           </Select>{msg('timezone')}
         </div>
         <div className="u-grid2-12">
           <div>
-            <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="slac-label">{t('sla_calendars_page.inicio_jornada')}</label>
-            <CampoFecha modo="hora" id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} className="slac-input" value={form.work_start}
+            <CampoFecha label={t('sla_calendars_page.inicio_jornada')} modo="hora" id={`${idCampo}-3`} value={form.work_start}
               onChange={v => set('work_start')(v)} />{msg('work_start')}
           </div>
           <div>
-            <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="slac-label">{t('sla_calendars_page.fin_jornada')}</label>
-            <CampoFecha modo="hora" id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} className="slac-input" value={form.work_end}
+            <CampoFecha label={t('sla_calendars_page.fin_jornada')} modo="hora" id={`${idCampo}-4`} value={form.work_end}
               onChange={v => set('work_end')(v)} />{msg('work_end')}
           </div>
         </div>
@@ -185,12 +181,10 @@ function HolidaysModal({ cal, onClose }: { cal: SlaCalendar; onClose: () => void
         {/* Añadir festivo */}
         <div className="slac-add">
           <div>
-            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="slac-label">{t('sla_calendars_page.fecha')}</label>
-            <DateInput id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} className="slac-input" value={date} onChange={e => setDate(e.target.value)} />{msg('holiday_date')}
+            <DateInput label={t('sla_calendars_page.fecha')} id={`${idCampo}-1`} value={date} onChange={e => setDate(e.target.value)} />{msg('holiday_date')}
           </div>
           <div>
-            <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="slac-label">{t('sla_calendars_page.nombre_opcional')}</label>
-            <Input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={name} onChange={e => setName(e.target.value)} placeholder={t('sla_calendars_page.festivo_ph')} inputClassName="slac-input" />{msg('name')}
+            <Input label={t('sla_calendars_page.nombre_opcional')} id={`${idCampo}-2`} value={name} onChange={e => setName(e.target.value)} placeholder={t('sla_calendars_page.festivo_ph')} />{msg('name')}
           </div>
           <Button icon={<Plus size={14} />} onClick={() => addH()} disabled={isPending || !date} loading={isPending}>
             {t('sla_calendars_page.anadir')}

@@ -233,37 +233,6 @@
   max-width: 600px;
 }
 
-.pd-label-style {
-  font-size: var(--text-2xs);
-  font-weight: 700;
-  color: var(--text-3);
-  letter-spacing: 0.07em;
-  display: block;
-  margin-bottom: 4px;
-}
-
-.pd-input-style {
-  width: 100%;
-  box-sizing: border-box;
-  background: var(--surface-3);
-  border: 1px solid var(--surface-4);
-  border-radius: 8px;
-  padding: 8px 12px;
-  color: var(--text-1);
-  font-size: var(--text-base);
-  outline: none;
-  font-family: inherit;
-}
-
-.pd-input {
-  cursor: pointer;
-}
-
-.pd-input-2 {
-  resize: vertical;
-  line-height: 1.6;
-}
-
 .pd-btn-sm {
   display: flex;
   align-items: center;
@@ -527,10 +496,6 @@
 }
 
 /* Accesibilidad: estos campos quitaban el contorno; se devuelve un foco visible. */
-.pd-input-style:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
-}
 .pd-btn-sm-2:hover { color: var(--text-1); }
 .pd-btn-sm-3:hover { border-color: var(--accent-glow); color: var(--accent); }
 .pd-btn-ghost-base:not([data-activa]):hover { color: var(--text-1); }

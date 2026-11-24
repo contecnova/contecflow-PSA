@@ -112,23 +112,15 @@ export default function IncidentAssignmentPanel() {
           {/* Pedir recomendación */}
           <div className="u-stack-12">
             <div className="ds-eyebrow">{t('incidentassignment.pedir')}</div>
+            <Input label={t('incidentassignment.ticket_id')} id={`${id}-ticket`} type="text" value={ticketId} onChange={e => setTicketId(e.target.value)} />
+            <Input label={t('incidentassignment.titulo_incidencia')} id={`${id}-titulo`} type="text" value={ticketTitle} onChange={e => setTicketTitle(e.target.value)} />
             <div className="ui-field">
-              <label htmlFor={`${id}-ticket`} className="campo-etiqueta">{t('incidentassignment.ticket_id')}</label>
-              <Input id={`${id}-ticket`} type="text" value={ticketId} onChange={e => setTicketId(e.target.value)} inputClassName="campo-form" />
-            </div>
-            <div className="ui-field">
-              <label htmlFor={`${id}-titulo`} className="campo-etiqueta">{t('incidentassignment.titulo_incidencia')}</label>
-              <Input id={`${id}-titulo`} type="text" value={ticketTitle} onChange={e => setTicketTitle(e.target.value)} inputClassName="campo-form" />
-            </div>
-            <div className="ui-field">
-              <label htmlFor={`${id}-desc`} className="campo-etiqueta">{t('incidentassignment.descripcion')}</label>
-              <Textarea id={`${id}-desc`} value={ticketDescription} onChange={e => setTicketDescription(e.target.value)} rows={2} inputClassName="campo-form iap-textarea" />
+              <Textarea label={t('incidentassignment.descripcion')} id={`${id}-desc`} value={ticketDescription} onChange={e => setTicketDescription(e.target.value)} rows={2} />
               <div className="u-text3-xs">{t('incidentassignment.descripcion_hint')}</div>
             </div>
             <div className="iap-fila">
               <div className="ui-field iap-fila__campo">
-                <label htmlFor={`${id}-prio`} className="campo-etiqueta">{t('service_desk.ticket_priority')}</label>
-                <Select suelto placeholder={false} id={`${id}-prio`} value={priority} onChange={e => setPriority(e.target.value)} className="campo-form">
+                <Select label={t('service_desk.ticket_priority')} placeholder={false} id={`${id}-prio`} value={priority} onChange={e => setPriority(e.target.value)}>
                   <option value="p1_critical">{t('service_desk.priority_p1')}</option>
                   <option value="p2_high">{t('service_desk.priority_p2')}</option>
                   <option value="p3_medium">{t('service_desk.priority_p3')}</option>

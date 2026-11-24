@@ -62,12 +62,10 @@ export function CMDBItemForm({ item, onClose }: { item: CI | null; onClose: () =
       <div className="u-stack-14">
         <div className="cmdb-grid cmdb-grid--wide">
           <div>
-            <label id={`${id('name')}-et`} className="cmdb-label" htmlFor={id('name')}>{t('cmdb.ci_name')}</label>
-            <Input id={id('name')} aria-labelledby={`${id('name')}-et`} value={form.name} onChange={e => set('name')(e.target.value)} />{msgForm('name')}
+            <Input label={t('cmdb.ci_name')} id={id('name')} value={form.name} onChange={e => set('name')(e.target.value)} />{msgForm('name')}
           </div>
           <div>
-            <label id={`${id('type')}-et`} className="cmdb-label" htmlFor={id('type')}>{t('cmdb.ci_type')}</label>
-            <Select suelto placeholder={false} id={id('type')} className="cmdb-input" value={form.ci_class ? `clase:${form.ci_class}` : form.ci_type}
+            <Select label={t('cmdb.ci_type')} placeholder={false} id={id('type')} value={form.ci_class ? `clase:${form.ci_class}` : form.ci_type}
               onChange={e => {
                 const v = e.target.value
                 const propia = v.startsWith('clase:') ? (propias?.classes ?? []).find(c => c.key === v.slice(6)) : null
@@ -80,20 +78,17 @@ export function CMDBItemForm({ item, onClose }: { item: CI | null; onClose: () =
         </div>
         <div className="cmdb-grid">
           <div>
-            <label id={`${id('status')}-et`} className="cmdb-label" htmlFor={id('status')}>{t('cmdb.status')}</label>
-            <Select suelto placeholder={false} id={id('status')} className="cmdb-input" value={form.status} onChange={e => set('status')(e.target.value)}>
+            <Select label={t('cmdb.status')} placeholder={false} id={id('status')} value={form.status} onChange={e => set('status')(e.target.value)}>
               {Object.keys(STATUS_COLOR).map(v => <option key={v} value={v}>{etiqueta('st_', v)}</option>)}
             </Select>{msgForm('status')}
           </div>
           <div>
-            <label id={`${id('env')}-et`} className="cmdb-label" htmlFor={id('env')}>{t('cmdb.environment')}</label>
-            <Select suelto placeholder={false} id={id('env')} className="cmdb-input" value={form.environment} onChange={e => set('environment')(e.target.value)}>
+            <Select label={t('cmdb.environment')} placeholder={false} id={id('env')} value={form.environment} onChange={e => set('environment')(e.target.value)}>
               {Object.keys(ENV_COLOR).map(v => <option key={v} value={v}>{etiqueta('env_', v)}</option>)}
             </Select>{msgForm('environment')}
           </div>
           <div>
-            <label id={`${id('crit')}-et`} className="cmdb-label" htmlFor={id('crit')}>{t('cmdb.criticality')}</label>
-            <Select suelto placeholder={false} id={id('crit')} className="cmdb-input" value={form.criticality} onChange={e => set('criticality')(e.target.value)}>
+            <Select label={t('cmdb.criticality')} placeholder={false} id={id('crit')} value={form.criticality} onChange={e => set('criticality')(e.target.value)}>
               {CRITICALITIES.map(v => <option key={v} value={v}>{etiqueta('crit_', v)}</option>)}
             </Select>{msgForm('criticality')}
           </div>
@@ -101,8 +96,7 @@ export function CMDBItemForm({ item, onClose }: { item: CI | null; onClose: () =
         <div className="cmdb-grid">
           {(['hostname','ip_address','version'] as const).map(k => (
             <div key={k}>
-              <label id={`${id(k)}-et`} className="cmdb-label" htmlFor={id(k)}>{t(`cmdb.f_${k}`)}</label>
-              <Input id={id(k)} aria-labelledby={`${id(k)}-et`} value={form[k]} onChange={e => set(k)(e.target.value)} />{msgForm(k)}
+              <Input label={t(`cmdb.f_${k}`)} id={id(k)} value={form[k]} onChange={e => set(k)(e.target.value)} />{msgForm(k)}
             </div>
           ))}
         </div>
@@ -124,8 +118,7 @@ export function CMDBItemForm({ item, onClose }: { item: CI | null; onClose: () =
           </div>
         </div>
         <div>
-          <label id={`${id('descr')}-et`} className="cmdb-label" htmlFor={id('descr')}>{t('cmdb.descripcion')}</label>
-          <Textarea id={id('descr')} aria-labelledby={`${id('descr')}-et`} value={form.description} onChange={e => set('description')(e.target.value)} />{msgForm('description')}
+          <Textarea label={t('cmdb.descripcion')} id={id('descr')} value={form.description} onChange={e => set('description')(e.target.value)} />{msgForm('description')}
         </div>
         <div className="cmdb-form-actions">
           <Button variant="secondary" onClick={onClose}>{t('cmdb.cancel')}</Button>

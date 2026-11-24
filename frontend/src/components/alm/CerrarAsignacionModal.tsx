@@ -63,26 +63,17 @@ export default function CerrarAsignacionModal({ asignacion, onClose }: { asignac
             opciones={opciones.map(k => ({ valor: k, titulo: t(`alm.end_${k}`) }))} />
         )}
         <p className="alm-hint">{pendiente ? t('alm.cancel_request_hint') : t(`alm.end_${tipo}_hint`)}</p>
-        <div>
-          <label className="alm-label" htmlFor={`${id}-motivo`}>{t('alm.reason')}{tipo === 'revoked' ? ' *' : ''}</label>
-          <Textarea id={`${id}-motivo`} rows={2} value={motivo} onChange={e => setMotivo(e.target.value)} inputClassName="alm-input" />
-        </div>
+        <Textarea label={<>{t('alm.reason')}{tipo === 'revoked' ? ' *' : ''}</>} id={`${id}-motivo`} rows={2} value={motivo} onChange={e => setMotivo(e.target.value)} />
         {tipo === 'return' && !pendiente && (
           <div className="almf-bloque">
             <h4 className="almf-bloque__titulo">{t('alm.return_act')}</h4>
             {cfg.data?.acts_enabled && <EditorDeChecklist t={t} filas={checklist} onChange={setChecklist} />}
             <div className="almf-rejilla-2">
-              <div>
-                <label className="alm-label" htmlFor={`${id}-cond`}>{t('alm.assets_label_condition')}</label>
-                <Select suelto placeholder={false} id={`${id}-cond`} className="alm-input" value={condicion} onChange={e => setCondicion(e.target.value as Condicion | '')}>
+              <Select label={t('alm.assets_label_condition')} placeholder={false} id={`${id}-cond`} value={condicion} onChange={e => setCondicion(e.target.value as Condicion | '')}>
                   <option value="">{t('alm.condition_keep')}</option>
                   {(['new', 'good', 'fair', 'poor'] as const).map(c => <option key={c} value={c}>{t(`alm.assets_condition_${c}`)}</option>)}
                 </Select>
-              </div>
-              <div>
-                <label className="alm-label" htmlFor={`${id}-obs`}>{t('alm.observations')}</label>
-                <Input id={`${id}-obs`} value={observaciones} onChange={e => setObservaciones(e.target.value)} inputClassName="alm-input" />
-              </div>
+              <Input label={t('alm.observations')} id={`${id}-obs`} value={observaciones} onChange={e => setObservaciones(e.target.value)} />
             </div>
             <label className="alm-check-row">
               <Checkbox checked={aReparar} onChange={(_, e) => setAReparar(e.target.checked)} />

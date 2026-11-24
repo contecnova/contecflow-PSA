@@ -93,8 +93,7 @@ textarea.sdcfg-input { resize: vertical; }
 .sdcfg-ann-form { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px; }
 .sdcfg-ann-check { display: flex; align-items: center; gap: 8px; padding-top: 18px; }
 
-@media (max-width: 640px) {
+@media (width <= 640px) {
   .sdcfg-grid2-8, .sdcfg-ann-form { grid-template-columns: 1fr; }
   .sdcfg-span2 { grid-column: auto; }
 }
-.ui-select--suelto.sdcfg-sel { width: 100%; }

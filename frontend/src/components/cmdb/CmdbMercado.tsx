@@ -124,17 +124,15 @@ function ProveedorModal({ inicial, onClose, onSaved }: { inicial: ProveedorDeDes
       <div className="u-stack-12">
         <div className="sdm-form">
           <Input label={t('sd_mercado.nombre')} value={nombre} onChange={e => setNombre(e.target.value)} />
-          <label className="sdm-field"><span>{t('sd_mercado.tipo')}</span>
-            <Select suelto placeholder={false} value={tipo} disabled={!!inicial} onChange={e => setTipo(e.target.value)}>
+          <Select label={t('sd_mercado.tipo')} placeholder={false} value={tipo} disabled={!!inicial} onChange={e => setTipo(e.target.value)}>
               {TIPOS_DE_PROVEEDOR.map(x => <option key={x} value={x}>{etiquetaCodigo(t, 'sd_mercado.proveedor', x)}</option>)}
-            </Select></label>
+            </Select>
           <Input label={t('sd_mercado.intervalo_min')} type="number" min={5} value={intervalo} onChange={e => setIntervalo(Number(e.target.value) || 60)} />
         </div>
         <div className="ds-eyebrow">{t('sd_mercado.configuracion')}</div>
         <div className="sdm-form">
           {campos.map(k => (
-            <label key={k} className="sdm-field"><span className="u-mono">{k}</span>
-              <Input type={esSecreto(k) ? 'password' : 'text'} autoComplete="off" value={config[k] ?? ''} onChange={e => setConfig({ ...config, [k]: e.target.value })} /></label>
+            <Input key={k} label={k} type={esSecreto(k) ? 'password' : 'text'} autoComplete="off" value={config[k] ?? ''} onChange={e => setConfig({ ...config, [k]: e.target.value })} />
           ))}
         </div>
         <div className="u-text3-xs">{t('sd_mercado.secretos_cifrados')}</div>
@@ -277,10 +275,9 @@ export function ClasesPropiasTab() {
             <div className="sdm-form">
               <Input label={t('sd_mercado.clave')} value={editando.key} disabled={!!editando.id} onChange={e => setEditando({ ...editando, key: e.target.value.toLowerCase() })} />
               <Input label={t('sd_mercado.nombre')} value={editando.label} onChange={e => setEditando({ ...editando, label: e.target.value })} />
-              <label className="sdm-field"><span>{t('sd_mercado.clase_base_label')}</span>
-                <Select suelto placeholder={false} value={editando.base_type} onChange={e => setEditando({ ...editando, base_type: e.target.value })}>
+              <Select label={t('sd_mercado.clase_base_label')} placeholder={false} value={editando.base_type} onChange={e => setEditando({ ...editando, base_type: e.target.value })}>
                   {(data?.base_types ?? []).map(b => <option key={b} value={b}>{etiquetaCodigo(t, 'sd_mercado.clase_base', b)}</option>)}
-                </Select></label>
+                </Select>
               <Input label={t('sd_mercado.orden')} type="number" min={0} value={editando.sort_order} onChange={e => setEditando({ ...editando, sort_order: Number(e.target.value) || 0 })} />
             </div>
             <Input label={t('sd_mercado.descripcion')} value={editando.description ?? ''} onChange={e => setEditando({ ...editando, description: e.target.value || null })} />

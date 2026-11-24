@@ -148,9 +148,8 @@ function CamposEmpresa({ idBase, t, form, onCampo, errorDe, opcionesSector, opci
     const err = errorDe(clave)
     return (
       <div className={opciones.ancho ? 'u-col-full' : undefined}>
-        <label id={`${id}-et`} htmlFor={id} className="cli-label">{etiqueta}</label>
-        <Input id={id} aria-labelledby={`${id}-et`} type={opciones.tipo ?? 'text'} value={form[clave] ?? ''}
-          placeholder={opciones.placeholder} inputClassName="cli-input" error={err}
+        <Input label={etiqueta} id={id} type={opciones.tipo ?? 'text'} value={form[clave] ?? ''}
+          placeholder={opciones.placeholder} error={err}
           onChange={e => onCampo(clave, e.target.value)} />
       </div>
     )
@@ -560,8 +559,7 @@ export default function ClientsPage(): JSX.Element {
             nuevo={contactoNuevo} onCambiarNuevo={(k, v) => { camposEdit.limpiar(k); setContactoNuevo(n => ({ ...n, [k]: v })) }}
             errorDe={k => camposEdit.de(k)} />
           <div className="u-mb-16">
-            <label id={`${idCampo}-et9`} htmlFor={`${idCampo}-9`} className="cli-label">{t('clientspage.campo_notas')}</label>
-            <Textarea id={`${idCampo}-9`} aria-labelledby={`${idCampo}-et9`} value={editClientForm.notes} onChange={e => { camposEdit.limpiar('notes'); setEditClientForm(f => ({ ...f, notes: e.target.value })) }} inputClassName="cli-input" />
+            <Textarea label={t('clientspage.campo_notas')} id={`${idCampo}-9`} value={editClientForm.notes} onChange={e => { camposEdit.limpiar('notes'); setEditClientForm(f => ({ ...f, notes: e.target.value })) }} />
               {camposEdit.de('notes') && <div className="u-field-error">{camposEdit.de('notes')}</div>}
           </div>
           <div className="u-actions-8">
@@ -611,8 +609,7 @@ export default function ClientsPage(): JSX.Element {
             nuevo={contactoNuevo} onCambiarNuevo={(k, v) => { setContactoNuevo(n => ({ ...n, [k]: v })); limpiarError(k) }}
             errorDe={errTxt} />
           <div className="u-mb-16">
-            <label id={`${idCampo}-etnuevo-notas`} htmlFor={`${idCampo}-nuevo-notas`} className="cli-label">{t('clientspage.campo_notas')}</label>
-            <Textarea id={`${idCampo}-nuevo-notas`} aria-labelledby={`${idCampo}-etnuevo-notas`} value={newForm.notes} onChange={(e: ChangeEvent<HTMLTextAreaElement>) => { const v = e.target.value; setNewForm(f => ({ ...f, notes: v })); limpiarError('notes') }} aria-invalid={errTxt('notes') ? true : undefined} inputClassName="cli-input" />
+            <Textarea label={t('clientspage.campo_notas')} id={`${idCampo}-nuevo-notas`} value={newForm.notes} onChange={(e: ChangeEvent<HTMLTextAreaElement>) => { const v = e.target.value; setNewForm(f => ({ ...f, notes: v })); limpiarError('notes') }} aria-invalid={errTxt('notes') ? true : undefined} />
             {errTxt('notes') && <div className="u-field-error">{errTxt('notes')}</div>}
           </div>
           <div className="u-actions-8">

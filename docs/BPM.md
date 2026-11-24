@@ -288,6 +288,20 @@ encuentra procesos de la misma empresa.
 - El catálogo de procesos del sistema es documentación de cómo funciona la
   aplicación: iniciarlo crea su registro con el diagrama visto, pero sus tareas
   de servicio no tienen acción y las confirma una persona.
+- 24-11-2026: el catálogo incluye **Conversación del portal (chat y llamadas)**
+  (`portal_conversation`, service desk; 56 procesos sembrados, 40 lineales):
+  mensaje del cliente → validar adjuntos (contenido por bytes, antivirus/DLP,
+  tipos y tamaño por empresa) → política GRC y aprobación → respuesta del
+  operador → **el operador** inicia llamada o videollamada → el cliente acepta o
+  rechaza (nunca inicia: el servidor responde 403 `portal_llamada_solo_operador`)
+  → llamada sin grabación y cierre. Documenta el flujo real de
+  [docs/portal/CHAT_DEL_PORTAL.md](portal/CHAT_DEL_PORTAL.md); se resiembra con
+  `seed_catalogue(force=True)` (los procesos personalizados no se tocan). Cubre
+  las conversaciones formales y la pestaña «Chat» del portal (chat de colaboración).
+- 24-11-2026 (migración 208): **Intake Multi-Canal** (`multichannel_intake`) gana el paso «Identificar
+  empresa destinataria (sin ella, se ignora)»: un correo o SMS que no es de ninguna empresa (con varias) no
+  abre ticket ([docs/seguridad/empresa_obligatoria.md](seguridad/empresa_obligatoria.md) §6). Se resiembra con
+  `seed_catalogue(force=True)`.
 
 ## 11. Pruebas
 
@@ -298,3 +312,10 @@ suspensión, acciones con reintentos e incidente, simulación, XXE, aislamiento,
 auditoría, métricas, retención y RGPD), `tests/test_motor_bpmn.py`,
 `tests/test_bpm_revision_2026_11_16.py`, `tests/test_bpm_i18n_codigos.py`,
 `frontend/src/__tests__/BpmRunPanel.test.tsx`.
+
+### Catálogo sembrado siempre al día (24-11-2026)
+
+Al arrancar, la aplicación pone al día con el catálogo los procesos sembrados que nadie ha editado (su última versión
+no tiene autor): crea una versión nueva con la nota «actualizado desde el catálogo». Si alguien editó el proceso,
+no se toca. Antes un cambio del catálogo solo llegaba a una base existente sembrando con `force`.
+Código: `bpmn_process_service.sincronizar_catalogo_sembrado` y `app/main.py::_sincronizar_catalogo_bpm`.

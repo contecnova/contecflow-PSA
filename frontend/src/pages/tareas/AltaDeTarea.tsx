@@ -135,21 +135,18 @@ export function CreateTaskModal({ open, onClose, projects }: { open: boolean; on
     <Modal open={open} onClose={onClose} title={t('tasks.new_task')} width={580}>
       <div className="u-grid2-14">
         <div className="u-col-full">
-          <label id={`${idCampo}-1-et`} htmlFor={`${idCampo}-1`} className="tsk-label tsk-label--lg">{t('tasks.title_required')}</label>
-          <Input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-1-et`} value={form.title} onChange={set('title')} placeholder={t('tasks.task_title')} inputClassName="tsk-input tsk-input--lg" />
+          <Input label={t('tasks.title_required')} id={`${idCampo}-1`} value={form.title} onChange={set('title')} placeholder={t('tasks.task_title')} />
           {msg('title')}
         </div>
         <div className="u-col-full">
-          <label id={`${idCampo}-2-et`} htmlFor={`${idCampo}-2`} className="tsk-label tsk-label--lg">{t('tasks.project_required')}</label>
-          <Select suelto placeholder={false} id={`${idCampo}-2`} value={form.project_id} onChange={e => { campos.limpiar('project_id'); setForm(f => ({ ...f, project_id: e.target.value, supplier_id: '', supplier_work_package_id: '' })) }} className="tsk-input tsk-input--lg">
+          <Select label={t('tasks.project_required')} placeholder={false} id={`${idCampo}-2`} value={form.project_id} onChange={e => { campos.limpiar('project_id'); setForm(f => ({ ...f, project_id: e.target.value, supplier_id: '', supplier_work_package_id: '' })) }}>
             <option value="">{t('tasks.select_project_option')}</option>
             {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
           </Select>
           {msg('project_id')}
         </div>
         <div>
-          <label id={`${idCampo}-3-et`} htmlFor={`${idCampo}-3`} className="tsk-label tsk-label--lg">{t('common.status')}</label>
-          <Select suelto placeholder={false} id={`${idCampo}-3`} value={form.status} onChange={set('status')} className="tsk-input tsk-input--lg">
+          <Select label={t('common.status')} placeholder={false} id={`${idCampo}-3`} value={form.status} onChange={set('status')}>
             {statusOptions.map(o => (
               <option key={o.value} value={o.value}>{o.icon} {o.label}</option>
             ))}
@@ -157,8 +154,7 @@ export function CreateTaskModal({ open, onClose, projects }: { open: boolean; on
           {msg('status')}
         </div>
         <div>
-          <label id={`${idCampo}-4-et`} htmlFor={`${idCampo}-4`} className="tsk-label tsk-label--lg">{t('common.priority')}</label>
-          <Select suelto placeholder={false} id={`${idCampo}-4`} value={form.priority} onChange={set('priority')} className="tsk-input tsk-input--lg">
+          <Select label={t('common.priority')} placeholder={false} id={`${idCampo}-4`} value={form.priority} onChange={set('priority')}>
             <option value="low">{t('tasks.priority_low')}</option>
             <option value="medium">{t('tasks.priority_medium')}</option>
             <option value="high">{t('tasks.priority_high')}</option>
@@ -169,7 +165,7 @@ export function CreateTaskModal({ open, onClose, projects }: { open: boolean; on
         {/* Asignación + estimación con IA */}
         <div className="u-col-full">
           <div className="tsk-label-row tsk-label-row--lg">
-            <label id={`${idCampo}-asignado-et`} htmlFor={`${idCampo}-asignado`} className="tsk-label tsk-label--lg tsk-label--flush">{t('tasks.assignee')}</label>
+            <label id={`${idCampo}-asignado-et`} htmlFor={`${idCampo}-asignado`} className="uiinde-estiloetiqueta">{t('tasks.assignee')}</label>
             <Button size="xs" variant="ghost" icon={<Brain size={13} />} onClick={analyzeWithAI} disabled={!form.title} loading={suggesting}>
               {t('tasks.ai_analyze')}
             </Button>
@@ -221,22 +217,19 @@ export function CreateTaskModal({ open, onClose, projects }: { open: boolean; on
           </div>
         )}
         <div>
-          <label id={`${idCampo}-horas-et`} htmlFor={`${idCampo}-horas`} className="tsk-label tsk-label--lg">{t('tasks.estimated_hours')}</label>
-          <Input id={`${idCampo}-horas`} aria-labelledby={`${idCampo}-horas-et`} type="number" min="0" step="0.5" value={form.estimated_hours} onChange={set('estimated_hours')} placeholder={t('tasks.estimated_hours')} inputClassName="tsk-input tsk-input--lg" />
+          <Input label={t('tasks.estimated_hours')} id={`${idCampo}-horas`} type="number" min="0" step="0.5" value={form.estimated_hours} onChange={set('estimated_hours')} placeholder={t('tasks.estimated_hours')} />
           {msg('estimated_hours')}
         </div>
         <div>
-          <label id={`${idCampo}-5-et`} htmlFor={`${idCampo}-5`} className="tsk-label tsk-label--lg">{t('tasks.date_start')}</label>
-          <DateInput id={`${idCampo}-5`} aria-labelledby={`${idCampo}-5-et`} value={form.start_date} onChange={set('start_date')} className="tsk-input tsk-input--lg" />
+          <DateInput label={t('tasks.date_start')} id={`${idCampo}-5`} value={form.start_date} onChange={set('start_date')} />
           {msg('start_date')}
         </div>
         <div>
-          <label id={`${idCampo}-6-et`} htmlFor={`${idCampo}-6`} className="tsk-label tsk-label--lg">{t('tasks.due_date')}</label>
-          <DateInput id={`${idCampo}-6`} aria-labelledby={`${idCampo}-6-et`} value={form.due_date} onChange={set('due_date')} className="tsk-input tsk-input--lg" />
+          <DateInput label={t('tasks.due_date')} id={`${idCampo}-6`} value={form.due_date} onChange={set('due_date')} />
           {msg('due_date')}
         </div>
         <div className="u-col-full">
-          <label id={`${idCampo}-descripcion-et`} htmlFor={`${idCampo}-descripcion`} className="tsk-label tsk-label--lg">{t('common.description')} <span className="tsk-label-hint">{t('tasks.description_hint')}</span></label>
+          <label id={`${idCampo}-descripcion-et`} htmlFor={`${idCampo}-descripcion`} className="uiinde-estiloetiqueta">{t('common.description')} <span className="tsk-label-hint">{t('tasks.description_hint')}</span></label>
           <AIInlineEditor inputId={`${idCampo}-descripcion`} value={form.description} onChange={val => set('description')({ target: { value: val } })} rows={3} placeholder={t('common.description')} style={ESTILO_EDITOR_ALTA} />
           {msg('description')}
         </div>
@@ -247,7 +240,7 @@ export function CreateTaskModal({ open, onClose, projects }: { open: boolean; on
             <div className="u-grid2-12">
               {customFields.map(f => (
                 <div key={f.id} className={(f.field_type === 'text' || f.field_type === 'url') ? 'u-col-full' : undefined}>
-                  <label id={`${idCampo}-cf-${f.id}-et`} htmlFor={`${idCampo}-cf-${f.id}`} className="tsk-label tsk-label--lg">{f.name}{f.is_required ? ' *' : ''}</label>
+                  <label id={`${idCampo}-cf-${f.id}-et`} htmlFor={`${idCampo}-cf-${f.id}`} className="uiinde-estiloetiqueta">{f.name}{f.is_required ? ' *' : ''}</label>
                   {f.field_type === 'select' ? (
                     <Select suelto placeholder={false} id={`${idCampo}-cf-${f.id}`} value={customValues[f.id] ?? ''} onChange={e => setCustomValues(v => ({ ...v, [f.id]: e.target.value }))} className="tsk-input tsk-input--lg">
                       <option value="">{t('tasks.select_option')}</option>

@@ -395,13 +395,9 @@ export default function ImputarPage(): JSX.Element {
       <Card>
         {/* Project */}
         <div className="u-mb-20">
-          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="imput-label-5">
-            {t('imputa_page.project_label')} <span className="u-danger">*</span>
-          </label>
-          <Select suelto placeholder={false} id={`${idCampo}-1`}
+          <Select label={<>{t('imputa_page.project_label')}<span className="u-danger">*</span></>} placeholder={false} id={`${idCampo}-1`}
             value={form.project_id}
             onChange={e => set('project_id')(e.target.value)}
-            className={`imput-input ${form.project_id ? 'imputarp-sx2' : 'imputarp-sx3'}`}
           >
             <option value="">{t('imputa_page.project_placeholder')}</option>
             {projects.map(p => (
@@ -413,14 +409,10 @@ export default function ImputarPage(): JSX.Element {
 
         {/* Task */}
         <div className="u-mb-20">
-          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="imput-label-5">
-            {t('imputa_page.task_label')}
-          </label>
-          <Select suelto placeholder={false} id={`${idCampo}-2`}
+          <Select label={t('imputa_page.task_label')} placeholder={false} id={`${idCampo}-2`}
             value={form.task_id}
             onChange={e => set('task_id')(e.target.value)}
             disabled={!form.project_id}
-            className={`imput-input-2 ${form.project_id ? 'imputarp-sx4' : 'imputarp-sx5'}`}
           >
             <option value="">{t('imputa_page.task_none')}</option>
             {tasks.map(t => (
@@ -432,14 +424,10 @@ export default function ImputarPage(): JSX.Element {
 
         {/* Date */}
         <div className="u-mb-20">
-          <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="imput-label-5">
-            {t('imputa_page.date_label')} <span className="u-danger">*</span>
-          </label>
-          <DateInput id={`${idCampo}-3`}
+          <DateInput label={<>{t('imputa_page.date_label')}<span className="u-danger">*</span></>} id={`${idCampo}-3`}
             value={form.date}
             onChange={e => set('date')(e.target.value)}
             max={today}
-            className="imput-card-7"
           />
           {msg('date')}
         </div>
@@ -490,10 +478,7 @@ export default function ImputarPage(): JSX.Element {
 
         {/* Description */}
         <div className="u-mb-20">
-          <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="imput-label-6">
-            {t('imputa_page.description_label')}
-          </label>
-          <Textarea id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.description} onChange={e => set('description')(e.target.value)} placeholder={t('imputa_page.description_placeholder')} rows={3} inputClassName="imput-input-3" />
+          <Textarea label={t('imputa_page.description_label')} id={`${idCampo}-4`} value={form.description} onChange={e => set('description')(e.target.value)} placeholder={t('imputa_page.description_placeholder')} rows={3} />
           {msg('description')}
         </div>
 
@@ -501,7 +486,6 @@ export default function ImputarPage(): JSX.Element {
         <div className="imput-box-7">
           <label className="imput-label-7">
             <Checkbox
-             
               checked={form.is_billable}
               aria-label={t('imputa_page.billable_label')}
               onChange={(_, e) => set('is_billable')(e.target.checked)}
@@ -529,7 +513,6 @@ export default function ImputarPage(): JSX.Element {
             </div>
             <label className="imput-label-9">
               <Checkbox
-               
                 checked={forceDuplicate}
                 aria-label={traducir('imputar.permitir_imputacion_duplicada_y_avisar_al_manager')}
                 onChange={(_, e) => setForceDuplicate(e.target.checked)}
@@ -563,19 +546,16 @@ export default function ImputarPage(): JSX.Element {
                 /* Modo edición inline */
                 <div className="imput-row-6">
                   <div className="imput-box-10">
-                    <label className="imput-label-10">{t('imputa_page.hours_edit').toUpperCase()}</label>
-                    <Input type="number" step="0.25" min="0.25" max={HORAS_MAXIMAS_POR_DIA} value={editForm.hours} aria-label={t('imputa_page.hours_edit')} onChange={e => { camposEdit.limpiar('hours'); setEditForm(f => ({ ...f, hours: parseFloat(e.target.value) || 0 })) }} inputClassName="imput-input-6" />
+                    <Input label={t('imputa_page.hours_edit').toUpperCase()} type="number" step="0.25" min="0.25" max={HORAS_MAXIMAS_POR_DIA} value={editForm.hours} aria-label={t('imputa_page.hours_edit')} onChange={e => { camposEdit.limpiar('hours'); setEditForm(f => ({ ...f, hours: parseFloat(e.target.value) || 0 })) }} />
                     {msgEdit('hours')}
                   </div>
                   <div className="imput-box-11">
-                    <label className="imput-label-10">{t('imputa_page.description_edit').toUpperCase()}</label>
-                    <Input value={editForm.description} aria-label={t('imputa_page.description_edit')} onChange={e => { camposEdit.limpiar('description'); setEditForm(f => ({ ...f, description: e.target.value })) }} inputClassName="imput-input-7" />
+                    <Input label={t('imputa_page.description_edit').toUpperCase()} value={editForm.description} aria-label={t('imputa_page.description_edit')} onChange={e => { camposEdit.limpiar('description'); setEditForm(f => ({ ...f, description: e.target.value })) }} />
                     {msgEdit('description')}
                   </div>
                   <div className="imput-box-12">
                     <label className={`imput-label-11 ${editForm.is_billable ? 'imputarp-sx14' : 'imputarp-sx17'}`}>
                       <Checkbox
-                       
                         checked={editForm.is_billable}
                         aria-label={t('imputa_page.billable_label')}
                         onChange={(_, e) => setEditForm(f => ({ ...f, is_billable: e.target.checked }))}

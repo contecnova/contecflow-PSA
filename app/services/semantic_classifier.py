@@ -315,7 +315,13 @@ class SemanticAssigner(ServiceBase):
         # para que el siguiente arranque NO repita el camino sin defaults
         # (antes se creaba en memoria y se perdía al final del request).
         self.config = config or db.query(SemConfig).first()
-        if not self.config:
+        from app.db.empresa_obligatoria import empresa_para_registro
+        if not self.config and not empresa_para_registro(db):
+            # 24-11-2026 (migración 208): sin empresa en la sesión, valores por
+            # defecto en memoria (guardar cortaría el flush con `fila_sin_empresa`
+            # y el rollback se llevaría el trabajo de quien llama).
+            self.config = SemConfig()
+        elif not self.config:
             self.config = SemConfig()
             try:
                 db.add(self.config)

@@ -132,16 +132,12 @@ export function ProviderModal({ provider, catalog, onClose }: { provider: Partia
 
       <div className="u-grid2-14">
         <div className="u-col-full">
-          <label id={`${idPrefix}-name-et`} htmlFor={`${idPrefix}-name`} className="aih-label">{t('ai.config_name')} *</label>
-          <Input id={`${idPrefix}-name`} aria-labelledby={`${idPrefix}-name-et`} value={form.name} onChange={s('name')} placeholder={`${catEntry.name || ''} — ${t('ai.config_name_placeholder')}`} inputClassName="aih-input" />
+          <Input label={<>{t('ai.config_name')}*</>} id={`${idPrefix}-name`} value={form.name} onChange={s('name')} placeholder={`${catEntry.name || ''} — ${t('ai.config_name_placeholder')}`} />
         </div>
 
         {providerType !== 'ollama' && (
           <div className="u-col-full">
-            <label id={`${idPrefix}-api-key-et`} htmlFor={`${idPrefix}-api-key`} className="aih-label">
-              {t('aihub.api_key')} {catEntry.key_hint && <span className="aih-label-hint">({catEntry.key_hint})</span>}
-            </label>
-            <Input id={`${idPrefix}-api-key`} aria-labelledby={`${idPrefix}-api-key-et`} type="password" value={form.api_key} onChange={s('api_key')} placeholder={isEdit ? t('ai.keep_api_key_placeholder') : t('ai.enter_api_key_placeholder')} inputClassName="aih-input" />
+            <Input label={<>{t('aihub.api_key')}{catEntry.key_hint && <span className="aih-label-hint">({catEntry.key_hint})</span>}</>} id={`${idPrefix}-api-key`} type="password" value={form.api_key} onChange={s('api_key')} placeholder={isEdit ? t('ai.keep_api_key_placeholder') : t('ai.enter_api_key_placeholder')} />
             {catEntry.docs_url && (
               <a href={sanitizeUrl(catEntry.docs_url)} target="_blank" rel="noreferrer"
                 className="aih-link aih-link--block">
@@ -153,8 +149,7 @@ export function ProviderModal({ provider, catalog, onClose }: { provider: Partia
 
         {(providerType === 'ollama' || providerType === 'azure') && (
           <div className="u-col-full">
-            <label id={`${idPrefix}-api-base-url-et`} htmlFor={`${idPrefix}-api-base-url`} className="aih-label">{t('ai.base_url')} {providerType === 'ollama' ? `(${t('ai.base_url_example')} http://localhost:11434)` : ''}</label>
-            <Input id={`${idPrefix}-api-base-url`} aria-labelledby={`${idPrefix}-api-base-url-et`} value={form.api_base_url} onChange={s('api_base_url')} placeholder={catEntry.base_url || 'https://...'} inputClassName="aih-input" />
+            <Input label={<>{t('ai.base_url')}{providerType === 'ollama' ? `(${t('ai.base_url_example')} http://localhost:11434)` : ''}</>} id={`${idPrefix}-api-base-url`} value={form.api_base_url} onChange={s('api_base_url')} placeholder={catEntry.base_url || 'https://...'} />
           </div>
         )}
 
@@ -216,20 +211,11 @@ export function ProviderModal({ provider, catalog, onClose }: { provider: Partia
           )}
         </div>
 
-        <div>
-          <label id={`${idPrefix}-max-tokens-et`} htmlFor={`${idPrefix}-max-tokens`} className="aih-label">{t('ai.max_response_tokens')}</label>
-          <Input id={`${idPrefix}-max-tokens`} aria-labelledby={`${idPrefix}-max-tokens-et`} type="number" value={form.max_tokens} onChange={s('max_tokens')} inputClassName="aih-input" />
-        </div>
+        <Input label={t('ai.max_response_tokens')} id={`${idPrefix}-max-tokens`} type="number" value={form.max_tokens} onChange={s('max_tokens')} />
 
-        <div>
-          <label id={`${idPrefix}-temperature-et`} htmlFor={`${idPrefix}-temperature`} className="aih-label">{t('ai.temperature')}</label>
-          <Input id={`${idPrefix}-temperature`} aria-labelledby={`${idPrefix}-temperature-et`} type="number" step="0.1" min="0" max="2" value={form.temperature} onChange={s('temperature')} inputClassName="aih-input" />
-        </div>
+        <Input label={t('ai.temperature')} id={`${idPrefix}-temperature`} type="number" step="0.1" min="0" max="2" value={form.temperature} onChange={s('temperature')} />
 
-        <div>
-          <label id={`${idPrefix}-priority-et`} htmlFor={`${idPrefix}-priority`} className="aih-label">{t('aihub.fallback_order')}</label>
-          <Input id={`${idPrefix}-priority`} aria-labelledby={`${idPrefix}-priority-et`} type="number" min="0" value={form.priority} onChange={s('priority')} title={t('aihub.fallback_order_help')} inputClassName="aih-input" />
-        </div>
+        <Input label={t('aihub.fallback_order')} id={`${idPrefix}-priority`} type="number" min="0" value={form.priority} onChange={s('priority')} title={t('aihub.fallback_order_help')} />
 
         <div className="aih-default-check">
           <Checkbox id={`${idPrefix}-is-default`} checked={form.is_default}

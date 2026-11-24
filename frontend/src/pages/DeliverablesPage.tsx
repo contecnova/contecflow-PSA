@@ -6,7 +6,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { deliverablesApi } from '../services/api'
 import { useListaDeProyectos, useListaDeUsuarios } from '../hooks/useListas'
 import type { Entregable } from '../services/api/tipos-alm'
-import { Button, Modal, Spinner, EmptyState, KpiCard, IconButton, useSort, SortableTH, Tabs, Pulsable, Select, useErroresDeCampo, Input, Textarea } from '../components/ui'
+import { Button, Modal, Spinner, EmptyState, KpiCard, IconButton, useSort, SortableTH, Tabs, Pulsable, Select, useErroresDeCampo, Input, Textarea, SelectorDeContexto } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { AlertTriangle, Building2, CalendarDays, Check, CheckCircle2, ChevronDown, ClipboardList, Eye, FolderKanban, Globe, MessageSquare, Package, Pencil, Plus, RefreshCw, Send, Trash2, User, XCircle } from 'lucide-react'
@@ -107,35 +107,28 @@ function DeliverableFormModal({ del, projectId, onClose }: { del?: Entregable | 
     <Modal open title={isEdit ? t('deliverables.editar_entregable') : t('deliverables.nuevo_entregable')} onClose={onClose} width={560}>
       <div className="u-grid2-14">
         <div className="u-col-full">
-          <label id={`${idCampo}-eta139`} htmlFor={`${idCampo}-a139`} className="dlv-label">{t('deliverables.nombre_obligatorio')}</label>
-          <Input id={`${idCampo}-a139`} aria-labelledby={`${idCampo}-eta139`} value={form.name} onChange={set('name')} placeholder={t('deliverables.nombre_del_entregable')} inputClassName="dlv-input" />{msg('name')}
+          <Input label={t('deliverables.nombre_obligatorio')} id={`${idCampo}-a139`} value={form.name} onChange={set('name')} placeholder={t('deliverables.nombre_del_entregable')} />{msg('name')}
         </div>
         <div>
-          <label id={`${idCampo}-eta143`} htmlFor={`${idCampo}-a143`} className="dlv-label">{t('deliverables.formato')}</label>
-          <Input id={`${idCampo}-a143`} aria-labelledby={`${idCampo}-eta143`} value={form.format} onChange={set('format')} placeholder={t('deliverables.formato_de_entrega')} inputClassName="dlv-input" />{msg('format')}
+          <Input label={t('deliverables.formato')} id={`${idCampo}-a143`} value={form.format} onChange={set('format')} placeholder={t('deliverables.formato_de_entrega')} />{msg('format')}
         </div>
         <div>
-          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="dlv-label">{t('deliverables.fecha_planificada')}</label>
-          <DateInput id={`${idCampo}-1`} value={form.planned_date} onChange={set('planned_date')} className="dlv-input" />{msg('planned_date')}
+          <DateInput label={t('deliverables.fecha_planificada')} id={`${idCampo}-1`} value={form.planned_date} onChange={set('planned_date')} />{msg('planned_date')}
         </div>
         <div>
-          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="dlv-label">{t('deliverables.responsable')}</label>
-          <Select suelto placeholder={false} id={`${idCampo}-2`} value={form.owner_id} onChange={set('owner_id')} className="dlv-input">
+          <Select label={t('deliverables.responsable')} placeholder={false} id={`${idCampo}-2`} value={form.owner_id} onChange={set('owner_id')}>
             <option value="">{t('deliverables.sin_asignar')}</option>
             {users.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
           </Select>{msg('owner_id')}
         </div>
         <div>
-          <label id={`${idCampo}-eta158`} htmlFor={`${idCampo}-a158`} className="dlv-label">{t('deliverables.contacto_cliente')}</label>
-          <Input id={`${idCampo}-a158`} aria-labelledby={`${idCampo}-eta158`} value={form.client_contact} onChange={set('client_contact')} placeholder={t('deliverables.contacto_del_cliente')} inputClassName="dlv-input" />{msg('client_contact')}
+          <Input label={t('deliverables.contacto_cliente')} id={`${idCampo}-a158`} value={form.client_contact} onChange={set('client_contact')} placeholder={t('deliverables.contacto_del_cliente')} />{msg('client_contact')}
         </div>
         <div className="u-col-full">
-          <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="dlv-label">{t('deliverables.descripcion')}</label>
-          <Textarea id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.description} onChange={set('description')} rows={2} inputClassName="dlv-input" />{msg('description')}
+          <Textarea label={t('deliverables.descripcion')} id={`${idCampo}-3`} value={form.description} onChange={set('description')} rows={2} />{msg('description')}
         </div>
         <div className="u-col-full">
-          <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="dlv-label">{t('deliverables.criterios_de_aceptacion')}</label>
-          <Textarea id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.acceptance_criteria} onChange={set('acceptance_criteria')} rows={2} placeholder={t('deliverables.criterios_de_aceptacion')} inputClassName="dlv-input" />{msg('acceptance_criteria')}
+          <Textarea label={t('deliverables.criterios_de_aceptacion')} id={`${idCampo}-4`} value={form.acceptance_criteria} onChange={set('acceptance_criteria')} rows={2} placeholder={t('deliverables.criterios_de_aceptacion')} />{msg('acceptance_criteria')}
         </div>
         <div className="dlv-form-footer">
           <Button variant="secondary" onClick={onClose}>{t('deliverables.cancelar')}</Button>
@@ -216,13 +209,12 @@ export default function DeliverablesPage(): JSX.Element {
 
       {tab === 'project' && (
         <>
-          <div className="ds-toolbar dlv-toolbar">
-            <Select suelto placeholder={false} value={selectedProject} onChange={e => setSelectedProject(e.target.value)}
-              className="ds-input dlv-project-select" aria-label={t('deliverables.proyecto')}>
+          <SelectorDeContexto>
+            <Select label={t('uikit.etiqueta_proyecto')} placeholder={false} value={selectedProject} onChange={e => setSelectedProject(e.target.value)}>
               <option value="">{t('deliverables.seleccionar_proyecto')}</option>
               {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
             </Select>
-          </div>
+          </SelectorDeContexto>
 
           {selectedProject && (summary?.total ?? 0) > 0 && (
             <div className="ds-grid-stats dlv-kpis">

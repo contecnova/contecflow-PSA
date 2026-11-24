@@ -206,6 +206,10 @@ def deliver_incoming(db: Session, token: str, payload: dict) -> None:
     # Segunda auditoría 2026-11 (#10): organización desactivada → 403.
     from app.db.session import exigir_organizacion_activa
     exigir_organizacion_activa(db, fila.organization_id)
+    # 24-11-2026 (migración 208): ruta anónima; desde aquí, la empresa del
+    # webhook (filtro y sellado del mensaje, sus avisos y su índice).
+    from app.db.session import publicar_empresa
+    publicar_empresa(db, fila.organization_id)
 
     cuota = consume_quota(
         db, scope="collab.webhook.incoming", tenant_id=fila.organization_id,

@@ -158,7 +158,7 @@ export function CatalogConfig() {
   )
 }
 
-function NewCategoryModal({ onClose, onSave, isPending, IS, LS, initial, errorDe }: { onClose: () => void; onSave: (d: Record<string, unknown>) => void; isPending: boolean; IS: string; LS: string; initial?: Cat | null; errorDe?: (campo: string) => string | undefined }) {
+function NewCategoryModal({ onClose, onSave, isPending, IS, LS: _LS, initial, errorDe }: { onClose: () => void; onSave: (d: Record<string, unknown>) => void; isPending: boolean; IS: string; LS: string; initial?: Cat | null; errorDe?: (campo: string) => string | undefined }) {
   const idCampo = useId()
   const t = useAppT()
   const [form, setForm] = useState({
@@ -172,7 +172,7 @@ function NewCategoryModal({ onClose, onSave, isPending, IS, LS, initial, errorDe
         <div className="sdcfg-cat-grid">
           <Input id={`${idCampo}-1`} label={t('common.name')} required value={form.name} onChange={set('name')} error={errorDe?.('name')} />
           <div><Input label={t('config.icono')} id={`${idCampo}-2`} value={form.icon} onChange={set('icon')} className="sdcfg-input--icon" /></div>
-          <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className={LS}>{t('config.color')}</label><input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="color" value={/^#[0-9a-fA-F]{6}$/.test(form.color) ? form.color : COLOR_DATO_POR_DEFECTO} onChange={set('color')} className={`${IS} sdcfg-input--color`} /></div>
+          <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="uiinde-estiloetiqueta">{t('config.color')}</label><input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="color" value={/^#[0-9a-fA-F]{6}$/.test(form.color) ? form.color : COLOR_DATO_POR_DEFECTO} onChange={set('color')} className={`${IS} sdcfg-input--color`} /></div>
         </div>
         <div className="u-actions-10">
           <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
@@ -220,24 +220,15 @@ function NewServiceModal({ catalog, onClose, onSave, isPending, LS, initial, err
     <Modal open title={initial ? t('sd_cfg.cfg_svc_edit') : t('sd_cfg.cfg_svc_new')} onClose={onClose}>
       <div className="u-grid2-14">
         <div className="u-col-full"><Input id={`${idCampo}-1`} label={t('common.name')} required value={form.name} onChange={set('name')} error={errorDe?.('name')} /></div>
-        <div>
-          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className={LS}>{t('service_desk.tab_catalog')}</label>
-          <Select suelto placeholder={false} id={`${idCampo}-2`} value={form.category_id} onChange={set('category_id')} className="sdcfg-sel">
+        <Select label={t('service_desk.tab_catalog')} placeholder={false} id={`${idCampo}-2`} value={form.category_id} onChange={set('category_id')}>
             {catalog.map((c: Cat) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </Select>
-        </div>
-        <div>
-          <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className={LS}>{t('service_desk.svc_ticket_type')}</label>
-          <Select suelto placeholder={false} id={`${idCampo}-3`} value={form.ticket_type} onChange={set('ticket_type')} className="sdcfg-sel">
+        <Select label={t('service_desk.svc_ticket_type')} placeholder={false} id={`${idCampo}-3`} value={form.ticket_type} onChange={set('ticket_type')}>
             {['incident','service_request','change','question'].map(tk => <option key={tk} value={tk}>{etiquetaSd('type', tk)}</option>)}
           </Select>
-        </div>
-        <div>
-          <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className={LS}>{t('service_desk.svc_default_priority')}</label>
-          <Select suelto placeholder={false} id={`${idCampo}-4`} value={form.default_priority} onChange={set('default_priority')} className="sdcfg-sel">
+        <Select label={t('service_desk.svc_default_priority')} placeholder={false} id={`${idCampo}-4`} value={form.default_priority} onChange={set('default_priority')}>
             {['p1_critical','p2_high','p3_medium','p4_low'].map(p => <option key={p} value={p}>{PRIORITY_LABEL_MAP[p]}</option>)}
           </Select>
-        </div>
         <div className="sdcfg-grid2-8">
           <Input id={`${idCampo}-5`} label={t('service_desk.sla_response_h')} type="number" value={form.sla_response_hours} onChange={set('sla_response_hours')} error={errorDe?.('sla_response_hours')} />
           <Input id={`${idCampo}-6`} label={t('service_desk.sla_resolution_h')} type="number" value={form.sla_resolution_hours} onChange={set('sla_resolution_hours')} error={errorDe?.('sla_resolution_hours')} />
@@ -254,8 +245,7 @@ function NewServiceModal({ catalog, onClose, onSave, isPending, LS, initial, err
         </div>
         {form.requires_approval && (
           <div className="u-col-full">
-            <label className={LS} htmlFor="svc_appr_mode">{t('sd_mercado.modo_aprobacion')}</label>
-            <Select suelto placeholder={false} id="svc_appr_mode" value={form.approval_mode} onChange={set('approval_mode')} className="sdcfg-sel">
+            <Select label={t('sd_mercado.modo_aprobacion')} placeholder={false} id="svc_appr_mode" value={form.approval_mode} onChange={set('approval_mode')}>
               <option value="single">{t('sd_mercado.aprobacion_single')}</option>
               <option value="engine">{t('sd_mercado.aprobacion_engine')}</option>
             </Select>
@@ -264,8 +254,7 @@ function NewServiceModal({ catalog, onClose, onSave, isPending, LS, initial, err
         )}
         {form.requires_approval && form.approval_mode === 'engine' && (
           <div className="u-col-full">
-            <label className={LS} htmlFor="svc_appr_wf">{t('sd_mercado.flujo_aprobacion')}</label>
-            <Select suelto placeholder={false} id="svc_appr_wf" value={form.approval_workflow_id} onChange={set('approval_workflow_id')} className="sdcfg-sel">
+            <Select label={t('sd_mercado.flujo_aprobacion')} placeholder={false} id="svc_appr_wf" value={form.approval_workflow_id} onChange={set('approval_workflow_id')}>
               <option value="">{t('sd_mercado.flujo_por_condiciones')}</option>
               {flujos.filter(f => f.is_active && f.entity_type === 'catalog_request').map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
             </Select>
@@ -273,8 +262,7 @@ function NewServiceModal({ catalog, onClose, onSave, isPending, LS, initial, err
         )}
         {form.requires_approval && (
           <div className="u-col-full">
-            <label className={LS} htmlFor="svc_approver">{t(form.approval_mode === 'engine' ? 'sd_mercado.aprobador_respaldo' : 'sd_cfg.svc_approver')}{form.approval_mode === 'engine' ? '' : ' *'}</label>
-            <Select suelto placeholder={false} id="svc_approver" aria-label={t('sd_cfg.svc_approver')} value={form.approval_user_id} onChange={set('approval_user_id')} className="sdcfg-sel">
+            <Select label={<>{t(form.approval_mode === 'engine' ? 'sd_mercado.aprobador_respaldo' : 'sd_cfg.svc_approver')}{form.approval_mode === 'engine' ? '' : ' *'}</>} placeholder={false} id="svc_approver" aria-label={t('sd_cfg.svc_approver')} value={form.approval_user_id} onChange={set('approval_user_id')}>
               <option value="">—</option>
               {usuarios.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
             </Select>

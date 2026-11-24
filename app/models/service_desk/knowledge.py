@@ -14,7 +14,7 @@ class KBArticle(Base):
     __table_args__ = (UniqueConstraint("organization_id", "number", name="uq_sd_kb_articles_org_number"),)
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)  # audit #7
     number = Column(String(20), nullable=False)
     title = Column(String(500), nullable=False)
     body = Column(Text, nullable=False)
@@ -61,7 +61,7 @@ class KBArticleVersion(Base):
     __tablename__ = "sd_kb_article_versions"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)  # audit #7
     article_id = Column(String(36), ForeignKey("sd_kb_articles.id", ondelete="CASCADE"), nullable=False, index=True)
     version = Column(Integer, nullable=False)
     title = Column(String(500), nullable=False)
@@ -80,7 +80,7 @@ class Announcement(Base):
     __tablename__ = "sd_announcements"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)  # audit #7
     title = Column(String(255), nullable=False)
     body = Column(Text, nullable=False)
     type = Column(String(20), default="info")

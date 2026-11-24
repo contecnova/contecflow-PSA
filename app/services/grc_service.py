@@ -176,7 +176,14 @@ def ensure_sod_seeded(db: Session, default_sod_rules: list, organization_id: Opt
     Cada empresa tiene su copia, así que editar una regla no toca a las demás.
     `commit=False` (segunda auditoría 2026-11): sólo `flush`, para sembrar
     dentro de la transacción de quien comprueba la autoaprobación.
+
+    24-11-2026 (migración 208): `grc_sod_rules.organization_id` es NOT NULL y
+    no hay reglas globales; sin empresa (superadmin sin empresa elegida) no se
+    siembra nada. `bulk_save_objects` no pasa por el sellado del flush, así que
+    aquí no hay red: sembrar con NULL rompería con un IntegrityError.
     """
+    if not organization_id:
+        return
     from app.db.session import sin_filtro_de_tenant
     with sin_filtro_de_tenant(db):
         q = db.query(SodRule)

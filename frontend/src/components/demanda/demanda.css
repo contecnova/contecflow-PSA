@@ -43,7 +43,7 @@
 .dem-errores--ok { color: var(--success); list-style: none; padding-left: 0; }
 .dem-mono { font-size: var(--text-sm); }
 .dem-num { width: 90px; }
-@media (max-width: 720px) {
+@media (width <= 720px) {
   .dem-rejilla--i18n { grid-template-columns: 1fr; }
 }
 .dem-rejilla__doble { grid-column: 1 / -1; }

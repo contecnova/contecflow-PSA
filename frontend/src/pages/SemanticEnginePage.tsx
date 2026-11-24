@@ -36,8 +36,6 @@ import { CLOCK_TICK_MS } from '../constants/timings'
 import { useListaDeUsuarios } from '../hooks/useListas'
 import './SemanticEnginePage.css'
 
-const fs = 'ds-input sem-input'
-const ls = 'sem-label'
 const cVar = (color: string) => ({ '--sem-c': color } as CSSProperties)
 
 type SemProfile = PerfilSemantico
@@ -69,15 +67,11 @@ function ProfileModal({ user, onClose }: { user: ProfileRow; onClose: () => void
         {traducir('semanticengine.describe_las_capacidades_rol_tecnologias_y_area')}
       </p>
       <div className="u-mb-14">
-        <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className={ls}>{traducir('semanticengine.texto_del_perfil')}</label>
-        <Textarea id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={text} onChange={e => setText(e.target.value)} rows={6}
-          inputClassName={`${fs} sem-textarea sem-textarea--lh`}
+        <Textarea label={traducir('semanticengine.texto_del_perfil')} id={`${idCampo}-1`} value={text} onChange={e => setText(e.target.value)} rows={6}
           placeholder={traducir('semanticengine.describe_las_capacidades_rol_tecnologias_y_area_2')} />
       </div>
       <div className="u-mb-20">
-        <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className={ls}>{traducir('semanticengine.carga_maxima_simultanea_tickets_tareas')}</label>
-        <Input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="number" value={maxLoad} onChange={e => setMaxLoad(parseInt(e.target.value))}
-          inputClassName={`${fs} sem-input--narrow`} min={1} max={50} />
+        <Input label={traducir('semanticengine.carga_maxima_simultanea_tickets_tareas')} id={`${idCampo}-2`} type="number" value={maxLoad} onChange={e => setMaxLoad(parseInt(e.target.value))} min={1} max={50} />
       </div>
       <div className="u-actions-10">
         <Button variant="secondary" onClick={onClose}>{traducir('common.cancel')}</Button>
@@ -128,15 +122,8 @@ function TestPanel() {
         onChange={setType}
       />
       <div className="sem-fields">
-        <div>
-          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className={ls}>{traducir('semanticengine.titulo')}</label>
-          <Input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={title} onChange={e => setTitle(e.target.value)} placeholder={type === 'ticket' ? traducir('semanticengine.ejemplo_ticket') : traducir('semanticengine.ejemplo_tarea')} inputClassName="sem-input" />
-        </div>
-        <div>
-          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className={ls}>{traducir('semanticengine.descripcion_opcional')}</label>
-          <Textarea id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={desc} onChange={e => setDesc(e.target.value)} rows={3}
-            inputClassName={`${fs} sem-textarea`} placeholder={traducir('semanticengine.descripcion_opcional_del_ticket_o_tarea')} />
-        </div>
+        <Input label={traducir('semanticengine.titulo')} id={`${idCampo}-1`} value={title} onChange={e => setTitle(e.target.value)} placeholder={type === 'ticket' ? traducir('semanticengine.ejemplo_ticket') : traducir('semanticengine.ejemplo_tarea')} />
+        <Textarea label={traducir('semanticengine.descripcion_opcional')} id={`${idCampo}-2`} value={desc} onChange={e => setDesc(e.target.value)} rows={3} placeholder={traducir('semanticengine.descripcion_opcional_del_ticket_o_tarea')} />
       </div>
       <Button icon={<Wand2 size={14} />} onClick={runTest} disabled={!title.trim()} loading={testing}>
         {testing ? traducir('semanticengine.analizando') : traducir('semanticengine.sugerir_asignacion')}

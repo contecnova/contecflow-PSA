@@ -117,7 +117,7 @@
 
 .pipe-card-3 {
   white-space: pre-wrap;
-  word-break: break-word;
+  overflow-wrap: anywhere;
   font-variant-numeric: tabular-nums;
   font-size: var(--text-sm);
   line-height: 1.7;
@@ -385,7 +385,6 @@
 }
 .pipe-filtros__buscar { flex: 1 1 260px; }
 .pipe-filtros__responsable { flex: 0 1 240px; }
-.pipe-textarea { resize: vertical; }
 
 .pipe-tablero {
   display: grid;
@@ -476,11 +475,6 @@
   gap: 8px;
 }
 .pipe-op__responsable { font-size: var(--text-xs); color: var(--text-2); }
-.pipe-op__etapa {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
 .pipe-op__descripcion {
   font-size: var(--text-sm);
   color: var(--text-2);

@@ -23,12 +23,6 @@
   margin: 0 0 12px;
 }
 
-.exps-row-3 {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-}
-
 .exps-input {
   flex: 1 1 200px;
   min-width: 0;
@@ -52,12 +46,6 @@
 /* ── Estilos estaticos extraidos de ExportsPage.tsx (#17) ── */
 
 /* ── Estilos en linea extraidos de ExportsPage.tsx (#17): estaticos, alternancias por className y valores por variable CSS ── */
-.exportsp-sx7.exportsp-sx7 {
-  color: var(--text-1);
-}
-.exportsp-sx8.exportsp-sx8 {
-  color: var(--text-2);
-}
 
 /* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
 

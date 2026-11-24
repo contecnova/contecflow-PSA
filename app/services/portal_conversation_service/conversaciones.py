@@ -83,7 +83,7 @@ def list_client_conversations(current_client: ClientUser, db: Session) -> list:
     accessible = current_client.get_project_ids()
     if accessible:
         query = query.filter(or_(PortalConversation.project_id == None, PortalConversation.project_id.in_(accessible)))
-    conversations = [_conversation_out(item) for item in query.order_by(PortalConversation.last_message_at.desc().nullslast(), PortalConversation.created_at.desc()).distinct().all()]
+    conversations = [_conversation_out(item, para_cliente=True, client_id=current_client.id) for item in query.order_by(PortalConversation.last_message_at.desc().nullslast(), PortalConversation.created_at.desc()).distinct().all()]
     conversations.extend(_list_legacy_threads_for_client(current_client, db))
     conversations.sort(key=lambda item: item.get("last_message_at") or item.get("created_at") or "", reverse=True)
     return conversations
@@ -100,7 +100,7 @@ def get_client_conversation_detail(conversation_id: str, current_client: ClientU
     if _is_legacy_conversation_id(conversation_id):
         root, replies = _get_legacy_thread_for_client(conversation_id, current_client, db)
         return _legacy_conversation_out(root, replies)
-    return _conversation_out(_get_client_conversation(conversation_id, current_client, db))
+    return _conversation_out(_get_client_conversation(conversation_id, current_client, db), para_cliente=True, client_id=current_client.id)
 
 
 def create_team_conversation(payload, current_user, db: Session) -> dict:

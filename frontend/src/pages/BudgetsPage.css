@@ -39,8 +39,6 @@
 .bud-warning { color: var(--warning); }
 /* El color del estado sale de `colorDeEstado` (dato), vía variable. */
 .bud-estado { color: var(--bud-estado, var(--text-3)); font-weight: 600; }
-
-.bud-lbl { font-size: var(--text-xs); color: var(--text-3); display: block; margin-bottom: 3px; }
 .bud-rejilla { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(160px, 100%), 1fr)); gap: 10px; }
 .bud-aviso { font-size: var(--text-xs); color: var(--warning); }
 

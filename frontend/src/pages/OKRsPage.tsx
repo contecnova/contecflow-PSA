@@ -246,28 +246,24 @@ function ObjModal({ obj, onClose }: { obj: Objective | null; onClose: () => void
     <Modal open onClose={onClose} title={isEdit ? t('pagina_okr.editar_objetivo') : t('pagina_okr.nuevo_objetivo')} size="md">
       <div className="ds-stack">
         <div className="ds-field">
-          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="ds-field__label">{t('okrs.titulo')}</label>
-          <Input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.title} onChange={e => { camposB.limpiar('title'); setForm(f => ({ ...f, title: e.target.value })) }} placeholder={t('okrs.ej_incrementar_retencion_de_clientes')} autoFocus />{msgB('title')}
+          <Input label={t('okrs.titulo')} id={`${idCampo}-1`} value={form.title} onChange={e => { camposB.limpiar('title'); setForm(f => ({ ...f, title: e.target.value })) }} placeholder={t('okrs.ej_incrementar_retencion_de_clientes')} autoFocus />{msgB('title')}
         </div>
         <div className="ds-field">
-          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="ds-field__label">{t('okrs.descripcion')}</label>
-          <Textarea id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.description} onChange={e => { camposB.limpiar('description'); setForm(f => ({ ...f, description: e.target.value })) }} rows={2} placeholder={t('okrs.que_problema_resuelve_y_como_se_medira')} inputClassName="okr-textarea" />
+          <Textarea label={t('okrs.descripcion')} id={`${idCampo}-2`} value={form.description} onChange={e => { camposB.limpiar('description'); setForm(f => ({ ...f, description: e.target.value })) }} rows={2} placeholder={t('okrs.que_problema_resuelve_y_como_se_medira')} />
           {msgB('description')}
         </div>
 
         {/* Asignaciones */}
         <div className="okr-grid">
           <div className="ds-field">
-            <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="ds-field__label">{t('pagina_okr.responsable')}</label>
-            <Select suelto placeholder={false} id={`${idCampo}-3`} value={form.owner_id} onChange={e => { camposB.limpiar('owner_id'); setForm(f => ({ ...f, owner_id: e.target.value })) }}>
+            <Select label={t('pagina_okr.responsable')} placeholder={false} id={`${idCampo}-3`} value={form.owner_id} onChange={e => { camposB.limpiar('owner_id'); setForm(f => ({ ...f, owner_id: e.target.value })) }}>
               <option value="">{t('okrs.sin_asignar')}</option>
               {users.map((u) => <option key={u.id} value={String(u.id)}>{u.full_name || u.username}</option>)}
             </Select>{msgB('owner_id')}
             <div className="ds-field__hint">{t('okrs.persona_que_rinde_cuentas_del_objetivo')}</div>
           </div>
           <div className="ds-field">
-            <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="ds-field__label">{t('pagina_okr.departamento_equipo')}</label>
-            <Select suelto placeholder={false} id={`${idCampo}-4`} value={form.team_id} onChange={e => { camposB.limpiar('team_id'); setForm(f => ({ ...f, team_id: e.target.value })) }}>
+            <Select label={t('pagina_okr.departamento_equipo')} placeholder={false} id={`${idCampo}-4`} value={form.team_id} onChange={e => { camposB.limpiar('team_id'); setForm(f => ({ ...f, team_id: e.target.value })) }}>
               <option value="">{t('okrs.compania')}</option>
               {departments.map((d) => {
                 const dep = typeof d === 'string' ? { id: d, name: d } : d
@@ -279,8 +275,7 @@ function ObjModal({ obj, onClose }: { obj: Objective | null; onClose: () => void
         </div>
 
         <div className="ds-field">
-          <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="ds-field__label">{t('pagina_okr.proyecto_vinculado')}</label>
-          <Select suelto placeholder={false} id={`${idCampo}-5`} value={form.project_id} onChange={e => { camposB.limpiar('project_id'); setForm(f => ({ ...f, project_id: e.target.value })) }}>
+          <Select label={t('pagina_okr.proyecto_vinculado')} placeholder={false} id={`${idCampo}-5`} value={form.project_id} onChange={e => { camposB.limpiar('project_id'); setForm(f => ({ ...f, project_id: e.target.value })) }}>
             <option value="">{t('pagina_okr.ninguno')}</option>
             {projects.map((p) => <option key={p.id} value={String(p.id)}>{p.code ? `${p.code} · ` : ''}{p.name}</option>)}
           </Select>{msgB('project_id')}
@@ -290,18 +285,15 @@ function ObjModal({ obj, onClose }: { obj: Objective | null; onClose: () => void
         {/* Período + estado */}
         <div className="okr-grid-3">
           <div className="ds-field">
-            <label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} className="ds-field__label">{t('okrs.periodo')}</label>
-            <Select suelto placeholder={false} id={`${idCampo}-6`} value={form.period} onChange={e => { camposB.limpiar('period'); setForm(f => ({ ...f, period: e.target.value as PeriodoDeObjetivo })) }}>
+            <Select label={t('okrs.periodo')} placeholder={false} id={`${idCampo}-6`} value={form.period} onChange={e => { camposB.limpiar('period'); setForm(f => ({ ...f, period: e.target.value as PeriodoDeObjetivo })) }}>
               {PERIOD_OPTS.map(p => <option key={p} value={p}>{etiquetaPeriodo(p, t)}</option>)}
             </Select>{msgB('period')}
           </div>
           <div className="ds-field">
-            <label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} className="ds-field__label">{t('okrs.year')}</label>
-            <Input id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} type="number" value={form.year} onChange={e => { camposB.limpiar('year'); setForm(f => ({ ...f, year: parseInt(e.target.value) || f.year })) }} />{msgB('year')}
+            <Input label={t('okrs.year')} id={`${idCampo}-7`} type="number" value={form.year} onChange={e => { camposB.limpiar('year'); setForm(f => ({ ...f, year: parseInt(e.target.value) || f.year })) }} />{msgB('year')}
           </div>
           <div className="ds-field">
-            <label id={`${idCampo}-et8`} htmlFor={`${idCampo}-8`} className="ds-field__label">{t('pagina_okr.estado')}</label>
-            <Select suelto placeholder={false} id={`${idCampo}-8`} value={form.status} onChange={e => { camposB.limpiar('status'); setForm(f => ({ ...f, status: e.target.value as EstadoDeObjetivo })) }}>
+            <Select label={t('pagina_okr.estado')} placeholder={false} id={`${idCampo}-8`} value={form.status} onChange={e => { camposB.limpiar('status'); setForm(f => ({ ...f, status: e.target.value as EstadoDeObjetivo })) }}>
               {Object.entries(STATUS_CFG).map(([v, c]) => <option key={v} value={v}>{t(c.label)}</option>)}
             </Select>{msgB('status')}
           </div>
@@ -357,43 +349,35 @@ function KRModal({ objective, onClose }: { objective: Objective; onClose: () => 
       size="md">
       <div className="ds-stack">
         <div className="ds-field">
-          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="ds-field__label">{t('okrs.descripcion_del_resultado')}</label>
-          <Input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.title} onChange={e => { campos.limpiar('title'); setForm(f => ({ ...f, title: e.target.value })) }} placeholder={t('pagina_okr.ej_aumentar_nps_a_60')} autoFocus />{msg('title')}
+          <Input label={t('okrs.descripcion_del_resultado')} id={`${idCampo}-1`} value={form.title} onChange={e => { campos.limpiar('title'); setForm(f => ({ ...f, title: e.target.value })) }} placeholder={t('pagina_okr.ej_aumentar_nps_a_60')} autoFocus />{msg('title')}
         </div>
         <div className="okr-grid-3">
           <div className="ds-field">
-            <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="ds-field__label">{t('pagina_okr.tipo')}</label>
-            <Select suelto placeholder={false} id={`${idCampo}-2`} value={form.kr_type} onChange={e => { campos.limpiar('kr_type'); setForm(f => ({ ...f, kr_type: e.target.value })) }}>
+            <Select label={t('pagina_okr.tipo')} placeholder={false} id={`${idCampo}-2`} value={form.kr_type} onChange={e => { campos.limpiar('kr_type'); setForm(f => ({ ...f, kr_type: e.target.value })) }}>
               {Object.entries(KR_TYPE_CFG).map(([v, c]) => <option key={v} value={v}>{t(c.label)}</option>)}
             </Select>{msg('kr_type')}
           </div>
           <div className="ds-field">
-            <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="ds-field__label">{t('pagina_okr.meta')}</label>
-            <Input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="number" value={form.target_value} onChange={e => { campos.limpiar('target_value'); setForm(f => ({ ...f, target_value: parseFloat(e.target.value) || 0 })) }} />{msg('target_value')}
+            <Input label={t('pagina_okr.meta')} id={`${idCampo}-3`} type="number" value={form.target_value} onChange={e => { campos.limpiar('target_value'); setForm(f => ({ ...f, target_value: parseFloat(e.target.value) || 0 })) }} />{msg('target_value')}
           </div>
           <div className="ds-field">
-            <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="ds-field__label">{t('pagina_okr.unidad')}</label>
-            <Input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.unit} onChange={e => { campos.limpiar('unit'); setForm(f => ({ ...f, unit: e.target.value })) }} placeholder={t('pagina_okr.puntos_nps')} />{msg('unit')}
+            <Input label={t('pagina_okr.unidad')} id={`${idCampo}-4`} value={form.unit} onChange={e => { campos.limpiar('unit'); setForm(f => ({ ...f, unit: e.target.value })) }} placeholder={t('pagina_okr.puntos_nps')} />{msg('unit')}
           </div>
         </div>
         <div className="okr-grid">
           <div className="ds-field">
-            <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="ds-field__label">{t('okrs.responsable_del_kr')}</label>
-            <Select suelto placeholder={false} id={`${idCampo}-5`} value={form.owner_id} onChange={e => { campos.limpiar('owner_id'); setForm(f => ({ ...f, owner_id: e.target.value })) }}>
+            <Select label={t('okrs.responsable_del_kr')} placeholder={false} id={`${idCampo}-5`} value={form.owner_id} onChange={e => { campos.limpiar('owner_id'); setForm(f => ({ ...f, owner_id: e.target.value })) }}>
               <option value="">{t('okrs.hereda_del_objetivo')}</option>
               {users.map((u) => <option key={u.id} value={String(u.id)}>{u.full_name || u.username}</option>)}
             </Select>{msg('owner_id')}
           </div>
           <div className="ds-field">
-            <label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} className="ds-field__label">{t('okrs.fecha_limite')}</label>
-            <DateInput id={`${idCampo}-6`} value={form.due_date}
-              onChange={e => { campos.limpiar('due_date'); setForm(f => ({ ...f, due_date: e.target.value })) }}
-              className="ds-input" />{msg('due_date')}
+            <DateInput label={t('okrs.fecha_limite')} id={`${idCampo}-6`} value={form.due_date}
+              onChange={e => { campos.limpiar('due_date'); setForm(f => ({ ...f, due_date: e.target.value })) }} />{msg('due_date')}
           </div>
         </div>
         <div className="ds-field">
-          <label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} className="ds-field__label">{t('pagina_okr.notas_opcional')}</label>
-          <Textarea id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} value={form.notes} onChange={e => { campos.limpiar('notes'); setForm(f => ({ ...f, notes: e.target.value })) }} rows={2} placeholder={t('okrs.detalles_criterios_de_exito_dependencias')} inputClassName="okr-textarea" />
+          <Textarea label={t('pagina_okr.notas_opcional')} id={`${idCampo}-7`} value={form.notes} onChange={e => { campos.limpiar('notes'); setForm(f => ({ ...f, notes: e.target.value })) }} rows={2} placeholder={t('okrs.detalles_criterios_de_exito_dependencias')} />
           {msg('notes')}
         </div>
         <div className="okr-acciones">
@@ -454,19 +438,13 @@ export default function OKRsPage() {
       {/* Filtros */}
       <Card>
         <div className="okr-filtros">
-          <label className="okr-filtro">
-            <span className="ds-field__label">{t('okrs.periodo')}</span>
-            <Select suelto placeholder={false} value={period} onChange={e => setPeriod(e.target.value as PeriodOpt)}>
+          <Select label={t('okrs.periodo')} placeholder={false} value={period} onChange={e => setPeriod(e.target.value as PeriodOpt)}>
               <option value="">{t('okrs.todos_los_periodos')}</option>
               {PERIOD_OPTS.map(p => <option key={p} value={p}>{etiquetaPeriodo(p, t)}</option>)}
             </Select>
-          </label>
-          <label className="okr-filtro">
-            <span className="ds-field__label">{t('okrs.year')}</span>
-            <Select suelto placeholder={false} value={year} onChange={e => setYear(parseInt(e.target.value))}>
+          <Select label={t('okrs.year')} placeholder={false} value={year} onChange={e => setYear(parseInt(e.target.value))}>
               {anios.map(y => <option key={y} value={y}>{y}</option>)}
             </Select>
-          </label>
         </div>
       </Card>
 

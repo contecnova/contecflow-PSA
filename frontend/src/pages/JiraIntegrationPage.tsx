@@ -235,16 +235,10 @@ export default function JiraIntegrationPage(): JSX.Element {
               <div className="jira-row"><Spinner /></div>
             ) : (
               <form onSubmit={handleSave} className="u-stack-12">
+                <Input label={t('jira_integration.url_label')} id={`${idCampo}-1`} type="url" placeholder={t('jira_integration.url_placeholder')} value={form.jira_url} onChange={e => setForm(p => ({ ...p, jira_url: e.target.value }))} />
+                <Input label={t('jira_integration.email_label')} id={`${idCampo}-2`} type="email" autoComplete="email" placeholder={t('jira_integration.email_placeholder')} value={form.jira_email} onChange={e => setForm(p => ({ ...p, jira_email: e.target.value }))} />
                 <div>
-                  <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="jira-integration-page-e6">{t('jira_integration.url_label')}</label>
-                  <Input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} type="url" placeholder={t('jira_integration.url_placeholder')} value={form.jira_url} onChange={e => setForm(p => ({ ...p, jira_url: e.target.value }))} inputClassName="jira-integration-page-e7" />
-                </div>
-                <div>
-                  <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="jira-integration-page-e6">{t('jira_integration.email_label')}</label>
-                  <Input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="email" autoComplete="email" placeholder={t('jira_integration.email_placeholder')} value={form.jira_email} onChange={e => setForm(p => ({ ...p, jira_email: e.target.value }))} inputClassName="jira-integration-page-e7" />
-                </div>
-                <div>
-                  <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="jira-integration-page-e6">{t('jira_integration.token_label')}</label>
+                  <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="uiinde-estiloetiqueta">{t('jira_integration.token_label')}</label>
                   <div className="jira-box-4">
                     {/* 23-11-2026 (04b B3): es un token de API, no la contraseña de la cuenta: `off` para que el
                         gestor de contraseñas del navegador no lo guarde ni lo rellene como tal. */}
@@ -267,10 +261,7 @@ export default function JiraIntegrationPage(): JSX.Element {
                     </IconButton>
                   </div>
                 </div>
-                <div>
-                  <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="jira-integration-page-e6">{t('jira_integration.project_key_label')}</label>
-                  <Input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} type="text" placeholder={t('jira_integration.project_key_placeholder')} value={form.jira_project_key} onChange={e => setForm(p => ({ ...p, jira_project_key: e.target.value.toUpperCase() }))} inputClassName="jira-integration-page-e2" />
-                </div>
+                <Input label={t('jira_integration.project_key_label')} id={`${idCampo}-4`} type="text" placeholder={t('jira_integration.project_key_placeholder')} value={form.jira_project_key} onChange={e => setForm(p => ({ ...p, jira_project_key: e.target.value.toUpperCase() }))} />
                 <div className="jira-row-2">
                   <Button type="submit" loading={saveConfig.isPending} icon={<Settings2 size={13} />} className="jirainte-sx1">
                     {t('jira_integration.save_button')}

@@ -157,6 +157,16 @@ export default function SelectorDePeriodo({
             <span>{t('periodo.comparar')}</span>
           </label>
         )}
+        {/* 24-11-2026: la explicación iba en una línea bajo los controles y alargaba el
+            selector, así que en cualquier fila alineada por abajo los campos vecinos
+            quedaban desalineados. Ahora es un icono en la misma fila con el texto en
+            el tooltip (y, para lectores de pantalla, en texto oculto enlazado). */}
+        {explicacion && (
+          <span className="uiper-explica" title={explicacion} tabIndex={0}>
+            <Info size={14} aria-hidden />
+            <span id={idExplicacion} className="u-sr-only">{explicacion}</span>
+          </span>
+        )}
       </div>
       {editando && (
         <div className="uiper-fila uiper-custom">
@@ -173,9 +183,6 @@ export default function SelectorDePeriodo({
             {t('periodo.aplicar')}
           </Button>
         </div>
-      )}
-      {explicacion && (
-        <p id={idExplicacion} className="uiper-explica"><Info size={12} aria-hidden /> {explicacion}</p>
       )}
       {error && <p id={idError} role="alert" className="u-field-error uiper-error">{mensaje(error)}</p>}
     </div>

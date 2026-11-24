@@ -3,7 +3,7 @@ nps_by_client, nps_trend, nps_distribution, client_health_score."""
 import logging
 from datetime import date
 from typing import Optional
-from sqlalchemy import func
+from sqlalchemy import case, func
 from sqlalchemy.orm import Session
 
 from ._registro import register_metric
@@ -92,6 +92,16 @@ def metric_okr_kr_completion_rate(
     return rows, {"y_label": "Tasa consecución KR (%)"}
 
 
+def _aporte(nota) -> float:
+    n = int(nota or 0)
+    return 100.0 if n >= 9 else (-100.0 if n <= 6 else 0.0)
+
+
+def _aporte_nps(col):
+    """Expresión SQL: +100 promotor (9-10), −100 detractor (0-6), 0 pasivo."""
+    return case((col >= 9, 100.0), (col <= 6, -100.0), else_=0.0)
+
+
 @register_metric("nps_by_client")
 def metric_nps_by_client(
     db: Session,
@@ -103,35 +113,44 @@ def metric_nps_by_client(
     project_ids: Optional[list[str]] = None,
     **kwargs
 ) -> tuple[list[dict], dict]:
-    """NPS medio por cliente en el período."""
+    """NPS por cliente en el período (−100 a 100: % promotores − % detractores).
+
+    24-11-2026: antes era la media de la nota 0-10 con la etiqueta «NPS medio»,
+    que no es el NPS del mercado. La media de la nota sigue en `avg_score`.
+    """
     try:
         from app.models.nps import ClientNPS
+        from app.services.nps_service import solo_nps
         from app.models.clients import Client
 
         q = db.query(
             ClientNPS.client_id,
             func.avg(ClientNPS.score).label("avg_score"),
+            func.avg(_aporte_nps(ClientNPS.score)).label("nps"),
             func.count(ClientNPS.id).label("responses"),
         ).filter(
             ClientNPS.created_at >= d_from,
             ClientNPS.created_at <= d_to,
-        ).group_by(ClientNPS.client_id).order_by(func.avg(ClientNPS.score).desc()).limit(top_n)
+            solo_nps(),  # 24-11-2026: sin las CSAT 1-5 del portal interno
+        ).group_by(ClientNPS.client_id).order_by(func.avg(_aporte_nps(ClientNPS.score)).desc()).limit(top_n)
 
-        client_ids = [r.client_id for r in q.all()]
+        filas = q.all()
+        client_ids = [r.client_id for r in filas]
         clients_map = {c.id: c.name for c in db.query(Client).filter(Client.id.in_(client_ids)).all()} if client_ids else {}
 
         rows = []
-        for r in q.all():
+        for r in filas:
             rows.append({
                 "label": clients_map.get(r.client_id, str(r.client_id)),
-                "value": round(float(r.avg_score or 0), 1),
+                "value": round(float(r.nps or 0), 1),
+                "avg_score": round(float(r.avg_score or 0), 1),
                 "responses": r.responses,
             })
     except Exception:
         logging.getLogger(__name__).warning("metric_nps_by_client: excepcion ignorada", exc_info=True)
         rows = []
 
-    return rows, {"y_label": "NPS medio"}
+    return rows, {"y_label": "NPS"}
 
 
 @register_metric("nps_trend")
@@ -145,9 +164,10 @@ def metric_nps_trend(
     project_ids: Optional[list[str]] = None,
     **kwargs
 ) -> tuple[list[dict], dict]:
-    """Evolución mensual del NPS medio."""
+    """Evolución mensual del NPS (−100 a 100). Antes, media de la nota 0-10 (24-11-2026)."""
     try:
         from app.models.nps import ClientNPS
+        from app.services.nps_service import solo_nps
 
         # `created_at` es DateTime(timezone=True) y guarda UTC: el
         # `extract("month", ...)` anterior agrupaba por mes UTC, asi que una
@@ -156,6 +176,7 @@ def metric_nps_trend(
         filas = db.query(ClientNPS.created_at, ClientNPS.score).filter(
             ClientNPS.created_at >= d_from,
             ClientNPS.created_at <= d_to,
+            solo_nps(),
         ).all()
 
         # La media se calcula aqui porque `agrupar_por_mes` devuelve suma y
@@ -163,7 +184,8 @@ def metric_nps_trend(
         cubos = agrupar_por_mes(
             filas,
             lambda r: r[0],
-            valor=lambda r: float(r[1] or 0),
+            # Promotor +100, pasivo 0, detractor −100: la media de esto ES el NPS.
+            valor=lambda r: _aporte(r[1]),
         )
         rows = []
         for etiqueta in sorted(cubos):
@@ -194,10 +216,12 @@ def metric_nps_distribution(
     """Distribución de respuestas NPS: Promotores / Pasivos / Detractores."""
     try:
         from app.models.nps import ClientNPS
+        from app.services.nps_service import solo_nps
 
         all_scores = db.query(ClientNPS.score).filter(
             ClientNPS.created_at >= d_from,
             ClientNPS.created_at <= d_to,
+            solo_nps(),
         ).all()
 
         promoters = sum(1 for (s,) in all_scores if s is not None and s >= 9)
@@ -230,34 +254,12 @@ def metric_client_health_score(
 ) -> tuple[list[dict], dict]:
     """Health score más reciente por cliente."""
     try:
-        from app.models.nps import ClientHealthSnapshot
-        from app.models.clients import Client
-
-        # Latest snapshot per client
-        # Auditoria 2026-08: `created_at` no existe en esta tabla; la marca de
-        # tiempo se llama `snapshot_at`. Reventaba con `AttributeError`, lo
-        # atrapaba el `except` de la metrica y la grafica salia vacia.
-        subq = db.query(
-            ClientHealthSnapshot.client_id,
-            func.max(ClientHealthSnapshot.snapshot_at).label("latest"),
-        ).group_by(ClientHealthSnapshot.client_id).subquery()
-
-        q = db.query(ClientHealthSnapshot).join(
-            subq,
-            (ClientHealthSnapshot.client_id == subq.c.client_id) &
-            (ClientHealthSnapshot.snapshot_at == subq.c.latest)
-        ).order_by(ClientHealthSnapshot.health_score.desc()).limit(top_n)
-
-        client_ids = [r.client_id for r in q.all()]
-        clients_map = {c.id: c.name for c in db.query(Client).filter(Client.id.in_(client_ids)).all()} if client_ids else {}
-
-        rows = []
-        for snap in q.all():
-            rows.append({
-                "label": clients_map.get(snap.client_id, str(snap.client_id)),
-                "value": round(float(snap.health_score or 0), 1),
-                "risk_level": snap.risk_level if hasattr(snap, "risk_level") else None,
-            })
+        # 24-11-2026: la misma clasificación que la pantalla NPS (una foto por
+        # cliente aunque dos compartan fecha, solo clientes activos). Antes su
+        # propia consulta, con duplicados y ejecutada dos veces.
+        from app.services.nps_service import get_health_leaderboard
+        rows = [{"label": name, "value": round(float(snap.health_score or 0), 1)}
+                for snap, name in get_health_leaderboard(db)[:top_n]]
     except Exception:
         logging.getLogger(__name__).warning("metric_client_health_score: excepcion ignorada", exc_info=True)
         rows = []

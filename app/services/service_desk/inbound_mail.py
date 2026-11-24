@@ -442,7 +442,22 @@ def _crear_ticket(db: Session, org_id: Optional[str], correo: CorreoEntrante, co
 
 
 def procesar(db: Session, org_id: Optional[str], correo: CorreoEntrante) -> Resultado:
-    """Convierte un correo en ticket o comentario. No confirma la transaccion."""
+    """Convierte un correo en ticket o comentario. No confirma la transaccion.
+
+    24-11-2026 (migración 208, `organization_id` obligatorio): sin empresa
+    destinataria (ninguna `SD_INBOUND_ADDRESS` coincide y hay varias empresas)
+    no se crea nada. Antes salía un ticket sin empresa que no veía nadie; ahora
+    cortaría el guardado con `fila_sin_empresa`. Se ignora con su motivo y un
+    aviso en el log (el webhook contesta 200: reintentar no lo arreglaría).
+    """
+    if not org_id:
+        from app.services.git_service import unica_empresa
+        org_id = unica_empresa(db)
+    if not org_id:
+        # Sin direcciones en el log (RGPD): solo cuántas traía.
+        logger.warning("correo entrante sin empresa destinataria (%d destinatarios): ignorado",
+                       len(correo.para or []))
+        return Resultado("ignored", motivo="sin empresa destinataria")
     with como_organizacion(db, org_id):
         clave = clave_del_mensaje(correo)
         if db.query(InboundMessage.id).filter(InboundMessage.message_id == clave).first():

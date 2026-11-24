@@ -183,6 +183,8 @@
 .egantt-label-5 {
   color: var(--text-3);
   margin: 0 8px;
+  display: inline-flex;
+  vertical-align: middle;
 }
 
 .egantt-label-6 {
@@ -284,18 +286,6 @@
 .epic-gantt-page-e7 {
   color: var(--epic-gantt-page-color);
 }
-.epic-gantt-page-e8 {
-  background: var(--surface-3);
-  border: 1px solid var(--surface-4);
-  border-radius: 8px;
-  padding: 9px 13px;
-  color: var(--text-1);
-  font-size: var(--text-base);
-  outline: none;
-  font-family: inherit;
-  box-sizing: border-box;
-  width: 120px;
-}
 .epic-gantt-page-e9 {
   background: var(--surface-2);
   border: 1px solid var(--surface-4);
@@ -337,18 +327,6 @@
   display: block;
   margin-bottom: 5px;
 }
-.epic-gantt-page-e14 {
-  width: 100%;
-  background: var(--surface-3);
-  border: 1px solid var(--surface-4);
-  border-radius: 8px;
-  padding: 9px 13px;
-  color: var(--text-1);
-  font-size: var(--text-base);
-  outline: none;
-  font-family: inherit;
-  box-sizing: border-box;
-}
 .epic-gantt-page-e15 {
   background: var(--surface-2);
   border: 1px solid var(--surface-4);
@@ -359,6 +337,3 @@
 /* <<< estilos-en-linea */
 
 /* 16-11-2026 (pasada de diseño): filtro de proyecto en barra y borrar con IconButton. */
-.egantt-filtros { margin-bottom: 20px; }
-.egantt-proyecto { flex: 1; min-width: 0; max-width: 480px; cursor: pointer; }
-.egantt-label-5 { display: inline-flex; vertical-align: middle; }

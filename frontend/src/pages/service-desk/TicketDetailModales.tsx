@@ -9,7 +9,7 @@ import { Buscador, Button, Modal, Pulsable, Select, Input, Textarea } from '../.
 import AIInlineEditor from '../../components/AIInlineEditor'
 import { sdCannedApi, ticketsApi } from '../../services/api'
 import { STALE_DEFAULT_MS } from '../../constants/timings'
-import { type CannedResponse, LS, type TicketShape } from './TicketDetailComun'
+import { type CannedResponse, type TicketShape } from './TicketDetailComun'
 import { ESTADOS_TICKET_RESUELTOS } from '../../constants/estadosDeTicket'
 
 export function CannedResponsePicker({ onSelect, onClose }: { onSelect: (body: string) => void; onClose: () => void }) {
@@ -93,23 +93,11 @@ export function SplitTicketModal({ ticket, onClose, onCreated }: { ticket: Ticke
           {t('service_desk.split_desc_original')} <strong className="u-text1">{ticket?.number}</strong>.
         </div>
         <div className="u-grid2-14">
-          <div>
-            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className={LS}>{t('service_desk.split_title_lbl')} *</label>
-            <Input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.new_title} onChange={e => setForm(f => ({ ...f, new_title: e.target.value }))} autoFocus inputClassName="tkd-input" />
-          </div>
-          <div>
-            <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className={LS}>{t('service_desk.split_tags_lbl')}</label>
-            <Input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.tags} onChange={e => setForm(f => ({ ...f, tags: e.target.value }))} inputClassName="tkd-input" />
-          </div>
+          <Input label={<>{t('service_desk.split_title_lbl')}*</>} id={`${idCampo}-1`} value={form.new_title} onChange={e => setForm(f => ({ ...f, new_title: e.target.value }))} autoFocus />
+          <Input label={t('service_desk.split_tags_lbl')} id={`${idCampo}-2`} value={form.tags} onChange={e => setForm(f => ({ ...f, tags: e.target.value }))} />
         </div>
-        <div>
-          <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className={LS}>{t('service_desk.split_desc_child')}</label>
-          <Textarea id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.new_description} onChange={e => setForm(f => ({ ...f, new_description: e.target.value }))} rows={4} inputClassName="tkd-input" />
-        </div>
-        <div>
-          <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className={LS}>{t('service_desk.split_desc_original')}</label>
-          <Textarea id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.keep_original_description} onChange={e => setForm(f => ({ ...f, keep_original_description: e.target.value }))} rows={4} inputClassName="tkd-input" />
-        </div>
+        <Textarea label={t('service_desk.split_desc_child')} id={`${idCampo}-3`} value={form.new_description} onChange={e => setForm(f => ({ ...f, new_description: e.target.value }))} rows={4} />
+        <Textarea label={t('service_desk.split_desc_original')} id={`${idCampo}-4`} value={form.keep_original_description} onChange={e => setForm(f => ({ ...f, keep_original_description: e.target.value }))} rows={4} />
         <div className="u-actions-10">
           <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
           <Button icon={<Scissors size={14} />} onClick={handleSave} disabled={isPending || !form.new_title.trim()} loading={isPending}>{t('service_desk.split_create_btn')}</Button>
@@ -146,59 +134,41 @@ export function TicketEditModal({ ticket, onClose, onSaved }: { ticket: TicketSh
     <Modal open title={`${t('common.edit')} ${ticket.number}`} onClose={onClose} size="lg">
       <div className="tkd-edit-grid">
         <div className="u-col-full">
-          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className={LS}>{t('service_desk.ticket_title')} *</label>
-          <Input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.title} onChange={set('title')} inputClassName="tkd-input" />
+          <Input label={<>{t('service_desk.ticket_title')}*</>} id={`${idCampo}-1`} value={form.title} onChange={set('title')} />
         </div>
-        <div>
-          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className={LS}>{t('service_desk.ticket_type')}</label>
-          <Select suelto placeholder={false} id={`${idCampo}-2`} value={form.ticket_type} onChange={set('ticket_type')} className="tkd-sel">
+        <Select label={t('service_desk.ticket_type')} placeholder={false} id={`${idCampo}-2`} value={form.ticket_type} onChange={set('ticket_type')}>
             {[['incident', t('service_desk.type_incident')], ['service_request', t('service_desk.type_service_request')],
               ['change', t('service_desk.type_change')], ['problem', t('service_desk.type_problem')], ['question', t('service_desk.type_question')]
             ].map(([v, l]) => <option key={v} value={v}>{l}</option>)}
           </Select>
-        </div>
-        <div>
-          <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className={LS}>{t('service_desk.ticket_priority')}</label>
-          <Select suelto placeholder={false} id={`${idCampo}-3`} value={form.priority} onChange={set('priority')} className="tkd-sel">
+        <Select label={t('service_desk.ticket_priority')} placeholder={false} id={`${idCampo}-3`} value={form.priority} onChange={set('priority')}>
             {[['p1_critical', t('service_desk.priority_p1')], ['p2_high', t('service_desk.priority_p2')],
               ['p3_medium', t('service_desk.priority_p3')], ['p4_low', t('service_desk.priority_p4')]
             ].map(([v, l]) => <option key={v} value={v}>{l}</option>)}
           </Select>
-        </div>
-        <div>
-          <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className={LS}>{t('service_desk.edit_urgency')}</label>
-          <Select suelto placeholder={false} id={`${idCampo}-4`} value={form.urgency} onChange={set('urgency')} className="tkd-sel">
+        <Select label={t('service_desk.edit_urgency')} placeholder={false} id={`${idCampo}-4`} value={form.urgency} onChange={set('urgency')}>
             {[['critical', t('service_desk.urgency_critical')], ['high', t('service_desk.urgency_high')], ['medium', t('service_desk.urgency_medium')], ['low', t('service_desk.urgency_low')]].map(([v, l]) => <option key={v} value={v}>{l}</option>)}
           </Select>
-        </div>
-        <div>
-          <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className={LS}>{t('service_desk.edit_impact')}</label>
-          <Select suelto placeholder={false} id={`${idCampo}-5`} value={form.impact} onChange={set('impact')} className="tkd-sel">
+        <Select label={t('service_desk.edit_impact')} placeholder={false} id={`${idCampo}-5`} value={form.impact} onChange={set('impact')}>
             {[['enterprise', t('service_desk.impact_enterprise')], ['department', t('service_desk.impact_department')], ['user', t('service_desk.impact_user')], ['minimal', t('service_desk.impact_minimal')]].map(([v, l]) => <option key={v} value={v}>{l}</option>)}
           </Select>
-        </div>
-        <div>
-          <label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} className={LS}>{t('common.status')}</label>
-          <Select suelto placeholder={false} id={`${idCampo}-6`} value={form.status} onChange={set('status')} className="tkd-sel">
+        <Select label={t('common.status')} placeholder={false} id={`${idCampo}-6`} value={form.status} onChange={set('status')}>
             {[['new', t('service_desk.status_new')], ['assigned', t('service_desk.status_assigned')], ['in_progress', t('service_desk.status_in_progress')],
               ['pending_client', t('service_desk.status_waiting_client')], ['pending_third', t('service_desk.status_pending_third')],
               ['resolved', t('service_desk.status_resolved')], ['closed', t('service_desk.status_closed')], ['cancelled', t('service_desk.status_cancelled')]
             ].map(([v, l]) => <option key={v} value={v}>{l}</option>)}
           </Select>
-        </div>
         <div className="u-col-full">
-          <label htmlFor={`${idCampo}-desc`} className={LS}>{t('common.description')} *</label>
+          <label htmlFor={`${idCampo}-desc`} className="uiinde-estiloetiqueta">{t('common.description')} *</label>
           <AIInlineEditor inputId={`${idCampo}-desc`} value={form.description} onChange={(val: string) => set('description')({ target: { value: val } })} rows={5} className="campo-form tkd-vertical" />
         </div>
         {ESTADOS_TICKET_RESUELTOS.includes(form.status) && (
           <div className="u-col-full">
-            <label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} className={LS}>{t('service_desk.edit_resolution')}</label>
-            <Textarea id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} value={form.resolution} onChange={set('resolution')} rows={3} inputClassName="tkd-input" />
+            <Textarea label={t('service_desk.edit_resolution')} id={`${idCampo}-7`} value={form.resolution} onChange={set('resolution')} rows={3} />
           </div>
         )}
         <div className="u-col-full">
-          <label id={`${idCampo}-et8`} htmlFor={`${idCampo}-8`} className={LS}>{t('service_desk.edit_tags')}</label>
-          <Input id={`${idCampo}-8`} aria-labelledby={`${idCampo}-et8`} value={form.tags} onChange={set('tags')} inputClassName="tkd-input" />
+          <Input label={t('service_desk.edit_tags')} id={`${idCampo}-8`} value={form.tags} onChange={set('tags')} />
         </div>
         <div className="tkd-full-actions">
           <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>

@@ -35,7 +35,6 @@
 }
 .sdqr-mi-banner__number { font-weight: 600; font-size: var(--text-sm); color: var(--danger); margin-right: 10px; }
 .sdqr-mi-banner__text { font-size: var(--text-base); color: var(--text-1); overflow-wrap: anywhere; }
-.campo-form.sdqr-textarea { resize: vertical; }
 
 /* Reglas de enrutado */
 .sdqr-flex { flex: 1; min-width: 200px; }
@@ -73,7 +72,7 @@
 }
 .sdqr-day[aria-pressed='true'] { background: var(--accent-muted); border-color: var(--accent); color: var(--accent); }
 
-@media (max-width: 560px) {
+@media (width <= 560px) {
   .sdqr-entry { grid-template-columns: 1fr 32px; }
   .sdqr-entry > div:nth-child(2) { grid-column: 1 / 2; }
 }

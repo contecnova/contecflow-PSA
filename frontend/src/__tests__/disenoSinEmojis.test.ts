@@ -41,6 +41,8 @@ const ALCANCE = [
 /** Líneas con emoji permitidas: el emoji es contenido, no un icono. */
 const PERMITIDAS: Array<[string, RegExp]> = [
   ['pages/chat/Mensajes.tsx', /\['👍'/],
+  // 24-11-2026: el selector de emojis del chat (interno y portal) ofrece emojis: son su contenido.
+  ['components/ui/SelectorDeEmoji.tsx', /^\s*(export const REACCIONES_RAPIDAS = \[|'\S)/],
 ]
 
 function* ficheros(rel: string): Generator<string> {

@@ -1448,6 +1448,26 @@ case "${1:-}" in
     "$PY_BIN" scripts/copia_local.py restore "$2"
     log "Restaurado. Arranca con: ./setup.sh start"
     ;;
+  test-postgres)
+    # 24-11-2026: a mano, nunca en hooks ni CI. PostgreSQL efímero en Docker
+    # (contenedor propio, datos en tmpfs, nunca los volúmenes contecflow_*);
+    # lo demás se pasa a pytest. Ver README, "Calidad a mano".
+    cd "$SCRIPT_DIR"
+    resolve_venv_bins
+    [ -x "$PY_BIN" ] || { error "Falta el entorno virtual. Ejecuta antes ./setup.sh clean o demo"; exit 1; }
+    "$PY_BIN" scripts/test_postgres.py "${@:2}"
+    ;;
+  cobertura)
+    # Informes en cobertura/ (ignorada por git), sin umbrales.
+    cd "$SCRIPT_DIR"
+    resolve_venv_bins
+    [ -x "$PY_BIN" ] || { error "Falta el entorno virtual. Ejecuta antes ./setup.sh clean o demo"; exit 1; }
+    "$PY_BIN" scripts/cobertura.py "${@:2}"
+    ;;
+  lint-css)
+    cd "$SCRIPT_DIR/frontend"
+    npm run lint:css
+    ;;
   update)
     log "Modo: actualizar"
     setup_backend
@@ -1467,6 +1487,9 @@ case "${1:-}" in
     echo "  ./setup.sh docker-clean  → para Docker y borra los volúmenes regenerables (conserva PostgreSQL y S3)"
     echo "  ./setup.sh backup        → copia local: base (SQLite o PostgreSQL) + uploads/ en backups/"
     echo "  ./setup.sh restore <carpeta> → verifica, para la app y restaura (pide confirmación)"
+    echo "  ./setup.sh test-postgres [args de pytest] → tests contra un PostgreSQL efímero en Docker"
+    echo "  ./setup.sh cobertura [--solo backend|frontend] [args de pytest] → informes en cobertura/"
+    echo "  ./setup.sh lint-css      → stylelint sobre frontend/src"
     echo ""
     echo "  Puertos: BACKEND_PORT=8010 FRONTEND_PORT=3010 CF_REDIS_PORT=6381 ./setup.sh start"
     echo "  Tareas:  CONTECFLOW_TAREAS=auto|celery|integrado (auto: Celery si hay Redis; si no, integrado)"

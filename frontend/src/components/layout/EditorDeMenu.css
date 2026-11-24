@@ -27,7 +27,7 @@
 .editor-menu__casilla { flex: 1; min-width: 0; font-size: var(--text-sm); color: var(--text-2); }
 .editor-menu__pestana--oculta .editor-menu__casilla { color: var(--text-3); }
 
-@media (max-width: 640px) {
+@media (width <= 640px) {
   .editor-menu__cuenta { display: none; }
   .editor-menu__fila, .editor-menu__pestana { min-height: 40px; }
   .editor-menu__mover { padding: 8px; }

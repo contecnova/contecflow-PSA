@@ -38,7 +38,6 @@ import {
   type AlmContract,
   aPagina,
   type CambioDeCampo,
-  claseCampo,
   type CostCenter,
   type DatosValidos,
   ENTORNO_KEY,
@@ -131,53 +130,46 @@ function LicenseModal({ license, vendors, contracts, costCenters, onClose }: { l
     <Modal open onClose={onClose} title={isEdit ? t('alm.licenses_modal_edit') : t('alm.licenses_modal_new')} width={720}>
       <div className="u-grid2-14">
         <div className="u-col-full">
-          <Input label={<>{t('alm.licenses_label_name')} *</>} id={`${idCampo}-1`} value={form.name} onChange={s('name')} aria-invalid={!!validation.errors.name} placeholder={t('alm.licenses_placeholder_name')} className="claseCampo validation errors name" />{msgB('name')}
+          <Input label={<>{t('alm.licenses_label_name')} *</>} id={`${idCampo}-1`} value={form.name} onChange={s('name')} aria-invalid={!!validation.errors.name} placeholder={t('alm.licenses_placeholder_name')} />{msgB('name')}
           {validation.errors.name && <p className="u-field-error">{validation.errors.name}</p>}
         </div>
-        <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="alm-label">{t('alm.licenses_label_product')}</label><Input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.product_name} onChange={s('product_name')} placeholder={t('alm.licenses_placeholder_product')} inputClassName="alm-input" />{msgB('product_name')}</div>
-        <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="alm-label">{t('alm.licenses_label_edition')}</label><Input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.edition} onChange={s('edition')} placeholder={t('alm.licenses_placeholder_edition')} inputClassName="alm-input" />{msgB('edition')}</div>
-        <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="alm-label">{t('alm.licenses_label_version')}</label><Input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.version} onChange={s('version')} placeholder={t('alm.licenses_placeholder_version')} inputClassName="alm-input" />{msgB('version')}</div>
+        <div><Input label={t('alm.licenses_label_product')} id={`${idCampo}-2`} value={form.product_name} onChange={s('product_name')} placeholder={t('alm.licenses_placeholder_product')} />{msgB('product_name')}</div>
+        <div><Input label={t('alm.licenses_label_edition')} id={`${idCampo}-3`} value={form.edition} onChange={s('edition')} placeholder={t('alm.licenses_placeholder_edition')} />{msgB('edition')}</div>
+        <div><Input label={t('alm.licenses_label_version')} id={`${idCampo}-4`} value={form.version} onChange={s('version')} placeholder={t('alm.licenses_placeholder_version')} />{msgB('version')}</div>
         <div>
-          <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="alm-label">{t('alm.licenses_label_type')}</label>
-          <Select suelto placeholder={false} id={`${idCampo}-5`} value={form.type} onChange={s('type')} className="alm-input">
+          <Select label={t('alm.licenses_label_type')} placeholder={false} id={`${idCampo}-5`} value={form.type} onChange={s('type')}>
             {Object.keys(LICENSE_TYPES).map(k => <option key={k} value={k}>{t(`alm.license_type_${k}`)}</option>)}
           </Select>{msgB('type')}
         </div>
         <div>
-          <label htmlFor={`${idCampo}-metric`} className="alm-label">{t('alm.metric')}</label>
-          <Select suelto placeholder={false} id={`${idCampo}-metric`} value={form.metric} onChange={s('metric')} className="alm-input">
+          <Select label={t('alm.metric')} placeholder={false} id={`${idCampo}-metric`} value={form.metric} onChange={s('metric')}>
             {METRICAS.map(k => <option key={k} value={k}>{t(`alm.metric_${k}`)}</option>)}
           </Select>{msgB('metric')}
           <p className="alm-hint">{t(`alm.metric_${form.metric}_hint`)}</p>
         </div>
         <div>
-          <label htmlFor={`${idCampo}-tier`} className="alm-label">{t('alm.tier')}</label>
-          <Input id={`${idCampo}-tier`} value={form.tier} onChange={s('tier')} placeholder={t('alm.tier_placeholder')} inputClassName="alm-input" />{msgB('tier')}
+          <Input label={t('alm.tier')} id={`${idCampo}-tier`} value={form.tier} onChange={s('tier')} placeholder={t('alm.tier_placeholder')} />{msgB('tier')}
         </div>
         <div>
           <Input label={t('alm.tier_rank')} id={`${idCampo}-tierrank`} type="number" min={0} value={form.tier_rank} onChange={s('tier_rank')} />{msgB('tier_rank')}
           <p className="alm-hint">{t('alm.tier_rank_hint')}</p>
         </div>
         <div>
-          <label htmlFor={`${idCampo}-sku`} className="alm-label">{t('alm.sku')}</label>
-          <Input id={`${idCampo}-sku`} value={form.sku} onChange={s('sku')} inputClassName="alm-input" />{msgB('sku')}
+          <Input label={t('alm.sku')} id={`${idCampo}-sku`} value={form.sku} onChange={s('sku')} />{msgB('sku')}
         </div>
         <div>
-          <label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} className="alm-label">{t('alm.licenses_label_platform')}</label>
-          <Select suelto placeholder={false} id={`${idCampo}-6`} value={form.platform} onChange={s('platform')} className="alm-input">
+          <Select label={t('alm.licenses_label_platform')} placeholder={false} id={`${idCampo}-6`} value={form.platform} onChange={s('platform')}>
             {[['any',t('alm.licenses_platform_all')],['windows','Windows'],['mac','macOS'],['linux','Linux'],['web',t('alm.licenses_platform_web')],['mobile',t('alm.licenses_platform_mobile')]].map(([k,l]) => <option key={k} value={k}>{l}</option>)}
           </Select>{msgB('platform')}
         </div>
         <div>
-          <label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} className="alm-label">{t('alm.licenses_label_vendor')}</label>
-          <Select suelto placeholder={false} id={`${idCampo}-7`} value={form.vendor_id} onChange={s('vendor_id')} className="alm-input">
+          <Select label={t('alm.licenses_label_vendor')} placeholder={false} id={`${idCampo}-7`} value={form.vendor_id} onChange={s('vendor_id')}>
             <option value="">{t('alm.licenses_none_vendor')}</option>
             {vendors.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
           </Select>{msgB('vendor_id')}
         </div>
         <div>
-          <label id={`${idCampo}-et8`} htmlFor={`${idCampo}-8`} className="alm-label">{t('alm.licenses_label_contract')}</label>
-          <Select suelto placeholder={false} id={`${idCampo}-8`} value={form.contract_id} onChange={s('contract_id')} className="alm-input">
+          <Select label={t('alm.licenses_label_contract')} placeholder={false} id={`${idCampo}-8`} value={form.contract_id} onChange={s('contract_id')}>
             <option value="">{t('alm.licenses_none_contract')}</option>
             {contracts.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
           </Select>{msgB('contract_id')}
@@ -195,21 +187,18 @@ function LicenseModal({ license, vendors, contracts, costCenters, onClose }: { l
           {validation.errors.purchase_price && <p className="u-field-error">{validation.errors.purchase_price}</p>}
         </div>
         <div>
-          <label id={`${idCampo}-et12`} htmlFor={`${idCampo}-12`} className="alm-label">{t('alm.licenses_label_cost_center')}</label>
-          <Select suelto placeholder={false} id={`${idCampo}-12`} value={form.cost_center_id} onChange={s('cost_center_id')} className="alm-input">
+          <Select label={t('alm.licenses_label_cost_center')} placeholder={false} id={`${idCampo}-12`} value={form.cost_center_id} onChange={s('cost_center_id')}>
             <option value="">{t('alm.licenses_none_cost_center')}</option>
             {costCenters.map(c => <option key={c.id} value={c.id}>{c.code} — {c.name}</option>)}
           </Select>{msgB('cost_center_id')}
         </div>
-        <div><label id={`${idCampo}-et13`} htmlFor={`${idCampo}-13`} className="alm-label">{t('alm.licenses_label_purchase_date')}</label><DateInput id={`${idCampo}-13`} value={form.purchase_date} onChange={s('purchase_date')} className={claseCampo(validation.errors.purchase_date)} aria-invalid={!!validation.errors.purchase_date} />{msgB('purchase_date')}</div>
+        <div><DateInput label={t('alm.licenses_label_purchase_date')} id={`${idCampo}-13`} value={form.purchase_date} onChange={s('purchase_date')} aria-invalid={!!validation.errors.purchase_date} />{msgB('purchase_date')}</div>
         <div>
-          <label id={`${idCampo}-et14`} htmlFor={`${idCampo}-14`} className="alm-label">{t('alm.licenses_label_expiry_date')}</label>
-          <DateInput id={`${idCampo}-14`} value={form.expiry_date} onChange={s('expiry_date')} className={claseCampo(validation.errors.expiry_date)} aria-invalid={!!validation.errors.expiry_date} />{msgB('expiry_date')}
+          <DateInput label={t('alm.licenses_label_expiry_date')} id={`${idCampo}-14`} value={form.expiry_date} onChange={s('expiry_date')} aria-invalid={!!validation.errors.expiry_date} />{msgB('expiry_date')}
           {validation.errors.expiry_date && <p className="u-field-error">{validation.errors.expiry_date}</p>}
         </div>
         <div>
-          <label id={`${idCampo}-et15`} htmlFor={`${idCampo}-15`} className="alm-label">{t('alm.licenses_label_environment')}</label>
-          <Select suelto placeholder={false} id={`${idCampo}-15`} value={form.environment} onChange={s('environment')} className="alm-input">
+          <Select label={t('alm.licenses_label_environment')} placeholder={false} id={`${idCampo}-15`} value={form.environment} onChange={s('environment')}>
             {[['all',t('alm.licenses_env_all')],['prod',t('alm.licenses_env_production')],['staging',t('alm.licenses_env_staging')],['dev',t('alm.licenses_env_dev')]].map(([k,l]) => <option key={k} value={k}>{l}</option>)}
           </Select>{msgB('environment')}
         </div>
@@ -226,11 +215,10 @@ function LicenseModal({ license, vendors, contracts, costCenters, onClose }: { l
           <label htmlFor={`${idCampo}-rebill`} className="alm-check-label">{t('alm.rebillable_default')}</label>
         </div>
         <div className="u-col-full">
-          <label htmlFor={`${idCampo}-16`} className="alm-label">{t('alm.licenses_label_key')}</label>
-          <Input id={`${idCampo}-16`} value={form.license_key} onChange={s('license_key')} autoComplete="off" placeholder={license?.has_key ? t('alm.key_keep', { hint: license.license_key_hint ?? '' }) : t('alm.licenses_placeholder_key')} inputClassName="ds-codigo alm-input alm-input--mono ds-campo-codigo" />{msgB('license_key')}
+          <Input label={t('alm.licenses_label_key')} id={`${idCampo}-16`} value={form.license_key} onChange={s('license_key')} autoComplete="off" placeholder={license?.has_key ? t('alm.key_keep', { hint: license.license_key_hint ?? '' }) : t('alm.licenses_placeholder_key')} inputClassName="ds-codigo ds-campo-codigo" />{msgB('license_key')}
           <p className="alm-hint">{t('alm.key_encrypted_hint')}</p>
         </div>
-        <div className="u-col-full"><label id={`${idCampo}-et17`} htmlFor={`${idCampo}-17`} className="alm-label">{t('alm.contracts_label_notes')}</label><Textarea id={`${idCampo}-17`} aria-labelledby={`${idCampo}-et17`} value={form.notes} onChange={s('notes')} rows={3} inputClassName="alm-input" />{msgB('notes')}</div>
+        <div className="u-col-full"><Textarea label={t('alm.contracts_label_notes')} id={`${idCampo}-17`} value={form.notes} onChange={s('notes')} rows={3} />{msgB('notes')}</div>
       </div>
       <div className="alm-modal-actions">
         <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>

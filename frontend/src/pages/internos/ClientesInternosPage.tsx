@@ -11,7 +11,7 @@ import { useState } from 'react'
 import type { ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Building2, LayoutDashboard, Receipt, Target } from 'lucide-react'
-import { EmptyState, Select, Tabs } from '../../components/ui'
+import { EmptyState, Select, Tabs, SelectorDeContexto } from '../../components/ui'
 import PageHeader from '../../components/layout/PageHeader'
 import PageShell from '../../components/layout/PageShell'
 import { clientesInternosApi } from '../../services/api/clientesInternos'
@@ -48,7 +48,7 @@ export default function ClientesInternosPage() {
         {tab === 'charges' && <PestanaCargos unidades={unidades} />}
         {tab === 'unit' && (
           <div className="u-stack-8">
-            <div className="int-barra__filtros">
+            <SelectorDeContexto>
               <Select label={t('internos.col_unidad')} value={unidad} onChange={e => setUnidad(e.target.value)}
                 placeholder={t('internos.elegir')} options={unidades.map(u => ({ value: u.id, label: u.name }))} />
               {elegida && (
@@ -57,7 +57,7 @@ export default function ClientesInternosPage() {
                     elegida.business_owner_name && t('internos.responsable_de', { name: elegida.business_owner_name })].filter(Boolean).join(' · ')}
                 </span>
               )}
-            </div>
+            </SelectorDeContexto>
             {elegida && <AvisosInternos avisos={elegida.warnings} />}
             {unidad ? <FichaDeUnidad key={unidad} cid={unidad} /> : (
               <EmptyState icon={<Building2 size={28} />} title={t('internos.elige_unidad')} description={t('internos.elige_unidad_d')} />

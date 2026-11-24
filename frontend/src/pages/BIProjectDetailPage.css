@@ -22,10 +22,10 @@
 .bipd-kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px; }
 .bipd-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .bipd-grid2--mt { margin-top: 16px; }
-@media (max-width: 900px) {
+@media (width <= 900px) {
   .bipd-grid2 { grid-template-columns: 1fr; }
 }
-@media (max-width: 600px) {
+@media (width <= 600px) {
   .bipd-kpis { grid-template-columns: 1fr; }
 }
 

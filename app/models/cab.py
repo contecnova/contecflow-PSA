@@ -30,7 +30,7 @@ class CABVote(Base):
     __tablename__ = "cab_votes"
 
     id               = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)  # audit #7
     change_request_id = Column(String(36), ForeignKey("change_requests.id", ondelete="CASCADE"),
                                nullable=False, index=True)
     voter_id         = Column(String(36), ForeignKey("users.id", ondelete="RESTRICT"), nullable=False, index=True)
@@ -47,7 +47,7 @@ class MaintenanceWindow(Base):
     __tablename__ = "maintenance_windows"
 
     id              = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     name        = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
     start_dt    = Column(DateTime(timezone=True), nullable=False, index=True)
@@ -69,7 +69,7 @@ class ChangeRequestWindow(Base):
     __tablename__ = "change_request_windows"
 
     id                 = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)  # audit #7
     change_request_id  = Column(String(36), ForeignKey("change_requests.id", ondelete="CASCADE"),
                                 nullable=False, index=True)
     window_id          = Column(String(36), ForeignKey("maintenance_windows.id", ondelete="CASCADE"),
@@ -89,7 +89,7 @@ class WebhookTrigger(Base):
     __tablename__ = "webhook_triggers"
 
     id              = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     name        = Column(String(255), nullable=False)
     slug        = Column(String(100), nullable=False, unique=True, index=True)  # URL key
     slug_rotated_at = Column(DateTime(timezone=True), nullable=True)
@@ -114,7 +114,7 @@ class WebhookTriggerLog(Base):
     __tablename__ = "webhook_trigger_logs"
 
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)  # audit #7
     trigger_id  = Column(String(36), ForeignKey("webhook_triggers.id", ondelete="CASCADE"),
                          nullable=False, index=True)
     payload     = Column(Text, nullable=True)       # JSON body received
@@ -133,7 +133,7 @@ class EmailTemplate(Base):
     __tablename__ = "email_templates"
 
     id              = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     name        = Column(String(255), nullable=False)
     subject     = Column(String(500), nullable=False)
     body_html   = Column(Text, nullable=False)    # Jinja2-compatible HTML
@@ -159,7 +159,7 @@ class EmailLog(Base):
     __tablename__ = "email_logs"
 
     id           = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)  # audit #7
     to_address   = Column(String(255), nullable=False, index=True)
     cc_addresses = Column(Text, nullable=True)    # JSON array
     subject      = Column(String(500), nullable=False)
@@ -197,7 +197,7 @@ class GDPRRequest(Base):
     __tablename__ = "gdpr_requests"
 
     id           = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)  # audit #7
     request_type = Column(Enum(GDPRRequestType), nullable=False, index=True)
     subject_user_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     subject_email = Column(String(255), nullable=True)  # For deleted users
@@ -236,7 +236,7 @@ class IntegrationConfig(Base):
     __tablename__ = "integration_configs"
 
     id              = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     integration_type = Column(Enum(IntegrationType), nullable=False, index=True)
     name            = Column(String(255), nullable=False)
     is_active       = Column(Boolean, default=True)
@@ -266,7 +266,7 @@ class CommitLink(Base):
     __tablename__ = "commit_links"
 
     id              = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)  # audit #7
     task_id         = Column(String(36), ForeignKey("tasks.id", ondelete="CASCADE"),
                              nullable=False, index=True)
     integration_id  = Column(String(36), ForeignKey("integration_configs.id", ondelete="SET NULL"), nullable=True, index=True)
@@ -288,7 +288,7 @@ class CalendarEvent(Base):
     __tablename__ = "calendar_events"
 
     id              = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)  # audit #7
     integration_id  = Column(String(36), ForeignKey("integration_configs.id", ondelete="SET NULL"), nullable=True, index=True)
     external_id     = Column(String(255), nullable=True, index=True)  # Google/Outlook event ID
     user_id         = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
@@ -320,7 +320,7 @@ class DashboardWidget(Base):
     __tablename__ = "dashboard_widgets"
 
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)  # audit #7
     user_id     = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"),
                          nullable=False, index=True)
     widget_type = Column(String(50), nullable=False)   # kpi_hours | chart_margin | list_tasks...
@@ -344,7 +344,7 @@ class OnboardingState(Base):
     __tablename__ = "onboarding_states"
 
     id              = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)  # audit #7
     user_id         = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"),
                              nullable=False, unique=True, index=True)
     current_step    = Column(Integer, default=0)       # 0=not started, 5=complete
@@ -364,7 +364,7 @@ class ProjectRiskScore(Base):
     __tablename__ = "project_risk_scores"
 
     id              = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)  # audit #7
     project_id      = Column(String(36), ForeignKey("projects.id", ondelete="CASCADE"),
                              nullable=False, index=True)
     computed_at     = Column(DateTime(timezone=True), server_default=func.now(), index=True)

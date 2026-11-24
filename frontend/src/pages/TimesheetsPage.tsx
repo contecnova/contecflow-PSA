@@ -112,8 +112,7 @@ function WeekLines({ weekStart, onClose }: { weekStart: string; onClose: () => v
                       <Input value={editForm.description}
                         onChange={e => setEditForm(f => ({ ...f, description: e.target.value }))}
                         placeholder={t('timesheets.descripcion_del_trabajo')}
-                        aria-label={t('timesheets.descripcion_del_trabajo')}
-                        inputClassName="ts-line-input--desc" />
+                        aria-label={t('timesheets.descripcion_del_trabajo')} inputClassName="ts-line-input--desc" />
                       <Button size="sm" icon={<Check size={14} />} onClick={() => updateLine({ id: l.id, data: { hours: editForm.hours, description: editForm.description } })}
                         loading={updating} disabled={updating || editForm.hours <= 0}>
                         {t('timesheets.guardar')}
@@ -188,8 +187,7 @@ function ReviewModal({ timesheet, onClose }: { timesheet: TimesheetItem; onClose
             </div>
           ))}
         </div>
-        <label id={`${idCampo}-etnotas`} htmlFor={`${idCampo}-notas`} className="ts-label">{t('timesheets.notas_opcional')}</label>
-        <Textarea id={`${idCampo}-notas`} aria-labelledby={`${idCampo}-etnotas`} value={notes} onChange={e => setNotes(e.target.value)} rows={3} placeholder={t('timesheets.notas_de_revision')} inputClassName="ts-textarea" />
+        <Textarea label={t('timesheets.notas_opcional')} id={`${idCampo}-notas`} value={notes} onChange={e => setNotes(e.target.value)} rows={3} placeholder={t('timesheets.notas_de_revision')} />
       </div>
       <div className="u-actions-10">
         <Button variant="secondary" onClick={onClose}>{t('timesheets.cancelar')}</Button>

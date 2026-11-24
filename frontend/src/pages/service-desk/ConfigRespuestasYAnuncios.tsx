@@ -12,7 +12,7 @@ import { DialogoDeVersionesDeContenido } from '../../components/traduccion/Versi
 import type { StatusBadgeKind } from '../../components/ui/StatusBadge'
 import { sdCannedApi, sdAnnouncementsApi } from '../../services/api'
 import DateInput from '../../components/ui/DateInput'
-import { type Ann, type Canned, type CannedForm, IS_BASE, LS_BASE, type Traduciendo, useAvisoDeDesactualizadas } from './ConfigTabComun'
+import { type Ann, type Canned, type CannedForm, type Traduciendo, useAvisoDeDesactualizadas } from './ConfigTabComun'
 
 // ── Canned Responses Manager ──────────────────────────────────────────────────
 export function CannedResponsesManager() {
@@ -121,8 +121,6 @@ export function AnnouncementsConfig() {
     setEditando(a.id); setShowCreate(true)
   }
 
-  const IS = IS_BASE
-  const LS = LS_BASE
   const TYPE_KIND: Record<string, StatusBadgeKind> = { info: 'accent', warning: 'warning', outage: 'danger', maintenance: 'purple' }
   const ANN_TYPES = ['info','warning','outage','maintenance']
 
@@ -188,16 +186,14 @@ export function AnnouncementsConfig() {
         <Modal open title={editando ? t('traduccion_admin.portal_aviso_editar') : t('sd_cfg.cfg_ann_new')} onClose={cerrar}>
           <div className="sdcfg-ann-form">
             <div className="u-col-full"><Input id={`${idCampo}-1`} label={t('sd_cfg.cfg_ann_title')} required value={form.title} onChange={e=>{ campos.limpiar('title'); setForm(f=>({...f,title:e.target.value})) }} error={campos.de('title')} /></div>
-            <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className={LS}>{t('sd_mercado.tipo')}</label>
-              <Select suelto placeholder={false} id={`${idCampo}-2`} value={form.type} onChange={e=>setForm(f=>({...f,type:e.target.value}))} className="sdcfg-sel">
+            <Select label={t('sd_mercado.tipo')} placeholder={false} id={`${idCampo}-2`} value={form.type} onChange={e=>setForm(f=>({...f,type:e.target.value}))}>
                 {ANN_TYPES.map(tp=><option key={tp} value={tp}>{t(`config.ann_tipo_${tp}`)}</option>)}
               </Select>
-            </div>
             <div className="sdcfg-ann-check">
               <Checkbox id="showCl" checked={form.show_to_clients} onChange={v=>setForm(f=>({...f,show_to_clients:v}))} label={t('service_desk.ann_visible_clients')} />
             </div>
-            <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className={LS}>{t('service_desk.ann_starts')}</label><DateInput id={`${idCampo}-3`} withTime value={form.starts_at} onChange={e=>setForm(f=>({...f,starts_at:e.target.value}))} className={IS} /></div>
-            <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className={LS}>{t('service_desk.ann_ends')}</label><DateInput id={`${idCampo}-4`} withTime value={form.ends_at} onChange={e=>setForm(f=>({...f,ends_at:e.target.value}))} className={IS} /></div>
+            <DateInput label={t('service_desk.ann_starts')} id={`${idCampo}-3`} withTime value={form.starts_at} onChange={e=>setForm(f=>({...f,starts_at:e.target.value}))} />
+            <DateInput label={t('service_desk.ann_ends')} id={`${idCampo}-4`} withTime value={form.ends_at} onChange={e=>setForm(f=>({...f,ends_at:e.target.value}))} />
             <div className="u-col-full"><FormField label={t('service_desk.ann_message')} required error={campos.de('body')}><Textarea id={`${idCampo}-5`} value={form.body} onChange={e=>{ campos.limpiar('body'); setForm(f=>({...f,body:e.target.value})) }} rows={4} /></FormField></div>
           </div>
           <div className="u-actions-10">

@@ -174,20 +174,20 @@ function BookingModal({ onClose, prefill }: { onClose: () => void; prefill?: Boo
   return (
     <Modal open title={t('resource_heatmap.new_booking_title')} onClose={onClose} width={480}>
       <div className="u-stack-14">
-        <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="resoheat-ls">{t('capacity.persona_obligatoria')}</label>
-          <Select suelto id={`${idCampo}-1`} value={form.user_id} onChange={setField('user_id')} className={validation.inputClass('ds-input', 'user_id')} placeholder={t('invoices.select')}>
+        <div>
+          <Select label={t('capacity.persona_obligatoria')} id={`${idCampo}-1`} value={form.user_id} onChange={setField('user_id')} placeholder={t('invoices.select')} aria-invalid={!!validation.errors.user_id}>
             {users.map(u => <option key={u.id} value={u.id}>{u.full_name}{u.role ? ` (${nombreDeRol(t, u.role)})` : ''}</option>)}
           </Select>{msg('user_id')}
           {validation.errors.user_id && <div className="u-field-error">{validation.errors.user_id}</div>}
         </div>
-        <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="resoheat-ls">{t('gas.proyecto')}</label>
-          <Select suelto id={`${idCampo}-2`} value={form.project_id} onChange={setField('project_id')} className="ds-input" placeholder={t('resourceheatmap.sin_proyecto')}>
+        <div>
+          <Select label={t('gas.proyecto')} id={`${idCampo}-2`} value={form.project_id} onChange={setField('project_id')} placeholder={t('resourceheatmap.sin_proyecto')}>
             {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
           </Select>{msg('project_id')}
         </div>
         <div className="u-grid2-12">
-          <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="resoheat-ls">{t('alm.type')}</label>
-            <Select suelto id={`${idCampo}-3`} value={form.booking_type} onChange={setField('booking_type')} className="ds-input" placeholder={false}>
+          <div>
+            <Select label={t('alm.type')} id={`${idCampo}-3`} value={form.booking_type} onChange={setField('booking_type')} placeholder={false}>
               <option value="hard">{t('resourceheatmap.hard_confirmado')}</option>
               <option value="soft">{t('resourceheatmap.soft_tentativo')}</option>
             </Select>{msg('booking_type')}
@@ -195,17 +195,17 @@ function BookingModal({ onClose, prefill }: { onClose: () => void; prefill?: Boo
           <div><Input label={t('resourceheatmap.h_dia')} id={`${idCampo}-4`} type="number" min={1} max={24} value={form.hours_per_day} onChange={setField('hours_per_day')} />{msg('hours_per_day')}
             {validation.errors.hours_per_day && <div className="u-field-error">{validation.errors.hours_per_day}</div>}
           </div>
-          <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="resoheat-ls">{t('resourceheatmap.fecha_inicio')}</label>
-            <DateInput id={`${idCampo}-5`} value={form.start_date} onChange={setField('start_date')} className={validation.inputClass('ds-input', 'start_date')} />{msg('start_date')}
+          <div>
+            <DateInput label={t('resourceheatmap.fecha_inicio')} id={`${idCampo}-5`} value={form.start_date} onChange={setField('start_date')} aria-invalid={!!validation.errors.start_date} />{msg('start_date')}
             {validation.errors.start_date && <div className="u-field-error">{validation.errors.start_date}</div>}
           </div>
-          <div><label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} className="resoheat-ls">{t('resourceheatmap.fecha_fin')}</label>
-            <DateInput id={`${idCampo}-6`} value={form.end_date} onChange={setField('end_date')} className={validation.inputClass('ds-input', 'end_date')} />{msg('end_date')}
+          <div>
+            <DateInput label={t('resourceheatmap.fecha_fin')} id={`${idCampo}-6`} value={form.end_date} onChange={setField('end_date')} aria-invalid={!!validation.errors.end_date} />{msg('end_date')}
             {validation.errors.end_date && <div className="u-field-error">{validation.errors.end_date}</div>}
           </div>
         </div>
-        <div><label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} className="resoheat-ls">{t('aus.nota')}</label>
-          <Input id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} value={form.note} onChange={setField('note')} placeholder={t('resourceheatmap.motivo_de_la_reserva')} />{msg('note')}
+        <div>
+          <Input label={t('aus.nota')} id={`${idCampo}-7`} value={form.note} onChange={setField('note')} placeholder={t('resourceheatmap.motivo_de_la_reserva')} />{msg('note')}
         </div>
         <div className="u-actions-10">
           <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>

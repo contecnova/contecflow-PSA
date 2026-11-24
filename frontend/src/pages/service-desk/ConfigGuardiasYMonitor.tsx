@@ -108,11 +108,10 @@ function FormCalendario({ colas, pendiente, onCancelar, onGuardar }: { colas: Co
   const [cola, setCola] = useState(colas[0]?.id ?? '')
   return (
     <div className="u-stack-12">
-      <div><label className="coguym-ls" htmlFor="oc-name">{t('sd_cfg.chg_name')} *</label><Input id="oc-name" aria-label={t('sd_cfg.chg_name')} value={nombre} onChange={e => setNombre(e.target.value)} /></div>
-      <div><label className="coguym-ls" htmlFor="oc-queue">{t('sd_cfg.oc_queue')} *</label>
-        <Select suelto placeholder={false} className="coguym-sel" id="oc-queue" aria-label={t('sd_cfg.oc_queue')} value={cola} onChange={e => setCola(e.target.value)}>
+      <Input label={<>{t('sd_cfg.chg_name')}*</>} id="oc-name" aria-label={t('sd_cfg.chg_name')} value={nombre} onChange={e => setNombre(e.target.value)} />
+      <Select label={<>{t('sd_cfg.oc_queue')}*</>} placeholder={false} id="oc-queue" aria-label={t('sd_cfg.oc_queue')} value={cola} onChange={e => setCola(e.target.value)}>
           {colas.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-        </Select></div>
+        </Select>
       <div className="u-actions-10">
         <Button variant="secondary" onClick={onCancelar}>{t('common.cancel')}</Button>
         <Button disabled={!nombre.trim() || !cola || pendiente} loading={pendiente} onClick={() => onGuardar({ name: nombre.trim(), group_id: cola })}>{t('common.save')}</Button>
@@ -129,13 +128,12 @@ function FormTurno({ personas, pendiente, onCancelar, onGuardar }: { personas: P
   const valido = persona && desde && hasta && hasta > desde
   return (
     <div className="u-stack-12">
-      <div><label className="coguym-ls" htmlFor="oc-person">{t('sd_cfg.oc_person')} *</label>
-        <Select suelto placeholder={false} className="coguym-sel" id="oc-person" aria-label={t('sd_cfg.oc_person')} value={persona} onChange={e => setPersona(e.target.value)}>
+      <Select label={<>{t('sd_cfg.oc_person')}*</>} placeholder={false} id="oc-person" aria-label={t('sd_cfg.oc_person')} value={persona} onChange={e => setPersona(e.target.value)}>
           {personas.map(p => <option key={p.id} value={p.id}>{p.full_name}</option>)}
-        </Select></div>
+        </Select>
       <div className="u-grid2-10">
-        <div><label className="coguym-ls" htmlFor="oc-from">{t('sd_cfg.chg_from')} *</label><DateInput id="oc-from" aria-label={t('sd_cfg.chg_from')} withTime value={desde} onChange={e => setDesde(e.target.value)} className="ds-input" /></div>
-        <div><label className="coguym-ls" htmlFor="oc-to">{t('sd_cfg.chg_to')} *</label><DateInput id="oc-to" aria-label={t('sd_cfg.chg_to')} withTime value={hasta} onChange={e => setHasta(e.target.value)} className="ds-input" /></div>
+        <DateInput label={<>{t('sd_cfg.chg_from')}*</>} id="oc-from" aria-label={t('sd_cfg.chg_from')} withTime value={desde} onChange={e => setDesde(e.target.value)} />
+        <DateInput label={<>{t('sd_cfg.chg_to')}*</>} id="oc-to" aria-label={t('sd_cfg.chg_to')} withTime value={hasta} onChange={e => setHasta(e.target.value)} />
       </div>
       <div className="u-actions-10">
         <Button variant="secondary" onClick={onCancelar}>{t('common.cancel')}</Button>

@@ -165,16 +165,24 @@ def test_EL_HALLAZGO_el_token_oauth_lleva_la_empresa_de_su_app(client, pm_token,
 
 
 def test_app_oauth_sin_empresa_no_emite_tokens(client, pm_token, db):
+    # 24-11-2026 (migración 208, empresa obligatoria): ya no puede existir una app OAuth
+    # sin empresa; la base lo rechaza (NOT NULL). Antes el test la dejaba sin empresa a
+    # mano y comprobaba el 400 `oauth_app_sin_empresa` (que sigue en el código como
+    # defensa); ahora comprueba que la base no deja quitarle la empresa y que la app,
+    # intacta, sigue emitiendo tokens con la suya.
+    from sqlalchemy.exc import IntegrityError
     from app.models.oauth_apps import OAuthApp
     app = client.post("/api/v1/developer/apps", headers=auth(pm_token),
                       json={"name": "Sin", "scopes": ["read"]}).json()["data"]
-    db.query(OAuthApp).filter(OAuthApp.client_id == app["client_id"]).update(
-        {"organization_id": None}, synchronize_session=False)
-    db.commit()
+    with pytest.raises(IntegrityError):
+        db.query(OAuthApp).filter(OAuthApp.client_id == app["client_id"]).update(
+            {"organization_id": None}, synchronize_session=False)
+        db.flush()
+    db.rollback()
     client.cookies.clear()
     r = client.post("/api/v1/developer/token", json={"grant_type": "client_credentials", "client_id": app["client_id"],
                                                       "client_secret": app["client_secret"], "scope": "read"})
-    assert r.status_code == 400 and r.json().get("code") == "oauth_app_sin_empresa", r.text
+    assert r.status_code == 200, r.text
 
 
 # ── CSRF del portal y tareas de Celery ────────────────────────────────────────

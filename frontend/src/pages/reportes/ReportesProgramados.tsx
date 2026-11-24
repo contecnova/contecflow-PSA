@@ -137,26 +137,14 @@ export function ScheduledReportsTab() {
             {traducir('reports.nuevo_informe_programado')}
           </div>
           <div className="rep-grid-4">
-            <div>
-              <label className="rep-ls-2" id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`}>{traducir('reportes_ui.nombre_req')}</label>
-              <Input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder={traducir('reports.report_name')} />
-            </div>
-            <div>
-              <label className="rep-ls-2" id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`}>{traducir('reports.metrica_2')}</label>
-              <Select suelto placeholder={false} id={`${idCampo}-2`} value={form.metric} onChange={e => setForm(f => ({ ...f, metric: e.target.value }))}>
+            <Input label={traducir('reportes_ui.nombre_req')} id={`${idCampo}-1`} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder={traducir('reports.report_name')} />
+            <Select label={traducir('reports.metrica_2')} placeholder={false} id={`${idCampo}-2`} value={form.metric} onChange={e => setForm(f => ({ ...f, metric: e.target.value }))}>
                 {METRICS.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
               </Select>
-            </div>
-            <div>
-              <label className="rep-ls-2" id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`}>{traducir('reportes_ui.frecuencia')}</label>
-              <Select suelto placeholder={false} id={`${idCampo}-3`} value={form.frequency} onChange={e => setForm(f => ({ ...f, frequency: e.target.value }))}>
+            <Select label={traducir('reportes_ui.frecuencia')} placeholder={false} id={`${idCampo}-3`} value={form.frequency} onChange={e => setForm(f => ({ ...f, frequency: e.target.value }))}>
                 {Object.entries(FREQ_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
               </Select>
-            </div>
-            <div>
-              <label className="rep-ls-2" id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`}>{traducir('reports.destinatarios_emails_separados_por_coma')}</label>
-              <Input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.recipients} onChange={e => setForm(f => ({ ...f, recipients: e.target.value }))} placeholder={traducir('reportes_ui.emails_ejemplo')} />
-            </div>
+            <Input label={traducir('reports.destinatarios_emails_separados_por_coma')} id={`${idCampo}-4`} value={form.recipients} onChange={e => setForm(f => ({ ...f, recipients: e.target.value }))} placeholder={traducir('reportes_ui.emails_ejemplo')} />
           </div>
           <Checkbox className="rep-label-sm" checked={!!form.include_pdf}
             onChange={v => setForm(f => ({ ...f, include_pdf: v }))}

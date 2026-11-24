@@ -470,6 +470,17 @@ RUNTIME_FLAG_GROUPS: dict[str, list[tuple[str, str, str]]] = {
         ("MAX_FILE_SIZE_MB", "int", "Max upload size (MB)"),
         ("DOCUMENT_CHECKOUT_HOURS", "int", "Document check-out — the reservation expires by itself after (h)"),
     ],
+    # 24-11-2026: chat del portal operador <-> cliente (docs/portal/CHAT_DEL_PORTAL.md).
+    # Se edita en su sección propia (Configuración › Portal › Chat del portal).
+    "portal_chat": [
+        ("PORTAL_CHAT_CALLS_ENABLED", "bool", "Portal chat — operators can call customers (voice)"),
+        ("PORTAL_CHAT_VIDEO_ENABLED", "bool", "Portal chat — operators can start video calls"),
+        ("PORTAL_CHAT_ATTACHMENTS_ENABLED", "bool", "Portal chat — images and attachments"),
+        ("PORTAL_CHAT_ALLOWED_EXTENSIONS", "str", "Portal chat — allowed file extensions (CSV; only narrows the approved catalogue)"),
+        ("PORTAL_CHAT_MAX_FILE_MB", "int", "Portal chat — maximum attachment size (MB; never above the global maximum)"),
+        ("PORTAL_CHAT_EDIT_WINDOW_MINUTES", "int", "Portal chat — minutes to edit or delete one's own message (0: no limit)"),
+        ("PORTAL_CHAT_CALL_RING_SECONDS", "int", "Portal chat — seconds a call rings before it counts as missed"),
+    ],
     "security_network": [
         ("TRUST_PROXY_HEADERS", "bool", "Trust X-Forwarded-* headers"),
         ("TRUSTED_PROXY_CIDRS", "str", "Trusted proxy CIDRs (CSV)"),

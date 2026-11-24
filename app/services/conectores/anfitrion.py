@@ -274,9 +274,16 @@ def olvidar_tokens(producto: Optional[Producto] = None) -> None:
 def registrar(db: Session, producto: Producto, operacion: str, usuario, inicio: float, *, ok: bool,
               estado: Optional[int] = None, error: Optional[str] = None) -> None:
     from app.models.conectores import ConectorLlamada
+    from app.db.empresa_obligatoria import empresa_para_registro
+    # 24-11-2026 (migración 208): sin empresa no se registra (el sellado
+    # cortaría el commit y el rollback se llevaría el trabajo de quien llama).
+    org = empresa_para_registro(db, getattr(usuario, "organization_id", None))
+    if not org:
+        logger.warning("Llamada al conector %s sin empresa: no se registra", producto.clave)
+        return
     try:
         db.add(ConectorLlamada(
-            organization_id=getattr(usuario, "organization_id", None), producto=producto.clave, operacion=operacion,
+            organization_id=org, producto=producto.clave, operacion=operacion,
             ok=ok, estado_http=estado, ms=int((time.monotonic() - inicio) * 1000),
             error=(error or None) and str(error)[:500], user_id=getattr(usuario, "id", None)))
         db.commit()

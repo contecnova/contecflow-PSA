@@ -25,7 +25,7 @@ class ConectorLlamada(Base):
     __tablename__ = "conector_llamadas"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     producto = Column(String(40), nullable=False)          # contecmind | contecintelligence
     operacion = Column(String(60), nullable=False)         # buscar | subir | preguntar | …
     ok = Column(Boolean, nullable=False, default=False)
@@ -42,7 +42,7 @@ class EnlaceDocumental(Base):
     __tablename__ = "enlaces_documentales"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     entidad = Column(String(40), nullable=False)           # ticket | contract | project | kb_article | …
     entidad_id = Column(String(64), nullable=False)
     document_id = Column(String(64), nullable=False)
@@ -64,7 +64,7 @@ class CarpetaDocumental(Base):
     __tablename__ = "carpetas_documentales"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     entidad = Column(String(40), nullable=False)
     entidad_id = Column(String(64), nullable=False)
     folder_id = Column(String(64), nullable=False)

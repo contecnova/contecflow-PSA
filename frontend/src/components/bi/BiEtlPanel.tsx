@@ -32,10 +32,7 @@ function Campos({ ficha, valores, puestos, onChange }: { ficha: Ficha; valores: 
   return (
     <div className="bietpa-grid-1">
       {ficha.campos.map(c => (
-        <label key={c.clave} className="bietpa-grid-2">
-          <span>{etiquetaCodigo(t, 'etl.campo', c.clave, legible(c.clave))}</span>
-          <Input type={c.secreto ? 'password' : 'text'} aria-label={etiquetaCodigo(t, 'etl.campo', c.clave, legible(c.clave))} autoComplete="off" value={valores[c.clave] ?? ''} placeholder={c.secreto && puestos.includes(c.clave) ? t('etl.secreto_puesto') : ''} onChange={e => onChange(c.clave, e.target.value)} className="bietpa-campo" />
-        </label>
+        <Input key={c.clave} label={etiquetaCodigo(t, 'etl.campo', c.clave, legible(c.clave))} type={c.secreto ? 'password' : 'text'} aria-label={etiquetaCodigo(t, 'etl.campo', c.clave, legible(c.clave))} autoComplete="off" value={valores[c.clave] ?? ''} placeholder={c.secreto && puestos.includes(c.clave) ? t('etl.secreto_puesto') : ''} onChange={e => onChange(c.clave, e.target.value)} />
       ))}
     </div>
   )
@@ -61,12 +58,9 @@ function Configurar({ conector, onClose }: { conector: Conector; onClose: () => 
     <Modal open onClose={onClose} size="lg" title={t('etl.configurar_x', { x: conector.nombre })} subtitle={t('etl.secretos_ayuda')}>
       <div className="bietpa-grid-3">
         {conector.entidades.length > 1 && (
-          <label className="bietpa-grid-2">
-            {t('etl.entidad')}
-            <Select suelto className="bietpa-campo" value={entidad} onChange={e => setEntidad(e.target.value)} placeholder={false}>
+          <Select label={t('etl.entidad')} value={entidad} onChange={e => setEntidad(e.target.value)} placeholder={false}>
               {conector.entidades.map(e => <option key={e} value={e}>{etiquetaCodigo(t, 'etl.entidad_tipo', e, legible(e))}</option>)}
             </Select>
-          </label>
         )}
         <Campos ficha={conector} valores={valores} puestos={conector.secretos_puestos} onChange={(k, v) => setValores(x => ({ ...x, [k]: v }))} />
         <div className="u-actions-8">
@@ -97,10 +91,7 @@ function NuevaFuente({ ficha, onClose }: { ficha: Ficha; onClose: () => void }) 
   return (
     <Modal open onClose={onClose} size="lg" title={t('etl.nueva_fuente')} subtitle={t('etl.nueva_fuente_ayuda')}>
       <div className="bietpa-grid-3">
-        <label className="bietpa-grid-2">
-          {t('etl.nombre')}
-          <Input aria-label={t('etl.nombre')} value={nombre} onChange={e => setNombre(e.target.value)} inputClassName="bietpa-campo" />
-        </label>
+        <Input label={t('etl.nombre')} aria-label={t('etl.nombre')} value={nombre} onChange={e => setNombre(e.target.value)} />
         <Campos ficha={ficha} valores={valores} puestos={[]} onChange={(k, v) => setValores(x => ({ ...x, [k]: v }))} />
         <div className="u-actions-8">
           <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>

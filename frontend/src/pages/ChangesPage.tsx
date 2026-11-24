@@ -8,7 +8,7 @@ import { projectChangesApi, cabApi } from '../services/api'
 import { useListaDeProyectos } from '../hooks/useListas'
 import type { CambioEnCab } from '../services/api/tipos-cambios'
 import type { SolicitudDeCambio } from '../services/api/tipos-proyectos'
-import { Button, Modal, Spinner, EmptyState, Tabs, KpiCard, IconButton, Select, useErroresDeCampo, Textarea, Input } from '../components/ui'
+import { Button, Modal, Spinner, EmptyState, Tabs, KpiCard, IconButton, Select, useErroresDeCampo, Textarea, Input, SelectorDeContexto } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { ArrowLeftRight, CalendarClock, Check, Coins, FolderOpen, Hourglass, ListChecks, MessageSquare, Pencil, Plus, ThumbsDown, ThumbsUp, Trash2, User, Users, Wrench, X, Zap } from 'lucide-react'
@@ -133,35 +133,28 @@ function CRFormModal({ cr, projectId, onClose }: { cr?: SolicitudDeCambio | null
     <Modal open title={isEdit ? t('changes.edit_cr_title', { code: cr.code }) : t('changes.new_cr_title')} onClose={onClose} width={620}>
       <div className="u-grid2-14">
         <div className="u-col-full">
-          <label htmlFor={`${idPrefix}-title`} className="chg-label">{t('changes.titulo')}</label>
-          <Input id={`${idPrefix}-title`} value={form.title} onChange={set('title')} inputClassName="chg-input" error={validation.errors.title} placeholder={t('changes.titulo_de_la_solicitud')} />{msg('title')}
+          <Input label={t('changes.titulo')} id={`${idPrefix}-title`} value={form.title} onChange={set('title')} error={validation.errors.title} placeholder={t('changes.titulo_de_la_solicitud')} />{msg('title')}
         </div>
         <div className="u-col-full">
-          <label htmlFor={`${idPrefix}-description`} className="chg-label">{t('changes.descripcion')}</label>
-          <Textarea id={`${idPrefix}-description`} value={form.description} onChange={set('description')} rows={3} inputClassName="chg-input" error={validation.errors.description} placeholder={t('changes.describe_el_cambio_solicitado')} />{msg('description')}
+          <Textarea label={t('changes.descripcion')} id={`${idPrefix}-description`} value={form.description} onChange={set('description')} rows={3} error={validation.errors.description} placeholder={t('changes.describe_el_cambio_solicitado')} />{msg('description')}
         </div>
         <div className="u-col-full">
-          <label htmlFor={`${idPrefix}-justification`} className="chg-label">{t('changes.justificacion')}</label>
-          <Textarea id={`${idPrefix}-justification`} value={form.justification} onChange={set('justification')} rows={2} inputClassName="chg-input" error={validation.errors.justification} placeholder={t('changes.justificacion_del_cambio')} />{msg('justification')}
+          <Textarea label={t('changes.justificacion')} id={`${idPrefix}-justification`} value={form.justification} onChange={set('justification')} rows={2} error={validation.errors.justification} placeholder={t('changes.justificacion_del_cambio')} />{msg('justification')}
         </div>
         <div>
-          <label htmlFor={`${idPrefix}-impact`} className="chg-label">{t('changes.impact')}</label>
-          <Select suelto placeholder={false} id={`${idPrefix}-impact`} value={form.impact} onChange={set('impact')} className="chg-input" {...err('impact')}>
+          <Select label={t('changes.impact')} placeholder={false} id={`${idPrefix}-impact`} value={form.impact} onChange={set('impact')} {...err('impact')}>
             {Object.entries(IMPACT_CFG).map(([v, c]) => <option key={v} value={v}>{t(c.labelKey)}</option>)}
           </Select>{msg('impact')}
           {errMsg('impact')}
         </div>
         <div>
-          <label htmlFor={`${idPrefix}-cost-impact`} className="chg-label">{t('changes.cost_impact_label', { symbol: fmtMoneda.simbolo })}</label>
-          <Input id={`${idPrefix}-cost-impact`} type="number" value={form.cost_impact} onChange={set('cost_impact')} inputClassName="chg-input" error={validation.errors.cost_impact} placeholder={t('changes.cost_impact_ph')} />{msg('cost_impact')}
+          <Input label={t('changes.cost_impact_label', { symbol: fmtMoneda.simbolo })} id={`${idPrefix}-cost-impact`} type="number" value={form.cost_impact} onChange={set('cost_impact')} error={validation.errors.cost_impact} placeholder={t('changes.cost_impact_ph')} />{msg('cost_impact')}
         </div>
         <div>
-          <label htmlFor={`${idPrefix}-schedule-impact`} className="chg-label">{t('changes.impacto_en_plazo_dias')}</label>
-          <Input id={`${idPrefix}-schedule-impact`} type="number" value={form.schedule_impact_days} onChange={set('schedule_impact_days')} inputClassName="chg-input" error={validation.errors.schedule_impact_days} placeholder={t('changes.extra_days_ph')} />{msg('schedule_impact_days')}
+          <Input label={t('changes.impacto_en_plazo_dias')} id={`${idPrefix}-schedule-impact`} type="number" value={form.schedule_impact_days} onChange={set('schedule_impact_days')} error={validation.errors.schedule_impact_days} placeholder={t('changes.extra_days_ph')} />{msg('schedule_impact_days')}
         </div>
         <div>
-          <label htmlFor={`${idPrefix}-scope-impact`} className="chg-label">{t('changes.scope_impact_label')}</label>
-          <Input id={`${idPrefix}-scope-impact`} value={form.scope_impact} onChange={set('scope_impact')} inputClassName="chg-input" error={validation.errors.scope_impact} placeholder={t('changes.impacto_en_el_alcance')} />{msg('scope_impact')}
+          <Input label={t('changes.scope_impact_label')} id={`${idPrefix}-scope-impact`} value={form.scope_impact} onChange={set('scope_impact')} error={validation.errors.scope_impact} placeholder={t('changes.impacto_en_el_alcance')} />{msg('scope_impact')}
         </div>
         <div className="chg-form-actions">
           <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
@@ -216,8 +209,7 @@ function ReviewCRModal({ cr, projectId, onClose }: { cr: SolicitudDeCambio; proj
         {cr.scope_impact && <p className="chg-review-scope"><ListChecks size={14} aria-hidden="true" />{cr.scope_impact}</p>}
       </div>
       <div className="u-mb-16">
-        <label htmlFor={`${idPrefix}-resolution-notes`} id={`${idPrefix}-resolution-notes-etiqueta`} className="chg-label chg-label--notes">{t('changes.notas_de_resolucion')}</label>
-        <Textarea id={`${idPrefix}-resolution-notes`} aria-labelledby={`${idPrefix}-resolution-notes-etiqueta`} value={notes} onChange={e => { setNotes(e.target.value); validation.clearFieldError('resolution_notes') }} rows={2} aria-invalid={!!notesErr || undefined} aria-describedby={notesErr ? `${idPrefix}-resolution-notes-err` : undefined} inputClassName="chg-input" />
+        <Textarea label={t('changes.notas_de_resolucion')} id={`${idPrefix}-resolution-notes`} value={notes} onChange={e => { setNotes(e.target.value); validation.clearFieldError('resolution_notes') }} rows={2} aria-invalid={!!notesErr || undefined} aria-describedby={notesErr ? `${idPrefix}-resolution-notes-err` : undefined} />
         {notesErr && <p id={`${idPrefix}-resolution-notes-err`} className="u-field-error">{notesErr}</p>}
       </div>
       <div className="u-actions-10">
@@ -415,13 +407,12 @@ export default function ChangesPage(): JSX.Element {
       {tab === 'cab' && <CABBoard />}
       {tab === 'project' && (
         <>
-          <div className="ds-toolbar">
-            <Select suelto placeholder={false} value={selectedProject} onChange={e => setSelectedProject(e.target.value)}
-              aria-label={t('changes.project_select_aria')} className="chg-input chg-input--project">
+          <SelectorDeContexto>
+            <Select label={t('uikit.etiqueta_proyecto')} placeholder={false} value={selectedProject} onChange={e => setSelectedProject(e.target.value)}>
               <option value="">{t('changes.select_project_ph')}</option>
               {projects.map((p) => <option key={p.id} value={String(p.id)}>{p.code} — {p.name}</option>)}
             </Select>
-          </div>
+          </SelectorDeContexto>
 
           {selectedProject && summary && (summary.total ?? 0) > 0 && (
             <div className="ds-grid-stats">

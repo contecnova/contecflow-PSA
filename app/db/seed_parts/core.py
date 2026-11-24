@@ -76,13 +76,17 @@ def _sembrar_ajustes(db):
             db.add(AppSetting(key=key, value=value))
     db.commit()
 
-def _sembrar_departamentos(db):
-    """Los departamentos de la demostracion."""
+def _sembrar_departamentos(db, org):
+    """Los departamentos de la demostracion, de la empresa `org`.
+
+    24-11-2026 (migración 208): antes se sembraban sin empresa y antes de crearla;
+    el filtro de tenant los escondía a todos y `organization_id` ya es obligatorio.
+    """
     from app.models.settings import Department
 
     for d in ["Backend","Frontend","IA / Data","Infraestructura","Diseno UX","Gestion","RRHH","Ventas"]:
-        if not db.query(Department).filter(Department.name==d).first():
-            db.add(Department(name=d))
+        if not db.query(Department).filter(Department.name==d, Department.organization_id==org.id).first():
+            db.add(Department(name=d, organization_id=org.id))
     db.commit()
 
 def _sembrar_festivos(db, org):
@@ -675,8 +679,8 @@ def seed():
 
     # ── AppSettings ────────────────────────────────────────────────────────────
     _sembrar_ajustes(db)
-    _sembrar_departamentos(db)
     org = _sembrar_organizacion(db)
+    _sembrar_departamentos(db, org)
     _sembrar_festivos(db, org)
     # Auditoria 2026-11: lo que se siembra desde aqui lleva la organizacion.
     db.info["organization_id"] = org.id

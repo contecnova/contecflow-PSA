@@ -201,6 +201,8 @@ class MessageOut(BaseModel):
     edited_at: Optional[datetime] = Field(None, description="Marca temporal de la última edición")
     deleted_at: Optional[datetime] = None
     sent_at: datetime = Field(..., description="Marca temporal de envío")
+    # 24-11-2026 (chat del portal): el mensaje citado (id, autor, trozo, borrado).
+    reply_to: Optional[dict] = Field(None, description="Mensaje al que responde")
 
 
 class MessageVersionOut(BaseModel):

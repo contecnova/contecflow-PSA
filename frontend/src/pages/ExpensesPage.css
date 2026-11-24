@@ -41,7 +41,6 @@
   color: var(--text-2); font-size: var(--text-sm); cursor: pointer; font-family: inherit;
 }
 .exp-contador { margin-left: auto; font-size: var(--text-xs); color: var(--text-3); }
-.exp-select { width: auto; max-width: 100%; }
 
 /* Tabla */
 .exp-tabla { overflow-x: auto; padding: 0; }
@@ -88,7 +87,6 @@ letter-spacing: 0.07em; }
 .exp-ocr__boton { pointer-events: none; }
 .exp-check { display: flex; align-items: center; gap: 10px; padding-top: 24px; }
 .exp-check label { font-size: var(--text-base); color: var(--text-1); cursor: pointer; }
-.exp-textarea { resize: vertical; }
 .exp-nota { grid-column: 1 / -1; font-size: var(--text-xs); color: var(--text-3); }
 .exp-pie { grid-column: 1 / -1; display: flex; justify-content: flex-end; gap: 10px; }
 

@@ -72,10 +72,6 @@
 }
 
 /* ── Modales ─────────────────────────────────────────────────────────────── */
-.pf-textarea {
-  resize: vertical;
-  min-height: 72px;
-}
 .pf-acciones-modal {
   display: flex;
   justify-content: flex-end;

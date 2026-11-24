@@ -135,11 +135,7 @@ export function EditorDeChecklist({ t, filas, onChange }: { t: Traductor; filas:
     <ul className="almf-checklist" aria-label={t('alm.checklist')}>
       {filas.map((f, i) => (
         <li key={f.item} className="almf-checklist__fila">
-          <label className="almf-checklist__item">
-            <Checkbox checked={f.ok} onChange={(_, e) => cambiar(i, { ok: e.target.checked })} />
-            <span>{textoDeChecklist(t, f.item)}</span>
-          </label>
-          <Input value={f.note ?? ''} placeholder={t('alm.checklist_note')} aria-label={`${t('alm.checklist_note')} — ${textoDeChecklist(t, f.item)}`} onChange={e => cambiar(i, { note: e.target.value })} inputClassName="alm-input almf-checklist__nota" />
+          <Input label={<><Checkbox checked={f.ok} onChange={(_, e) => cambiar(i, { ok: e.target.checked })} /><span>{textoDeChecklist(t, f.item)}</span></>} value={f.note ?? ''} placeholder={t('alm.checklist_note')} aria-label={`${t('alm.checklist_note')} — ${textoDeChecklist(t, f.item)}`} onChange={e => cambiar(i, { note: e.target.value })} />
         </li>
       ))}
     </ul>

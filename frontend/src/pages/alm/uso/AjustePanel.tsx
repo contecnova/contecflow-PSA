@@ -39,18 +39,14 @@ function EditorDeRegla({ borrador, onClose }: { borrador: Borrador; onClose: () 
     <Modal open onClose={onClose} title={b.id ? t('alm_uso.editar_regla') : t('alm_uso.nueva_regla')} size="lg">
       <div className="u-stack-14">
         <div className="u-grid2-12">
-          <label className="almu-campo">{t('alm_uso.licencia_superior')}
-            <Select suelto placeholder={false} className="alm-input" value={b.license_superior_id} onChange={e => setB({ ...b, license_superior_id: e.target.value })}>
+          <Select label={t('alm_uso.licencia_superior')} placeholder={false} value={b.license_superior_id} onChange={e => setB({ ...b, license_superior_id: e.target.value })}>
               <option value="">{t('alm_uso.elige')}</option>
               {licencias.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
             </Select>
-          </label>
-          <label className="almu-campo">{t('alm_uso.licencia_inferior')}
-            <Select suelto placeholder={false} className="alm-input" value={b.license_inferior_id} onChange={e => setB({ ...b, license_inferior_id: e.target.value })}>
+          <Select label={t('alm_uso.licencia_inferior')} placeholder={false} value={b.license_inferior_id} onChange={e => setB({ ...b, license_inferior_id: e.target.value })}>
               <option value="">{t('alm_uso.elige')}</option>
               {licencias.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
             </Select>
-          </label>
         </div>
         <fieldset className="ds-grupo-opciones almu-servicios">
           <legend>{t('alm_uso.servicios_que_justifican')}</legend>
@@ -64,9 +60,7 @@ function EditorDeRegla({ borrador, onClose }: { borrador: Borrador; onClose: () 
             ))}
           </div>
         </fieldset>
-        <label className="almu-campo">{t('alm_uso.notas')}
-          <Input value={b.notas} onChange={e => setB({ ...b, notas: e.target.value })} inputClassName="alm-input" />
-        </label>
+        <Input label={t('alm_uso.notas')} value={b.notas} onChange={e => setB({ ...b, notas: e.target.value })} />
         <label className="almu-check">
           <Checkbox checked={b.activa} onChange={(_, e) => setB({ ...b, activa: e.target.checked })} />{t('alm_uso.regla_activa')}
         </label>

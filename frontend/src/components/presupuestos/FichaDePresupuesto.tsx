@@ -339,17 +339,14 @@ function Escenarios({ p, dinero, onAbrir, accion, ocupado }: {
         </TablaSimple>
       </div>
       <div className="fidepr-caja2">
-        <label className="fidepr-box-10"><span className="u-text3-xs">{t('pres.escenario_nuevo')}</span>
-          <Input aria-label={t('pres.escenario_nuevo')} value={nombre} onChange={e => setNombre(e.target.value)} placeholder={t('pres.escenario_ejemplo')} /></label>
-        <label className="fidepr-box-11"><span className="u-text3-xs">{t('pres.inflacion')}</span>
-          <Input aria-label={t('pres.inflacion')} type="number" step="any" value={inflacion} onChange={e => setInflacion(e.target.value)} placeholder={String(p.supuestos.inflacion_pct ?? 0)} /></label>
+        <Input label={t('pres.escenario_nuevo')} aria-label={t('pres.escenario_nuevo')} value={nombre} onChange={e => setNombre(e.target.value)} placeholder={t('pres.escenario_ejemplo')} />
+        <Input label={t('pres.inflacion')} aria-label={t('pres.inflacion')} type="number" step="any" value={inflacion} onChange={e => setInflacion(e.target.value)} placeholder={String(p.supuestos.inflacion_pct ?? 0)} />
         <Button size="sm" disabled={!nombre.trim()} loading={ocupado === 'escenario'}
           onClick={() => accion('escenario', () => presupuestosApi.escenario(p.id, nombre.trim(), inflacion === '' ? undefined : { ...p.supuestos, inflacion_pct: Number(inflacion) }))}>{t('pres.crear_escenario')}</Button>
       </div>
       <div className="fidepr-caja2">
-        <label className="fidepr-box-12"><span className="u-text3-xs">{t('pres.comparar_con')}</span>
-          <Select suelto aria-label={t('pres.comparar_con')} value={otro} onChange={e => setOtro(e.target.value)} className={CLASE_CAMPO} placeholder="—">{candidatos.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
-          </Select></label>
+        <Select label={t('pres.comparar_con')} aria-label={t('pres.comparar_con')} value={otro} onChange={e => setOtro(e.target.value)} placeholder="—">{candidatos.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+          </Select>
         <Button size="sm" variant="secondary" disabled={!otro} onClick={comparar}>{t('pres.comparar')}</Button>
       </div>
       {cmp && (
@@ -373,10 +370,8 @@ function SupuestosDelPresupuesto({ p, accion, ocupado }: { p: FichaPresupuesto; 
   const [notas, setNotas] = useState(String(p.supuestos.notas ?? ''))
   return (
     <div className="fidepr-stack-3">
-      <label><span className="u-text3-xs">{t('pres.inflacion')}</span>
-        <Input aria-label={t('pres.inflacion')} type="number" step="any" value={inflacion} disabled={!p.puedo_editar} onChange={e => setInflacion(e.target.value)} /></label>
-      <label><span className="u-text3-xs">{t('pres.supuestos_notas')}</span>
-        <Textarea aria-label={t('pres.supuestos_notas')} rows={4} value={notas} disabled={!p.puedo_editar} onChange={e => setNotas(e.target.value)} inputClassName="fodepa-campo--vertical" /></label>
+      <Input label={t('pres.inflacion')} aria-label={t('pres.inflacion')} type="number" step="any" value={inflacion} disabled={!p.puedo_editar} onChange={e => setInflacion(e.target.value)} />
+      <Textarea label={t('pres.supuestos_notas')} aria-label={t('pres.supuestos_notas')} rows={4} value={notas} disabled={!p.puedo_editar} onChange={e => setNotas(e.target.value)} />
       <div className="u-text3-xs">{t('pres.supuestos_ayuda')}</div>
       {p.puedo_editar && <div><Button size="sm" loading={ocupado === 'supuestos'}
         onClick={() => accion('supuestos', () => presupuestosApi.editar(p.id, { supuestos: { ...p.supuestos, inflacion_pct: inflacion === '' ? 0 : Number(inflacion), notas } }))}>{t('pres.guardar')}</Button></div>}

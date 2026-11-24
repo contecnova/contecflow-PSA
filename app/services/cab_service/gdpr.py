@@ -278,6 +278,13 @@ def process_gdpr_request(request_id: str, current_user, db: Session) -> dict:
             exigir_sin_bloqueo_legal(db, user)
         if es_contacto:
             contactos_rgpd.exigir_sin_bloqueo_legal(db, email, org)
+            # 24-11-2026: también sus adjuntos del chat del portal.
+            from app.services.portal_conversation_service import rgpd as rgpd_chat_portal
+            rgpd_chat_portal.exigir_sin_bloqueo_legal(
+                db, [u.id for u in contactos_rgpd.usuarios_del_portal_de(db, email, org)], org)
+            from app.services.collaboration import portal_chat as chat_colaboracion
+            chat_colaboracion.exigir_sin_bloqueo_legal_rgpd(
+                db, [u.id for u in contactos_rgpd.usuarios_del_portal_de(db, email, org)], org)
 
     # A64: todo en UNA transacción. Antes se confirmaba «processing» y, si la
     # supresión fallaba a medias, la solicitud quedaba atascada en curso con
@@ -305,7 +312,15 @@ def _ejecutar_solicitud(db: Session, req, tipo, user, email, es_contacto: bool, 
     from app.services import datos_personales_de_contactos as contactos_rgpd
     from app.services.reuniones import rgpd as rgpd_reuniones
     export_data: dict = {}
+    # 24-11-2026 (chat del portal completo): sus mensajes, adjuntos, reacciones y
+    # llamadas del chat del portal, por sus cuentas del portal (antes de
+    # anonimizarlas: se las encuentra por el correo original).
+    from app.services.portal_conversation_service import rgpd as rgpd_chat_portal
+    cuentas_del_portal = [u.id for u in contactos_rgpd.usuarios_del_portal_de(db, email, org)] if es_contacto else []
     if tipo == GDPRRequestType.erasure and (user or es_contacto or en_reuniones):
+        chat_portal_suprimido = rgpd_chat_portal.suprimir(db, cuentas_del_portal, org) if cuentas_del_portal else None
+        from app.services.collaboration import portal_chat as chat_colaboracion
+        chat_colab_suprimido = chat_colaboracion.suprimir_rgpd(db, cuentas_del_portal, org) if cuentas_del_portal else None
         # Primero sus fichas de contacto (con el email original), luego la cuenta.
         contactos_suprimidos = contactos_rgpd.anonimizar(db, email, org) if es_contacto else None
         reuniones_suprimidas = rgpd_reuniones.suprimir(db, org, email=email) if en_reuniones else None
@@ -314,6 +329,10 @@ def _ejecutar_solicitud(db: Session, req, tipo, user, email, es_contacto: bool, 
             export_data["client_contacts"] = contactos_suprimidos
         if reuniones_suprimidas is not None:
             export_data["meetings"] = reuniones_suprimidas
+        if chat_portal_suprimido is not None:
+            export_data["portal_chat"] = chat_portal_suprimido
+        if chat_colab_suprimido is not None:
+            export_data["portal_collaboration_chat"] = chat_colab_suprimido
     elif tipo in _CON_COPIA:
         # Revisión GRC 16-11-2026: «acceso» (art. 15) se marcaba completada sin
         # entregar nada; da la misma copia que la portabilidad.
@@ -321,6 +340,10 @@ def _ejecutar_solicitud(db: Session, req, tipo, user, email, es_contacto: bool, 
             "export_date": str(timeutil.today()), "format": "JSON"}
         if es_contacto:
             export_data.update(contactos_rgpd.copia(db, email, org))
+            if cuentas_del_portal:
+                export_data.update(rgpd_chat_portal.copia(db, cuentas_del_portal, org))
+                from app.services.collaboration import portal_chat as chat_colaboracion
+                export_data.update(chat_colaboracion.copia_rgpd(db, cuentas_del_portal, org))
         if en_reuniones:
             export_data["meetings"] = rgpd_reuniones.copia(db, org, email=email)["meetings"]
     elif tipo == GDPRRequestType.rectification:

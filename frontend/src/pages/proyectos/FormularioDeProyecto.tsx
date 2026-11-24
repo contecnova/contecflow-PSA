@@ -76,7 +76,6 @@ export function ProjectFormModal({ open, onClose, project = null }: { open: bool
         retainer_day: src.retainer_day || '',
       })
     }
-     
   }, [src, src?.id, fullProject])
 
   const { data: departments = [] } = useQuery({
@@ -135,102 +134,85 @@ export function ProjectFormModal({ open, onClose, project = null }: { open: bool
     setErrors(getFirstIssueByField(parsed.error))
     return false
   }
-  
   return (
     <Modal open={open} onClose={onClose} title={isEdit ? t('proyectos_ui.editar_titulo', { nombre: project.name }) : t('proyectos_ui.nuevo_proyecto')} width={600}>
       <div className="u-grid2-14">
         <div className="u-col-full">
-          <label className="prj-ls-2" htmlFor={`${idCampo}-nombre`}>{t('proyectos_ui.nombre_req')}</label>
-          <Input id={`${idCampo}-nombre`} value={form.name} onChange={set('name')} placeholder={traducir('projects.nombre_del_proyecto')} aria-label={traducir('projects.nombre_del_proyecto')} inputClassName="prj-fs-2" />
+          <Input label={t('proyectos_ui.nombre_req')} id={`${idCampo}-nombre`} value={form.name} onChange={set('name')} placeholder={traducir('projects.nombre_del_proyecto')} aria-label={traducir('projects.nombre_del_proyecto')} />
           {err('name') && <div className="u-field-error">{err('name')}</div>}
         </div>
         <div>
-          <label className="prj-ls-2" id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`}>{t('proyectos_ui.tipo_req')}</label>
-          <Select suelto placeholder={false} className="prj-fs-2" id={`${idCampo}-1`} value={form.project_type} onChange={set('project_type')}>
+          <Select label={t('proyectos_ui.tipo_req')} placeholder={false} id={`${idCampo}-1`} value={form.project_type} onChange={set('project_type')}>
             <option value="">{t('proyectos_ui.seleccionar')}</option>
             <OpcionesDeCatalogo catalogo="project-types" />
           </Select>
           {err('project_type') && <div className="u-field-error">{err('project_type')}</div>}
         </div>
         <div>
-          <label className="prj-ls-2" id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`}>{t('proyectos_ui.col_estado')}</label>
-          <Select suelto placeholder={false} className="prj-fs-2" id={`${idCampo}-2`} value={form.status} onChange={set('status')}>
+          <Select label={t('proyectos_ui.col_estado')} placeholder={false} id={`${idCampo}-2`} value={form.status} onChange={set('status')}>
             {PROJECT_STATUSES.map(o => <option key={o.value} value={o.value}>{t(o.label)}</option>)}
           </Select>
           {err('status') && <div className="u-field-error">{err('status')}</div>}
         </div>
         <div>
-          <label className="prj-ls-2" id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`}>{t('proyectos_ui.col_riesgo')}</label>
-          <Select suelto placeholder={false} className="prj-fs-2" id={`${idCampo}-3`} value={form.risk_level} onChange={set('risk_level')}>
+          <Select label={t('proyectos_ui.col_riesgo')} placeholder={false} id={`${idCampo}-3`} value={form.risk_level} onChange={set('risk_level')}>
             {RISK_LEVELS.map(o => <option key={o.value} value={o.value}>{t(o.label)}</option>)}
           </Select>
           {err('risk_level') && <div className="u-field-error">{err('risk_level')}</div>}
         </div>
         <div>
-          <label className="prj-ls-2" id={`${idCampo}-etcliente`} htmlFor={`${idCampo}-cliente`}>{t('proyectos_ui.cliente')}</label>
-          <ClientSelect
+          <ClientSelect label={t('proyectos_ui.cliente')}
             id={`${idCampo}-cliente`}
-            aria-labelledby={`${idCampo}-etcliente`}
             value={form.client_id}
             onChange={(id, client) => { campos.limpiar('client_id'); setForm(f => ({ ...f, client_id: id, client_name: client ? client.name : '' })) }}
             placeholder={traducir('projects.selecciona_un_cliente')}
-            className="projects-page-e1"
           />
           {err('client_id') && <div className="u-field-error">{err('client_id')}</div>}
         </div>
         <div>
-          <label className="prj-ls-2" id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`}>{t('proyectos_ui.departamento')}</label>
-          <Select suelto placeholder={false} className="prj-fs-2" id={`${idCampo}-4`} value={form.department} onChange={set('department')}>
+          <Select label={t('proyectos_ui.departamento')} placeholder={false} id={`${idCampo}-4`} value={form.department} onChange={set('department')}>
             <option value="">{traducir('projects.no_department')}</option>
             {departments.map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
           </Select>
           {err('department') && <div className="u-field-error">{err('department')}</div>}
         </div>
         <div>
-          <label className="prj-ls-2" id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`}>{traducir('projects.label_billing')}</label>
-          <Select suelto placeholder={false} className="prj-fs-2" id={`${idCampo}-5`} value={form.billing_type} onChange={set('billing_type')}>
+          <Select label={traducir('projects.label_billing')} placeholder={false} id={`${idCampo}-5`} value={form.billing_type} onChange={set('billing_type')}>
             <option value="">{traducir('projects.no_billing')}</option>
             {(BILLING_TYPES as { value: string; label: string }[]).map(o => <option key={o.value} value={o.value}>{etiquetaCodigo(traducir, 'billing_type', o.value, o.label)}</option>)}
           </Select>
           {err('billing_type') && <div className="u-field-error">{err('billing_type')}</div>}
         </div>
         <div>
-          <label className="prj-ls-2" htmlFor={`${idCampo}-presupuesto`}>{t('proyectos_ui.presupuesto_moneda', { moneda: fmtMoneda.simbolo })}</label>
-          <Input id={`${idCampo}-presupuesto`} type="number" value={form.budget_amount} onChange={set('budget_amount')} placeholder={t('proyectos_ui.presupuesto_total')} aria-label={t('proyectos_ui.presupuesto_total')} inputClassName="prj-fs-2" />
+          <Input label={t('proyectos_ui.presupuesto_moneda', { moneda: fmtMoneda.simbolo })} id={`${idCampo}-presupuesto`} type="number" value={form.budget_amount} onChange={set('budget_amount')} placeholder={t('proyectos_ui.presupuesto_total')} aria-label={t('proyectos_ui.presupuesto_total')} />
           {err('budget_amount') && <div className="u-field-error">{err('budget_amount')}</div>}
         </div>
         <div>
-          <label className="prj-ls-2" htmlFor={`${idCampo}-contrato`}>{t('proyectos_ui.contrato_moneda', { moneda: fmtMoneda.simbolo })}</label>
-          <Input id={`${idCampo}-contrato`} type="number" min="0" step="0.01" value={form.contract_amount} onChange={set('contract_amount')} placeholder={t('proyectos_ui.contrato_ayuda')} aria-label={t('proyectos_ui.contrato_ayuda')} inputClassName="prj-fs-2" />
+          <Input label={t('proyectos_ui.contrato_moneda', { moneda: fmtMoneda.simbolo })} id={`${idCampo}-contrato`} type="number" min="0" step="0.01" value={form.contract_amount} onChange={set('contract_amount')} placeholder={t('proyectos_ui.contrato_ayuda')} aria-label={t('proyectos_ui.contrato_ayuda')} />
           {err('contract_amount') && <div className="u-field-error">{err('contract_amount')}</div>}
         </div>
         {form.billing_type === 'recurring_retainer' && (
           <>
             <div>
-              <label className="prj-ls-2" htmlFor={`${idCampo}-retainer`}>{t('proyectos_ui.retainer_moneda', { moneda: fmtMoneda.simbolo })}</label>
-              <Input id={`${idCampo}-retainer`} type="number" value={form.retainer_amount} onChange={set('retainer_amount')} placeholder={t('proyectos_ui.importe_mensual')} aria-label={t('proyectos_ui.importe_mensual')} inputClassName="prj-fs-2" />
+              <Input label={t('proyectos_ui.retainer_moneda', { moneda: fmtMoneda.simbolo })} id={`${idCampo}-retainer`} type="number" value={form.retainer_amount} onChange={set('retainer_amount')} placeholder={t('proyectos_ui.importe_mensual')} aria-label={t('proyectos_ui.importe_mensual')} />
           {err('retainer_amount') && <div className="u-field-error">{err('retainer_amount')}</div>}
             </div>
             <div>
-              <label className="prj-ls-2">{traducir('projects.label_retainer_day')}</label>
-              <Input type="number" min="1" max="28" value={form.retainer_day} onChange={set('retainer_day')} placeholder={traducir('projects.dia_de_corte')} aria-label={traducir('projects.dia_de_corte')} inputClassName="prj-fs-2" />
+              <Input label={traducir('projects.label_retainer_day')} type="number" min="1" max="28" value={form.retainer_day} onChange={set('retainer_day')} placeholder={traducir('projects.dia_de_corte')} aria-label={traducir('projects.dia_de_corte')} />
               {err('retainer_day') && <div className="u-field-error">{err('retainer_day')}</div>}
             </div>
           </>
         )}
         <div>
-          <label className="prj-ls-2" id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`}>{t('proyectos_ui.fecha_inicio')}</label>
-          <DateInput id={`${idCampo}-6`} value={form.start_date} onChange={set('start_date')} className="prj-fs-2" />
+          <DateInput label={t('proyectos_ui.fecha_inicio')} id={`${idCampo}-6`} value={form.start_date} onChange={set('start_date')} />
           {err('start_date') && <div className="u-field-error">{err('start_date')}</div>}
         </div>
         <div>
-          <label className="prj-ls-2" id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`}>{t('proyectos_ui.fecha_fin_planificada')}</label>
-          <DateInput id={`${idCampo}-7`} value={form.end_date_planned} onChange={set('end_date_planned')} className="prj-fs-2" />
+          <DateInput label={t('proyectos_ui.fecha_fin_planificada')} id={`${idCampo}-7`} value={form.end_date_planned} onChange={set('end_date_planned')} />
           {err('end_date_planned') && <div className="u-field-error">{err('end_date_planned')}</div>}
         </div>
         <div className="u-col-full">
-          <label className="prj-ls-2">{traducir('projects.label_description')}</label>
-          <Textarea value={form.description} onChange={set('description')} rows={3} placeholder={traducir('projects.descripcion_del_proyecto')} aria-label={traducir('projects.descripcion_del_proyecto')} inputClassName="prj-fs-2 prj-input" />
+          <Textarea label={traducir('projects.label_description')} value={form.description} onChange={set('description')} rows={3} placeholder={traducir('projects.descripcion_del_proyecto')} aria-label={traducir('projects.descripcion_del_proyecto')} />
           {err('description') && <div className="u-field-error">{err('description')}</div>}
         </div>
         {/* Revisión 2026-11: antes de crear, lo que aprendimos en proyectos parecidos. */}

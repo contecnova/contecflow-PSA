@@ -80,7 +80,7 @@ class AIUsageLog(Base):
     __tablename__ = "ai_usage_logs"
 
     id           = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)  # audit #7
     provider_id  = Column(String(36), ForeignKey("ai_providers.id", ondelete="SET NULL"), nullable=True, index=True)
     user_id      = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     module       = Column(String(50),  nullable=False)   # nexusagent, oracle, sprint, meetings...

@@ -236,14 +236,8 @@ export default function BiGovernancePanel() {
             <div className="bigopa-row-5"><Spinner /></div>
           ) : (
             <div className="bigopa-grid-2">
-              <label className="bigopa-stack-1">
-                {t('bigovernance.horas_max_olap')}
-                <Input type="number" aria-label={t('bigovernance.horas_max_olap')} min={1} max={240} value={reglas.olap_max_staleness_hours ?? ''} onChange={e => setReglas(r => ({ ...r, olap_max_staleness_hours: e.target.value === '' ? undefined : Number(e.target.value) }))} inputClassName="bigopa-inputbase" />
-              </label>
-              <label className="bigopa-stack-1">
-                {t('bigovernance.informes_en_error_max')}
-                <Input type="number" aria-label={t('bigovernance.informes_en_error_max')} min={0} max={100} value={reglas.max_error_reports ?? ''} onChange={e => setReglas(r => ({ ...r, max_error_reports: e.target.value === '' ? undefined : Number(e.target.value) }))} inputClassName="bigopa-inputbase" />
-              </label>
+              <Input label={t('bigovernance.horas_max_olap')} type="number" aria-label={t('bigovernance.horas_max_olap')} min={1} max={240} value={reglas.olap_max_staleness_hours ?? ''} onChange={e => setReglas(r => ({ ...r, olap_max_staleness_hours: e.target.value === '' ? undefined : Number(e.target.value) }))} />
+              <Input label={t('bigovernance.informes_en_error_max')} type="number" aria-label={t('bigovernance.informes_en_error_max')} min={0} max={100} value={reglas.max_error_reports ?? ''} onChange={e => setReglas(r => ({ ...r, max_error_reports: e.target.value === '' ? undefined : Number(e.target.value) }))} />
               <Checkbox className="bigopa-row-6" label={t('bigovernance.exigir_informes_activos')} checked={!!reglas.require_active_schedules} onChange={m => setReglas(r => ({ ...r, require_active_schedules: m }))} />
             </div>
           )}

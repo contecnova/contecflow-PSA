@@ -47,10 +47,9 @@ export default function Importar() {
         <div className="u-stack-12">
           {meta.isLoading ? <Spinner size={16} /> : (
             <div className="sdm-form">
-              <label className="sdm-field"><span>{t('swr.fuente')}</span>
-                <Select suelto placeholder={false} value={fuente} onChange={ev => setFuente(ev.target.value)}>
+              <Select label={t('swr.fuente')} placeholder={false} value={fuente} onChange={ev => setFuente(ev.target.value)}>
                   {(meta.data?.sources ?? ['file']).map(s => <option key={s} value={s}>{e('fuente', s)}</option>)}
-                </Select></label>
+                </Select>
               <div className="sdm-field"><Checkbox checked={crearCis} onChange={setCrearCis} label={t('swr.crear_cis')} ayuda={t('swr.crear_cis_ayuda')} /></div>
               <div className="sdm-field"><Checkbox checked={completa} onChange={setCompleta} label={t('swr.completa')} ayuda={t('swr.completa_ayuda')} /></div>
             </div>

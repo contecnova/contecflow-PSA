@@ -66,13 +66,6 @@
 
 .chat-icon-close--end { margin-left: auto; }
 
-.chat-form-label {
-  font-size: var(--text-xs);
-  font-weight: 700;
-  color: var(--text-2);
-  letter-spacing: 0.07em;
-}
-
 .chat-input {
   width: 100%;
   box-sizing: border-box;
@@ -590,16 +583,12 @@ h3.chat-section-btn { margin: 0; }
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: transparent;
+  background: var(--accent);
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
-  color: var(--text-2);
+  color: var(--on-accent);
   cursor: pointer;
   flex-shrink: 0;
-}
-.chat-enviar {
-  background: var(--accent);
-  color: var(--on-accent);
 }
 
 /* ── Mensajes ─────────────────────────────────────────────────────────── */
@@ -643,7 +632,7 @@ h3.chat-section-btn { margin: 0; }
 .chat-msg__body {
   font-size: var(--text-sm);
   white-space: pre-wrap;
-  word-break: break-word;
+  overflow-wrap: anywhere;
   color: var(--text-1);
   font-style: normal;
 }
@@ -1091,3 +1080,15 @@ h3.chat-section-btn { margin: 0; }
 }
 .chat-notif--unread { background: var(--accent-muted); }
 .chat-notif__title { font-size: var(--text-sm); font-weight: 600; }
+/* 24-11-2026 (chat del portal): cita del mensaje al que se responde y enlaces del cuerpo. */
+.chat-msg__cita {
+  margin: 0 0 6px;
+  padding: 4px 10px;
+  border-left: 3px solid var(--accent);
+  background: var(--surface-2);
+  border-radius: var(--radius-sm);
+}
+.chat-msg__body a {
+  color: var(--accent);
+  text-decoration: underline;
+}

@@ -10,7 +10,7 @@ import { epicsApi, tasksApi } from '../services/api'
 import { useListaDeProyectos } from '../hooks/useListas'
 import type { EpicaDelRoadmap, EpicaSerializada } from '../services/api/tipos-proyectos'
 import { useAuth } from '../context/AuthContext'
-import { Button, Spinner, EmptyState, Modal, KpiCard, Tabs, IconButton, Pulsable, Select, useErroresDeCampo, Input, Textarea, EstadoDeError } from '../components/ui'
+import { Button, Spinner, EmptyState, Modal, KpiCard, Tabs, IconButton, Pulsable, Select, useErroresDeCampo, Input, Textarea, EstadoDeError, SelectorDeContexto } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { CalendarDays, CalendarRange, FolderKanban, Layers, List, ListChecks, Map as MapIcon, Pencil, Plus, Target, Trash2 } from 'lucide-react'
@@ -98,25 +98,25 @@ function EpicForm({ projectId, epic, onClose }: { projectId: string; epic?: Epic
   return (
     <Modal open onClose={onClose} title={isEdit ? t('epics.edit_epic') : t('epics.new_epic')}>
       <div className="u-stack-14">
-        <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="epics-page-e13">{t('epics.title_label')}</label><Input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.title} onChange={e=>set('title')(e.target.value)} placeholder={t('epics.epic_name')} inputClassName="epics-page-e14" />{msg('title')}</div>
-        <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="epics-page-e13">{t('common.description')}</label><Textarea id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.description} onChange={e=>set('description')(e.target.value)} inputClassName="epics-page-e1" />{msg('description')}</div>
+        <div><Input label={t('epics.title_label')} id={`${idCampo}-1`} value={form.title} onChange={e=>set('title')(e.target.value)} placeholder={t('epics.epic_name')} />{msg('title')}</div>
+        <div><Textarea label={t('common.description')} id={`${idCampo}-2`} value={form.description} onChange={e=>set('description')(e.target.value)} />{msg('description')}</div>
         <div className="u-grid2-12">
-          <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="epics-page-e13">{t('common.status')}</label>
-            <Select suelto placeholder={false} id={`${idCampo}-3`} className="epics-page-e14" value={form.status} onChange={e=>set('status')(e.target.value)}>
+          <div>
+            <Select label={t('common.status')} placeholder={false} id={`${idCampo}-3`} value={form.status} onChange={e=>set('status')(e.target.value)}>
               {Object.entries(STATUS_CFG).map(([v,c])=><option key={v} value={v}>{c.label}</option>)}
             </Select>{msg('status')}
           </div>
-          <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="epics-page-e13">{t('common.priority')}</label>
-            <Select suelto placeholder={false} id={`${idCampo}-4`} className="epics-page-e14" value={form.priority} onChange={e=>set('priority')(e.target.value)}>
+          <div>
+            <Select label={t('common.priority')} placeholder={false} id={`${idCampo}-4`} value={form.priority} onChange={e=>set('priority')(e.target.value)}>
               {Object.entries(PRIORITY_CFG).map(([v,c])=><option key={v} value={v}>{c.label}</option>)}
             </Select>{msg('priority')}
           </div>
         </div>
         <div className="u-grid2-12">
-          <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="epics-page-e13">{t('epics.start_date')}</label><DateInput id={`${idCampo}-5`} className="epics-page-e14" value={form.start_date} onChange={e=>set('start_date')(e.target.value)}/>{msg('start_date')}</div>
-          <div><label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} className="epics-page-e13">{t('epics.end_date')}</label><DateInput id={`${idCampo}-6`} className="epics-page-e14" value={form.end_date} onChange={e=>set('end_date')(e.target.value)}/>{msg('end_date')}</div>
+          <div><DateInput label={t('epics.start_date')} id={`${idCampo}-5`} value={form.start_date} onChange={e=>set('start_date')(e.target.value)}/>{msg('start_date')}</div>
+          <div><DateInput label={t('epics.end_date')} id={`${idCampo}-6`} value={form.end_date} onChange={e=>set('end_date')(e.target.value)}/>{msg('end_date')}</div>
         </div>
-        <div><label className="epics-page-e13">{t('epics.color_label')}</label>
+        <div><label className="uiinde-estiloetiqueta">{t('epics.color_label')}</label>
           <div className="u-wrap-8">
             {COLORS.map(c=>(
               <Pulsable type="button" key={c} aria-pressed={form.color===c} onClick={()=>set('color')(c)} aria-label={`${t('epics.color_label')} ${c}`}
@@ -300,13 +300,12 @@ export default function EpicsPage(): JSX.Element {
       />
 
       {/* Selector proyecto */}
-      <div className="ds-toolbar epics-filtros">
-        <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="u-sr-only">{t('epics.project_label')}</label>
-        <Select suelto placeholder={false} id={`${idCampo}-1`} value={project} onChange={e=>setProject(e.target.value)} className="ds-input epics-proyecto">
+      <SelectorDeContexto>
+        <Select label={t('epics.project_label')} placeholder={false} id={`${idCampo}-1`} value={project} onChange={e=>setProject(e.target.value)}>
           <option value="">{t('epics.select_project_placeholder')}</option>
           {projects.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}
         </Select>
-      </div>
+      </SelectorDeContexto>
 
       {project && epics.length > 0 && (
         <Tabs

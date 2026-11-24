@@ -175,32 +175,6 @@
   margin-bottom: 5px;
   color: var(--text-2);
 }
-.developer-portal-page-e2 {
-  width: 100%;
-  background: var(--surface-3);
-  border: 1px solid var(--surface-4);
-  border-radius: 8px;
-  padding: 9px 12px;
-  color: var(--text-1);
-  font-size: var(--text-base);
-  outline: none;
-  font-family: inherit;
-  box-sizing: border-box;
-  resize: vertical;
-}
-.developer-portal-page-e3 {
-  width: 100%;
-  background: var(--surface-3);
-  border: 1px solid var(--surface-4);
-  border-radius: 8px;
-  padding: 9px 12px;
-  color: var(--text-1);
-  outline: none;
-  box-sizing: border-box;
-  resize: vertical;
-  font-variant-numeric: tabular-nums;
-  font-size: var(--text-sm);
-}
 .developer-portal-page-e4 {
   border: var(--developer-portal-page-border);
 }
@@ -234,18 +208,6 @@
   letter-spacing: 0.07em;
   display: block;
   margin-bottom: 5px;
-}
-.developer-portal-page-e8 {
-  width: 100%;
-  background: var(--surface-3);
-  border: 1px solid var(--surface-4);
-  border-radius: 8px;
-  padding: 9px 12px;
-  color: var(--text-1);
-  font-size: var(--text-base);
-  outline: none;
-  font-family: inherit;
-  box-sizing: border-box;
 }
 
 /* <<< estilos-en-linea */

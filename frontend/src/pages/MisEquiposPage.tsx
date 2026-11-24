@@ -202,11 +202,10 @@ function PedirModal({ que, onClose }: { que: 'licencia' | 'equipo'; onClose: () 
               options={(opciones.data?.licencias ?? []).map(l => ({ value: l.id, label: l.product_name && l.product_name !== l.name ? `${l.name} · ${l.product_name}` : l.name }))} />
           : <Select error={camposB.de('asset_type')} label={t('almint.tipo_de_equipo')} value={f.asset_type} onChange={e => setF({ ...f, asset_type: e.target.value })}
               options={(opciones.data?.tipos_de_equipo ?? []).map(v => ({ value: v, label: etiqueta(t, 'tipo_equipo', v) }))} />}
-        {que === 'equipo' && <label className="almint-campo">{t('almint.prestamo_hasta')}
-          <DateInput className="ds-input" value={f.hasta} onChange={e => setF({ ...f, hasta: e.target.value })} />{msgB('hasta')}
-          <span className="almint-tenue">{t('almint.prestamo_hasta_ayuda')}</span></label>}
-        <label className="almint-campo">{t('almint.motivo')}
-          <Textarea rows={3} value={f.motivo} onChange={e => setF({ ...f, motivo: e.target.value })} />{msgB('motivo')}</label>
+        {que === 'equipo' && <div className="almint-campo">
+          <DateInput label={t('almint.prestamo_hasta')} value={f.hasta} onChange={e => setF({ ...f, hasta: e.target.value })} />{msgB('hasta')}
+          <span className="almint-tenue">{t('almint.prestamo_hasta_ayuda')}</span></div>}
+        <div className="almint-campo"><Textarea label={t('almint.motivo')} rows={3} value={f.motivo} onChange={e => setF({ ...f, motivo: e.target.value })} />{msgB('motivo')}</div>
         <div className="almint-acciones almint-acciones--fin">
           <Button variant="ghost" onClick={onClose}>{t('common.cancel')}</Button>
           <Button icon={<Send size={14} />} disabled={!listo} loading={m.isPending} onClick={() => m.mutate()}>{t('almint.enviar_peticion')}</Button>
@@ -232,8 +231,7 @@ function AveriaModal({ equipo, onClose }: { equipo: MiEquipo; onClose: () => voi
   return (
     <Modal open onClose={onClose} title={t('almint.comunicar_averia')} subtitle={equipo.name ?? undefined}>
       <div className="almint-form">
-        <label className="almint-campo">{t('almint.que_le_pasa')}
-          <Textarea rows={4} value={descripcion} onChange={e => setDescripcion(e.target.value)} /></label>
+        <Textarea label={t('almint.que_le_pasa')} rows={4} value={descripcion} onChange={e => setDescripcion(e.target.value)} />
         <Select label={t('almint.urgencia_label')} value={urgencia} onChange={e => setUrgencia(e.target.value)}
           options={URGENCIAS.map(u => ({ value: u, label: etiqueta(t, 'urgencia', u) }))} />
         <div className="almint-acciones almint-acciones--fin">
@@ -265,8 +263,7 @@ function MotivoModal({ accion, onClose }: { accion: Extract<Accion, { tipo: 'dev
       subtitle={devolver ? accion.equipo.name ?? undefined : accion.licencia.name ?? undefined}>
       <div className="almint-form">
         <p className="almint-tenue">{devolver ? t('almint.devolver_explicacion') : t('almint.dejar_explicacion')}</p>
-        <label className="almint-campo">{t('almint.motivo')}
-          <Textarea rows={3} value={motivo} onChange={e => setMotivo(e.target.value)} /></label>
+        <Textarea label={t('almint.motivo')} rows={3} value={motivo} onChange={e => setMotivo(e.target.value)} />
         <div className="almint-acciones almint-acciones--fin">
           <Button variant="ghost" onClick={onClose}>{t('common.cancel')}</Button>
           <Button variant={devolver ? 'primary' : 'danger'} loading={m.isPending} onClick={() => m.mutate()}>{devolver ? t('almint.devolver') : t('almint.liberar')}</Button>

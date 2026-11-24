@@ -68,7 +68,7 @@
 
 .sem-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
 .sem-grid12 { display: grid; grid-template-columns: 1fr 2fr; gap: 16px; }
-@media (max-width: 900px) { .sem-grid2, .sem-grid12 { grid-template-columns: minmax(0, 1fr); } }
+@media (width <= 900px) { .sem-grid2, .sem-grid12 { grid-template-columns: minmax(0, 1fr); } }
 
 .sem-mode {
   padding: 12px 16px; border-radius: 8px; border: 2px solid var(--surface-4); background: transparent;

@@ -1,0 +1,253 @@
+/* Chat del portal completo (24-11-2026, docs/portal/CHAT_DEL_PORTAL.md). Solo tokens de index.css. */
+.chat-portal-oculto {
+  display: none;
+}
+.chat-portal-burbuja {
+  position: relative;
+}
+.chat-portal-burbuja--borrada {
+  opacity: 0.75;
+}
+.chat-portal-texto a {
+  color: var(--accent);
+  text-decoration: underline;
+  word-break: break-all;
+}
+.chat-portal-editado {
+  font-style: italic;
+}
+.chat-portal-borrado {
+  font-size: var(--text-sm);
+  font-style: italic;
+  color: var(--text-3);
+}
+.chat-portal-cita {
+  margin: 0 0 8px;
+  padding: 6px 10px;
+  border-left: 3px solid var(--accent);
+  background: var(--surface-2);
+  border-radius: var(--radius-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.chat-portal-cita__texto {
+  font-size: var(--text-sm);
+  color: var(--text-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.chat-portal-adjuntos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+.chat-portal-adjunto {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--surface-4);
+  border-radius: var(--radius-sm);
+  background: var(--surface-1);
+  font-size: var(--text-sm);
+  color: var(--text-1);
+}
+.chat-portal-adjunto--cuarentena {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+.chat-portal-adjunto__nombre {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 220px;
+}
+.chat-portal-adjunto__tamano {
+  color: var(--text-3);
+  font-size: var(--text-xs);
+}
+.chat-portal-adjunto__miniatura {
+  padding: 0;
+  border: 1px solid var(--surface-4);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  cursor: zoom-in;
+  overflow: hidden;
+}
+.chat-portal-adjunto__miniatura img {
+  display: block;
+  max-width: 240px;
+  max-height: 180px;
+  object-fit: cover;
+}
+.chat-portal-adjunto__ampliada {
+  display: flex;
+  justify-content: center;
+}
+.chat-portal-adjunto__ampliada img {
+  max-width: 100%;
+  max-height: 70vh;
+  object-fit: contain;
+}
+.chat-portal-adjunto__acciones {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 12px;
+}
+.chat-portal-reacciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 8px;
+}
+.chat-portal-reaccion {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border: 1px solid var(--surface-4);
+  border-radius: 999px;
+  background: var(--surface-1);
+  font-size: var(--text-sm);
+}
+.chat-portal-reaccion--mia {
+  border-color: var(--accent);
+  background: var(--accent-muted);
+}
+.chat-portal-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  margin-top: 8px;
+}
+.chat-portal-reaccion-rapida {
+  font-size: var(--text-base);
+  padding: 2px 4px;
+  border-radius: var(--radius-sm);
+}
+.chat-portal-reaccion-rapida:hover,
+.chat-portal-reaccion-rapida:focus-visible {
+  background: var(--surface-3);
+}
+.chat-portal-estado {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 4px;
+  margin-top: 6px;
+  font-size: var(--text-2xs);
+  color: var(--text-3);
+}
+.chat-portal-escribiendo {
+  margin-top: 10px;
+  font-size: var(--text-xs);
+  font-style: italic;
+  color: var(--text-3);
+}
+.chat-portal-contexto {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  padding: 6px 10px;
+  border-left: 3px solid var(--accent);
+  background: var(--surface-2);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+}
+.chat-portal-contexto__texto {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.chat-portal-herramientas {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.chat-portal-entrante {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-md);
+  background: var(--accent-muted);
+  color: var(--text-1);
+}
+.chat-portal-historial {
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.chat-portal-llamada {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.chat-portal-llamada__aviso {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--text-2);
+}
+.chat-portal-llamada__rejilla {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+}
+.chat-portal-llamada__rejilla--voz {
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+}
+.chat-portal-llamada__tile {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface-3);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+.chat-portal-llamada__tile video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.chat-portal-llamada__inicial {
+  font-size: var(--text-lg);
+  font-weight: 700;
+  color: var(--text-2);
+}
+.chat-portal-llamada__nombre {
+  position: absolute;
+  left: 8px;
+  bottom: 6px;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-1);
+  font-size: var(--text-xs);
+  color: var(--text-1);
+}
+.chat-portal-llamada__controles {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+}

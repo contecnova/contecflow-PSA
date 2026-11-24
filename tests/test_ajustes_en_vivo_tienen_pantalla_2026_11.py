@@ -19,7 +19,9 @@ CATALOGO = (Path(__file__).resolve().parents[1] / "frontend/src/pages/settings/c
 #: `PUT /security/policy` (separación de funciones y auditoría), desde su sección
 #: «Seguridad de cuentas»; en «Configuración dinámica» se saltarían ambas.
 CON_SECCION_PROPIA = {"service_desk": "sd", "traduccion": "traduccion",
-                      "password_policy": "seguridad-cuentas", "account_security": "seguridad-cuentas"}
+                      "password_policy": "seguridad-cuentas", "account_security": "seguridad-cuentas",
+                      # 24-11-2026: chat del portal (docs/portal/CHAT_DEL_PORTAL.md).
+                      "portal_chat": "portal-chat"}
 
 
 def test_cada_grupo_del_servidor_esta_en_la_pantalla():

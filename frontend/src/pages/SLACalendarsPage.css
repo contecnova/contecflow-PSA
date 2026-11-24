@@ -62,7 +62,7 @@ fieldset.slac-days legend { padding: 0; }
   gap: 8px;
   align-items: flex-end;
 }
-@media (max-width: 520px) {
+@media (width <= 520px) {
   .slac-add { grid-template-columns: 1fr; }
 }
 .slac-list {

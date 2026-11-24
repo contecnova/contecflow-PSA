@@ -238,6 +238,15 @@ def encolar(funcion: Callable, *args: Any, _organizacion: Optional[str] = None,
     organizacion = _organizacion
     if organizacion is None and _sesion is not None:
         organizacion = getattr(_sesion, "info", {}).get("organization_id")
+    if organizacion is None and _sesion is not None:
+        # 24-11-2026 (empresa obligatoria): un superadmin sin empresa elegida que
+        # encola trabajo lo haría correr sin empresa y fallaría luego en el worker
+        # con `fila_sin_empresa`, cuando ya no hay a quién avisar. Se le pide la
+        # empresa ahora, en su propia petición (409 `empresa_requerida`).
+        sujeto = getattr(_sesion, "info", {}).get("current_user")
+        if sujeto is not None and getattr(sujeto, "is_superadmin", False)                 and not getattr(sujeto, "organization_id", None):
+            from app.core.codigos_de_error import error
+            raise error(409, "empresa_requerida", tabla=ruta_de(funcion))
     # Una closure no se puede mandar a la cola; en linea si se puede ejecutar.
     # Fuera de la lista blanca tampoco: el worker la rechazaría (01 M5).
     encolable = "<locals>" not in getattr(funcion, "__qualname__", "<locals>") and es_encolable(ruta_de(funcion))

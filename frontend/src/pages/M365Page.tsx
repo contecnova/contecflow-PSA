@@ -170,10 +170,7 @@ function TeamsTab() {
         <Section title={<span className="m365-titulo"><MessageSquare size={16} aria-hidden />{t('m365.enviar_notificacion_a_teams')}</span>}>
           <div className="u-stack-12">
             <Input label={t('m365.titulo')} value={title} onChange={e => setTitle(e.target.value)} placeholder={t('m365.titulo_de_la_notificacion')} />
-            <div className="ui-field">
-              <label htmlFor="m365-mensaje" className="uiinde-estiloetiqueta">{t('pagina_m365.mensaje')}</label>
-              <Textarea id="m365-mensaje" value={text} onChange={e => setText(e.target.value)} rows={3} placeholder={t('m365.texto_del_mensaje')} inputClassName="m365-textarea" />
-            </div>
+            <Textarea label={t('pagina_m365.mensaje')} id="m365-mensaje" value={text} onChange={e => setText(e.target.value)} rows={3} placeholder={t('m365.texto_del_mensaje')} />
             <div className="ui-field">
               <label htmlFor="m365-color" className="uiinde-estiloetiqueta">{t('m365.color_hex_sin')}</label>
               <div className="u-row-center-8">

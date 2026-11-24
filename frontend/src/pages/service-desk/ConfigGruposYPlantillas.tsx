@@ -133,7 +133,7 @@ export function GroupsConfig() {
   )
 }
 
-function NewGroupForm({ LS, onSave, isPending, onClose, initial }: { LS: string; onSave: (d: Record<string, unknown>) => void; isPending: boolean; onClose: () => void; initial?: Group | null }) {
+function NewGroupForm({ LS: _LS, onSave, isPending, onClose, initial }: { LS: string; onSave: (d: Record<string, unknown>) => void; isPending: boolean; onClose: () => void; initial?: Group | null }) {
   const idCampo = useId()
   const t = useAppT()
   const [form, setForm] = useState({
@@ -146,12 +146,10 @@ function NewGroupForm({ LS, onSave, isPending, onClose, initial }: { LS: string;
   return (
     <>
       <div><Input label={<>{t('common.name')} *</>} id={`${idCampo}-1`} value={form.name} onChange={set('name')} /></div>
-      <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className={LS}>{t('service_desk.groups_support_level')}</label>
-        <Select suelto placeholder={false} id={`${idCampo}-2`} value={form.support_level} onChange={set('support_level')} className="sdcfg-sel">
+      <Select label={t('service_desk.groups_support_level')} placeholder={false} id={`${idCampo}-2`} value={form.support_level} onChange={set('support_level')}>
           {['l1','l2','l3'].map(v =>
             <option key={v} value={v}>{t(`config.nivel_${v}`)}</option>)}
         </Select>
-      </div>
       <div><Input label={t('common.description')} id={`${idCampo}-3`} value={form.description} onChange={set('description')} /></div>
       <div><Input label={t('sd_cfg.ola_hours')} id="grp-ola" type="number" min={0} step={0.5} value={form.ola_hours} onChange={set('ola_hours')} aria-invalid={!olaValido} aria-describedby="grp-ola-hint" />
         <div id="grp-ola-hint" className={olaValido ? 'sdcfg-hint sdcfg-hint--tight' : 'sdcfg-hint sdcfg-hint--tight sdcfg-hint--error'}>{t('sd_cfg.ola_hint')}</div>
@@ -253,7 +251,7 @@ export function TemplatesConfig() {
   )
 }
 
-function NewTemplateForm({ LS, onSave, isPending, onClose, initial }: { LS: string; onSave: (d: Record<string, unknown>) => void; isPending: boolean; onClose: () => void; initial?: Template | null }) {
+function NewTemplateForm({ LS: _LS, onSave, isPending, onClose, initial }: { LS: string; onSave: (d: Record<string, unknown>) => void; isPending: boolean; onClose: () => void; initial?: Template | null }) {
   const idCampo = useId()
   const t = useAppT()
   const [form, setForm] = useState({
@@ -266,20 +264,14 @@ function NewTemplateForm({ LS, onSave, isPending, onClose, initial }: { LS: stri
     <div className="u-stack-14">
       <div><Input label={<>{t('common.name')} *</>} id={`${idCampo}-1`} value={form.name} onChange={set('name')} /></div>
       <div className="u-grid2-10">
-        <div>
-          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className={LS}>{t('service_desk.svc_ticket_type')}</label>
-          <Select suelto placeholder={false} id={`${idCampo}-2`} value={form.ticket_type} onChange={set('ticket_type')} className="sdcfg-sel">
+        <Select label={t('service_desk.svc_ticket_type')} placeholder={false} id={`${idCampo}-2`} value={form.ticket_type} onChange={set('ticket_type')}>
             {['incident','service_request','change','question','problem'].map(tk =>
               <option key={tk} value={tk}>{etiquetaSd('type', tk)}</option>)}
           </Select>
-        </div>
-        <div>
-          <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className={LS}>{t('service_desk.templates_priority')}</label>
-          <Select suelto placeholder={false} id={`${idCampo}-3`} value={form.default_priority} onChange={set('default_priority')} className="sdcfg-sel">
+        <Select label={t('service_desk.templates_priority')} placeholder={false} id={`${idCampo}-3`} value={form.default_priority} onChange={set('default_priority')}>
             {['p1_critical','p2_high','p3_medium','p4_low'].map(p =>
               <option key={p} value={p}>{PRIORITY_LABEL_MAP[p]}</option>)}
           </Select>
-        </div>
       </div>
       <div>
         <Textarea label={t('sd_cfg.cfg_tmpl_body')} id={`${idCampo}-4`} value={form.description_template} onChange={set('description_template')} rows={4} placeholder={t('config.texto_de_la_plantilla_de_descripcion')} />

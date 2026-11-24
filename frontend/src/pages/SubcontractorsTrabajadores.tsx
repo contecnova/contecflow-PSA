@@ -117,8 +117,7 @@ function WorkerModal({ subId, worker, onClose, onSaved }: { subId: string; worke
           {showSkillForm && (
             <div className="sub-skill-form">
               <div className="u-col-full">
-                <label id={`${idCampo}-9-et`} htmlFor={`${idCampo}-9`} className="sub-label">{t('subcontractors.add_skill')} *</label>
-                <Select suelto placeholder={false} id={`${idCampo}-9`} value={skillForm.skill_id} onChange={e => { campos.limpiar('skill_id'); setSkillForm(f => ({ ...f, skill_id: e.target.value })) }} className="sub-input">
+                <Select label={<>{t('subcontractors.add_skill')}*</>} placeholder={false} id={`${idCampo}-9`} value={skillForm.skill_id} onChange={e => { campos.limpiar('skill_id'); setSkillForm(f => ({ ...f, skill_id: e.target.value })) }}>
                   <option value="">{t('subcontractors.select_skill')}</option>
                   {Object.entries(byCategory).map(([cat, skills]) => (
                     <optgroup key={cat} label={cat.charAt(0).toUpperCase() + cat.slice(1)}>
@@ -127,16 +126,10 @@ function WorkerModal({ subId, worker, onClose, onSaved }: { subId: string; worke
                   ))}
                 </Select>
               </div>
-              <div>
-                <label id={`${idCampo}-10-et`} htmlFor={`${idCampo}-10`} className="sub-label">{t('subcontractors.level')}</label>
-                <Select suelto placeholder={false} id={`${idCampo}-10`} value={skillForm.level} onChange={e => { campos.limpiar('level'); setSkillForm(f => ({ ...f, level: e.target.value })) }} className="sub-input">
+              <Select label={t('subcontractors.level')} placeholder={false} id={`${idCampo}-10`} value={skillForm.level} onChange={e => { campos.limpiar('level'); setSkillForm(f => ({ ...f, level: e.target.value })) }}>
                   {NIVELES.map(l => <option key={l} value={l}>{etiquetaNivel(l)}</option>)}
                 </Select>
-              </div>
-              <div>
-                <label id={`${idCampo}-11-et`} htmlFor={`${idCampo}-11`} className="sub-label">{t('subcontractors.years_experience')}</label>
-                <Input id={`${idCampo}-11`} aria-labelledby={`${idCampo}-11-et`} type="number" value={skillForm.years_experience} onChange={e => { campos.limpiar('years_experience'); setSkillForm(f => ({ ...f, years_experience: e.target.value })) }} min="0" step="0.5" inputClassName="sub-input" />
-              </div>
+              <Input label={t('subcontractors.years_experience')} id={`${idCampo}-11`} type="number" value={skillForm.years_experience} onChange={e => { campos.limpiar('years_experience'); setSkillForm(f => ({ ...f, years_experience: e.target.value })) }} min="0" step="0.5" />
               <div className="sub-check-row">
                 <Checkbox className="sub-check-label" checked={!!skillForm.certified} onChange={v => { campos.limpiar('certified'); setSkillForm(f => ({ ...f, certified: v })) }}
                   label={t('subcontractors.certified')} />

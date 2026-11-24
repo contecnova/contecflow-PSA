@@ -14,10 +14,11 @@
   gap: 20px;
   align-items: start;
 }
-@media (max-width: 900px) {
+@media (width <= 900px) {
   .rb-grid { grid-template-columns: minmax(0, 1fr); }
 }
-.rb-panel { gap: 20px; }
+.rb-panel { display: flex; flex-direction: column; gap: 20px; }  /* sin display el gap no se aplicaba: «Previsualizar» quedaba pegado */
+.rb-panel > .ds-btn, .rb-panel > button { align-self: flex-start; }
 .rb-derecha { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
 .rb-vista { padding: 0; min-height: 200px; overflow: hidden; }
 
@@ -151,8 +152,8 @@
 
 /* ── Plantillas ──────────────────────────────────────────────────────────── */
 .rb-plantilla {
-  flex-direction: row;
-  flex-wrap: wrap;
+  display: flex;
+  flex-flow: row wrap;
   align-items: center;
   gap: 12px;
 }

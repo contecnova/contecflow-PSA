@@ -142,8 +142,7 @@ function CompleteModal({ step, onClose }: { step: InboxStep; onClose: () => void
         )}
         {esDecision && !multiple && (
           <>
-            <label htmlFor="bpm-salida" className="bprupa-txt-1">{t('bpm.elige_salida')}</label>
-            <Select suelto placeholder={false} id="bpm-salida" value={salidas[0] ?? ''} onChange={e => setSalidas([e.target.value])}>
+            <Select label={t('bpm.elige_salida')} placeholder={false} id="bpm-salida" value={salidas[0] ?? ''} onChange={e => setSalidas([e.target.value])}>
               <option value="" disabled>{t('bpm.elige_salida')}</option>
               {opciones.map(o => (
                 <option key={o.flow_id} value={o.flow_id}>{o.name}{o.default ? ` ${t('bpm.salida_por_defecto')}` : ''}</option>
@@ -168,8 +167,7 @@ function CompleteModal({ step, onClose }: { step: InboxStep; onClose: () => void
           </div>
         ) : (
           <>
-            <label htmlFor="bpm-vars" id="bpm-vars-etiqueta" className="bprupa-txt-1">{t('bpm.variables_ayuda')}</label>
-            <Textarea id="bpm-vars" aria-labelledby="bpm-vars-etiqueta" value={vars} onChange={e => setVars(e.target.value)} rows={4} placeholder={t('bpm.variables_ejemplo')} inputClassName="ds-codigo bprupa-fs" />
+            <Textarea label={t('bpm.variables_ayuda')} id="bpm-vars" value={vars} onChange={e => setVars(e.target.value)} rows={4} placeholder={t('bpm.variables_ejemplo')} inputClassName="ds-codigo" />
           </>
         )}
         {(step.error_codes ?? []).length > 0 && (

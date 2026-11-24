@@ -160,8 +160,10 @@ def test_EL_HALLAZGO_un_sms_sin_empresa_no_busca_el_telefono_en_todas(db, monkey
     monkeypatch.setattr(tcs, "build_channel_ticket", _falso)
     monkeypatch.setattr(ms, "send_sms", lambda *a, **k: None)
     db.info["organization_id"], db.info["is_superadmin"] = None, None
-    ms.process_inbound_sms(db, from_phone="+34600000000", body="hola", to_phone="+000")
-    assert visto["org_id"] is None and visto["requester_client"] is None
+    r = ms.process_inbound_sms(db, from_phone="+34600000000", body="hola", to_phone="+000")
+    # 24-11-2026 (migración 208): sin empresa del número y con varias empresas
+    # ni se busca el teléfono ni se abre ticket (antes, uno sin empresa).
+    assert visto == {} and r["ignored"] is True
 
 
 def test_EL_HALLAZGO_la_efirma_lee_las_credenciales_de_la_empresa_de_la_sesion(db):

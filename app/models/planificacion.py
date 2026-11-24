@@ -17,7 +17,7 @@ class EvmSnapshot(Base):
     __table_args__ = (UniqueConstraint("project_id", "snapshot_date", name="uq_evm_snapshot_dia"),)
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     project_id = Column(String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
     snapshot_date = Column(Date, nullable=False, index=True)
     baseline_id = Column(String(36), nullable=True)      # la línea base vigente ese día (sin FK: puede borrarse)

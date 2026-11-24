@@ -42,15 +42,10 @@ function FueraDeLaOficina() {
       </summary>
       <div className="apv-ooo__fila">
         <div className="apv-ooo__delegado">
-          <div className="u-text3-xs" id={`${idCampo}-delegar`}>{t('approvals.delegar_en')}</div>
-          <span aria-labelledby={`${idCampo}-delegar`}>
-            <UserSelect value={actual.delegate_id} onChange={id => setForm({ ...actual, delegate_id: id })} placeholder={t('approvals.elige_a_quien')} />
-          </span>
+          <UserSelect label={t('approvals.delegar_en')} value={actual.delegate_id} onChange={id => setForm({ ...actual, delegate_id: id })} placeholder={t('approvals.elige_a_quien')} />
         </div>
-        <label htmlFor={`${idCampo}-desde`} className="u-text3-xs">{t('approvals.desde')}<br />
-          <DateInput id={`${idCampo}-desde`} value={actual.away_from} onChange={e => setForm({ ...actual, away_from: e.target.value })} className="apv-ooo__fecha" /></label>
-        <label htmlFor={`${idCampo}-hasta`} className="u-text3-xs">{t('approvals.hasta')}<br />
-          <DateInput id={`${idCampo}-hasta`} value={actual.away_until} onChange={e => setForm({ ...actual, away_until: e.target.value })} className="apv-ooo__fecha" /></label>
+        <DateInput label={t('approvals.desde')} id={`${idCampo}-desde`} value={actual.away_from} onChange={e => setForm({ ...actual, away_from: e.target.value })} />
+        <DateInput label={t('approvals.hasta')} id={`${idCampo}-hasta`} value={actual.away_until} onChange={e => setForm({ ...actual, away_until: e.target.value })} />
         <Button size="sm" disabled={isPending || !actual.delegate_id || !actual.away_from || !actual.away_until} onClick={() => guardar(actual)}>{t('approvals.guardar')}</Button>
         {data?.delegate_id && <Button size="sm" variant="secondary" disabled={isPending} onClick={() => guardar({ delegate_id: '', away_from: '', away_until: '' })}>{t('approvals.quitar')}</Button>}
       </div>

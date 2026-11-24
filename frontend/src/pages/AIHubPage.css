@@ -37,7 +37,7 @@
   border-top: 1px solid var(--surface-4); background: var(--surface-1); flex-shrink: 0;
 }
 .aih-provider-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
-@media (max-width: 480px) {
+@media (width <= 480px) {
   .aih-provider-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 .aih-provider-pick {
@@ -172,7 +172,7 @@
 /* Observabilidad */
 .aih-obs-head { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
 .aih-two-cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
-@media (max-width: 900px) {
+@media (width <= 900px) {
   .aih-two-cols { grid-template-columns: minmax(0, 1fr); }
 }
 .aih-health--healthy   { --aih-color: var(--success); }
@@ -208,10 +208,8 @@
 .aih-routing-grid {
   display: grid; grid-template-columns: minmax(220px, 1.4fr) 1fr 1fr; gap: 8px; align-items: center;
 }
-.aih-routing-label { font-size: var(--text-sm); color: var(--text-1); }
-@media (max-width: 900px) {
+@media (width <= 900px) {
   .aih-routing-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
-  .aih-routing-label { grid-column: 1 / -1; margin-top: 6px; }
 }
 .aih-routing-foot { margin-top: 14px; }
 

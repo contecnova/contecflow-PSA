@@ -147,8 +147,9 @@ def test_un_modelo_exento_no_se_sella(db, sesion_de_produccion):
 
 
 def test_sin_organizacion_en_la_sesion_no_se_sella(db):
-    """Un job de fondo o un script no tiene contexto, y su comportamiento no
-    cambia: sigue creando filas sin organización, como hasta ahora.
+    """Un job de fondo o un script no tiene contexto: no se sella con ninguna
+    empresa al azar. Desde el 24-11-2026 (208) tampoco guarda la fila sin empresa:
+    si no se deduce de su padre, se corta con `fila_sin_empresa`.
 
     Usa una sesión propia y no la del fixture **a propósito**: la del fixture
     publica contexto desde que la suite corre con la semántica de producción, y
@@ -168,9 +169,15 @@ def test_sin_organizacion_en_la_sesion_no_se_sella(db):
         # Desde el 22-11-2026 (M8) un job declara su contexto de sistema (Celery:
         # `TareaDeSistema`); sin él el ORM cierra (los avisos leen las preferencias
         # del destinatario al guardar). Sigue sin empresa: no se sella.
+        # 24-11-2026 (migración 208, empresa obligatoria): ya no se guarda sin empresa.
+        # Si no se deduce de un padre (aquí el usuario no existe) el flush se corta con
+        # `fila_sin_empresa` (app/db/empresa_obligatoria.py) en vez de dejar una fila
+        # que nadie vería; antes se guardaba con organization_id NULL.
+        from app.core.errores import ErrorDeDominio
         with trabajo_de_sistema("prueba: job sin empresa"):
-            sesion.flush()
-        assert n.organization_id is None
+            with pytest.raises(ErrorDeDominio) as e:
+                sesion.flush()
+        assert e.value.code == "fila_sin_empresa" and n.organization_id is None
         sesion.rollback()
     finally:
         sesion.close()

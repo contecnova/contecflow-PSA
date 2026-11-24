@@ -201,29 +201,6 @@
   text-align: right;
 }
 
-.imput-label-6 {
-  font-size: var(--text-sm);
-  font-weight: 700;
-  color: var(--text-2);
-  letter-spacing: 0.07em;
-  display: block;
-  margin-bottom: var(--space-2);
-}
-
-.imput-input-3 {
-  width: 100%;
-  background: var(--surface-3);
-  border: 1px solid var(--surface-4);
-  border-radius: var(--radius-md);
-  padding: var(--space-4) var(--space-4);
-  color: var(--text-1);
-  font-size: var(--text-md);
-  outline: none;
-  font-family: var(--font-sans);
-  resize: vertical;
-  box-sizing: border-box;
-}
-
 .imput-box-7 {
   margin-bottom: var(--space-6);
 }
@@ -348,41 +325,9 @@
   flex: 0 0 80px;
 }
 
-.imput-label-10 {
-  font-size: var(--text-2xs);
-  color: var(--text-3);
-  display: block;
-  margin-bottom: 3px;
-}
-
-.imput-input-6 {
-  width: 100%;
-  background: var(--surface-2);
-  border: 1px solid var(--accent);
-  border-radius: var(--radius-sm);
-  padding: 6px 8px;
-  color: var(--text-1);
-  font-size: var(--text-base);
-  outline: none;
-  font-family: inherit;
-}
-
 .imput-box-11 {
   flex: 1;
   min-width: 120px;
-}
-
-.imput-input-7 {
-  width: 100%;
-  background: var(--surface-2);
-  border: 1px solid var(--accent);
-  border-radius: var(--radius-sm);
-  padding: 6px 8px;
-  color: var(--text-1);
-  font-size: var(--text-base);
-  outline: none;
-  font-family: inherit;
-  box-sizing: border-box;
 }
 
 .imput-box-12 {
@@ -475,19 +420,6 @@
   margin-left: 8px;
 }
 
-.imput-card-7 {
-  background: var(--surface-3);
-  border: 1px solid var(--surface-4);
-  border-radius: var(--radius-md);
-  padding: var(--space-4) var(--space-4);
-  color: var(--text-1);
-  font-size: var(--text-md);
-  outline: none;
-  font-family: var(--font-sans);
-  width: 100%;
-  box-sizing: border-box;
-}
-
 /* ── Estilos estaticos extraidos de ImputarPage.tsx (#17) ── */
 .imputarp-sx1 {
   margin-top: 20px;
@@ -499,14 +431,6 @@
 }
 .imputarp-sx3.imputarp-sx3 {
   color: var(--text-2);
-}
-.imputarp-sx4.imputarp-sx4 {
-  cursor: pointer;
-  opacity: 1;
-}
-.imputarp-sx5.imputarp-sx5 {
-  cursor: not-allowed;
-  opacity: 0.5;
 }
 .imputarp-sx6.imputarp-sx6 {
   border-radius: var(--radius-md);

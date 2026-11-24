@@ -126,10 +126,7 @@ export function NuevaSolicitud({ onClose, onCreada, mia }: { onClose: () => void
           <>
             {ambitos.length > 1 && <Select label={t('demanda.sobre_que')} placeholder={false} value={ambitoActual} onChange={e => setAmbito(e.target.value)} options={opcionesDe(t, 'ambito', ambitos)} />}
             {ambitoActual === 'project' && (
-              <div className="ui-field">
-                <label className="uiinde-estiloetiqueta">{t('demanda.proyecto')}{elegido.requires_project && <span className="u-danger"> *</span>}</label>
-                <ProjectSelect value={proyecto} onChange={id => setProyecto(id)} />
-              </div>
+              <ProjectSelect label={<>{t('demanda.proyecto')}{elegido.requires_project && <span className="u-danger"> *</span>}</>} value={proyecto} onChange={id => setProyecto(id)} />
             )}
             {alcanceConRef && <Select label={t('demanda.referencia_ambito')} required value={refAmbito} onChange={e => setRefAmbito(e.target.value)} options={opcionesDeAlcance} disabled={cargandoAlcance} />}
             {!mia && puedeGestionar && catalogo.users.length > 0 && (

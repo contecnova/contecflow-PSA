@@ -240,16 +240,13 @@ function RuleModal({ rule, onClose }: { rule?: ReglaDeAutomatizacion; onClose: (
         {/* Basic info */}
         <div className="u-grid2-14">
           <div className="u-col-full">
-            <label id={`${idPrefix}-name-et`} htmlFor={`${idPrefix}-name`} className="aut-label">{t('automations.rule_name_lbl')}</label>
-            <Input id={`${idPrefix}-name`} aria-labelledby={`${idPrefix}-name-et`} value={form.name} onChange={e => { campos.limpiar('name'); setForm(f => ({ ...f, name: e.target.value })) }} placeholder={t('automations.rule_name_lbl')} inputClassName="aut-input" />{msg('name')}
+            <Input label={t('automations.rule_name_lbl')} id={`${idPrefix}-name`} value={form.name} onChange={e => { campos.limpiar('name'); setForm(f => ({ ...f, name: e.target.value })) }} placeholder={t('automations.rule_name_lbl')} />{msg('name')}
           </div>
           <div>
-            <label id={`${idPrefix}-description-et`} htmlFor={`${idPrefix}-description`} className="aut-label">{t('automations.description')}</label>
-            <Input id={`${idPrefix}-description`} aria-labelledby={`${idPrefix}-description-et`} value={form.description} onChange={e => { campos.limpiar('description'); setForm(f => ({ ...f, description: e.target.value })) }} inputClassName="aut-input" />{msg('description')}
+            <Input label={t('automations.description')} id={`${idPrefix}-description`} value={form.description} onChange={e => { campos.limpiar('description'); setForm(f => ({ ...f, description: e.target.value })) }} />{msg('description')}
           </div>
           <div>
-            <label htmlFor={`${idPrefix}-project`} className="aut-label">{t('automations.project_lbl')}</label>
-            <Select suelto placeholder={false} id={`${idPrefix}-project`} value={form.project_id} onChange={e => { campos.limpiar('project_id'); setForm(f => ({ ...f, project_id: e.target.value, is_global: !e.target.value })) }} className="aut-input">
+            <Select label={t('automations.project_lbl')} placeholder={false} id={`${idPrefix}-project`} value={form.project_id} onChange={e => { campos.limpiar('project_id'); setForm(f => ({ ...f, project_id: e.target.value, is_global: !e.target.value })) }}>
               <option value="">{t('automations.project_global')}</option>
               {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
             </Select>{msg('project_id')}
@@ -263,8 +260,7 @@ function RuleModal({ rule, onClose }: { rule?: ReglaDeAutomatizacion; onClose: (
           </div>
           <div className="aut-section-body">
             <div>
-              <label htmlFor={`${idPrefix}-trigger`} className="aut-label">{t('automations.trigger_lbl')}</label>
-              <Select suelto placeholder={false} id={`${idPrefix}-trigger`} value={form.trigger_type} onChange={e => { campos.limpiar('trigger_type'); setForm(f => ({ ...f, trigger_type: e.target.value })) }} className="aut-input">
+              <Select label={t('automations.trigger_lbl')} placeholder={false} id={`${idPrefix}-trigger`} value={form.trigger_type} onChange={e => { campos.limpiar('trigger_type'); setForm(f => ({ ...f, trigger_type: e.target.value })) }}>
                 {byCategory(triggerDefs).map(([cat, defs]) => (
                   <optgroup key={cat} label={t('automations.cat_' + cat, cat)}>
                     {defs.map(d => (
@@ -286,17 +282,11 @@ function RuleModal({ rule, onClose }: { rule?: ReglaDeAutomatizacion; onClose: (
             </div>
             {isSchedule && (
               <div className="aut-box aut-box--grid2">
-                <div>
-                  <label id={`${idPrefix}-cron-et`} htmlFor={`${idPrefix}-cron`} className="aut-label">{t('automations.cron_lbl')}</label>
-                  <Input id={`${idPrefix}-cron`} aria-labelledby={`${idPrefix}-cron-et`} value={cron} onChange={e => setCron(e.target.value)} placeholder="0 9 * * 1-5" inputClassName="ds-codigo aut-input aut-input--mono ds-campo-codigo" />
-                </div>
-                <div>
-                  <label htmlFor={`${idPrefix}-cron-preset`} className="aut-label">{t('automations.cron_preset')}</label>
-                  <Select suelto placeholder={false} id={`${idPrefix}-cron-preset`} value={CRON_PLANTILLAS.find(([, c]) => c === cron.trim())?.[1] ?? ''} onChange={e => e.target.value && setCron(e.target.value)} className="aut-input">
+                <Input label={t('automations.cron_lbl')} id={`${idPrefix}-cron`} value={cron} onChange={e => setCron(e.target.value)} placeholder="0 9 * * 1-5" inputClassName="ds-codigo ds-campo-codigo" />
+                <Select label={t('automations.cron_preset')} placeholder={false} id={`${idPrefix}-cron-preset`} value={CRON_PLANTILLAS.find(([, c]) => c === cron.trim())?.[1] ?? ''} onChange={e => e.target.value && setCron(e.target.value)}>
                     <option value="">{t('automations.select_lbl')}</option>
                     {CRON_PLANTILLAS.map(([k, c]) => <option key={c} value={c}>{t('automations.' + k)}</option>)}
                   </Select>
-                </div>
                 <div className="aut-box-help">{t('automations.cron_help')}</div>
               </div>
             )}
@@ -316,23 +306,14 @@ function RuleModal({ rule, onClose }: { rule?: ReglaDeAutomatizacion; onClose: (
                   <div key={i} className="u-text3-sm">({t('automations.nested_group')})</div>
                 ) : (
                   <div key={i} className="aut-cond-row">
-                    <div>
-                      <label htmlFor={`${idPrefix}-condition-field-${i}`} className="aut-label">{t('automations.field_lbl')}</label>
-                      <Select suelto placeholder={false} id={`${idPrefix}-condition-field-${i}`} value={c.field || ''} onChange={e => cambiarCondicion(i, 'field', e.target.value)} className="aut-input">
+                    <Select label={t('automations.field_lbl')} placeholder={false} id={`${idPrefix}-condition-field-${i}`} value={c.field || ''} onChange={e => cambiarCondicion(i, 'field', e.target.value)}>
                         <option value="">{t('automations.select_lbl')}</option>
                         {fields.map((f: string) => <option key={f} value={f}>{f}</option>)}
                       </Select>
-                    </div>
-                    <div>
-                      <label htmlFor={`${idPrefix}-condition-operator-${i}`} className="aut-label">{t('automations.operator_lbl')}</label>
-                      <Select suelto placeholder={false} id={`${idPrefix}-condition-operator-${i}`} value={c.operator || 'equals'} onChange={e => cambiarCondicion(i, 'operator', e.target.value)} className="aut-input">
+                    <Select label={t('automations.operator_lbl')} placeholder={false} id={`${idPrefix}-condition-operator-${i}`} value={c.operator || 'equals'} onChange={e => cambiarCondicion(i, 'operator', e.target.value)}>
                         {(catalog?.operators ?? []).map(o => <option key={o} value={o}>{t('automations.op_' + o, o)}</option>)}
                       </Select>
-                    </div>
-                    <div>
-                      <label id={`${idPrefix}-condition-value-${i}-et`} htmlFor={`${idPrefix}-condition-value-${i}`} className="aut-label">{t('automations.value_lbl')}</label>
-                      <Input id={`${idPrefix}-condition-value-${i}`} aria-labelledby={`${idPrefix}-condition-value-${i}-et`} value={c.value || ''} onChange={e => cambiarCondicion(i, 'value', e.target.value)} placeholder={t('automations.value_lbl')} inputClassName="aut-input" />
-                    </div>
+                    <Input label={t('automations.value_lbl')} id={`${idPrefix}-condition-value-${i}`} value={c.value || ''} onChange={e => cambiarCondicion(i, 'value', e.target.value)} placeholder={t('automations.value_lbl')} />
                     <IconButton ariaLabel={t('automations.remove_condition')} disabled={condiciones.length === 1}
                       onClick={() => setCondiciones(cs => cs.filter((_, j) => j !== i))}>
                       <X size={14} aria-hidden="true" />
@@ -359,9 +340,7 @@ function RuleModal({ rule, onClose }: { rule?: ReglaDeAutomatizacion; onClose: (
             return (
               <div key={i} className="aut-action">
                 <div className={paramDefs.length > 0 ? 'aut-action-head aut-action-head--params' : 'aut-action-head'}>
-                  <div>
-                    <label htmlFor={`${idPrefix}-action-${i}`} className="aut-label">{t('automations.action_lbl')} {i + 1}</label>
-                    <Select suelto placeholder={false} id={`${idPrefix}-action-${i}`} value={action.type} onChange={e => updateAction(i, 'type', e.target.value)} className="aut-input">
+                  <Select label={<>{t('automations.action_lbl')}{i + 1}</>} placeholder={false} id={`${idPrefix}-action-${i}`} value={action.type} onChange={e => updateAction(i, 'type', e.target.value)}>
                       {byCategory(actionDefs).map(([cat, defs]) => (
                         <optgroup key={cat} label={t('automations.cat_' + cat, cat)}>
                           {defs.map(d => (
@@ -370,7 +349,6 @@ function RuleModal({ rule, onClose }: { rule?: ReglaDeAutomatizacion; onClose: (
                         </optgroup>
                       ))}
                     </Select>
-                  </div>
                   {form.actions.length > 1 && (
                     <IconButton ariaLabel={t('automations.delete_action_aria', { n: i + 1 })} onClick={() => removeAction(i)} className="aut-icon-end">
                       <X size={14} aria-hidden="true" />

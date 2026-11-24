@@ -53,17 +53,11 @@ export function CMDBAgentsTab({ items }: { items: CI[] }) {
           {t('cmdb.registrar_nuevo_agente_on_prem')}
         </div>
         <div className="cmdb-agent-form">
-          <div>
-            <label id="agent-name-et" className="cmdb-label" htmlFor="agent-name">{t('cmdb.nombre_del_agente')}</label>
-            <Input id="agent-name" aria-labelledby="agent-name-et" value={agentName} onChange={e => setAgentName(e.target.value)} placeholder={t('cmdb.agent_name_ph')} />
-          </div>
-          <div>
-            <label className="cmdb-label" htmlFor="agent-os">{t('cmdb.platform')}</label>
-            <Select suelto placeholder={false} id="agent-os" value={osType} onChange={e => setOsType(e.target.value)} className="cmdb-input cmdb-input--w130">
+          <Input label={t('cmdb.nombre_del_agente')} id="agent-name" value={agentName} onChange={e => setAgentName(e.target.value)} placeholder={t('cmdb.agent_name_ph')} />
+          <Select label={t('cmdb.platform')} placeholder={false} id="agent-os" value={osType} onChange={e => setOsType(e.target.value)}>
               <option value="linux">{t('cmdb.os_linux')}</option>
               <option value="windows">{t('cmdb.os_windows')}</option>
             </Select>
-          </div>
           <Button onClick={() => registerAgent()} loading={isPending} disabled={!agentName.trim()}>{t('cmdb.register')}</Button>
         </div>
 
@@ -160,12 +154,9 @@ export function ClasesTab() {
       <p className="cmdb-help">
         {t('cmdb.classes_help')} {data?.por_defecto ? t('cmdb.classes_factory') : ''}
       </p>
-      <div>
-        <label className="cmdb-label" htmlFor="clase-ci">{t('cmdb.ci_type')}</label>
-        <Select suelto placeholder={false} id="clase-ci" className="cmdb-input cmdb-input--max280" value={clase} onChange={e => { setClase(e.target.value); setFilas(null) }}>
+      <Select label={t('cmdb.ci_type')} placeholder={false} id="clase-ci" value={clase} onChange={e => { setClase(e.target.value); setFilas(null) }}>
           {CI_TYPES.map(c => <option key={c} value={c}>{etiqueta('type_', c)}</option>)}
         </Select>
-      </div>
       {actuales.length === 0 && <div className="u-text2-sm">{t('cmdb.classes_empty')}</div>}
       {actuales.map((f, i) => (
         <div key={i} className="cmdb-class-row">

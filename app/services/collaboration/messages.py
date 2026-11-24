@@ -414,6 +414,11 @@ def send_message(
     conv = _resolve_conversation(db, conversation_id=conversation_id, channel_id=channel_id, direct_id=direct_id, group_id=group_id)
 
     _autorizar_envio(db, user, conv, client_user_id=client_user_id, bot_id=bot_id)
+    # 24-11-2026: el mensaje citado (hilo) tiene que ser de esta conversación.
+    if parent_message_id and not db.query(CollaborationMessage.id).filter(
+            CollaborationMessage.id == parent_message_id,
+            CollaborationMessage.conversation_id == conv.id).first():
+        raise error(422, "portal_mensaje_citado_no_valido")
     _exigir_enlaces_de_la_org(db, org, linked_task_id, linked_ticket_id, linked_deliverable_id, linked_risk_id)
 
     # DLP scan on body
@@ -557,6 +562,11 @@ def delete_message(db: Session, user, message_id: str) -> None:
         # team_lead and admin can delete others' messages — relax later via policy
         if getattr(user, "role", None) not in ("admin",):
             raise error(403, "no_borrar_mensajes_ajenos")
+    # 24-11-2026: el borrado deja el texto anterior en el rastro (antes se perdía).
+    db.add(CollaborationMessageVersion(
+        organization_id=org, message_id=msg.id, body=msg.body, body_html=msg.body_html,
+        metadata_json=msg.metadata_json or {}, edited_by_user_id=user.id, change_type="delete",
+    ))
     msg.status = "deleted"
     msg.deleted_at = datetime.now(timezone.utc)
     msg.body = "[mensaje eliminado]"
@@ -847,7 +857,28 @@ def _serialize_message(db: Session, msg: CollaborationMessage) -> dict:
         "edited_at": msg.edited_at.isoformat() if msg.edited_at else None,
         "deleted_at": msg.deleted_at.isoformat() if msg.deleted_at else None,
         "sent_at": msg.sent_at.isoformat() if msg.sent_at else None,
+        # 24-11-2026 (chat del portal): el mensaje al que responde, para pintar la cita.
+        "reply_to": _cita(db, msg),
     }
+
+
+def _cita(db: Session, msg: CollaborationMessage) -> Optional[dict]:
+    if not msg.parent_message_id:
+        return None
+    padre = db.query(CollaborationMessage).filter(CollaborationMessage.id == msg.parent_message_id).first()
+    if padre is None:
+        return None
+    nombre = None
+    if padre.user_id:
+        u = db.query(User).filter(User.id == padre.user_id).first()
+        nombre = (u.full_name or u.username or u.email) if u else None
+    elif padre.client_user_id:
+        from app.models.client_portal import ClientUser
+        c = db.query(ClientUser).filter(ClientUser.id == padre.client_user_id).first()
+        nombre = (c.full_name or c.email) if c else None
+    borrado = padre.status == "deleted"
+    return {"id": padre.id, "author_name": nombre, "is_deleted": borrado,
+            "body": "" if borrado else (padre.body or "")[:200]}
 
 
 # ── Lo que antes hacia el endpoint ───────────────────────────────────────────

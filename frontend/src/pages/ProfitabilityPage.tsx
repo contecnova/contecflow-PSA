@@ -264,7 +264,7 @@ function ProjectDetail({ projectId, onClose }: { projectId: string | number; onC
           <div className="prof-nuevo-hito">
             <div className="prof-nuevo-hito__campos">
               <Input label={t('rentabilidad_ui.nombre')} value={msForm.name} onChange={e => setMsForm(f => ({ ...f, name: e.target.value }))} placeholder={t('profitability.nombre_del_hito')} />
-              <div className="ui-field"><label className="uiinde-estiloetiqueta" htmlFor={`${idCampo}-1`}>{t('rentabilidad_ui.fecha')}</label><DateInput id={`${idCampo}-1`} value={msForm.due_date} onChange={e => setMsForm(f => ({ ...f, due_date: e.target.value }))} className="ds-input" /></div>
+              <DateInput label={t('rentabilidad_ui.fecha')} id={`${idCampo}-1`} value={msForm.due_date} onChange={e => setMsForm(f => ({ ...f, due_date: e.target.value }))} />
               <Input label={t('rentabilidad_ui.importe_moneda', { moneda: fmtMoneda.simbolo })} type="number" value={msForm.billing_amount} onChange={e => setMsForm(f => ({ ...f, billing_amount: e.target.value }))} placeholder={t('profitability.importe_del_hito')} />
               <Input label={t('rentabilidad_ui.pct_contrato_label')} type="number" value={msForm.billing_pct} onChange={e => setMsForm(f => ({ ...f, billing_pct: e.target.value }))} placeholder={t('profitability.porcentaje_del_contrato')} />
             </div>

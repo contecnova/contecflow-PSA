@@ -247,20 +247,13 @@ export default function ApprovalsPage({ mode = 'inbox' }: ApprovalsPageProps): J
       {showCreate && (
         <Modal open title={t('approvals.new_workflow_title')} onClose={() => setShowCreate(false)} width={560}>
           <div className="apv-columna">
-            <div>
-              <label htmlFor={`${createIdPrefix}-name`} className="apv-label">{t('approvals.name_required')}</label>
-              <Input id={`${createIdPrefix}-name`} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder={t('approvals.workflow_name_placeholder')} inputClassName="apv-input" />
-            </div>
-            <div>
-              <label htmlFor={`${createIdPrefix}-entity-type`} className="apv-label">{t('approvals.entity_type')}</label>
-              <Select suelto placeholder={false} id={`${createIdPrefix}-entity-type`} value={form.entity_type} onChange={e => setForm(f => ({ ...f, entity_type: e.target.value }))} className="apv-input">
+            <Input label={t('approvals.name_required')} id={`${createIdPrefix}-name`} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder={t('approvals.workflow_name_placeholder')} />
+            <Select label={t('approvals.entity_type')} placeholder={false} id={`${createIdPrefix}-entity-type`} value={form.entity_type} onChange={e => setForm(f => ({ ...f, entity_type: e.target.value }))}>
                 {Object.entries(entityLabels(t)).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
               </Select>
-            </div>
             {form.entity_type === 'document' && (
               <div>
-                <label htmlFor={`${createIdPrefix}-doc-category`} className="apv-label">{t('approvals.categoria_del_documento')}</label>
-                <Select suelto placeholder={false} id={`${createIdPrefix}-doc-category`} value={form.document_category} onChange={e => setForm(f => ({ ...f, document_category: e.target.value }))} className="apv-input"
+                <Select label={t('approvals.categoria_del_documento')} placeholder={false} id={`${createIdPrefix}-doc-category`} value={form.document_category} onChange={e => setForm(f => ({ ...f, document_category: e.target.value }))}
                   aria-describedby={`${createIdPrefix}-doc-category-ayuda`}>
                   <option value="">{t('approvals.fallback_aplica_a_todos_los_documentos')}</option>
                   {CATEGORIAS_DE_DOCUMENTO.map(c => <option key={c} value={c}>{t(`approvals.doc_cat_${c}`, c)}</option>)}
@@ -268,22 +261,16 @@ export default function ApprovalsPage({ mode = 'inbox' }: ApprovalsPageProps): J
                 <div id={`${createIdPrefix}-doc-category-ayuda`} className="apv-ayuda apv-ayuda--2xs">{t('approvals.si_no_se_especifica_categoria_este_flujo')}</div>
               </div>
             )}
-            <div>
-              <label htmlFor={`${createIdPrefix}-description`} className="apv-label">{t('approvals.description')}</label>
-              <Input id={`${createIdPrefix}-description`} value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder={t('approvals.description_placeholder')} inputClassName="apv-input" />
-            </div>
+            <Input label={t('approvals.description')} id={`${createIdPrefix}-description`} value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder={t('approvals.description_placeholder')} />
             <label htmlFor={`${createIdPrefix}-is-default`} className="apv-check">
               <Checkbox id={`${createIdPrefix}-is-default`} checked={form.is_default} onChange={(_, e) => setForm(f => ({ ...f, is_default: e.target.checked }))} />
               {t('approvals.default_flow_label')}
             </label>
-            <div>
-              <label htmlFor={`${createIdPrefix}-chain`} className="apv-label">{t('approvals.encadenar_con_flujo_al_aprobar_opcional')}</label>
-              <Select suelto placeholder={false} id={`${createIdPrefix}-chain`} value={form.chain_on_approval_workflow_id}
-                onChange={e => setForm(f => ({ ...f, chain_on_approval_workflow_id: e.target.value }))} className="apv-input">
+            <Select label={t('approvals.encadenar_con_flujo_al_aprobar_opcional')} placeholder={false} id={`${createIdPrefix}-chain`} value={form.chain_on_approval_workflow_id}
+                onChange={e => setForm(f => ({ ...f, chain_on_approval_workflow_id: e.target.value }))}>
                 <option value="">{t('approvals.sin_encadenamiento')}</option>
                 {workflows.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
               </Select>
-            </div>
             <label htmlFor={`${createIdPrefix}-sla`} className="apv-check">
               <Checkbox id={`${createIdPrefix}-sla`} checked={form.sla_block_on_breach} onChange={(_, e) => setForm(f => ({ ...f, sla_block_on_breach: e.target.checked }))} />
               {t('approvals.bloquear_entidad_si_se_supera_el_sla')}

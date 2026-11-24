@@ -111,21 +111,17 @@ function IaQueTraduce() {
     <Section title={t('traduccion_admin.ia_titulo')} subtitle={t('traduccion_admin.ia_desc')}>
       <div className="trad-admin__fila">
         <div className="ds-field">
-          <label className="ds-field__label" htmlFor="trad-admin-ia">{t('traduccion_admin.ia_proveedor')}</label>
-          <Select suelto id="trad-admin-ia" value={proveedorId}
+          <Select label={t('traduccion_admin.ia_proveedor')} id="trad-admin-ia" value={proveedorId}
             onChange={e => { setProveedorId(e.target.value); setModelo('') }}
             placeholder={principal ? t('traduccion_admin.ia_principal_de', { nombre: principal.name }) : t('traduccion_admin.ia_principal')}>
             {elegibles.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
           </Select>
           <span className="ds-field__hint">{t('traduccion_admin.ia_proveedor_ayuda')}</span>
         </div>
-        <div className="ds-field">
-          <label className="ds-field__label" htmlFor="trad-admin-ia-modelo">{t('traduccion_admin.ia_modelo')}</label>
-          <Select suelto id="trad-admin-ia-modelo" value={modelo} disabled={!elegido}
+        <Select label={t('traduccion_admin.ia_modelo')} id="trad-admin-ia-modelo" value={modelo} disabled={!elegido}
             onChange={e => setModelo(e.target.value)} placeholder={t('traduccion_admin.ia_modelo_por_defecto')}>
             {modelos.map(m => <option key={m} value={m}>{m}</option>)}
           </Select>
-        </div>
       </div>
       {elegibles.length === 0 && <p className="ds-field__hint">{t('traduccion_admin.ia_sin_proveedores')}</p>}
       <div>
@@ -244,8 +240,7 @@ function AjustesDeTraduccion() {
 
         {porClave.has('TRANSLATION_PROVIDER') && (
           <div className="ds-field trad-admin__campo-corto">
-            <label className="ds-field__label" htmlFor="trad-admin-proveedor">{t('traduccion_admin.ajuste.TRANSLATION_PROVIDER')}</label>
-            <Select suelto placeholder={false} id="trad-admin-proveedor" value={borrador.TRANSLATION_PROVIDER ?? 'ai'}
+            <Select label={t('traduccion_admin.ajuste.TRANSLATION_PROVIDER')} placeholder={false} id="trad-admin-proveedor" value={borrador.TRANSLATION_PROVIDER ?? 'ai'}
               onChange={e => poner('TRANSLATION_PROVIDER', e.target.value)}>
               {PROVEEDORES.map(p => <option key={p} value={p}>{t(`traduccion_admin.proveedor.${p}`)}</option>)}
             </Select>
@@ -341,24 +336,15 @@ function ProbarProveedor() {
     <Section title={t('traduccion_admin.probar_titulo')} subtitle={t('traduccion_admin.probar_desc')}>
       <div className="ds-card trad-admin__tarjeta">
         <div className="trad-admin__numeros">
-          <div className="ds-field">
-            <label className="ds-field__label" htmlFor="trad-admin-probar-proveedor">{t('traduccion_admin.ajuste.TRANSLATION_PROVIDER')}</label>
-            <Select suelto id="trad-admin-probar-proveedor" value={proveedor} onChange={e => setProveedor(e.target.value as Proveedor | '')}
+          <Select label={t('traduccion_admin.ajuste.TRANSLATION_PROVIDER')} id="trad-admin-probar-proveedor" value={proveedor} onChange={e => setProveedor(e.target.value as Proveedor | '')}
               placeholder={t('traduccion_admin.proveedor_actual')}>
               {PROVEEDORES.map(p => <option key={p} value={p}>{t(`traduccion_admin.proveedor.${p}`)}</option>)}
             </Select>
-          </div>
-          <div className="ds-field">
-            <label className="ds-field__label" htmlFor="trad-admin-probar-idioma">{t('traduccion_admin.idioma_destino')}</label>
-            <Select suelto placeholder={false} id="trad-admin-probar-idioma" value={destino} onChange={e => setDestino(e.target.value)}>
+          <Select label={t('traduccion_admin.idioma_destino')} placeholder={false} id="trad-admin-probar-idioma" value={destino} onChange={e => setDestino(e.target.value)}>
               {idiomas.map(i => <option key={i} value={i}>{nombreDeIdioma(i, lang)}</option>)}
             </Select>
-          </div>
         </div>
-        <div className="ds-field">
-          <label className="ds-field__label" htmlFor="trad-admin-probar-texto">{t('traduccion_admin.texto_de_prueba')}</label>
-          <Textarea id="trad-admin-probar-texto" rows={3} value={texto} onChange={e => setTexto(e.target.value)} />
-        </div>
+        <Textarea label={t('traduccion_admin.texto_de_prueba')} id="trad-admin-probar-texto" rows={3} value={texto} onChange={e => setTexto(e.target.value)} />
         <div className="u-row-end">
           <Button icon={<FlaskConical size={14} />} onClick={() => probar.mutate()} disabled={!texto.trim() || !destino} loading={probar.isPending}>
             {t('traduccion_admin.probar')}
@@ -503,8 +489,7 @@ export function ModalDeTermino({ termino, onClose, onGuardado }: { termino: Term
     <Modal open onClose={onClose} size="lg" title={termino ? t('traduccion_admin.editar_termino') : t('traduccion_admin.nuevo_termino')}>
       <div className="u-stack-14">
         <div className="ds-field">
-          <label className="ds-field__label" htmlFor="trad-termino">{t('traduccion_admin.col_termino')}</label>
-          <Input id="trad-termino" value={form.term} maxLength={200} onChange={e => { campos.limpiar('term'); setForm(f => ({ ...f, term: e.target.value })) }} />{msg('term')}
+          <Input label={t('traduccion_admin.col_termino')} id="trad-termino" value={form.term} maxLength={200} onChange={e => { campos.limpiar('term'); setForm(f => ({ ...f, term: e.target.value })) }} />{msg('term')}
         </div>
 
         <fieldset className="ds-grupo-opciones trad-admin__grupo">
@@ -534,8 +519,7 @@ export function ModalDeTermino({ termino, onClose, onGuardado }: { termino: Term
         <Checkbox className="trad-admin__casilla" checked={form.is_active} onChange={m => { campos.limpiar('is_active'); setForm(f => ({ ...f, is_active: m })) }}
           label={t('traduccion_admin.activo')} />
         <div className="ds-field">
-          <label className="ds-field__label" htmlFor="trad-notas">{t('traduccion_admin.col_notas')}</label>
-          <Textarea id="trad-notas" rows={2} value={form.notes} onChange={e => { campos.limpiar('notes'); setForm(f => ({ ...f, notes: e.target.value })) }} />{msg('notes')}
+          <Textarea label={t('traduccion_admin.col_notas')} id="trad-notas" rows={2} value={form.notes} onChange={e => { campos.limpiar('notes'); setForm(f => ({ ...f, notes: e.target.value })) }} />{msg('notes')}
         </div>
         <div className="u-actions-8">
           <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>

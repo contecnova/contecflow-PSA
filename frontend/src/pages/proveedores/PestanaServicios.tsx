@@ -175,10 +175,7 @@ function ImportarRecuentos({ sub, servicios, onClose }: { sub: Subcontratista; s
         {externos.length === 0 ? <p className="u-text3-xs">{t('proveedores.sin_servicios_externos')}</p> : (
           <p className="u-text3-xs">{t('proveedores.servicios_externos_n', { lista: externos.map(s => s.name).join(', ') })}</p>
         )}
-        <div className="ui-field">
-          <label htmlFor="prv-recuentos" className="uiinde-estiloetiqueta">{t('proveedores.recuentos')}</label>
-          <Textarea id="prv-recuentos" value={pegado} onChange={e => setPegado(e.target.value)} placeholder={'service;2026-11-30;250;SIEM'} inputClassName="prv-textarea" />
-        </div>
+        <Textarea label={t('proveedores.recuentos')} id="prv-recuentos" value={pegado} onChange={e => setPegado(e.target.value)} placeholder={'service;2026-11-30;250;SIEM'} />
         {malas.length > 0 && <div className="prv-aviso prv-aviso--peligro">{t('proveedores.lineas_no_validas', { lineas: malas.join(', ') })}</div>}
         <div className="u-actions-8">
           <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
@@ -274,10 +271,7 @@ function FormularioDeServicio({ sub, servicio, onClose }: { sub: Subcontratista;
         </div>
         {!tipos.cargando && tipos.opciones.length === 0 && <FaltaConfigurar mensaje={t('proveedores.falta_tipos_de_servicio')} />}
         <FuenteDeMedicionCampos fuente={fuente} config={medicion} unidad={f.unit} onFuente={setFuente} onConfig={setMedicion} />
-        <div className="ui-field">
-          <label htmlFor="prv-servicio-alcance" className="uiinde-estiloetiqueta">{t('proveedores.alcance')}</label>
-          <Textarea id="prv-servicio-alcance" value={f.scope} onChange={set('scope')} inputClassName="prv-textarea" />
-        </div>
+        <Textarea label={t('proveedores.alcance')} id="prv-servicio-alcance" value={f.scope} onChange={set('scope')} />
         <Filas titulo={t('proveedores.kpis')} filas={kpis} onChange={setKpis} nueva={{ key: '', label: '', target: '', unit: '', direction: 'higher' }}
           columnas={[
             { k: 'label', etiqueta: t('proveedores.nombre') }, { k: 'key', etiqueta: t('proveedores.clave') },

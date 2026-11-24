@@ -8,7 +8,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { epicsApi, epicDependenciesApi } from '../services/api'
 import { useListaDeProyectos } from '../hooks/useListas'
 import type { DependenciaDeEpica, EpicaDelRoadmap } from '../services/api/tipos-proyectos'
-import { Button, Spinner, EmptyState, Modal, IconButton, Pulsable, Select, useErroresDeCampo, Input, EstadoDeError } from '../components/ui'
+import { Button, Spinner, EmptyState, Modal, IconButton, Pulsable, Select, useErroresDeCampo, Input, EstadoDeError, SelectorDeContexto } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { ArrowRight, BarChart2, CalendarRange, FolderKanban, GitMerge, Plus, Target, Trash2 } from 'lucide-react'
@@ -154,15 +154,13 @@ function EpicDepForm({ projectId, epics, onClose }: { projectId: string; epics: 
       <div className="u-stack-14">
         <div className="u-grid2-12">
           <div>
-            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="epic-gantt-page-e13">{t('epicgantt.epica_a')}</label>
-            <Select suelto placeholder={false} id={`${idCampo}-1`} className="epic-gantt-page-e14" value={form.epic_id} onChange={e => set('epic_id')(e.target.value)}>
+            <Select label={t('epicgantt.epica_a')} placeholder={false} id={`${idCampo}-1`} value={form.epic_id} onChange={e => set('epic_id')(e.target.value)}>
               <option value="">{t('epicgantt.selecciona_epica')}</option>
               {epics.map(e => <option key={e.id} value={e.id}>{e.title}</option>)}
             </Select>{msg('epic_id')}
           </div>
           <div>
-            <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="epic-gantt-page-e13">{t('epicgantt.epica_b_depende_de_a')}</label>
-            <Select suelto placeholder={false} id={`${idCampo}-2`} className="epic-gantt-page-e14" value={form.depends_on_id} onChange={e => set('depends_on_id')(e.target.value)}>
+            <Select label={t('epicgantt.epica_b_depende_de_a')} placeholder={false} id={`${idCampo}-2`} value={form.depends_on_id} onChange={e => set('depends_on_id')(e.target.value)}>
               <option value="">{t('epicgantt.selecciona_epica')}</option>
               {epics.filter(e => e.id !== form.epic_id).map(e => (
                 <option key={e.id} value={e.id}>{e.title}</option>
@@ -188,8 +186,7 @@ function EpicDepForm({ projectId, epics, onClose }: { projectId: string; epics: 
         </div>
 
         <div>
-          <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="epic-gantt-page-e13">{t('epicgantt.lag_dias_de_retraso_adicional')}</label>
-          <Input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="number" value={form.lag_days} min={0} onChange={e => set('lag_days')(+e.target.value)} inputClassName="epic-gantt-page-e8" />{msg('lag_days')}
+          <Input label={t('epicgantt.lag_dias_de_retraso_adicional')} id={`${idCampo}-3`} type="number" value={form.lag_days} min={0} onChange={e => set('lag_days')(+e.target.value)} />{msg('lag_days')}
         </div>
 
         <div className="egantt-row-5">
@@ -242,13 +239,12 @@ export default function EpicGanttPage(): JSX.Element {
           <Button icon={<Plus size={14} />} onClick={() => setShowForm(true)}>{t('pagina_egantt.dependencia')}</Button>
         ) : undefined} showListExport={false} />
 
-      <div className="ds-toolbar egantt-filtros">
-        <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="u-sr-only">{t('pagina_egantt.proyecto')}</label>
-        <Select suelto placeholder={false} id={`${idCampo}-1`} value={project} onChange={e => setProject(e.target.value)} className="ds-input egantt-proyecto">
+      <SelectorDeContexto>
+        <Select label={t('pagina_egantt.proyecto')} placeholder={false} id={`${idCampo}-1`} value={project} onChange={e => setProject(e.target.value)}>
           <option value="">{t('epicgantt.selecciona_un_proyecto')}</option>
           {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
         </Select>
-      </div>
+      </SelectorDeContexto>
 
       {!project && <EmptyState icon={<FolderKanban size={28} />} title={t('epicgantt.selecciona_un_proyecto_2')} description={t('pagina_egantt.elige_un_proyecto_para_ver_el')} />}
       {project && isLoading && <Spinner />}

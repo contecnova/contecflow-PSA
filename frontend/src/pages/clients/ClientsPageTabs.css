@@ -355,15 +355,6 @@
   font-size: var(--text-sm);
   font-weight: 600;
 }
-
-.clpata-lbl {
-  font-size: var(--text-xs);
-  font-weight: 700;
-  color: var(--text-2);
-  letter-spacing: 0.06em;
-  display: block;
-  margin-bottom: 5px;
-}
 .clpata-inp {
   background: var(--surface-3);
   border: 1px solid var(--surface-4);
@@ -374,26 +365,6 @@
   outline: none;
   font-family: inherit;
   width: 100%;
-  box-sizing: border-box;
-}
-.clpata-ls {
-  font-size: var(--text-xs);
-  font-weight: 700;
-  color: var(--text-2);
-  letter-spacing: 0.07em;
-  display: block;
-  margin-bottom: 5px;
-}
-.clpata-fs {
-  width: 100%;
-  background: var(--surface-3);
-  border: 1px solid var(--surface-4);
-  border-radius: 8px;
-  padding: 9px 13px;
-  color: var(--text-1);
-  font-size: var(--text-base);
-  outline: none;
-  font-family: inherit;
   box-sizing: border-box;
 }
 
@@ -440,19 +411,6 @@
   padding: 14px 18px;
   margin-bottom: 10px;
   position: relative;
-}
-.clpata-fs2 {
-  width: 100%;
-  background: var(--surface-3);
-  border: 1px solid var(--surface-4);
-  border-radius: 8px;
-  padding: 9px 13px;
-  color: var(--text-1);
-  font-size: var(--text-base);
-  outline: none;
-  font-family: inherit;
-  box-sizing: border-box;
-  resize: vertical;
 }
 .clpata-panel5 {
   background: var(--surface-2);
@@ -538,7 +496,7 @@
 .clpata-del:hover { color: var(--danger); }
 .clpata-subtabs { margin-bottom: 16px; }
 .clpata-txt-3, .clpata-txt-4 { display: inline-flex; align-items: center; color: var(--text-2); }
-@media (max-width: 760px) {
+@media (width <= 760px) {
   .clpata-grid-3 { grid-template-columns: minmax(0, 1fr); }
 }
 

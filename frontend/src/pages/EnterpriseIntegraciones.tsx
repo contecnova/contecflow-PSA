@@ -185,10 +185,7 @@ export function IntegrationsTab() {
             {t('pagina_ent.configurar')}{' '}{configuring.label}
           </div>
           <div className="ent-grid-5">
-            <div>
-              <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="enterprise-page-e18">{traducir('enterprise.nombre_de_la_integracion')}</label>
-              <Input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.name} onChange={e => setForm(f=>({...f,name:e.target.value}))} inputClassName="enterprise-page-e19" />
-            </div>
+            <Input label={traducir('enterprise.nombre_de_la_integracion')} id={`${idCampo}-1`} value={form.name} onChange={e => setForm(f=>({...f,name:e.target.value}))} />
             {configuring.fields?.map(field => (
               <div key={field.key}>
                 <label id={`${idCampo}-et-${field.key}`} htmlFor={`${idCampo}-${field.key}`} className="enterprise-page-e18">{t(`pagina_ent.int_campo_${configuring.type}_${field.key}`, field.label)}</label>

@@ -79,6 +79,12 @@ def get_or_create_config(db: Session):
     cfg = db.query(SemConfig).first()
     if not cfg:
         cfg = SemConfig()
+        # 24-11-2026 (migración 208): la configuración es por empresa. Sin
+        # empresa en la sesión (precarga del arranque, trabajo de sistema) se
+        # usan los valores por defecto en memoria, sin guardar una fila «de nadie».
+        from app.db.empresa_obligatoria import empresa_para_registro
+        if not empresa_para_registro(db):
+            return cfg
         db.add(cfg)
         db.commit()
         db.refresh(cfg)
@@ -133,9 +139,23 @@ def cache_item_embedding(db: Session, item_id: str, item_type: str,
             exist.resolution_quality = calidad
         cache = exist
     else:
+        # 24-11-2026 (migración 208): `assigned_user_id` no es clave ajena y el
+        # sellado no deduce nada; la empresa es la de la sesión o la de quien
+        # resolvió. Sin ninguna, no se guarda (cortaría el cierre del ítem).
+        from app.db.empresa_obligatoria import empresa_para_registro
+        from app.models.user import User as _Usuario
+        org = empresa_para_registro(db)
+        if not org:
+            with db.no_autoflush:
+                org = getattr(db.get(_Usuario, user_id), "organization_id", None)
+        if not org:
+            import logging as _logging
+            _logging.getLogger(__name__).warning("Embedding de %s sin empresa: no se guarda en la caché", item_type)
+            return None
         assigner = get_assigner(db)
         emb = assigner._encode_single(text)
         cache = SemEmbeddingCache(
+            organization_id=org,
             item_type=item_type, item_id=item_id or "",
             text_hash=h, text_snippet=text[:300],
             embedding=json.dumps(emb), assigned_user_id=user_id,

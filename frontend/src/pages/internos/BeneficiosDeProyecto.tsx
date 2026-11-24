@@ -7,7 +7,7 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Pencil, Plus, Target, Trash2 } from 'lucide-react'
-import { Button, EmptyState, IconButton, Input, Modal, Select, Spinner, TablaSimple, Textarea } from '../../components/ui'
+import { Button, EmptyState, IconButton, Input, Modal, Select, Spinner, TablaSimple, Textarea, SelectorDeContexto } from '../../components/ui'
 import StatusBadge from '../../components/ui/StatusBadge'
 import { confirmar } from '../../context/ConfirmContext'
 import { useToast } from '../../context/ToastContext'
@@ -141,13 +141,10 @@ export default function BeneficiosDeProyecto() {
   })
   return (
     <div className="u-stack-8">
-      <div className="int-barra">
-        <div className="int-barra__filtros">
+      <SelectorDeContexto acciones={pid ? <Button size="sm" icon={<Plus size={14} />} onClick={() => setEditando('nuevo')}>{t('internos.nuevo_beneficio')}</Button> : undefined}>
           <Select label={t('internos.col_proyecto')} value={pid} onChange={e => setPid(e.target.value)} placeholder={t('internos.elegir')}
             options={proyectos.map(p => ({ value: String(p.id), label: p.code ? `${p.code} · ${p.name}` : String(p.name) }))} />
-        </div>
-        {pid && <Button size="sm" icon={<Plus size={14} />} onClick={() => setEditando('nuevo')}>{t('internos.nuevo_beneficio')}</Button>}
-      </div>
+      </SelectorDeContexto>
       {!pid ? (
         <EmptyState icon={<Target size={28} />} title={t('internos.elige_proyecto')} description={t('internos.beneficios_d')} />
       ) : isLoading ? <Spinner /> : (

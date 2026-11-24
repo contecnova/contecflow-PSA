@@ -95,6 +95,23 @@
   font-size: var(--text-xs);
   color: var(--text-3);
 }
+/* Componentes de la última foto de salud (24-11-2026). */
+.nps-componentes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 8px 16px;
+  margin: 12px 0 0;
+}
+.nps-componentes__item dt {
+  font-size: var(--text-xs);
+  color: var(--text-3);
+}
+.nps-componentes__item dd {
+  margin: 0;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--nps-color, var(--text-2));
+}
 
 /* Resumen NPS */
 .nps-resumen {

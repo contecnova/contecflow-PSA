@@ -262,6 +262,10 @@
 }
 
 .goveconv-cardstyle {
+  /* 24-11-2026: sin flex ni gap el botón «Enviar» quedaba pegado al cuadro de texto. */
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
   background: var(--surface-2);
   border: 1px solid var(--surface-4);
   border-radius: var(--radius-lg);

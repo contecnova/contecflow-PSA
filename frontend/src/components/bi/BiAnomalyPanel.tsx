@@ -139,10 +139,7 @@ export default function BiAnomalyPanel() {
           actions={infoData ? estadoModelo(infoData.lgbm_available) : undefined}
         >
           <div className="bianpa-controles">
-            <div className="ui-field">
-              <label className="uiinde-estiloetiqueta" htmlFor={idCliente}>{t('prediccion_bi.cliente')}</label>
-              <ClientSelect id={idCliente} value={churnClientId} onChange={id => setChurnClientId(id)} />
-            </div>
+            <ClientSelect label={t('prediccion_bi.cliente')} id={idCliente} value={churnClientId} onChange={id => setChurnClientId(id)} />
             <Button icon={<Calculator size={14} />}
               onClick={() => churnMutation.mutate({ client_id: churnClientId || 'demo-client', features: churnFeatures })}
               loading={churnMutation.isPending}>

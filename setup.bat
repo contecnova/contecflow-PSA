@@ -14,6 +14,7 @@ setlocal EnableDelayedExpansion
 ::   setup.bat docker-stop / docker-clean - para Docker (clean borra los volumenes regenerables; conserva PostgreSQL y S3)
 ::   setup.bat backup   - copia local (SQLite o PostgreSQL + uploads) en backups\
 ::   setup.bat restore ^<carpeta^> - restaura una copia (verifica integridad antes)
+::   setup.bat test-postgres / cobertura / lint-css - calidad a mano (ver README)
 ::   SETUP_INIT_MODE=demo^|clean setup.bat start  - modo no interactivo (CI/CD)
 ::   BACKEND_PORT / FRONTEND_PORT / CF_REDIS_PORT - puertos (8000 / 3000 / 6381)
 ::   CONTECFLOW_TAREAS=auto^|celery^|integrado - como corren las tareas programadas
@@ -69,6 +70,9 @@ if /I "%CMD%"=="docker-up"     goto :docker_full
 if /I "%CMD%"=="docker-status" goto :docker_status
 if /I "%CMD%"=="backup"        goto :backup_local
 if /I "%CMD%"=="restore"       goto :restore_local
+if /I "%CMD%"=="test-postgres" goto :calidad
+if /I "%CMD%"=="cobertura"     goto :calidad
+if /I "%CMD%"=="lint-css"      goto :lint_css
 
 if /I "%CMD%"=="install" set "REQUESTED_MODE="& goto :full_install
 if /I "%CMD%"=="demo"  set "REQUESTED_MODE=demo"
@@ -101,6 +105,9 @@ echo   setup.bat docker-stop        -^> para todos los contenedores ^(conserva d
 echo   setup.bat docker-clean       -^> para Docker y borra los volumenes regenerables ^(conserva PostgreSQL y S3^)
 echo   setup.bat backup             -^> copia local: base ^(SQLite o PostgreSQL^) + uploads en backups
 echo   setup.bat restore ^<carpeta^>  -^> verifica la copia, para la app y la restaura ^(pide confirmacion^)
+echo   setup.bat test-postgres [args de pytest] -^> tests contra un PostgreSQL efimero en Docker
+echo   setup.bat cobertura [--solo backend^|frontend] [args de pytest] -^> informes en la carpeta cobertura
+echo   setup.bat lint-css           -^> stylelint sobre frontend\src
 echo.
 echo   Alias: seed = demo; zero / cero / admin-only = clean
 echo   CI/CD: set SETUP_INIT_MODE=demo^|clean ^&^& setup.bat start
@@ -108,6 +115,37 @@ echo   Puertos: set BACKEND_PORT=8010, FRONTEND_PORT=3010 o CF_REDIS_PORT=6381 a
 echo   Tareas:  set CONTECFLOW_TAREAS=auto^|celery^|integrado ^(auto: Celery si hay Redis; si no, integrado^)
 endlocal
 exit /b 1
+
+:: Calidad a mano (24-11-2026): nunca en hooks ni CI y sin umbrales. La logica
+:: vive en scripts\test_postgres.py y scripts\cobertura.py (las mismas que
+:: setup.sh y make). Lo que va detras del comando se pasa tal cual (a pytest,
+:: o --solo backend^|frontend a la cobertura). Ver README, "Calidad a mano".
+:: `shift` no cambia %*, por eso se recogen uno a uno.
+:calidad
+if not exist "%SCRIPT_DIR%\.venv\Scripts\python.exe" (
+    echo [ERROR] Falta el entorno virtual. Ejecuta antes: setup.bat install
+    endlocal
+    exit /b 1
+)
+set "CALIDAD_ARGS="
+:calidad_args
+shift
+if "%~1"=="" goto :calidad_run
+set CALIDAD_ARGS=!CALIDAD_ARGS! %1
+goto :calidad_args
+:calidad_run
+cd /d "%SCRIPT_DIR%"
+set "CALIDAD_SCRIPT=scripts\cobertura.py"
+if /I "%CMD%"=="test-postgres" set "CALIDAD_SCRIPT=scripts\test_postgres.py"
+.venv\Scripts\python !CALIDAD_SCRIPT! !CALIDAD_ARGS!
+set "CALIDAD_RC=!errorlevel!"
+endlocal & exit /b %CALIDAD_RC%
+
+:lint_css
+cd /d "%SCRIPT_DIR%\frontend"
+call npm run lint:css
+set "CALIDAD_RC=!errorlevel!"
+endlocal & exit /b %CALIDAD_RC%
 
 :: Copias locales (23-11-2026). scripts\backup.sh y restore.sh solo cubrian
 :: Docker; la logica comun (SQLite con la API de backup, PostgreSQL con

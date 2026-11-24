@@ -67,9 +67,18 @@ def test_sin_zona_de_usuario_se_hereda_la_de_la_organizacion():
     assert str(zone_for_user(_Zonificable(None), _Zonificable("Europe/Madrid"))) == "Europe/Madrid"
 
 
-def test_sin_ninguna_zona_la_cadena_del_usuario_acaba_en_utc():
+def test_sin_ninguna_zona_la_cadena_del_usuario_acaba_en_utc(monkeypatch):
+    # 24-11-2026: sin zona de usuario ni de empresa la cadena acaba en
+    # DEFAULT_TIMEZONE de la instalación (antes, en UTC aunque la instalación dijera
+    # Europe/Madrid: entre las 00:00 y la 01:00 «hoy» era ayer; ver
+    # `timeutil._zona_de_empresa_o_por_defecto`). Solo sin DEFAULT_TIMEZONE es UTC.
+    from app.core.config import settings
+    monkeypatch.setattr(settings, "DEFAULT_TIMEZONE", None, raising=False)
     assert zone_for_user(_Zonificable(None), _Zonificable(None)) is UTC
     assert zone_for_user(None, None) is UTC
+    monkeypatch.setattr(settings, "DEFAULT_TIMEZONE", "Europe/Madrid", raising=False)
+    assert str(zone_for_user(_Zonificable(None), _Zonificable(None))) == "Europe/Madrid"
+    assert str(zone_for_user(None, None)) == "Europe/Madrid"
 
 
 # ── Cadena del cliente ────────────────────────────────────────────────────────

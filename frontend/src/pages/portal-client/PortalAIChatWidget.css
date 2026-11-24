@@ -95,7 +95,7 @@
   font-size: var(--text-base);
   line-height: 1.4;
   white-space: pre-wrap;
-  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 .poaiwi-row-4 {
   padding: 8px 12px;
@@ -111,6 +111,9 @@
   background: none;
   padding: 1px 6px;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  color: var(--text-2);
 }
 
 .poaiwi-row-5 {
@@ -215,9 +218,4 @@
   gap: 6px;
 }
 .poaiwi-sugerencia > svg { flex-shrink: 0; }
-.poaiwi-box-11 {
-  display: inline-flex;
-  align-items: center;
-  color: var(--text-2);
-}
 .poaiwi-box-11[aria-pressed="true"] { color: var(--accent); }

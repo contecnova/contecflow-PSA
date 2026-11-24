@@ -16,7 +16,6 @@
 .prv-rejilla { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .prv-rejilla--3 { grid-template-columns: repeat(3, 1fr); }
 .prv-completo { grid-column: 1 / -1; }
-.prv-textarea { width: 100%; min-height: 72px; resize: vertical; }
 .prv-eleccion { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
 .prv-modos { display: flex; flex-direction: column; gap: 6px; }
 .prv-tramo { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end; }
@@ -34,7 +33,7 @@
 .prv-barra-progreso-relleno--medio { background: var(--warning); }
 .prv-tareas-seleccion { max-height: 260px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
 .prv-proveedor-en-tarea { display: inline-flex; align-items: center; gap: 6px; font-size: var(--text-sm); font-weight: 600; color: var(--text-1); }
-@media (max-width: 720px) {
+@media (width <= 720px) {
   .prv-rejilla, .prv-rejilla--3, .prv-eleccion { grid-template-columns: 1fr; }
   .prv-dimension { grid-template-columns: 1fr; }
 }

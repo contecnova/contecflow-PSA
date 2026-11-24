@@ -16,7 +16,7 @@ import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { permissionsApi } from '../services/api'
 import type { PermisoDeProyecto } from '../services/api/tipos-plataforma'
-import { Avatar, Button, Card, Spinner, EmptyState, KpiCard, Modal, Checkbox, Pulsable, Select, TablaSimple } from '../components/ui'
+import { Avatar, Button, Card, Spinner, EmptyState, KpiCard, Modal, Checkbox, Pulsable, Select, TablaSimple, SelectorDeContexto } from '../components/ui'
 import StatusBadge from '../components/ui/StatusBadge'
 import type { StatusBadgeKind } from '../components/ui/StatusBadge'
 import PageHeader from '../components/layout/PageHeader'
@@ -86,13 +86,10 @@ function PermissionForm({ projectId, users, perm, onClose }: { projectId: string
     <Modal open onClose={onClose} title={isEdit ? t('permisos_proyecto_ui.editar_permiso') : t('permisos_proyecto_ui.anadir_acceso')}>
       <div className="u-stack-16">
         {!isEdit && (
-          <div className="ui-field">
-            <label className="uiinde-estiloetiqueta" htmlFor={`${idCampo}-1`}>{t('permisos_proyecto_ui.usuario')}</label>
-            <Select suelto placeholder={false} id={`${idCampo}-1`} value={form.user_id} onChange={e => set('user_id')(e.target.value)}>
+          <Select label={t('permisos_proyecto_ui.usuario')} placeholder={false} id={`${idCampo}-1`} value={form.user_id} onChange={e => set('user_id')(e.target.value)}>
               <option value="">{t('projectpermissions.selecciona_un_usuario')}</option>
               {users.map(u => <option key={u.id} value={u.id}>{u.full_name}{u.role ? ` — ${etiquetaCodigo(t, 'rol_usuario', u.role)}` : ''}</option>)}
             </Select>
-          </div>
         )}
         {isEdit && (
           <div className="pperm-usuario">
@@ -205,21 +202,18 @@ export default function ProjectPermissionsPage() {
 
       <div className="u-stack-16">
       {/* Selector de proyecto */}
-      <Card>
-        <div className="ui-field pperm-selector">
-          <label className="uiinde-estiloetiqueta" htmlFor={`${idCampo}-1`}>{t('permisos_proyecto_ui.proyecto')}</label>
-          <Select suelto placeholder={false} id={`${idCampo}-1`} value={selectedProject} onChange={e => setSelectedProject(e.target.value)}>
+      <SelectorDeContexto>
+          <Select label={t('permisos_proyecto_ui.proyecto')} placeholder={false} id={`${idCampo}-1`} value={selectedProject} onChange={e => setSelectedProject(e.target.value)}>
             <option value="">{t('projectpermissions.selecciona_un_proyecto')}</option>
             {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
           </Select>
-        </div>
-        {selectedProject && (
-          <p className="pperm-ayuda">
-            <Info size={14} aria-hidden />
-            <span>{t('projectpermissions.los_permisos_de_proyecto_sobrescriben_el_rol')}</span>
-          </p>
-        )}
-      </Card>
+      </SelectorDeContexto>
+      {selectedProject && (
+        <p className="pperm-ayuda">
+          <Info size={14} aria-hidden />
+          <span>{t('projectpermissions.los_permisos_de_proyecto_sobrescriben_el_rol')}</span>
+        </p>
+      )}
 
       {!selectedProject && (
         <EmptyState icon={<FolderLock size={28} />} title={t('projectpermissions.selecciona_un_proyecto_2')} description={t('permisos_proyecto_ui.selecciona_desc')} />

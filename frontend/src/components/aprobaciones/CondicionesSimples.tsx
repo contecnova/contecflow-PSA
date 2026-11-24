@@ -65,18 +65,14 @@ export function EditorDeCondicion({ valor, onChange }: { valor: CondicionSimple;
   const num = (v: string) => (v === '' ? undefined : Number(v))
   return (
     <div className="apr-condicion">
-      <label htmlFor={`${id}-gt`}><span className="apr-etiqueta">{t('aprob.importe_mayor_que')}</span>
-        <Input id={`${id}-gt`} type="number" min={0} step="0.01" value={valor.amount_gt ?? ''} onChange={e => onChange({ ...valor, amount_gt: num(e.target.value) })} inputClassName="apr-campo" /></label>
-      <label htmlFor={`${id}-lt`}><span className="apr-etiqueta">{t('aprob.importe_menor_que')}</span>
-        <Input id={`${id}-lt`} type="number" min={0} step="0.01" value={valor.amount_lt ?? ''} onChange={e => onChange({ ...valor, amount_lt: num(e.target.value) })} inputClassName="apr-campo" /></label>
-      <label htmlFor={`${id}-dep`}><span className="apr-etiqueta">{t('aprob.departamento')}</span>
-        <Select suelto placeholder={false} id={`${id}-dep`} className="apr-campo" value={valor.department ?? ''}
+      <Input label={t('aprob.importe_mayor_que')} id={`${id}-gt`} type="number" min={0} step="0.01" value={valor.amount_gt ?? ''} onChange={e => onChange({ ...valor, amount_gt: num(e.target.value) })} />
+      <Input label={t('aprob.importe_menor_que')} id={`${id}-lt`} type="number" min={0} step="0.01" value={valor.amount_lt ?? ''} onChange={e => onChange({ ...valor, amount_lt: num(e.target.value) })} />
+      <Select label={t('aprob.departamento')} placeholder={false} id={`${id}-dep`} value={valor.department ?? ''}
           onChange={e => onChange({ ...valor, department: e.target.value || undefined })}>
           <option value="">{t('aprob.cualquiera')}</option>
           {(depts.data ?? []).filter(d => d.is_active !== false).map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
-        </Select></label>
-      <label htmlFor={`${id}-cat`}><span className="apr-etiqueta">{t('aprob.categoria')}</span>
-        <Input id={`${id}-cat`} value={valor.category ?? ''} placeholder={t('aprob.cualquiera')} onChange={e => onChange({ ...valor, category: e.target.value || undefined })} inputClassName="apr-campo" /></label>
+        </Select>
+      <Input label={t('aprob.categoria')} id={`${id}-cat`} value={valor.category ?? ''} placeholder={t('aprob.cualquiera')} onChange={e => onChange({ ...valor, category: e.target.value || undefined })} />
     </div>
   )
 }
@@ -101,8 +97,7 @@ export function EditorDeReglasDeAutoaprobacion({ raw, onChange }: { raw: string;
       {reglas.map((r, i) => (
         <fieldset key={i} className="ds-grupo-opciones apr-regla">
           <legend className="apr-etiqueta">{t('aprob.regla_n', { n: i + 1 })}</legend>
-          <label htmlFor={`${id}-${i}-label`}><span className="apr-etiqueta">{t('aprob.etiqueta_regla')}</span>
-            <Input id={`${id}-${i}-label`} value={r.label ?? ''} onChange={e => guardar(reglas.map((x, j) => j === i ? { ...x, label: e.target.value } : x))} inputClassName="apr-campo" /></label>
+          <Input label={t('aprob.etiqueta_regla')} id={`${id}-${i}-label`} value={r.label ?? ''} onChange={e => guardar(reglas.map((x, j) => j === i ? { ...x, label: e.target.value } : x))} />
           <EditorDeCondicion valor={r.conditions} onChange={c => guardar(reglas.map((x, j) => j === i ? { ...x, conditions: c } : x))} />
           <Button size="xs" variant="ghost" icon={<Trash2 size={12} />} title={t('aprob.quitar_regla')}
             onClick={() => guardar(reglas.filter((_, j) => j !== i))}><span className="u-sr-only">{t('aprob.quitar_regla')}</span></Button>

@@ -126,7 +126,7 @@
   gap: var(--space-2);
   align-items: center;
 }
-@media (max-width: 560px) {
+@media (width <= 560px) {
   .trad-admin__fila-idioma {
     grid-template-columns: 1fr auto;
   }

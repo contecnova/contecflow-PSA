@@ -229,10 +229,7 @@ function CreateTemplateModal({ onClose, onDone }: { onClose: () => void; onDone:
           <Input label={t('plantillas_ui.semanas')} type="number" value={form.estimated_weeks} onChange={set('estimated_weeks')} />
           <Input label={t('plantillas_ui.horas')} type="number" value={form.estimated_hours} onChange={set('estimated_hours')} />
         </div>
-        <div className="ui-field">
-          <label className="uiinde-estiloetiqueta" htmlFor="ptpl-descripcion">{t('projecttemplates.descripcion')}</label>
-          <Textarea id="ptpl-descripcion" value={form.description} onChange={set('description')} rows={2} inputClassName="ptpl-textarea" />
-        </div>
+        <Textarea label={t('projecttemplates.descripcion')} id="ptpl-descripcion" value={form.description} onChange={set('description')} rows={2} />
 
         <section className="ptpl-bloque">
           <h3 className="ptpl-bloque__titulo">{t('plantillas_ui.fases_n', { n: form.phases.length })}</h3>
@@ -285,10 +282,7 @@ function CreateTemplateModal({ onClose, onDone }: { onClose: () => void; onDone:
               { value: 'critical', label: t('plantillas_ui.imp_critical') },
             ]} />
           </div>
-          <div className="ui-field">
-            <label className="uiinde-estiloetiqueta" htmlFor="ptpl-mitigacion">{t('projecttemplates.mitigacion_opcional')}</label>
-            <Textarea id="ptpl-mitigacion" value={risk.mitigation_plan} onChange={e => setRisk(f => ({ ...f, mitigation_plan: e.target.value }))} rows={2} inputClassName="ptpl-textarea" />
-          </div>
+          <Textarea label={t('projecttemplates.mitigacion_opcional')} id="ptpl-mitigacion" value={risk.mitigation_plan} onChange={e => setRisk(f => ({ ...f, mitigation_plan: e.target.value }))} rows={2} />
           <div>
             <Button variant="secondary" icon={<Plus size={14} />} onClick={addRisk} disabled={!risk.title.trim()}>{t('plantillas_ui.anadir_riesgo')}</Button>
           </div>
@@ -307,10 +301,7 @@ function CreateTemplateModal({ onClose, onDone }: { onClose: () => void; onDone:
             <Input label={t('plantillas_ui.semana')} type="number" value={deliverable.week_offset} onChange={e => setDeliverable(f => ({ ...f, week_offset: e.target.value }))} />
             <Input label={t('projecttemplates.facturacion')} type="number" value={deliverable.billing_pct} onChange={e => setDeliverable(f => ({ ...f, billing_pct: e.target.value }))} />
           </div>
-          <div className="ui-field">
-            <label className="uiinde-estiloetiqueta" htmlFor="ptpl-aceptacion">{t('projecttemplates.criterio_aceptacion_opcional')}</label>
-            <Textarea id="ptpl-aceptacion" value={deliverable.acceptance_criteria} onChange={e => setDeliverable(f => ({ ...f, acceptance_criteria: e.target.value }))} rows={2} inputClassName="ptpl-textarea" />
-          </div>
+          <Textarea label={t('projecttemplates.criterio_aceptacion_opcional')} id="ptpl-aceptacion" value={deliverable.acceptance_criteria} onChange={e => setDeliverable(f => ({ ...f, acceptance_criteria: e.target.value }))} rows={2} />
           <div>
             <Button variant="secondary" icon={<Plus size={14} />} onClick={addDeliverable} disabled={!deliverable.name.trim()}>{t('plantillas_ui.anadir_entregable')}</Button>
           </div>
@@ -360,15 +351,9 @@ function InstantiateModal({ tpl, onClose, onDone, t }: { tpl: Tpl; onClose: () =
       <div className="u-stack-14">
         <Input label={t('project_templates.project_name_label')} value={projectName}
           onChange={e => setProjectName(e.target.value)} placeholder={t('project_templates.project_name_placeholder')} />
-        <div className="ui-field">
-          <label className="uiinde-estiloetiqueta" htmlFor="ptpl-cliente">{t('project_templates.client_label')}</label>
-          <ClientSelect id="ptpl-cliente" value={clientId} placeholder={t('project_templates.client_placeholder')}
+        <ClientSelect label={t('project_templates.client_label')} id="ptpl-cliente" value={clientId} placeholder={t('project_templates.client_placeholder')}
             onChange={(id, client) => { setClientId(id); setClientName(client?.name ?? '') }} />
-        </div>
-        <div className="ui-field">
-          <label className="uiinde-estiloetiqueta" htmlFor="ptpl-inicio">{t('project_templates.start_date_label')}</label>
-          <DateInput id="ptpl-inicio" value={startDate} onChange={e => setStartDate(e.target.value)} className="ds-input" />
-        </div>
+        <DateInput label={t('project_templates.start_date_label')} id="ptpl-inicio" value={startDate} onChange={e => setStartDate(e.target.value)} />
 
         {error && <div className="ptpl-error" role="alert">{error}</div>}
 

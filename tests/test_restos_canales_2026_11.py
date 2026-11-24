@@ -7,6 +7,7 @@ Sin red: Slack y Meta son los dobles de `test_canales_tiempo_real_2026_11`.
 import importlib.util
 import json
 from pathlib import Path
+import pytest
 from datetime import datetime, timedelta, timezone
 
 from app.models.service_desk import ChannelConversation, ChannelMessage, TicketComment
@@ -120,27 +121,49 @@ def test_slack_sin_token_es_409_con_codigo(client, admin_token, db, monkeypatch,
 
 
 def test_festivos_sin_empresa_pasan_a_cada_empresa(db):
-    """Paso de datos de la migracion 182 (idempotente)."""
+    """Paso de datos de la migracion 182 (idempotente).
+
+    24-11-2026 (migración 208, empresa obligatoria): `holidays.organization_id` ya es
+    NOT NULL en el esquema de los modelos, así que el festivo sin empresa no cabe en la
+    base de los tests. El paso de la 182 se prueba sobre una base aparte con las tablas
+    como estaban en la 182 (empresa opcional), y en la base actual se comprueba que la
+    fila sin empresa ya no puede existir.
+    """
     import uuid
     from datetime import date
-    from app.models.settings import Holiday
+    import sqlalchemy as sa
+    from sqlalchemy import text
+    from sqlalchemy.exc import IntegrityError
     ruta = Path(__file__).resolve().parents[1] / "alembic" / "versions" / "182_comentarios_de_canal_y_festivos_por_empresa.py"
     spec = importlib.util.spec_from_file_location("migracion_182", ruta)
     migracion = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(migracion)
-    from app.models.mfa import Organization
-    orgs = [o.id for o in db.query(Organization).all()]
-    assert orgs
-    # SQL directo: la sesion rellena la empresa al insertar (asi nacian en la semilla vieja, sin ella).
-    from sqlalchemy import text
-    db.execute(text("INSERT INTO holidays (id, organization_id, name, date, type) "
-                    "VALUES (:id, NULL, 'Fiesta global', :d, 'national')"), {"id": str(uuid.uuid4()), "d": date(2026, 12, 8)})
-    db.commit()
-    con = db.connection()
-    creadas = migracion.festivos_por_empresa(con)
-    db.commit()
-    assert creadas >= len(orgs)
-    for org in orgs:
-        assert db.query(Holiday).filter(Holiday.organization_id == org, Holiday.name == "Fiesta global").count() == 1
-    assert db.execute(text("SELECT COUNT(*) FROM holidays WHERE organization_id IS NULL")).scalar() == 0
-    assert migracion.festivos_por_empresa(db.connection()) == 0
+
+    motor = sa.create_engine("sqlite://")
+    orgs = ["org-a", "org-b"]
+    with motor.begin() as con:
+        con.execute(text("CREATE TABLE organizations (id VARCHAR(36) PRIMARY KEY)"))
+        con.execute(text("CREATE TABLE holidays (id VARCHAR(36) PRIMARY KEY, organization_id VARCHAR(36), "
+                         "name VARCHAR(200) NOT NULL, date DATE NOT NULL, type VARCHAR(40), "
+                         "applies_to VARCHAR(40), office_id VARCHAR(36))"))
+        for org in orgs:
+            con.execute(text("INSERT INTO organizations (id) VALUES (:id)"), {"id": org})
+        con.execute(text("INSERT INTO holidays (id, organization_id, name, date, type) "
+                         "VALUES (:id, NULL, 'Fiesta global', :d, 'national')"),
+                    {"id": str(uuid.uuid4()), "d": date(2026, 12, 8)})
+    with motor.begin() as con:
+        assert migracion.festivos_por_empresa(con) == len(orgs)
+    with motor.begin() as con:
+        for org in orgs:
+            assert con.execute(text("SELECT COUNT(*) FROM holidays WHERE organization_id = :o "
+                                    "AND name = 'Fiesta global'"), {"o": org}).scalar() == 1
+        assert con.execute(text("SELECT COUNT(*) FROM holidays WHERE organization_id IS NULL")).scalar() == 0
+        assert migracion.festivos_por_empresa(con) == 0
+    motor.dispose()
+
+    # En la base actual (208) el festivo sin empresa ya no cabe.
+    with pytest.raises(IntegrityError):
+        db.execute(text("INSERT INTO holidays (id, organization_id, name, date, type) "
+                        "VALUES (:id, NULL, 'Fiesta global', :d, 'national')"),
+                   {"id": str(uuid.uuid4()), "d": date(2026, 12, 8)})
+    db.rollback()

@@ -125,24 +125,22 @@ function CreateUATModal({ projectId, deliverables, onClose }: { projectId: strin
       <div className="u-stack-14">
         <div className="cpp-grid-2-1">
           <div>
-            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="cpp-label">{t('client_portal.uat_label_title')} *</label>
-            <Input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.title} onChange={set('title')} inputClassName="cpp-input" placeholder={t('client_portal.uat_placeholder_title')} {...err('title')} />{msg('title')}
+            <Input label={<>{t('client_portal.uat_label_title')}*</>} id={`${idCampo}-1`} value={form.title} onChange={set('title')} placeholder={t('client_portal.uat_placeholder_title')} {...err('title')} />{msg('title')}
             {msg('title')}
           </div>
-          <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="cpp-label">{t('client_portal.uat_label_deliverable')}</label>
-            <Select suelto id={`${idCampo}-2`} placeholder={t('client_portal.uat_unlinked')} value={form.deliverable_id} onChange={set('deliverable_id')} className="cpp-input">
+          <div>
+            <Select label={t('client_portal.uat_label_deliverable')} id={`${idCampo}-2`} placeholder={t('client_portal.uat_unlinked')} value={form.deliverable_id} onChange={set('deliverable_id')}>
               {deliverables.map(d => <option key={d.id} value={d.id}>{d.code} — {d.name}</option>)}
             </Select>{msg('deliverable_id')}
           </div>
         </div>
-        <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="cpp-label">{t('client_portal.uat_label_description')}</label><Textarea id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.description} onChange={set('description')} rows={2} inputClassName="cpp-input" />{msg('description')}</div>
+        <div><Textarea label={t('client_portal.uat_label_description')} id={`${idCampo}-3`} value={form.description} onChange={set('description')} rows={2} />{msg('description')}</div>
         <div className="u-grid2-12">
-          <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="cpp-label">{t('client_portal.uat_label_test_env_url')}</label><Input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.test_environment} onChange={set('test_environment')} placeholder={t('client_portal.uat_placeholder_test_env_url')} inputClassName="cpp-input" />{msg('test_environment')}</div>
-          <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="cpp-label">{t('client_portal.uat_label_test_credentials')}</label><Input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={form.test_credentials} onChange={set('test_credentials')} placeholder={t('client_portal.uat_placeholder_test_credentials')} inputClassName="cpp-input" />{msg('test_credentials')}</div>
-          <div><label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} className="cpp-label">{t('client_portal.uat_label_available_from')}</label><DateInput id={`${idCampo}-6`} value={form.available_from} onChange={set('available_from')} className="cpp-input" {...err('available_from')} />{msg('available_from')}</div>
+          <div><Input label={t('client_portal.uat_label_test_env_url')} id={`${idCampo}-4`} value={form.test_environment} onChange={set('test_environment')} placeholder={t('client_portal.uat_placeholder_test_env_url')} />{msg('test_environment')}</div>
+          <div><Input label={t('client_portal.uat_label_test_credentials')} id={`${idCampo}-5`} value={form.test_credentials} onChange={set('test_credentials')} placeholder={t('client_portal.uat_placeholder_test_credentials')} />{msg('test_credentials')}</div>
+          <div><DateInput label={t('client_portal.uat_label_available_from')} id={`${idCampo}-6`} value={form.available_from} onChange={set('available_from')} {...err('available_from')} />{msg('available_from')}</div>
           <div>
-            <label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} className="cpp-label">{t('client_portal.uat_label_deadline')}</label>
-            <DateInput id={`${idCampo}-7`} value={form.deadline} onChange={set('deadline')} className="cpp-input" {...err('deadline')} />{msg('deadline')}
+            <DateInput label={t('client_portal.uat_label_deadline')} id={`${idCampo}-7`} value={form.deadline} onChange={set('deadline')} {...err('deadline')} />{msg('deadline')}
             {msg('deadline')}
           </div>
         </div>

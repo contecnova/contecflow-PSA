@@ -30,16 +30,17 @@
 .uiper-comparar input { accent-color: var(--accent); width: 16px; height: 16px; cursor: pointer; }
 .uiper-comparar input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .uiper-explica {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 4px;
-  margin: 0;
-  font-size: var(--text-xs);
+  flex-shrink: 0;
   color: var(--text-3);
+  cursor: help;
+  border-radius: var(--radius-sm);
 }
+.uiper-explica:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .uiper-error { margin: 0; }
 
-@media (max-width: 560px) {
+@media (width <= 560px) {
   .uiper-preset.uiper-preset,
   .uiper-gran.uiper-gran { flex: 1 1 100%; min-width: 0; }
   .uiper-rango { flex-basis: 100%; }

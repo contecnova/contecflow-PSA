@@ -45,7 +45,7 @@
 }
 
 .fidele-box-1 {
-  border: 1px solid currentColor;
+  border: 1px solid currentcolor;
   border-radius: 99px;
   padding: 1px 10px;
   font-size: var(--text-xs);

@@ -95,15 +95,9 @@ export default function PanelIaDelProyecto({ projectId }: { projectId: string })
       <div className="plan-card plan-stack">
         <h3 className="plan-card__titulo"><Sparkles size={14} />{t('planificador.simulacion')}</h3>
         <div className="plan-form">
-          <label>{t('planificador.sim_retraso')}
-            <Input type="number" min={0} value={sim.delay_days} onChange={e => setSim(x => ({ ...x, delay_days: Number(e.target.value) }))} inputClassName="plan-input" />
-          </label>
-          <label>{t('planificador.sim_compresion')}
-            <Input type="number" min={0} max={90} value={sim.compress_pct} onChange={e => setSim(x => ({ ...x, compress_pct: Number(e.target.value) }))} inputClassName="plan-input" />
-          </label>
-          <label>{t('planificador.sim_refuerzo')}
-            <Input type="number" min={0} value={sim.extra_horas} onChange={e => setSim(x => ({ ...x, extra_horas: Number(e.target.value) }))} inputClassName="plan-input" />
-          </label>
+          <Input label={t('planificador.sim_retraso')} type="number" min={0} value={sim.delay_days} onChange={e => setSim(x => ({ ...x, delay_days: Number(e.target.value) }))} />
+          <Input label={t('planificador.sim_compresion')} type="number" min={0} max={90} value={sim.compress_pct} onChange={e => setSim(x => ({ ...x, compress_pct: Number(e.target.value) }))} />
+          <Input label={t('planificador.sim_refuerzo')} type="number" min={0} value={sim.extra_horas} onChange={e => setSim(x => ({ ...x, extra_horas: Number(e.target.value) }))} />
         </div>
         <div className="plan-row"><Button size="sm" loading={simular.isPending} onClick={() => simular.mutate()}>{t('planificador.simular')}</Button></div>
         {resultado && (

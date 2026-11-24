@@ -127,33 +127,18 @@ export function UploadModal({ open, onClose, onSuccess }: { open: boolean; onClo
 
           {/* Derecha: metadatos */}
           <div className="docs-stack-4">
-            <div>
-              <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="documents-page-e7">{t('documents.titulo')}</label>
-              <Input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} placeholder={file?.name || t('pagina_docs.titulo_del_documento')} inputClassName="documents-page-e8" />
-            </div>
-            <div>
-              <label className="documents-page-e7">{t('documents.descripcion')}</label>
-              <Textarea value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} rows={2} placeholder={t('documents.descripcion_del_documento')} aria-label={t('documents.descripcion_del_documento')} inputClassName="documents-page-e5" />
-            </div>
+            <Input label={t('documents.titulo')} id={`${idCampo}-1`} value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} placeholder={file?.name || t('pagina_docs.titulo_del_documento')} />
+            <Textarea label={t('documents.descripcion')} value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} rows={2} placeholder={t('documents.descripcion_del_documento')} aria-label={t('documents.descripcion_del_documento')} />
             <div className="u-grid2-10">
-              <div>
-                <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="documents-page-e7">{t('documents.categoria')}</label>
-                <Select suelto placeholder={false} id={`${idCampo}-2`} value={form.category} onChange={e => setForm(p => ({ ...p, category: e.target.value }))} className="documents-page-e8">
+              <Select label={t('documents.categoria')} placeholder={false} id={`${idCampo}-2`} value={form.category} onChange={e => setForm(p => ({ ...p, category: e.target.value }))}>
                   {CATS.map(c => <option key={c} value={c}>{etiquetaCategoria(t, c)}</option>)}
                 </Select>
-              </div>
-              <div>
-                <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="documents-page-e7">{t('pagina_docs.proyecto')}</label>
-                <Select suelto placeholder={false} id={`${idCampo}-3`} value={form.project_id} onChange={e => setForm(p => ({ ...p, project_id: e.target.value }))} className="documents-page-e8">
+              <Select label={t('pagina_docs.proyecto')} placeholder={false} id={`${idCampo}-3`} value={form.project_id} onChange={e => setForm(p => ({ ...p, project_id: e.target.value }))}>
                   <option value="">{t('documents.sin_proyecto')}</option>
                   {projects.map(p => <option key={p.id} value={p.id}>{p.code ? `${p.code} - ` : ''}{p.name}</option>)}
                 </Select>
-              </div>
             </div>
-            <div>
-              <label id={`${idCampo}-etiquetas-et`} htmlFor={`${idCampo}-etiquetas`} className="documents-page-e7">{t('pagina_docs.etiquetas')}</label>
-              <Input id={`${idCampo}-etiquetas`} aria-labelledby={`${idCampo}-etiquetas-et`} value={form.tags} onChange={e => setForm(p => ({ ...p, tags: e.target.value }))} placeholder={t('documents.etiquetas_separadas_por_comas')} aria-label={t('documents.etiquetas_separadas_por_comas')} inputClassName="documents-page-e8" />
-            </div>
+            <Input label={t('pagina_docs.etiquetas')} id={`${idCampo}-etiquetas`} value={form.tags} onChange={e => setForm(p => ({ ...p, tags: e.target.value }))} placeholder={t('documents.etiquetas_separadas_por_comas')} aria-label={t('documents.etiquetas_separadas_por_comas')} />
             <label className="docs-label-2">
               <Checkbox aria-label={t('documents.requiere_aprobacion_antes_de_usar')} checked={form.requires_approval} onChange={(_, e) => setForm(p => ({ ...p, requires_approval: e.target.checked }))}
                 className="docs-input-2" />
@@ -283,8 +268,7 @@ export function SharePanel({ documentId }: { documentId: PathId }) {
 
         {subjectType === 'user' && (
           <div className="u-mb-12">
-            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="documents-page-e9">{t('pagina_docs.usuario')}</label>
-            <Select suelto placeholder={false} id={`${idCampo}-1`} value={userId} onChange={e => setUserId(e.target.value)} className="documents-page-e10">
+            <Select label={t('pagina_docs.usuario')} placeholder={false} id={`${idCampo}-1`} value={userId} onChange={e => setUserId(e.target.value)}>
               <option value="">{t('documents.selecciona_un_usuario')}</option>
               {users.map(u => <option key={u.id} value={u.id}>{u.full_name}{esFichaCompleta(u) ? ` (${u.email})` : ''}</option>)}
             </Select>
@@ -292,16 +276,14 @@ export function SharePanel({ documentId }: { documentId: PathId }) {
         )}
         {subjectType === 'role' && (
           <div className="u-mb-12">
-            <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="documents-page-e9">{t('pagina_docs.rol_2')}</label>
-            <Select suelto placeholder={false} id={`${idCampo}-2`} value={roleVal} onChange={e => setRoleVal(e.target.value)} className="documents-page-e10">
+            <Select label={t('pagina_docs.rol_2')} placeholder={false} id={`${idCampo}-2`} value={roleVal} onChange={e => setRoleVal(e.target.value)}>
               {roles.map(r => <option key={r.id} value={r.id}>{r.etiqueta}</option>)}
             </Select>
           </div>
         )}
         {subjectType === 'department' && (
           <div className="u-mb-12">
-            <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="documents-page-e9">{t('pagina_docs.departamento_2')}</label>
-            <Input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="text" value={deptVal} onChange={e => setDeptVal(e.target.value)} list="departments-list" placeholder={t('pagina_docs.ej_finance')} inputClassName="documents-page-e10" />
+            <Input label={t('pagina_docs.departamento_2')} id={`${idCampo}-3`} type="text" value={deptVal} onChange={e => setDeptVal(e.target.value)} list="departments-list" placeholder={t('pagina_docs.ej_finance')} />
             <datalist id="departments-list">
               {departments.map(d => <option key={d} value={d} aria-label={d} />)}
             </datalist>
@@ -309,16 +291,10 @@ export function SharePanel({ documentId }: { documentId: PathId }) {
         )}
 
         <div className="docs-grid-3">
-          <div>
-            <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="documents-page-e9">{t('documents.nivel_de_acceso')}</label>
-            <Select suelto placeholder={false} id={`${idCampo}-4`} value={accessLevel} onChange={e => setAccessLevel(e.target.value)} className="documents-page-e10">
+          <Select label={t('documents.nivel_de_acceso')} placeholder={false} id={`${idCampo}-4`} value={accessLevel} onChange={e => setAccessLevel(e.target.value)}>
               {ACCESS_LEVELS.map(a => <option key={a.v} value={a.v}>{t(a.l)}</option>)}
             </Select>
-          </div>
-          <div>
-            <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="documents-page-e9">{t('pagina_docs.caducidad_opcional')}</label>
-            <DateInput id={`${idCampo}-5`} withTime value={expiresAt} onChange={e => setExpiresAt(e.target.value)} className="documents-page-e10" />
-          </div>
+          <DateInput label={t('pagina_docs.caducidad_opcional')} id={`${idCampo}-5`} withTime value={expiresAt} onChange={e => setExpiresAt(e.target.value)} />
         </div>
 
         <Button icon={<Check size={14} />} onClick={submitGrant} loading={grantMutation.isPending}>

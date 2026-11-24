@@ -201,16 +201,14 @@ function BookingPanel({ booking, position, projects, onSave, onDelete, onClose, 
         {isNew ? t('resource_scheduler.new_booking') : t('resource_scheduler.edit_booking')}
       </div>
 
-      <label className="rsch-label-muted-xs" id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`}>{t('resource_scheduler.project')}</label>
-      <Select suelto placeholder={false} className="rsch-input" id={`${idCampo}-1`} value={projectId} onChange={e => setProjectId(e.target.value)}>
+      <Select label={t('resource_scheduler.project')} placeholder={false} id={`${idCampo}-1`} value={projectId} onChange={e => setProjectId(e.target.value)}>
         <option value="">{t('resource_scheduler.no_project')}</option>
         {projects.map(p => (
           <option key={p.id} value={p.id}>{p.code} – {p.name}</option>
         ))}
       </Select>
 
-      <label className="rsch-label-muted-xs" id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`}>{t('resource_scheduler.hours_per_day')}</label>
-      <Input inputClassName="rsch-input-2" id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="number" min={1} max={24} value={hoursPerDay} onChange={e => setHours(Number(e.target.value))} />
+      <Input label={t('resource_scheduler.hours_per_day')} id={`${idCampo}-2`} type="number" min={1} max={24} value={hoursPerDay} onChange={e => setHours(Number(e.target.value))} />
 
       <span className="rsch-label-muted-xs" id={`${idCampo}-et3`}>{t('resource_scheduler.type')}</span>
       <div className="rsch-row-2" role="group" aria-labelledby={`${idCampo}-et3`}>

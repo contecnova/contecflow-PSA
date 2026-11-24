@@ -11,7 +11,7 @@ class UserSession(Base):
     __tablename__ = "user_sessions"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)  # audit #7
     user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     refresh_token_jti = Column(String(36), nullable=False, unique=True, index=True)
     # Rev. 199: clave estable de la sesion (el primer jti). Va en el token de

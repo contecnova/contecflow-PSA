@@ -1,8 +1,6 @@
 /* PublicFormsPage: estilos de la página (solo tokens de index.css).
    16-11-2026: fuera el ancho máximo centrado, los campos grises y la
    píldora de estado propia. */
-
-.pubf-textarea { resize: vertical; }
 .pubf-check { accent-color: var(--accent); }
 .pubf-row { display: flex; justify-content: flex-end; gap: 10px; margin-top: 4px; }
 .pubf-box { max-height: 420px; overflow-y: auto; }
@@ -11,10 +9,10 @@
 
 .pubf-lista { display: flex; flex-direction: column; gap: 12px; }
 .pubf-tarjeta {
-  flex-direction: row;
+  display: flex;
+  flex-flow: row wrap;
   align-items: center;
   justify-content: space-between;
-  flex-wrap: wrap;
   gap: 16px;
 }
 .pubf-tarjeta__info {

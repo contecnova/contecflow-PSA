@@ -86,7 +86,6 @@ export const nombreDeEntidad = (e: string, traducir: Traducir) =>
   e === 'manual' ? traducir('workflowdesigner.manual') : nombreDeProceso(e, traducir)
 
 // Clases compartidas de los formularios
-export const labelStyle = 'wfd-label'
 
 // ── Custom node para ReactFlow ───────────────────────────────────────────────
 function WorkflowNode({ data, selected }: NodeProps<NodoFlujo>) {

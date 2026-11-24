@@ -168,8 +168,7 @@ function WizardStep({ problemId, state, onRefresh, onComplete }: WizardStepProps
           </div>
         )}
 
-        <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="rcwimo-ls">{traducir('portalsupportdesk.tu_respuesta')}</label>
-        <Textarea id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={answer} onChange={e => setAnswer(e.target.value)} rows={4} placeholder={traducir('rcawizardmodal.describe_la_causa_o_responde_a_la')} inputClassName="rcwimo-is" />
+        <Textarea label={traducir('portalsupportdesk.tu_respuesta')} id={`${idCampo}-1`} value={answer} onChange={e => setAnswer(e.target.value)} rows={4} placeholder={traducir('rcawizardmodal.describe_la_causa_o_responde_a_la')} />
 
         {/* AI hint */}
         {(aiHint ?? stepDef?.ai_hint) && (

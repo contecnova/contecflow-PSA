@@ -88,7 +88,7 @@
 
 .pir-fila-editable {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)) auto;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
   gap: 8px;
   align-items: end;
 }
@@ -116,7 +116,7 @@
   flex-wrap: wrap;
 }
 
-@media (max-width: 720px) {
+@media (width <= 720px) {
   .pir-criterio {
     grid-template-columns: 1fr;
   }

@@ -17,7 +17,7 @@ import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { projectWorkflowsApi } from '../services/api'
 import type { EstadoDelFlujoDeProyecto, FlujoDelProyecto } from '../services/api/tipos-rendimiento'
-import { Button, Spinner, EmptyState, Modal, Select, IconButton, Pulsable, Checkbox, useErroresDeCampo, Input } from '../components/ui'
+import { Button, Spinner, EmptyState, Modal, Select, IconButton, Pulsable, Checkbox, useErroresDeCampo, Input, SelectorDeContexto } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { FolderOpen, GitBranch, MessageSquare, Pencil, Plus, RotateCcw, Trash2, Workflow, X, Zap } from 'lucide-react'
@@ -89,20 +89,15 @@ function StateForm({ projectId, state, onClose }: { projectId: string; state: Wo
   return (
     <Modal open onClose={onClose} title={isEdit ? t('workflows.editar_estado') : t('workflows.nuevo_estado')}>
       <div className="u-stack-14">
-        <div>
-          <label id={`${idCampo}-etnombre`} htmlFor={`${idCampo}-nombre`} className="wf-label">{t('workflows.nombre_del_estado')}</label>
-          <Input id={`${idCampo}-nombre`} aria-labelledby={`${idCampo}-etnombre`} value={form.name} onChange={e => {
+        <Input label={t('workflows.nombre_del_estado')} id={`${idCampo}-nombre`} value={form.name} onChange={e => {
               const n = e.target.value
               setForm(f => ({ ...f, name: n, value: isEdit ? f.value : n.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '') }))
             }} placeholder={t('workflows.nombre_visible_del_estado')} />
+        <div>
+          <Input label={t('workflows.valor_interno')} id={`${idCampo}-valor`} value={form.value} disabled={isEdit} onChange={e => set('value')(e.target.value.toLowerCase().replace(/\s+/g, '_'))} placeholder={t('workflows.valor_interno_ph')} inputClassName="ds-campo-codigo" />{msgB('value')}
         </div>
         <div>
-          <label id={`${idCampo}-valor-et`} htmlFor={`${idCampo}-valor`} className="wf-label">{t('workflows.valor_interno')}</label>
-          <Input id={`${idCampo}-valor`} aria-labelledby={`${idCampo}-valor-et`} value={form.value} disabled={isEdit} onChange={e => set('value')(e.target.value.toLowerCase().replace(/\s+/g, '_'))} placeholder={t('workflows.valor_interno_ph')} inputClassName="wf-input--mono ds-campo-codigo" />{msgB('value')}
-        </div>
-        <div>
-          <label id={`${idCampo}-icono-et`} htmlFor={`${idCampo}-icono`} className="wf-label">{t('workflows.icono_emoji')}</label>
-          <Input id={`${idCampo}-icono`} aria-labelledby={`${idCampo}-icono-et`} value={form.icon} onChange={e => set('icon')(e.target.value)} inputClassName="wf-input--icon" />{msgB('icon')}
+          <Input label={t('workflows.icono_emoji')} id={`${idCampo}-icono`} value={form.icon} onChange={e => set('icon')(e.target.value)} />{msgB('icon')}
         </div>
         <div>
           <div id={`${idCampo}-color-et`} className="wf-label">{t('workflows.color')}</div>
@@ -162,15 +157,13 @@ function TransitionForm({ projectId, states, onClose }: { projectId: string; sta
       <div className="u-stack-14">
         <div className="u-grid2-12">
           <div>
-            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="wf-label">{t('workflows.desde')}</label>
-            <Select suelto placeholder={false} id={`${idCampo}-1`} value={form.from_state_id} onChange={e => set('from_state_id')(e.target.value)}>
+            <Select label={t('workflows.desde')} placeholder={false} id={`${idCampo}-1`} value={form.from_state_id} onChange={e => set('from_state_id')(e.target.value)}>
               <option value="">{t('workflows.selecciona_estado')}</option>
               {states.map(s => <option key={s.id} value={String(s.id)}>{s.icon} {s.name}</option>)}
             </Select>{msg('from_state_id')}
           </div>
           <div>
-            <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="wf-label">{t('workflows.hasta')}</label>
-            <Select suelto placeholder={false} id={`${idCampo}-2`} value={form.to_state_id} onChange={e => set('to_state_id')(e.target.value)}>
+            <Select label={t('workflows.hasta')} placeholder={false} id={`${idCampo}-2`} value={form.to_state_id} onChange={e => set('to_state_id')(e.target.value)}>
               <option value="">{t('workflows.selecciona_estado')}</option>
               {states.filter(s => String(s.id) !== form.from_state_id).map(s => (
                 <option key={s.id} value={String(s.id)}>{s.icon} {s.name}</option>
@@ -179,12 +172,10 @@ function TransitionForm({ projectId, states, onClose }: { projectId: string; sta
           </div>
         </div>
         <div>
-          <label id={`${idCampo}-etetiqueta`} htmlFor={`${idCampo}-etiqueta`} className="wf-label">{t('workflows.etiqueta_de_la_transicion_opcional')}</label>
-          <Input id={`${idCampo}-etiqueta`} aria-labelledby={`${idCampo}-etetiqueta`} value={form.label} onChange={e => set('label')(e.target.value)} placeholder={t('workflows.etiqueta_placeholder')} />{msg('label')}
+          <Input label={t('workflows.etiqueta_de_la_transicion_opcional')} id={`${idCampo}-etiqueta`} value={form.label} onChange={e => set('label')(e.target.value)} placeholder={t('workflows.etiqueta_placeholder')} />{msg('label')}
         </div>
         <div>
-          <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="wf-label">{t('workflows.solo_puede_ejecutarla_este_rol')}</label>
-          <Select suelto placeholder={false} id={`${idCampo}-3`} value={form.required_role} onChange={e => set('required_role')(e.target.value)}>
+          <Select label={t('workflows.solo_puede_ejecutarla_este_rol')} placeholder={false} id={`${idCampo}-3`} value={form.required_role} onChange={e => set('required_role')(e.target.value)}>
             <option value="">{t('workflows.cualquier_rol')}</option>
             {roles.map(r => <option key={r.id} value={r.id}>{r.etiqueta}</option>)}
           </Select>{msg('required_role')}
@@ -282,14 +273,12 @@ export default function WorkflowsPage() {
       />
 
       {/* Selector de proyecto */}
-      <div className="ds-toolbar wf-barra">
-        <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="wf-label wf-label--inline">{t('workflows.proyecto')}</label>
-        <Select suelto placeholder={false} id={`${idCampo}-1`} value={selectedProject} onChange={e => setSelectedProject(e.target.value)}
-          className="wf-input--project">
+      <SelectorDeContexto>
+        <Select label={t('workflows.proyecto')} placeholder={false} id={`${idCampo}-1`} value={selectedProject} onChange={e => setSelectedProject(e.target.value)}>
           <option value="">{t('workflows.selecciona_un_proyecto')}</option>
           {projects.map(p => <option key={p.id} value={String(p.id)}>{p.name}</option>)}
         </Select>
-      </div>
+      </SelectorDeContexto>
 
       {!selectedProject && (
         <EmptyState icon={<FolderOpen size={28} />} title={t('workflows.selecciona_un_proyecto_2')} description={t('workflows.elige_proyecto_desc')} />

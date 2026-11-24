@@ -109,11 +109,10 @@ function FormRegla({ inicial, servicios, clientes, contratos, politicas, onCance
   const sel = (k: keyof ReglaSla) => (e: ChangeEvent<HTMLSelectElement>) => setR({ ...r, [k]: e.target.value || null })
   const num = (k: keyof ReglaSla) => (e: ChangeEvent<HTMLInputElement>) => setR({ ...r, [k]: e.target.value === '' ? null : Number(e.target.value) })
   const lista = (k: keyof ReglaSla, ops: Opcion[], etiqueta: string) => (
-    <label className="sdm-field"><span>{etiqueta}</span>
-      <Select suelto placeholder={false} value={(r[k] as string) || ''} onChange={sel(k)}>
+    <Select label={etiqueta} placeholder={false} value={(r[k] as string) || ''} onChange={sel(k)}>
         <option value="">{t('sd_mercado.cualquiera')}</option>
         {ops.map(o => <option key={o.id} value={o.id}>{o.name || o.title || o.full_name || o.id}</option>)}
-      </Select></label>
+      </Select>
   )
   const valida = r.name.trim().length >= 2 && (r.response_hours != null || r.resolution_hours != null)
   return (
@@ -126,18 +125,16 @@ function FormRegla({ inicial, servicios, clientes, contratos, politicas, onCance
       <div className="ds-eyebrow">{t('sd_mercado.condiciones')}</div>
       <div className="sdm-form">
         {lista('service_item_id', servicios, t('sd_mercado.servicio'))}
-        <label className="sdm-field"><span>{t('sd_mercado.tipo')}</span>
-          <Select suelto placeholder={false} value={r.ticket_type || ''} onChange={sel('ticket_type')}>
+        <Select label={t('sd_mercado.tipo')} placeholder={false} value={r.ticket_type || ''} onChange={sel('ticket_type')}>
             <option value="">{t('sd_mercado.cualquiera')}</option>
             {TIPOS.map(x => <option key={x} value={x}>{etiquetaSd('type', x)}</option>)}
-          </Select></label>
+          </Select>
         {lista('client_id', clientes, t('sd_mercado.cliente'))}
         {lista('contract_id', contratos, t('sd_mercado.contrato'))}
-        <label className="sdm-field"><span>{t('sd_mercado.prioridad')}</span>
-          <Select suelto placeholder={false} value={r.priority || ''} onChange={sel('priority')}>
+        <Select label={t('sd_mercado.prioridad')} placeholder={false} value={r.priority || ''} onChange={sel('priority')}>
             <option value="">{t('sd_mercado.cualquiera')}</option>
             {PRIORIDADES.map(x => <option key={x} value={x}>{etiquetaCodigo(t, 'estado', x)}</option>)}
-          </Select></label>
+          </Select>
       </div>
       <div className="ds-eyebrow">{t('sd_mercado.objetivos')}</div>
       <div className="sdm-form">
@@ -175,15 +172,13 @@ function OlaPorPrioridad({ esAdmin }: { esAdmin: boolean }) {
     <Section title={t('sd_mercado.ola_titulo')} subtitle={t('sd_mercado.ola_desc')}>
       {(colas.data ?? []).length === 0 ? <EmptyState icon={<Users size={28} />} title={t('sd_mercado.sin_colas')} /> : (
         <div className="u-stack-12">
-          <label className="sdm-field"><span>{t('sd_mercado.cola')}</span>
-            <Select suelto placeholder={false} value={elegida} onChange={e => setCola(e.target.value)}>
+          <Select label={t('sd_mercado.cola')} placeholder={false} value={elegida} onChange={e => setCola(e.target.value)}>
               {(colas.data ?? []).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </Select></label>
+            </Select>
           {ola.data && <div className="u-text3-xs">{t('sd_mercado.ola_por_defecto', { h: ola.data.default_hours ?? '—' })}</div>}
           <div className="sdm-form">
             {PRIORIDADES.map(p => (
-              <label key={p} className="sdm-field"><span>{etiquetaCodigo(t, 'estado', p)} (h)</span>
-                <Input type="number" min={0} step={0.25} disabled={!esAdmin} value={objetivos[p] ?? ''} placeholder={ola.data?.default_hours != null ? String(ola.data.default_hours) : ''} onChange={e => setObjetivos({ ...objetivos, [p]: e.target.value })} /></label>
+              <Input key={p} label={<>{etiquetaCodigo(t, 'estado', p)}(h)</>} type="number" min={0} step={0.25} disabled={!esAdmin} value={objetivos[p] ?? ''} placeholder={ola.data?.default_hours != null ? String(ola.data.default_hours) : ''} onChange={e => setObjetivos({ ...objetivos, [p]: e.target.value })} />
             ))}
           </div>
           {esAdmin && <div className="u-row-end"><Button onClick={() => guardar.mutate()} loading={guardar.isPending}>{t('common.save')}</Button></div>}

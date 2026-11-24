@@ -1,12 +1,5 @@
 /* Planificación de sprints con IA. Solo tokens del tema. */
-
-.spl-filtros { padding: 16px 20px; }
-.spl-input { padding: 9px 13px; border-radius: 8px; font-size: var(--text-base); }
 .spl-input--project { width: 360px; max-width: 100%; }
-.spl-label {
-  display: block; margin-bottom: 5px;
-  font-size: var(--text-xs); font-weight: 600; color: var(--text-2);
-}
 
 .spl-info {
   padding: 12px 14px; background: var(--surface-1); border-radius: 8px; border: 1px solid var(--surface-4);

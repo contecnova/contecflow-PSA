@@ -6,7 +6,7 @@
   gap: 14px;
 }
 
-@media (max-width: 900px) {
+@media (width <= 900px) {
   .page-content.dxp-page { padding-left: 14px; padding-right: 14px; }
   .dxp-widgets { grid-template-columns: 1fr; }
 }

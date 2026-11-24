@@ -175,7 +175,7 @@
 }
 
 /* Móvil: el panel ocupa el ancho de la pantalla bajo la cabecera. */
-@media (max-width: 640px) {
+@media (width <= 640px) {
   .bandeja-desplegable__panel {
     position: fixed;
     top: var(--bandeja-arriba, 56px);

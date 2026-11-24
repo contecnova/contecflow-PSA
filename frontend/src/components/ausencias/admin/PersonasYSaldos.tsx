@@ -254,23 +254,20 @@ function NuevoAjuste({ userId, saldo }: { userId: string; saldo: SaldoDeAusencia
     <form className="ausadm-tarjeta" aria-labelledby="ausadm-ajuste-titulo" onSubmit={e => { e.preventDefault(); if (valido) guardar.mutate() }}>
       <span id="ausadm-ajuste-titulo" className="ausadm-etiqueta">{ta('nuevo_ajuste')}</span>
       <div className="ausadm-fila">
-        <label className="ausadm-fila"><span className="ausadm-ayuda">{ta('cantidad_mas_menos')}</span>
-          <Input type="number" step="0.25" required aria-label={ta('cantidad_mas_menos')} value={cantidad} onChange={e => setCantidad(e.target.value)} className="ausadm-campo--corto" />{msg('cantidad_mas_menos')}
-        </label>
+        <div className="ausadm-fila"><Input label={ta('cantidad_mas_menos')} type="number" step="0.25" required aria-label={ta('cantidad_mas_menos')} value={cantidad} onChange={e => setCantidad(e.target.value)} />{msg('cantidad_mas_menos')}
+        </div>
         <Select suelto className="ausadm-campo" aria-label={ta('unidad')} value={unidad} placeholder={false}
           onChange={e => setUnidad(e.target.value as UnidadDeSaldo)}>
           {(['dias', 'horas'] as const).map(u => <option key={u} value={u}>{ta(`unidad_${u}`)}</option>)}
         </Select>{msg('unidad')}
-        <label className="ausadm-fila"><span className="ausadm-ayuda">{ta('fecha')}</span>
-          <DateInput className="ausadm-campo" aria-label={ta('fecha')} value={dia} onChange={e => setDia(e.target.value)} />{msg('fecha')}
-        </label>
-        <label className="ausadm-fila"><span className="ausadm-ayuda">{ta('caduca')}</span>
-          <DateInput className="ausadm-campo" aria-label={ta('caduca')} value={caduca} min={dia || undefined} onChange={e => setCaduca(e.target.value)} />{msg('caduca')}
-        </label>
+        <div className="ausadm-fila"><DateInput label={ta('fecha')} aria-label={ta('fecha')} value={dia} onChange={e => setDia(e.target.value)} />{msg('fecha')}
+        </div>
+        <div className="ausadm-fila"><DateInput label={ta('caduca')} aria-label={ta('caduca')} value={caduca} min={dia || undefined} onChange={e => setCaduca(e.target.value)} />{msg('caduca')}
+        </div>
       </div>
-      <label className="ausadm-campo-con-etiqueta"><span className="ausadm-ayuda">{ta('motivo_obligatorio')}</span>
-        <Input required maxLength={500} aria-label={ta('motivo_obligatorio')} value={nota} onChange={e => setNota(e.target.value)} inputClassName="ausadm-campo" />{msg('motivo_obligatorio')}
-      </label>
+      <div className="ausadm-campo-con-etiqueta">
+        <Input label={ta('motivo_obligatorio')} required maxLength={500} aria-label={ta('motivo_obligatorio')} value={nota} onChange={e => setNota(e.target.value)} />{msg('motivo_obligatorio')}
+      </div>
       {cantidad !== '' && !Number.isNaN(n) && n !== 0 && (
         <span className="ausadm-ayuda">{ta(n > 0 ? 'ajuste_suma' : 'ajuste_resta', { n: cantidadDeSaldo(t, unidad, Math.abs(n)) })}</span>
       )}
@@ -303,12 +300,8 @@ function RecalcularBolsa({ userIds }: { userIds: string[] }) {
       <span id="ausadm-bolsa-titulo" className="ausadm-etiqueta">{ta('recalcular_bolsa')}</span>
       <span className="ausadm-ayuda">{ta('recalcular_bolsa_ayuda')}</span>
       <div className="ausadm-fila">
-        <label className="ausadm-fila"><span className="ausadm-ayuda">{ta('desde')}</span>
-          <DateInput className="ausadm-campo" aria-label={ta('desde')} value={desde} onChange={e => setDesde(e.target.value)} />
-        </label>
-        <label className="ausadm-fila"><span className="ausadm-ayuda">{ta('hasta')}</span>
-          <DateInput className="ausadm-campo" aria-label={ta('hasta')} value={hasta} min={desde || undefined} onChange={e => setHasta(e.target.value)} />
-        </label>
+        <DateInput label={ta('desde')} aria-label={ta('desde')} value={desde} onChange={e => setDesde(e.target.value)} />
+        <DateInput label={ta('hasta')} aria-label={ta('hasta')} value={hasta} min={desde || undefined} onChange={e => setHasta(e.target.value)} />
         <Select suelto className="ausadm-campo" aria-label={ta('a_quien')} value={todas ? 'todas' : 'vista'} placeholder={false}
           onChange={e => setTodas(e.target.value === 'todas')}>
           <option value="todas">{ta('todas_las_personas')}</option>

@@ -17,7 +17,7 @@ class ITSMChangeRequest(Base):
     __table_args__ = (Index("uq_sd_change_requests_org_number", "organization_id", "number", unique=True),)
 
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)  # audit #7
     number      = Column(String(20), nullable=False, index=True, default=lambda: f"CHG-{uuid.uuid4().hex[:8].upper()}")
     title       = Column(String(500), nullable=False)
     description = Column(Text, nullable=False)
@@ -107,7 +107,7 @@ class ChangeApproval(Base):
     __tablename__ = "sd_change_approvals"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     change_id = Column(String(36), ForeignKey("sd_change_requests.id", ondelete="CASCADE"), nullable=False, index=True)
     approver_user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     decision = Column(String(20), default="pending", nullable=False)  # pending | approved | rejected
@@ -123,7 +123,7 @@ class ChangeBlackout(Base):
     __tablename__ = "sd_change_blackouts"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     name = Column(String(200), nullable=False)
     reason = Column(Text, nullable=True)
     start_at = Column(DateTime(timezone=True), nullable=False, index=True)
@@ -137,7 +137,7 @@ class Release(Base):
     __tablename__ = "sd_releases"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     name = Column(String(200), nullable=False)
     version = Column(String(50), nullable=True)
     status = Column(String(20), default="planned", nullable=False)  # planned | in_progress | released | cancelled
@@ -170,7 +170,7 @@ class StandardChangeModel(Base):
     __table_args__ = (Index("ix_sd_standard_change_models_org_status", "organization_id", "status"),)
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     name = Column(String(200), nullable=False)
     description = Column(Text, nullable=True)
     # Procedimiento: pasos de implantacion, vuelta atras y prueba (plantilla del cambio).

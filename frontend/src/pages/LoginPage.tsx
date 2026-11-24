@@ -502,18 +502,14 @@ export default function LoginPage(): JSX.Element {
               {t('login.mfa_prompt')}
             </p>
             <div>
-              <label id="mfa_code-et" style={st.label} htmlFor="mfa_code">
-                {t('login.mfa_code_placeholder')}
-              </label>
-              <Input
-                id="mfa_code" aria-labelledby="mfa_code-et"
+              <Input label={t('login.mfa_code_placeholder')}
+                id="mfa_code"
                 type="text"
                 inputMode="numeric"
                 autoComplete="one-time-code"
                 autoFocus
                 value={mfaCode}
                 onChange={e => setMfaCode(e.target.value.replace(/[^0-9a-fA-F]/g, '').toUpperCase().slice(0, 8))}
-                inputClassName="login-page-mfa"
               />
               <p className="lgn-text-2">
                 {t('login.mfa_backup_hint')}
@@ -552,12 +548,8 @@ export default function LoginPage(): JSX.Element {
 
           /* ── Forgot password step ────────────────────────────── */
           <form onSubmit={handleForgotPassword} style={st.form} noValidate>
-            <div>
-              <label id="forgot_input-et" style={st.label} htmlFor="forgot_input">
-                {t('login.username_label')}
-              </label>
-              <Input
-                id="forgot_input" aria-labelledby="forgot_input-et"
+            <Input label={t('login.username_label')}
+                id="forgot_input"
                 type="text"
                 autoFocus
                 autoComplete="email"
@@ -565,7 +557,6 @@ export default function LoginPage(): JSX.Element {
                 onChange={e => setForgotInput(e.target.value)}
                 placeholder={t('login.username_placeholder')}
               />
-            </div>
             {error && (
               <div style={st.errorBanner} role="alert"><span>⚠</span><span>{error}</span></div>
             )}
@@ -628,26 +619,19 @@ export default function LoginPage(): JSX.Element {
 
               {/* Empresa (modo org_field) */}
               {entrada?.mode === 'org_field' && (
-                <div>
-                  <label id="login_org-et" style={st.label} htmlFor="login_org">{t('login.org_label')}</label>
-                  <Input
-                    id="login_org" aria-labelledby="login_org-et"
+                <Input label={t('login.org_label')}
+                    id="login_org"
                     type="text"
                     autoComplete="organization"
                     value={orgCode}
                     onChange={e => setOrgCode(e.target.value)}
                     placeholder={t('login.org_placeholder')}
                   />
-                </div>
               )}
 
               {/* Username */}
-              <div>
-                <label id="login_username-et" style={st.label} htmlFor="login_username">
-                  {t('login.username_label')}
-                </label>
-                <Input
-                  id="login_username" aria-labelledby="login_username-et"
+              <Input label={t('login.username_label')}
+                  id="login_username"
                   type="text"
                   autoFocus
                   autoComplete="username"
@@ -655,7 +639,6 @@ export default function LoginPage(): JSX.Element {
                   onChange={e => setUsername(e.target.value)}
                   placeholder={t('login.username_placeholder')}
                 />
-              </div>
 
               {/* Password */}
               <div>

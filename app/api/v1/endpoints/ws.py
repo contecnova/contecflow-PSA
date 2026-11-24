@@ -558,8 +558,11 @@ async def ws_notifications(
                         else:
                             # Bandeja de conversaciones en tiempo real (17-11-2026).
                             from app.services.service_desk import canales_en_vivo
-                            await canales_en_vivo.mensaje_del_operador(
-                                lambda fn, *a: _en_sesion(cerrojo, fn, *a), db, usuario, msg)
+                            from app.services.portal_conversation_service import en_vivo as chat_del_portal
+                            en_sesion = lambda fn, *a: _en_sesion(cerrojo, fn, *a)  # noqa: E731
+                            if not await canales_en_vivo.mensaje_del_operador(en_sesion, db, usuario, msg):
+                                # Chat del portal (24-11-2026): «escribiendo…» del operador.
+                                await chat_del_portal.mensaje_del_operador(en_sesion, db, usuario, msg)
                     except (json.JSONDecodeError, KeyError, TypeError) as e:
                         logging.getLogger(__name__).warning(f"WS notifications malformed message: {e}")
                     except Exception as e:
@@ -616,6 +619,13 @@ async def ws_portal_notifications(
             cerrojo = asyncio.Lock()
             poll_task = asyncio.create_task(
                 _poll_and_send_client(websocket, client_id, db, cerrojo))
+            # 24-11-2026 (chat del portal en colaboración): avisos del bus de sus
+            # conversaciones (mensajes, reacciones, leído, escribiendo, llamadas).
+            from app.services.collaboration import portal_chat as chat_colaboracion
+            from app.services.collaboration.portal import conversaciones_del_cliente
+            sus_conversaciones = list(await _en_sesion(cerrojo, conversaciones_del_cliente, db, cliente))
+            bus_task = asyncio.create_task(
+                chat_colaboracion.reenviar_al_portal(websocket, client_id, sus_conversaciones))
 
             try:
                 while True:
@@ -627,12 +637,20 @@ async def ws_portal_notifications(
                         else:
                             # Chat en vivo inmediato (17-11-2026): escribiendo y leido.
                             from app.services.service_desk import canales_en_vivo
-                            await canales_en_vivo.mensaje_del_portal(
-                                lambda fn, *a: _en_sesion(cerrojo, fn, *a), db, cliente, msg)
+                            from app.services.portal_conversation_service import en_vivo as chat_del_portal
+                            en_sesion = lambda fn, *a: _en_sesion(cerrojo, fn, *a)  # noqa: E731
+                            if not await canales_en_vivo.mensaje_del_portal(en_sesion, db, cliente, msg):
+                                # Chat del portal (24-11-2026): «escribiendo…» del cliente,
+                                # en conversaciones gobernadas o en las de colaboración.
+                                from app.services.collaboration import portal_chat as chat_colaboracion
+                                if not await chat_del_portal.mensaje_del_portal(en_sesion, db, cliente, msg):
+                                    await chat_colaboracion.mensaje_del_portal(en_sesion, db, cliente, msg)
                     except Exception:
                         log.debug("Portal WS received non-JSON or malformed message", exc_info=True)
             except WebSocketDisconnect:
                 poll_task.cancel()
+            finally:
+                bus_task.cancel()
         finally:
             if client_id:
                 manager.disconnect(websocket, f"client:{client_id}")

@@ -123,8 +123,7 @@ function ImportTab() {
             <div className="impt-box">{t('import_data.title_panel')}</div>
 
             <div className="u-mb-16">
-              <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="import-page-e8">{t('import_data.type_label')}</label>
-              <Select suelto placeholder={false} id={`${idCampo}-1`} value={entityType} onChange={e => { setEntityType(e.target.value); setStep('select'); setValidation(null); setResult(null) }} className="import-page-e9">
+              <Select label={t('import_data.type_label')} placeholder={false} id={`${idCampo}-1`} value={entityType} onChange={e => { setEntityType(e.target.value); setStep('select'); setValidation(null); setResult(null) }}>
                 {Object.entries(ENTITY_LABELS).map(([v,l]) => <option key={v} value={v}>{l}</option>)}
               </Select>
             </div>

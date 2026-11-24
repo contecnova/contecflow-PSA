@@ -487,6 +487,30 @@ def _arrancar_planificador_de_colaboracion(_is_testing) -> None:
             logger.warning("Collab scheduler no inicializado: %s", _exc)
 
 
+def _sincronizar_catalogo_bpm(_is_testing) -> None:
+    """24-11-2026: pone al día los procesos BPM sembrados sin editar (ver
+    `bpmn_process_service.sincronizar_catalogo_sembrado`). Best-effort: un fallo
+    aquí no impide arrancar."""
+    if _is_testing:
+        return
+    try:
+        from app.db.contexto_de_tenant import declarar_sistema
+        from app.db.session import SessionLocal
+        from app.services.bpmn_process_service import sincronizar_catalogo_sembrado
+        db = SessionLocal()
+        # 24-11-2026: sesión a mano de arranque; declara su contexto de sistema (lee
+        # todas las empresas; cada una se trata luego con `con_empresa`).
+        declarar_sistema(db, "arranque: sincronizar el catálogo BPM sembrado de cada empresa")
+        try:
+            n = sincronizar_catalogo_sembrado(db)
+            if n:
+                logger.info("   BPM: %s procesos sembrados puestos al día con el catálogo", n)
+        finally:
+            db.close()
+    except Exception:
+        logger.warning("BPM: no se pudo sincronizar el catálogo sembrado", exc_info=True)
+
+
 def _parar_planificador_de_colaboracion() -> None:
     """Detiene el planificador de colaboracion que levanto el arranque."""
     try:
@@ -611,6 +635,7 @@ async def lifespan(_app: FastAPI):
 
     # Collaboration: scheduled message dispatcher
     _arrancar_planificador_de_colaboracion(_is_testing)
+    _sincronizar_catalogo_bpm(_is_testing)
 
     # 23-11-2026: el modelo semántico (si es transformer) tarda minutos en cargar
     # la primera vez; se precarga en un hilo para que «Reconstruir vectores» y la

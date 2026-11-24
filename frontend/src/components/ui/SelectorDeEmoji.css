@@ -1,0 +1,39 @@
+/* Selector de emoji del kit (24-11-2026). Solo tokens de index.css. */
+.selector-emoji {
+  position: relative;
+  display: inline-flex;
+}
+.selector-emoji__panel {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 0;
+  z-index: 30;
+  display: grid;
+  grid-template-columns: repeat(8, 32px);
+  gap: 2px;
+  padding: 8px;
+  background: var(--surface-1);
+  border: 1px solid var(--surface-4);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+}
+.selector-emoji__opcion {
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-lg);
+  line-height: 1;
+  cursor: pointer;
+}
+.selector-emoji__opcion:hover,
+.selector-emoji__opcion:focus-visible {
+  background: var(--surface-3);
+  outline: none;
+}
+@media (width <= 480px) {
+  .selector-emoji__panel {
+    grid-template-columns: repeat(6, 32px);
+  }
+}

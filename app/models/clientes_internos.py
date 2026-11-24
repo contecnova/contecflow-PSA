@@ -40,7 +40,7 @@ class InternalClientRole(Base):
     __table_args__ = (UniqueConstraint("client_id", "user_id", "role", name="uq_internal_client_role"),)
 
     id = Column(String(36), primary_key=True, default=_id)
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     client_id = Column(String(36), ForeignKey("clients.id", ondelete="CASCADE"), nullable=False, index=True)
     user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     role = Column(String(20), nullable=False)
@@ -53,7 +53,7 @@ class InternalSharedCost(Base):
     __tablename__ = "internal_shared_costs"
 
     id = Column(String(36), primary_key=True, default=_id)
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     name = Column(String(200), nullable=False)
     description = Column(Text, nullable=True)
     monthly_amount = Column(Money, nullable=False, default=0, server_default="0")
@@ -76,7 +76,7 @@ class InternalCharge(Base):
     __table_args__ = (UniqueConstraint("organization_id", "number", name="uq_internal_charge_number"),)
 
     id = Column(String(36), primary_key=True, default=_id)
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     client_id = Column(String(36), ForeignKey("clients.id", ondelete="CASCADE"), nullable=False, index=True)
     number = Column(String(30), nullable=False)
     period = Column(String(7), nullable=False, index=True)
@@ -102,7 +102,7 @@ class InternalChargeLine(Base):
     __tablename__ = "internal_charge_lines"
 
     id = Column(String(36), primary_key=True, default=_id)
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     charge_id = Column(String(36), ForeignKey("internal_charges.id", ondelete="CASCADE"), nullable=False, index=True)
     source = Column(String(20), nullable=False)      # horas | precio_cerrado | catalogo | reparto | licencias | activos | software
     source_ref = Column(String(36), nullable=True)
@@ -120,7 +120,7 @@ class ProjectBenefit(Base):
     __tablename__ = "project_benefits"
 
     id = Column(String(36), primary_key=True, default=_id)
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     project_id = Column(String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
     name = Column(String(200), nullable=False)
     kind = Column(String(15), nullable=False, default="ahorro", server_default="ahorro")
@@ -140,7 +140,7 @@ class InternalAdoptionItem(Base):
     __tablename__ = "internal_adoption_items"
 
     id = Column(String(36), primary_key=True, default=_id)
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     client_id = Column(String(36), ForeignKey("clients.id", ondelete="CASCADE"), nullable=False, index=True)
     project_id = Column(String(36), ForeignKey("projects.id", ondelete="SET NULL"), nullable=True, index=True)
     course_id = Column(String(36), ForeignKey("training_courses.id", ondelete="SET NULL"), nullable=True)

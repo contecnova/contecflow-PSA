@@ -115,7 +115,7 @@ export function SLAConfig() {
   )
 }
 
-function AsignarPolitica({ politica, LS, onHecho }: { politica: Policy; LS: string; onHecho: () => void }) {
+function AsignarPolitica({ politica, LS: _LS, onHecho }: { politica: Policy; LS: string; onHecho: () => void }) {
   const t = useAppT()
   const toast = useToast()
   const [tipo, setTipo] = useState<'client' | 'contract'>('client')
@@ -132,16 +132,14 @@ function AsignarPolitica({ politica, LS, onHecho }: { politica: Policy; LS: stri
   })
   return (
     <div className="u-stack-12">
-      <div><label className={LS} htmlFor="sla-asig-tipo">{t('sd_cfg.sla_target_type')}</label>
-        <Select suelto placeholder={false} id="sla-asig-tipo" aria-label={t('sd_cfg.sla_target_type')} value={tipo} onChange={e => { setTipo(e.target.value as 'client' | 'contract'); setDestino('') }} className="sdcfg-sel">
+      <Select label={t('sd_cfg.sla_target_type')} placeholder={false} id="sla-asig-tipo" aria-label={t('sd_cfg.sla_target_type')} value={tipo} onChange={e => { setTipo(e.target.value as 'client' | 'contract'); setDestino('') }}>
           <option value="client">{t('sd_cfg.sla_target_client')}</option>
           <option value="contract">{t('sd_cfg.sla_target_contract')}</option>
-        </Select></div>
-      <div><label className={LS} htmlFor="sla-asig-destino">{tipo === 'client' ? t('sd_cfg.sla_target_client') : t('sd_cfg.sla_target_contract')}</label>
-        <Select suelto placeholder={false} id="sla-asig-destino" aria-label={t('sd_cfg.sla_target_client')} value={destino} onChange={e => setDestino(e.target.value)} className="sdcfg-sel">
+        </Select>
+      <Select label={tipo === 'client' ? t('sd_cfg.sla_target_client') : t('sd_cfg.sla_target_contract')} placeholder={false} id="sla-asig-destino" aria-label={t('sd_cfg.sla_target_client')} value={destino} onChange={e => setDestino(e.target.value)}>
           <option value="">—</option>
           {opciones.map(o => <option key={o.id} value={o.id}>{o.name ?? o.title ?? o.id}</option>)}
-        </Select></div>
+        </Select>
       <div className="u-row-end">
         <Button disabled={!destino || asignar.isPending} loading={asignar.isPending} onClick={() => asignar.mutate()}>{t('common.save')}</Button>
       </div>
@@ -245,8 +243,7 @@ function NewSLAForm({ LS, onSave, isPending, onClose, initial }: { LS: string; o
       ))}
       <div className="sdcfg-box sdcfg-box--full">
         <div>
-          <label className={LS} htmlFor="sla-horario">{t('sd_cfg.schedule')}</label>
-          <Select suelto placeholder={false} id="sla-horario" value={horario} onChange={e => setHorario(e.target.value)} className="sdcfg-sel">
+          <Select label={t('sd_cfg.schedule')} placeholder={false} id="sla-horario" value={horario} onChange={e => setHorario(e.target.value)}>
             <option value="247">{t('sd_cfg.schedule_247')}</option>
             {calendarios.length > 0 && (
               <optgroup label={t('sd_cfg.schedule_calendars')}>

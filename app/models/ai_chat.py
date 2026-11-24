@@ -33,7 +33,7 @@ class AIConversation(Base):
     __tablename__ = "ai_conversations"
 
     id           = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)  # audit #7
     user_id      = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     title        = Column(String(255), nullable=True)          # auto-generated from first message
     context_type = Column(String(50), default="global")        # global | project | ticket | sprint | invoice
@@ -54,7 +54,7 @@ class AIMessage(Base):
     __tablename__ = "ai_messages"
 
     id              = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)  # audit #7
     conversation_id = Column(String(36), ForeignKey("ai_conversations.id", ondelete="CASCADE"),
                              nullable=False, index=True)
     role            = Column(String(20), nullable=False)       # user | assistant | tool
@@ -75,7 +75,7 @@ class AIAgentExecution(Base):
     __tablename__ = "ai_agent_executions"
 
     id           = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)  # audit #7
     user_id      = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     instruction  = Column(Text, nullable=False)                # original user instruction
     status       = Column(String(20), default="pending")       # pending|running|awaiting_approval|done|failed
@@ -99,7 +99,7 @@ class AIAgentStep(Base):
     __tablename__ = "ai_agent_steps"
 
     id           = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)  # audit #7
     execution_id = Column(String(36), ForeignKey("ai_agent_executions.id", ondelete="CASCADE"),
                           nullable=False, index=True)
     step_number  = Column(Integer, nullable=False)
@@ -122,7 +122,7 @@ class AIPrediction(Base):
     __tablename__ = "ai_predictions"
 
     id              = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)  # audit #7
     prediction_type = Column(String(50), nullable=False, index=True)
     # project_delay | sla_breach | budget_overrun | burnout | anomaly | revenue_forecast
     entity_type     = Column(String(30), nullable=True)        # project | user | ticket | invoice
@@ -155,7 +155,7 @@ class AIGovernanceConfig(Base):
     __table_args__ = (Index("uq_ai_governance_configs_org_module", "organization_id", "module", unique=True),)
 
     id              = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)  # audit #7
     module          = Column(String(50), nullable=False)
     # nexusassist | nexusagent | nexusoracle | meeting_assistant | contract_intelligence | ...
     is_enabled      = Column(Boolean, default=True)
@@ -174,7 +174,7 @@ class AIActionLog(Base):
     __tablename__ = "ai_action_logs"
 
     id           = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)  # audit #7
     user_id      = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     module       = Column(String(50), nullable=False, index=True)
     action_type  = Column(String(100), nullable=False)         # tool name or event type
@@ -197,7 +197,7 @@ class AIMeeting(Base):
     __tablename__ = "ai_meetings"
 
     id           = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)  # audit #7
     project_id   = Column(String(36), ForeignKey("projects.id", ondelete="SET NULL"), nullable=True, index=True)
     title        = Column(String(255), nullable=True)
     meeting_date = Column(DateTime(timezone=True), nullable=True)
@@ -260,7 +260,7 @@ class AIMeetingAction(Base):
     __tablename__ = "ai_meeting_actions"
 
     id           = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)  # audit #7
     meeting_id   = Column(String(36), ForeignKey("ai_meetings.id", ondelete="CASCADE"),
                           nullable=False, index=True)
     description  = Column(Text, nullable=False)
@@ -284,7 +284,7 @@ class AIContract(Base):
     __tablename__ = "ai_contracts"
 
     id           = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)  # audit #7
     project_id   = Column(String(36), ForeignKey("projects.id", ondelete="SET NULL"), nullable=True, index=True)
     client_name  = Column(String(255), nullable=True)
     filename     = Column(String(500), nullable=True)
@@ -310,7 +310,7 @@ class AIContractClause(Base):
     __tablename__ = "ai_contract_clauses"
 
     id           = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)  # audit #7
     contract_id  = Column(String(36), ForeignKey("ai_contracts.id", ondelete="CASCADE"),
                           nullable=False, index=True)
     clause_type  = Column(String(50), nullable=False)
@@ -348,7 +348,7 @@ class AIKBArticle(Base):
     __tablename__ = "ai_kb_articles"
 
     id             = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)  # audit #7
     source_ticket_id = Column(String(36), ForeignKey("sd_tickets.id", ondelete="SET NULL"), nullable=True, index=True)
     title          = Column(String(255), nullable=False)
     content        = Column(Text, nullable=False)
@@ -374,7 +374,7 @@ class AIVoiceCommand(Base):
     __tablename__ = "ai_voice_commands"
 
     id           = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)  # audit #7
     user_id      = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     transcript   = Column(Text, nullable=False)                # what was said
     intent       = Column(String(100), nullable=True)          # log_hours | create_ticket | query | ...
@@ -393,7 +393,7 @@ class AIClientChatSession(Base):
     __tablename__ = "ai_client_chat_sessions"
 
     id             = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)  # audit #7
     client_user_id = Column(String(36), ForeignKey("client_users.id", ondelete="CASCADE"),
                             nullable=False, index=True)
     project_id     = Column(String(36), ForeignKey("projects.id", ondelete="SET NULL"), nullable=True, index=True)
@@ -408,7 +408,7 @@ class AIClientChatMessage(Base):
     __tablename__ = "ai_client_chat_messages"
 
     id         = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)  # audit #7
     session_id = Column(String(36), ForeignKey("ai_client_chat_sessions.id", ondelete="CASCADE"),
                         nullable=False, index=True)
     role       = Column(String(20), nullable=False)            # user | assistant
@@ -430,7 +430,7 @@ class AIPromptTemplate(Base):
     __tablename__ = "ai_prompt_templates"
 
     id         = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)  # audit #7
     module     = Column(String(100), nullable=False, index=True)
     # nexusassist | nexusagent | voice | oracle | meeting | contract | portal | ...
     name       = Column(String(255), nullable=False)
@@ -454,7 +454,7 @@ class MCPPendingAction(Base):
     __tablename__ = "mcp_pending_actions"
 
     id              = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     user_id         = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     tool            = Column(String(80), nullable=False)
     arguments       = Column(Text, nullable=False, default="{}")       # JSON
@@ -475,7 +475,7 @@ class AIAnswerFeedback(Base):
     __table_args__ = (Index("uq_ai_answer_feedback_org_msg", "organization_id", "channel", "message_id", unique=True),)
 
     id              = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     channel         = Column(String(20), nullable=False)        # assistant | portal
     message_id      = Column(String(36), nullable=False)
     question        = Column(Text, nullable=True)
@@ -499,7 +499,7 @@ class AskDataExample(Base):
     __table_args__ = (Index("uq_ask_data_examples_org_q", "organization_id", "question_norm", unique=True),)
 
     id              = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     question        = Column(Text, nullable=False)
     question_norm   = Column(String(500), nullable=False)
     sql             = Column(Text, nullable=False)
@@ -523,7 +523,7 @@ class AskDataConversation(Base):
     __table_args__ = (Index("ix_ask_data_conversations_org_user", "organization_id", "user_id", "updated_at"),)
 
     id              = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     user_id         = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     title           = Column(String(200), nullable=False, default="")
     created_at      = Column(DateTime(timezone=True), server_default=func.now())
@@ -542,7 +542,7 @@ class AskDataTurn(Base):
     __tablename__ = "ask_data_turns"
 
     id              = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     conversation_id = Column(String(36), ForeignKey("ask_data_conversations.id", ondelete="CASCADE"),
                              nullable=False, index=True)
     question        = Column(Text, nullable=False)

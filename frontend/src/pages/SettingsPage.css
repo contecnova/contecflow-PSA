@@ -80,7 +80,7 @@
   margin-bottom: var(--space-2);
 }
 
-@media (max-width: 900px) {
+@media (width <= 900px) {
   .ajustes { grid-template-columns: minmax(0, 1fr); gap: var(--space-4); }
   .ajustes-nav { position: static; max-height: none; }
   .ajustes-nav-lista { display: none; }

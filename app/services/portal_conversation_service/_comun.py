@@ -12,6 +12,7 @@ from app.models.client_portal import ClientMessage, ClientUser
 from app.models.portal_conversations import (
     PortalConversation,
     PortalConversationAudit,
+    PortalConversationGRCStatus,
     PortalConversationMessage,
     PortalConversationParticipant,
     PortalConversationParticipantType,
@@ -80,6 +81,9 @@ def _base_conversation_query(db: Session):
         joinedload(PortalConversation.participants).joinedload(PortalConversationParticipant.client_org),
         joinedload(PortalConversation.messages).joinedload(PortalConversationMessage.sender_user),
         joinedload(PortalConversation.messages).joinedload(PortalConversationMessage.sender_client),
+        # 24-11-2026 (chat del portal completo): adjuntos, reacciones y el mensaje citado.
+        joinedload(PortalConversation.messages).selectinload(PortalConversationMessage.attachments),
+        joinedload(PortalConversation.messages).selectinload(PortalConversationMessage.reactions),
     )
 
 
@@ -112,22 +116,57 @@ def _get_team_conversation(conversation_id: str, current_user, db: Session) -> P
     return conversation
 
 
-def _get_client_conversation(conversation_id: str, current_client: ClientUser, db: Session) -> PortalConversation:
-    conversation = _base_conversation_query(db).filter(PortalConversation.id == conversation_id).first()
-    if not conversation:
-        raise ErrorConCodigo("conversacion_no_encontrada")
+def _cliente_puede_ver(conversation: PortalConversation, current_client: ClientUser) -> bool:
+    """El cliente participa (él o su cliente), es de la misma empresa y ve el proyecto.
+
+    24-11-2026 (chat del portal completo): la comprobación de empresa es
+    explícita; antes dependía solo del filtro de tenant de la sesión.
+    """
+    if getattr(current_client, "organization_id", None) and conversation.organization_id != current_client.organization_id:
+        return False
     accessible = set(current_client.get_project_ids())
     if conversation.project_id and conversation.project_id not in accessible:
-        raise ErrorConCodigo("conversacion_no_encontrada")
-    allowed = False
+        return False
     for participant in conversation.participants:
         if participant.removed_at is not None:
             continue
         if participant.client_user_id == current_client.id:
-            allowed = True
+            return True
         if current_client.client_org_id and participant.client_org_id == current_client.client_org_id:
-            allowed = True
-    if not allowed:
+            return True
+    return False
+
+
+def _get_client_conversation(conversation_id: str, current_client: ClientUser, db: Session) -> PortalConversation:
+    conversation = _base_conversation_query(db).filter(PortalConversation.id == conversation_id).first()
+    if not conversation or not _cliente_puede_ver(conversation, current_client):
+        raise ErrorConCodigo("conversacion_no_encontrada")
+    return conversation
+
+
+def _conversacion_ligera(db: Session, conversation_id: str) -> Optional[PortalConversation]:
+    """La conversación con sus participantes, sin mensajes (avisos en vivo, llamadas, adjuntos)."""
+    from sqlalchemy.orm import selectinload
+    return db.query(PortalConversation).options(
+        selectinload(PortalConversation.participants),
+        joinedload(PortalConversation.policy),
+    ).filter(PortalConversation.id == conversation_id).first()
+
+
+def _conversacion_del_equipo(db: Session, conversation_id: str, current_user) -> PortalConversation:
+    """Versión ligera de `_get_team_conversation` (misma regla de empresa)."""
+    conversation = _conversacion_ligera(db, conversation_id)
+    if not conversation:
+        raise ErrorConCodigo("conversacion_no_encontrada")
+    if not getattr(current_user, "is_superadmin", False) and current_user.organization_id != conversation.organization_id:
+        raise ErrorConCodigo("conversacion_no_encontrada")
+    return conversation
+
+
+def _conversacion_del_cliente(db: Session, conversation_id: str, current_client: ClientUser) -> PortalConversation:
+    """Versión ligera de `_get_client_conversation` (mismas reglas)."""
+    conversation = _conversacion_ligera(db, conversation_id)
+    if not conversation or not _cliente_puede_ver(conversation, current_client):
         raise ErrorConCodigo("conversacion_no_encontrada")
     return conversation
 
@@ -193,3 +232,35 @@ def _notify_users(db: Session, user_ids: list[str], title: str, body: str, resou
             resource_id=resource_id,
             action_url=f"/clients?conversation={resource_id}",
         )
+
+
+def _equipo_participa(db: Session, conversation: PortalConversation, current_user) -> bool:
+    """Quien del equipo puede descargar adjuntos y entrar en llamadas (24-11-2026).
+
+    Los participantes internos de la conversación (no retirados) y, para la
+    revisión GRC, quien administra la empresa (`org.administrar`). Siempre de
+    la misma empresa (lo comprueba antes `_get_team_conversation`).
+    """
+    if any(p.user_id == current_user.id and p.removed_at is None for p in conversation.participants):
+        return True
+    if conversation.created_by_user_id == current_user.id:
+        return True
+    from app.core.capacidades import tiene
+    return bool(getattr(current_user, "is_superadmin", False)) or tiene(db, current_user, "org.administrar")
+
+
+def visible_para_cliente(mensaje: PortalConversationMessage, client_id: Optional[str]) -> bool:
+    """Lo que el cliente puede ver de un mensaje (lista, cita y adjuntos).
+
+    24-11-2026: vive aquí (antes en `adjuntos`) para que `mensajes`, `serializacion`
+    e `interaccion` no dependan de `adjuntos` y `adjuntos` pueda importar `mensajes`
+    sin ciclo (tests/test_auditoria_2026_11_arquitectura_c4.py).
+
+    24-11-2026: un mensaje del equipo pendiente de aprobación ya no se ve en el
+    portal hasta que se aprueba (antes solo se ocultaban los bloqueados).
+    """
+    if mensaje.is_internal_note or mensaje.grc_status == PortalConversationGRCStatus.blocked:
+        return False
+    if mensaje.grc_status == PortalConversationGRCStatus.pending_review and mensaje.sender_client_id != client_id:
+        return False
+    return True

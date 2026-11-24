@@ -13,6 +13,10 @@
 //                                                ficheros ya limpios; nunca sube un cupo ni añade
 //                                                ficheros (si hay incumplimientos nuevos, los lista y sale con 1)
 //   node scripts/kit_pendientes.mjs --comprobar  solo comprueba (no escribe); sale con 1 si algo supera su cupo
+//   (24-11-2026) Además de ESLint y CSS cuenta, en la sección `campos`: campoConEtiquetaPropia (label/span de
+//   etiqueta propia junto a un campo del kit: se usa SIEMPRE la prop `label` del componente) y
+//   selectorDeContextoAMano (selector de proyecto/cliente/sprint/unidad fuera de <SelectorDeContexto>).
+//   Ver scripts/kit/comprobarCampos.mjs y docs/GUIA_DE_DISENO.md §9.
 //   node scripts/kit_pendientes.mjs --regenerar  rehace la lista desde cero con lo que hay hoy
 //                                                (solo para crearla; después, encoger)
 import fs from 'node:fs'
@@ -22,6 +26,7 @@ import { ESLint } from 'eslint'
 import tsParser from '@typescript-eslint/parser'
 import { reglasDelKit, IGNORADOS_KIT, NOMBRES_DE_REGLAS } from './eslint/kit-sin-marcado-propio.mjs'
 import { recuentoCss, COMPROBACIONES_CSS } from './kit/comprobarCss.mjs'
+import { recuentoCampos, COMPROBACIONES_CAMPOS } from './kit/comprobarCampos.mjs'
 
 const RAIZ = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const FICHERO = path.join(RAIZ, 'kit-pendientes.json')
@@ -56,13 +61,13 @@ async function recuentoEslint() {
 
 const ordenar = (o) => Object.fromEntries(Object.entries(o).sort(([a], [b]) => a.localeCompare(b)))
 
-function combinar(previo, actual, nuevos, seccion) {
+function combinar(previo, actual, nuevos, seccion, crear = false) {
   const salida = {}
   for (const [regla, ficheros] of Object.entries(actual)) {
     const cupos = (previo && previo[regla]) || {}
     salida[regla] = {}
     for (const [f, n] of Object.entries(ficheros)) {
-      if (modo === 'regenerar') { salida[regla][f] = n; continue }
+      if (modo === 'regenerar' || crear) { salida[regla][f] = n; continue }
       const cupo = cupos[f] || 0
       if (n > cupo) nuevos.push(`${seccion} ${regla}: ${f} tiene ${n} (cupo ${cupo})`)
       if (cupo) salida[regla][f] = Math.min(cupo, n)
@@ -145,6 +150,15 @@ function escribirPlan(lista) {
   const sumaTotal = Object.values(totales).reduce((a, b) => a + b, 0)
   L.push(`| **Total** | **${sumaTotal}** | **${Object.keys(porFichero).length}** |`, '')
 
+  L.push('## Campos con etiqueta del kit (vigilante `campos`)', '')
+  L.push('Un campo con etiqueta se escribe SIEMPRE con la prop del componente del kit (`<Select label=… />`, `<Input label=… />`…); el selector de')
+  L.push('contexto de una pantalla (proyecto, cliente, sprint, unidad…) va SIEMPRE en `<SelectorDeContexto>`. Cupo que solo puede bajar:', '')
+  L.push('| Regla | Incumplimientos | Ficheros |', '|---|---:|---:|')
+  for (const c of COMPROBACIONES_CAMPOS) {
+    const fs_ = lista.campos?.[c] || {}
+    L.push(`| \`${c}\` | ${Object.values(fs_).reduce((a, b) => a + b, 0)} | ${Object.keys(fs_).length} |`)
+  }
+  L.push('')
   const bloques = { A: [], B: [], C: [] }
   for (const f of Object.keys(porFichero)) bloques[bloque(f)].push(f)
   L.push('## Reparto', '', '| Bloque | Ficheros | Incumplimientos |', '|---|---:|---:|')
@@ -179,11 +193,14 @@ if (!previo && modo !== 'regenerar') {
 }
 const actualEslint = await recuentoEslint()
 const actualCss = recuentoCss(RAIZ)
+const actualCampos = recuentoCampos(RAIZ)
 const nuevos = []
 const lista = {
   _leeme: 'Excepciones temporales de la migración al kit: cupo de incumplimientos por regla y fichero. Solo puede encoger. Regenera con node scripts/kit_pendientes.mjs (ver cabecera del script).',
   eslint: combinar(previo?.eslint, actualEslint, nuevos, 'eslint'),
   css: combinar(previo?.css, actualCss, nuevos, 'css'),
+  // La sección `campos` nace con el cupo que había al crearla (24-11-2026) y desde entonces solo encoge.
+  campos: combinar(previo?.campos, actualCampos, nuevos, 'campos', !previo?.campos && modo !== 'comprobar'),
 }
 
 if (nuevos.length) {
@@ -194,6 +211,6 @@ if (modo !== 'comprobar') {
   fs.writeFileSync(FICHERO, `${JSON.stringify(lista, null, 2)}\n`)
   escribirPlan(lista)
   const cuenta = (s) => Object.values(s).reduce((a, o) => a + Object.values(o).reduce((x, y) => x + y, 0), 0)
-  console.log(`[kit] ${modo}: eslint ${cuenta(lista.eslint)} · css ${cuenta(lista.css)} pendientes. Escritos kit-pendientes.json y kit-migracion-plan.md.`)
+  console.log(`[kit] ${modo}: eslint ${cuenta(lista.eslint)} · css ${cuenta(lista.css)} · campos ${cuenta(lista.campos)} pendientes. Escritos kit-pendientes.json y kit-migracion-plan.md.`)
 }
 process.exit(nuevos.length ? 1 : 0)

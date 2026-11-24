@@ -96,13 +96,12 @@
 .okr-kr__valor { width: 200px; }
 .okr-kr__nota { flex: 1; min-width: 180px; }
 
-@media (max-width: 640px) {
+@media (width <= 640px) {
   .okr-kr { padding-left: 0; }
   .okr-kr__checkin { padding-left: 0; }
 }
 
 /* Modales */
-.okr-textarea { resize: vertical; }
 .okr-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr));

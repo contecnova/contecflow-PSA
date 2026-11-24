@@ -14,7 +14,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { sprintsApi, tasksApi, semanticApi, sprintPlansApi } from '../services/api'
 import type { EstadoDePlanDeSprint, PlanDeSprintGenerado } from '../services/api/tipos-proyectos'
 import type { EstimacionDelBacklog } from '../services/api/tipos-analitica'
-import { Button, Card, EmptyState, IconButton, Modal, Spinner, Select, Input } from '../components/ui'
+import { Button, Card, EmptyState, IconButton, Modal, Spinner, Select, Input, SelectorDeContexto } from '../components/ui'
 import StatusBadge from '../components/ui/StatusBadge'
 import type { StatusBadgeKind } from '../components/ui/StatusBadge'
 import PageHeader from '../components/layout/PageHeader'
@@ -33,8 +33,6 @@ interface ProjectItem {
 
 type PlanStatus = EstadoDePlanDeSprint
 
-const is = 'ds-input spl-input'
-const ls = 'spl-label'
 
 /** Color del porcentaje de uso: rojo si se pasa, verde en la franja buena, ámbar si se queda corto. */
 const colorDeUso = (pct: number) => pct >= 90 ? 'var(--danger)' : pct >= 70 ? 'var(--success)' : 'var(--warning)'
@@ -108,22 +106,13 @@ function GenerateModal({ projectId, onClose }: { projectId: string; onClose: () 
       <div className="u-stack-14">
         {!result ? (
           <>
-            <div>
-              <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className={ls}>{t('sprint_planning.plan_name')}</label>
-              <Input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.name} onChange={e => set('name')(e.target.value)} placeholder={traducir('sprintplanning.nombre_del_plan')} inputClassName="spl-input" />
-            </div>
+            <Input label={t('sprint_planning.plan_name')} id={`${idCampo}-1`} value={form.name} onChange={e => set('name')(e.target.value)} placeholder={traducir('sprintplanning.nombre_del_plan')} />
             <div className="u-grid2-12">
-              <div>
-                <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className={ls}>{t('sprint_planning.team_capacity_sp')}</label>
-                <Input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="number" value={form.team_capacity} onChange={e => set('team_capacity')(+e.target.value)} min={1} inputClassName="spl-input" />
-              </div>
-              <div>
-                <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className={ls}>{t('sprint_planning.sprint_optional')}</label>
-                <Select suelto placeholder={false} id={`${idCampo}-3`} className={is} value={form.sprint_id} onChange={e => set('sprint_id')(e.target.value)}>
+              <Input label={t('sprint_planning.team_capacity_sp')} id={`${idCampo}-2`} type="number" value={form.team_capacity} onChange={e => set('team_capacity')(+e.target.value)} min={1} />
+              <Select label={t('sprint_planning.sprint_optional')} placeholder={false} id={`${idCampo}-3`} value={form.sprint_id} onChange={e => set('sprint_id')(e.target.value)}>
                   <option value="">{t('sprint_planning.no_specific_sprint')}</option>
                   {(sprints as Array<{ id: string | number; name: string }>).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
                 </Select>
-              </div>
             </div>
             <div className="spl-info">
               <strong className="u-accent">{t('sprint_planning.how_it_works')}:</strong> {t('sprint_planning.how_it_works_desc')}
@@ -239,13 +228,12 @@ export default function SprintPlanningPage() {
         actions={project && <Button icon={<Sparkles size={14} />} onClick={() => setShowGenerate(true)}>{t('sprint_planning.generate_plan_action')}</Button>} showListExport={false} />
 
       <div className="u-stack-16">
-      <Card className="spl-filtros">
-        <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className={ls}>{t('sprint_planning.project_label')}</label>
-        <Select suelto placeholder={false} id={`${idCampo}-1`} value={project} onChange={e => setProject(e.target.value)} className={`${is} spl-input--project`}>
+      <SelectorDeContexto>
+        <Select label={t('sprint_planning.project_label')} placeholder={false} id={`${idCampo}-1`} value={project} onChange={e => setProject(e.target.value)}>
           <option value="">{t('sprint_planning.select_project_opt')}</option>
           {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
         </Select>
-      </Card>
+      </SelectorDeContexto>
 
       {!project && <EmptyState icon={<FolderKanban size={28} />} title={t('sprint_planning.select_project_title')} description={t('sprint_planning.select_project_desc2')} />}
       {project && isLoading && <Spinner />}

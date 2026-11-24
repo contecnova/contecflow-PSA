@@ -184,5 +184,4 @@
 }
 /* 23-11-2026: variantes del Input del kit en el login (antes <input> nativos con estilo en línea). */
 .login-page-pw.login-page-pw { height: 44px; padding-right: 44px; }
-.login-page-mfa.login-page-mfa { height: 44px; text-align: center; letter-spacing: 0.3em; font-size: var(--text-lg-em); }
 /* <<< estilos-en-linea */

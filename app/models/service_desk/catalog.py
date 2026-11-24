@@ -15,7 +15,7 @@ class ServiceCategory(Base):
     __tablename__ = "sd_service_categories"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)  # audit #7
     name = Column(String(100), nullable=False)
     description = Column(Text, nullable=True)
     icon = Column(String(10), default="🔧")
@@ -32,7 +32,7 @@ class ServiceItem(Base):
     __tablename__ = "sd_service_items"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)  # audit #7
     category_id = Column(String(36), ForeignKey("sd_service_categories.id", ondelete="CASCADE"), nullable=False, index=True)
     name = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
@@ -74,7 +74,7 @@ class SLAPolicy(Base):
     __tablename__ = "sd_sla_policies"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)  # audit #7
     name = Column(String(100), nullable=False)
     description = Column(String(255), nullable=True)
     is_default = Column(Boolean, default=False)

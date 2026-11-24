@@ -183,7 +183,6 @@ function ChangeDetailPanel({
   )
 }
 
-const IS = 'ds-input'
 
 function ChangeEditModal({ change, onClose, onSaved }: { change: ChangeItem; onClose: () => void; onSaved: () => void }) {
   const { t } = useAppLang()
@@ -232,14 +231,14 @@ function ChangeEditModal({ change, onClose, onSaved }: { change: ChangeItem; onC
   return (
     <Modal open title={t('changemanagement.editar_titulo', { number: change.number })} onClose={onClose} size="lg">
       <div className="chgm-form chgm-form--scroll">
-        <div className="u-col-full"><label id={`${idPrefix}-title-et`} htmlFor={`${idPrefix}-title`} className="chgm-label">{t('changemanagement.titulo')}</label><Input id={`${idPrefix}-title`} aria-labelledby={`${idPrefix}-title-et`} value={form.title} onChange={set('title')} />{msgB('title')}</div>
-        <div><label htmlFor={`${idPrefix}-change-type`} className="chgm-label">{t('changemanagement.tipo_de_cambio')}</label><Select suelto placeholder={false} id={`${idPrefix}-change-type`} value={form.change_type} onChange={set('change_type')} className="chgm-sel">{CHANGE_TYPES.map(v => <option key={v} value={v}>{t(`changemanagement.opt_${v}`)}</option>)}</Select>{msgB('change_type')}</div>
-        <div><label htmlFor={`${idPrefix}-risk`} className="chgm-label">{t('changemanagement.riesgo')}</label><Select suelto placeholder={false} id={`${idPrefix}-risk`} value={form.risk} onChange={set('risk')} className="chgm-sel">{RISKS.map(v => <option key={v} value={v}>{t(`changemanagement.risk_${v}`)}</option>)}</Select>{msgB('risk')}</div>
-        <div><label htmlFor={`${idPrefix}-planned-start`} className="chgm-label">{t('changemanagement.inicio_planificado')}</label><DateInput id={`${idPrefix}-planned-start`} withTime value={form.planned_start} onChange={set('planned_start')} className={IS} />{msgB('planned_start')}</div>
-        <div><label htmlFor={`${idPrefix}-planned-end`} className="chgm-label">{t('changemanagement.fin_planificado')}</label><DateInput id={`${idPrefix}-planned-end`} withTime value={form.planned_end} onChange={set('planned_end')} className={IS} />{msgB('planned_end')}</div>
-        <div><label id={`${idPrefix}-downtime-et`} htmlFor={`${idPrefix}-downtime`} className="chgm-label">{t('changemanagement.downtime_estimado')}</label><Input id={`${idPrefix}-downtime`} aria-labelledby={`${idPrefix}-downtime-et`} type="number" value={form.downtime_minutes} onChange={set('downtime_minutes')} min="0" />{msgB('downtime_minutes')}</div>
-        <div><label htmlFor={`${idPrefix}-release`} className="chgm-label">{ts('sd_cfg.chg_release')}</label>
-          <Select suelto placeholder={false} id={`${idPrefix}-release`} value={form.release_id ?? ''} onChange={e => { camposB.limpiar('release_id'); setForm(f => ({ ...f, release_id: e.target.value || null })) }} className="chgm-sel">
+        <div className="u-col-full"><Input label={t('changemanagement.titulo')} id={`${idPrefix}-title`} value={form.title} onChange={set('title')} />{msgB('title')}</div>
+        <div><Select label={t('changemanagement.tipo_de_cambio')} placeholder={false} id={`${idPrefix}-change-type`} value={form.change_type} onChange={set('change_type')}>{CHANGE_TYPES.map(v => <option key={v} value={v}>{t(`changemanagement.opt_${v}`)}</option>)}</Select>{msgB('change_type')}</div>
+        <div><Select label={t('changemanagement.riesgo')} placeholder={false} id={`${idPrefix}-risk`} value={form.risk} onChange={set('risk')}>{RISKS.map(v => <option key={v} value={v}>{t(`changemanagement.risk_${v}`)}</option>)}</Select>{msgB('risk')}</div>
+        <div><DateInput label={t('changemanagement.inicio_planificado')} id={`${idPrefix}-planned-start`} withTime value={form.planned_start} onChange={set('planned_start')} />{msgB('planned_start')}</div>
+        <div><DateInput label={t('changemanagement.fin_planificado')} id={`${idPrefix}-planned-end`} withTime value={form.planned_end} onChange={set('planned_end')} />{msgB('planned_end')}</div>
+        <div><Input label={t('changemanagement.downtime_estimado')} id={`${idPrefix}-downtime`} type="number" value={form.downtime_minutes} onChange={set('downtime_minutes')} min="0" />{msgB('downtime_minutes')}</div>
+        <div>
+          <Select label={ts('sd_cfg.chg_release')} placeholder={false} id={`${idPrefix}-release`} value={form.release_id ?? ''} onChange={e => { camposB.limpiar('release_id'); setForm(f => ({ ...f, release_id: e.target.value || null })) }}>
             <option value="">{ts('sd_cfg.chg_none')}</option>
             {versiones.filter(v => v.status !== 'released' && v.status !== 'cancelled').map(v => <option key={v.id} value={v.id}>{v.name}{v.version ? ` ${v.version}` : ''}</option>)}
           </Select>{msgB('release_id')}</div>
@@ -250,12 +249,12 @@ function ChangeEditModal({ change, onClose, onSaved }: { change: ChangeItem; onC
               return <Pulsable key={ci.id} aria-pressed={on} onClick={() => alternarCi(ci.id)} className="chgm-chip">{ci.code ? `${ci.code} · ` : ''}{ci.name}</Pulsable>
             })}
           </div></div>
-        <div className="u-col-full"><label id={`${idPrefix}-description-et`} htmlFor={`${idPrefix}-description`} className="chgm-label">{t('changemanagement.descripcion_2')}</label><Textarea id={`${idPrefix}-description`} aria-labelledby={`${idPrefix}-description-et`} value={form.description} onChange={set('description')} rows={3} />{msgB('description')}</div>
-        <div className="u-col-full"><label id={`${idPrefix}-business-justification-et`} htmlFor={`${idPrefix}-business-justification`} className="chgm-label">{t('changemanagement.justificacion_de_negocio')}</label><Textarea id={`${idPrefix}-business-justification`} aria-labelledby={`${idPrefix}-business-justification-et`} value={form.business_justification} onChange={set('business_justification')} rows={2} />{msgB('business_justification')}</div>
-        <div><label id={`${idPrefix}-implementation-plan-et`} htmlFor={`${idPrefix}-implementation-plan`} className="chgm-label">{t('changemanagement.plan_de_implementacion')}</label><Textarea id={`${idPrefix}-implementation-plan`} aria-labelledby={`${idPrefix}-implementation-plan-et`} value={form.implementation_plan} onChange={set('implementation_plan')} rows={4} />{msgB('implementation_plan')}</div>
-        <div><label id={`${idPrefix}-rollback-plan-et`} htmlFor={`${idPrefix}-rollback-plan`} className="chgm-label">{t('changemanagement.plan_de_rollback')}</label><Textarea id={`${idPrefix}-rollback-plan`} aria-labelledby={`${idPrefix}-rollback-plan-et`} value={form.rollback_plan} onChange={set('rollback_plan')} rows={4} />{msgB('rollback_plan')}</div>
-        <div><label id={`${idPrefix}-test-plan-et`} htmlFor={`${idPrefix}-test-plan`} className="chgm-label">{t('changemanagement.plan_de_pruebas')}</label><Textarea id={`${idPrefix}-test-plan`} aria-labelledby={`${idPrefix}-test-plan-et`} value={form.test_plan} onChange={set('test_plan')} rows={3} />{msgB('test_plan')}</div>
-        <div><label id={`${idPrefix}-impact-description-et`} htmlFor={`${idPrefix}-impact-description`} className="chgm-label">{t('changemanagement.descripcion_de_impacto')}</label><Textarea id={`${idPrefix}-impact-description`} aria-labelledby={`${idPrefix}-impact-description-et`} value={form.impact_description} onChange={set('impact_description')} rows={3} />{msgB('impact_description')}</div>
+        <div className="u-col-full"><Textarea label={t('changemanagement.descripcion_2')} id={`${idPrefix}-description`} value={form.description} onChange={set('description')} rows={3} />{msgB('description')}</div>
+        <div className="u-col-full"><Textarea label={t('changemanagement.justificacion_de_negocio')} id={`${idPrefix}-business-justification`} value={form.business_justification} onChange={set('business_justification')} rows={2} />{msgB('business_justification')}</div>
+        <div><Textarea label={t('changemanagement.plan_de_implementacion')} id={`${idPrefix}-implementation-plan`} value={form.implementation_plan} onChange={set('implementation_plan')} rows={4} />{msgB('implementation_plan')}</div>
+        <div><Textarea label={t('changemanagement.plan_de_rollback')} id={`${idPrefix}-rollback-plan`} value={form.rollback_plan} onChange={set('rollback_plan')} rows={4} />{msgB('rollback_plan')}</div>
+        <div><Textarea label={t('changemanagement.plan_de_pruebas')} id={`${idPrefix}-test-plan`} value={form.test_plan} onChange={set('test_plan')} rows={3} />{msgB('test_plan')}</div>
+        <div><Textarea label={t('changemanagement.descripcion_de_impacto')} id={`${idPrefix}-impact-description`} value={form.impact_description} onChange={set('impact_description')} rows={3} />{msgB('impact_description')}</div>
         <div className="chgm-form__footer"><Button variant="secondary" onClick={onClose}>{t('changemanagement.cancelar')}</Button><Button onClick={() => mutate(form)} disabled={isPending || !form.title} loading={isPending}>{t('changemanagement.guardar_cambios')}</Button></div>
       </div>
     </Modal>
@@ -305,8 +304,8 @@ function NewChangeModal({ onClose, onSaved }: { onClose: () => void; onSaved: ()
   return (
     <Modal open title={t('changemanagement.nuevo_change_request')} onClose={onClose} size="lg">
       <div className="chgm-form">
-        <div className="u-col-full"><label id={`${idPrefix}-title-et`} htmlFor={`${idPrefix}-title`} className="chgm-label">{t('changemanagement.titulo')}</label><Input id={`${idPrefix}-title`} aria-labelledby={`${idPrefix}-title-et`} value={form.title} onChange={set('title')} placeholder={t('changemanagement.titulo_del_cambio')} />{msg('title')}</div>
-        <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="chgm-label">{t('changemanagement.tipo_de_cambio')}</label><Select suelto placeholder={false} id={`${idCampo}-1`} value={form.change_type} onChange={set('change_type')} className="chgm-sel">{CHANGE_TYPES.map(v => <option key={v} value={v}>{t(`changemanagement.opt_${v}`)}</option>)}</Select>{msg('change_type')}</div>
+        <div className="u-col-full"><Input label={t('changemanagement.titulo')} id={`${idPrefix}-title`} value={form.title} onChange={set('title')} placeholder={t('changemanagement.titulo_del_cambio')} />{msg('title')}</div>
+        <div><Select label={t('changemanagement.tipo_de_cambio')} placeholder={false} id={`${idCampo}-1`} value={form.change_type} onChange={set('change_type')}>{CHANGE_TYPES.map(v => <option key={v} value={v}>{t(`changemanagement.opt_${v}`)}</option>)}</Select>{msg('change_type')}</div>
         {form.change_type === 'standard' && (
           <div className="u-col-full">
             <SelectRico label={t('changemanagement.modelo_estandar')} required valor={form.standard_model_id ?? ''} onChange={elegirModelo}
@@ -315,13 +314,13 @@ function NewChangeModal({ onClose, onSaved }: { onClose: () => void; onSaved: ()
               opciones={modelos.map(m => ({ valor: m.id, etiqueta: m.name, descripcion: [t(`changemanagement.risk_${m.max_risk}`), m.description].filter(Boolean).join(' · ') }))} />
           </div>
         )}
-        <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="chgm-label">{t('changemanagement.riesgo')}</label><Select suelto placeholder={false} id={`${idCampo}-2`} value={form.risk} onChange={set('risk')} className="chgm-sel">{RISKS.map(v => <option key={v} value={v}>{t(`changemanagement.risk_${v}`)}</option>)}</Select>{msg('risk')}</div>
-        <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="chgm-label">{t('changemanagement.inicio_planificado')}</label><DateInput id={`${idCampo}-3`} withTime value={form.planned_start} onChange={set('planned_start')} className={IS} />{msg('planned_start')}</div>
-        <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="chgm-label">{t('changemanagement.fin_planificado')}</label><DateInput id={`${idCampo}-4`} withTime value={form.planned_end} onChange={set('planned_end')} className={IS} />{msg('planned_end')}</div>
-        <div className="u-col-full"><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="chgm-label">{t('changemanagement.descripcion_2')}</label><Textarea id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={form.description} onChange={set('description')} rows={3} />{msg('description')}</div>
-        <div className="u-col-full"><label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} className="chgm-label">{t('changemanagement.justificacion_de_negocio')}</label><Textarea id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} value={form.business_justification} onChange={set('business_justification')} rows={2} />{msg('business_justification')}</div>
-        <div><label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} className="chgm-label">{t('changemanagement.plan_de_implementacion')}</label><Textarea id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} value={form.implementation_plan} onChange={set('implementation_plan')} rows={3} />{msg('implementation_plan')}</div>
-        <div><label id={`${idCampo}-et8`} htmlFor={`${idCampo}-8`} className="chgm-label">{t('changemanagement.plan_de_rollback')}</label><Textarea id={`${idCampo}-8`} aria-labelledby={`${idCampo}-et8`} value={form.rollback_plan} onChange={set('rollback_plan')} rows={3} />{msg('rollback_plan')}</div>
+        <div><Select label={t('changemanagement.riesgo')} placeholder={false} id={`${idCampo}-2`} value={form.risk} onChange={set('risk')}>{RISKS.map(v => <option key={v} value={v}>{t(`changemanagement.risk_${v}`)}</option>)}</Select>{msg('risk')}</div>
+        <div><DateInput label={t('changemanagement.inicio_planificado')} id={`${idCampo}-3`} withTime value={form.planned_start} onChange={set('planned_start')} />{msg('planned_start')}</div>
+        <div><DateInput label={t('changemanagement.fin_planificado')} id={`${idCampo}-4`} withTime value={form.planned_end} onChange={set('planned_end')} />{msg('planned_end')}</div>
+        <div className="u-col-full"><Textarea label={t('changemanagement.descripcion_2')} id={`${idCampo}-5`} value={form.description} onChange={set('description')} rows={3} />{msg('description')}</div>
+        <div className="u-col-full"><Textarea label={t('changemanagement.justificacion_de_negocio')} id={`${idCampo}-6`} value={form.business_justification} onChange={set('business_justification')} rows={2} />{msg('business_justification')}</div>
+        <div><Textarea label={t('changemanagement.plan_de_implementacion')} id={`${idCampo}-7`} value={form.implementation_plan} onChange={set('implementation_plan')} rows={3} />{msg('implementation_plan')}</div>
+        <div><Textarea label={t('changemanagement.plan_de_rollback')} id={`${idCampo}-8`} value={form.rollback_plan} onChange={set('rollback_plan')} rows={3} />{msg('rollback_plan')}</div>
         <div className="chgm-form__footer chgm-form__footer--mt"><Button variant="secondary" onClick={onClose}>{t('changemanagement.cancelar')}</Button><Button onClick={() => mutate(form)} disabled={isPending || !form.title || !form.description || (form.change_type === 'standard' && !form.standard_model_id)} loading={isPending}>{t('changemanagement.crear_change_request')}</Button></div>
       </div>
     </Modal>

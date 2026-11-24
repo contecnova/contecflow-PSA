@@ -1,14 +1,6 @@
 /* Casos UAT. Solo tokens del tema. */
-
-.uat-input { width: 100%; box-sizing: border-box; }
 .uat-input--project { width: 280px; max-width: 100%; }
 .uat-input--status { width: 180px; max-width: 100%; }
-.uat-textarea { resize: vertical; }
-.uat-label {
-  display: block; margin-bottom: 5px;
-  font-size: var(--text-xs); font-weight: 700; color: var(--text-2);
-  letter-spacing: 0.07em;
-}
 .uat-grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
 .uat-form-actions { display: flex; justify-content: flex-end; gap: 10px; padding-top: 4px; }
 
@@ -19,8 +11,6 @@
   max-height: 480px; overflow-y: auto; font-variant-numeric: tabular-nums; line-height: 1.6;
 }
 .uat-export-hint { margin-top: 12px; font-size: var(--text-sm); color: var(--text-2); }
-
-.uat-filters { flex-wrap: wrap; }
 
 .uat-case { background: var(--surface-2); border: 1px solid var(--surface-4); border-radius: var(--radius-md); padding: 14px 18px; }
 .uat-case--failed { border-color: var(--danger-border); }

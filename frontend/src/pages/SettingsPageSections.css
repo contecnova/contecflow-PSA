@@ -192,7 +192,6 @@
   font-size: var(--text-md);
   font-weight: 600;
   color: var(--text-1);
-  word-break: break-word;
   overflow-wrap: anywhere;
   flex: 1;
   min-width: 0;
@@ -363,7 +362,6 @@
 .set-input--w90 { width: 90px; }
 .set-input--w110 { width: 110px; }
 .set-input--w140 { width: 140px; }
-.set-label--xs { font-size: var(--text-2xs); }
 
 /* Tarifas */
 .set-table-card {
@@ -548,7 +546,7 @@
   gap: 10px;
   align-items: flex-end;
 }
-@media (max-width: 720px) {
+@media (width <= 720px) {
   .set-grid-add-field,
   .set-rates-add,
   .set-grid-3 { grid-template-columns: 1fr; }
@@ -631,7 +629,7 @@
   border-left: 2px solid var(--surface-4);
   margin-bottom: 3px;
 }
-@media (max-width: 720px) {
+@media (width <= 720px) {
   .set-grid-tpl-head,
   .set-draft--phase,
   .set-draft--task,
@@ -682,7 +680,7 @@
 .set-area-tag {
   font-size: var(--text-xs);
   color: var(--accent);
-  border: 1px solid currentColor;
+  border: 1px solid currentcolor;
   border-radius: 99px;
   padding: 0 8px;
 }
@@ -776,7 +774,7 @@
 }
 .set-status--ok { background: var(--success-bg); color: var(--success); }
 .set-grid2-mb14 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
-@media (max-width: 720px) {
+@media (width <= 720px) {
   .set-grid2-mb14,
   .set-formula-grid { grid-template-columns: 1fr; }
 }

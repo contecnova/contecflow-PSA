@@ -151,26 +151,14 @@ function QuestionEditModal({ question, onClose, onSave }: {
     <Modal open onClose={onClose} title={isEdit ? t('pagina_perf.editar_pregunta') : t('pagina_perf.nueva_pregunta')} width={520}>
       <div className="ds-stack">
         {!isEdit && (
-          <div className="ds-field">
-            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="ds-field__label">{t('pagina_perf.identificador_opcional')}</label>
-            <Input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.key} onChange={e => setForm(f => ({ ...f, key: e.target.value }))} placeholder={traducir('performancereviews.se_genera_del_titulo_si_lo_dejas')} />
-          </div>
+          <Input label={t('pagina_perf.identificador_opcional')} id={`${idCampo}-1`} value={form.key} onChange={e => setForm(f => ({ ...f, key: e.target.value }))} placeholder={traducir('performancereviews.se_genera_del_titulo_si_lo_dejas')} />
         )}
-        <div className="ds-field">
-          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="ds-field__label">{t('pagina_perf.pregunta')}</label>
-          <Input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.label} onChange={e => setForm(f => ({ ...f, label: e.target.value }))} placeholder={traducir('performancereviews.ej_calidad_del_trabajo')} autoFocus />
-        </div>
-        <div className="ds-field">
-          <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="ds-field__label">{t('pagina_perf.ayuda_opcional')}</label>
-          <Input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.hint} onChange={e => setForm(f => ({ ...f, hint: e.target.value }))} placeholder={traducir('performancereviews.texto_pequeno_de_apoyo_bajo_la_pregunta')} />
-        </div>
+        <Input label={t('pagina_perf.pregunta')} id={`${idCampo}-2`} value={form.label} onChange={e => setForm(f => ({ ...f, label: e.target.value }))} placeholder={traducir('performancereviews.ej_calidad_del_trabajo')} autoFocus />
+        <Input label={t('pagina_perf.ayuda_opcional')} id={`${idCampo}-3`} value={form.hint} onChange={e => setForm(f => ({ ...f, hint: e.target.value }))} placeholder={traducir('performancereviews.texto_pequeno_de_apoyo_bajo_la_pregunta')} />
         <div className="performance-reviews-page-e15">
-          <div className="ds-field">
-            <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="ds-field__label">{t('pagina_perf.tipo')}</label>
-            <Select suelto placeholder={false} id={`${idCampo}-4`} value={form.kind} onChange={e => setForm(f => ({ ...f, kind: e.target.value }))}>
+          <Select label={t('pagina_perf.tipo')} placeholder={false} id={`${idCampo}-4`} value={form.kind} onChange={e => setForm(f => ({ ...f, kind: e.target.value }))}>
               {QUESTION_KINDS.map(k => <option key={k.id} value={k.id}>{t(k.label)}</option>)}
             </Select>
-          </div>
           <div className="ds-field perf-box-6">
             <Checkbox className="perf-label-2" checked={!!form.required}
               onChange={v => setForm(f => ({ ...f, required: v }))} label={t('pagina_perf.obligatoria')} />
@@ -178,14 +166,8 @@ function QuestionEditModal({ question, onClose, onSave }: {
         </div>
         {isRatingKind(form.kind) && (
           <div className="performance-reviews-page-e15">
-            <div className="ds-field">
-              <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="ds-field__label">{traducir('performancereviews.escala_min')}</label>
-              <Input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} type="number" value={form.scale_min} onChange={e => setForm(f => ({ ...f, scale_min: e.target.value }))} placeholder="1" />
-            </div>
-            <div className="ds-field">
-              <label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} className="ds-field__label">{traducir('performancereviews.escala_max')}</label>
-              <Input id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} type="number" value={form.scale_max} onChange={e => setForm(f => ({ ...f, scale_max: e.target.value }))} placeholder={form.kind === 'rating_10' ? '10' : '5'} />
-            </div>
+            <Input label={traducir('performancereviews.escala_min')} id={`${idCampo}-5`} type="number" value={form.scale_min} onChange={e => setForm(f => ({ ...f, scale_min: e.target.value }))} placeholder="1" />
+            <Input label={traducir('performancereviews.escala_max')} id={`${idCampo}-6`} type="number" value={form.scale_max} onChange={e => setForm(f => ({ ...f, scale_max: e.target.value }))} placeholder={form.kind === 'rating_10' ? '10' : '5'} />
           </div>
         )}
         <div className="performance-reviews-page-e12">

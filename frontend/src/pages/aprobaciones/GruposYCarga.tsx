@@ -102,14 +102,8 @@ export function ApprovalGroupsTab() {
       {showCreate && (
         <Modal open title={editGroup ? t('approvals.editar_grupo') : t('approvals.nuevo_grupo_titulo')} onClose={() => { setShowCreate(false); setEditGroup(null) }} width={480}>
           <div className="apv-columna">
-            <div>
-              <label htmlFor={`${idCampo}-1`} className="apv-label">{t('approvals.name_required')}</label>
-              <Input id={`${idCampo}-1`} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder={t('approvals.ej_comite_financiero')} inputClassName="apv-input" />
-            </div>
-            <div>
-              <label htmlFor={`${idCampo}-2`} className="apv-label">{t('approvals.description')}</label>
-              <Input id={`${idCampo}-2`} value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} inputClassName="apv-input" />
-            </div>
+            <Input label={t('approvals.name_required')} id={`${idCampo}-1`} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder={t('approvals.ej_comite_financiero')} />
+            <Input label={t('approvals.description')} id={`${idCampo}-2`} value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
             <div>
               <div id={`${idCampo}-miembros`} className="apv-label">{t('approvals.miembros')}</div>
               <div role="group" aria-labelledby={`${idCampo}-miembros`} className="apv-miembros">

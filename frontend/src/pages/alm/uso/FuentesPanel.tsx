@@ -64,19 +64,15 @@ function Configurar({ c, onClose }: { c: Conexion; onClose: () => void }) {
             </div>
           </fieldset>
         )}
-        <label className="almu-campo">{t('alm_uso.fiabilidad_col')}
-          <Select suelto placeholder={false} className="alm-input" value={fiabilidad} onChange={e => setFiabilidad(e.target.value)}>
+        <Select label={t('alm_uso.fiabilidad_col')} placeholder={false} value={fiabilidad} onChange={e => setFiabilidad(e.target.value)}>
             <option value="">{t('alm_uso.fiabilidad_por_defecto', { valor: etiquetaCodigo(t, 'alm_uso.fiabilidad', c.fiabilidad) })}</option>
             {['alta', 'media', 'baja'].map(f => <option key={f} value={f}>{etiquetaCodigo(t, 'alm_uso.fiabilidad', f)}</option>)}
           </Select>
-        </label>
         {c.opciones.length > 0 && (
           <fieldset className="ds-grupo-opciones almu-servicios">
             <legend>{t('alm_uso.opciones')}</legend>
             {c.opciones.map(o => (
-              <label key={o.clave} className="almu-campo">{etiquetaCodigo(t, 'alm_uso.opcion', o.clave, o.descripcion)}
-                <Input value={opciones[o.clave] ?? ''} onChange={e => setOpciones({ ...opciones, [o.clave]: e.target.value })} inputClassName="ds-codigo alm-input alm-input--mono ds-campo-codigo" />
-              </label>
+              <Input key={o.clave} label={etiquetaCodigo(t, 'alm_uso.opcion', o.clave, o.descripcion)} value={opciones[o.clave] ?? ''} onChange={e => setOpciones({ ...opciones, [o.clave]: e.target.value })} inputClassName="ds-codigo ds-campo-codigo" />
             ))}
           </fieldset>
         )}

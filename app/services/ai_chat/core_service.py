@@ -33,9 +33,21 @@ def log_action(
     """Log an AI action to the audit log (la única implementación; con empresa, baja 22-11-2026).
 
     23-11-2026: `ip_address` opcional (MCP la registra; retención `ai_action_logs`).
+    24-11-2026 (migración 208): sin empresa en la sesión, la del usuario; sin
+    ninguna, no se registra (cortaría el guardado de la acción misma).
     """
+    from app.db.empresa_obligatoria import empresa_para_registro
+    org = empresa_para_registro(db)
+    if not org and user_id:
+        from app.models.user import User as _Usuario
+        with db.no_autoflush:
+            org = getattr(db.get(_Usuario, user_id), "organization_id", None)
+    if not org:
+        import logging as _logging
+        _logging.getLogger(__name__).warning("Acción de IA sin empresa (%s/%s): no se registra", module, action_type)
+        return
     db.add(AIActionLog(
-        organization_id=(db.info or {}).get("organization_id"),
+        organization_id=org,
         user_id=user_id, module=module, action_type=action_type,
         input_summary=(input_s or "")[:300],
         output_summary=(output_s or "")[:300],

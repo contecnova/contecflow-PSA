@@ -22,7 +22,7 @@
   display: inline-block;
   width: 12px;
   height: 12px;
-  border: 2px solid currentColor;
+  border: 2px solid currentcolor;
   border-top-color: transparent;
   border-radius: 50%;
   animation: spin 0.65s linear infinite;
@@ -251,6 +251,8 @@
   font-family: var(--font-sans); font-weight: 600;
   cursor: pointer; white-space: nowrap;
   transition: opacity 0.15s, transform 0.1s, background 0.15s;
+  box-sizing: border-box;
+  justify-content: center;
 }
 :where(.ui-btn:hover:not(:disabled)) { opacity: 0.85; }
 :where(.ui-btn:active:not(:disabled)) { transform: scale(0.97); }
@@ -260,10 +262,10 @@
 :where(.ui-btn--danger) { background: var(--danger-bg); color: var(--danger); border: 1px solid var(--danger-border); }
 :where(.ui-btn--ghost) { background: transparent; color: var(--accent); border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent); }
 :where(.ui-btn--subtle) { background: var(--accent-muted); color: var(--accent); border: 1px solid color-mix(in srgb, var(--accent) 15%, transparent); }
-:where(.ui-btn--xs) { font-size: var(--text-xs); padding: 4px 10px; border-radius: var(--radius-sm); gap: 4px; }
-:where(.ui-btn--sm) { font-size: var(--text-sm); padding: 6px 14px; border-radius: var(--radius-md); gap: 5px; }
-:where(.ui-btn--md) { font-size: var(--text-base); padding: 8px 18px; border-radius: var(--radius-md); gap: 6px; }
-:where(.ui-btn--lg) { font-size: var(--text-md); padding: 11px 24px; border-radius: var(--radius-lg); gap: 7px; }
+:where(.ui-btn--xs) { font-size: var(--text-xs); padding: 4px 10px; border-radius: var(--radius-sm); gap: 4px; min-height: var(--alto-control-xs); }
+:where(.ui-btn--sm) { font-size: var(--text-sm); padding: 6px 14px; border-radius: var(--radius-md); gap: 5px; min-height: var(--alto-control-sm); }
+:where(.ui-btn--md) { font-size: var(--text-base); padding: 8px 18px; border-radius: var(--radius-md); gap: 6px; min-height: var(--alto-control); }
+:where(.ui-btn--lg) { font-size: var(--text-md); padding: 11px 24px; border-radius: var(--radius-lg); gap: 7px; min-height: var(--alto-control-lg); }
 
 /* ── Card ─ idem. */
 :where(.ui-card) {
@@ -377,8 +379,10 @@
 .ui-index-m8 {
   color: var(--text-1);
 }
+/* Desplegable sin valor elegido: mismo color que con valor (24-11-2026; antes gris
+   --text-3 y cada pantalla salía distinta). */
 .ui-index-m9 {
-  color: var(--text-3);
+  color: var(--text-1);
 }
 .ui-index-m12 {
   color: var(--accent);
@@ -457,23 +461,18 @@
 /* ── Alto común de controles (16-11-2026) ─────────────────────────────────
    Botón e input/select del kit miden lo mismo en una fila (antes el botón
    primario salía 4 px más bajo: sin borde y con 1 px menos de relleno). */
-:where(.ui-btn) { box-sizing: border-box; justify-content: center; }
-:where(.ui-btn--xs) { min-height: var(--alto-control-xs); }
-:where(.ui-btn--sm) { min-height: var(--alto-control-sm); }
-:where(.ui-btn--md) { min-height: var(--alto-control); }
-:where(.ui-btn--lg) { min-height: var(--alto-control-lg); }
 .uiinde-box-18,
 .uiinde-box-19 { box-sizing: border-box; min-height: var(--alto-control); }
 /* 23-11-2026: alto FIJO (no mínimo) en Input y Select de una línea: un
    line-height heredado o un relleno de la página ya no los hace crecer y la
    fila de filtros queda alineada con Button md, SelectRico y CampoFecha. */
-:where(input:not([type=range]):not([type=color]):not([type=file]):not([type=checkbox]):not([type=radio])).uiinde-box-18,
+:where(input:not([type="range"], [type="color"], [type="file"], [type="checkbox"], [type="radio"])).uiinde-box-18,
 :where(select).uiinde-box-19 { height: var(--alto-control); line-height: normal; }
 :where(select).uiinde-box-19 { padding-block: 0; }
 /* El botón nativo de borrar de type="search" duplica la X del kit. */
-input.uiinde-box-18::-webkit-search-cancel-button { -webkit-appearance: none; appearance: none; }
-input[type="search"].uiinde-box-18 { -webkit-appearance: none; appearance: none; }
-input.uiinde-box-18::-webkit-search-decoration { -webkit-appearance: none; }
+input.uiinde-box-18::-webkit-search-cancel-button { appearance: none; }
+input[type="search"].uiinde-box-18 { appearance: none; }
+input.uiinde-box-18::-webkit-search-decoration { appearance: none; }
 
 /* ── Campo con icono (Input `icono` / `iconoFinal` / `onLimpiar`, Buscador) ──
    El icono va DENTRO del campo, centrado en vertical, sin capturar el ratón
@@ -546,6 +545,14 @@ input.ui-input--icono-fin.ui-input--icono-fin { padding-inline-end: var(--campo-
 /* Select del kit en tamaño pequeño (barras densas, tablas): 32 px como Button sm. */
 .uiinde-box-19.ui-select--sm { min-height: var(--alto-control-sm); height: var(--alto-control-sm); padding: 0 10px; font-size: var(--text-sm); }
 .ui-select--suelto { width: auto; max-width: 100%; }
+/* Mismo ancho en todos los desplegables (ver --ancho-min-desplegable en index.css). */
+/* `contain: inline-size` hace que el ancho NO salga de la opción más larga: en
+   una fila mide exactamente el mínimo; en rejilla o columna se estira igual que antes.
+   Solo los que no traen clase propia: los que fijan su ancho (p. ej. el selector de
+   periodo) no se tocan para no recortar su texto. */
+.ui-field[class="ui-field"]:has(> select) { contain: inline-size; min-width: min(var(--ancho-min-desplegable), 100%); }
+.ui-field[class="ui-field"]:has(> select) > select { width: 100%; }
+.ui-select--suelto[class$="ui-select--suelto"] { contain: inline-size; min-width: min(var(--ancho-min-desplegable-suelto), 100%); }
 
 /* Código (16-11-2026): la única tipografía monoespaciada permitida. Para
    fragmentos de código, rutas de API, variables o comandos que el usuario
@@ -576,3 +583,7 @@ input.ui-input--icono-fin.ui-input--icono-fin { padding-inline-end: var(--campo-
 .ds-campo-codigo {
   font-family: var(--font-mono);
 }
+
+/* 24-11-2026: un campo marcado `aria-invalid` se ve en rojo en todas partes (antes
+   cada pantalla lo hacía con su clase; el paso de campos al kit dejó algunas sin ella). */
+.ui-field :is(input, textarea)[aria-invalid="true"] { border-color: var(--danger-border); }

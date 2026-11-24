@@ -72,15 +72,11 @@ function Formulario({ id, inicial, onCerrar }: { id: string | null; inicial: Tip
     <Modal open onClose={onCerrar} title={id ? ta('editar_documento') : ta('nuevo_documento')}>
       <form className="ausadm-form" onSubmit={e => { e.preventDefault(); guardar.mutate() }}>
         <div className="ausadm-grid-2">
-          <label className="ausadm-campo-con-etiqueta">
-            <span className="ausadm-etiqueta">{ta('clave')}</span>
-            <Input aria-label={ta('clave')} required pattern="[a-z0-9_]{2,50}" value={d.clave} onChange={e => setD({ ...d, clave: e.target.value.toLowerCase() })} inputClassName="ausadm-campo" />
+          <div className="ausadm-campo-con-etiqueta">
+            <Input label={ta('clave')} aria-label={ta('clave')} required pattern="[a-z0-9_]{2,50}" value={d.clave} onChange={e => setD({ ...d, clave: e.target.value.toLowerCase() })} />
             <span className="ausadm-ayuda">{ta('clave_ayuda')}</span>
-          </label>
-          <label className="ausadm-campo-con-etiqueta">
-            <span className="ausadm-etiqueta">{ta('nombre_principal')}</span>
-            <Input aria-label={ta('nombre_principal')} value={d.nombre} onChange={e => setD({ ...d, nombre: e.target.value })} inputClassName="ausadm-campo" />
-          </label>
+          </div>
+          <Input label={ta('nombre_principal')} aria-label={ta('nombre_principal')} value={d.nombre} onChange={e => setD({ ...d, nombre: e.target.value })} />
         </div>
         <NombresPorIdioma valor={d.nombres} onChange={nombres => setD({ ...d, nombres })} />
         <Casilla etiqueta={ta('categoria_especial')} ayuda={ta('categoria_especial_ayuda')} valor={d.categoria_especial}

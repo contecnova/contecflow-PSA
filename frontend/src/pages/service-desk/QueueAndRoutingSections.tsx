@@ -297,19 +297,16 @@ function DeclareMIModal({ onClose, onSaved }: { onClose: () => void; onSaved: ()
     <Modal open title={t('service_desk.mi_declare_btn')} onClose={onClose}>
       <div className="u-stack-16">
         <div>
-          <label id={`${idPrefix}-title-et`} htmlFor={`${idPrefix}-title`} className="campo-etiqueta">{t('service_desk.mi_title_lbl')} *</label>
-          <Input id={`${idPrefix}-title`} aria-labelledby={`${idPrefix}-title-et`} value={form.title} onChange={set('title')} inputClassName="campo-form" />{msg('title')}
+          <Input label={<>{t('service_desk.mi_title_lbl')}*</>} id={`${idPrefix}-title`} value={form.title} onChange={set('title')} />{msg('title')}
         </div>
         <div>
-          <label htmlFor={`${idPrefix}-severity`} className="campo-etiqueta">{t('service_desk.mi_severity_lbl')}</label>
-          <Select suelto placeholder={false} id={`${idPrefix}-severity`} value={form.severity} onChange={set('severity')} className="campo-form">
+          <Select label={t('service_desk.mi_severity_lbl')} placeholder={false} id={`${idPrefix}-severity`} value={form.severity} onChange={set('severity')}>
             <option value="P1">{t('service_desk.priority_p1')}</option>
             <option value="P2">{t('service_desk.priority_p2')}</option>
           </Select>{msg('severity')}
         </div>
         <div>
-          <label id={`${idPrefix}-impact-et`} htmlFor={`${idPrefix}-impact`} className="campo-etiqueta">{t('service_desk.mi_impact_lbl')}</label>
-          <Textarea id={`${idPrefix}-impact`} aria-labelledby={`${idPrefix}-impact-et`} value={form.impact_statement} onChange={set('impact_statement')} rows={3} inputClassName="campo-form sdqr-textarea" />{msg('impact_statement')}
+          <Textarea label={t('service_desk.mi_impact_lbl')} id={`${idPrefix}-impact`} value={form.impact_statement} onChange={set('impact_statement')} rows={3} />{msg('impact_statement')}
         </div>
         <div className="u-actions-10">
           <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
@@ -643,12 +640,10 @@ function NewRoutingRuleModal({ onClose, onSaved, rule }: { onClose: () => void; 
       <div className="sdqr-modal-body">
         <div className="sdqr-name-row">
           <div>
-            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className={LS}>{t('service_desk.routing_name_lbl')} *</label>
-            <Input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.name} onChange={e => { camposB.limpiar('name'); setForm(f => ({ ...f, name: e.target.value })) }} autoFocus inputClassName="campo-form" />{msgB('name')}
+            <Input label={<>{t('service_desk.routing_name_lbl')}*</>} id={`${idCampo}-1`} value={form.name} onChange={e => { camposB.limpiar('name'); setForm(f => ({ ...f, name: e.target.value })) }} autoFocus />{msgB('name')}
           </div>
           <div>
-            <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className={LS}>{t('service_desk.routing_order_lbl')}</label>
-            <Input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="number" value={form.priority} onChange={e => { camposB.limpiar('priority'); setForm(f => ({ ...f, priority: e.target.value })) }} inputClassName="campo-form" />{msgB('priority')}
+            <Input label={t('service_desk.routing_order_lbl')} id={`${idCampo}-2`} type="number" value={form.priority} onChange={e => { camposB.limpiar('priority'); setForm(f => ({ ...f, priority: e.target.value })) }} />{msgB('priority')}
           </div>
         </div>
 
@@ -664,16 +659,12 @@ function NewRoutingRuleModal({ onClose, onSaved, rule }: { onClose: () => void; 
           )}
           {conditions.map((cond, i) => (
             <div key={i} className="sdqr-entry">
-              <div>
-                <label htmlFor={`${idCampo}-ck-${i}`} className={LS}>{t('service_desk.cond_field')}</label>
-                <Select suelto placeholder={false} id={`${idCampo}-ck-${i}`} value={cond.key}
-                  onChange={e => updateCond(i, { key: e.target.value, value: '' })}
-                  className={IS}>
+              <Select label={t('service_desk.cond_field')} placeholder={false} id={`${idCampo}-ck-${i}`} value={cond.key}
+                  onChange={e => updateCond(i, { key: e.target.value, value: '' })}>
                   {COND_TYPES.filter(type => type.key === cond.key || !usedCondKeys.filter((_, idx) => idx !== i).includes(type.key)).map(type =>
                     <option key={type.key} value={type.key}>{type.label}</option>
                   )}
                 </Select>
-              </div>
               <div>
                 <label id={`${idCampo}-cv-${i}-et`} htmlFor={`${idCampo}-cv-${i}`} className={LS}>{t('service_desk.cond_value')}</label>
                 {renderCondValue(cond, i)}
@@ -697,16 +688,12 @@ function NewRoutingRuleModal({ onClose, onSaved, rule }: { onClose: () => void; 
           </div>
           {actions.map((act, i) => (
             <div key={i} className="sdqr-entry">
-              <div>
-                <label htmlFor={`${idCampo}-ak-${i}`} className={LS}>{t('service_desk.act_label')}</label>
-                <Select suelto placeholder={false} id={`${idCampo}-ak-${i}`} value={act.key}
-                  onChange={e => updateAct(i, { key: e.target.value, value: '' })}
-                  className={IS}>
+              <Select label={t('service_desk.act_label')} placeholder={false} id={`${idCampo}-ak-${i}`} value={act.key}
+                  onChange={e => updateAct(i, { key: e.target.value, value: '' })}>
                   {ACT_TYPES.filter(type => type.key === act.key || !actions.filter((_, idx) => idx !== i).map(a => a.key).includes(type.key)).map(type =>
                     <option key={type.key} value={type.key}>{type.label}</option>
                   )}
                 </Select>
-              </div>
               <div>
                 <label id={`${idCampo}-av-${i}-et`} htmlFor={`${idCampo}-av-${i}`} className={LS}>{t('service_desk.cond_value')}</label>
                 {renderActValue(act, i)}

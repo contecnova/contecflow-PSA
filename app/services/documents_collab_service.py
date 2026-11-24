@@ -66,7 +66,12 @@ def save_collab_snapshot(
         document_id=doc_id, is_current=True
     ).update({"is_current": False})
 
+    # 24-11-2026 (migración 208): `document_id` no es clave ajena, así que el
+    # sellado no puede deducir la empresa; va la del documento (un superadmin
+    # sin empresa elegida también guarda en la del documento).
+    empresa_del_documento = db.query(Document.organization_id).filter(Document.id == doc_id).scalar()
     snap = DocumentCollabSnapshot(
+        organization_id=empresa_del_documento,
         document_id=doc_id,
         state_vector=snapshot_bytes,
         clock=clock,

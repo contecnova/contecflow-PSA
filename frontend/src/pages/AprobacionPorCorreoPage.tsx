@@ -50,9 +50,7 @@ export default function AprobacionPorCorreoPage() {
           <p className="apc-step">
             {t('aprob_correo.paso', { step: resumen.step, approver: resumen.approver })}
           </p>
-          <label htmlFor="nota" id="nota-etiqueta" className="u-text2-sm">{t('aprob_correo.nota')}</label>
-          <Textarea id="nota" aria-labelledby="nota-etiqueta" rows={3} value={nota} onChange={e => setNota(e.target.value)}
-            inputClassName="apc-note" />
+          <Textarea label={t('aprob_correo.nota')} id="nota" rows={3} value={nota} onChange={e => setNota(e.target.value)} />
           <div className="u-row-10">
             <Button icon={<Check size={14} />} disabled={enviando} onClick={() => { void decidir('approved') }}>{t('aprob_correo.aprobar')}</Button>
             <Button variant="secondary" icon={<X size={14} />} disabled={enviando} onClick={() => { void decidir('rejected') }}>{t('aprob_correo.rechazar')}</Button>

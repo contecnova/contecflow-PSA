@@ -458,10 +458,18 @@ class AIGuardrailEngine:
         policy_id: Optional[str],
         request_id: Optional[str],
     ) -> None:
+        # 24-11-2026 (migración 208): sin empresa no se registra. La fila se
+        # queda en `session.new` si el sellado corta el flush, y envenenaría
+        # cada flush siguiente de quien llama.
+        from app.db.empresa_obligatoria import empresa_para_registro
+        org = empresa_para_registro(self.db, self.org_id)
+        if not org:
+            logger.warning("Guardrail sin empresa (%s): no se registra la evaluación", module)
+            return
         try:
             record = AIGuardrailAuditLog(
                 id             = str(uuid.uuid4()),
-                org_id         = self.org_id,
+                org_id         = org,
                 user_id        = user_id,
                 module         = module,
                 scope          = scope,

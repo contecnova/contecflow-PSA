@@ -53,7 +53,7 @@ class RetentionPolicy(Base):
     __table_args__ = (Index("uq_retention_policies_org_entity", "organization_id", "entity", unique=True),)
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     entity = Column(String(40), nullable=False)
     keep_days = Column(Integer, nullable=False)
     is_active = Column(Boolean, nullable=False, default=False)
@@ -72,7 +72,7 @@ class LegalHold(Base):
     __tablename__ = "legal_holds"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     case_reference = Column(String(120), nullable=False)
     reason = Column(Text, nullable=True)
     entity = Column(String(40), nullable=False, default="*")

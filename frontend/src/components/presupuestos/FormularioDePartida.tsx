@@ -88,24 +88,23 @@ export default function FormularioDePartida({ p, inicial, onGuardar, onCancelar,
   // `ancho`: toda la fila. Con `span 2` la rejilla no podía bajar a una columna
   // y a 390 px empujaba los campos fuera del recuadro.
   const entrada = ({ k, label, tipo = 'number', ayuda, ancho }: { k: keyof typeof f; label: string; tipo?: string; ayuda?: string; ancho?: boolean }) => (
-    <label key={k} style={ancho ? { gridColumn: '1 / -1' } : undefined}><span className="fodepa-etiqueta">{label}</span>
+    <div key={k} style={ancho ? { gridColumn: '1 / -1' } : undefined}>
       {tipo === 'date'
-        ? <DateInput aria-label={label} value={f[k] as string} onChange={set(k)} className="fodepa-campo" placeholder={ayuda} />
-        : <Input aria-label={label} type={tipo} min={tipo === 'number' ? 0 : undefined} step={tipo === 'number' ? 'any' : undefined} value={f[k] as string} onChange={set(k)} placeholder={ayuda} />}</label>
+        ? <DateInput label={label} value={f[k] as string} onChange={set(k)} placeholder={ayuda} />
+        : <Input label={label} type={tipo} min={tipo === 'number' ? 0 : undefined} step={tipo === 'number' ? 'any' : undefined} value={f[k] as string} onChange={set(k)} placeholder={ayuda} />}
+    </div>
   )
 
   return (
     <section aria-label={inicial ? t('pres.editar_partida') : t('pres.nueva_partida')}
       className="fodepa-grid-1">
-      <label><span className="fodepa-etiqueta">{t('pres.sentido')}</span>
-        <Select suelto aria-label={t('pres.sentido')} value={f.sentido} className="fodepa-campo"
+      <Select label={t('pres.sentido')} aria-label={t('pres.sentido')} value={f.sentido}
           onChange={e => setF(v => ({ ...v, sentido: e.target.value as 'gasto' | 'ingreso', tipo: (e.target.value === 'ingreso' ? p.tipos_ingreso : p.tipos)[0] ?? '', modo: 'importe' }))} placeholder={false}>
           <option value="gasto">{t('pres.gasto')}</option><option value="ingreso">{t('pres.ingreso')}</option>
-        </Select></label>
-      <label><span className="fodepa-etiqueta">{t('pres.tipo')}</span>
-        <Select suelto aria-label={t('pres.tipo')} value={f.tipo} onChange={set('tipo')} className="fodepa-campo" placeholder={false}>
+        </Select>
+      <Select label={t('pres.tipo')} aria-label={t('pres.tipo')} value={f.tipo} onChange={set('tipo')} placeholder={false}>
           {tipos.map(x => <option key={x} value={x}>{t(`pres.tipo_${x}`, x)}</option>)}
-        </Select></label>
+        </Select>
       {entrada({ k: 'descripcion', label: t('pres.descripcion'), tipo: 'text', ancho: true })}
       <div className="u-col-full">
         <GrupoDeOpciones forma="fila" leyenda={t('pres.como_se_calcula_la_partida')} valor={f.modo}
@@ -117,14 +116,12 @@ export default function FormularioDePartida({ p, inicial, onGuardar, onCancelar,
       {f.modo === 'conductor' && <>
         {entrada({ k: 'unidades', label: t('pres.unidades') })}
         {entrada({ k: 'precio_unitario', label: f.sentido === 'ingreso' ? t('pres.tarifa') : t('pres.precio_unitario') })}
-        <label><span className="fodepa-etiqueta">{t('pres.recurrencia')}</span>
-          <Select suelto aria-label={t('pres.recurrencia')} value={f.recurrencia} onChange={set('recurrencia')} className="fodepa-campo" placeholder={false}>
+        <Select label={t('pres.recurrencia')} aria-label={t('pres.recurrencia')} value={f.recurrencia} onChange={set('recurrencia')} placeholder={false}>
             {(['unica', 'mensual', 'trimestral', 'anual'] as const).map(r => <option key={r} value={r}>{t(`pres.rec_${r}`)}</option>)}
-          </Select></label>
+          </Select>
       </>}
       {(f.modo === 'persona' || f.modo === 'horas') && (
-        <div><span className="fodepa-etiqueta">{t('pres.persona')}</span>
-          <UserSelect value={f.user_id} onChange={(uid: string) => setF(v => ({ ...v, user_id: uid }))} placeholder={f.modo === 'horas' ? t('pres.persona_opcional') : t('pres.persona')} /></div>
+        <UserSelect label={t('pres.persona')} value={f.user_id} onChange={(uid: string) => setF(v => ({ ...v, user_id: uid }))} placeholder={f.modo === 'horas' ? t('pres.persona_opcional') : t('pres.persona')} />
       )}
       {f.modo === 'persona' && entrada({ k: 'dedicacion_pct', label: t('pres.dedicacion') })}
       {f.modo === 'horas' && <>
@@ -140,18 +137,16 @@ export default function FormularioDePartida({ p, inicial, onGuardar, onCancelar,
         {entrada({ k: 'dedicacion_pct', label: t('pres.dedicacion') })}
       </>}
       {f.sentido === 'gasto' && (
-        <label><span className="fodepa-etiqueta">{t('pres.naturaleza')}</span>
-          <Select suelto aria-label={t('pres.naturaleza')} value={f.naturaleza} onChange={set('naturaleza')} className="fodepa-campo" placeholder={false}>
+        <Select label={t('pres.naturaleza')} aria-label={t('pres.naturaleza')} value={f.naturaleza} onChange={set('naturaleza')} placeholder={false}>
             <option value="opex">OPEX</option><option value="capex">CAPEX</option>
-          </Select></label>
+          </Select>
       )}
       {f.sentido === 'gasto' && f.naturaleza === 'capex' && entrada({ k: 'vida_meses', label: t('pres.vida_meses') })}
-      <label><span className="fodepa-etiqueta">{t('pres.desde_mes')}</span>
+      <label><span className="uiinde-estiloetiqueta">{t('pres.desde_mes')}</span>
         <input aria-label={t('pres.desde_mes')} type="month" min={desde} max={hasta} value={f.mes_desde} onChange={set('mes_desde')} className="fodepa-campo" /></label>
-      <label><span className="fodepa-etiqueta">{t('pres.hasta_mes')}</span>
+      <label><span className="uiinde-estiloetiqueta">{t('pres.hasta_mes')}</span>
         <input aria-label={t('pres.hasta_mes')} type="month" min={desde} max={hasta} value={f.mes_hasta} onChange={set('mes_hasta')} className="fodepa-campo" /></label>
-      <label className="u-col-full"><span className="fodepa-etiqueta">{t('pres.justificacion')}</span>
-        <Textarea aria-label={t('pres.justificacion')} value={f.justificacion} onChange={set('justificacion')} rows={2} placeholder={t('pres.justificacion_ayuda')} inputClassName="fodepa-campo2" /></label>
+      <Textarea label={t('pres.justificacion')} aria-label={t('pres.justificacion')} value={f.justificacion} onChange={set('justificacion')} rows={2} placeholder={t('pres.justificacion_ayuda')} />
       <div className="fodepa-row-1">
         {onCancelar && <Button variant="secondary" onClick={onCancelar}>{t('pres.cancelar')}</Button>}
         <Button loading={guardando} disabled={!listo} onClick={guardar}>{inicial ? t('pres.guardar') : t('pres.anadir')}</Button>

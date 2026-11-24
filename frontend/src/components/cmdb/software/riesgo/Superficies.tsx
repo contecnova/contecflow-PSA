@@ -130,20 +130,17 @@ export default function Superficies() {
         <div className="u-stack-12">
           <div className="sdm-form">
             <Buscador label={t('swr.buscar')} value={q} placeholder={t('swr.buscar_ph')} onChange={v => cambia(setQ)(v)} />
-            <label className="sdm-field"><span>{t('swr.superficie')}</span>
-              <Select suelto placeholder={false} value={superficie} onChange={ev => cambia(setSuperficie)(ev.target.value)}>
+            <Select label={t('swr.superficie')} placeholder={false} value={superficie} onChange={ev => cambia(setSuperficie)(ev.target.value)}>
                 <option value="">{t('swr.todas')}</option>
                 {SUPERFICIES.map(s => <option key={s} value={s}>{e('superficie', s)}</option>)}
-              </Select></label>
-            <label className="sdm-field"><span>{t('sw.severidad')}</span>
-              <Select suelto placeholder={false} value={severidad} onChange={ev => cambia(setSeveridad)(ev.target.value)}>
-                <Opciones valores={metaSw.data?.severities} catalogo="sev" todos={t('swr.todas')} /></Select></label>
-            <label className="sdm-field"><span>{t('swr.estado')}</span>
-              <Select suelto placeholder={false} value={estado} onChange={ev => cambia(setEstado)(ev.target.value)}>
+              </Select>
+            <Select label={t('sw.severidad')} placeholder={false} value={severidad} onChange={ev => cambia(setSeveridad)(ev.target.value)}>
+                <Opciones valores={metaSw.data?.severities} catalogo="sev" todos={t('swr.todas')} /></Select>
+            <Select label={t('swr.estado')} placeholder={false} value={estado} onChange={ev => cambia(setEstado)(ev.target.value)}>
                 <option value="live">{t('swr.vivos')}</option>
                 <option value="">{t('swr.todos')}</option>
                 {(metaSw.data?.finding_statuses ?? []).map(s => <option key={s} value={s}>{es('estado', s)}</option>)}
-              </Select></label>
+              </Select>
             <div className="u-wrap-10 sw-casillas"><Checkbox checked={kev} onChange={cambia(setKev)} label={t('swr.solo_kev')} /></div>
           </div>
           <div className="u-wrap-8">

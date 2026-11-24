@@ -22,13 +22,6 @@
   flex-wrap: wrap;
   justify-content: space-between;
 }
-.segupres-row-2 {
-  display: flex;
-  gap: 6px;
-  align-items: center;
-  font-size: var(--text-xs);
-  color: var(--text-3);
-}
 .segupres-row-3 {
   display: flex;
   margin: 8px 0;
@@ -203,12 +196,6 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-}
-.segupres-lbl {
-  font-size: var(--text-xs);
-  color: var(--text-3);
-  display: block;
-  margin-bottom: 3px;
 }
 .segupres-rejilla {
   display: grid;

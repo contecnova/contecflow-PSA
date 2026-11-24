@@ -322,6 +322,9 @@ CAPACIDADES: dict[str, Capacidad] = {
     "cartera.usar": _c(INTERNOS, "Cartera: usar (personal interno)"),
     "clientes.dirigir": _c(ADMIN_PM, "Clientes: salud del cliente (fotos y cálculo; antes guarda a mano en el cuerpo, admin y PM)"),
     "clientes.gestionar": _c(GESTORES, "Clientes y su portal: gestionar (responsables: dirección, PM, jefes de equipo y RRHH)"),
+    # 24-11-2026 (docs/portal/CHAT_DEL_PORTAL.md): llamar y videollamar al cliente desde el chat del portal.
+    # El cliente nunca inicia; la empresa además puede apagar llamadas y vídeo (ajustes `portal_chat`).
+    "clientes.llamar": _c(GESTORES, "Chat del portal: llamar y videollamar a clientes (responsables: dirección, PM, jefes de equipo y RRHH)"),
     "cmdb.administrar": _c(ADMIN, "CMDB: administrar (dirección)"),
     "cmdb.gestionar": _c(ADMIN_PM, "CMDB: gestionar (dirección y PM)"),
     "cmdb.usar": _c(INTERNOS, "CMDB: usar (personal interno)"),

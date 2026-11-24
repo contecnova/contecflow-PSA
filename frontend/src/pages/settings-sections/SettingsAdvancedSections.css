@@ -20,6 +20,8 @@
 .seadse-box-3 {
   margin-left: 8px;
   font-size: var(--text-sm);
+  display: inline-flex;
+  vertical-align: middle;
 }
 .seadse-box-4 {
   margin-top: 16px;
@@ -542,7 +544,6 @@
 .settings-advanced-sections-m15 {
   max-height: none;
   overflow: auto;
-  overflow-x: auto;
 }
 .settings-advanced-sections-m16 {
   max-height: 64px;
@@ -585,4 +586,3 @@ input.seadse-fs { width: 280px; max-width: 100%; }
   min-width: 0;
 }
 .seadse-con-icono svg { flex-shrink: 0; }
-.seadse-box-3 { display: inline-flex; vertical-align: middle; }

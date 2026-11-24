@@ -36,7 +36,9 @@ from app.services.portal_conversation_service.serializacion import (
     _legacy_message_out,
     _message_out,
 )
-from app.core.codigos_de_error import ErrorConCodigo
+from app.services.portal_conversation_service import en_vivo
+from app.services.portal_conversation_service._comun import visible_para_cliente
+from app.core.codigos_de_error import ErrorConCodigo, error
 
 
 def _refresh_conversation_status(conversation: PortalConversation) -> None:
@@ -63,8 +65,11 @@ def list_team_messages(conversation_id: str, current_user, db: Session) -> list:
         db.commit()
         return [_legacy_message_out(root)] + [_legacy_message_out(reply) for reply in replies]
     conversation = _get_team_conversation(conversation_id, current_user, db)
-    db.query(PortalConversationMessage).filter(PortalConversationMessage.conversation_id == conversation.id, PortalConversationMessage.sender_client_id != None, PortalConversationMessage.read_at == None).update({"read_at": _now()})
+    leidos = db.query(PortalConversationMessage).filter(PortalConversationMessage.conversation_id == conversation.id, PortalConversationMessage.sender_client_id != None, PortalConversationMessage.read_at == None).update({"read_at": _now()}, synchronize_session="fetch")
     db.commit()
+    if leidos:
+        # 24-11-2026: indicador de leído en tiempo real para el cliente.
+        en_vivo.avisar(db, conversation, "read", {"who": "team"}, excepto_usuario=current_user.id)
     return [_message_out(message) for message in conversation.messages]
 
 
@@ -76,9 +81,19 @@ def list_client_messages(conversation_id: str, current_client: ClientUser, db: S
         db.commit()
         return [_legacy_message_out(root)] + [_legacy_message_out(reply) for reply in replies if not reply.is_internal]
     conversation = _get_client_conversation(conversation_id, current_client, db)
-    db.query(PortalConversationMessage).filter(PortalConversationMessage.conversation_id == conversation.id, PortalConversationMessage.sender_user_id != None, PortalConversationMessage.read_at == None, PortalConversationMessage.is_internal_note == False).update({"read_at": _now()})
+    leidos = db.query(PortalConversationMessage).filter(
+        PortalConversationMessage.conversation_id == conversation.id,
+        PortalConversationMessage.sender_user_id != None,
+        PortalConversationMessage.read_at == None,
+        PortalConversationMessage.is_internal_note == False,
+        # 24-11-2026: un mensaje pendiente de aprobación no se ve, así que no se lee.
+        PortalConversationMessage.grc_status != PortalConversationGRCStatus.pending_review,
+    ).update({"read_at": _now()}, synchronize_session="fetch")
     db.commit()
-    return [_message_out(message) for message in conversation.messages if not message.is_internal_note and message.grc_status != PortalConversationGRCStatus.blocked]
+    if leidos:
+        en_vivo.avisar(db, conversation, "read", {"who": "client"}, incluir_clientes=False)
+    return [_message_out(message, para_cliente=True, client_id=current_client.id)
+            for message in conversation.messages if visible_para_cliente(message, current_client.id)]
 
 
 def send_team_message(conversation_id: str, payload, current_user, db: Session) -> dict:
@@ -90,16 +105,9 @@ def send_team_message(conversation_id: str, payload, current_user, db: Session) 
         db.refresh(message)
         return _legacy_message_out(message)
     conversation = _get_team_conversation(conversation_id, current_user, db)
-    message = _apply_message_policy(conversation, "team", payload.body, payload.is_internal_note, current_user.id, None, payload.parent_message_id, payload.message_type, db)
-    conversation.last_message_at = _now()
-    _mark_first_response_if_needed(conversation, "team")
-    _refresh_conversation_status(conversation)
-    _audit(db, conversation, "portal_conversation.message_sent", actor_user_id=current_user.id, target_type="message", target_id=message.id, details={"message_type": _enum_value(message.message_type), "grc_status": _enum_value(message.grc_status)})
-    recipient_user_ids = [participant.user_id for participant in conversation.participants if participant.removed_at is None and participant.user_id and participant.user_id != current_user.id]
-    if recipient_user_ids and not payload.is_internal_note:
-        _notify_users(db, recipient_user_ids, f"Nueva respuesta en {conversation.title}", payload.body[:140], conversation.id)
-    db.commit()
-    emit_event(db, "portal_conversation.message_sent", {"conversation_id": conversation.id, "message_type": _enum_value(message.message_type)}, actor=current_user, org_id=conversation.organization_id, resource_type="portal_conversation_message", resource_id=message.id, project_id=conversation.project_id)
+    _validar_padre(db, conversation, payload.parent_message_id, para_cliente=False)
+    message = _apply_message_policy(conversation, "team", payload.body, payload.is_internal_note, current_user.id, None, payload.parent_message_id, _tipo_de_texto(payload.message_type), db)
+    _despues_de_enviar(db, conversation, message, "team", current_user=current_user)
     return _message_out(message)
 
 
@@ -114,17 +122,72 @@ def send_client_message(conversation_id: str, payload, current_client: ClientUse
         db.refresh(message)
         return _legacy_message_out(message)
     conversation = _get_client_conversation(conversation_id, current_client, db)
-    message = _apply_message_policy(conversation, "client", payload.body, False, None, current_client.id, payload.parent_message_id, payload.message_type, db)
+    _validar_padre(db, conversation, payload.parent_message_id, para_cliente=True, client_id=current_client.id)
+    message = _apply_message_policy(conversation, "client", payload.body, False, None, current_client.id, payload.parent_message_id, _tipo_de_texto(payload.message_type), db)
+    _despues_de_enviar(db, conversation, message, "client", current_client=current_client)
+    return _message_out(message, para_cliente=True, client_id=current_client.id)
+
+
+# ── 24-11-2026: chat del portal completo (docs/portal/CHAT_DEL_PORTAL.md) ──────
+
+def _tipo_de_texto(tipo: Optional[str]) -> str:
+    """Por la ruta de texto solo entran mensajes de texto.
+
+    Los adjuntos van por su propia ruta (con validación del fichero) y los de
+    sistema, aprobación o IA los crea el servidor. Antes el cliente podía
+    mandar un `message_type` cualquiera del enum (p. ej. `approval_decision`).
+    """
+    if (tipo or "text") != "text":
+        raise error(422, "portal_tipo_de_mensaje_no_valido", tipo=tipo)
+    return "text"
+
+
+def _validar_padre(db: Session, conversation: PortalConversation, parent_message_id: Optional[str], *,
+                   para_cliente: bool, client_id: Optional[str] = None) -> None:
+    """Citar/responder: el mensaje citado es de ESTA conversación y quien cita lo ve."""
+    if not parent_message_id:
+        return
+    padre = db.query(PortalConversationMessage).filter(
+        PortalConversationMessage.id == parent_message_id,
+        PortalConversationMessage.conversation_id == conversation.id,
+    ).first()
+    if padre is None or padre.deleted_at is not None or (para_cliente and not visible_para_cliente(padre, client_id)):
+        raise error(422, "portal_mensaje_citado_no_valido")
+
+
+def _despues_de_enviar(db: Session, conversation: PortalConversation, message: PortalConversationMessage,
+                       sender_type: str, *, current_user=None, current_client=None) -> None:
+    """Lo común a todo envío (texto o adjunto): SLA, estado, auditoría, avisos y tiempo real.
+
+    Antes estaba escrito dos veces (equipo y cliente) dentro de cada envío.
+    """
     conversation.last_message_at = _now()
-    _mark_first_response_if_needed(conversation, "client")
+    _mark_first_response_if_needed(conversation, sender_type)
     _refresh_conversation_status(conversation)
-    _audit(db, conversation, "portal_conversation.message_sent_by_client", actor_client_id=current_client.id, target_type="message", target_id=message.id, details={"message_type": _enum_value(message.message_type), "grc_status": _enum_value(message.grc_status)})
-    recipient_user_ids = [participant.user_id for participant in conversation.participants if participant.removed_at is None and participant.user_id]
-    if recipient_user_ids:
-        _notify_users(db, recipient_user_ids, f"Mensaje de cliente en {conversation.title}", payload.body[:140], conversation.id)
+    detalles = {"message_type": _enum_value(message.message_type), "grc_status": _enum_value(message.grc_status)}
+    vista = (message.body or "")[:140]
+    if sender_type == "team":
+        _audit(db, conversation, "portal_conversation.message_sent", actor_user_id=current_user.id, target_type="message", target_id=message.id, details=detalles)
+        recipient_user_ids = [participant.user_id for participant in conversation.participants if participant.removed_at is None and participant.user_id and participant.user_id != current_user.id]
+        if recipient_user_ids and not message.is_internal_note:
+            _notify_users(db, recipient_user_ids, f"Nueva respuesta en {conversation.title}", vista, conversation.id)
+    else:
+        _audit(db, conversation, "portal_conversation.message_sent_by_client", actor_client_id=current_client.id, target_type="message", target_id=message.id, details=detalles)
+        recipient_user_ids = [participant.user_id for participant in conversation.participants if participant.removed_at is None and participant.user_id]
+        if recipient_user_ids:
+            _notify_users(db, recipient_user_ids, f"Mensaje de cliente en {conversation.title}", vista, conversation.id)
     db.commit()
-    emit_event(db, "portal_conversation.message_sent", {"conversation_id": conversation.id, "message_type": _enum_value(message.message_type)}, org_id=conversation.organization_id, resource_type="portal_conversation_message", resource_id=message.id, project_id=conversation.project_id)
-    return _message_out(message)
+    emit_event(db, "portal_conversation.message_sent", {"conversation_id": conversation.id, "message_type": _enum_value(message.message_type)},
+               actor=current_user, org_id=conversation.organization_id, resource_type="portal_conversation_message",
+               resource_id=message.id, project_id=conversation.project_id)
+    # Tiempo real: el cliente no se entera de notas internas ni de mensajes
+    # del equipo pendientes de aprobación (los pediría y no los vería).
+    oculto_al_cliente = message.is_internal_note or (
+        sender_type == "team" and message.grc_status == PortalConversationGRCStatus.pending_review)
+    en_vivo.avisar(db, conversation, "message", {"message_id": message.id},
+                   incluir_clientes=not oculto_al_cliente,
+                   excepto_usuario=current_user.id if current_user is not None else None,
+                   excepto_cliente=current_client.id if current_client is not None else None)
 
 
 def send_l1_bot_reply(conversation_id: str, current_client: ClientUser, db: Session) -> dict:

@@ -131,10 +131,7 @@ export function FormularioDeContrato({ subId, contrato, plantilla = false, onClo
         <ModosDeRelacion valor={f.modes} onChange={m => setF(x => ({ ...x, modes: m }))} />
         <Checkbox checked={f.auto_renew} onChange={v => setF(x => ({ ...x, auto_renew: v }))} label={t('proveedores.renovacion_automatica')} />
         <Checkbox checked={f.expenses_rebillable} onChange={v => setF(x => ({ ...x, expenses_rebillable: v }))} label={t('proveedores.gastos_repercutibles')} />
-        <div className="ui-field">
-          <label htmlFor="prv-contrato-notas" className="uiinde-estiloetiqueta">{t('subcontractors.notes')}</label>
-          <Textarea id="prv-contrato-notas" value={f.notes} onChange={set('notes')} inputClassName="prv-textarea" />
-        </div>
+        <Textarea label={t('subcontractors.notes')} id="prv-contrato-notas" value={f.notes} onChange={set('notes')} />
         <div className="u-actions-8">
           <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
           <Button onClick={() => guardar.mutate()} loading={guardar.isPending} disabled={!f.title.trim() || guardar.isPending}>{t('common.save')}</Button>

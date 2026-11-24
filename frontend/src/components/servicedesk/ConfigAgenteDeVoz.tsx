@@ -126,22 +126,13 @@ function ConfigEditor({ config, onSave, saving }: { config: VoiceAgentConfig | u
 
   return (
     <div className="u-stack-16">
-      <div className="ui-field">
-        <label htmlFor={`${id}-saludo`} className="campo-etiqueta">{t('sd.voice.greeting')}</label>
-        <Textarea id={`${id}-saludo`} rows={2} value={draft.greeting} onChange={e => setField('greeting', e.target.value)} inputClassName="campo-form vap-textarea" />
-      </div>
+      <Textarea label={t('sd.voice.greeting')} id={`${id}-saludo`} rows={2} value={draft.greeting} onChange={e => setField('greeting', e.target.value)} />
 
       <div className="vap-dos">
-        <div className="ui-field">
-          <label htmlFor={`${id}-idioma`} className="campo-etiqueta">{t('voiceagent.idioma_bcp_47')}</label>
-          <Select suelto placeholder={false} id={`${id}-idioma`} value={draft.language} onChange={e => setField('language', e.target.value)} className="campo-form">
+        <Select label={t('voiceagent.idioma_bcp_47')} placeholder={false} id={`${id}-idioma`} value={draft.language} onChange={e => setField('language', e.target.value)}>
             {VOICE_LANGUAGES.map(([code, nombre]) => <option key={code} value={code}>{nombre}</option>)}
           </Select>
-        </div>
-        <div className="ui-field">
-          <label htmlFor={`${id}-silencio`} className="campo-etiqueta">{t('voiceagent.silencio_maximo_segundos')}</label>
-          <Input id={`${id}-silencio`} type="number" min={1} max={120} value={draft.max_silence_seconds} onChange={e => setField('max_silence_seconds', Number(e.target.value))} inputClassName="campo-form" />
-        </div>
+        <Input label={t('voiceagent.silencio_maximo_segundos')} id={`${id}-silencio`} type="number" min={1} max={120} value={draft.max_silence_seconds} onChange={e => setField('max_silence_seconds', Number(e.target.value))} />
       </div>
 
       {/* Menú de teclas */}

@@ -313,6 +313,7 @@
 .ent-box-9 {
   font-size: var(--text-2xl);
   margin-bottom: 6px;
+  color: var(--text-2);
 }
 
 .ent-box-10 {
@@ -798,19 +799,6 @@
 .enterprise-page-e3 {
   color: var(--enterprise-page-color);
 }
-.enterprise-page-e4 {
-  width: 100%;
-  background: var(--surface-3);
-  border: 1px solid var(--surface-4);
-  border-radius: 8px;
-  padding: 9px 13px;
-  color: var(--text-1);
-  font-size: var(--text-base);
-  outline: none;
-  font-family: inherit;
-  box-sizing: border-box;
-  resize: vertical;
-}
 .enterprise-page-e5 {
   background: var(--surface-1);
   border: .5px solid var(--surface-4);
@@ -855,44 +843,12 @@
   margin-bottom: 10px;
   border-color: var(--accent-glow);
 }
-.enterprise-page-e12 {
-  background: var(--surface-3);
-  border: 1px solid var(--surface-4);
-  border-radius: 7px;
-  padding: 7px 11px;
-  color: var(--text-1);
-  font-size: var(--text-sm);
-  outline: none;
-  width: 100%;
-  box-sizing: border-box;
-  font-variant-numeric: tabular-nums;
-}
 .enterprise-page-e13 {
   background: var(--surface-1);
   border: 1px solid var(--surface-4);
   border-radius: var(--radius-md);
   padding: 14px 18px;
   margin-bottom: 10px;
-}
-.enterprise-page-e16 {
-  font-size: var(--text-xs);
-  font-weight: 500;
-  color: var(--text-2);
-  letter-spacing: .07em;
-  display: block;
-  margin-bottom: 5px;
-}
-.enterprise-page-e17 {
-  width: 100%;
-  background: var(--surface-3);
-  border: 1px solid var(--surface-4);
-  border-radius: 8px;
-  padding: 9px 13px;
-  color: var(--text-1);
-  font-size: var(--text-base);
-  outline: none;
-  font-family: inherit;
-  box-sizing: border-box;
 }
 .enterprise-page-e18 {
   font-size: var(--text-xs);
@@ -914,14 +870,6 @@
   width: 100%;
   box-sizing: border-box;
 }
-.enterprise-page-e20 {
-  font-size: var(--text-2xs);
-  font-weight: 700;
-  color: var(--text-2);
-  letter-spacing: 0.06em;
-  display: block;
-  margin-bottom: 4px;
-}
 .enterprise-page-m14 {
   border-color: var(--success-border);
   background: var(--success-bg);
@@ -937,7 +885,6 @@
 .ent-resultado { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
 .ent-cerrar-clave { margin-top: 8px; }
 .ent-label-6, .ent-label-10 { display: inline-flex; color: var(--text-2); }
-.ent-box-9 { color: var(--text-2); }
 .ent-catalogo { border: 1px solid var(--surface-4); text-align: left; color: var(--text-1); font-family: inherit; }
 .ent-catalogo:hover { border-color: var(--accent-glow); }
 .ent-catalogo[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-muted); }

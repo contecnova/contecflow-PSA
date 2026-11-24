@@ -57,8 +57,7 @@ export default function AsignacionesTab({ soloPrestamos = false, onAbrir }: {
     <div>
       <div className="almf-filtros">
         <div className="almf-filtro">
-          <label className="alm-label" htmlFor="almf-est">{t('alm.status')}</label>
-          <Select suelto placeholder={false} id="almf-est" className="alm-input" value={estado} onChange={e => { setEstado(e.target.value); setPagina(1) }}>
+          <Select label={t('alm.status')} placeholder={false} id="almf-est" value={estado} onChange={e => { setEstado(e.target.value); setPagina(1) }}>
             <option value="active,pending">{t('alm.filter_current')}</option>
             <option value="active">{t('alm.st_active')}</option>
             <option value="pending">{t('alm.st_pending')}</option>
@@ -69,8 +68,7 @@ export default function AsignacionesTab({ soloPrestamos = false, onAbrir }: {
         </div>
         {!soloPrestamos && (
           <div className="almf-filtro">
-            <label className="alm-label" htmlFor="almf-rec">{t('alm.resource')}</label>
-            <Select suelto placeholder={false} id="almf-rec" className="alm-input" value={recurso} onChange={e => { setRecurso(e.target.value); setPagina(1) }}>
+            <Select label={t('alm.resource')} placeholder={false} id="almf-rec" value={recurso} onChange={e => { setRecurso(e.target.value); setPagina(1) }}>
               <option value="">{t('alm.filter_all')}</option>
               <option value="license">{t('alm.tab_licenses')}</option>
               <option value="asset">{t('alm.tab_assets')}</option>

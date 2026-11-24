@@ -178,8 +178,7 @@ export function CamposDeExterno({ form, onChange, errores }: CamposDeExternoProp
         )}
       </div>
       <div className="ext-full ui-field">
-        <label htmlFor={`${idBase}-notas`} className="uiinde-estiloetiqueta">{t('externos.notas')}</label>
-        <Textarea id={`${idBase}-notas`} value={form.notes} onChange={campo('notes')} inputClassName="ext-notas" />
+        <Textarea label={t('externos.notas')} id={`${idBase}-notas`} value={form.notes} onChange={campo('notes')} />
         {errores?.('notes') && <div className="u-field-error" role="alert">{errores('notes')}</div>}
       </div>
     </div>

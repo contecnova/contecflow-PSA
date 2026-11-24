@@ -11,8 +11,6 @@
   text-align: center;
   color: var(--text-1);
 }
-/* Solo la primera letra: `capitalize` ponía «Noviembre De 2026». */
-.cambplan-box-1::first-letter { }
 
 /* Avisos del mes: congelaciones y versiones */
 .cambplan-aviso {

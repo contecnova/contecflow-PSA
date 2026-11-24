@@ -62,7 +62,7 @@
   background: var(--surface-2);
   border: 1px solid var(--surface-4);
   border-radius: var(--radius-md);
-  box-shadow: var(--shadow-lg, 0 12px 32px rgb(0 0 0 / 0.35));
+  box-shadow: var(--shadow-lg, 0 12px 32px rgb(0 0 0 / 35%));
 }
 /* Con etiqueta, la lista arranca bajo el control, no bajo la etiqueta. */
 .sr:has(> label) .sr-lista { top: auto; margin-top: 4px; }

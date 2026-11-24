@@ -65,7 +65,7 @@ export function ListaDeValores({ valores, onChange, opciones, etiqueta, placehol
   }
   return (
     <div>
-      <label className="pol-etiqueta" htmlFor={id}>{etiqueta}</label>
+      <label className="uiinde-estiloetiqueta" htmlFor={id}>{etiqueta}</label>
       <div className="pol-fila">
         {valores.map(v => (
           <span key={v} className="pol-chip">

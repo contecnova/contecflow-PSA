@@ -31,13 +31,6 @@
   font-size: var(--text-xs);
 }
 
-.campypla-lbl {
-  font-size: var(--text-xs);
-  color: var(--text-3);
-  display: block;
-  margin-bottom: 3px;
-}
-
 .campypla-caja {
   border: 1px solid var(--surface-4);
   border-radius: var(--radius-md);

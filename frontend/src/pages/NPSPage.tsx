@@ -193,6 +193,8 @@ export default function NPSPage() {
     }
   }
 
+  const conSalud = new Set(leaderboard.map(l => String(l.client_id)))
+  const sinSalud = clients.filter(c => !conSalud.has(String(c.id)))
   const selectedClient = clients.find((c) => c.id === clientId)
   const latestHealth = health[0]?.health_score
   const tramo = (n: number) => (n >= 9 ? 'promotor' : n >= 7 ? 'pasivo' : 'detractor')
@@ -213,16 +215,9 @@ export default function NPSPage() {
               <EmptyState icon={<Users size={28} />} title={t('nps.no_clients')} />
             ) : (
               <ul className="nps-ranking">
-                {/* Clientes sin instantáneas de salud */}
-                {leaderboard.length === 0 && clients.map(c => (
-                  <li key={c.id}>
-                    <Pulsable onClick={() => setClientId(c.id)} aria-pressed={clientId === c.id}
-                      className={`nps-fila${clientId === c.id ? ' nps-fila--activa' : ''}`}>
-                      <span className="nps-fila__nombre">{c.name}</span>
-                      <span className="nps-fila__vacio">—</span>
-                    </Pulsable>
-                  </li>
-                ))}
+                {/* 24-11-2026: antes los clientes sin salud calculada solo salían si NINGUNO
+                    la tenía; al calcular la de uno, los demás desaparecían de la lista.
+                    Ahora: primero el ranking y, debajo, el resto de clientes con «—». */}
                 {leaderboard.map((l, i) => (
                   <li key={l.client_id}>
                     <Pulsable onClick={() => setClientId(l.client_id)} aria-pressed={clientId === l.client_id}
@@ -230,6 +225,15 @@ export default function NPSPage() {
                       <span className="nps-fila__pos">{i + 1}</span>
                       <span className="nps-fila__nombre">{l.client_name}</span>
                       <HealthBadge score={l.health_score} />
+                    </Pulsable>
+                  </li>
+                ))}
+                {sinSalud.map(c => (
+                  <li key={c.id}>
+                    <Pulsable onClick={() => setClientId(c.id)} aria-pressed={clientId === c.id}
+                      className={`nps-fila${clientId === c.id ? ' nps-fila--activa' : ''}`}>
+                      <span className="nps-fila__nombre">{c.name}</span>
+                      <span className="nps-fila__vacio">—</span>
                     </Pulsable>
                   </li>
                 ))}
@@ -264,6 +268,25 @@ export default function NPSPage() {
                   {computing ? t('nps.calculating') : t('nps.calc_health')}
                 </Button>
               </div>
+              {/* 24-11-2026: componentes de la última foto; «—» = sin datos (su peso se reparte). */}
+              {health[0] && (
+                <dl className="nps-componentes" aria-label={t('nps.componentes')}>
+                  {([
+                    ['comp_nps', health[0].nps_component],
+                    ['comp_entrega', health[0].delivery_component],
+                    ['comp_presupuesto', health[0].budget_component],
+                    ['comp_actividad', health[0].activity_component],
+                  ] as const).map(([clave, valor]) => (
+                    <div key={clave} className="nps-componentes__item">
+                      <dt>{t(`nps.${clave}`)}</dt>
+                      <dd title={valor === null ? t('nps.comp_sin_datos') : undefined}
+                        style={valor === null ? undefined : { '--nps-color': colorDeSalud(valor) } as CSSProperties}>
+                        {valor === null ? '—' : Math.round(valor)}
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
+              )}
             </Card>
 
             {/* Resumen NPS */}

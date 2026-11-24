@@ -124,32 +124,23 @@ export function NewConversationModal({ onClose, onCreated }: { onClose: () => vo
         <div className="chat-modal__body">
           {tab === 'group' && (
             <div className="u-mb-12">
-              <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="chat-form-label">{traducir('chat.titulo_opcional')}</label>
-              <Input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.groupTitle} onChange={(e) => updateForm({ groupTitle: e.target.value })} placeholder={traducir('chat.group_title_placeholder')}
-                inputClassName="chat-input" />
+              <Input label={traducir('chat.titulo_opcional')} id={`${idCampo}-1`} value={form.groupTitle} onChange={(e) => updateForm({ groupTitle: e.target.value })} placeholder={traducir('chat.group_title_placeholder')} />
             </div>
           )}
           {tab === 'channel' && (
             <>
               <div className="u-mb-12">
-                <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="chat-form-label">{traducir('chat.name')}</label>
-                <Input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.channelName} onChange={(e) => updateForm({ channelName: e.target.value })} placeholder={traducir('chat.channel_name_placeholder')} inputClassName="chat-input" />
+                <Input label={traducir('chat.name')} id={`${idCampo}-2`} value={form.channelName} onChange={(e) => updateForm({ channelName: e.target.value })} placeholder={traducir('chat.channel_name_placeholder')} />
               </div>
               <div className="chat-form-grid2">
-                <div>
-                  <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="chat-form-label">{traducir('chat.team')}</label>
-                  <Select suelto placeholder={false} id={`${idCampo}-3`} value={form.selectedTeamId} onChange={(e) => updateForm({ selectedTeamId: e.target.value })} className="chat-input">
+                <Select label={traducir('chat.team')} placeholder={false} id={`${idCampo}-3`} value={form.selectedTeamId} onChange={(e) => updateForm({ selectedTeamId: e.target.value })}>
                     {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                   </Select>
-                </div>
-                <div>
-                  <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="chat-form-label">{traducir('chat.type')}</label>
-                  <Select suelto placeholder={false} id={`${idCampo}-4`} value={form.channelType} onChange={(e) => updateForm({ channelType: e.target.value })} className="chat-input">
+                <Select label={traducir('chat.type')} placeholder={false} id={`${idCampo}-4`} value={form.channelType} onChange={(e) => updateForm({ channelType: e.target.value })}>
                     <option value="public">{traducir('chat.publico')}</option>
                     <option value="private">{traducir('chat.private')}</option>
                     <option value="announcement">{traducir('chat.announcements')}</option>
                   </Select>
-                </div>
               </div>
             </>
           )}

@@ -65,10 +65,28 @@ export interface ClienteDelPortal {
   must_change_password?: boolean
 }
 
+/** Una empresa en la que vale la contraseña (migración 208: el correo del
+ *  portal es único por empresa; con varias, el portal pregunta). */
+export interface EmpresaDelPortal { id: string; name: string }
+
+/** Resultado del login cuando la contraseña vale en varias empresas: no hay
+ *  sesión hasta elegir una. */
+export interface EleccionDeEmpresa { elegirEmpresa: EmpresaDelPortal[] }
+
+/** Código de acceso del portal (`/portal?empresa=<código>`): resuelve la empresa
+ *  sin preguntar. Un código que no casa se ignora en el servidor. */
+export function codigoDeAccesoDelPortal(): string | undefined {
+  try {
+    return new URLSearchParams(window.location.search).get('empresa')?.trim() || undefined
+  } catch { return undefined }
+}
+
 /** Lo que el proveedor de sesion ofrece a sus hijos. */
 export interface SesionDeCliente {
   client: ClienteDelPortal | null
-  login: (email: string, password: string) => Promise<unknown>
+  /** Con `organizationId`, entra en esa empresa (segunda vuelta). Devuelve el
+   *  cliente o, si la contraseña vale en varias empresas, `EleccionDeEmpresa`. */
+  login: (email: string, password: string, organizationId?: string) => Promise<unknown>
   logout: () => Promise<void>
   /** Tras el cambio obligatorio de contraseña: quita la marca y abre el portal. */
   contrasenaCambiada?: () => void
@@ -277,8 +295,15 @@ export function ClientAuthProvider({ children }: { children?: React.ReactNode })
       })
     return () => { mounted = false }
   }, [])
-  const login = async (email: string, password: string) => {
-    const res = await CLIENT_API.post('/portal/auth/login', { email, password })
+  const login = async (email: string, password: string, organizationId?: string) => {
+    const res = await CLIENT_API.post('/portal/auth/login', {
+      email, password,
+      organization_id: organizationId || undefined,
+      organization_code: codigoDeAccesoDelPortal(),
+    })
+    if (res.data?.choose_organization) {
+      return { elegirEmpresa: (res.data.organizations || []) as EmpresaDelPortal[] } satisfies EleccionDeEmpresa
+    }
     const clientData = _pickClientUiFields(res.data.client)
     guardarAlmacen('client_user', JSON.stringify(clientData))
     if (res.data.client?.language) {
@@ -423,13 +448,20 @@ export function LoginScreen({ _changeLang, _currentLang }: { _changeLang?: (code
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [olvido, setOlvido] = useState(false)
+  // Migración 208: la contraseña vale en varias empresas; se elige una.
+  const [empresas, setEmpresas] = useState<EmpresaDelPortal[] | null>(null)
 
-  const handleLogin = async () => {
+  const handleLogin = async (organizationId?: string) => {
     setError(''); setLoading(true)
-    try { await login?.(email, password) }
+    try {
+      const r = await login?.(email, password, organizationId)
+      const lista = (r as Partial<EleccionDeEmpresa> | undefined)?.elegirEmpresa
+      setEmpresas(lista && lista.length ? lista : null)
+    }
     catch { setError(t('login_error')) }
     finally { setLoading(false) }
   }
+  const volverDeEmpresas = () => { setEmpresas(null); setPassword(''); setError('') }
 
 
   return (
@@ -472,12 +504,28 @@ export function LoginScreen({ _changeLang, _currentLang }: { _changeLang?: (code
       {/* Form panel */}
       <div className="poclco-row-4">
         <div className="poclco-box-9">
-          {olvido ? <OlvideMiContrasena onVolver={() => setOlvido(false)} /> : (<>
+          {olvido ? <OlvideMiContrasena onVolver={() => setOlvido(false)} /> : empresas ? (
+            <div className="u-stack-14">
+              <h2 className="poclco-box-10">{t('portal_empresa.elegir_titulo')}</h2>
+              <p className="poclco-box-11">{t('portal_empresa.elegir_explicacion')}</p>
+              <div className="u-stack-12" role="group" aria-label={t('portal_empresa.elegir_titulo')}>
+                {empresas.map(e => (
+                  <div key={e.id}>
+                    <Button className="poclco-box-13" size="lg" loading={loading} onClick={() => handleLogin(e.id)}>
+                      {e.name}
+                    </Button>
+                  </div>
+                ))}
+              </div>
+              {error && <div className="poclco-box-14">{error}</div>}
+              <Button variant="ghost" onClick={volverDeEmpresas}>{t('portal_empresa.volver')}</Button>
+            </div>
+          ) : (<>
           <h2 className="poclco-box-10">{traducir('portalclientcontext.acceder_al_portal')}</h2>
           <p className="poclco-box-11">
             {traducir('portalclientcontext.usa_tu_correo_corporativo_para_acceder')}
           </p>
-          <form onSubmit={e => { e.preventDefault(); handleLogin() }} className="u-stack-14">
+          <form onSubmit={e => { e.preventDefault(); void handleLogin() }} className="u-stack-14">
             <div>
               <label htmlFor={`${idPrefix}-email`} id={`${idPrefix}-email-etiqueta`} className="poclco-labelstyle">{t('login_email')}</label>
               <Input id={`${idPrefix}-email`} aria-labelledby={`${idPrefix}-email-etiqueta`} type="email" autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} placeholder={t('login_email_placeholder')} inputClassName="poclco-fieldstyle" />

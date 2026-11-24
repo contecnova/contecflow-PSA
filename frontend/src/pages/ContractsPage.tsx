@@ -163,22 +163,17 @@ function ContractFormModal({ contract, onClose }: { contract?: Contract | null; 
   }
 
   const tarifaHora = (
-    <div>
-      <label htmlFor={`${idCampo}-tarifa`} className="ctr-label">{t('contractspage.tarifa_hora', { simbolo: fmtMoneda.simbolo })}</label>
-      <Input id={`${idCampo}-tarifa`} type="number" value={form.hourly_rate} onChange={set('hourly_rate')} inputClassName="ctr-input" placeholder={t('contracts.tarifa_por_hora')} error={errs.hourly_rate} />
-    </div>
+    <Input label={t('contractspage.tarifa_hora', { simbolo: fmtMoneda.simbolo })} id={`${idCampo}-tarifa`} type="number" value={form.hourly_rate} onChange={set('hourly_rate')} placeholder={t('contracts.tarifa_por_hora')} error={errs.hourly_rate} />
   )
 
   return (
     <Modal open title={isEdit ? t('contractspage.editar_contrato') : t('contractspage.nuevo_contrato')} onClose={onClose} width={620}>
       <div className="u-grid2-14">
         <div className="u-col-full">
-          <label id={`${idCampo}-eta186`} htmlFor={`${idCampo}-a186`} className="ctr-label">{t('contractspage.campo_nombre')}</label>
-          <Input id={`${idCampo}-a186`} aria-labelledby={`${idCampo}-eta186`} value={form.name} onChange={set('name')} inputClassName="ctr-input" placeholder={t('contracts.nombre_del_contrato')} error={errs.name} />
+          <Input label={t('contractspage.campo_nombre')} id={`${idCampo}-a186`} value={form.name} onChange={set('name')} placeholder={t('contracts.nombre_del_contrato')} error={errs.name} />
         </div>
         <div>
-          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="ctr-label">{t('contractspage.campo_proyecto')}</label>
-          <Select suelto placeholder={false} id={`${idCampo}-1`} value={form.project_id} onChange={set('project_id')} className="ctr-input" {...err('project_id')}>
+          <Select label={t('contractspage.campo_proyecto')} placeholder={false} id={`${idCampo}-1`} value={form.project_id} onChange={set('project_id')} {...err('project_id')}>
             <option value="">{t('contractspage.seleccionar')}</option>
             {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
           </Select>
@@ -200,64 +195,48 @@ function ContractFormModal({ contract, onClose }: { contract?: Contract | null; 
           {msg('client_id')}
         </div>
         <div>
-          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="ctr-label">{t('contracts.tipo_de_contrato')}</label>
-          <Select suelto placeholder={false} id={`${idCampo}-2`} value={form.contract_type} onChange={set('contract_type')} className="ctr-input" {...err('contract_type')}>
+          <Select label={t('contracts.tipo_de_contrato')} placeholder={false} id={`${idCampo}-2`} value={form.contract_type} onChange={set('contract_type')} {...err('contract_type')}>
             {CONTRACT_TYPES.map(v => <option key={v} value={v}>{t(`contractspage.tipo_${v}`)}</option>)}
           </Select>
           {msg('contract_type')}
         </div>
         <div>
-          <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="ctr-label">{t('contractspage.campo_estado')}</label>
-          <Select suelto placeholder={false} id={`${idCampo}-3`} value={form.status} onChange={set('status')} className="ctr-input">
+          <Select label={t('contractspage.campo_estado')} placeholder={false} id={`${idCampo}-3`} value={form.status} onChange={set('status')}>
             {Object.keys(STATUS_COLOR).map(v => <option key={v} value={v}>{t(`contractspage.estado_${v}`)}</option>)}
           </Select>
           {msg('status')}
         </div>
         {form.contract_type === 'fixed_price' && (
-          <div>
-            <label htmlFor={`${idCampo}-importe`} className="ctr-label">{t('contractspage.importe_total', { simbolo: fmtMoneda.simbolo })}</label>
-            <Input id={`${idCampo}-importe`} type="number" value={form.total_amount} onChange={set('total_amount')} inputClassName="ctr-input" placeholder={t('contractspage.ph_importe_total')} error={errs.total_amount} />
-          </div>
+          <Input label={t('contractspage.importe_total', { simbolo: fmtMoneda.simbolo })} id={`${idCampo}-importe`} type="number" value={form.total_amount} onChange={set('total_amount')} placeholder={t('contractspage.ph_importe_total')} error={errs.total_amount} />
         )}
         {form.contract_type === 'time_material' && tarifaHora}
         {form.contract_type === 'hourly_bag' && (
           <>
-            <div>
-              <label htmlFor={`${idCampo}-bolsa`} className="ctr-label">{t('contracts.bolsa_de_horas')}</label>
-              <Input id={`${idCampo}-bolsa`} type="number" value={form.hours_bag} onChange={set('hours_bag')} inputClassName="ctr-input" placeholder={t('contractspage.ph_horas_incluidas')} error={errs.hours_bag} />
-            </div>
+            <Input label={t('contracts.bolsa_de_horas')} id={`${idCampo}-bolsa`} type="number" value={form.hours_bag} onChange={set('hours_bag')} placeholder={t('contractspage.ph_horas_incluidas')} error={errs.hours_bag} />
             {tarifaHora}
           </>
         )}
         {form.contract_type === 'retainer' && (
-          <div>
-            <label htmlFor={`${idCampo}-retainer`} className="ctr-label">{t('contractspage.retainer_mensual', { simbolo: fmtMoneda.simbolo })}</label>
-            <Input id={`${idCampo}-retainer`} type="number" value={form.monthly_retainer} onChange={set('monthly_retainer')} inputClassName="ctr-input" placeholder={t('contractspage.ph_importe_mensual')} error={errs.monthly_retainer} />
-          </div>
+          <Input label={t('contractspage.retainer_mensual', { simbolo: fmtMoneda.simbolo })} id={`${idCampo}-retainer`} type="number" value={form.monthly_retainer} onChange={set('monthly_retainer')} placeholder={t('contractspage.ph_importe_mensual')} error={errs.monthly_retainer} />
         )}
         <div>
-          <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="ctr-label">{t('contractspage.fecha_inicio')}</label>
-          <DateInput id={`${idCampo}-4`} value={form.start_date} onChange={set('start_date')} className="ctr-input" {...err('start_date')} />
+          <DateInput label={t('contractspage.fecha_inicio')} id={`${idCampo}-4`} value={form.start_date} onChange={set('start_date')} {...err('start_date')} />
           {msg('start_date')}
         </div>
         <div>
-          <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="ctr-label">{t('contractspage.fecha_fin')}</label>
-          <DateInput id={`${idCampo}-5`} value={form.end_date} onChange={set('end_date')} className="ctr-input" {...err('end_date')} />
+          <DateInput label={t('contractspage.fecha_fin')} id={`${idCampo}-5`} value={form.end_date} onChange={set('end_date')} {...err('end_date')} />
           {msg('end_date')}
         </div>
         <div>
-          <label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} className="ctr-label">{t('contractspage.fecha_firma')}</label>
-          <DateInput id={`${idCampo}-6`} value={form.signed_date} onChange={set('signed_date')} className="ctr-input" />
+          <DateInput label={t('contractspage.fecha_firma')} id={`${idCampo}-6`} value={form.signed_date} onChange={set('signed_date')} />
           {msg('signed_date')}
         </div>
         <div>
-          <label htmlFor={`${idCampo}-pago`} className="ctr-label">{t('contracts.condiciones_de_pago')}</label>
-          <Input id={`${idCampo}-pago`} value={form.payment_terms} onChange={set('payment_terms')} aria-label={t('contracts.condiciones_de_pago')} placeholder={t('contractspage.ph_condiciones_pago')} inputClassName="ctr-input" />
+          <Input label={t('contracts.condiciones_de_pago')} id={`${idCampo}-pago`} value={form.payment_terms} onChange={set('payment_terms')} aria-label={t('contracts.condiciones_de_pago')} placeholder={t('contractspage.ph_condiciones_pago')} />
           {msg('payment_terms')}
         </div>
         <div className="u-col-full">
-          <label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} className="ctr-label">{t('contractspage.notas')}</label>
-          <Textarea id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} value={form.notes} onChange={set('notes')} rows={2} inputClassName="ctr-input" />
+          <Textarea label={t('contractspage.notas')} id={`${idCampo}-7`} value={form.notes} onChange={set('notes')} rows={2} />
           {msg('notes')}
         </div>
         <div className="ctr-form-actions">

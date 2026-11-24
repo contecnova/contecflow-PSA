@@ -294,31 +294,30 @@ function UserFormModal({ open, onClose, user, onSave, isPending, roles = [], dep
     <Modal open={open} onClose={onClose} title={isEdit ? t('settings_sections.editar_usuario', { nombre: user.full_name }) : t('settings_sections.nuevo_usuario_titulo')} width={580}>
       <form onSubmit={handleSubmit}>
         <div className="u-grid2-14">
-        <div className="u-col-full"><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="set-label">{t('settings_sections.nombre_completo')} *</label><Input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.full_name} onChange={set('full_name')} aria-invalid={!!validation.errors.full_name} inputClassName="set-input" />{errField('full_name')}</div>
-        <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="set-label">{t('settings_sections.usuario')} *</label><Input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.username} onChange={set('username')} aria-invalid={!!validation.errors.username} inputClassName="set-input" />{errField('username')}</div>
-        <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="set-label">{t('settings_sections.email')} *</label><Input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="email" value={form.email} onChange={set('email')} aria-invalid={!!validation.errors.email} inputClassName="set-input" />{errField('email')}</div>
-        <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="set-label">{t('settings_sections.rol')}</label><Select suelto placeholder={false} id={`${idCampo}-4`} value={form.role} onChange={set('role')} className="set-input" error={!!validation.errors.role}>
+        <div className="u-col-full"><Input label={<>{t('settings_sections.nombre_completo')}*</>} id={`${idCampo}-1`} value={form.full_name} onChange={set('full_name')} aria-invalid={!!validation.errors.full_name} />{errField('full_name')}</div>
+        <div><Input label={<>{t('settings_sections.usuario')}*</>} id={`${idCampo}-2`} value={form.username} onChange={set('username')} aria-invalid={!!validation.errors.username} />{errField('username')}</div>
+        <div><Input label={<>{t('settings_sections.email')}*</>} id={`${idCampo}-3`} type="email" value={form.email} onChange={set('email')} aria-invalid={!!validation.errors.email} />{errField('email')}</div>
+        <div><Select label={t('settings_sections.rol')} placeholder={false} id={`${idCampo}-4`} value={form.role} onChange={set('role')} error={!!validation.errors.role}>
           {/* Un externo se da de alta desde su proveedor (Recursos o Subcontratistas): aquí solo se muestra si ya lo es. */}
           {rolesReales.filter(r => r.interno || form.role === r.id).map(r => <option key={r.id} value={r.id}>{r.etiqueta}</option>)}
         </Select>{errField('role')}</div>
-        <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="set-label">{t('settings_sections.rol_personalizado')}</label><Select suelto placeholder={t('settings_sections.ninguno_rol_base')} id={`${idCampo}-5`} value={form.custom_role_id} onChange={set('custom_role_id')} className="set-input">
+        <div><Select label={t('settings_sections.rol_personalizado')} placeholder={t('settings_sections.ninguno_rol_base')} id={`${idCampo}-5`} value={form.custom_role_id} onChange={set('custom_role_id')}>
           {roles.filter(r => !r.is_system).map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
         </Select>{errField('custom_role_id')}</div>
-        <div><label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} className="set-label">{t('settings_sections.departamento')}</label><Select suelto placeholder={t('settings.sin_departamento')} id={`${idCampo}-6`} value={form.department} onChange={set('department')} className="set-input">
+        <div><Select label={t('settings_sections.departamento')} placeholder={t('settings.sin_departamento')} id={`${idCampo}-6`} value={form.department} onChange={set('department')}>
           {departments.filter(d => d.is_active !== false).map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
         </Select>{errField('department')}</div>
-        <div><label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} className="set-label">{t('settings_sections.cargo')}</label><Input id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} value={form.job_title} onChange={set('job_title')} inputClassName="set-input" />{errField('job_title')}</div>
-        <div><label htmlFor={`${idCampo}-grado`} className="set-label">{t('settings_sections.grado')}</label><Input id={`${idCampo}-grado`} aria-label={t('settings_sections.grado')} value={form.grade} onChange={set('grade')} maxLength={60} aria-describedby={`${idCampo}-grado-ayuda`} inputClassName="set-input" />{errField('grade')}<span id={`${idCampo}-grado-ayuda`} className="u-text3-xs">{t('settings_sections.grado_ayuda')}</span></div>
-        <div><label id={`${idCampo}-et8`} htmlFor={`${idCampo}-8`} className="set-label">{t('settings_sections.horas_semanales')}</label><Input id={`${idCampo}-8`} aria-labelledby={`${idCampo}-et8`} type="number" value={form.weekly_capacity_hours} onChange={set('weekly_capacity_hours')} aria-invalid={!!validation.errors.weekly_capacity_hours} inputClassName="set-input" />{errField('weekly_capacity_hours')}</div>
-        <div><label id={`${idCampo}-et9`} htmlFor={`${idCampo}-9`} className="set-label">{t('settings_sections.tarifa_hora', { simbolo: fmtMoneda.simbolo })}</label><Input id={`${idCampo}-9`} aria-labelledby={`${idCampo}-et9`} type="number" value={form.hourly_rate} onChange={set('hourly_rate')} aria-invalid={!!validation.errors.hourly_rate} inputClassName="set-input" />{errField('hourly_rate')}</div>
+        <div><Input label={t('settings_sections.cargo')} id={`${idCampo}-7`} value={form.job_title} onChange={set('job_title')} />{errField('job_title')}</div>
+        <div><Input label={t('settings_sections.grado')} id={`${idCampo}-grado`} aria-label={t('settings_sections.grado')} value={form.grade} onChange={set('grade')} maxLength={60} aria-describedby={`${idCampo}-grado-ayuda`} />{errField('grade')}<span id={`${idCampo}-grado-ayuda`} className="u-text3-xs">{t('settings_sections.grado_ayuda')}</span></div>
+        <div><Input label={t('settings_sections.horas_semanales')} id={`${idCampo}-8`} type="number" value={form.weekly_capacity_hours} onChange={set('weekly_capacity_hours')} aria-invalid={!!validation.errors.weekly_capacity_hours} />{errField('weekly_capacity_hours')}</div>
+        <div><Input label={t('settings_sections.tarifa_hora', { simbolo: fmtMoneda.simbolo })} id={`${idCampo}-9`} type="number" value={form.hourly_rate} onChange={set('hourly_rate')} aria-invalid={!!validation.errors.hourly_rate} />{errField('hourly_rate')}</div>
         {esSuperadmin && <>
         <GrupoDeOpciones tipo="checkbox" forma="lista" className="u-col-full set-input--multi"
           leyenda={t('settings.organizaciones_seleccion_multiple')}
           valor={form.organization_ids} onChange={setOrganizations}
           opciones={organizations.filter(o => o.is_active !== false).map(o => ({ valor: String(o.id), titulo: `${o.name} (${o.slug})` }))} />
         <div className="u-col-full">
-          <label id={`${idCampo}-et11`} htmlFor={`${idCampo}-11`} className="set-label">{t('settings.organizacion_principal')}</label>
-          <Select suelto placeholder={t('settings.sin_organizacion_principal')} id={`${idCampo}-11`} value={form.organization_id} onChange={set('organization_id')} className="set-input">
+          <Select label={t('settings.organizacion_principal')} placeholder={t('settings.sin_organizacion_principal')} id={`${idCampo}-11`} value={form.organization_id} onChange={set('organization_id')}>
             {form.organization_ids.map(orgId => {
               const org = organizations.find(o => o.id === orgId)
               return <option key={orgId} value={orgId}>{org?.name || orgId}</option>
@@ -327,12 +326,11 @@ function UserFormModal({ open, onClose, user, onSave, isPending, roles = [], dep
         </div>
         </>}
         <div className="u-col-full">
-          <label id={`${idCampo}-et12`} htmlFor={`${idCampo}-12`} className="set-label">{t('settings.timezone')}</label>
-          <Select suelto placeholder={t('settings.usa_la_zona_de_la_organizacion')} id={`${idCampo}-12`} value={form.timezone} onChange={set('timezone')} className="set-input">
+          <Select label={t('settings.timezone')} placeholder={t('settings.usa_la_zona_de_la_organizacion')} id={`${idCampo}-12`} value={form.timezone} onChange={set('timezone')}>
             {timezoneOptions(form.timezone).map(tz => <option key={tz} value={tz}>{tz}</option>)}
           </Select>{errField('timezone')}
         </div>
-        {!isEdit && <div className="u-col-full"><label id={`${idCampo}-et13`} htmlFor={`${idCampo}-13`} className="set-label">{t('settings.contrasena')}</label><Input id={`${idCampo}-13`} aria-labelledby={`${idCampo}-et13`} type="password" value={form.password} onChange={set('password')} aria-invalid={!!validation.errors.password} inputClassName="set-input" />{errField('password')}</div>}
+        {!isEdit && <div className="u-col-full"><Input label={t('settings.contrasena')} id={`${idCampo}-13`} type="password" value={form.password} onChange={set('password')} aria-invalid={!!validation.errors.password} />{errField('password')}</div>}
         <div className="set-form-actions">
           <Button variant="secondary" type="button" onClick={onClose}>{t('common.cancel')}</Button>
           <Button type="submit" disabled={isPending}>
@@ -401,10 +399,10 @@ function RoleFormModal({ role, modules, onClose, onSave }: { role: CustomRole | 
     <Modal open title={role ? t('settings_sections.editar_rol', { nombre: role.name }) : t('settings_sections.nuevo_rol')} onClose={onClose} width={560}>
       <div className="u-stack-14">
         <div className="set-grid-2-1">
-          <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="set-label">{t('common.name')} *</label><Input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} disabled={role?.is_system} inputClassName="set-input" /></div>
-          <div><label id={`${idCampo}-etc613`} htmlFor={`${idCampo}-c613`} className="set-label">{t('settings_sections.color')}</label><div className="u-row-8"><input id={`${idCampo}-c613`} aria-labelledby={`${idCampo}-etc613`} type="color" value={/^#[0-9a-fA-F]{6}$/.test(form.color) ? form.color : COLOR_DATO_POR_DEFECTO} onChange={e => setForm(f => ({ ...f, color: e.target.value }))} className="set-color-input" /><Input aria-labelledby={`${idCampo}-etc613`} value={form.color} onChange={e => setForm(f => ({ ...f, color: e.target.value }))} className="set-input--flex" /></div></div>
+          <Input label={<>{t('common.name')}*</>} id={`${idCampo}-1`} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} disabled={role?.is_system} />
+          <div><label id={`${idCampo}-etc613`} htmlFor={`${idCampo}-c613`} className="uiinde-estiloetiqueta">{t('settings_sections.color')}</label><div className="u-row-8"><input id={`${idCampo}-c613`} aria-labelledby={`${idCampo}-etc613`} type="color" value={/^#[0-9a-fA-F]{6}$/.test(form.color) ? form.color : COLOR_DATO_POR_DEFECTO} onChange={e => setForm(f => ({ ...f, color: e.target.value }))} className="set-color-input" /><Input aria-labelledby={`${idCampo}-etc613`} value={form.color} onChange={e => setForm(f => ({ ...f, color: e.target.value }))} className="set-input--flex" /></div></div>
         </div>
-        <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="set-label">{t('settings.descripcion')}</label><Input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} inputClassName="set-input" /></div>
+        <Input label={t('settings.descripcion')} id={`${idCampo}-2`} value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
         <div role="group" aria-labelledby={`${idCampo}-mods`}>
           <div className="set-row-label">
             <span id={`${idCampo}-mods`} className="set-label">{t('settings.modulos_accesibles')}</span>

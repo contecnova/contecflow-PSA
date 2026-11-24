@@ -39,8 +39,6 @@ const STATUS_CFG: Record<TrainingStatus, { kind: StatusBadgeKind; label: string 
   cancelled: { kind: 'danger', label: 'training.status_cancelled' },
 }
 
-const IS = 'ds-input trn-input'
-const LS = 'trn-label'
 
 function CourseModal({ course, onClose }: { course?: CourseItem | null; onClose: () => void }) {
   const fmtMoneda = useFormatoMoneda()
@@ -69,20 +67,20 @@ function CourseModal({ course, onClose }: { course?: CourseItem | null; onClose:
   return (
     <Modal open onClose={onClose} title={isEdit ? t('training.editar_curso') : t('training.new_course')} width={520}>
       <div className="u-stack-12">
-        <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className={LS}>{t('training.titulo')}</label>
-          <Input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.title} onChange={e => { camposB.limpiar('title'); setForm(f => ({ ...f, title: e.target.value })) }} autoFocus inputClassName="trn-input" />{msgB('title')}</div>
-        <div><label id={`${idCampo}-eta104`} htmlFor={`${idCampo}-a104`} className={LS}>{t('training.provider')}</label>
-          <Input id={`${idCampo}-a104`} aria-labelledby={`${idCampo}-eta104`} value={form.provider} onChange={e => { camposB.limpiar('provider'); setForm(f => ({ ...f, provider: e.target.value })) }} placeholder={t('training.nombre_del_proveedor')} inputClassName="trn-input" />{msgB('provider')}</div>
+        <div>
+          <Input label={t('training.titulo')} id={`${idCampo}-1`} value={form.title} onChange={e => { camposB.limpiar('title'); setForm(f => ({ ...f, title: e.target.value })) }} autoFocus />{msgB('title')}</div>
+        <div>
+          <Input label={t('training.provider')} id={`${idCampo}-a104`} value={form.provider} onChange={e => { camposB.limpiar('provider'); setForm(f => ({ ...f, provider: e.target.value })) }} placeholder={t('training.nombre_del_proveedor')} />{msgB('provider')}</div>
         <div className="trn-grid3">
-          <div><label id={`${idCampo}-etcat`} htmlFor={`${idCampo}-cat`} className={LS}>{t('training.category')}</label>
-            <Input id={`${idCampo}-cat`} aria-labelledby={`${idCampo}-etcat`} value={form.category} onChange={e => { camposB.limpiar('category'); setForm(f => ({ ...f, category: e.target.value })) }} placeholder={t('training.category')} inputClassName="trn-input" />{msgB('category')}</div>
-          <div><label id={`${idCampo}-eta109`} htmlFor={`${idCampo}-a109`} className={LS}>{t('training.horas')}</label>
-            <Input id={`${idCampo}-a109`} aria-labelledby={`${idCampo}-eta109`} type="number" value={form.duration_h} onChange={e => { camposB.limpiar('duration_h'); setForm(f => ({ ...f, duration_h: e.target.value })) }} placeholder={t('training.horas_del_curso')} inputClassName="trn-input" />{msgB('duration_h')}</div>
-          <div><label htmlFor={`${idCampo}-cost`} className={LS}>{t('training.coste_moneda', { simbolo: fmtMoneda.simbolo })}</label>
-            <Input id={`${idCampo}-cost`} type="number" value={form.cost} onChange={e => { camposB.limpiar('cost'); setForm(f => ({ ...f, cost: e.target.value })) }} placeholder={t('training.coste_del_curso')} aria-label={t('training.coste_del_curso')} inputClassName="trn-input" />{msgB('cost')}</div>
+          <div>
+            <Input label={t('training.category')} id={`${idCampo}-cat`} value={form.category} onChange={e => { camposB.limpiar('category'); setForm(f => ({ ...f, category: e.target.value })) }} placeholder={t('training.category')} />{msgB('category')}</div>
+          <div>
+            <Input label={t('training.horas')} id={`${idCampo}-a109`} type="number" value={form.duration_h} onChange={e => { camposB.limpiar('duration_h'); setForm(f => ({ ...f, duration_h: e.target.value })) }} placeholder={t('training.horas_del_curso')} />{msgB('duration_h')}</div>
+          <div>
+            <Input label={t('training.coste_moneda', { simbolo: fmtMoneda.simbolo })} id={`${idCampo}-cost`} type="number" value={form.cost} onChange={e => { camposB.limpiar('cost'); setForm(f => ({ ...f, cost: e.target.value })) }} placeholder={t('training.coste_del_curso')} aria-label={t('training.coste_del_curso')} />{msgB('cost')}</div>
         </div>
-        <div><label id={`${idCampo}-eta114`} htmlFor={`${idCampo}-a114`} className={LS}>{t('training.url')}</label>
-          <Input id={`${idCampo}-a114`} aria-labelledby={`${idCampo}-eta114`} value={form.url} onChange={e => { camposB.limpiar('url'); setForm(f => ({ ...f, url: e.target.value })) }} placeholder={t('training.url_del_curso')} inputClassName="trn-input" />{msgB('url')}</div>
+        <div>
+          <Input label={t('training.url')} id={`${idCampo}-a114`} value={form.url} onChange={e => { camposB.limpiar('url'); setForm(f => ({ ...f, url: e.target.value })) }} placeholder={t('training.url_del_curso')} />{msgB('url')}</div>
         <div className="u-actions-10">
           <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
           <Button onClick={() => mutate(form)} disabled={isPending || !form.title} loading={isPending}>{isEdit ? t('common.save') : t('training.crear_curso')}</Button>
@@ -124,25 +122,25 @@ function CertModal({ cert, userId, onClose }: { cert?: CertItem | null; userId?:
   return (
     <Modal open onClose={onClose} title={isEdit ? t('training.editar_certificacion') : t('training.new_cert')} width={500}>
       <div className="u-stack-12">
-        {!userId && <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className={LS}>{t('training.usuario_req')}</label>
-          <Select suelto placeholder={false} id={`${idCampo}-1`} value={form.user_id} onChange={e => { campos.limpiar('user_id'); setForm(f => ({ ...f, user_id: e.target.value })) }} className={IS}>
+        {!userId && <div>
+          <Select label={t('training.usuario_req')} placeholder={false} id={`${idCampo}-1`} value={form.user_id} onChange={e => { campos.limpiar('user_id'); setForm(f => ({ ...f, user_id: e.target.value })) }}>
             <option value="">{t('training.seleccionar')}</option>
             {users.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
           </Select>{msg('user_id')}</div>}
-        <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className={LS}>{t('training.nombre_certificacion')}</label>
-          <Input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.name} onChange={e => { campos.limpiar('name'); setForm(f => ({ ...f, name: e.target.value })) }} autoFocus inputClassName="trn-input" />{msg('name')}</div>
+        <div>
+          <Input label={t('training.nombre_certificacion')} id={`${idCampo}-2`} value={form.name} onChange={e => { campos.limpiar('name'); setForm(f => ({ ...f, name: e.target.value })) }} autoFocus />{msg('name')}</div>
         <div className="u-grid2-10">
-          <div><label id={`${idCampo}-eta162`} htmlFor={`${idCampo}-a162`} className={LS}>{t('training.issuer')}</label>
-            <Input id={`${idCampo}-a162`} aria-labelledby={`${idCampo}-eta162`} value={form.issuer} onChange={e => { campos.limpiar('issuer'); setForm(f => ({ ...f, issuer: e.target.value })) }} placeholder={t('training.entidad_emisora')} inputClassName="trn-input" />{msg('issuer')}</div>
-          <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className={LS}>{t('training.cert_id')}</label>
-            <Input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.cert_id} onChange={e => { campos.limpiar('cert_id'); setForm(f => ({ ...f, cert_id: e.target.value })) }} inputClassName="trn-input" />{msg('cert_id')}</div>
-          <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className={LS}>{t('training.obtenida')}</label>
-            <DateInput id={`${idCampo}-4`} value={form.obtained_at} onChange={e => { campos.limpiar('obtained_at'); setForm(f => ({ ...f, obtained_at: e.target.value })) }} className={IS} />{msg('obtained_at')}</div>
-          <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className={LS}>{t('training.expires_at')}</label>
-            <DateInput id={`${idCampo}-5`} value={form.expires_at} onChange={e => { campos.limpiar('expires_at'); setForm(f => ({ ...f, expires_at: e.target.value })) }} className={IS} />{msg('expires_at')}</div>
+          <div>
+            <Input label={t('training.issuer')} id={`${idCampo}-a162`} value={form.issuer} onChange={e => { campos.limpiar('issuer'); setForm(f => ({ ...f, issuer: e.target.value })) }} placeholder={t('training.entidad_emisora')} />{msg('issuer')}</div>
+          <div>
+            <Input label={t('training.cert_id')} id={`${idCampo}-3`} value={form.cert_id} onChange={e => { campos.limpiar('cert_id'); setForm(f => ({ ...f, cert_id: e.target.value })) }} />{msg('cert_id')}</div>
+          <div>
+            <DateInput label={t('training.obtenida')} id={`${idCampo}-4`} value={form.obtained_at} onChange={e => { campos.limpiar('obtained_at'); setForm(f => ({ ...f, obtained_at: e.target.value })) }} />{msg('obtained_at')}</div>
+          <div>
+            <DateInput label={t('training.expires_at')} id={`${idCampo}-5`} value={form.expires_at} onChange={e => { campos.limpiar('expires_at'); setForm(f => ({ ...f, expires_at: e.target.value })) }} />{msg('expires_at')}</div>
         </div>
-        <div><label htmlFor={`${idCampo}-vurl`} className={LS}>{t('training.url_verificacion')}</label>
-          <Input id={`${idCampo}-vurl`} aria-label={t('training.url_verificacion')} value={form.url} onChange={e => { campos.limpiar('url'); setForm(f => ({ ...f, url: e.target.value })) }} placeholder={t('training.url_de_verificacion')} inputClassName="trn-input" />{msg('url')}</div>
+        <div>
+          <Input label={t('training.url_verificacion')} id={`${idCampo}-vurl`} aria-label={t('training.url_verificacion')} value={form.url} onChange={e => { campos.limpiar('url'); setForm(f => ({ ...f, url: e.target.value })) }} placeholder={t('training.url_de_verificacion')} />{msg('url')}</div>
         <div className="u-actions-10">
           <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
           <Button onClick={() => mutate(form)} disabled={isPending || !form.name || !form.user_id} loading={isPending}>{isEdit ? t('common.save') : t('training.anadir')}</Button>

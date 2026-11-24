@@ -5,7 +5,7 @@ import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { projectsApi, tasksApi } from '../services/api'
 import type { ProjectStatus } from '../services/api'
-import { Buscador, Badge, Button, EmptyState, useSort, SortableTH, Pulsable, Select } from '../components/ui'
+import { Buscador, Badge, Button, EmptyState, useSort, SortableTH, Pulsable, Select, SelectorDeContexto } from '../components/ui'
 import { SkeletonProjects } from '../components/ui/Skeletons'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -212,10 +212,10 @@ export default function ProjectsPage() {
               </Pulsable>
             ))}
             {ganttMode === 'project' && (
-              <Select suelto placeholder={false} className="prj-input-6" value={selected?.id || ''} onChange={e => { const p = filtered.find(x => x.id === e.target.value); setSelected(p || null) }}>
+              <SelectorDeContexto><Select label={traducir('uikit.etiqueta_proyecto')} placeholder={false} value={selected?.id || ''} onChange={e => { const p = filtered.find(x => x.id === e.target.value); setSelected(p || null) }}>
                 <option value="">{traducir('projects.selecciona_un_proyecto')}</option>
                 {filtered.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
-              </Select>
+              </Select></SelectorDeContexto>
             )}
           </div>
           {ganttMode === 'portfolio' && (

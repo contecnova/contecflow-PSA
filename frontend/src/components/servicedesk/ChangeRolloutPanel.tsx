@@ -232,8 +232,7 @@ export default function ChangeRolloutPanel() {
       </div>
 
       <div className="chropa-filtro">
-        <label className="chropa-fieldlabel" htmlFor="chropa-filtro">{t('changerollout.filtrar_por_change_request')}</label>
-        <Input id="chropa-filtro" type="text" placeholder={t('changerollout.id_cambio')} value={changeRequestFilter} onChange={e => setChangeRequestFilter(e.target.value)} />
+        <Input label={t('changerollout.filtrar_por_change_request')} id="chropa-filtro" type="text" placeholder={t('changerollout.id_cambio')} value={changeRequestFilter} onChange={e => setChangeRequestFilter(e.target.value)} />
       </div>
 
       {showCreate && (

@@ -40,7 +40,7 @@ class Politica(Base):
     )
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     familia_id = Column(String(36), nullable=False, index=True)      # igual en todas las versiones
     version = Column(Integer, nullable=False, default=1)
     estado = Column(String(12), nullable=False, default="borrador")   # borrador | publicada | retirada
@@ -67,7 +67,7 @@ class ReglaDePolitica(Base):
     __tablename__ = "politica_reglas"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     politica_id = Column(String(36), ForeignKey("politicas.id", ondelete="CASCADE"), nullable=False, index=True)
     orden = Column(Integer, nullable=False, default=1)
     nombre = Column(String(200), nullable=False)
@@ -84,7 +84,7 @@ class TablaDeReferencia(Base):
     __tablename__ = "tablas_de_referencia"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     nombre = Column(String(200), nullable=False)
     descripcion = Column(Text, nullable=True)
     dominio = Column(String(40), nullable=True)                 # vacío: la usa cualquier dominio
@@ -105,7 +105,7 @@ class FilaDeTablaDeReferencia(Base):
     __tablename__ = "tabla_de_referencia_filas"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     tabla_id = Column(String(36), ForeignKey("tablas_de_referencia.id", ondelete="CASCADE"), nullable=False, index=True)
     pais = Column(String(2), nullable=True)          # ISO 3166-1 alfa-2; vacío = cualquier país (fila por defecto)
     ciudad = Column(String(120), nullable=True)      # vacío = cualquier ciudad del país
@@ -125,7 +125,7 @@ class EvaluacionDePolitica(Base):
     )
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     dominio = Column(String(40), nullable=False)
     entidad_id = Column(String(64), nullable=False)
     momento = Column(String(30), nullable=False, default="envio")     # lo pone el dominio: envio, reenvio…

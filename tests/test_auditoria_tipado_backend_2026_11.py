@@ -264,8 +264,16 @@ def test_bpmn_clave_unica_contra_el_catalogo_global(db):
     from app.services import bpmn_process_service as svc
     from app.db.session import sin_filtro_de_tenant
     from tests.conftest import fila_global
+    from app.models.bpmn_process import BPMNProcess
+    # 24-11-2026 (migración 208, empresa obligatoria): `bpmn_processes` admite la fila
+    # global (plantilla común, exceptuada), pero `bpmn_process_versions` ya exige empresa,
+    # así que `create_process(organization_id=None)` (que crea la versión 1) se corta con
+    # `fila_sin_empresa`. La fila global de catálogo se pone directamente, sin versión: lo
+    # que se comprueba aquí es la clave única frente a ella.
     with fila_global(db):
-        svc.create_process(db, name="Global", category="x", key="incidencias", organization_id=None)
+        db.add(BPMNProcess(name="Global", category="x", key="incidencias", organization_id=None,
+                           latest_version=0))
+        db.commit()
     assert svc.clave_unica(db, "incidencias", "1") == "incidencias_2"
     svc.create_process(db, name="Propia", category="x", key="incidencias", organization_id="1")
     with sin_filtro_de_tenant(db):

@@ -29,7 +29,7 @@ class DemandRequestType(Base):
     __tablename__ = "demand_request_types"
 
     id = Column(String(36), primary_key=True, default=_uuid)
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     key = Column(String(60), nullable=False)
     name = Column(String(200), nullable=False)
     name_i18n = Column(Text, nullable=True)           # JSON {es, en, zh, …}
@@ -49,7 +49,7 @@ class DemandFlow(Base):
     __tablename__ = "demand_flows"
 
     id = Column(String(36), primary_key=True, default=_uuid)
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     key = Column(String(60), nullable=True)
     name = Column(String(200), nullable=False)
     description = Column(Text, nullable=True)
@@ -66,7 +66,7 @@ class DemandRequest(Base):
     __tablename__ = "demand_requests"
 
     id = Column(String(36), primary_key=True, default=_uuid)
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     code = Column(String(30), nullable=False, index=True)
     type_id = Column(String(36), ForeignKey("demand_request_types.id", ondelete="SET NULL"), nullable=True, index=True)
     type_key = Column(String(60), nullable=False)
@@ -112,7 +112,7 @@ class DemandStepState(Base):
     __tablename__ = "demand_step_states"
 
     id = Column(String(36), primary_key=True, default=_uuid)
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     request_id = Column(String(36), ForeignKey("demand_requests.id", ondelete="CASCADE"), nullable=False, index=True)
     phase_key = Column(String(60), nullable=False)
     round = Column(Integer, nullable=False, default=1)
@@ -131,7 +131,7 @@ class DemandTransition(Base):
     __tablename__ = "demand_transitions"
 
     id = Column(String(36), primary_key=True, default=_uuid)
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     request_id = Column(String(36), ForeignKey("demand_requests.id", ondelete="CASCADE"), nullable=False, index=True)
     seq = Column(Integer, nullable=False, default=1)
     from_phase = Column(String(60), nullable=True)
@@ -156,7 +156,7 @@ class DemandFieldVersion(Base):
     __tablename__ = "demand_field_versions"
 
     id = Column(String(36), primary_key=True, default=_uuid)
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     request_id = Column(String(36), ForeignKey("demand_requests.id", ondelete="CASCADE"), nullable=False, index=True)
     field = Column(String(60), nullable=False)
     value = Column(Text, nullable=True)               # JSON del valor
@@ -173,7 +173,7 @@ class DemandDocument(Base):
     __tablename__ = "demand_documents"
 
     id = Column(String(36), primary_key=True, default=_uuid)
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     request_id = Column(String(36), ForeignKey("demand_requests.id", ondelete="CASCADE"), nullable=False, index=True)
     document_id = Column(String(36), ForeignKey("documents.id", ondelete="SET NULL"), nullable=True)
     file_key = Column(String(500), nullable=True)
@@ -195,7 +195,7 @@ class DemandComment(Base):
     __tablename__ = "demand_comments"
 
     id = Column(String(36), primary_key=True, default=_uuid)
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     request_id = Column(String(36), ForeignKey("demand_requests.id", ondelete="CASCADE"), nullable=False, index=True)
     phase_key = Column(String(60), nullable=True)
     body = Column(Text, nullable=False)

@@ -13,7 +13,7 @@ class DashboardComment(Base):
     __tablename__ = "dashboard_comments"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     dashboard_key = Column(String(120), nullable=False, index=True)
     widget_id = Column(String(120), nullable=False, index=True)
     message = Column(Text, nullable=False)
@@ -31,7 +31,7 @@ class DashboardVersion(Base):
     __tablename__ = "dashboard_versions"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     dashboard_key = Column(String(120), nullable=False, index=True)
     version = Column(Integer, nullable=False)
     config = Column(Text, nullable=False)
@@ -51,7 +51,7 @@ class DashboardShare(Base):
     __tablename__ = "dashboard_shares"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     dashboard_key = Column(String(120), nullable=False, index=True)
     user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     user_name = Column(String(255), nullable=True)
@@ -73,7 +73,7 @@ class DashboardNotification(Base):
     __tablename__ = "dashboard_notifications"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     dashboard_key = Column(String(120), nullable=False, index=True)
     event_type = Column(String(50), nullable=False, index=True)
     recipient_user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True)

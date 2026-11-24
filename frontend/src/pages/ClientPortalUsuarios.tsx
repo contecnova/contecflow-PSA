@@ -151,18 +151,16 @@ function CreateClientModal({ projectId, onClose }: { projectId: string; onClose:
     <Modal open title={t('client_portal.create_contact_title')} onClose={onClose} width={560}>
       <div className="u-grid2-14">
         <div className="u-col-full">
-          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="cpp-label">{t('client_portal.label_full_name')} *</label>
-          <Input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.full_name} onChange={set('full_name')} inputClassName="cpp-input cpp-input--roomy" {...err('full_name')} />{msgC('full_name')}
+          <Input label={<>{t('client_portal.label_full_name')}*</>} id={`${idCampo}-1`} value={form.full_name} onChange={set('full_name')} {...err('full_name')} />{msgC('full_name')}
           {msg('full_name')}
         </div>
         <div>
-          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="cpp-label">{t('client_portal.label_email')} *</label>
-          <Input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="email" value={form.email} onChange={set('email')} inputClassName="cpp-input cpp-input--roomy" {...err('email')} />{msgC('email')}
+          <Input label={<>{t('client_portal.label_email')}*</>} id={`${idCampo}-2`} type="email" value={form.email} onChange={set('email')} {...err('email')} />{msgC('email')}
           {msg('email')}
         </div>
-        <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="cpp-label">{t('client_portal.label_job_title')}</label><Input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.job_title} onChange={set('job_title')} placeholder={t('client_portal.label_job_title')} inputClassName="cpp-input cpp-input--roomy" />{msgC('job_title')}</div>
-        <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="cpp-label">{t('client_portal.label_company')}</label><Input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.company} onChange={set('company')} inputClassName="cpp-input cpp-input--roomy" />{msgC('company')}</div>
-        <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="cpp-label">{t('client_portal.label_phone')}</label><Input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={form.phone} onChange={set('phone')} inputClassName="cpp-input cpp-input--roomy" />{msgC('phone')}</div>
+        <div><Input label={t('client_portal.label_job_title')} id={`${idCampo}-3`} value={form.job_title} onChange={set('job_title')} placeholder={t('client_portal.label_job_title')} />{msgC('job_title')}</div>
+        <div><Input label={t('client_portal.label_company')} id={`${idCampo}-4`} value={form.company} onChange={set('company')} />{msgC('company')}</div>
+        <div><Input label={t('client_portal.label_phone')} id={`${idCampo}-5`} value={form.phone} onChange={set('phone')} />{msgC('phone')}</div>
         {inicial.modo === 'generar' && <div className="u-col-full u-hint">{t('portaluserstab.acceso_se_envia_por_correo')} /portal</div>}
         <SeccionContrasenaInicial valor={inicial} onChange={c => { camposC.limpiar('password'); setInicial(c) }} email={form.email} error={camposC.de('password')} />
         {allProjects.length > 1 && (
@@ -246,18 +244,16 @@ function EditClientModal({ client, onClose, onSaved }: { client: ClientePortal; 
     <Modal open title={`${t('client_portal.edit')} — ${client.full_name}`} onClose={onClose} width={560}>
       <div className="u-grid2-14">
         <div className="u-col-full">
-          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="cpp-label">{t('client_portal.label_full_name')} *</label>
-          <Input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.full_name} onChange={set('full_name')} inputClassName="cpp-input" {...err('full_name')} />{msgB('full_name')}
+          <Input label={<>{t('client_portal.label_full_name')}*</>} id={`${idCampo}-1`} value={form.full_name} onChange={set('full_name')} {...err('full_name')} />{msgB('full_name')}
           {msg('full_name')}
         </div>
         <div>
-          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="cpp-label">{t('client_portal.label_email')} *</label>
-          <Input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="email" value={form.email} onChange={set('email')} inputClassName="cpp-input" {...err('email')} />{msgB('email')}
+          <Input label={<>{t('client_portal.label_email')}*</>} id={`${idCampo}-2`} type="email" value={form.email} onChange={set('email')} {...err('email')} />{msgB('email')}
           {msg('email')}
         </div>
-        <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="cpp-label">{t('client_portal.label_job_title')}</label><Input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.job_title} onChange={set('job_title')} placeholder={t('client_portal.label_job_title')} inputClassName="cpp-input" />{msgB('job_title')}</div>
-        <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="cpp-label">{t('client_portal.label_company')}</label><Input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.company} onChange={set('company')} inputClassName="cpp-input" />{msgB('company')}</div>
-        <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="cpp-label">{t('client_portal.label_phone')}</label><Input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={form.phone} onChange={set('phone')} inputClassName="cpp-input" />{msgB('phone')}</div>
+        <div><Input label={t('client_portal.label_job_title')} id={`${idCampo}-3`} value={form.job_title} onChange={set('job_title')} placeholder={t('client_portal.label_job_title')} />{msgB('job_title')}</div>
+        <div><Input label={t('client_portal.label_company')} id={`${idCampo}-4`} value={form.company} onChange={set('company')} />{msgB('company')}</div>
+        <div><Input label={t('client_portal.label_phone')} id={`${idCampo}-5`} value={form.phone} onChange={set('phone')} />{msgB('phone')}</div>
         <fieldset className="u-col-full cpp-fieldset ds-grupo-opciones">
           <legend className="cpp-label cpp-label--group">{t('client_portal.additional_projects_access')}</legend>
           <div className="cpp-projects-box">

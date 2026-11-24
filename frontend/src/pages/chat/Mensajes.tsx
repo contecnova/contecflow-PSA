@@ -31,7 +31,7 @@ import { collabApi } from '../../services/collaborationApi'
 import { useAppLang } from '../../i18n/AppLangContext'
 import { fmtDateTime, fmtNumber } from '../../utils/helpers'
 import { sanitizeUrl } from '../../utils/security'
-import { Button, Pulsable, Input, IconButton } from '../../components/ui'
+import { Button, Pulsable, Input, IconButton, TextoConEnlaces } from '../../components/ui'
 import TextoTraducido from '../../components/traduccion/TextoTraducido'
 import { useTraducirBajoDemanda } from '../../components/traduccion/useTraducirBajoDemanda'
 import { POLL_FREQUENT_MS, STALE_1_HOUR_MS } from '../../constants/timings'
@@ -92,12 +92,18 @@ export function MessageBubble({ msg, compact, isMine, onReact, onEdit, onDelete,
             {msg.edited_at && <span className="u-text3-xs">{traducir('chat.edited')}</span>}
           </div>
         )}
+        {msg.reply_to && (
+          // 24-11-2026 (chat del portal): la cita del mensaje al que responde.
+          <blockquote className="chat-msg__cita">
+            <span className="u-sm-700">{msg.reply_to.author_name || traducir('chat.user')}</span>{' '}
+            <span className="u-text2-sm">{msg.reply_to.is_deleted ? traducir('chat.mensaje_eliminado') : msg.reply_to.body}</span>
+          </blockquote>
+        )}
         {trad.traduccion || trad.cargando ? (
           <TextoTraducido original={msg.body || ''} traduccion={trad.traduccion} cargando={trad.cargando} className="chat-msg__body" />
         ) : (
-          <div className="chat-msg__body">
-            {msg.body}
-          </div>
+          // 24-11-2026: enlaces seguros (http/https/www, saneados, `noopener`).
+          <TextoConEnlaces texto={msg.body || ''} className="chat-msg__body" />
         )}
         {msg.metadata_json?.card && <BotCard meta={msg.metadata_json} />}
         {(msg.linked_task_id || msg.linked_ticket_id || msg.linked_deliverable_id || msg.linked_risk_id) && (

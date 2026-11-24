@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { customFieldsApi } from '../services/api'
 import { useListaDeProyectos } from '../hooks/useListas'
 import type { CampoPersonalizado } from '../services/api/tipos-rendimiento'
-import { Button, Spinner, EmptyState, Modal, IconButton, Pulsable, Select, TablaSimple, Checkbox, GrupoDeOpciones, useErroresDeCampo, Input, EstadoDeError } from '../components/ui'
+import { Button, Spinner, EmptyState, Modal, IconButton, Pulsable, Select, TablaSimple, Checkbox, GrupoDeOpciones, useErroresDeCampo, Input, EstadoDeError, SelectorDeContexto } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { Calendar, CheckSquare, Hash, Link2, ListChecks, Pencil, Plus, SlidersHorizontal, Trash2, Type, User, X, type LucideIcon } from 'lucide-react'
@@ -85,16 +85,14 @@ function FieldForm({ field, projectId, onClose }: { field: CustomField | null; p
     <Modal open onClose={onClose} title={isEdit ? traducir('customfields.editar_campo') : traducir('customfields.nuevo_campo_personalizado')}>
       <div className="u-stack-14">
         <div>
-          <label id={`${idCampo}-et-nombre`} htmlFor={`${idCampo}-nombre`} className="cfl-label">{traducir('customfields.nombre_del_campo')}</label>
-          <Input id={`${idCampo}-nombre`} aria-labelledby={`${idCampo}-et-nombre`} value={form.name} onChange={e => {
+          <Input label={traducir('customfields.nombre_del_campo')} id={`${idCampo}-nombre`} value={form.name} onChange={e => {
             const n = e.target.value
             setForm(f => ({ ...f, name: n, field_key: isEdit ? f.field_key : autoKey(n) }))
-          }} placeholder={traducir('customfields.nombre_visible_del_campo')} inputClassName="cfl-input" />{msg('name')}
+          }} placeholder={traducir('customfields.nombre_visible_del_campo')} />{msg('name')}
         </div>
 
         <div>
-          <label id={`${idCampo}-et-clave`} htmlFor={`${idCampo}-clave`} className="cfl-label">{traducir('customfields.clave_field_key')}</label>
-          <Input id={`${idCampo}-clave`} aria-labelledby={`${idCampo}-et-clave`} value={form.field_key} onChange={e => set('field_key')(e.target.value.toLowerCase().replace(/\s+/g, '_'))} placeholder={traducir('customfields.clave_placeholder')} disabled={isEdit} aria-describedby={isEdit ? `${idCampo}-clave-ayuda` : undefined} inputClassName="ds-codigo cfl-input cfl-input--mono ds-campo-codigo" />{msg('field_key')}
+          <Input label={traducir('customfields.clave_field_key')} id={`${idCampo}-clave`} value={form.field_key} onChange={e => set('field_key')(e.target.value.toLowerCase().replace(/\s+/g, '_'))} placeholder={traducir('customfields.clave_placeholder')} disabled={isEdit} aria-describedby={isEdit ? `${idCampo}-clave-ayuda` : undefined} inputClassName="ds-codigo ds-campo-codigo" />{msg('field_key')}
           {isEdit && <div id={`${idCampo}-clave-ayuda`} className="cfl-hint">{traducir('customfields.la_clave_no_se_puede_cambiar_una')}</div>}
         </div>
 
@@ -140,8 +138,7 @@ function FieldForm({ field, projectId, onClose }: { field: CustomField | null; p
         </div>
 
         <div>
-          <label id={`${idCampo}-et-orden`} htmlFor={`${idCampo}-orden`} className="cfl-label">{traducir('customfields.orden_de_visualizacion')}</label>
-          <Input id={`${idCampo}-orden`} aria-labelledby={`${idCampo}-et-orden`} type="number" value={form.sort_order} onChange={e => set('sort_order')(+e.target.value)} inputClassName="cfl-input cfl-input--order" />{msg('sort_order')}
+          <Input label={traducir('customfields.orden_de_visualizacion')} id={`${idCampo}-orden`} type="number" value={form.sort_order} onChange={e => set('sort_order')(+e.target.value)} />{msg('sort_order')}
         </div>
 
         <div className="cfl-footer">
@@ -196,14 +193,12 @@ export default function CustomFieldsPage(): JSX.Element {
       <div className="ds-page">
 
       {/* Selector de proyecto */}
-      <div className="cfl-panel">
-        <label id={`${idCampo}-et-proyecto`} htmlFor={`${idCampo}-proyecto`} className="cfl-label">{traducir('customfields.proyecto')}</label>
-        <Select suelto placeholder={false} id={`${idCampo}-proyecto`} value={selectedProject} onChange={e => setSelectedProject(e.target.value)}
-          className="cfl-input cfl-input--project">
+      <SelectorDeContexto>
+        <Select label={traducir('customfields.proyecto')} placeholder={false} id={`${idCampo}-proyecto`} value={selectedProject} onChange={e => setSelectedProject(e.target.value)}>
           <option value="">{traducir('customfields.selecciona_un_proyecto')}</option>
           {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
         </Select>
-      </div>
+      </SelectorDeContexto>
 
       {!selectedProject && (
         <EmptyState icon={<SlidersHorizontal size={28} />} title={traducir('customfields.selecciona_un_proyecto_2')} description={traducir('customfields.elige_proyecto_desc')} />

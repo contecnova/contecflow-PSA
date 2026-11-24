@@ -1,6 +1,6 @@
 /* BIPage — dashboard ejecutivo de KPIs */
 
-@media (max-width: 900px) {
+@media (width <= 900px) {
   .page-content.bi-page { padding-left: 12px; padding-right: 12px; }
 }
 
@@ -10,7 +10,7 @@
 
 .bi-kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; margin-bottom: 16px; }
 .bi-widget-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 12px; margin-bottom: 16px; }
-@media (max-width: 900px) {
+@media (width <= 900px) {
   .bi-kpi-grid { grid-template-columns: 1fr 1fr; }
   .bi-widget-grid { grid-template-columns: 1fr; }
 }

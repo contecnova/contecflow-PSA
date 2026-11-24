@@ -137,22 +137,12 @@ export default function AsignarModal({ recurso, bolsa = null, modoInicial = 'ass
         {esBolsa && <p className="alm-hint">{t('alm.pool_hint')}</p>}
         <div className="almf-rejilla-2">
           {pideCantidad && (
-            <div>
-              <label className="alm-label" htmlFor={`${idBase}-q`}>{esBolsa ? t('alm.pool_seats') : t('alm.quantity')}</label>
-              <Input id={`${idBase}-q`} type="number" min={1} value={cantidad} onChange={e => setCantidad(e.target.value)} inputClassName="alm-input" />
-            </div>
+            <Input label={esBolsa ? t('alm.pool_seats') : t('alm.quantity')} id={`${idBase}-q`} type="number" min={1} value={cantidad} onChange={e => setCantidad(e.target.value)} />
           )}
-          <div>
-            <label className="alm-label" htmlFor={`${idBase}-desde`}>{t('alm.valid_from')}</label>
-            <DateInput id={`${idBase}-desde`} className="alm-input" value={desde} onChange={e => setDesde(e.target.value)} />
-          </div>
-          <div>
-            <label className="alm-label" htmlFor={`${idBase}-hasta`}>{modo === 'loan' ? t('alm.loan_due') : t('alm.valid_to')}{modo === 'loan' ? ' *' : ''}</label>
-            <DateInput id={`${idBase}-hasta`} className="alm-input" value={hasta} onChange={e => setHasta(e.target.value)} />
-          </div>
+          <DateInput label={t('alm.valid_from')} id={`${idBase}-desde`} value={desde} onChange={e => setDesde(e.target.value)} />
+          <DateInput label={<>{modo === 'loan' ? t('alm.loan_due') : t('alm.valid_to')}{modo === 'loan' ? ' *' : ''}</>} id={`${idBase}-hasta`} value={hasta} onChange={e => setHasta(e.target.value)} />
           <div className="almf-col-completa">
-            <label className="alm-label" htmlFor={`${idBase}-motivo`}>{t('alm.reason')}</label>
-            <Textarea id={`${idBase}-motivo`} rows={2} value={motivo} onChange={e => setMotivo(e.target.value)} placeholder={t('alm.reason_placeholder')} inputClassName="alm-input" />
+            <Textarea label={t('alm.reason')} id={`${idBase}-motivo`} rows={2} value={motivo} onChange={e => setMotivo(e.target.value)} placeholder={t('alm.reason_placeholder')} />
           </div>
         </div>
 
@@ -161,17 +151,11 @@ export default function AsignarModal({ recurso, bolsa = null, modoInicial = 'ass
             <summary className="almf-bloque__titulo">{t('alm.delivery_act')}</summary>
             <EditorDeChecklist t={t} filas={checklist} onChange={setChecklist} />
             <div className="almf-rejilla-2">
-              <div>
-                <label className="alm-label" htmlFor={`${idBase}-cond`}>{t('alm.assets_label_condition')}</label>
-                <Select suelto placeholder={false} id={`${idBase}-cond`} className="alm-input" value={condicion} onChange={e => setCondicion(e.target.value as Condicion | '')}>
+              <Select label={t('alm.assets_label_condition')} placeholder={false} id={`${idBase}-cond`} value={condicion} onChange={e => setCondicion(e.target.value as Condicion | '')}>
                   <option value="">{t('alm.condition_keep')}</option>
                   {(['new', 'good', 'fair', 'poor'] as const).map(c => <option key={c} value={c}>{t(`alm.assets_condition_${c}`)}</option>)}
                 </Select>
-              </div>
-              <div>
-                <label className="alm-label" htmlFor={`${idBase}-obs`}>{t('alm.observations')}</label>
-                <Input id={`${idBase}-obs`} value={observaciones} onChange={e => setObservaciones(e.target.value)} inputClassName="alm-input" />
-              </div>
+              <Input label={t('alm.observations')} id={`${idBase}-obs`} value={observaciones} onChange={e => setObservaciones(e.target.value)} />
             </div>
             <p className="alm-hint">{t('alm.delivery_act_hint')}</p>
           </details>
@@ -181,29 +165,17 @@ export default function AsignarModal({ recurso, bolsa = null, modoInicial = 'ass
           <summary className="almf-bloque__titulo">{t('alm.charge_title')}</summary>
           <p className="alm-hint">{t('alm.charge_hint')}</p>
           <div className="almf-rejilla-2">
-            <div>
-              <span className="alm-label">{t('alm.charge_project')}</span>
-              <ProjectSelect value={cargoProyecto} onChange={v => setCargoProyecto(v)} placeholder={t('alm.charge_auto')} />
-            </div>
-            <div>
-              <label className="alm-label" htmlFor={`${idBase}-cc`}>{t('alm.charge_cost_center')}</label>
-              <Select suelto placeholder={false} id={`${idBase}-cc`} className="alm-input" value={cargoCentro} onChange={e => setCargoCentro(e.target.value)}>
+            <ProjectSelect label={t('alm.charge_project')} value={cargoProyecto} onChange={v => setCargoProyecto(v)} placeholder={t('alm.charge_auto')} />
+            <Select label={t('alm.charge_cost_center')} placeholder={false} id={`${idBase}-cc`} value={cargoCentro} onChange={e => setCargoCentro(e.target.value)}>
                 <option value="">{t('alm.charge_auto')}</option>
                 {centros.map(c => <option key={c.id} value={c.id}>{c.code} · {c.name}</option>)}
               </Select>
-            </div>
-            <div>
-              <label className="alm-label" htmlFor={`${idBase}-cli`}>{t('alm.charge_client')}</label>
-              <ClientSelect id={`${idBase}-cli`} className="alm-input" value={cargoCliente} onChange={v => setCargoCliente(v)} placeholder={t('alm.charge_auto')} />
-            </div>
-            <div>
-              <label className="alm-label" htmlFor={`${idBase}-refa`}>{t('alm.rebillable')}</label>
-              <Select suelto placeholder={false} id={`${idBase}-refa`} className="alm-input" value={refacturar} onChange={e => setRefacturar(e.target.value as '' | 'yes' | 'no')}>
+            <ClientSelect label={t('alm.charge_client')} id={`${idBase}-cli`} value={cargoCliente} onChange={v => setCargoCliente(v)} placeholder={t('alm.charge_auto')} />
+            <Select label={t('alm.rebillable')} placeholder={false} id={`${idBase}-refa`} value={refacturar} onChange={e => setRefacturar(e.target.value as '' | 'yes' | 'no')}>
                 <option value="">{t('alm.rebillable_inherit')}</option>
                 <option value="yes">{t('common.yes')}</option>
                 <option value="no">{t('common.no')}</option>
               </Select>
-            </div>
           </div>
         </details>
 

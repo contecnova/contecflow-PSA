@@ -257,6 +257,9 @@ Todos los puertos de Docker se publican solo en `127.0.0.1`.
 | `docker-clean` | sí | sí | Para Docker y borra los volúmenes **regenerables**; conserva PostgreSQL y S3. Solo en desarrollo o pruebas |
 | `backup` | sí | sí | Copia local de la base (SQLite o PostgreSQL) y de `uploads/` en `backups/`, con verificación ([10.2](#102-scriptsbackupsh)) |
 | `restore <carpeta>` | sí | sí | Verifica la copia, para la app, guarda una copia de lo actual y restaura (pide confirmación; [10.4](#104-restaurar)) |
+| `test-postgres [args]` | sí | sí | Tests contra un PostgreSQL efímero en Docker ([16.6](#166-calidad-a-mano-postgresql-cobertura-y-stylelint)) |
+| `cobertura [--solo backend\|frontend] [args]` | sí | sí | Informes de cobertura en `cobertura/`, sin umbrales ([16.6](#166-calidad-a-mano-postgresql-cobertura-y-stylelint)) |
+| `lint-css` | sí | sí | stylelint sobre `frontend/src` ([16.6](#166-calidad-a-mano-postgresql-cobertura-y-stylelint)) |
 
 En `setup.bat`, `SETUP_INIT_MODE=demo|clean` hace `start` no interactivo (CI): `set SETUP_INIT_MODE=demo && setup.bat start`.
 
@@ -784,6 +787,16 @@ PostgreSQL. Además, toda sesión sin empresa conocida está cerrada por defecto
 
 - **Empresa.** Cada registro de negocio lleva `organization_id` (unas pocas tablas, `org_id`). La única tabla
   exenta es la de empresas.
+- **Empresa obligatoria** (migración `208_empresa_obligatoria_y_portal`). `organization_id` es NOT NULL en todas
+  las tablas que lo tienen, salvo 21 catálogos y ajustes del sistema donde el vacío significa «común a todas las
+  empresas» (valores de fábrica, ajustes del despliegue, auditoría del sistema). La lista, con el motivo de cada
+  una, es `TABLAS_SIN_EMPRESA_PERMITIDA` (`app/db/empresa_obligatoria.py`) y `tests/test_empresa_obligatoria.py`
+  la vigila. Una fila nueva sin empresa la toma de su proyecto, ticket, usuario u otro padre; si no sale de
+  ninguno, el guardado se corta con el error `fila_sin_empresa`. La migración rellena los vacíos así, y lo que no
+  se puede deducir lo asigna a la empresa única (o a la única que tiene usuarios); con varias empresas con
+  usuarios se para y pide
+  `EMPRESA_PARA_FILAS_SIN_EMPRESA=<id>`. Detalle en
+  [docs/seguridad/empresa_obligatoria.md](docs/seguridad/empresa_obligatoria.md).
 - **Pertenencia.** Una persona tiene su empresa de ficha (`users.organization_id`) y puede pertenecer a otras
   (`user_organization_memberships`).
 - **Empresa activa.** La empresa con la que se trabaja viaja en el claim `org` de los tokens. Se revalida en cada
@@ -1744,7 +1757,9 @@ Dónde se consulta:
 - Una política por empresa y tipo de registro: cuántos días se guarda. Nace apagada.
 - La **vista previa** dice cuántos registros borraría hoy y cuántos salva un bloqueo, antes de activarla.
 - Ninguna política puede bajar de `RETENTION_MIN_DAYS` (30).
-- Tipos: los 48 de `TIPOS` en `app/db/bloqueo_legal.py` (medido el 23-11-2026):
+- Tipos: los 54 de `TIPOS` en `app/db/bloqueo_legal.py` (medido el 24-11-2026; entre ellos, del chat del portal,
+  `portal_conversation_attachments`, `portal_conversation_message_versions` y `portal_conversation_calls`,
+  ver [docs/portal/CHAT_DEL_PORTAL.md](docs/portal/CHAT_DEL_PORTAL.md)):
   - Trabajo y clientes: `tickets` (cerrados), `documents` (archivados), `client_contacts` (desactivados),
     `overtime_requests` (cerradas), `demand_requests` (cerrados), `public_form_submissions`, `meetings`,
     `bpmn_instances` (BPM), `pir_reviews`.
@@ -1813,6 +1828,11 @@ auditoría queda fuera a propósito.
   solicitudes se registran desde la pestaña RGPD. «Eliminar» un usuario del portal no es la supresión RGPD: sin
   historial lo borra y con historial lo archiva (conserva el historial); la supresión es una acción aparte para
   administradores ([29.2](#292-dar-acceso-a-un-cliente)).
+- **Chat del portal** (24-11-2026): la copia de un usuario del portal incluye sus mensajes, el rastro de sus
+  ediciones, sus adjuntos (metadatos y huella), reacciones y llamadas; la supresión deja «[ERASED]» en sus mensajes
+  y borra versiones, adjuntos (con el fichero) y reacciones. Bajo bloqueo legal de un adjunto, 409 antes de tocar
+  nada. Lo mismo para la pestaña «Chat» del portal (chat de colaboración: `portal_collaboration_chat`).
+  Detalle en [docs/portal/CHAT_DEL_PORTAL.md](docs/portal/CHAT_DEL_PORTAL.md).
 - **BPM:** la copia y la supresión incluyen las variables de las instancias marcadas como dato personal.
 - **Mi cuaderno:** la copia y la supresión incluyen los cuadernos; el acceso excepcional exige un bloqueo legal o
   una solicitud RGPD en curso, y queda auditado con el motivo ([19.4](#194-privacidad-baja-y-acceso-excepcional)).
@@ -1932,6 +1952,30 @@ Detalle en [§38](#38-inteligencia-artificial).
 | Todo junto | `./scripts/ci_local.sh` (gates bloqueantes e informativos: ruff, pip-audit, pytest, tsc, vitest, build, eslint, npm audit, i18n…), `--fast` sin pytest ni cobertura, `--info` solo informativos; `make audit` |
 
 El proyecto no usa CI/CD remoto: los gates se pasan en local con `scripts/ci_local.sh` antes de publicar.
+
+### 16.6 Calidad a mano: PostgreSQL, cobertura y stylelint
+
+Tres comandos que **solo se ejecutan a mano**: no hay hooks de commit o push ni CI que los lancen o bloqueen, y ninguno tiene umbral. Mismo nombre en `make`, `setup.sh` y `setup.bat`; la lógica vive en un único sitio (`scripts/test_postgres.py`, `scripts/cobertura.py`, `npm run lint:css`).
+
+| Comando | Linux / macOS | Windows |
+|---|---|---|
+| Tests contra PostgreSQL | `make test-postgres` o `./setup.sh test-postgres` | `setup.bat test-postgres` |
+| … solo un subconjunto | `make test-postgres T="tests/test_rls_postgres.py -x"` o `./setup.sh test-postgres tests/test_rls_postgres.py -x` | `setup.bat test-postgres tests/test_rls_postgres.py -x` |
+| Cobertura (backend + frontend) | `make cobertura` o `./setup.sh cobertura` | `setup.bat cobertura` |
+| … solo una parte | `make cobertura PARTE=backend T=tests/test_okrs.py` o `./setup.sh cobertura --solo backend tests/test_okrs.py` | `setup.bat cobertura --solo backend tests/test_okrs.py` |
+| stylelint | `make lint-css`, `./setup.sh lint-css` o `cd frontend && npm run lint:css` | `setup.bat lint-css` o `cd frontend && npm.cmd run lint:css` |
+
+**`test-postgres`.** La suite corre sobre SQLite en memoria (`tests/conftest.py`, una base por worker de xdist) y las pruebas que solo tienen sentido en PostgreSQL se saltan si no reciben una base: RLS (`tests/test_rls_postgres.py`, `RLS_TEST_OWNER_URL` y `RLS_TEST_APP_URL`), pgvector (`tests/test_kb_vectores_pgvector.py`, `KB_PGVECTOR_URL`) y paridad de Alembic (`tests/test_alembic_schema_parity.py`, `PARITY_POSTGRES_URL`). El comando:
+
+1. comprueba que Docker responde; si no, lo dice y sale con 2 sin ejecutar nada;
+2. arranca `pgvector/pgvector:pg16` (cambiable con `--imagen` o `CONTECFLOW_TEST_PG_IMAGE`) con nombre único `contecflow-test-pg-<hex>`, solo en `127.0.0.1` y en un puerto libre, con los datos en `tmpfs`. **No usa `docker compose` ni volúmenes con nombre**: los `contecflow_*` del usuario no se tocan;
+3. crea la base `contecflow_rls`, la migra con `alembic upgrade head` (que aplica las políticas, unos 2 min) y crea el rol de aplicación `contecflow_app_test` con `python -m app.db.rls` (`NOSUPERUSER NOBYPASSRLS`), para que RLS actúe de verdad; y una base aparte `contecflow_kb` para pgvector (su prueba rehace el esquema). La paridad crea y borra su propia base;
+4. ejecuta pytest con esas variables: sin argumentos, `tests/ -n auto --dist loadfile` (cada fichero en un worker: las pruebas de RLS siembran ids fijos y las de pgvector rehacen su base); con argumentos, se pasan tal cual. `--sin-migrar` se salta Alembic cuando no hacen falta las de RLS;
+5. para y borra el contenedor (`docker rm -f -v` por su nombre) al terminar, también si falla o con Ctrl+C. Sale con el código de pytest (3 si la base no llega a arrancar).
+
+**`cobertura`.** Backend con `pytest-cov` (`--cov=app --cov-branch`, por defecto `tests/ -n auto`) y frontend con `@vitest/coverage-v8` (`npm run test:coverage`, todo `src/`). Todo queda en `cobertura/` (en `.gitignore`): `backend/html/index.html`, `backend/informe.txt`, `frontend/index.html`, `frontend/informe.txt` (fichero a fichero) y `resumen.txt`, que también se imprime: líneas cubiertas por módulo (`app/services`, `src/pages`…; `--profundidad 3` baja un nivel). Sale con el código de los tests, nunca por un porcentaje. `make test-coverage` y `make quality-coverage-75` siguen como estaban.
+
+**`lint-css`.** `stylelint` con `stylelint-config-standard` y la configuración de `frontend/stylelint.config.mjs`, donde cada cambio respecto al estándar está justificado: se apagan solo las reglas de espacios en blanco (el proyecto escribe reglas compactas en una línea) y `no-descending-specificity` (73 avisos por el patrón de `:focus-visible` agrupado; reordenar movería la cascada); `selector-class-pattern` se adapta al BEM en kebab-case del proyecto y `keyframes-name-pattern` admite lowerCamelCase. Las reglas propias del kit (mayúsculas forzadas, letra monoespaciada, colores literales, altos fijos, `.ds-input`, botones de icono) **no se duplican en stylelint**: siguen en `frontend/scripts/kit/comprobarCss.mjs`, porque tienen cupos por fichero que solo pueden encoger (`kit-pendientes.json`) y stylelint no tiene ese trinquete. Se comprueban con `node scripts/kit_pendientes.mjs --comprobar` y `src/__tests__/kitCssSinRestos.test.ts`.
 
 ---
 
@@ -3227,10 +3271,32 @@ en [docs/PIPELINE_COMERCIAL.md](docs/PIPELINE_COMERCIAL.md).
 
 1. Elige un cliente y registra una respuesta de 0 a 10; se clasifica como promotor, pasivo o detractor.
 2. Consulta el resumen de NPS de N días y el histórico de salud.
-3. *Calcular salud* guarda una foto; la clasificación ordena a los clientes por su última foto.
+3. *Calcular salud* guarda una foto con sus componentes; la clasificación ordena a los clientes **activos** por su
+   última foto (una por cliente; no entran los desactivados, inactivos ni perdidos).
 
-Límite: el cálculo de salud de esta pantalla usa sobre todo constantes fijas (60 % del resultado) y no el modelo de
-salud configurable (`HEALTH_*`). Las encuestas del portal no alimentan el NPS.
+**Cómo se calcula la salud** (24-11-2026; un único cálculo, `customer_health_service.compute_composite_health`,
+el mismo para *Calcular salud* y para `GET /clients/{id}/health-composite`). Cinco componentes 0-100 con los pesos
+`HEALTH_WEIGHT_*` (ajustes en vivo por empresa; se normalizan si no suman 1):
+
+| Componente | Medida |
+|---|---|
+| NPS | NPS clásico (% 9-10 − % 0-6) de las respuestas NPS de `HEALTH_NPS_LOOKBACK_DAYS`, llevado a 0-100. Las valoraciones CSAT 1-5 del portal interno no cuentan. |
+| Entrega | Hitos a tiempo / hitos evaluables de los proyectos vivos del cliente: vencidos o completados en la misma ventana; a tiempo = completado en o antes de `due_date`; vencido sin completar = tarde. |
+| Presupuesto | % de proyectos en curso con presupuesto cuyo coste real (el cálculo único de margen, el del panel) no supera `budget_amount`. |
+| Tickets | Resueltos en `HEALTH_TICKET_LOOKBACK_DAYS` sin incumplir el SLA de resolución, frente a esos más los abiertos que ya lo incumplieron. |
+| Portal | `HEALTH_PORTAL_BASE_SCORE` + `HEALTH_PORTAL_SCORE_PER_SESSION` × sesiones de sus usuarios del portal (tope 100). Sin usuarios del portal: sin datos. |
+
+**Sin datos** (estándar Gainsight / ChurnZero): el componente no puntúa y su peso se reparte proporcionalmente entre
+los que tienen datos; la pantalla lo muestra con «—». Si no hay ningún dato, la salud es `HEALTH_DEFAULT_NO_DATA` y la
+categoría `no_data` (`data_coverage` = parte del peso medida). La foto guarda NPS, entrega y presupuesto en su
+columna y tickets + portal combinados por sus pesos en `activity_component` (el desglose, en `note`). Cada foto
+(automática o manual) queda en el registro de auditoría con quién la hizo. Retención configurable en GRC:
+`client_health_snapshots` (fotos) y `client_nps_responses` (respuestas NPS de clientes externos: nombre y comentario
+son datos personales). Las encuestas del portal de clientes no alimentan el NPS.
+
+**Métricas BI** `nps_by_client` y `nps_trend` (24-11-2026): dan el NPS real (−100 a 100, % promotores − %
+detractores), no la media de la nota 0-10 que daban antes con la etiqueta «NPS medio»; la media sigue en `avg_score`.
+Los informes guardados con estas métricas cambian de escala.
 
 #### Consejos
 
@@ -3326,7 +3392,7 @@ Los usuarios del portal no son usuarios de la aplicación.
 | Entrega | Pruebas UAT | Sesiones de aceptación: enviar resultados y reportar fallos |
 | Entrega | Solicitudes | Pestaña *Demandas* (el [31. Flujo de demanda](#31-flujo-de-demanda)) y las peticiones de cambio clásicas (crear, decidir el presupuesto, retirar) |
 | Soporte | Autoservicio | Sus tickets, nuevo ticket desde el catálogo público o formularios, comentarios, valoración CSAT, base de conocimiento y *Asistente y chat* |
-| Soporte | Mensajes | Chat con el equipo y conversaciones formales |
+| Soporte | Mensajes | Chat con el equipo y conversaciones formales. Las formales (24-11-2026) tienen imágenes y adjuntos, emojis y reacciones, responder citando, editar y borrar el propio mensaje (con rastro), enlaces, «escribiendo…», leído, tiempo real y llamadas/videollamadas que **solo inicia el equipo** (el cliente acepta, rechaza o cuelga). La pestaña «Chat» (conversaciones del chat interno con el cliente, migración 210) tiene lo mismo. Ver [docs/portal/CHAT_DEL_PORTAL.md](docs/portal/CHAT_DEL_PORTAL.md) |
 | Documentación | Documentos | Ver y firmar con un clic (registro de firma, no firma electrónica cualificada) |
 | Documentación | Wiki | Páginas publicadas para el portal |
 | Documentación | Facturas | Facturas emitidas (solo con permiso de ver presupuesto); aprobar o rechazar |
@@ -3347,6 +3413,16 @@ la decisión del cliente y avisa al equipo; no cambia el estado de la factura.
 
 El usuario del portal hereda la empresa de su cliente: ve solo los proyectos que se le asignan.
 
+**Un correo en varias empresas** (migración 208). El correo del usuario del portal es único **dentro de cada
+empresa** (sin distinguir mayúsculas), no en toda la instalación: la misma persona puede tener acceso al portal de
+dos empresas, con contraseñas propias. Al entrar:
+
+- Si la empresa se sabe por el **código de acceso del portal** (`/portal?empresa=<código>`, el código de la empresa)
+  o por el **dominio propio** con el portal activado, se entra en esa sin preguntar.
+- Si no, y la contraseña vale en varias empresas, el portal pide **elegir la empresa**. La lista solo muestra
+  aquellas en las que esa contraseña vale; las demás no se revelan.
+- La elección queda en la auditoría (`PORTAL_LOGIN_EMPRESA_ELEGIDA`, con la vía: elección, código o host).
+
 **Contraseña, eliminar y archivar** (`clientes.gestionar`):
 
 - **Al dar acceso**, la contraseña se genera y se envía por correo (por defecto) o se pone a mano: mostrar u
@@ -3362,7 +3438,9 @@ El usuario del portal hereda la empresa de su cliente: ve solo los proyectos que
 ### 29.3 Contraseña olvidada
 
 En la entrada del portal, *¿Olvidaste tu contraseña?* pide el correo y envía un enlace (la respuesta es la misma
-exista o no la cuenta). El enlace lleva a `/portal/reset-password`, vale 30 minutos y una sola vez, aplica la
+exista o no la cuenta). Con el mismo correo en varias empresas llega un enlace por cada una, con la marca de su
+empresa, y cada enlace cambia solo la contraseña de esa empresa; con código de acceso o dominio propio, solo el de
+esa empresa. La pantalla del enlace dice de qué empresa es la cuenta. El enlace lleva a `/portal/reset-password`, vale 30 minutos y una sola vez, aplica la
 política de contraseñas de la empresa y, al guardar, cierra todas las sesiones del portal de ese cliente. Detalle
 en [docs/seguridad/politicas_de_cuenta.md](docs/seguridad/politicas_de_cuenta.md).
 

@@ -1,15 +1,14 @@
 // Secciones de mensajes y facturas del portal de cliente. 23-11-2026: troceado de PortalAdvancedSections sin cambio de comportamiento.
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Receipt, MessageSquare, CheckCircle2, MessagesSquare, FileQuestion } from 'lucide-react'
 import { useToast } from '../../context/ToastContext'
-import { fmtDate, fmtDateTime } from '../../utils/helpers'
+import { fmtDate } from '../../utils/helpers'
 import { ClientGovernedConversationInbox } from '../../components/portal/GovernedConversations'
+import ChatColaboracionDelPortal from '../../components/portal/ChatColaboracionDelPortal'
 import { CLIENT_API, useErrorDelPortal, useLang, useClientAuth } from './portalClientContext'
 import { PortalPageHeader, PortalCard, PortalEmpty, PortalButton, PortalField, PortalTextarea, PortalTabs, formatMoney, metaItems, MONEDA_PORTAL_POR_DEFECTO } from './PortalUI'
-import { POLL_FAST_MS, POLL_FREQUENT_MS } from '../../constants/timings'
-import { Pulsable, Textarea } from '../../components/ui'
-import { type ClientInvoice, type ClientProject, type CollabConversation, type CollabMessage, StatusBadge } from './PortalAdvancedComun'
+import { type ClientInvoice, type ClientProject, StatusBadge } from './PortalAdvancedComun'
 
 // ════════════════════════════════════════════════════════════════════════════
 // PortalMessages — usa el nuevo dominio collaboration via /portal/collaboration/*
@@ -20,40 +19,7 @@ export function PortalMessages() {
   const traducir = useLang()
   const t = useLang()
   const { client } = useClientAuth()
-  const qc = useQueryClient()
   const [tab, setTab] = useState('chat')
-  const [activeConvId, setActiveConvId] = useState<string | null>(null)
-  const [draft, setDraft] = useState('')
-  // 16-11-2026: los errores de `/portal/collaboration/*` llegan con código (`err_srv.*`).
-  const toast = useToast()
-  const errorDe = useErrorDelPortal()
-
-  const { data: conversations = [], isLoading } = useQuery<CollabConversation[]>({
-    queryKey: ['portal-collab-conversations'],
-    queryFn: () => CLIENT_API.get('/portal/collaboration/conversations').then(r => r.data),
-    refetchInterval: POLL_FREQUENT_MS,
-  })
-
-  const { data: messages = [] } = useQuery<CollabMessage[]>({
-    queryKey: ['portal-collab-messages', activeConvId],
-    queryFn: () => CLIENT_API.get(`/portal/collaboration/conversations/${activeConvId}/messages`).then(r => r.data),
-    enabled: !!activeConvId,
-    refetchInterval: POLL_FAST_MS,
-  })
-
-  const send = useMutation({
-    mutationFn: () => CLIENT_API.post('/portal/collaboration/messages', { conversation_id: activeConvId, body: draft }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['portal-collab-messages', activeConvId] })
-      qc.invalidateQueries({ queryKey: ['portal-collab-conversations'] })
-      setDraft('')
-    },
-    onError: (e: unknown) => toast.error(errorDe(e, t('pas_err_generic'))),
-  })
-
-  useEffect(() => {
-    if (!activeConvId && conversations.length > 0) setActiveConvId(conversations[0].id)
-  }, [conversations, activeConvId])
 
   const projectOptions = Array.isArray(client?.projects)
     ? (client.projects as ClientProject[]).map(p => ({ id: p.id, name: p.name || p.code || p.id, code: p.code || '' }))
@@ -77,39 +43,14 @@ export function PortalMessages() {
 
       <PortalTabs tabs={tabs} value={tab} onChange={setTab} ariaLabel={traducir('chat.messages')} />
 
+      {/* 24-11-2026 (docs/portal/CHAT_DEL_PORTAL.md §9): el chat de colaboración con
+          adjuntos, emojis, reacciones, citas, edición con rastro, enlaces, leído,
+          «escribiendo…» y llamadas que solo inicia el equipo. */}
       {tab === 'chat' && (
-        isLoading ? <div className="poadse-box-13">{traducir('common.loading')}</div> :
-        conversations.length === 0 ? (
+        <ChatColaboracionDelPortal vacio={
           <PortalEmpty icon={MessageSquare} title={traducir('portaladvanced.aun_no_tienes_conversaciones')}
             description={traducir('portaladvanced.cuando_el_equipo_te_invite_a_un')} />
-        ) : (
-          <div className="poadse-grid-1">
-            <PortalCard padding={10} className="portalad-sx4">
-              {conversations.map(c => (
-                <Pulsable className={`poadse-box-29 ${activeConvId === c.id ? 'portal-advanced-sections-m7' : 'portal-advanced-sections-m8'}`} key={c.id} onClick={() => setActiveConvId(c.id)}>{c.title}</Pulsable>
-              ))}
-            </PortalCard>
-            <PortalCard padding={0} className="portalad-sx5">
-              <div className="poadse-box-14">
-                {messages.map(m => (
-                  <div key={m.id} className="u-mb-10">
-                    <div className="u-text3-xs">
-                      {m.author_name || (m.client_user_id === client?.id ? t('pas_you') : t('dashboard_team'))} · {fmtDateTime(m.sent_at)}
-                    </div>
-                    <div className="poadse-txt-4">{m.body}</div>
-                  </div>
-                ))}
-              </div>
-              <div className="poadse-row-15">
-                <Textarea aria-label={traducir('portaladvanced.escribe_un_mensaje')} value={draft} onChange={e => setDraft(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); if (draft.trim()) send.mutate() } }}
-                  placeholder={traducir('portaladvanced.escribe_un_mensaje')} rows={1}
-                  className="u-flex1-min0" inputClassName="poadse-box-15" />
-                <PortalButton size="sm" onClick={() => draft.trim() && send.mutate()} disabled={!draft.trim()}>{traducir('chat.send')}</PortalButton>
-              </div>
-            </PortalCard>
-          </div>
-        )
+        } />
       )}
 
       {tab === 'governed' && (

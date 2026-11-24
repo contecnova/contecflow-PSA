@@ -424,7 +424,7 @@ class TestCustomerHealthComposite:
         data = resp.json()["data"]
         assert "composite_score" in data
         assert 0 <= data["composite_score"] <= 100
-        assert data["category"] in ("excellent", "good", "at_risk", "critical")
+        assert data["category"] in ("excellent", "good", "at_risk", "critical", "no_data")  # no_data: sin ningún componente medido (24-11-2026)
         assert "components" in data
         assert "nps" in data["components"]
         assert "delivery" in data["components"]

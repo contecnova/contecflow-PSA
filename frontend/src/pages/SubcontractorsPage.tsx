@@ -234,35 +234,28 @@ export default function SubcontractorsPage() {
         <Modal open title={t('subcontractors.editar_subcontratista')} onClose={() => { setShowEdit(false); setEditTarget(null) }} width={520}>
           <div className="sub-form-grid sub-form-grid--mb16">
             <div>
-              <label id={`${idCampo}-7-et`} htmlFor={`${idCampo}-7`} className="sub-label">{t('subcontractors.nombre_razon_social')}</label>
-              <Input id={`${idCampo}-7`} aria-labelledby={`${idCampo}-7-et`} value={editForm.name} onChange={e => setEditForm(f=>({...f,name:e.target.value}))} inputClassName="sub-input" />{msgEdit('name')}
+              <Input label={t('subcontractors.nombre_razon_social')} id={`${idCampo}-7`} value={editForm.name} onChange={e => setEditForm(f=>({...f,name:e.target.value}))} />{msgEdit('name')}
             </div>
             <div>
-              <label id={`${idCampo}-8-et`} htmlFor={`${idCampo}-8`} className="sub-label">{t('subcontractors.empresa')}</label>
-              <Input id={`${idCampo}-8`} aria-labelledby={`${idCampo}-8-et`} value={editForm.company} onChange={e => setEditForm(f=>({...f,company:e.target.value}))} inputClassName="sub-input" />{msgEdit('company')}
+              <Input label={t('subcontractors.empresa')} id={`${idCampo}-8`} value={editForm.company} onChange={e => setEditForm(f=>({...f,company:e.target.value}))} />{msgEdit('company')}
             </div>
             <div>
-              <label id={`${idCampo}-9-et`} htmlFor={`${idCampo}-9`} className="sub-label">{t('subcontractors.email')}</label>
-              <Input id={`${idCampo}-9`} aria-labelledby={`${idCampo}-9-et`} type="email" value={editForm.email} onChange={e => setEditForm(f=>({...f,email:e.target.value}))} inputClassName="sub-input" />{msgEdit('email')}
+              <Input label={t('subcontractors.email')} id={`${idCampo}-9`} type="email" value={editForm.email} onChange={e => setEditForm(f=>({...f,email:e.target.value}))} />{msgEdit('email')}
             </div>
             <div>
-              <label id={`${idCampo}-10-et`} htmlFor={`${idCampo}-10`} className="sub-label">{t('subcontractors.telefono')}</label>
-              <Input id={`${idCampo}-10`} aria-labelledby={`${idCampo}-10-et`} value={editForm.phone} onChange={e => setEditForm(f=>({...f,phone:e.target.value}))} inputClassName="sub-input" />{msgEdit('phone')}
+              <Input label={t('subcontractors.telefono')} id={`${idCampo}-10`} value={editForm.phone} onChange={e => setEditForm(f=>({...f,phone:e.target.value}))} />{msgEdit('phone')}
             </div>
             <div>
-              <label id={`${idCampo}-11-et`} htmlFor={`${idCampo}-11`} className="sub-label">{t('subcontractors.nif_vat')}</label>
-              <Input id={`${idCampo}-11`} aria-labelledby={`${idCampo}-11-et`} value={editForm.vat_number} onChange={e => setEditForm(f=>({...f,vat_number:e.target.value}))} inputClassName="sub-input" />{msgEdit('vat_number')}
+              <Input label={t('subcontractors.nif_vat')} id={`${idCampo}-11`} value={editForm.vat_number} onChange={e => setEditForm(f=>({...f,vat_number:e.target.value}))} />{msgEdit('vat_number')}
             </div>
             <div>
-              <label id={`${idCampo}-12-et`} htmlFor={`${idCampo}-12`} className="sub-label">{t('subcontractors.moneda')}</label>
-              <Select suelto placeholder={false} id={`${idCampo}-12`} value={editForm.currency} onChange={e => setEditForm(f=>({...f,currency:e.target.value}))} className="sub-input">
+              <Select label={t('subcontractors.moneda')} placeholder={false} id={`${idCampo}-12`} value={editForm.currency} onChange={e => setEditForm(f=>({...f,currency:e.target.value}))}>
                 {monedasDeLaEmpresa.map(c => <option key={c} value={c}>{c}</option>)}
               </Select>{msgEdit('currency')}
             </div>
           </div>
           <div className="u-mb-16">
-            <label id={`${idCampo}-13-et`} htmlFor={`${idCampo}-13`} className="sub-label">{t('subcontractors.notes')}</label>
-            <Textarea id={`${idCampo}-13`} aria-labelledby={`${idCampo}-13-et`} value={editForm.notes} onChange={e => setEditForm(f=>({...f,notes:e.target.value}))} inputClassName="sub-input sub-textarea" />{msgEdit('notes')}
+            <Textarea label={t('subcontractors.notes')} id={`${idCampo}-13`} value={editForm.notes} onChange={e => setEditForm(f=>({...f,notes:e.target.value}))} />{msgEdit('notes')}
           </div>
           <div className="u-actions-8">
             <Button variant="secondary" onClick={() => { setShowEdit(false); setEditTarget(null) }}>{t('common.cancel')}</Button>

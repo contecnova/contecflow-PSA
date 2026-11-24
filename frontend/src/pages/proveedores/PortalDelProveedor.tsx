@@ -93,14 +93,10 @@ function SubirInforme({ paquetes, servicios, onClose }: { paquetes: PaqueteDeTra
         </div>
         <p className="u-text3-xs">{t(`proveedores.informe_tipo_${f.report_type}_d`)}</p>
         <div className="ui-field">
-          <label htmlFor="prv-portal-resumen" className="uiinde-estiloetiqueta">{t('proveedores.resumen')} *</label>
-          <Textarea id="prv-portal-resumen" value={f.summary} onChange={set('summary')} inputClassName="prv-textarea" />
+          <Textarea label={<>{t('proveedores.resumen')}*</>} id="prv-portal-resumen" value={f.summary} onChange={set('summary')} />
           {campos.de('summary') && <div className="u-field-error" role="alert">{campos.de('summary')}</div>}
         </div>
-        <div className="ui-field">
-          <label htmlFor="prv-portal-riesgos" className="uiinde-estiloetiqueta">{t('proveedores.riesgos')}</label>
-          <Textarea id="prv-portal-riesgos" value={f.risks} onChange={set('risks')} inputClassName="prv-textarea" />
-        </div>
+        <Textarea label={t('proveedores.riesgos')} id="prv-portal-riesgos" value={f.risks} onChange={set('risks')} />
         <Input label={t('proveedores.evidencia_enlace')} value={f.enlace} onChange={set('enlace')} placeholder="https://" error={campos.de('attachments')} />
         <div className="ui-field">
           <label htmlFor="prv-portal-ficheros" className="uiinde-estiloetiqueta">{t('proveedores.evidencias')}</label>

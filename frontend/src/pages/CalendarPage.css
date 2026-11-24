@@ -17,7 +17,6 @@
 }
 
 /* Filtros: --ev-color lo aporta cada tipo de evento */
-.cal-filtro { width: auto; min-width: 180px; }
 .cal-event__icon { display: inline-flex; vertical-align: -1px; color: var(--ev-color); }
 
 .cal-legend {

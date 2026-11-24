@@ -86,9 +86,6 @@
   color: var(--text-2);
   min-width: 0;
 }
-.almu-campo--linea {
-  min-width: 220px;
-}
 
 .almu-check {
   display: inline-flex;
@@ -183,7 +180,7 @@
   overflow-wrap: anywhere;
 }
 
-@media (max-width: 640px) {
+@media (width <= 640px) {
   .almu-fuentes {
     grid-template-columns: 1fr;
   }

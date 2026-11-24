@@ -24,6 +24,6 @@
   gap: var(--space-3);
 }
 
-@media (max-width: 700px) {
+@media (width <= 700px) {
   .agd-filters { grid-template-columns: 1fr; }
 }

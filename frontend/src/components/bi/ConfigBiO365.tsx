@@ -73,22 +73,12 @@ export default function ConfigBiO365() {
         </span>
       </div>
       <div className="bio3pa-grid-3">
-        <div>
-          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="bi-o365-panel-e13">{t('bio365.tenant_id')}</label>
-          <Input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} type="text" value={configForm.tenant_id} onChange={e => setConfigForm(f => ({ ...f, tenant_id: e.target.value }))} inputClassName="bi-o365-panel-e14" />
-        </div>
-        <div>
-          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="bi-o365-panel-e13">{t('bio365.client_id')}</label>
-          <Input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="text" value={configForm.client_id} onChange={e => setConfigForm(f => ({ ...f, client_id: e.target.value }))} inputClassName="bi-o365-panel-e14" />
-        </div>
+        <Input label={t('bio365.tenant_id')} id={`${idCampo}-1`} type="text" value={configForm.tenant_id} onChange={e => setConfigForm(f => ({ ...f, tenant_id: e.target.value }))} />
+        <Input label={t('bio365.client_id')} id={`${idCampo}-2`} type="text" value={configForm.client_id} onChange={e => setConfigForm(f => ({ ...f, client_id: e.target.value }))} />
         <div className="u-col-full">
-          <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="bi-o365-panel-e13">
-            {t('bio365.client_secret')}{' '}
-            <span className="bio3pa-txt-3">
+          <Input label={<>{t('bio365.client_secret')}{' '}<span className="bio3pa-txt-3">
               {t('bio365.secreto_ayuda')}
-            </span>
-          </label>
-          <Input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="password" value={configForm.client_secret} onChange={e => setConfigForm(f => ({ ...f, client_secret: e.target.value }))} placeholder={config?.secret_puesto ? t('bio365.secreto_puesto') : ''} autoComplete="off" inputClassName="bi-o365-panel-e14" />
+            </span></>} id={`${idCampo}-3`} type="password" value={configForm.client_secret} onChange={e => setConfigForm(f => ({ ...f, client_secret: e.target.value }))} placeholder={config?.secret_puesto ? t('bio365.secreto_puesto') : ''} autoComplete="off" />
         </div>
       </div>
       <div className="bio3pa-row-5">

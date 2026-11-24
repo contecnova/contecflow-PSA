@@ -66,13 +66,3 @@
 .ts-review-kpis { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 16px; }
 .ts-review-kpi { background: var(--surface-3); border-radius: 8px; padding: 10px 14px; text-align: center; }
 .ts-review-kpi-value { font-size: var(--text-lg); font-weight: 700; font-variant-numeric: tabular-nums; }
-.ts-label {
-  font-size: var(--text-sm); font-weight: 700; color: var(--text-2);
-  letter-spacing: 0.07em; display: block; margin-bottom: 6px;
-}
-.ts-textarea {
-  width: 100%; background: var(--surface-3); border: 1px solid var(--surface-4); border-radius: 8px;
-  padding: 10px 14px; color: var(--text-1); font-size: var(--text-base); outline: none;
-  font-family: inherit; resize: vertical; box-sizing: border-box;
-}
-.ts-textarea:focus-visible { border-color: var(--accent); }

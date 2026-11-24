@@ -157,20 +157,20 @@ function ObligationsPanel({ contractId, onClose, currency }: { contractId: strin
         {showForm ? (
           <div className="rev-ob-form">
             <div className="u-grid2-10">
-              <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="rev-label">{t('revenue_page.nombre')}</label>
-                <Input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} placeholder={t('revenue.ej_fase_1_analisis')} />{msgB('name')}
+              <div>
+                <Input label={t('revenue_page.nombre')} id={`${idCampo}-1`} value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} placeholder={t('revenue.ej_fase_1_analisis')} />{msgB('name')}
               </div>
-              <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="rev-label">{t('revenue.metodo')}</label>
-                <Select suelto placeholder={false} id={`${idCampo}-2`} value={form.method} onChange={e=>setForm(f=>({...f,method:e.target.value}))}>
+              <div>
+                <Select label={t('revenue.metodo')} placeholder={false} id={`${idCampo}-2`} value={form.method} onChange={e=>setForm(f=>({...f,method:e.target.value}))}>
                   {ASC_METHODS.map(k => { const v = metodo(t, k); return <option key={k} value={k}>{v.label}</option> })}
                 </Select>{msgB('method')}
               </div>
             </div>
-            <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="rev-label">{t('revenue_page.precio_independiente')}</label>
-              <Input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="number" value={form.standalone_price} onChange={e=>setForm(f=>({...f,standalone_price:e.target.value}))} placeholder="0" />{msgB('standalone_price')}
+            <div>
+              <Input label={t('revenue_page.precio_independiente')} id={`${idCampo}-3`} type="number" value={form.standalone_price} onChange={e=>setForm(f=>({...f,standalone_price:e.target.value}))} placeholder="0" />{msgB('standalone_price')}
             </div>
-            <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="rev-label">{t('revenue_page.notas')}</label>
-              <Textarea id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.notes} onChange={e=>setForm(f=>({...f,notes:e.target.value}))} rows={2} />{msgB('notes')}
+            <div>
+              <Textarea label={t('revenue_page.notas')} id={`${idCampo}-4`} value={form.notes} onChange={e=>setForm(f=>({...f,notes:e.target.value}))} rows={2} />{msgB('notes')}
             </div>
             <div className="u-actions-8">
               <Button variant="secondary" onClick={reset}>{t('revenue_page.cancelar')}</Button>
@@ -469,26 +469,19 @@ export default function RevenuePage() {
           {/* Filters */}
           <div className="rev-filters">
             <div className="rev-filters__contract">
-              <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="rev-label">{t('revenue_page.contrato')}</label>
-              <Select suelto placeholder={false} id={`${idCampo}-1`} value={entryFilter.contract_id} onChange={e => filtrarEntradas({ contract_id: e.target.value })}>
+              <Select label={t('revenue_page.contrato')} placeholder={false} id={`${idCampo}-1`} value={entryFilter.contract_id} onChange={e => filtrarEntradas({ contract_id: e.target.value })}>
                 <option value="">{t('revenue.todos_los_contratos')}</option>
                 {contracts.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </Select>
             </div>
-            <div>
-              <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="rev-label">{t('revenue.ano')}</label>
-              <Select suelto placeholder={false} id={`${idCampo}-2`} value={entryFilter.year} onChange={e => filtrarEntradas({ year: e.target.value })} className="rev-input--year">
+            <Select label={t('revenue.ano')} placeholder={false} id={`${idCampo}-2`} value={entryFilter.year} onChange={e => filtrarEntradas({ year: e.target.value })}>
                 <option value="">{t('revenue.todos')}</option>
                 {[currentYear-1, currentYear, currentYear+1].map(y => <option key={y} value={y}>{y}</option>)}
               </Select>
-            </div>
-            <div>
-              <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="rev-label">{t('revenue_page.mes')}</label>
-              <Select suelto placeholder={false} id={`${idCampo}-3`} value={entryFilter.month} onChange={e => filtrarEntradas({ month: e.target.value })} className="rev-input--month">
+            <Select label={t('revenue_page.mes')} placeholder={false} id={`${idCampo}-3`} value={entryFilter.month} onChange={e => filtrarEntradas({ month: e.target.value })}>
                 <option value="">{t('revenue.todos')}</option>
                 {MONTHS.map((m,i) => <option key={i+1} value={i+1}>{i+1} — {m}</option>)}
               </Select>
-            </div>
             {(entryFilter.contract_id||entryFilter.year||entryFilter.month) && (
               <Button variant="ghost" icon={<X size={14} />} onClick={() => filtrarEntradas({ contract_id:'', year:'', month:'' })}>
                 {t('revenue_page.limpiar')}
@@ -600,42 +593,28 @@ export default function RevenuePage() {
       {showCreateContract && (
         <Modal open title={t('revenue.nuevo_contrato_asc_606')} onClose={() => setShowCreateContract(false)} width={540}>
           <div className="u-stack-14">
-            <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="rev-label">{t('revenue_page.proyecto')}</label>
-              <Select suelto placeholder={false} id={`${idCampo}-4`} value={contractForm.project_id} onChange={e=>setContractForm(f=>({...f,project_id:e.target.value}))}>
+            <Select label={t('revenue_page.proyecto')} placeholder={false} id={`${idCampo}-4`} value={contractForm.project_id} onChange={e=>setContractForm(f=>({...f,project_id:e.target.value}))}>
                 <option value="">{t('revenue_page.seleccionar_proyecto')}</option>
                 {projects.map(p => <option key={p.id} value={p.id}>{p.name} ({p.code})</option>)}
               </Select>
-            </div>
-            <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="rev-label">{t('revenue.nombre_del_contrato')}</label>
-              <Input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={contractForm.name} onChange={e=>setContractForm(f=>({...f,name:e.target.value}))} placeholder={t('revenue_page.nombre_contrato_ph')} />
-            </div>
-            <div><label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} className="rev-label">{t('revenue.metodo_de_reconocimiento')}</label>
-              <Select suelto placeholder={false} id={`${idCampo}-6`} value={contractForm.method} onChange={e=>setContractForm(f=>({...f,method:e.target.value}))}>
+            <Input label={t('revenue.nombre_del_contrato')} id={`${idCampo}-5`} value={contractForm.name} onChange={e=>setContractForm(f=>({...f,name:e.target.value}))} placeholder={t('revenue_page.nombre_contrato_ph')} />
+            <Select label={t('revenue.metodo_de_reconocimiento')} placeholder={false} id={`${idCampo}-6`} value={contractForm.method} onChange={e=>setContractForm(f=>({...f,method:e.target.value}))}>
                 {ASC_METHODS.map(k => { const v = metodo(t, k); return <option key={k} value={k}>{v.label} — {v.desc}</option> })}
               </Select>
-            </div>
             <div className="u-grid2-12">
-              <div><label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} className="rev-label">{t('revenue.valor_del_contrato_2')}</label>
-                <Input id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} type="number" value={contractForm.contract_value} onChange={e=>setContractForm(f=>({...f,contract_value:e.target.value}))} placeholder="50000" />
-              </div>
-              <div><label id={`${idCampo}-et8`} htmlFor={`${idCampo}-8`} className="rev-label">{t('revenue_page.moneda')}</label>
-                <Select suelto placeholder={false} id={`${idCampo}-8`} value={contractForm.currency} onChange={e=>setContractForm(f=>({...f,currency:e.target.value}))}>
+              <Input label={t('revenue.valor_del_contrato_2')} id={`${idCampo}-7`} type="number" value={contractForm.contract_value} onChange={e=>setContractForm(f=>({...f,contract_value:e.target.value}))} placeholder="50000" />
+              <Select label={t('revenue_page.moneda')} placeholder={false} id={`${idCampo}-8`} value={contractForm.currency} onChange={e=>setContractForm(f=>({...f,currency:e.target.value}))}>
                   {monedasDeLaEmpresa.map(c => <option key={c} value={c}>{c}</option>)}
                 </Select>
-              </div>
             </div>
             <div className="u-grid2-12">
-              <div><label id={`${idCampo}-et9`} htmlFor={`${idCampo}-9`} className="rev-label">{t('revenue_page.fecha_inicio')}</label><DateInput id={`${idCampo}-9`} aria-labelledby={`${idCampo}-et9`} value={contractForm.start_date} onChange={e=>setContractForm(f=>({...f,start_date:e.target.value}))} className="ds-input" /></div>
-              <div><label id={`${idCampo}-et10`} htmlFor={`${idCampo}-10`} className="rev-label">{t('revenue_page.fecha_fin')}</label><DateInput id={`${idCampo}-10`} aria-labelledby={`${idCampo}-et10`} value={contractForm.end_date} onChange={e=>setContractForm(f=>({...f,end_date:e.target.value}))} className="ds-input" /></div>
+              <DateInput label={t('revenue_page.fecha_inicio')} id={`${idCampo}-9`} value={contractForm.start_date} onChange={e=>setContractForm(f=>({...f,start_date:e.target.value}))} />
+              <DateInput label={t('revenue_page.fecha_fin')} id={`${idCampo}-10`} value={contractForm.end_date} onChange={e=>setContractForm(f=>({...f,end_date:e.target.value}))} />
             </div>
             {contractForm.method === 'straight_line' && (
-              <div><label id={`${idCampo}-et11`} htmlFor={`${idCampo}-11`} className="rev-label">{t('revenue.duracion_meses_alternativa_a_fecha_fin')}</label>
-                <Input id={`${idCampo}-11`} aria-labelledby={`${idCampo}-et11`} type="number" value={contractForm.duration_months} onChange={e=>setContractForm(f=>({...f,duration_months:e.target.value}))} placeholder="12" />
-              </div>
+              <Input label={t('revenue.duracion_meses_alternativa_a_fecha_fin')} id={`${idCampo}-11`} type="number" value={contractForm.duration_months} onChange={e=>setContractForm(f=>({...f,duration_months:e.target.value}))} placeholder="12" />
             )}
-            <div><label id={`${idCampo}-et12`} htmlFor={`${idCampo}-12`} className="rev-label">{t('revenue_page.notas')}</label>
-              <Textarea id={`${idCampo}-12`} aria-labelledby={`${idCampo}-et12`} value={contractForm.notes} onChange={e=>setContractForm(f=>({...f,notes:e.target.value}))} rows={2} />
-            </div>
+            <Textarea label={t('revenue_page.notas')} id={`${idCampo}-12`} value={contractForm.notes} onChange={e=>setContractForm(f=>({...f,notes:e.target.value}))} rows={2} />
             <div className="u-actions-10">
               <Button variant="secondary" onClick={() => setShowCreateContract(false)}>{t('revenue_page.cancelar')}</Button>
               <Button
@@ -661,23 +640,17 @@ export default function RevenuePage() {
               {t('revenue.una_vez_cerrado_no_se_podran_crear')}
             </div>
             <div className="u-grid2-12">
-              <div><label id={`${idCampo}-et13`} htmlFor={`${idCampo}-13`} className="rev-label">{t('revenue.ano')}</label>
-                <Input id={`${idCampo}-13`} aria-labelledby={`${idCampo}-et13`} type="number" value={closePeriod.year} onChange={e=>setClosePeriod(p=>({...p,year:parseInt(e.target.value)}))} />
-              </div>
-              <div><label id={`${idCampo}-et14`} htmlFor={`${idCampo}-14`} className="rev-label">{t('revenue_page.mes')}</label>
-                <Select suelto placeholder={false} id={`${idCampo}-14`} value={closePeriod.month} onChange={e=>setClosePeriod(p=>({...p,month:parseInt(e.target.value)}))}>
+              <Input label={t('revenue.ano')} id={`${idCampo}-13`} type="number" value={closePeriod.year} onChange={e=>setClosePeriod(p=>({...p,year:parseInt(e.target.value)}))} />
+              <Select label={t('revenue_page.mes')} placeholder={false} id={`${idCampo}-14`} value={closePeriod.month} onChange={e=>setClosePeriod(p=>({...p,month:parseInt(e.target.value)}))}>
                   {MONTHS.map((m,i) => <option key={i+1} value={i+1}>{i+1} — {m}</option>)}
                 </Select>
-              </div>
             </div>
             {closedPeriodKeys.has(`${closePeriod.year}-${closePeriod.month}`) && (
               <div className="rev-notice rev-notice--danger" role="alert">
                 {t('revenue.este_periodo_ya_esta_cerrado')}
               </div>
             )}
-            <div><label id={`${idCampo}-et15`} htmlFor={`${idCampo}-15`} className="rev-label">{t('revenue_page.notas_opcional')}</label>
-              <Textarea id={`${idCampo}-15`} aria-labelledby={`${idCampo}-et15`} value={closePeriod.notes} onChange={e=>setClosePeriod(p=>({...p,notes:e.target.value}))} rows={2} />
-            </div>
+            <Textarea label={t('revenue_page.notas_opcional')} id={`${idCampo}-15`} value={closePeriod.notes} onChange={e=>setClosePeriod(p=>({...p,notes:e.target.value}))} rows={2} />
             <div className="u-actions-10">
               <Button variant="secondary" onClick={() => setShowCloseModal(false)}>{t('revenue_page.cancelar')}</Button>
               <Button

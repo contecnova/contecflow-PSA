@@ -41,8 +41,7 @@ export default function PanelDelCab({ onOpen }: { onOpen: (id: string) => void }
         <KpiCard icon={<Users size={16} />} label={t('sd_mercado.cab_pendientes')} value={total} />
         <KpiCard icon={<AlertTriangle size={16} />} label={t('sd_mercado.cab_sin_puntuar')} value={data?.unscored ?? 0} warning={(data?.unscored ?? 0) > 0} />
       </div>
-      <div className="pcab-filtros"><label className="sdm-field pcab-campo"><span>{t('sd_mercado.riesgo_minimo')}</span>
-        <Input type="number" min={0} max={100} value={minimo} onChange={e => { setMinimo(Number(e.target.value) || 0); setPage(1) }} /></label></div>
+      <div className="pcab-filtros"><Input label={t('sd_mercado.riesgo_minimo')} type="number" min={0} max={100} value={minimo} onChange={e => { setMinimo(Number(e.target.value) || 0); setPage(1) }} /></div>
       {isLoading ? <Spinner /> : items.length === 0 ? <EmptyState icon={<ClipboardCheck size={28} />} title={t('sd_mercado.cab_vacio')} /> : (
         <div className="sdm-table-wrap">
           <TablaSimple claseTabla="u-table">

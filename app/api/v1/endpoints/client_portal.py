@@ -110,6 +110,11 @@ from app.schemas._enlaces import EnlaceSeguro  # auditoría 22-11-2026: solo htt
 class ClientLoginIn(BaseModel):
     email: EmailStr = Field(..., max_length=120)
     password: str = Field(..., min_length=8, max_length=128)
+    # Migración 208: el correo es único por empresa. `organization_id`: la
+    # empresa elegida en la segunda vuelta; `organization_code`: el código de
+    # acceso del portal (`/portal?empresa=<código>`, el `slug` de la empresa).
+    organization_id: Optional[str] = Field(None, max_length=36)
+    organization_code: Optional[str] = Field(None, max_length=100)
 
 # ClientCreateIn vive en app/schemas/client_portal.py (lo usa también client_service).
 from app.schemas.client_portal import ClientCreateIn  # noqa: E402
@@ -297,10 +302,18 @@ def restore_client(
 @router.post("/auth/login", summary="Login cliente portal")
 @limiter.limit("5/minute")
 def client_login(request: Request, response: Response, payload: ClientLoginIn, db: Session = Depends(sesion_de_sistema("portal: login de cliente"))):
+    from app.core.network import extract_host
+    from app.services.seguridad_de_cuentas.auditoria import Origen
     try:
-        result = _svc.client_login(payload.email, payload.password, db)
+        result = _svc.client_login(payload.email, payload.password, db, organization_id=payload.organization_id,
+                                   codigo=payload.organization_code, host=extract_host(request),
+                                   origen=Origen.de(request))
     except ValueError as e:
         raise desde_valor(401, e)
+    if result.get("choose_organization"):
+        # Migración 208: la contraseña vale en varias empresas; sin token hasta elegir.
+        return APIResponse.ok(data={"ok": False, "choose_organization": True,
+                                    "organizations": result["organizations"]})
     token = result["token"]
     # Auditoría 22-11-2026 (M3): la misma política de cookie que la sesión del
     # personal (`COOKIE_OPTS`: Secure también en staging, no solo en producción)

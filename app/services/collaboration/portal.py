@@ -131,6 +131,8 @@ def list_conversations(db: Session, client: ClientUser) -> list[dict]:
         .all()
     }
 
+    from app.services.collaboration.portal_chat import leido_por_el_equipo
+    leido = leido_por_el_equipo(db, [c.id for c in convs])
     salida = []
     for conv in convs:
         titulo = None
@@ -148,6 +150,8 @@ def list_conversations(db: Session, client: ClientUser) -> list[dict]:
         salida.append({
             "id": conv.id, "kind": conv.kind, "title": titulo,
             "last_activity_at": conv.last_activity_at,
+            # 24-11-2026: hasta cuándo ha leído el equipo (indicador «Leído»).
+            "team_last_read_at": leido.get(conv.id),
         })
     return salida
 
@@ -160,9 +164,12 @@ def list_messages(
     if not is_client_conversation_participant(db, client, conversation_id):
         raise error(403, "sin_acceso_conversacion")
 
+    # 24-11-2026 (chat del portal): el portal no tiene panel de hilos, así que
+    # las respuestas van en la lista, con su cita (`reply_to`). Antes se
+    # filtraban: lo que el equipo respondía en un hilo, el cliente no lo veía.
     q = db.query(CollaborationMessage).filter(
         CollaborationMessage.conversation_id == conversation_id,
-        CollaborationMessage.parent_message_id.is_(None),
+        CollaborationMessage.organization_id == _org(client),
     )
     if before:
         # El ancla se acota a ESTA conversación. El endpoint la buscaba por id a
@@ -215,7 +222,13 @@ def send_message(db: Session, client: ClientUser, payload) -> CollaborationMessa
 
 
 def toggle_reaction(db: Session, client: ClientUser, message_id: str, emoji: str) -> dict:
-    """Pone o quita la reacción del cliente a un mensaje."""
+    """Pone o quita la reacción del cliente a un mensaje.
+
+    24-11-2026: con validación del emoji, auditoría y aviso en vivo
+    (`portal_chat.reaccionar`); lo de abajo queda sin uso.
+    """
+    from app.services.collaboration import portal_chat
+    return portal_chat.reaccionar(db, client, message_id, emoji)
     msg = (
         db.query(CollaborationMessage)
         .filter(CollaborationMessage.id == message_id)
@@ -271,6 +284,10 @@ def mark_read(
             last_message_id=last_message_id,
         ))
     db.commit()
+    # 24-11-2026: «leído» en vivo para el equipo.
+    from app.services.collaboration import portal_chat
+    portal_chat._publicar(conversation_id, "read.updated", None,
+                          {"client_user_id": client.id, "last_message_id": last_message_id})
 
 
 def list_notifications(

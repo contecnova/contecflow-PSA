@@ -103,7 +103,10 @@ def test_mensajes_del_portal_con_codigo(client, admin_token, db):
     assert r.status_code == 400 and r.json()["code"] == "conversacion_obligatoria"
     r = client.post("/api/v1/portal/collaboration/messages", json={"conversation_id": "no-existe", "body": "hola"})
     assert r.status_code == 404 and r.json()["code"] == "conversacion_no_encontrada"
-    r = client.post("/api/v1/portal/collaboration/messages/no-existe/reactions", json={"emoji": "ok"})
+    # 24-11-2026 (chat del portal, reacciones válidas): la reacción se valida antes de
+    # buscar el mensaje y «ok» ya no es una reacción válida (422 `portal_reaccion_no_valida`);
+    # para probar el mensaje inexistente se usa una reacción válida.
+    r = client.post("/api/v1/portal/collaboration/messages/no-existe/reactions", json={"emoji": "👍"})
     assert r.status_code == 404 and r.json()["code"] == "mensaje_no_encontrado"
     r = client.post("/api/v1/portal/collaboration/conversations/no-existe/read", json={"last_message_id": "x"})
     assert r.status_code == 403 and r.json()["code"] == "sin_acceso"

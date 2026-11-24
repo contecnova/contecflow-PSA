@@ -132,8 +132,8 @@ export default function FichaDePir({ id, onClose }: { id: string; onClose: () =>
               <span>{t(`pir.motivo_${pir.motivo}`)}</span></div>
             {gestiona && editable ? (
               <>
-                <div className="u-stack-6"><span className="pir-apagado">{t('pir.fecha_prevista')}</span>
-                  <DateInput value={form.fecha_prevista} onChange={e => set('fecha_prevista', e.target.value)} /></div>
+                <div className="u-stack-6">
+                  <DateInput label={t('pir.fecha_prevista')} value={form.fecha_prevista} onChange={e => set('fecha_prevista', e.target.value)} /></div>
                 <SelectRico label={t('pir.responsable')} valor={form.responsable_id} onChange={v => set('responsable_id', v)}
                   opciones={opcionesUsuario} />
               </>
@@ -449,8 +449,8 @@ function Acciones({ pir, puede, opcionesUsuario, onHecho }: {
           <Input label={t('pir.accion_descripcion')} value={nueva.descripcion} onChange={e => setNueva(n => ({ ...n, descripcion: e.target.value }))} />
           <SelectRico label={t('pir.responsable')} valor={nueva.responsable_id} onChange={v => setNueva(n => ({ ...n, responsable_id: v }))}
             opciones={[{ valor: '', etiqueta: t('pir.sin_responsable') }, ...opcionesUsuario]} />
-          <div className="u-stack-6"><span className="pir-apagado">{t('pir.fecha_limite')}</span>
-            <DateInput value={nueva.fecha_limite} onChange={e => setNueva(n => ({ ...n, fecha_limite: e.target.value }))} /></div>
+          <div className="u-stack-6">
+            <DateInput label={t('pir.fecha_limite')} value={nueva.fecha_limite} onChange={e => setNueva(n => ({ ...n, fecha_limite: e.target.value }))} /></div>
           <Button icon={<Plus size={14} />} disabled={nueva.descripcion.trim().length < 3} loading={crear.isPending}
             onClick={() => crear.mutate()}>{t('pir.anadir_accion')}</Button>
         </div>

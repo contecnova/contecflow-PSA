@@ -91,6 +91,10 @@ def activar(db: Session, usuario, call_id: str, aviso_confirmado: bool):
     llamada = _llamada(db, usuario, call_id)
     if str(getattr(llamada.status, "value", llamada.status)) == "ended":
         raise error(409, "reuniones_no_grabando", detail="La llamada ya terminó")
+    # 24-11-2026: con clientes del portal en la conversación no se graba ni se
+    # transcribe (docs/portal/CHAT_DEL_PORTAL.md).
+    from app.services.collaboration import portal_chat
+    portal_chat.exigir_sin_grabacion(db, llamada.conversation_id)
     ya = reunion_de(db, llamada.id)
     if ya is not None and ya.status == "grabando":
         return ya

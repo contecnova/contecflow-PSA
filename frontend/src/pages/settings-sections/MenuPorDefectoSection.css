@@ -7,7 +7,7 @@
 .menu-defecto__estado { font-size: var(--text-xs); color: var(--text-3); padding-bottom: var(--space-2); }
 .menu-defecto__acciones { display: flex; justify-content: flex-end; gap: var(--space-2); flex-wrap: wrap; }
 
-@media (max-width: 640px) {
+@media (width <= 640px) {
   .menu-defecto__rol { min-width: 0; width: 100%; }
   .menu-defecto__acciones { justify-content: stretch; }
 }

@@ -158,6 +158,12 @@ def crear_adjunto(
     """
     assert_conversation_access(db, user, conversation_id)
     org = _org(user)
+    # 24-11-2026 (docs/portal/CHAT_DEL_PORTAL.md): con clientes en la conversación,
+    # las reglas de adjuntos del portal de la empresa (tipos, tamaño, contenido).
+    from app.services.collaboration import portal_chat
+    mime_real = portal_chat.validar_si_hay_clientes(db, org, conversation_id, nombre_seguro, mime_type, datos)
+    if mime_real:
+        mime_type = mime_real
     av_status, av_details, dlp_status, dlp_findings, en_cuarentena = escanear(datos)
 
     # La clave lleva organización y conversación delante para que el

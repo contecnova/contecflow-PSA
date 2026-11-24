@@ -67,8 +67,7 @@ export default function CostesTab() {
           <SelectorDePeriodo {...periodo.selector} sinGranularidad />
         </div>
         <div className="almf-filtro">
-          <label className="alm-label" htmlFor="almc-agr">{t('alm.group_by')}</label>
-          <Select suelto placeholder={false} id="almc-agr" className="alm-input" value={agrupar} onChange={e => setAgrupar(e.target.value as Agrupacion)}>
+          <Select label={t('alm.group_by')} placeholder={false} id="almc-agr" value={agrupar} onChange={e => setAgrupar(e.target.value as Agrupacion)}>
             {AGRUPACIONES.map(a => <option key={a} value={a}>{t(`alm.group_${a}`)}</option>)}
           </Select>
         </div>

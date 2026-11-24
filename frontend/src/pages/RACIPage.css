@@ -4,11 +4,9 @@
 
 .raci-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: 12px; }
 .raci-grid-2 { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 12px; }
-@media (max-width: 560px) {
+@media (width <= 560px) {
   .raci-grid, .raci-grid-2 { grid-template-columns: minmax(0, 1fr); }
 }
-
-.raci-selector { max-width: 480px; }
 .raci-acciones-ficha { display: flex; justify-content: flex-end; }
 .raci-cargando { display: flex; justify-content: center; padding: 40px 0; }
 

@@ -302,23 +302,19 @@ export function PortalUsersTab({ cid, clientName }: PortalUsersTabProps) {
             <>
           <div className="pousta-grid-1">
             <div>
-              <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="pousta-lbl">{t('portaluserstab.nombre_completo')} *</label>
-              <Input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={editForm?.full_name ?? ''} onChange={e => { camposEdit.limpiar('full_name'); setEditForm(f => f && ({ ...f, full_name: e.target.value })) }} inputClassName="pousta-inp" />
+              <Input label={<>{t('portaluserstab.nombre_completo')}*</>} id={`${idCampo}-1`} value={editForm?.full_name ?? ''} onChange={e => { camposEdit.limpiar('full_name'); setEditForm(f => f && ({ ...f, full_name: e.target.value })) }} />
               {msgEdit('full_name')}
             </div>
             <div>
-              <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="pousta-lbl">{t('portaluserstab.email')} *</label>
-              <Input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="email" value={editForm?.email ?? ''} onChange={e => { camposEdit.limpiar('email'); setEditForm(f => f && ({ ...f, email: e.target.value })) }} inputClassName="pousta-inp" />
+              <Input label={<>{t('portaluserstab.email')}*</>} id={`${idCampo}-2`} type="email" value={editForm?.email ?? ''} onChange={e => { camposEdit.limpiar('email'); setEditForm(f => f && ({ ...f, email: e.target.value })) }} />
               {msgEdit('email')}
             </div>
             <div>
-              <label id={`${idCampo}-cargo-edit-et`} htmlFor={`${idCampo}-cargo-edit`} className="pousta-lbl">{t('portaluserstab.cargo')}</label>
-              <Input id={`${idCampo}-cargo-edit`} aria-labelledby={`${idCampo}-cargo-edit-et`} value={editForm?.job_title ?? ''} onChange={e => { camposEdit.limpiar('job_title'); setEditForm(f => f && ({ ...f, job_title: e.target.value })) }} placeholder={t('portaluserstab.cargo')} inputClassName="pousta-inp" />
+              <Input label={t('portaluserstab.cargo')} id={`${idCampo}-cargo-edit`} value={editForm?.job_title ?? ''} onChange={e => { camposEdit.limpiar('job_title'); setEditForm(f => f && ({ ...f, job_title: e.target.value })) }} placeholder={t('portaluserstab.cargo')} />
               {msgEdit('job_title')}
             </div>
             <div>
-              <label id={`${idCampo}-tel-et`} htmlFor={`${idCampo}-tel`} className="pousta-lbl">{t('portalusers.telefono')}</label>
-              <Input id={`${idCampo}-tel`} aria-labelledby={`${idCampo}-tel-et`} value={editForm?.phone ?? ''} onChange={e => { camposEdit.limpiar('phone'); setEditForm(f => f && ({ ...f, phone: e.target.value })) }} placeholder={t('portalusers.telefono')} inputClassName="pousta-inp" />
+              <Input label={t('portalusers.telefono')} id={`${idCampo}-tel`} value={editForm?.phone ?? ''} onChange={e => { camposEdit.limpiar('phone'); setEditForm(f => f && ({ ...f, phone: e.target.value })) }} placeholder={t('portalusers.telefono')} />
               {msgEdit('phone')}
             </div>
             <div className="u-col-full">
@@ -386,9 +382,9 @@ export function PortalUsersTab({ cid, clientName }: PortalUsersTabProps) {
             {t('portaluserstab.acceso_se_envia_por_correo')} <strong className="u-text1">{portalUrl}</strong>
           </div>}
           <div className="pousta-grid-1">
-            <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="pousta-lbl">{t('portaluserstab.nombre_completo')} *</label><Input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.full_name} onChange={e => { campos.limpiar('full_name'); setForm(f => ({ ...f, full_name: e.target.value })) }} inputClassName="pousta-inp" />{msg('full_name')}</div>
-            <div><label id={`${idCampo}-mail-et`} htmlFor={`${idCampo}-mail`} className="pousta-lbl">{t('portalusers.email_sera_el_usuario_de_login')}</label><Input id={`${idCampo}-mail`} aria-labelledby={`${idCampo}-mail-et`} type="email" value={form.email} onChange={e => { campos.limpiar('email'); setForm(f => ({ ...f, email: e.target.value })) }} placeholder={t('portalusers.email_de_acceso')} inputClassName="pousta-inp" />{msg('email')}</div>
-            <div><label id={`${idCampo}-cargo-et`} htmlFor={`${idCampo}-cargo`} className="pousta-lbl">{t('portaluserstab.cargo')}</label><Input id={`${idCampo}-cargo`} aria-labelledby={`${idCampo}-cargo-et`} value={form.job_title} onChange={e => { campos.limpiar('job_title'); setForm(f => ({ ...f, job_title: e.target.value })) }} placeholder={t('portaluserstab.cargo')} inputClassName="pousta-inp" />{msg('job_title')}</div>
+            <div><Input label={<>{t('portaluserstab.nombre_completo')}*</>} id={`${idCampo}-4`} value={form.full_name} onChange={e => { campos.limpiar('full_name'); setForm(f => ({ ...f, full_name: e.target.value })) }} />{msg('full_name')}</div>
+            <div><Input label={t('portalusers.email_sera_el_usuario_de_login')} id={`${idCampo}-mail`} type="email" value={form.email} onChange={e => { campos.limpiar('email'); setForm(f => ({ ...f, email: e.target.value })) }} placeholder={t('portalusers.email_de_acceso')} />{msg('email')}</div>
+            <div><Input label={t('portaluserstab.cargo')} id={`${idCampo}-cargo`} value={form.job_title} onChange={e => { campos.limpiar('job_title'); setForm(f => ({ ...f, job_title: e.target.value })) }} placeholder={t('portaluserstab.cargo')} />{msg('job_title')}</div>
             <div>
               <GrupoDeOpciones tipo="checkbox" forma="lista" className="pousta-proyectos" leyenda={t('portaluserstab.asociar_proyectos')}
                 valor={form.project_ids}

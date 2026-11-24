@@ -138,11 +138,6 @@ def create_client(payload, db: Session, actor=None) -> dict:
     ]))
     if not all_project_ids and not payload.client_org_id:
         raise ErrorConCodigo("portal_usuario_sin_alcance", detail="Debe especificar al menos un proyecto o una empresa cliente")
-    existente = db.query(ClientUser).filter(ClientUser.email == payload.email).first()
-    if existente is not None and existente.archived_at is not None:
-        raise ErrorConCodigo("portal_usuario_email_archivado")
-    if existente is not None:
-        raise ErrorConCodigo("email_ya_registrado", detail="Ya existe un usuario de portal con ese email")
     # Revisión 2026-11: el tope de usuarios por cliente sólo lo aplicaba un
     # segundo camino de alta sin pantalla (/clients/{id}/portal-users, retirado).
     if payload.client_org_id:
@@ -165,6 +160,16 @@ def create_client(payload, db: Session, actor=None) -> dict:
     if organizacion is None and all_project_ids:
         primero = db.query(ProjectModel).filter(ProjectModel.id == all_project_ids[0]).first()
         organizacion = primero.organization_id if primero else None
+    organizacion = organizacion or (db.info or {}).get("organization_id") or getattr(actor, "organization_id", None)
+    # Migración 208: el correo es único POR EMPRESA (sin distinguir mayúsculas);
+    # el mismo correo en otra empresa es otra cuenta.
+    from sqlalchemy import func as _func
+    existente = db.query(ClientUser).filter(_func.lower(ClientUser.email) == str(payload.email).strip().lower(),
+                                            ClientUser.organization_id == organizacion).first()
+    if existente is not None and existente.archived_at is not None:
+        raise ErrorConCodigo("portal_usuario_email_archivado")
+    if existente is not None:
+        raise ErrorConCodigo("email_ya_registrado", detail="Ya existe un usuario de portal con ese email")
     manual = bool(payload.password)
     if manual:
         from app.services.client_portal_service.usuarios import validar_alta_con_contrasena
@@ -243,6 +248,14 @@ def update_client(client_id: str, payload: dict, db: Session) -> dict:
     # Un archivado no se reactiva con «Reactivar»: se restaura (queda auditado).
     if client.archived_at is not None and payload.get("is_active"):
         raise ErrorConCodigo("portal_usuario_archivado")
+    nuevo = str(payload.get("email") or "").strip().lower() if "email" in payload else ""
+    if nuevo and nuevo != (client.email or "").lower():
+        from sqlalchemy import func as _func
+        otro = db.query(ClientUser.id).filter(_func.lower(ClientUser.email) == nuevo,
+                                              ClientUser.organization_id == client.organization_id,
+                                              ClientUser.id != client.id).first()
+        if otro:   # migración 208: único por empresa
+            raise ErrorConCodigo("email_ya_registrado", detail="Ya existe un usuario de portal con ese email")
     for k, v in payload.items():
         if k in allowed and k != "project_id":
             setattr(client, k, v)
@@ -275,18 +288,74 @@ def get_active_client_by_id(db: Session, client_id: str) -> Optional[ClientUser]
     return db.query(ClientUser).filter(ClientUser.id == client_id, ClientUser.is_active == True).first()
 
 
-def client_login(email: str, password: str, db: Session) -> dict:
+def cuentas_del_portal(db: Session, correo: str, empresa: Optional[str] = None) -> list:
+    """Usuarios activos del portal con ese correo (sin distinguir mayúsculas), de
+    `empresa` si se sabe. Migración 208: el correo es único POR EMPRESA."""
+    from sqlalchemy import func
+    q = db.query(ClientUser).filter(func.lower(ClientUser.email) == (correo or "").strip().lower(),
+                                    ClientUser.is_active == True)  # noqa: E712
+    if empresa:
+        q = q.filter(ClientUser.organization_id == empresa)
+    return q.all()
 
-    client = db.query(ClientUser).filter(ClientUser.email == email, ClientUser.is_active == True).first()
-    if not client or not client.hashed_password:
+
+def _empresas_activas(db: Session, ids) -> dict:
+    from app.models.mfa import Organization
+    ids = {i for i in ids if i}
+    if not ids:
+        return {}
+    return {o.id: o.name for o in db.query(Organization).filter(Organization.id.in_(ids),
+                                                              Organization.is_active == True).all()}  # noqa: E712
+
+
+def client_login(email: str, password: str, db: Session, *, organization_id: Optional[str] = None,
+                 codigo: Optional[str] = None, host: Optional[str] = None, origen=None) -> dict:
+    """Login del portal. Migración 208 (24-11-2026): el correo es único por empresa.
+
+    La empresa sale, por este orden, de la elegida (`organization_id`, segunda
+    vuelta), del código de acceso del portal o del host
+    (`empresa_por_codigo_o_host`). Si no sale y la contraseña vale en VARIAS
+    empresas, no hay token: devuelve `{"choose_organization": True,
+    "organizations": [{id, name}]}` solo con las empresas en las que la
+    contraseña vale (las demás no se revelan) y el portal vuelve a llamar con la
+    elegida. Elegir empresa (o resolverla por código u host habiendo varias
+    cuentas con ese correo) queda en la auditoría: `PORTAL_LOGIN_EMPRESA_ELEGIDA`.
+    """
+    from app.services.client_portal_service.autenticacion import empresa_por_codigo_o_host
+    empresa, via = empresa_por_codigo_o_host(db, codigo, host)
+    todas = cuentas_del_portal(db, email)
+    cuentas = [c for c in todas if not empresa or c.organization_id == empresa]
+    validas = [c for c in cuentas if c.hashed_password and verify_password(password, c.hashed_password)]
+    if not validas:
         raise ErrorConCodigo("credenciales_incorrectas")
-    if not verify_password(password, client.hashed_password):
-        raise ErrorConCodigo("credenciales_incorrectas")
+    n_ofrecidas = 1
+    if len(validas) > 1 or organization_id:
+        # Con varias, solo las empresas activas (una desactivada no se ofrece).
+        activas = _empresas_activas(db, [c.organization_id for c in validas])
+        candidatas = [c for c in validas if c.organization_id in activas]
+        n_ofrecidas = len(candidatas)
+        if organization_id:
+            elegida = [c for c in candidatas if c.organization_id == organization_id]
+            if not elegida:
+                raise ErrorConCodigo("credenciales_incorrectas")
+            validas, via = elegida, "eleccion"
+        elif len(candidatas) > 1:
+            return {"choose_organization": True,
+                    "organizations": sorted(({"id": c.organization_id, "name": activas[c.organization_id]}
+                                             for c in candidatas), key=lambda e: (e["name"] or "").lower())}
+        elif candidatas:
+            validas = candidatas
+    client = validas[0]
     # Revision multitenant 2026-11b: el login del portal emitia token aunque la
     # empresa estuviera desactivada (luego cada llamada daba 403).
     from app.db.session import exigir_organizacion_activa
     exigir_organizacion_activa(db, client.organization_id)
     client.last_login = datetime.now(timezone.utc)
+    if via == "eleccion" or (via and len(todas) > 1):
+        from app.services.seguridad_de_cuentas.auditoria import auditar
+        auditar(db, None, "PORTAL_LOGIN_EMPRESA_ELEGIDA", client, org_id=client.organization_id, origen=origen,
+                recurso="client_user", datos={"via": via, "cuentas_con_ese_correo": len(todas),
+                                              "empresas_ofrecidas": n_ofrecidas})
     db.commit()
     token = create_client_token(client.id)
     project_ids = client.get_project_ids()

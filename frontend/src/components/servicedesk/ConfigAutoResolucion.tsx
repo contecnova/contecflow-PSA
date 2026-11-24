@@ -59,7 +59,7 @@ export default function ConfigAutoResolucion() {
     <div className="u-stack-16">
       <div className="arp-config">
         <div className="ui-field">
-          <label className="campo-etiqueta" htmlFor="arp-umbral-auto">{t('autoresolution.umbral_auto_resolver')}</label>
+          <label className="uiinde-estiloetiqueta" htmlFor="arp-umbral-auto">{t('autoresolution.umbral_auto_resolver')}</label>
           <div className="arp-rango">
             <input id="arp-umbral-auto" type="range" min="0" max="1" step="0.01" className="arp-rango__input"
               value={cfgDraft.threshold_auto ?? 0.85} onChange={setNum('threshold_auto')} />
@@ -67,7 +67,7 @@ export default function ConfigAutoResolucion() {
           </div>
         </div>
         <div className="ui-field">
-          <label className="campo-etiqueta" htmlFor="arp-umbral-sug">{t('autoresolution.umbral_sugerencia')}</label>
+          <label className="uiinde-estiloetiqueta" htmlFor="arp-umbral-sug">{t('autoresolution.umbral_sugerencia')}</label>
           <div className="arp-rango">
             <input id="arp-umbral-sug" type="range" min="0" max="1" step="0.01" className="arp-rango__input"
               value={cfgDraft.threshold_suggest ?? 0.65} onChange={setNum('threshold_suggest')} />

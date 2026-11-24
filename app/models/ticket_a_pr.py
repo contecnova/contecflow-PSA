@@ -28,7 +28,7 @@ def _uuid() -> str:
 
 
 def _org():
-    return Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
+    return Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
 
 
 def _usuario():

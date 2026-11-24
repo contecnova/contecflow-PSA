@@ -422,6 +422,10 @@ class CollaborationMessageVersion(Base):
     body_html = Column(Text, nullable=True)
     metadata_json = Column(JSON, nullable=False, default=dict)
     edited_by_user_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    # Migracion 210 (chat del portal en colaboracion, docs/portal/CHAT_DEL_PORTAL.md):
+    # el cliente del portal tambien edita y borra lo suyo, con rastro.
+    edited_by_client_id = Column(String(36), ForeignKey("client_users.id", ondelete="SET NULL"), nullable=True, index=True)
+    change_type = Column(String(10), nullable=False, default="edit", server_default="edit")  # edit | delete
     edited_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
 

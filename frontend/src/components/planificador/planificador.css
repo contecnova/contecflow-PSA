@@ -111,7 +111,7 @@
 .plan-form label { display: flex; flex-direction: column; gap: 4px; font-size: var(--text-sm); color: var(--text-2); }
 .plan-textarea { min-height: 64px; resize: vertical; }
 
-@media (max-width: 640px) {
+@media (width <= 640px) {
   .plan-cal { grid-template-columns: repeat(1, minmax(0, 1fr)); }
   .plan-cal__cab { display: none; }
   .plan-cal__dia--vacio { display: none; }

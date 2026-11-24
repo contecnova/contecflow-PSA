@@ -99,8 +99,7 @@ export function ReportPanel({ initialMetric, initialChart, onSave }: { initialMe
         <div className="rep-grid" style={{ '--rep-grid-grid-template-columns': narrow ? 'repeat(2, minmax(0, 1fr))' : '2fr 1.5fr 1.5fr 1fr 1fr 1fr' } as CSSProperties}>
           {/* Metric selector */}
           <div className={narrow ? 'rep-campo-ancho' : undefined}>
-            <label className="rep-ls" id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`}>{traducir('reports.metrica')}</label>
-            <Select suelto placeholder={false} id={`${idCampo}-1`} value={metric} onChange={e => handleMetricChange(e.target.value)}>
+            <Select label={traducir('reports.metrica')} placeholder={false} id={`${idCampo}-1`} value={metric} onChange={e => handleMetricChange(e.target.value)}>
               <option value="">{traducir('reports.seleccionar_metrica')}</option>
               {catalogue && Object.entries(catalogue).map(([cat, items]) => (
                 <optgroup key={cat} label={etiquetaCategoria(cat, traducir)}>
@@ -111,37 +110,25 @@ export function ReportPanel({ initialMetric, initialChart, onSave }: { initialMe
           </div>
 
           {/* Project filter */}
-          <div>
-            <label className="rep-ls" id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`}>{traducir('reportes_ui.proyecto')}</label>
-            <Select suelto placeholder={false} id={`${idCampo}-2`} value={projectId} onChange={e => setProjectId(e.target.value)}>
+          <Select label={traducir('reportes_ui.proyecto')} placeholder={false} id={`${idCampo}-2`} value={projectId} onChange={e => setProjectId(e.target.value)}>
               <option value="">{traducir('reports.todos_los_proyectos')}</option>
               {filters?.projects?.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
             </Select>
-          </div>
 
           {/* User filter */}
-          <div>
-            <label className="rep-ls" id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`}>{traducir('reportes_ui.persona_icono')}</label>
-            <Select suelto placeholder={false} id={`${idCampo}-3`} value={userId} onChange={e => setUserId(e.target.value)}>
+          <Select label={traducir('reportes_ui.persona_icono')} placeholder={false} id={`${idCampo}-3`} value={userId} onChange={e => setUserId(e.target.value)}>
               <option value="">{traducir('reports.todas_las_personas')}</option>
               {filters?.users?.map(u => <option key={u.id} value={u.id}>{u.label}</option>)}
             </Select>
-          </div>
 
           {/* Dept filter */}
-          <div>
-            <label className="rep-ls" id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`}>{traducir('reportes_ui.departamento')}</label>
-            <Select suelto placeholder={false} id={`${idCampo}-4`} value={department} onChange={e => setDepartment(e.target.value)}>
+          <Select label={traducir('reportes_ui.departamento')} placeholder={false} id={`${idCampo}-4`} value={department} onChange={e => setDepartment(e.target.value)}>
               <option value="">{traducir('reports.todos')}</option>
               {filters?.departments?.map(d => <option key={d} value={d}>{d}</option>)}
             </Select>
-          </div>
 
           {/* Top N */}
-          <div>
-            <label className="rep-ls" id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`}>{traducir('reportes_ui.top_n')}</label>
-            <Input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} type="number" min={5} max={100} value={topN} onChange={e => setTopN(+e.target.value)} />
-          </div>
+          <Input label={traducir('reportes_ui.top_n')} id={`${idCampo}-5`} type="number" min={5} max={100} value={topN} onChange={e => setTopN(+e.target.value)} />
 
           {/* Color */}
           <div>

@@ -300,12 +300,10 @@ function PageModal({ spaceId, parentId, editPage, onClose }: { spaceId?: string;
             </div>
           )}
           <div>
-            <label id={`${idCampo}-ettitulo`} htmlFor={`${idCampo}-titulo`} className="wk-label">{traducir('wiki.page_title')}</label>
-            <Input id={`${idCampo}-titulo`} aria-labelledby={`${idCampo}-ettitulo`} value={title} onChange={e=>{setTitle(e.target.value);if(!isEdit)setSlug(autoSlug(e.target.value))}} placeholder={traducir('wiki.titulo_de_la_pagina')} inputClassName="wk-input" />{msg('title')}{msg('title')}
+            <Input label={traducir('wiki.page_title')} id={`${idCampo}-titulo`} value={title} onChange={e=>{setTitle(e.target.value);if(!isEdit)setSlug(autoSlug(e.target.value))}} placeholder={traducir('wiki.titulo_de_la_pagina')} />{msg('title')}{msg('title')}
           </div>
           <div>
-            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="wk-label">{traducir('wiki.slug')}</label>
-            <Input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={slug} onChange={e=>setSlug(e.target.value)} inputClassName="wk-input wk-input--mono ds-campo-codigo" />{msg('slug')}{msg('slug')}
+            <Input label={traducir('wiki.slug')} id={`${idCampo}-1`} value={slug} onChange={e=>setSlug(e.target.value)} inputClassName="ds-campo-codigo" />{msg('slug')}{msg('slug')}
           </div>
           <div>
             <div id={`${idCampo}-contenido-et`} className="wk-label">{traducir('wiki.content')}</div>
@@ -434,8 +432,7 @@ function WikiTagsInline() {
           <div className="wk-tag-form-title">{editing ? traducir('wiki.editar_etiqueta') : traducir('wiki.nueva_etiqueta_titulo')}</div>
           <div className="wk-tag-form-row">
             <div className="wk-tag-form-name">
-              <label id={`${idCampo}-nombre-et`} htmlFor={`${idCampo}-nombre`} className="wk-label wk-label--plain">{traducir('wiki.nombre')}</label>
-              <Input id={`${idCampo}-nombre`} aria-labelledby={`${idCampo}-nombre-et`} value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} placeholder={traducir('wiki.nombre_de_la_etiqueta')} autoFocus inputClassName="wk-input" />
+              <Input label={traducir('wiki.nombre')} id={`${idCampo}-nombre`} value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} placeholder={traducir('wiki.nombre_de_la_etiqueta')} autoFocus />
             </div>
             <div>
               <div id={`${idCampo}-color-et`} className="wk-label wk-label--plain">{traducir('wiki.color')}</div>
@@ -668,15 +665,13 @@ export default function WikiPage() {
       {spaceModal&&(
         <Modal open onClose={()=>setSpaceModal(false)} title={traducir('wiki.nuevo_espacio_wiki')}>
           <div className="u-stack-14">
-            <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="wk-label">{traducir('wiki.nombre')}</label><Input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={spaceForm.name} onChange={e=>setSpaceForm(f=>({...f,name:e.target.value,slug:autoSlug(e.target.value)}))} inputClassName="wk-input" /></div>
-            <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="wk-label">{traducir('wiki.slug')}</label><Input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={spaceForm.slug} onChange={e=>setSpaceForm(f=>({...f,slug:e.target.value}))} inputClassName="wk-input wk-input--mono ds-campo-codigo" /></div>
-            <div><label id={`${idCampo}-etdesc`} htmlFor={`${idCampo}-desc`} className="wk-label">{traducir('wiki.descripcion')}</label><Input id={`${idCampo}-desc`} aria-labelledby={`${idCampo}-etdesc`} value={spaceForm.description} onChange={e=>setSpaceForm(f=>({...f,description:e.target.value}))} placeholder={traducir('wiki.describe_el_objetivo_del_espacio')} inputClassName="wk-input" /></div>
-            <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="wk-label">{traducir('wiki.proyecto_opcional')}</label>
-              <Select suelto placeholder={false} id={`${idCampo}-3`} className="wk-input" value={spaceForm.project_id} onChange={e=>setSpaceForm(f=>({...f,project_id:e.target.value}))}>
+            <Input label={traducir('wiki.nombre')} id={`${idCampo}-1`} value={spaceForm.name} onChange={e=>setSpaceForm(f=>({...f,name:e.target.value,slug:autoSlug(e.target.value)}))} />
+            <Input label={traducir('wiki.slug')} id={`${idCampo}-2`} value={spaceForm.slug} onChange={e=>setSpaceForm(f=>({...f,slug:e.target.value}))} inputClassName="ds-campo-codigo" />
+            <Input label={traducir('wiki.descripcion')} id={`${idCampo}-desc`} value={spaceForm.description} onChange={e=>setSpaceForm(f=>({...f,description:e.target.value}))} placeholder={traducir('wiki.describe_el_objetivo_del_espacio')} />
+            <Select label={traducir('wiki.proyecto_opcional')} placeholder={false} id={`${idCampo}-3`} value={spaceForm.project_id} onChange={e=>setSpaceForm(f=>({...f,project_id:e.target.value}))}>
                 <option value="">{traducir('wiki.sin_proyecto')}</option>
                 {projects.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}
               </Select>
-            </div>
             <div className="wk-actions">
               <Button variant="secondary" onClick={()=>setSpaceModal(false)}>{traducir('wiki.cancelar')}</Button>
               <Button onClick={()=>createSpace(spaceForm)} disabled={cSpace||!spaceForm.name||!spaceForm.slug} loading={cSpace}>

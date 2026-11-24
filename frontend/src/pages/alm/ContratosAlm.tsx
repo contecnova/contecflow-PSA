@@ -35,7 +35,6 @@ import {
   type AlmContract,
   aPagina,
   type CambioDeCampo,
-  claseCampo,
   CONTRACT_STATUS,
   CONTRACT_TYPES,
   type CostCenter,
@@ -140,43 +139,37 @@ function ContractModal({ contract, vendors, users, costCenters, onClose }: { con
     <Modal open onClose={onClose} title={isEdit ? t('alm.contracts_modal_edit') : t('alm.contracts_modal_new')} width={720}>
       <div className="u-grid2-14">
         <div className="u-col-full">
-          <Input label={<>{t('alm.contracts_label_title')} *</>} id={`${idCampo}-1`} value={form.title} onChange={s('title')} aria-invalid={!!validation.errors.title} placeholder={t('alm.contracts_placeholder_title')} className="claseCampo validation errors title" />{msgC('title')}
+          <Input label={<>{t('alm.contracts_label_title')} *</>} id={`${idCampo}-1`} value={form.title} onChange={s('title')} aria-invalid={!!validation.errors.title} placeholder={t('alm.contracts_placeholder_title')} />{msgC('title')}
           {validation.errors.title && <p className="u-field-error">{validation.errors.title}</p>}
         </div>
         <div>
-          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="alm-label">{t('alm.contracts_label_vendor')}</label>
-          <Select suelto placeholder={false} id={`${idCampo}-2`} value={form.vendor_id} onChange={s('vendor_id')} className="alm-input">
+          <Select label={t('alm.contracts_label_vendor')} placeholder={false} id={`${idCampo}-2`} value={form.vendor_id} onChange={s('vendor_id')}>
             <option value="">{t('alm.contracts_none_vendor')}</option>
             {vendors.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
           </Select>{msgC('vendor_id')}
         </div>
         <div>
-          <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="alm-label">{t('alm.contracts_label_type')}</label>
-          <Select suelto placeholder={false} id={`${idCampo}-3`} value={form.type} onChange={s('type')} className="alm-input">
+          <Select label={t('alm.contracts_label_type')} placeholder={false} id={`${idCampo}-3`} value={form.type} onChange={s('type')}>
             {Object.keys(CONTRACT_TYPES).map(k => <option key={k} value={k}>{t(`alm.contract_type_${k}`)}</option>)}
           </Select>{msgC('type')}
         </div>
         <div>
-          <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="alm-label">{t('alm.contracts_label_status')}</label>
-          <Select suelto placeholder={false} id={`${idCampo}-4`} value={form.status} onChange={s('status')} className="alm-input">
+          <Select label={t('alm.contracts_label_status')} placeholder={false} id={`${idCampo}-4`} value={form.status} onChange={s('status')}>
             {Object.keys(CONTRACT_STATUS).map(k => <option key={k} value={k}>{t(`alm.contract_status_${k}`)}</option>)}
           </Select>{msgC('status')}
         </div>
         <div>
-          <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="alm-label">{t('alm.contracts_label_billing_cycle')}</label>
-          <Select suelto placeholder={false} id={`${idCampo}-5`} value={form.billing_cycle} onChange={s('billing_cycle')} className="alm-input">
+          <Select label={t('alm.contracts_label_billing_cycle')} placeholder={false} id={`${idCampo}-5`} value={form.billing_cycle} onChange={s('billing_cycle')}>
             {[['one_time',t('alm.contracts_cycle_one_time')],['monthly',t('alm.contracts_cycle_monthly')],['quarterly',t('alm.contracts_cycle_quarterly')],['annual',t('alm.contracts_cycle_annual')],['biennial',t('alm.contracts_cycle_biennial')]].map(([k,l]) => <option key={k} value={k}>{l}</option>)}
           </Select>{msgC('billing_cycle')}
         </div>
-        <div><label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} className="alm-label">{t('alm.contracts_label_start_date')}</label><DateInput id={`${idCampo}-6`} value={form.start_date} onChange={s('start_date')} className={claseCampo(validation.errors.start_date)} aria-invalid={!!validation.errors.start_date} />{msgC('start_date')}</div>
+        <div><DateInput label={t('alm.contracts_label_start_date')} id={`${idCampo}-6`} value={form.start_date} onChange={s('start_date')} aria-invalid={!!validation.errors.start_date} />{msgC('start_date')}</div>
         <div>
-          <label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} className="alm-label">{t('alm.contracts_label_end_date')}</label>
-          <DateInput id={`${idCampo}-7`} value={form.end_date} onChange={s('end_date')} className={claseCampo(validation.errors.end_date)} aria-invalid={!!validation.errors.end_date} />{msgC('end_date')}
+          <DateInput label={t('alm.contracts_label_end_date')} id={`${idCampo}-7`} value={form.end_date} onChange={s('end_date')} aria-invalid={!!validation.errors.end_date} />{msgC('end_date')}
           {validation.errors.end_date && <p className="u-field-error">{validation.errors.end_date}</p>}
         </div>
         <div>
-          <label id={`${idCampo}-et8`} htmlFor={`${idCampo}-8`} className="alm-label">{t('alm.contracts_label_renewal_date')}</label>
-          <DateInput id={`${idCampo}-8`} value={form.renewal_date} onChange={s('renewal_date')} className={claseCampo(validation.errors.renewal_date)} aria-invalid={!!validation.errors.renewal_date} />{msgC('renewal_date')}
+          <DateInput label={t('alm.contracts_label_renewal_date')} id={`${idCampo}-8`} value={form.renewal_date} onChange={s('renewal_date')} aria-invalid={!!validation.errors.renewal_date} />{msgC('renewal_date')}
           {validation.errors.renewal_date && <p className="u-field-error">{validation.errors.renewal_date}</p>}
         </div>
         <div>
@@ -213,23 +206,21 @@ function ContractModal({ contract, vendors, users, costCenters, onClose }: { con
           {validation.errors.annual_value && <p className="u-field-error">{validation.errors.annual_value}</p>}
         </div>
         <div>
-          <label id={`${idCampo}-et12`} htmlFor={`${idCampo}-12`} className="alm-label">{t('alm.contracts_label_owner')}</label>
-          <Select suelto placeholder={false} id={`${idCampo}-12`} value={form.owner_id} onChange={s('owner_id')} className="alm-input">
+          <Select label={t('alm.contracts_label_owner')} placeholder={false} id={`${idCampo}-12`} value={form.owner_id} onChange={s('owner_id')}>
             <option value="">{t('alm.contracts_none_owner')}</option>
             {users.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
           </Select>{msgC('owner_id')}
         </div>
         <div>
-          <label id={`${idCampo}-et13`} htmlFor={`${idCampo}-13`} className="alm-label">{t('alm.contracts_label_cost_center')}</label>
-          <Select suelto placeholder={false} id={`${idCampo}-13`} value={form.cost_center_id} onChange={s('cost_center_id')} className="alm-input">
+          <Select label={t('alm.contracts_label_cost_center')} placeholder={false} id={`${idCampo}-13`} value={form.cost_center_id} onChange={s('cost_center_id')}>
             <option value="">{t('alm.contracts_none_cost_center')}</option>
             {costCenters.map(c => <option key={c.id} value={c.id}>{c.code} — {c.name}</option>)}
           </Select>{msgC('cost_center_id')}
         </div>
-        <div><label id={`${idCampo}-et14`} htmlFor={`${idCampo}-14`} className="alm-label">{t('alm.contracts_label_po')}</label><Input id={`${idCampo}-14`} aria-labelledby={`${idCampo}-et14`} value={form.po_number} onChange={s('po_number')} inputClassName="alm-input" />{msgC('po_number')}</div>
-        <div><label id={`${idCampo}-et15`} htmlFor={`${idCampo}-15`} className="alm-label">{t('alm.contracts_label_payment_method')}</label><Input id={`${idCampo}-15`} aria-labelledby={`${idCampo}-et15`} value={form.payment_method} onChange={s('payment_method')} placeholder={t('alm.contracts_placeholder_payment_method')} inputClassName="alm-input" />{msgC('payment_method')}</div>
-        <div className="u-col-full"><label id={`${idCampo}-et16`} htmlFor={`${idCampo}-16`} className="alm-label">{t('alm.contracts_label_document_url')}</label><Input id={`${idCampo}-16`} aria-labelledby={`${idCampo}-et16`} value={form.document_url} onChange={s('document_url')} placeholder={t('alm.contracts_placeholder_document_url')} inputClassName="alm-input" />{msgC('document_url')}</div>
-        <div className="u-col-full"><label id={`${idCampo}-et17`} htmlFor={`${idCampo}-17`} className="alm-label">{t('alm.contracts_label_notes')}</label><Textarea id={`${idCampo}-17`} aria-labelledby={`${idCampo}-et17`} value={form.notes} onChange={s('notes')} rows={3} inputClassName="alm-input" />{msgC('notes')}</div>
+        <div><Input label={t('alm.contracts_label_po')} id={`${idCampo}-14`} value={form.po_number} onChange={s('po_number')} />{msgC('po_number')}</div>
+        <div><Input label={t('alm.contracts_label_payment_method')} id={`${idCampo}-15`} value={form.payment_method} onChange={s('payment_method')} placeholder={t('alm.contracts_placeholder_payment_method')} />{msgC('payment_method')}</div>
+        <div className="u-col-full"><Input label={t('alm.contracts_label_document_url')} id={`${idCampo}-16`} value={form.document_url} onChange={s('document_url')} placeholder={t('alm.contracts_placeholder_document_url')} />{msgC('document_url')}</div>
+        <div className="u-col-full"><Textarea label={t('alm.contracts_label_notes')} id={`${idCampo}-17`} value={form.notes} onChange={s('notes')} rows={3} />{msgC('notes')}</div>
       </div>
       <div className="alm-modal-actions">
         <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>

@@ -10,7 +10,6 @@
 .vap-fila__campo { flex: 1 1 200px; min-width: 0; }
 .vap-select { min-width: 140px; }
 .vap-dos { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
-.campo-form.vap-textarea { resize: vertical; }
 
 /* Sesión activa */
 .ds-card.vap-activa { display: flex; flex-direction: column; gap: 12px; padding: 14px 16px; border-color: color-mix(in srgb, var(--accent) 35%, var(--surface-4)); }

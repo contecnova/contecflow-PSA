@@ -125,13 +125,12 @@ function FormularioDeJornada({ id, inicial, asignaciones, puedeEditar, onGuardad
         <fieldset className="ds-grupo-opciones ausadm-fieldset" disabled={!puedeEditar}>
           <legend className="u-sr-only">{ta('jornada')}</legend>
           <div className="ausadm-grid-2">
-            <label className="ausadm-campo-con-etiqueta">
-              <span className="ausadm-etiqueta">{ta('nombre')}</span>
-              <Input aria-label={ta('nombre')} required value={d.nombre} onChange={e => cambiar({ nombre: e.target.value })} inputClassName="ausadm-campo" />
+            <div className="ausadm-campo-con-etiqueta">
+              <Input label={ta('nombre')} aria-label={ta('nombre')} required value={d.nombre} onChange={e => cambiar({ nombre: e.target.value })} />
               <ErrorDeCampo texto={campos.de('nombre')} />
-            </label>
+            </div>
             <label className="ausadm-campo-con-etiqueta">
-              <span className="ausadm-etiqueta">{ta('color')}</span>
+              <span className="uiinde-estiloetiqueta">{ta('color')}</span>
               <input aria-label={ta('color')} type="color" className="ausadm-color" value={d.color} onChange={e => cambiar({ color: e.target.value })} />
             </label>
           </div>
@@ -150,12 +149,11 @@ function FormularioDeJornada({ id, inicial, asignaciones, puedeEditar, onGuardad
             ))}
           </div>
           <div className="ausadm-grid-2">
-            <label className="ausadm-campo-con-etiqueta">
-              <span className="ausadm-etiqueta">{ta('pausa_minutos')}</span>
-              <Input aria-label={ta('pausa_minutos')} type="number" min={0} step={5} value={d.pausa_minutos} onChange={e => cambiar({ pausa_minutos: Math.max(0, Number(e.target.value) || 0) })} inputClassName="ausadm-campo ausadm-campo--corto" />
+            <div className="ausadm-campo-con-etiqueta">
+              <Input label={ta('pausa_minutos')} aria-label={ta('pausa_minutos')} type="number" min={0} step={5} value={d.pausa_minutos} onChange={e => cambiar({ pausa_minutos: Math.max(0, Number(e.target.value) || 0) })} />
               <span className="ausadm-ayuda">{ta('pausa_jornada_ayuda')}</span>
               <ErrorDeCampo texto={campos.de('pausa_minutos')} />
-            </label>
+            </div>
             <p className="ausadm-ayuda" aria-live="polite">{ta('horas_semana', { n: num(total) })}</p>
           </div>
           <Casilla etiqueta={ta('activo')} valor={d.activo} onChange={v => cambiar({ activo: v })} />
@@ -235,23 +233,19 @@ function FilaDeAsignacion({ id, inicial, puedeEditar, onHecha }: {
           <ValorDeAmbito ambito={a.ambito} valor={a.valor} onChange={valor => poner({ valor })} />
         </div>
         <div className="ausadm-fila">
-          <label className="ausadm-fila"><span className="ausadm-ayuda">{ta('desde')}</span>
-            <DateInput className="ausadm-campo" aria-label={ta('desde')} value={a.desde ?? ''} onChange={e => poner({ desde: e.target.value || null })} />
-          </label>
-          <label className="ausadm-fila"><span className="ausadm-ayuda">{ta('hasta')}</span>
-            <DateInput className="ausadm-campo" aria-label={ta('hasta')} value={a.hasta ?? ''} min={a.desde ?? undefined}
+          <DateInput label={ta('desde')} aria-label={ta('desde')} value={a.desde ?? ''} onChange={e => poner({ desde: e.target.value || null })} />
+          <DateInput label={ta('hasta')} aria-label={ta('hasta')} value={a.hasta ?? ''} min={a.desde ?? undefined}
               onChange={e => poner({ hasta: e.target.value || null })} />
-          </label>
           <Casilla etiqueta={ta('cada_anio')} ayuda={ta('cada_anio_ayuda')} valor={a.recurrente_anual} onChange={v => poner({ recurrente_anual: v })} />
-          <label className="ausadm-fila"><span className="ausadm-ayuda">{ta('prioridad')}</span>
-            <Input type="number" aria-label={ta('prioridad')} value={a.prioridad} onChange={e => poner({ prioridad: Number(e.target.value) || 0 })} className="ausadm-campo--mini" />
+          <div className="ausadm-fila">
+            <Input label={ta('prioridad')} type="number" aria-label={ta('prioridad')} value={a.prioridad} onChange={e => poner({ prioridad: Number(e.target.value) || 0 })} />
             <ErrorDeCampo texto={campos.de('prioridad')} />
-          </label>
+          </div>
         </div>
-        <label className="ausadm-campo-con-etiqueta"><span className="ausadm-ayuda">{ta('nota')}</span>
-          <Input aria-label={ta('nota')} value={a.nota ?? ''} onChange={e => poner({ nota: e.target.value || null })} inputClassName="ausadm-campo" />
+        <div className="ausadm-campo-con-etiqueta">
+          <Input label={ta('nota')} aria-label={ta('nota')} value={a.nota ?? ''} onChange={e => poner({ nota: e.target.value || null })} />
           <ErrorDeCampo texto={campos.de('nota')} />
-        </label>
+        </div>
         {!a.desde && !a.hasta && <span className="ausadm-ayuda">{ta('sin_fechas_siempre')}</span>}
         {a.desde && a.hasta && <span className="ausadm-ayuda">{ta(a.recurrente_anual ? 'vigencia_cada_anio' : 'vigencia', { desde: fecha(a.desde), hasta: fecha(a.hasta) })}</span>}
       </fieldset>

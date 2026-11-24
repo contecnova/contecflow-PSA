@@ -46,16 +46,64 @@ def _participant_out(participant: PortalConversationParticipant) -> dict:
     }
 
 
-def _message_out(message: PortalConversationMessage) -> dict:
-    sender_name = "Sistema"
-    sender_type = "system"
+def _remitente(message: PortalConversationMessage) -> tuple[str, str]:
     if message.sender_user:
-        sender_name = message.sender_user.full_name
-        sender_type = "team"
-    elif message.sender_client:
-        sender_name = message.sender_client.full_name
-        sender_type = "client"
+        return message.sender_user.full_name, "team"
+    if message.sender_client:
+        return message.sender_client.full_name, "client"
+    return "Sistema", "system"
+
+
+def _adjunto_out(adjunto) -> dict:
+    """Sin clave de almacén ni enlace: se descarga por la API con la sesión."""
     return {
+        "id": adjunto.id,
+        "name": adjunto.name,
+        "mime_type": adjunto.mime_type,
+        "size_bytes": adjunto.size_bytes,
+        "is_image": (adjunto.mime_type or "").startswith("image/"),
+        "is_quarantined": bool(adjunto.is_quarantined),
+        "av_status": adjunto.av_status,
+        "dlp_status": adjunto.dlp_status,
+        "created_at": str(adjunto.created_at)[:16] if adjunto.created_at else None,
+    }
+
+
+def _cita_out(message: PortalConversationMessage, *, para_cliente: bool, client_id) -> dict | None:
+    """El mensaje citado (responder): quién y un trozo, si quien mira puede verlo."""
+    padre = message.parent_message
+    if padre is None:
+        return None
+    if para_cliente:
+        from app.services.portal_conversation_service._comun import visible_para_cliente
+        if not visible_para_cliente(padre, client_id):
+            return None
+    nombre, tipo = _remitente(padre)
+    return {
+        "id": padre.id,
+        "sender_name": nombre,
+        "sender_type": tipo,
+        "body": "" if padre.deleted_at else (padre.body or "")[:200],
+        "is_deleted": padre.deleted_at is not None,
+    }
+
+
+def _message_out(message: PortalConversationMessage, *, para_cliente: bool = False, client_id=None) -> dict:
+    """Un mensaje como lo ve el equipo o, con `para_cliente`, el cliente.
+
+    24-11-2026 (chat del portal completo): adjuntos, reacciones, cita, edición y
+    borrado. Para el cliente: sin `raw_body` (texto antes de ocultar los datos
+    sensibles) ni notas de moderación; un mensaje borrado sale sin texto ni
+    adjuntos (el rastro lo ve solo el equipo, `GET .../versions`).
+    """
+    sender_name, sender_type = _remitente(message)
+    borrado = message.deleted_at is not None
+    adjuntos = [] if borrado else [
+        _adjunto_out(a) for a in (message.attachments or []) if a.deleted_at is None]
+    reacciones = [] if borrado else [
+        {"emoji": r.emoji, "user_id": r.user_id, "client_user_id": r.client_user_id}
+        for r in (message.reactions or [])]
+    salida = {
         "id": message.id,
         "source": "native",
         "conversation_id": message.conversation_id,
@@ -78,7 +126,21 @@ def _message_out(message: PortalConversationMessage) -> dict:
         "created_at": str(message.created_at)[:16],
         "delivered_at": str(message.delivered_at)[:16] if message.delivered_at else None,
         "read_at": str(message.read_at)[:16] if message.read_at else None,
+        "edited_at": str(message.edited_at)[:16] if message.edited_at else None,
+        "deleted_at": str(message.deleted_at)[:16] if message.deleted_at else None,
+        "is_deleted": borrado,
+        "attachments": adjuntos,
+        "reactions": reacciones,
+        "reply_to": _cita_out(message, para_cliente=para_cliente, client_id=client_id),
     }
+    if borrado:
+        salida["body"] = ""
+        salida["raw_body"] = None
+    if para_cliente:
+        salida["raw_body"] = None
+        salida["moderation_notes"] = None
+        salida["approval_request_id"] = None
+    return salida
 
 
 def _legacy_message_out(message: ClientMessage) -> dict:
@@ -107,14 +169,27 @@ def _legacy_message_out(message: ClientMessage) -> dict:
         "created_at": str(message.created_at)[:16],
         "delivered_at": str(message.created_at)[:16] if message.created_at else None,
         "read_at": None,
+        "edited_at": None,
+        "deleted_at": None,
+        "is_deleted": False,
+        "attachments": [],
+        "reactions": [],
+        "reply_to": None,
     }
 
 
-def _conversation_out(conversation: PortalConversation) -> dict:
+def _conversation_out(conversation: PortalConversation, *, para_cliente: bool = False, client_id=None) -> dict:
     participants = [_participant_out(participant) for participant in conversation.participants if participant.removed_at is None]
-    last_message = _message_out(conversation.messages[-1]) if conversation.messages else None
+    # 24-11-2026: para el cliente, el último mensaje que PUEDE ver (antes podía
+    # salir en la lista una nota interna o un mensaje pendiente de aprobación).
+    if para_cliente:
+        from app.services.portal_conversation_service._comun import visible_para_cliente
+        visibles = [m for m in conversation.messages if visible_para_cliente(m, client_id)]
+        last_message = _message_out(visibles[-1], para_cliente=True, client_id=client_id) if visibles else None
+    else:
+        last_message = _message_out(conversation.messages[-1]) if conversation.messages else None
     unread_for_team = sum(1 for message in conversation.messages if message.sender_client_id and not message.read_at and message.grc_status != PortalConversationGRCStatus.blocked)
-    unread_for_client = sum(1 for message in conversation.messages if message.sender_user_id and not message.read_at and not message.is_internal_note and message.grc_status != PortalConversationGRCStatus.blocked)
+    unread_for_client = sum(1 for message in conversation.messages if message.sender_user_id and not message.read_at and not message.is_internal_note and message.grc_status not in (PortalConversationGRCStatus.blocked, PortalConversationGRCStatus.pending_review))
     pending_reviews = sum(1 for message in conversation.messages if message.grc_status == PortalConversationGRCStatus.pending_review)
     is_sla_breached = bool(conversation.first_response_due_at and not conversation.first_response_at and _is_past(conversation.first_response_due_at))
     return {

@@ -265,8 +265,7 @@ export function AssignReviewModal({ cycle, onClose }: { cycle: Cycle; onClose: (
       <div className="ds-stack perf-box-2">
         {/* Persona evaluada (primero, para poder calcular elegibilidad) */}
         <div className="ds-field">
-          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="ds-field__label">{t('pagina_perf.persona_evaluada')}</label>
-          <Select suelto placeholder={false} id={`${idCampo}-1`} value={form.reviewee_id}
+          <Select label={t('pagina_perf.persona_evaluada')} placeholder={false} id={`${idCampo}-1`} value={form.reviewee_id}
             onChange={e => { camposD.limpiar('reviewee_id'); setForm(f => ({ ...f, reviewee_id: e.target.value })) }}>
             <option value="">{t('pagina_perf.selecciona')}</option>
             {users.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
@@ -308,8 +307,7 @@ export function AssignReviewModal({ cycle, onClose }: { cycle: Cycle; onClose: (
         {/* Evaluador (oculto si es 'self') — restringido al pool elegible */}
         {!isSelfType && (
           <div className="ds-field">
-            <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="ds-field__label">{t('pagina_perf.evaluador')}</label>
-            <Select suelto placeholder={false} id={`${idCampo}-2`} value={form.reviewer_id}
+            <Select label={t('pagina_perf.evaluador')} placeholder={false} id={`${idCampo}-2`} value={form.reviewer_id}
               onChange={e => { camposD.limpiar('reviewer_id'); setForm(f => ({ ...f, reviewer_id: e.target.value })) }}
               disabled={!form.reviewee_id || !!blockedReason}>
               <option value="">{form.reviewee_id ? t('pagina_perf.selecciona') : t('pagina_perf.elige_primero_la_persona_evaluada')}</option>

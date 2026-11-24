@@ -449,8 +449,7 @@ export default function EditorDeNota({ pageId, etiquetas, funciones = { ai: true
       {tareaActiva && editable && (
         <div className="cdn-tarea-activa">
           <CalendarClock size={13} aria-hidden />
-          <span>{t('cuaderno.casilla_actual')}</span>
-          <CampoFecha value={tareaActiva.due || ''} onChange={v => fechaDeTarea('due', v)} aria-label={t('cuaderno.fecha')} placeholder={t('cuaderno.fecha')} />
+          <CampoFecha label={t('cuaderno.casilla_actual')} value={tareaActiva.due || ''} onChange={v => fechaDeTarea('due', v)} aria-label={t('cuaderno.fecha')} placeholder={t('cuaderno.fecha')} />
           <CampoFecha modo="fechaHora" value={tareaActiva.remind ? tareaActiva.remind.slice(0, 16) : ''} onChange={v => fechaDeTarea('remind', v)}
             aria-label={t('cuaderno.aviso')} placeholder={t('cuaderno.aviso')} />
         </div>

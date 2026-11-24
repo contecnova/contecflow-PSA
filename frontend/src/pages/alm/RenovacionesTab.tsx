@@ -79,20 +79,13 @@ function DecisionModal({ r, onClose }: { r: Renovacion; onClose: () => void }) {
         <p className="alm-hint">{t(`alm.decision_${decision}_hint`)}</p>
         <div className="almf-rejilla-2">
           {decision === 'reduce' && r.entity_type === 'license' && (
-            <div>
-              <label className="alm-label" htmlFor={`${id}-s`}>{t('alm.new_seats')}</label>
-              <Input id={`${id}-s`} type="number" min={0} value={asientos} onChange={e => setAsientos(e.target.value)} inputClassName="alm-input" />
-            </div>
+            <Input label={t('alm.new_seats')} id={`${id}-s`} type="number" min={0} value={asientos} onChange={e => setAsientos(e.target.value)} />
           )}
           {decision !== 'cancel' && (
-            <div>
-              <label className="alm-label" htmlFor={`${id}-c`}>{t('alm.new_annual_cost')}</label>
-              <Input id={`${id}-c`} type="number" min={0} value={coste} onChange={e => setCoste(e.target.value)} inputClassName="alm-input" />
-            </div>
+            <Input label={t('alm.new_annual_cost')} id={`${id}-c`} type="number" min={0} value={coste} onChange={e => setCoste(e.target.value)} />
           )}
           <div className="almf-col-completa">
-            <label className="alm-label" htmlFor={`${id}-m`}>{t('alm.reason')}{decision === 'cancel' ? ' *' : ''}</label>
-            <Textarea id={`${id}-m`} rows={3} value={motivo} onChange={e => setMotivo(e.target.value)} inputClassName="alm-input" />
+            <Textarea label={<>{t('alm.reason')}{decision === 'cancel' ? ' *' : ''}</>} id={`${id}-m`} rows={3} value={motivo} onChange={e => setMotivo(e.target.value)} />
           </div>
         </div>
         {error && <p className="u-field-error" role="alert">{error}</p>}

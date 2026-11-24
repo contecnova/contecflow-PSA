@@ -39,7 +39,7 @@ class TranslationCacheEntry(Base):
     __table_args__ = (UniqueConstraint("organization_id", "cache_key", name="uq_translation_cache_org_key"),)
 
     id = Column(String(36), primary_key=True, default=_id)
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     cache_key = Column(String(64), nullable=False)
     source_language = Column(String(16), nullable=True)
     target_language = Column(String(16), nullable=False)
@@ -57,7 +57,7 @@ class MessageTranslation(Base):
                                        name="uq_message_translation"),)
 
     id = Column(String(36), primary_key=True, default=_id)
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     # ticket_comment | ticket | channel_message | chat_message
     message_type = Column(String(30), nullable=False)
     message_id = Column(String(36), nullable=False, index=True)
@@ -77,7 +77,7 @@ class TranslationGlossaryTerm(Base):
     __table_args__ = (UniqueConstraint("organization_id", "term", name="uq_translation_glossary_org_term"),)
 
     id = Column(String(36), primary_key=True, default=_id)
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     term = Column(String(200), nullable=False)
     # JSON {idioma: texto}; vacio: el termino no se traduce.
     translations = Column(Text, nullable=True)
@@ -94,7 +94,7 @@ class KBArticleTranslation(Base):
     __table_args__ = (UniqueConstraint("article_id", "language", name="uq_sd_kb_article_translation_lang"),)
 
     id = Column(String(36), primary_key=True, default=_id)
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     article_id = Column(String(36), ForeignKey("sd_kb_articles.id", ondelete="CASCADE"), nullable=False, index=True)
     language = Column(String(16), nullable=False)
     title = Column(String(500), nullable=False)
@@ -131,7 +131,7 @@ class PortalContentTranslation(Base):
                                        name="uq_portal_content_translation_lang"),)
 
     id = Column(String(36), primary_key=True, default=_id)
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     # announcement | catalog_category | catalog_service
     content_type = Column(String(30), nullable=False)
     content_id = Column(String(36), nullable=False, index=True)

@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useToast } from '../../context/ToastContext'
 import { useAuth } from '../../context/AuthContext'
 import { portalApi, wsApi, apiWsUrl } from '../../services/api'
-import { Button, Spinner, EmptyState, Modal, Tabs, Select, Input, Textarea } from '../../components/ui'
+import { Button, Spinner, EmptyState, Modal, Tabs, Select, Input, Textarea, SelectorDeContexto } from '../../components/ui'
 import { BadgeWithTooltip } from '../../components/ui/BadgeWithTooltip'
 import { IconFR, IconCR } from '../../components/ui/FRCRIcons'
 import { fmtDate, fmtDateTime, extractErr } from '../../utils/helpers'
@@ -76,12 +76,11 @@ export function PortalUATTab({ _cid, projects }: { _cid?: string; projects: Clie
       ) : (
         <>
           {projects.length > 1 && (
-            <div className="u-mb-16">
-              <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="clpata-lbl">{traducir('clientstabs.proyecto')}</label>
-              <Select suelto placeholder={false} id={`${idCampo}-1`} value={selectedProject} onChange={e => setSelectedProject(e.target.value)} className="clpata-inp">
+            <SelectorDeContexto>
+              <Select label={traducir('clientstabs.proyecto')} placeholder={false} id={`${idCampo}-1`} value={selectedProject} onChange={e => setSelectedProject(e.target.value)}>
                 {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
               </Select>
-            </div>
+            </SelectorDeContexto>
           )}
 
           {!selectedProject ? (
@@ -306,18 +305,16 @@ export function PortalSolicitudesTab({ cid }: { cid: string; projects?: ClientPr
       {responding && (
         <Modal open title={traducir('clientstabs.responder_a', { titulo: responding.title })} onClose={() => setResponding(null)} width={520}>
           <div className="u-stack-14">
-            <div><label className="clpata-ls">{traducir('clients.respuesta_analisis')}</label><Textarea value={responseForm.pm_response} onChange={e => setResponseForm(f => ({ ...f, pm_response: e.target.value }))} rows={3} placeholder={traducir('clients.respuesta_del_equipo_2')} aria-label={traducir('clients.respuesta_del_equipo_2')} inputClassName="clpata-fs2" /></div>
+            <Textarea label={traducir('clients.respuesta_analisis')} value={responseForm.pm_response} onChange={e => setResponseForm(f => ({ ...f, pm_response: e.target.value }))} rows={3} placeholder={traducir('clients.respuesta_del_equipo_2')} aria-label={traducir('clients.respuesta_del_equipo_2')} />
             <div className="clpata-grid-2">
-              <div><label id={`${idCampo}-horas-et`} htmlFor={`${idCampo}-horas`} className="clpata-ls">{traducir('clientstabs.horas_estimadas')}</label><Input id={`${idCampo}-horas`} aria-labelledby={`${idCampo}-horas-et`} type="number" value={responseForm.estimated_hours} onChange={e => setResponseForm(f => ({ ...f, estimated_hours: e.target.value }))} placeholder={traducir('clientstabs.horas')} inputClassName="clpata-fs" /></div>
-              <div><label id={`${idCampo}-coste-et`} htmlFor={`${idCampo}-coste`} className="clpata-ls">{traducir('clientstabs.coste_estimado')} ({fmtMoneda.simbolo})</label><Input id={`${idCampo}-coste`} aria-labelledby={`${idCampo}-coste-et`} type="number" value={responseForm.estimated_cost} onChange={e => setResponseForm(f => ({ ...f, estimated_cost: e.target.value }))} placeholder={traducir('clientstabs.coste')} inputClassName="clpata-fs" /></div>
-              <div><label id={`${idCampo}-semanas-et`} htmlFor={`${idCampo}-semanas`} className="clpata-ls">{traducir('clientstabs.semanas_entrega')}</label><Input id={`${idCampo}-semanas`} aria-labelledby={`${idCampo}-semanas-et`} type="number" value={responseForm.estimated_delivery_weeks} onChange={e => setResponseForm(f => ({ ...f, estimated_delivery_weeks: e.target.value }))} placeholder={traducir('clientstabs.semanas')} inputClassName="clpata-fs" /></div>
+              <Input label={traducir('clientstabs.horas_estimadas')} id={`${idCampo}-horas`} type="number" value={responseForm.estimated_hours} onChange={e => setResponseForm(f => ({ ...f, estimated_hours: e.target.value }))} placeholder={traducir('clientstabs.horas')} />
+              <Input label={<>{traducir('clientstabs.coste_estimado')}({fmtMoneda.simbolo})</>} id={`${idCampo}-coste`} type="number" value={responseForm.estimated_cost} onChange={e => setResponseForm(f => ({ ...f, estimated_cost: e.target.value }))} placeholder={traducir('clientstabs.coste')} />
+              <Input label={traducir('clientstabs.semanas_entrega')} id={`${idCampo}-semanas`} type="number" value={responseForm.estimated_delivery_weeks} onChange={e => setResponseForm(f => ({ ...f, estimated_delivery_weeks: e.target.value }))} placeholder={traducir('clientstabs.semanas')} />
             </div>
-            <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="clpata-ls">{traducir('common.status')}</label>
-              <Select suelto placeholder={false} id={`${idCampo}-1`} value={responseForm.status} onChange={e => setResponseForm(f => ({ ...f, status: e.target.value }))} className="clpata-fs">
+            <Select label={traducir('common.status')} placeholder={false} id={`${idCampo}-1`} value={responseForm.status} onChange={e => setResponseForm(f => ({ ...f, status: e.target.value }))}>
                 <option value="estimated">{traducir('clients.presupuestada_pendiente_aprobacion_cliente')}</option>
                 <option value="rejected">{traducir('clients.rechazada_no_factible')}</option>
               </Select>
-            </div>
             <div className="u-actions-10">
               <Button variant="secondary" onClick={() => setResponding(null)}>{traducir('common.cancel')}</Button>
               <Button onClick={() => respond({ id: responding.id, data: responseForm })} disabled={isPending || !responseForm.pm_response}>{traducir('clientstabs.enviar_respuesta')}</Button>
@@ -382,12 +379,11 @@ export function PortalDocumentosTab({ cid, projects }: { cid: string; projects: 
   return (
     <div>
       {projects.length > 1 && (
-        <div className="u-mb-16">
-          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="clpata-lbl">{traducir('clientstabs.proyecto')}</label>
-          <Select suelto placeholder={false} id={`${idCampo}-1`} value={selectedProject} onChange={e => setSelectedProject(e.target.value)} className="clpata-inp">
+        <SelectorDeContexto>
+          <Select label={traducir('clientstabs.proyecto')} placeholder={false} id={`${idCampo}-1`} value={selectedProject} onChange={e => setSelectedProject(e.target.value)}>
             {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
           </Select>
-        </div>
+        </SelectorDeContexto>
       )}
       {!selectedProject
         ? <EmptyState icon={<FolderOpen size={28} />} title={traducir('clients.selecciona_un_proyecto')} description={traducir('clientstabs.elige_proyecto_docs')} />

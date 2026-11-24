@@ -102,19 +102,17 @@ export function FeatureRequestsTab({ projectId }: { projectId: string }) {
       {responding && (
         <Modal open title={`${t('client_portal.fr_modal_title')}: ${responding.title}`} onClose={() => setResponding(null)} width={520}>
           <div className="u-stack-14">
-            <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="cpp-label">{t('client_portal.fr_label_response')} *</label><Textarea id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={responseForm.pm_response} onChange={e => setResponseForm(f => ({ ...f, pm_response: e.target.value }))} rows={3} placeholder={t('client_portal.fr_response_placeholder')} inputClassName="cpp-input" /></div>
+            <Textarea label={<>{t('client_portal.fr_label_response')}*</>} id={`${idCampo}-1`} value={responseForm.pm_response} onChange={e => setResponseForm(f => ({ ...f, pm_response: e.target.value }))} rows={3} placeholder={t('client_portal.fr_response_placeholder')} />
             <div className="cpp-grid-3">
-              <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="cpp-label">{t('client_portal.fr_label_hours')}</label><Input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="number" value={responseForm.estimated_hours} onChange={e => setResponseForm(f => ({ ...f, estimated_hours: e.target.value }))} placeholder={t('clientportalpage.ejemplo', { valor: 8 })} inputClassName="cpp-input" /></div>
-              <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="cpp-label">{t('client_portal.fr_label_cost')} ({fmtMoneda.simbolo})</label><Input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="number" value={responseForm.estimated_cost} onChange={e => setResponseForm(f => ({ ...f, estimated_cost: e.target.value }))} placeholder={t('clientportalpage.ejemplo', { valor: 1200 })} inputClassName="cpp-input" /></div>
-              <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="cpp-label">{t('client_portal.fr_label_weeks')}</label><Input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} type="number" value={responseForm.estimated_delivery_weeks} onChange={e => setResponseForm(f => ({ ...f, estimated_delivery_weeks: e.target.value }))} placeholder={t('clientportalpage.ejemplo', { valor: 4 })} inputClassName="cpp-input" /></div>
+              <Input label={t('client_portal.fr_label_hours')} id={`${idCampo}-2`} type="number" value={responseForm.estimated_hours} onChange={e => setResponseForm(f => ({ ...f, estimated_hours: e.target.value }))} placeholder={t('clientportalpage.ejemplo', { valor: 8 })} />
+              <Input label={<>{t('client_portal.fr_label_cost')}({fmtMoneda.simbolo})</>} id={`${idCampo}-3`} type="number" value={responseForm.estimated_cost} onChange={e => setResponseForm(f => ({ ...f, estimated_cost: e.target.value }))} placeholder={t('clientportalpage.ejemplo', { valor: 1200 })} />
+              <Input label={t('client_portal.fr_label_weeks')} id={`${idCampo}-4`} type="number" value={responseForm.estimated_delivery_weeks} onChange={e => setResponseForm(f => ({ ...f, estimated_delivery_weeks: e.target.value }))} placeholder={t('clientportalpage.ejemplo', { valor: 4 })} />
             </div>
-            <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="cpp-label">{t('client_portal.fr_label_status')}</label>
-              <Select suelto placeholder={false} id={`${idCampo}-5`} value={responseForm.status} onChange={e => setResponseForm(f => ({ ...f, status: e.target.value }))} className="cpp-input">
+            <Select label={t('client_portal.fr_label_status')} placeholder={false} id={`${idCampo}-5`} value={responseForm.status} onChange={e => setResponseForm(f => ({ ...f, status: e.target.value }))}>
                 <option value="estimated">{t('client_portal.fr_status_estimated')}</option>
                 <option value="reviewing">{t('client_portal.fr_status_reviewing')}</option>
                 <option value="rejected">{t('client_portal.fr_status_rejected')}</option>
               </Select>
-            </div>
             <div className="u-actions-10">
               <Button variant="secondary" onClick={() => setResponding(null)}>{t('common.cancel')}</Button>
               <Button onClick={() => respond({ id: responding.id, data: responseForm })} disabled={isPending || !responseForm.pm_response}>{t('client_portal.fr_send_response')}</Button>
@@ -219,14 +217,12 @@ export function DocumentsTab({ projectId }: { projectId: string }) {
       {showAdd && (
         <Modal open title={t('client_portal.docs_modal_title')} onClose={() => setShowAdd(false)} width={480}>
           <div className="u-stack-14">
-            <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="cpp-label">{t('client_portal.docs_label_title')} *</label><Input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={docForm.title} onChange={e => setDocForm(f => ({ ...f, title: e.target.value }))} inputClassName="cpp-input" /></div>
-            <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="cpp-label">{t('client_portal.docs_label_category')}</label>
-              <Select suelto placeholder={false} id={`${idCampo}-2`} value={docForm.category} onChange={e => setDocForm(f => ({ ...f, category: e.target.value }))} className="cpp-input">
+            <Input label={<>{t('client_portal.docs_label_title')}*</>} id={`${idCampo}-1`} value={docForm.title} onChange={e => setDocForm(f => ({ ...f, title: e.target.value }))} />
+            <Select label={t('client_portal.docs_label_category')} placeholder={false} id={`${idCampo}-2`} value={docForm.category} onChange={e => setDocForm(f => ({ ...f, category: e.target.value }))}>
                 {Object.entries(CAT_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
               </Select>
-            </div>
-            <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="cpp-label">{t('client_portal.docs_label_file_url')}</label><Input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="url" value={docForm.file_url} onChange={e => setDocForm(f => ({ ...f, file_url: e.target.value }))} placeholder="https://..." inputClassName="cpp-input" /></div>
-            <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="cpp-label">{t('client_portal.docs_label_file_name')}</label><Input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={docForm.file_name} onChange={e => setDocForm(f => ({ ...f, file_name: e.target.value }))} placeholder={t('client_portal.docs_placeholder_file_name')} inputClassName="cpp-input" /></div>
+            <Input label={t('client_portal.docs_label_file_url')} id={`${idCampo}-3`} type="url" value={docForm.file_url} onChange={e => setDocForm(f => ({ ...f, file_url: e.target.value }))} placeholder="https://..." />
+            <Input label={t('client_portal.docs_label_file_name')} id={`${idCampo}-4`} value={docForm.file_name} onChange={e => setDocForm(f => ({ ...f, file_name: e.target.value }))} placeholder={t('client_portal.docs_placeholder_file_name')} />
             <Checkbox label={t('client_portal.docs_requires_signature')} checked={docForm.requires_signature} onChange={marcado => setDocForm(f => ({ ...f, requires_signature: marcado }))} />
             <div className="u-actions-10">
               <Button variant="secondary" onClick={() => setShowAdd(false)}>{t('common.cancel')}</Button>

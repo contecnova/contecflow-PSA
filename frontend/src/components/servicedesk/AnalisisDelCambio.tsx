@@ -158,10 +158,9 @@ function Impacto({ cambio }: { cambio: CambioMin }) {
       <div className="ds-eyebrow">{t('sd_mercado.radio_impacto')}</div>
       {cis.length === 0 ? <EmptyState icon={<Radar size={28} />} title={t('sd_mercado.sin_cis')} /> : (
         <>
-          <label className="sdm-field"><span>{t('sd_mercado.ci_afectado')}</span>
-            <Select suelto placeholder={false} value={ci} onChange={e => setCi(e.target.value)}>
+          <Select label={t('sd_mercado.ci_afectado')} placeholder={false} value={ci} onChange={e => setCi(e.target.value)}>
               {cis.map(c => <option key={c} value={c}>{nombreDeCi(c)}</option>)}
-            </Select></label>
+            </Select>
           {radio.isLoading ? <Spinner size={16} /> : radio.data ? <InformeRadioDeImpacto datos={radio.data as unknown as RadioDeImpacto} /> : <div className="u-text2-xs">{t('sd_mercado.error_carga')}</div>}
         </>
       )}
@@ -199,17 +198,15 @@ function Simulacion({ cambio }: { cambio: CambioMin }) {
       <div className="u-text2-xs">{t('sd_mercado.simulacion_desc')}</div>
       <div className="sdm-form">
         <Input label={t('sd_mercado.parada_min')} type="number" min={0} value={f.downtime} onChange={e => setF({ ...f, downtime: e.target.value })} />
-        <label className="sdm-field"><span>{t('sd_mercado.tipo_cambio')}</span>
-          <Select suelto placeholder={false} value={f.tipo} onChange={e => setF({ ...f, tipo: e.target.value })}>
+        <Select label={t('sd_mercado.tipo_cambio')} placeholder={false} value={f.tipo} onChange={e => setF({ ...f, tipo: e.target.value })}>
             <option value="">{t('sd_mercado.sin_cambiar')}</option>
             {['standard', 'normal', 'emergency'].map(x => <option key={x} value={x}>{etiquetaSd('chg_type', x)}</option>)}
-          </Select></label>
+          </Select>
         <Input label={t('sd_mercado.hora_utc')} type="number" min={0} max={23} value={f.hora} onChange={e => setF({ ...f, hora: e.target.value })} />
-        <label className="sdm-field"><span>{t('sd_mercado.dia_semana')}</span>
-          <Select suelto placeholder={false} value={f.dia} onChange={e => setF({ ...f, dia: e.target.value })}>
+        <Select label={t('sd_mercado.dia_semana')} placeholder={false} value={f.dia} onChange={e => setF({ ...f, dia: e.target.value })}>
             <option value="">{t('sd_mercado.sin_cambiar')}</option>
             {[0, 1, 2, 3, 4, 5, 6].map(d => <option key={d} value={d}>{t(`sd_mercado.dia_${d}`)}</option>)}
-          </Select></label>
+          </Select>
       </div>
       {(cambio.affected_cis ?? []).length > 0 && (
         <GrupoDeOpciones tipo="checkbox" forma="lista" className="u-stack-6" leyenda={t('sd_mercado.quitar_cis')} valor={f.quitar}
@@ -262,7 +259,7 @@ function Aprobacion({ cambio }: { cambio: CambioMin }) {
         <div className="ds-card sdm-card">
           <div className="sdm-card__head"><CalendarClock size={14} aria-hidden="true" />{t('sd_mercado.reunion_cab')}</div>
           <div className="sdm-form">
-            <label className="sdm-field"><span>{t('sd_mercado.cuando')}</span><DateInput className="ds-input" withTime value={reunion.cuando} onChange={e => setReunion({ ...reunion, cuando: e.target.value })} /></label>
+            <DateInput label={t('sd_mercado.cuando')} withTime value={reunion.cuando} onChange={e => setReunion({ ...reunion, cuando: e.target.value })} />
           </div>
           <Textarea label={t('sd_mercado.agenda')} rows={2} value={reunion.agenda} onChange={e => setReunion({ ...reunion, agenda: e.target.value })} />
           <div className="u-row-end"><Button size="sm" onClick={() => programar.mutate()} loading={programar.isPending} disabled={!reunion.cuando || reunion.agenda.trim().length < 5}>{t('sd_mercado.programar')}</Button></div>

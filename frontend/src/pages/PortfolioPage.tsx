@@ -118,10 +118,7 @@ function PortfolioModal({ initial, onClose, onSave }: { initial?: PortfolioItem 
     <Modal open onClose={onClose} title={initial ? t('portfolio_ui.editar_cartera') : t('portfolio_ui.nueva_cartera')}>
       <div className="u-stack-14">
         <Input label={t('portfolio_ui.nombre_obligatorio')} value={form.name} onChange={set('name')} placeholder={t('portfolio.nombre_de_la_cartera')} />
-        <div className="ui-field">
-          <label className="uiinde-estiloetiqueta" htmlFor={`${idCampo}-desc`}>{t('portfolio.descripcion')}</label>
-          <Textarea id={`${idCampo}-desc`} rows={3} value={form.description || ''} onChange={set('description')} inputClassName="pf-textarea" />
-        </div>
+        <Textarea label={t('portfolio.descripcion')} id={`${idCampo}-desc`} rows={3} value={form.description || ''} onChange={set('description')} />
         <div className="u-grid2-12">
           <Select label={t('portfolio_ui.estado')} value={String(form.status)} onChange={set('status')} options={[
             { value: 'planning', label: t('portfolio_ui.estado_planning') },
@@ -131,14 +128,8 @@ function PortfolioModal({ initial, onClose, onSave }: { initial?: PortfolioItem 
           <Input label={t('portfolio_ui.presupuesto_total_moneda', { moneda: fmtMoneda.simbolo })} type="number" value={form.budget_total ?? ''} onChange={set('budget_total')} placeholder={t('portfolio_ui.ej_presupuesto')} />
         </div>
         <div className="u-grid2-12">
-          <div className="ui-field">
-            <label className="uiinde-estiloetiqueta" htmlFor={`${idCampo}-ini`}>{t('portfolio_ui.fecha_inicio')}</label>
-            <DateInput id={`${idCampo}-ini`} value={form.start_date || ''} onChange={set('start_date')} className="ds-input" />
-          </div>
-          <div className="ui-field">
-            <label className="uiinde-estiloetiqueta" htmlFor={`${idCampo}-fin`}>{t('portfolio_ui.fecha_fin')}</label>
-            <DateInput id={`${idCampo}-fin`} value={form.end_date || ''} onChange={set('end_date')} className="ds-input" />
-          </div>
+          <DateInput label={t('portfolio_ui.fecha_inicio')} id={`${idCampo}-ini`} value={form.start_date || ''} onChange={set('start_date')} />
+          <DateInput label={t('portfolio_ui.fecha_fin')} id={`${idCampo}-fin`} value={form.end_date || ''} onChange={set('end_date')} />
         </div>
       </div>
       <div className="pf-acciones-modal">

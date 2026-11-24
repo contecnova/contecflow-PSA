@@ -872,7 +872,9 @@ def _reflejar_en_usuario_del_portal(db: Session, ct: ClientContact) -> None:
         return
     email = _texto(ct.email)
     if email and email.lower() != _texto(usuario.email).lower():
+        # Migración 208: único por empresa (sin distinguir mayúsculas).
         otro = db.query(ClientUser.id).filter(func.lower(ClientUser.email) == email.lower(),
+                                              ClientUser.organization_id == usuario.organization_id,
                                               ClientUser.id != usuario.id).first()
         if otro:
             raise error(409, "email_ya_registrado", detail="Ya existe un usuario de portal con ese email")

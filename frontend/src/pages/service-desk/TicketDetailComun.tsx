@@ -4,7 +4,6 @@ import { etiquetaCodigo } from '../../i18n/etiquetaCodigo'
 import type { SdAprobacionDeTicket, SdRespuestaRapida, SdSugerenciaIA, SdTicketComentario, SdTicketDetalle, SdTicketEnlace, SdTicketHistorial } from '../../services/api/tipos-sd'
 
 /** Clases de los formularios (locales a la pantalla). */
-export const LS = 'tkd-label'
 
 /** Color del dato (estado de SLA, de aprobacion) para las clases `.tkd-*` que lo leen. */
 export const colorVar = (c: string) => ({ '--tkd-c': c } as CSSProperties)

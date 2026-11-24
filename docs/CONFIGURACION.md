@@ -114,6 +114,7 @@ Mapa de la pantalla Configuración y del menú por defecto. Guía de uso: README
 | | `chat-admin` Administración del chat (y meses de retención propuestos `CHAT_RETENTION_PROPOSED_MONTHS`) | admin | `/settings/chat-admin` (no estaba en el menú) |
 | Portal de clientes | `public-forms` Formularios públicos | admin, pm | `/public-forms` |
 | | `portal-translations` Traducciones del portal | admin | Service desk → Configuración → Traducciones del portal |
+| | `portal-chat` Chat del portal: llamadas y videollamadas (solo las inicia el equipo), adjuntos, extensiones, tamaño, plazo de edición y tono (grupo `portal_chat`, 24-11-2026, docs/portal/CHAT_DEL_PORTAL.md) | admin | nuevo |
 | Alertas y métricas | `alert-config` Alertas · `metrics` Métricas | admin | pestañas |
 | Sistema | `runtime-flags` Config. dinámica · `log-level` · `system-state` | admin | pestañas |
 

@@ -32,23 +32,13 @@ function Alta({ c, onClose }: { c: CandidatoNoControlado; onClose: () => void })
     <Modal open onClose={onClose} title={t('alm_uso.alta_titulo', { nombre: c.nombre })} subtitle={t('alm_uso.alta_desc')} size="lg">
       <div className="u-stack-14">
         <div className="u-grid2-12">
-          <label className="almu-campo">{t('alm_uso.nombre')}
-            <Input value={p.name} onChange={e => setP({ ...p, name: e.target.value })} inputClassName="alm-input" />
-          </label>
-          <label className="almu-campo">{t('alm_uso.producto')}
-            <Input value={p.product_name} onChange={e => setP({ ...p, product_name: e.target.value })} inputClassName="alm-input" />
-          </label>
-          <label className="almu-campo">{t('alm_uso.metrica')}
-            <Select suelto placeholder={false} className="alm-input" value={p.metric} onChange={e => setP({ ...p, metric: e.target.value })}>
+          <Input label={t('alm_uso.nombre')} value={p.name} onChange={e => setP({ ...p, name: e.target.value })} />
+          <Input label={t('alm_uso.producto')} value={p.product_name} onChange={e => setP({ ...p, product_name: e.target.value })} />
+          <Select label={t('alm_uso.metrica')} placeholder={false} value={p.metric} onChange={e => setP({ ...p, metric: e.target.value })}>
               {METRICAS.map(m => <option key={m} value={m}>{etiquetaCodigo(t, 'alm_uso.metrica_tipo', m)}</option>)}
             </Select>
-          </label>
-          <label className="almu-campo">{t('alm_uso.puestos')}
-            <Input type="number" min={0} value={p.total_seats} onChange={e => setP({ ...p, total_seats: e.target.value })} inputClassName="alm-input" />
-          </label>
-          <label className="almu-campo">{t('alm_uso.coste_anual')}
-            <Input type="number" min={0} step="0.01" value={p.annual_cost} onChange={e => setP({ ...p, annual_cost: e.target.value })} inputClassName="alm-input" />
-          </label>
+          <Input label={t('alm_uso.puestos')} type="number" min={0} value={p.total_seats} onChange={e => setP({ ...p, total_seats: e.target.value })} />
+          <Input label={t('alm_uso.coste_anual')} type="number" min={0} step="0.01" value={p.annual_cost} onChange={e => setP({ ...p, annual_cost: e.target.value })} />
         </div>
         <div className="u-row-end almu-acciones">
           <Button variant="ghost" onClick={onClose}>{t('common.cancel')}</Button>

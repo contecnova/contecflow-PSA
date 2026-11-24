@@ -47,18 +47,6 @@
   margin-bottom: 3px;
   margin-top: 4px;
 }
-.fodepa-campo2 {
-  width: 100%;
-  box-sizing: border-box;
-  background: var(--surface-1);
-  border: 1px solid var(--surface-4);
-  border-radius: 8px;
-  padding: 7px 10px;
-  color: var(--text-1);
-  font-size: var(--text-sm);
-  font-family: inherit;
-  resize: vertical;
-}
 .fodepa-campo--vertical { resize: vertical; }
 .fodepa-campo--auto { width: auto; }
 .fodepa-campo--compacto { padding: 4px 8px; }

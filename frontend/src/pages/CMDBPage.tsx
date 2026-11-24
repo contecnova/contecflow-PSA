@@ -164,8 +164,7 @@ export default function CMDBPage(): JSX.Element {
           <div className="cmdb-panel cmdb-panel--topo">
             <div className="cmdb-topo__filters">
               <div className="cmdb-topo__ci">
-                <label className="cmdb-label" htmlFor="topo-ci">{t('cmdb.central_ci')}</label>
-                <Select suelto placeholder={false} id="topo-ci" className="cmdb-input" value={topoCI?.id || ''} onChange={e => {
+                <Select label={t('cmdb.central_ci')} placeholder={false} id="topo-ci" value={topoCI?.id || ''} onChange={e => {
                   setTopoCI(todos.find(i => i.id === e.target.value) || null)
                   setDrillCI(null)
                 }}>
@@ -173,12 +172,9 @@ export default function CMDBPage(): JSX.Element {
                   {todos.map(ci => <option key={ci.id} value={ci.id}>{ci.name}</option>)}
                 </Select>
               </div>
-              <div>
-                <label className="cmdb-label" htmlFor="topo-radius">{t('cmdb.radio_de_expansion')}</label>
-                <Select suelto placeholder={false} id="topo-radius" className="cmdb-input cmdb-input--w120" value={topoRadius} onChange={e => setTopoRadius(Number(e.target.value))}>
+              <Select label={t('cmdb.radio_de_expansion')} placeholder={false} id="topo-radius" value={topoRadius} onChange={e => setTopoRadius(Number(e.target.value))}>
                   {[1,2,3].map(r => <option key={r} value={r}>{t('cmdb.levels', { n: r })}</option>)}
                 </Select>
-              </div>
               {topoCI && (
                 <Button variant="secondary" onClick={() => { setTopoCI(null); setDrillCI(null) }}>{t('cmdb.clear')}</Button>
               )}
@@ -278,23 +274,16 @@ export default function CMDBPage(): JSX.Element {
       <div className="cmdb-panel cmdb-panel--mb">
         <div className="cmdb-filters">
           <div className="cmdb-filters__q">
-            <label id="cmdb-q-et" className="cmdb-label" htmlFor="cmdb-q">{t('cmdb.search')}</label>
-            <Buscador id="cmdb-q" aria-labelledby="cmdb-q-et" value={searchQ} onChange={setSearchQ} placeholder={t('cmdb.search_ph')} />
+            <Buscador label={t('cmdb.search')} id="cmdb-q" value={searchQ} onChange={setSearchQ} placeholder={t('cmdb.search_ph')} />
           </div>
-          <div>
-            <label className="cmdb-label" htmlFor="cmdb-type">{t('cmdb.ci_type')}</label>
-            <Select suelto placeholder={false} id="cmdb-type" value={filterType} onChange={e => setFilterType(e.target.value)} className="cmdb-input cmdb-input--w200">
+          <Select label={t('cmdb.ci_type')} placeholder={false} id="cmdb-type" value={filterType} onChange={e => setFilterType(e.target.value)}>
               <option value="">{t('cmdb.todos_los_tipos')}</option>
               {CI_TYPES.map(c => <option key={c} value={c}>{etiqueta('type_', c)} ({typeCounts[c]||0})</option>)}
             </Select>
-          </div>
-          <div>
-            <label className="cmdb-label" htmlFor="cmdb-status">{t('cmdb.status')}</label>
-            <Select suelto placeholder={false} id="cmdb-status" value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="cmdb-input cmdb-input--w160">
+          <Select label={t('cmdb.status')} placeholder={false} id="cmdb-status" value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
               <option value="">{t('cmdb.todos')}</option>
               {Object.keys(STATUS_COLOR).map(v => <option key={v} value={v}>{etiqueta('st_', v)}</option>)}
             </Select>
-          </div>
           {(filterType||filterStatus||searchQ) && (
             <Button variant="secondary" onClick={() => {setFilterType('');setFilterStatus('');setSearchQ('')}}>{t('cmdb.clear')}</Button>
           )}

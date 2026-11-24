@@ -452,12 +452,19 @@ def test_32_sin_organizacion_no_se_busca_el_ticket_en_otras(db):
     from app.models.service_desk import Ticket
     from app.services.service_desk.inbound_mail import procesar
 
+    from app.models.mfa import Organization
     db.add(Ticket(number="INC-0042", ticket_type="incident", title="t", description="d",
                   organization_id="1", requester_email="ana@cliente.com"))
+    # 24-11-2026 (migración 208): con una sola empresa el correo va a esa; con
+    # varias y sin empresa destinataria no se busca ni se crea nada (antes salía
+    # un ticket sin empresa que no veía nadie).
+    db.add(Organization(id="org-b-32", name="B", slug="org-b-32", is_active=True))
     db.commit()
+    antes = db.query(Ticket).count()
     r = procesar(db, None, _correo("ana@cliente.com", "RE: [INC-0042] hola"))
     db.commit()
-    assert r.accion == "created" and r.ticket_id is not None
+    assert r.accion == "ignored" and r.ticket_id is None
+    assert db.query(Ticket).count() == antes
 
 
 def test_32_un_from_que_no_se_autentica_comenta_como_externo_sin_cambiar_estado(db):

@@ -77,14 +77,12 @@ function SodRuleModal({ rule, workflows, onClose, roles }: { rule: SodRule | nul
 
         <div className="grc-grid">
           <div>
-            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="grc-page-e18">{t('grc.module_a')}</label>
-            <Select suelto placeholder={false} id={`${idCampo}-1`} value={form.module_a} onChange={e => { camposB.limpiar('module_a'); setForm(f => ({ ...f, module_a: e.target.value })) }} className="grc-page-e19">
+            <Select label={t('grc.module_a')} placeholder={false} id={`${idCampo}-1`} value={form.module_a} onChange={e => { camposB.limpiar('module_a'); setForm(f => ({ ...f, module_a: e.target.value })) }}>
               {MODULES.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
             </Select>{msgB('module_a')}
           </div>
           <div>
-            <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="grc-page-e18">{t('grc.action_a')}</label>
-            <Select suelto placeholder={false} id={`${idCampo}-2`} value={form.action_a} onChange={e => { camposB.limpiar('action_a'); setForm(f => ({ ...f, action_a: e.target.value })) }} className="grc-page-e19">
+            <Select label={t('grc.action_a')} placeholder={false} id={`${idCampo}-2`} value={form.action_a} onChange={e => { camposB.limpiar('action_a'); setForm(f => ({ ...f, action_a: e.target.value })) }}>
               {acciones.map(a => <option key={a} value={a}>{accionDe(t)(a)}</option>)}
             </Select>{msgB('action_a')}
           </div>
@@ -92,14 +90,12 @@ function SodRuleModal({ rule, workflows, onClose, roles }: { rule: SodRule | nul
         <div className="grc-box">{traducir('grc.en_conflicto_con')}</div>
         <div className="grc-grid-2">
           <div>
-            <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="grc-page-e18">{t('grc.module_b')}</label>
-            <Select suelto placeholder={false} id={`${idCampo}-3`} value={form.module_b} onChange={e => { camposB.limpiar('module_b'); setForm(f => ({ ...f, module_b: e.target.value })) }} className="grc-page-e19">
+            <Select label={t('grc.module_b')} placeholder={false} id={`${idCampo}-3`} value={form.module_b} onChange={e => { camposB.limpiar('module_b'); setForm(f => ({ ...f, module_b: e.target.value })) }}>
               {MODULES.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
             </Select>{msgB('module_b')}
           </div>
           <div>
-            <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="grc-page-e18">{t('grc.action_b')}</label>
-            <Select suelto placeholder={false} id={`${idCampo}-4`} value={form.action_b} onChange={e => { camposB.limpiar('action_b'); setForm(f => ({ ...f, action_b: e.target.value })) }} className="grc-page-e19">
+            <Select label={t('grc.action_b')} placeholder={false} id={`${idCampo}-4`} value={form.action_b} onChange={e => { camposB.limpiar('action_b'); setForm(f => ({ ...f, action_b: e.target.value })) }}>
               {acciones.map(a => <option key={a} value={a}>{accionDe(t)(a)}</option>)}
             </Select>{msgB('action_b')}
           </div>
@@ -107,14 +103,12 @@ function SodRuleModal({ rule, workflows, onClose, roles }: { rule: SodRule | nul
 
         <div className="u-grid2-10">
           <div>
-            <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="grc-page-e18">{t('grc.risk_level')}</label>
-            <Select suelto placeholder={false} id={`${idCampo}-5`} value={form.risk} onChange={e => { camposB.limpiar('risk'); setForm(f => ({ ...f, risk: e.target.value })) }} className="grc-page-e19">
+            <Select label={t('grc.risk_level')} placeholder={false} id={`${idCampo}-5`} value={form.risk} onChange={e => { camposB.limpiar('risk'); setForm(f => ({ ...f, risk: e.target.value })) }}>
               {RIESGOS.map(r => <option key={r} value={r}>{t(`grc.riesgo_${r}`)}</option>)}
             </Select>{msgB('risk')}
           </div>
           <div>
-            <label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} className="grc-page-e18">{t('grc.mitigation_flow')}</label>
-            <Select suelto placeholder={false} id={`${idCampo}-6`} value={form.mitigated_by_workflow_id || ''} onChange={e => { camposB.limpiar('mitigated_by_workflow_id'); setForm(f => ({ ...f, mitigated_by_workflow_id: e.target.value })) }} className="grc-page-e19">
+            <Select label={t('grc.mitigation_flow')} placeholder={false} id={`${idCampo}-6`} value={form.mitigated_by_workflow_id || ''} onChange={e => { camposB.limpiar('mitigated_by_workflow_id'); setForm(f => ({ ...f, mitigated_by_workflow_id: e.target.value })) }}>
               <option value="">{t('grc.no_mitigation')}</option>
               {(workflows || []).map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
             </Select>{msgB('mitigated_by_workflow_id')}
@@ -122,8 +116,7 @@ function SodRuleModal({ rule, workflows, onClose, roles }: { rule: SodRule | nul
         </div>
 
         <div>
-          <label className="grc-page-e18">{t('grc.risk_description')}</label>
-          <Input value={form.description} onChange={e => { camposB.limpiar('description'); setForm(f => ({ ...f, description: e.target.value })) }} placeholder={traducir('grc.descripcion_de_la_regla_sod')} aria-label={traducir('grc.descripcion_de_la_regla_sod')} inputClassName="grc-page-e19" />{msgB('description')}
+          <Input label={t('grc.risk_description')} value={form.description} onChange={e => { camposB.limpiar('description'); setForm(f => ({ ...f, description: e.target.value })) }} placeholder={traducir('grc.descripcion_de_la_regla_sod')} aria-label={traducir('grc.descripcion_de_la_regla_sod')} />{msgB('description')}
         </div>
 
         <div>

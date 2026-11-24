@@ -199,8 +199,8 @@ export function APIKeysTab({ showCreate, setShowCreate }: AltaProps) {
       {showCreate && (
         <Modal open title={traducir('enterprise.nueva_api_key_2')} onClose={() => setShowCreate(false)} width={420}>
           <div className="u-stack-14">
-            <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="enterprise-page-e16">{t('pagina_ent.nombre')}</label><Input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.name} onChange={e => setForm(f => ({...f, name:e.target.value}))} placeholder={traducir('enterprise.nombre_de_la_clave')} inputClassName="enterprise-page-e17" /></div>
-            <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="enterprise-page-e16">{traducir('enterprise.limite_por_hora')}</label><Input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} type="number" value={form.rate_limit_per_hour} onChange={e => setForm(f => ({...f, rate_limit_per_hour:+e.target.value}))} inputClassName="enterprise-page-e17" /></div>
+            <Input label={t('pagina_ent.nombre')} id={`${idCampo}-2`} value={form.name} onChange={e => setForm(f => ({...f, name:e.target.value}))} placeholder={traducir('enterprise.nombre_de_la_clave')} />
+            <Input label={traducir('enterprise.limite_por_hora')} id={`${idCampo}-1`} type="number" value={form.rate_limit_per_hour} onChange={e => setForm(f => ({...f, rate_limit_per_hour:+e.target.value}))} />
             <div className="u-actions-10">
               <Button variant="secondary" onClick={() => setShowCreate(false)}>{t('pagina_ent.cancelar')}</Button>
               <Button onClick={() => create(form)} disabled={!form.name}>{t('pagina_ent.crear')}</Button>

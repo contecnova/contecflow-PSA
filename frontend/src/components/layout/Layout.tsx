@@ -403,7 +403,12 @@ function NavGroup({ group, collapsed, alertCount, approvalCount, t, panel, open,
   return (
     <div className="layo-sp-2">
       <div className={`nav-cat ${isAnyChildActive || enPanel ? 'nav-cat--activa' : ''}`}>
-        <NavLink to={panel} end className="nav-cat__enlace" title={traducir('menu_personal.ir_al_panel', { nombre: groupLabel })}>
+        {/* 24-11-2026: el nombre del grupo pliega y despliega igual que la flecha.
+            Desplegado: pliega sin navegar. Plegado: despliega y abre su panel
+            (que además sigue en la lista como «Panel de …»). */}
+        <NavLink to={panel} end className="nav-cat__enlace" title={traducir('menu_personal.ir_al_panel', { nombre: groupLabel })}
+          aria-expanded={open} aria-controls={`nav-group-${group.id}`}
+          onClick={e => { if (open) e.preventDefault(); onToggle() }}>
           <span className="layo-row-4">{group.icon}</span>
           <span className="u-flex1">{groupLabel}</span>
         </NavLink>

@@ -108,7 +108,7 @@ class MFABackupCode(Base):
     __tablename__ = "mfa_backup_codes"
 
     id         = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)  # audit #7
     user_id    = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"),
                         nullable=False, index=True)
     code_hash  = Column(String(128), nullable=False)    # bcrypt hash of 8-char code
@@ -121,7 +121,7 @@ class WebAuthnCredential(Base):
     __tablename__ = "webauthn_credentials"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)  # audit #7
     user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     credential_id = Column(String(255), nullable=False, unique=True, index=True)
     public_key = Column(Text, nullable=False)  # base64url encoded COSE public key bytes
@@ -140,7 +140,7 @@ class MFAChallenge(Base):
     __tablename__ = "mfa_challenges"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)  # audit #7
     user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     token_jti = Column(String(36), nullable=False, unique=True, index=True)
     expires_at = Column(DateTime(timezone=True), nullable=False, index=True)
@@ -159,7 +159,7 @@ class SlackConfig(Base):
     __tablename__ = "slack_configs"
 
     id            = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)  # audit #7
     platform      = Column(String(10), default="slack")  # slack | teams
     workspace_name = Column(String(255), nullable=True)
     bot_token     = Column(Text, nullable=True)          # xoxb-... (stored encrypted)
@@ -185,7 +185,7 @@ class SlackNotificationLog(Base):
     __tablename__ = "slack_notification_logs"
 
     id         = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)  # audit #7
     config_id  = Column(String(36), ForeignKey("slack_configs.id", ondelete="CASCADE"),
                         nullable=False, index=True)
     channel    = Column(String(100), nullable=True)
@@ -211,7 +211,7 @@ class Budget(Base):
     __tablename__ = "budgets"
 
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)  # audit #7
     name        = Column(String(255), nullable=False)
     year        = Column(Integer, nullable=False, index=True)
     department  = Column(String(100), nullable=True)
@@ -258,7 +258,7 @@ class BudgetLine(Base):
     __tablename__ = "budget_lines"
 
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     budget_id   = Column(String(36), ForeignKey("budgets.id", ondelete="CASCADE"), nullable=False, index=True)
     tipo        = Column(String(30), nullable=False)            # de BUDGET_LINE_TYPES
     descripcion = Column(String(500), nullable=False)
@@ -293,7 +293,7 @@ class BudgetCampaign(Base):
     __tablename__ = "budget_campaigns"
 
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     nombre      = Column(String(200), nullable=False)
     year        = Column(Integer, nullable=False)
     fecha_limite = Column(Date, nullable=False)
@@ -311,7 +311,7 @@ class BudgetCommitment(Base):
     __tablename__ = "budget_commitments"
 
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     origen_id   = Column(String(36), nullable=False, index=True)    # la cadena de versiones del presupuesto
     tipo        = Column(String(30), nullable=False)
     descripcion = Column(String(500), nullable=False)
@@ -332,7 +332,7 @@ class BudgetClose(Base):
     __table_args__ = (UniqueConstraint("origen_id", "mes", name="uq_budget_closes_origen_mes"),)
 
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     origen_id   = Column(String(36), nullable=False, index=True)
     mes         = Column(String(7), nullable=False)
     real        = Column(Text, nullable=False, default="{}")       # {tipo: importe}
@@ -346,7 +346,7 @@ class BudgetVarianceNote(Base):
     __table_args__ = (UniqueConstraint("origen_id", "mes", "tipo", name="uq_budget_variance_origen_mes_tipo"),)
 
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     origen_id   = Column(String(36), nullable=False, index=True)
     mes         = Column(String(7), nullable=False)
     tipo        = Column(String(30), nullable=False)
@@ -360,7 +360,7 @@ class BudgetTransfer(Base):
     __tablename__ = "budget_transfers"
 
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     budget_id   = Column(String(36), ForeignKey("budgets.id", ondelete="CASCADE"), nullable=False, index=True)
     desde_linea_id = Column(String(36), nullable=True)             # vacío: ampliación
     hacia_linea_id = Column(String(36), nullable=True)             # vacío: partida nueva de `hacia_tipo`
@@ -381,7 +381,7 @@ class BudgetTemplate(Base):
     __tablename__ = "budget_templates"
 
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     nombre      = Column(String(200), nullable=False)
     ambito      = Column(String(20), nullable=True)
     tipo_proyecto = Column(String(30), nullable=True)
@@ -397,7 +397,7 @@ class AITaskEstimate(Base):
     __tablename__ = "ai_task_estimates"
 
     id              = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)  # audit #7
     task_id         = Column(String(36), ForeignKey("tasks.id", ondelete="CASCADE"),
                              nullable=False, index=True)
     estimated_hours = Column(Float, nullable=False)
@@ -419,7 +419,7 @@ class AITicketTriage(Base):
     __tablename__ = "ai_ticket_triages"
 
     id                   = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)  # audit #7
     ticket_id            = Column(String(36), ForeignKey("sd_tickets.id", ondelete="CASCADE"),
                                   nullable=False, index=True)
     suggested_category   = Column(String(100), nullable=True)
@@ -444,7 +444,7 @@ class ScenarioModel(Base):
     __tablename__ = "scenario_models"
 
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)  # audit #7
     name        = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
     base_date   = Column(Date, nullable=True)
@@ -466,7 +466,7 @@ class ScenarioProject(Base):
     __tablename__ = "scenario_projects"
 
     id            = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)  # audit #7
     scenario_id   = Column(String(36), ForeignKey("scenario_models.id", ondelete="CASCADE"),
                            nullable=False, index=True)
     # Either link to existing project OR define a hypothetical one
@@ -490,7 +490,7 @@ class PDFExportJob(Base):
     __tablename__ = "pdf_export_jobs"
 
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)  # audit #7
     export_type = Column(String(50), nullable=False)  # report | invoice | project_summary
     source_id   = Column(String(36), nullable=True)   # report_id / invoice_id / project_id
     status      = Column(String(20), default="queued")  # queued | generating | ready | failed
@@ -512,7 +512,7 @@ class BIToken(Base):
     __tablename__ = "bi_tokens"
 
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)  # audit #7
     name        = Column(String(255), nullable=False)
     tool        = Column(String(30), default="powerbi")  # powerbi | tableau | metabase | generic
     token_hash  = Column(String(128), nullable=False)    # bcrypt

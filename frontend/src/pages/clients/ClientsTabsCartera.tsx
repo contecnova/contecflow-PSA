@@ -1,6 +1,6 @@
 // Pestañas de proyectos, contactos, licencias y contratos de la ficha de cliente. 23-11-2026: troceado de ClientsPageTabs sin cambio de comportamiento.
 import { type CSSProperties, useState, useId } from 'react'
-import { FolderKanban, Globe, KeyRound, Link2, Pencil, Phone, Plus, Star, Trash2, Unlink, User, ScrollText } from 'lucide-react'
+import { FolderKanban, Globe, KeyRound, Link2, Pencil, Phone, Plus, Star, Unlink, User, UserX, ScrollText } from 'lucide-react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { openConfirmGlobal } from '../../context/ConfirmContext'
 import { useToast } from '../../context/ToastContext'
@@ -210,7 +210,7 @@ export function ContactsTab({ cid }: { cid: string }) {
             {ct.phone && <span className="u-text2-sm clpata-ico"><Phone size={13} aria-hidden="true" />{ct.phone}</span>}
             <IconButton variante="caja" onClick={() => setEditando(ct)} ariaLabel={traducir('clicontactos.editar_contacto_de', { nombre: ct.full_name || '' })}><Pencil size={14} /></IconButton>
             {!ct.is_primary && (
-              <IconButton onClick={() => marcarPrincipal(ct)} ariaLabel={traducir('clicontactos.marcar_principal_de', { nombre: ct.full_name || '' })}
+              <IconButton variante="caja" onClick={() => marcarPrincipal(ct)} ariaLabel={traducir('clicontactos.marcar_principal_de', { nombre: ct.full_name || '' })}
                 title={traducir('clicontactos.marcar_principal')}><Star size={14} /></IconButton>
             )}
             {!ct.portal_user_id && ct.email && (
@@ -225,7 +225,7 @@ export function ContactsTab({ cid }: { cid: string }) {
             )}
             <IconButton variante="caja" tono="peligro" ariaLabel={traducir('clicontactos.desactivar_contacto', { nombre: ct.full_name || '' })}
               onClick={() => openConfirmGlobal({ message: traducir('clicontactos.confirmar_desactivar', { nombre: ct.full_name || '' }), onConfirm: () => remove(ct.id), danger: true })}>
-              <Trash2 size={14} />
+              <UserX size={14} />
             </IconButton>
           </div>
         </div>
@@ -253,12 +253,12 @@ export function ContactsTab({ cid }: { cid: string }) {
       {showAdd && (
         <Modal open title={traducir('clients.nuevo_contacto')} onClose={() => setShowAdd(false)} width={500}>
           <div className="clpata-grid-1">
-            <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="clpata-lbl">{traducir('clientstabs.nombre_completo')} *</label><Input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.full_name} onChange={e => { camposB.limpiar('full_name'); setForm(f => ({ ...f, full_name: e.target.value })) }} inputClassName="clpata-inp" />{msgB('full_name')}</div>
-            <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="clpata-lbl">{traducir('clicontactos.email_contacto')}</label><Input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="email" value={form.email} onChange={e => { camposB.limpiar('email'); setForm(f => ({ ...f, email: e.target.value })) }} inputClassName="clpata-inp" />{msgB('email')}</div>
-            <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="clpata-lbl">{traducir('clicontactos.telefono_contacto')}</label><Input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.phone} onChange={e => { camposB.limpiar('phone'); setForm(f => ({ ...f, phone: e.target.value })) }} inputClassName="clpata-inp" />{msgB('phone')}</div>
-            <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="clpata-lbl">{traducir('clientstabs.cargo')}</label><Input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.job_title} onChange={e => { camposB.limpiar('job_title'); setForm(f => ({ ...f, job_title: e.target.value })) }} inputClassName="clpata-inp" />{msgB('job_title')}</div>
-            <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="clpata-lbl">{traducir('clientstabs.rol')}</label>
-              <Select suelto placeholder={false} id={`${idCampo}-5`} value={form.role} onChange={e => { camposB.limpiar('role'); setForm(f => ({ ...f, role: e.target.value })) }} className="clpata-inp">
+            <div><Input label={<>{traducir('clientstabs.nombre_completo')}*</>} id={`${idCampo}-1`} value={form.full_name} onChange={e => { camposB.limpiar('full_name'); setForm(f => ({ ...f, full_name: e.target.value })) }} />{msgB('full_name')}</div>
+            <div><Input label={traducir('clicontactos.email_contacto')} id={`${idCampo}-2`} type="email" value={form.email} onChange={e => { camposB.limpiar('email'); setForm(f => ({ ...f, email: e.target.value })) }} />{msgB('email')}</div>
+            <div><Input label={traducir('clicontactos.telefono_contacto')} id={`${idCampo}-3`} value={form.phone} onChange={e => { camposB.limpiar('phone'); setForm(f => ({ ...f, phone: e.target.value })) }} />{msgB('phone')}</div>
+            <div><Input label={traducir('clientstabs.cargo')} id={`${idCampo}-4`} value={form.job_title} onChange={e => { camposB.limpiar('job_title'); setForm(f => ({ ...f, job_title: e.target.value })) }} />{msgB('job_title')}</div>
+            <div>
+              <Select label={traducir('clientstabs.rol')} placeholder={false} id={`${idCampo}-5`} value={form.role} onChange={e => { camposB.limpiar('role'); setForm(f => ({ ...f, role: e.target.value })) }}>
                 {roles.map(r => <option key={r.id} value={r.id}>{r.label}</option>)}
               </Select>{msgB('role')}
             </div>
@@ -335,15 +335,13 @@ export function LicensesTab({ cid }: { cid: string }) {
       {showLink && (
         <Modal open title={traducir('clientstabs.vincular_licencia')} onClose={() => setShowLink(false)} width={440}>
           <div className="u-mb-14">
-            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="clpata-lbl">{traducir('clientstabs.licencia')}</label>
-            <Select suelto placeholder={false} id={`${idCampo}-1`} value={selectedLic} onChange={e => setSelectedLic(e.target.value)} className="clpata-inp">
+            <Select label={traducir('clientstabs.licencia')} placeholder={false} id={`${idCampo}-1`} value={selectedLic} onChange={e => setSelectedLic(e.target.value)}>
               <option value="">{traducir('clientstabs.seleccionar')}</option>
               {available.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
             </Select>
           </div>
           <div className="u-mb-16">
-            <label id={`${idCampo}-notas-et`} htmlFor={`${idCampo}-notas`} className="clpata-lbl">{traducir('clientstabs.notas_opcional')}</label>
-            <Input id={`${idCampo}-notas`} aria-labelledby={`${idCampo}-notas-et`} value={licNote} onChange={e => setLicNote(e.target.value)} placeholder={traducir('clients.notas_de_la_licencia')} aria-label={traducir('clients.notas_de_la_licencia')} inputClassName="clpata-inp" />
+            <Input label={traducir('clientstabs.notas_opcional')} id={`${idCampo}-notas`} value={licNote} onChange={e => setLicNote(e.target.value)} placeholder={traducir('clients.notas_de_la_licencia')} aria-label={traducir('clients.notas_de_la_licencia')} />
           </div>
           <div className="u-actions-8">
             <Button variant="secondary" onClick={() => setShowLink(false)}>{traducir('common.cancel')}</Button>
@@ -409,8 +407,7 @@ export function ContractsTab({ cid }: { cid: string }) {
       {showLink && (
         <Modal open title={traducir('clientstabs.vincular_contrato')} onClose={() => setShowLink(false)} width={440}>
           <div className="u-mb-16">
-            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="clpata-lbl">{traducir('clientstabs.contrato')}</label>
-            <Select suelto placeholder={false} id={`${idCampo}-1`} value={selectedCon} onChange={e => setSelectedCon(e.target.value)} className="clpata-inp">
+            <Select label={traducir('clientstabs.contrato')} placeholder={false} id={`${idCampo}-1`} value={selectedCon} onChange={e => setSelectedCon(e.target.value)}>
               <option value="">{traducir('clientstabs.seleccionar')}</option>
               {available.map(c => <option key={c.id} value={c.id}>{c.name || c.client_name} — {etiquetaCodigo(traducir, 'estado', c.status)}</option>)}
             </Select>

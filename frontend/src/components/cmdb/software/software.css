@@ -44,7 +44,7 @@ ul.sw-incumplimientos { list-style: none; display: flex; flex-direction: column;
 /* Reglas de línea base */
 .sw-regla { display: grid; grid-template-columns: minmax(140px, 2fr) minmax(130px, 1fr) minmax(120px, 2fr) minmax(110px, 1fr) auto; gap: 8px; align-items: center; }
 
-@media (max-width: 720px) {
+@media (width <= 720px) {
   .sw-regla { grid-template-columns: 1fr 1fr; }
   .sw-recorte { max-width: 22ch; }
   .sw-arbol ul { padding-left: 12px; margin-left: 6px; }

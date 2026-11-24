@@ -47,11 +47,8 @@ export function SelectorContactoPrincipal({ idBase, contactos, valor, onCambiar,
     const err = errorDe?.(clave)
     const id = `${idBase}-${clave}`
     return (
-      <div>
-        <label id={`${id}-et`} htmlFor={id} className="cli-label">{etiqueta}</label>
-        <Input id={id} aria-labelledby={`${id}-et`} type={tipo} value={nuevo[clave]} inputClassName="cli-input"
+      <Input label={etiqueta} id={id} type={tipo} value={nuevo[clave]}
           error={err} onChange={e => onCambiarNuevo(clave, e.target.value)} />
-      </div>
     )
   }
 

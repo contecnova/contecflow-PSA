@@ -1,15 +1,21 @@
 """Service layer for NPS and Client Health Snapshot operations."""
 
-from datetime import datetime, timedelta
-from app.core.timeutil import utcnow
+from datetime import datetime
 from typing import List, Optional
 
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 from app.core.periodo import Periodo, filtro_de_periodo
 from app.models.nps import ClientNPS, ClientHealthSnapshot, NPSCategory
-from app.models.clients import Client
+from app.models.clients import Client, ClientStatus
+
+
+#: Solo las respuestas NPS (0-10). Las CSAT (1-5) del portal interno viven en la
+#: misma tabla (`survey_type = 'csat'`, rev. 193) y NO son NPS: antes entraban
+#: en el resumen, el listado y la salud (medido 24-11-2026).
+def solo_nps():
+    return or_(ClientNPS.survey_type == "nps", ClientNPS.survey_type.is_(None))
 
 
 # ── Internal helpers ──────────────────────────────────────────────────────
@@ -34,7 +40,12 @@ def _compute_nps(responses: List[ClientNPS]) -> Optional[float]:
 # ── Public service functions ──────────────────────────────────────────────
 
 def client_exists(db: Session, client_id: str) -> bool:
-    return db.query(Client).filter(Client.id == client_id).first() is not None
+    return get_client(db, client_id) is not None
+
+
+def get_client(db: Session, client_id: str) -> Optional[Client]:
+    """El cliente en la empresa de la sesión (filtro de tenant) o ``None``."""
+    return db.query(Client).filter(Client.id == client_id).first()
 
 
 def create_nps_entry(
@@ -45,7 +56,9 @@ def create_nps_entry(
     respondent: Optional[str],
     source: str,
 ) -> ClientNPS:
+    client = get_client(db, client_id)
     entry = ClientNPS(
+        organization_id = client.organization_id if client else None,
         client_id  = client_id,
         score      = score,
         category   = _nps_category(score),
@@ -62,7 +75,7 @@ def create_nps_entry(
 def list_nps_responses(db: Session, client_id: str, limit: int) -> List[ClientNPS]:
     return (
         db.query(ClientNPS)
-        .filter(ClientNPS.client_id == client_id)
+        .filter(ClientNPS.client_id == client_id, solo_nps())
         .order_by(ClientNPS.created_at.desc())
         .limit(limit)
         .all()
@@ -75,6 +88,7 @@ def get_nps_responses_since(db: Session, client_id: str, cutoff: datetime) -> Li
         .filter(
             ClientNPS.client_id == client_id,
             ClientNPS.created_at >= cutoff,
+            solo_nps(),
         )
         .order_by(ClientNPS.created_at)
         .all()
@@ -85,7 +99,7 @@ def get_nps_responses_in_period(db: Session, client_id: str, p: Periodo) -> List
     """Respuestas del cliente en ``[p.desde, p.hasta)`` (periodo libre, 16-11-2026)."""
     return (
         db.query(ClientNPS)
-        .filter(ClientNPS.client_id == client_id, filtro_de_periodo(ClientNPS.created_at, p))
+        .filter(ClientNPS.client_id == client_id, solo_nps(), filtro_de_periodo(ClientNPS.created_at, p))
         .order_by(ClientNPS.created_at)
         .all()
     )
@@ -140,8 +154,12 @@ def create_health_snapshot(
     budget_component: Optional[float],
     activity_component: Optional[float],
     note: Optional[str],
+    user=None,
 ) -> ClientHealthSnapshot:
+    """Foto de salud introducida a mano. Queda en el registro de auditoría (quién y qué)."""
+    client = get_client(db, client_id)
     snap = ClientHealthSnapshot(
+        organization_id     = client.organization_id if client else None,
         client_id           = client_id,
         health_score        = health_score,
         nps_component       = nps_component,
@@ -151,25 +169,57 @@ def create_health_snapshot(
         note                = note,
     )
     db.add(snap)
+    db.flush()
+    _auditar_foto(db, user, snap, client, "manual")
     db.commit()
     db.refresh(snap)
     return snap
 
 
-def compute_and_save_health(db: Session, client_id: str) -> ClientHealthSnapshot:
-    """Auto-compute health score from current signals and persist a snapshot."""
-    cutoff    = utcnow() - timedelta(days=90)
-    responses = get_nps_responses_since(db, client_id, cutoff)
-    nps_score = _compute_nps(responses)
-    nps_component = ((nps_score or 0) + 100) / 2 if nps_score is not None else 50.0
-    score = round((nps_component * 0.4) + (70 * 0.2) + (70 * 0.2) + (70 * 0.2), 1)
-    score = min(max(score, 0), 100)
+def compute_and_save_health(db: Session, client_id: str, user=None) -> ClientHealthSnapshot:
+    """Calcula la salud con el cálculo ÚNICO y guarda la foto con TODOS sus componentes.
 
-    snap = ClientHealthSnapshot(client_id=client_id, health_score=score, note="Auto-computed")
+    Revisión 24-11-2026. Antes: entrega, presupuesto y actividad fijos a 70 (60 %
+    del resultado inventado) y la foto sin componentes. Ahora:
+    ``customer_health_service.compute_composite_health`` y, en la foto,
+    ``nps_component``, ``delivery_component``, ``budget_component`` tal cual
+    (``None`` = sin datos) y ``activity_component`` = tickets + portal
+    combinados por sus pesos (la tabla no tiene columna para cada uno; el
+    desglose va en ``note``). Quién recalcula queda en auditoría.
+    """
+    from app.services.customer_health_service import (
+        actividad_combinada, compute_composite_health, nota_de_foto)
+    client = get_client(db, client_id)
+    r = compute_composite_health(client_id, db)
+    c = r["components"]
+    snap = ClientHealthSnapshot(
+        organization_id     = client.organization_id if client else None,
+        client_id           = client_id,
+        health_score        = r["composite_score"],
+        nps_component       = c["nps"]["value"],
+        delivery_component  = c["delivery"]["value"],
+        budget_component    = c["budget"]["value"],
+        activity_component  = actividad_combinada(c),
+        note                = nota_de_foto(r),
+    )
     db.add(snap)
+    db.flush()
+    _auditar_foto(db, user, snap, client, "auto", extra={"category": r["category"],
+                                                         "data_coverage": r["data_coverage"]})
     db.commit()
     db.refresh(snap)
     return snap
+
+
+def _auditar_foto(db: Session, user, snap: ClientHealthSnapshot, client, origen: str,
+                  extra: Optional[dict] = None) -> None:
+    from app.services.audit import audit_log
+    audit_log(db, user, "CREATE", "client_health_snapshot", str(snap.id),
+              client.name if client else snap.client_id,
+              new_values={"origin": origen, "client_id": snap.client_id, "health_score": snap.health_score,
+                          "nps_component": snap.nps_component, "delivery_component": snap.delivery_component,
+                          "budget_component": snap.budget_component,
+                          "activity_component": snap.activity_component, **(extra or {})})
 
 
 def get_health_history(db: Session, client_id: str, limit: int) -> List[ClientHealthSnapshot]:
@@ -204,22 +254,39 @@ def health_trend_series(rows: List[ClientHealthSnapshot], p: Periodo) -> List[di
 
 
 def get_health_leaderboard(db: Session):
-    subq = (
+    """Última foto de cada cliente ACTIVO, de mejor a peor: ``[(foto, nombre)]``.
+
+    Revisión 24-11-2026: antes, dos fotos con el mismo ``snapshot_at`` máximo
+    salían duplicadas (se unía por fecha) y entraban clientes desactivados,
+    inactivos o perdidos. Ahora la última foto es la de mayor ``id`` entre las de
+    fecha máxima (una por cliente) y solo clientes con ``is_active`` y estado
+    distinto de ``inactive``/``churned``. Empresa: filtro de tenant en las tres
+    tablas (fotos, subconsultas y clientes).
+    """
+    ultima_fecha = (
         db.query(
-            ClientHealthSnapshot.client_id,
+            ClientHealthSnapshot.client_id.label("client_id"),
             func.max(ClientHealthSnapshot.snapshot_at).label("latest"),
         )
         .group_by(ClientHealthSnapshot.client_id)
         .subquery()
     )
+    ultima_id = (
+        db.query(func.max(ClientHealthSnapshot.id).label("id"))
+        .join(ultima_fecha,
+              (ClientHealthSnapshot.client_id == ultima_fecha.c.client_id)
+              & (ClientHealthSnapshot.snapshot_at == ultima_fecha.c.latest))
+        .group_by(ClientHealthSnapshot.client_id)
+        .subquery()
+    )
     return (
         db.query(ClientHealthSnapshot, Client.name)
-        .join(
-            subq,
-            (ClientHealthSnapshot.client_id == subq.c.client_id)
-            & (ClientHealthSnapshot.snapshot_at == subq.c.latest),
-        )
+        .join(ultima_id, ClientHealthSnapshot.id == ultima_id.c.id)
         .join(Client, Client.id == ClientHealthSnapshot.client_id)
-        .order_by(ClientHealthSnapshot.health_score.desc())
+        .filter(
+            Client.is_active.is_not(False),
+            or_(Client.status.is_(None), Client.status.notin_([ClientStatus.inactive, ClientStatus.churned])),
+        )
+        .order_by(ClientHealthSnapshot.health_score.desc(), Client.name)
         .all()
     )

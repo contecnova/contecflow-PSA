@@ -1,0 +1,9 @@
+{
+ "codigos": {
+  "fila_sin_empresa": {
+   "es": "No se pudo guardar: falta la empresa del registro ({tabla}). Avisa al administrador",
+   "en": "Could not save: the record has no company ({tabla}). Contact the administrator",
+   "zh": "无法保存：该记录缺少所属公司（{tabla}）。请联系管理员"
+  }
+ }
+}

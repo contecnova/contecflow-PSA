@@ -15,9 +15,6 @@
   font-family: inherit; box-sizing: border-box;
 }
 .wf-input:focus-visible { border-color: var(--accent); }
-.wf-input--mono { font-variant-numeric: tabular-nums; font-size: var(--text-sm); }
-.wf-input--icon { width: 80px; text-align: center; font-size: var(--text-xl); }
-.wf-input--project { width: 360px; max-width: 100%; }
 
 .wf-swatch {
   width: 28px; height: 28px; border-radius: 50%; background: var(--wf-color);
@@ -41,7 +38,7 @@
 .wf-empty-hint { margin-top: 20px; font-size: var(--text-sm); color: var(--text-3); }
 
 .wf-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-@media (max-width: 900px) { .wf-grid { grid-template-columns: 1fr; } }
+@media (width <= 900px) { .wf-grid { grid-template-columns: 1fr; } }
 
 .wf-add-btn {
   border-radius: var(--radius-sm); padding: 5px 12px; cursor: pointer; font-size: var(--text-sm); font-family: inherit;
@@ -88,7 +85,5 @@
 
 /* 16-11-2026: selector de proyecto en barra bajo la cabecera, campos con
    .ds-input y botones con icono lucide. */
-.wf-barra { margin-bottom: 20px; }
-.wf-label--inline { margin-bottom: 0; }
 .wf-transition-del,
 .wf-tag--comment { display: inline-flex; align-items: center; justify-content: center; }

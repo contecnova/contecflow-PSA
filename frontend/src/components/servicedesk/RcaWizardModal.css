@@ -136,19 +136,6 @@
   color: var(--success);
 }
 
-.rcwimo-ls {
-  font-size: var(--text-xs);
-  font-weight: 600;
-  color: var(--text-2);
-  display: block;
-  margin-bottom: 5px;
-  letter-spacing: 0.06em;
-}
-
-.rcwimo-is {
-  resize: vertical;
-}
-
 /* ── Estilos estaticos extraidos de RcaWizardModal.tsx (#17) ── */
 .rcawizar-sx1.rcawizar-sx1 {
   border-radius: var(--radius-md);

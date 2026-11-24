@@ -86,13 +86,11 @@ function ProviderCard({ provider, config, form, onChange, onSave, isSaving }: Pr
         <div className="set-grid2-mb14">
         {provider.fields.map(f => (
           <div key={f.key}>
-            <label id={`${idCampo}-${f.key}-etc1934`} htmlFor={`${idCampo}-${f.key}-c1934`} className="set-label">{f.label}</label>
-            <Input id={`${idCampo}-${f.key}-c1934`} aria-labelledby={`${idCampo}-${f.key}-etc1934`}
+            <Input label={f.label} id={`${idCampo}-${f.key}-c1934`}
               type={f.secret ? 'password' : 'text'}
               value={form[f.key] ?? ''}
               onChange={e => onChange(f.key, e.target.value)}
               placeholder={f.secret && form[f.key] === '***' ? t('settings_sections.guardado_cambiar') : f.placeholder}
-              inputClassName="set-input"
               autoComplete="off"
             />
           </div>

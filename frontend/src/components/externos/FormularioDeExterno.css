@@ -6,7 +6,7 @@
   margin-bottom: var(--space-4);
 }
 .ext-full { grid-column: 1 / -1; }
-@media (max-width: 560px) {
+@media (width <= 560px) {
   .ext-grid { grid-template-columns: minmax(0, 1fr); }
 }
 .ext-acceso {
@@ -25,7 +25,6 @@
   font-weight: var(--font-semibold);
   cursor: pointer;
 }
-.ext-notas { min-height: var(--space-12); resize: vertical; width: 100%; }
 
 .ext-creds {
   display: flex;

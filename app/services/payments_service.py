@@ -123,6 +123,12 @@ def handle_stripe_webhook(raw_body: bytes, stripe_signature: Optional[str], db: 
         logger.warning("Stripe webhook: importe o moneda de la sesion %s no cuadran con la factura %s",
                        data.get("id"), invoice_id)
         return {"received": True, "event_type": event_type, "applied": False}
+    # 24-11-2026 (migración 208): ruta anónima (firma de Stripe); lo que creen
+    # los escuchadores al marcarla pagada (eventos, ingresos) va a su empresa.
+    # `fijar_contexto` y no `publicar_empresa`: un cobro de una empresa ya
+    # desactivada se sigue anotando (un 403 haría reintentar a Stripe).
+    from app.db.contexto_de_tenant import fijar_contexto
+    fijar_contexto(db, inv.organization_id, "stripe: factura sin empresa")
     if inv.status != "paid":
         inv.status = "paid"
         inv.paid_date = timeutil.today()

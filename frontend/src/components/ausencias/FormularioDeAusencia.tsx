@@ -128,29 +128,29 @@ export default function FormularioDeAusencia({ abierto, onCerrar, editar }: {
             </div>
           )}
           <div className="aus-fila">
-            <label className="aus-campo-con-etiqueta"><span className="aus-etiqueta">{ta('desde')}</span>
-              <DateInput className="aus-campo" aria-label={ta('desde')} value={p.start_date}
+            <div className="aus-campo-con-etiqueta">
+              <DateInput label={ta('desde')} aria-label={ta('desde')} value={p.start_date}
                 onChange={e => poner({ start_date: e.target.value, end_date: p.end_date && p.end_date >= e.target.value ? p.end_date : e.target.value })} />
               <ErrorDeCampo texto={campos.de('start_date')} />
-            </label>
-            <label className="aus-campo-con-etiqueta"><span className="aus-etiqueta">{ta('hasta')}</span>
-              <DateInput className="aus-campo" aria-label={ta('hasta')} value={p.end_date} min={p.start_date || undefined}
+            </div>
+            <div className="aus-campo-con-etiqueta">
+              <DateInput label={ta('hasta')} aria-label={ta('hasta')} value={p.end_date} min={p.start_date || undefined}
                 onChange={e => poner({ end_date: e.target.value })} />
               <ErrorDeCampo texto={campos.de('end_date')} />
-            </label>
+            </div>
           </div>
           {modo === 'horas' ? (
             <div className="aus-fila" role="group" aria-label={ta('franja')} aria-describedby="aus-franja-ayuda">
-              <label className="aus-campo-con-etiqueta"><span className="aus-etiqueta">{ta('hora_inicio')}</span>
-                <CampoFecha modo="hora" className="aus-campo" aria-label={ta('hora_inicio')} required value={p.start_time ?? ''}
+              <div className="aus-campo-con-etiqueta">
+                <CampoFecha label={ta('hora_inicio')} modo="hora" aria-label={ta('hora_inicio')} required value={p.start_time ?? ''}
                   onChange={x => poner({ start_time: x || null })} />
                 <ErrorDeCampo texto={campos.de('start_time')} />
-            </label>
-              <label className="aus-campo-con-etiqueta"><span className="aus-etiqueta">{ta('hora_fin')}</span>
-                <CampoFecha modo="hora" className="aus-campo" aria-label={ta('hora_fin')} required value={p.end_time ?? ''}
+            </div>
+              <div className="aus-campo-con-etiqueta">
+                <CampoFecha label={ta('hora_fin')} modo="hora" aria-label={ta('hora_fin')} required value={p.end_time ?? ''}
                   onChange={x => poner({ end_time: x || null })} />
                 <ErrorDeCampo texto={campos.de('end_time')} />
-            </label>
+            </div>
               <span id="aus-franja-ayuda" className="aus-ayuda" aria-live="polite">{ta(cruza ? 'franja_cruza' : 'franja_ayuda')}</span>
             </div>
           ) : modos.includes('medio_dia') && (
@@ -164,22 +164,21 @@ export default function FormularioDeAusencia({ abierto, onCerrar, editar }: {
             </div>
           )}
           {turnos.length > 0 && (
-            <label className="aus-campo-con-etiqueta"><span className="aus-etiqueta">{ta('turno')}</span>
-              <Select suelto className="aus-campo" aria-label={ta('turno')} value={p.shift_id ?? ''} onChange={e => poner({ shift_id: e.target.value || null })} placeholder={ta('turno_del_cuadrante')}>
+            <div className="aus-campo-con-etiqueta">
+              <Select label={ta('turno')} aria-label={ta('turno')} value={p.shift_id ?? ''} onChange={e => poner({ shift_id: e.target.value || null })} placeholder={ta('turno_del_cuadrante')}>
                 {turnos.map(t => <option key={t.id} value={t.id}>{t.nombre} · {textoDeTramos(tramosDe(t))}</option>)}
               </Select>
               <ErrorDeCampo texto={campos.de('shift_id')} />
-            </label>
+            </div>
           )}
-          <label className="aus-campo-con-etiqueta">
-            <span className="aus-etiqueta">{ta('sustituto')}{tipo?.requiere_sustituto ? ` · ${ta('obligatorio')}` : ''}</span>
-            <UserSelect value={p.substitute_id ?? ''} onChange={(id: string) => poner({ substitute_id: id || null })} required={tipo?.requiere_sustituto} />
+          <div className="aus-campo-con-etiqueta">
+            <UserSelect label={<>{ta('sustituto')}{tipo?.requiere_sustituto ? ` · ${ta('obligatorio')}` : ''}</>} value={p.substitute_id ?? ''} onChange={(id: string) => poner({ substitute_id: id || null })} required={tipo?.requiere_sustituto} />
             <ErrorDeCampo texto={campos.de('substitute_id')} />
-            </label>
-          <label className="aus-campo-con-etiqueta"><span className="aus-etiqueta">{ta('motivo')}</span>
-            <Textarea rows={2} aria-label={ta('motivo')} value={p.reason ?? ''} onChange={e => poner({ reason: e.target.value })} inputClassName="aus-campo" />
+            </div>
+          <div className="aus-campo-con-etiqueta">
+            <Textarea label={ta('motivo')} rows={2} aria-label={ta('motivo')} value={p.reason ?? ''} onChange={e => poner({ reason: e.target.value })} />
             <ErrorDeCampo texto={campos.de('reason')} />
-            </label>
+            </div>
           <Adjuntos docs={docs.map(d => ({ id: d.id, nombre: d.nombres?.[lang as 'es'] || d.nombre }))} valor={adjuntos} onChange={setAdjuntos} />
         </div>
         <aside className="aus-previa" aria-live="polite" aria-label={ta('vista_previa')}>

@@ -380,8 +380,7 @@
 }
 .layo-stack-4 {
   flex: 1;
-  overflow-y: auto;
-  overflow-x: hidden;
+  overflow: hidden auto;
   scrollbar-gutter: stable;
   display: flex;
   flex-direction: column;

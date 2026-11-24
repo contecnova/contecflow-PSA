@@ -9,6 +9,16 @@ submodulos por responsabilidad, sin cambiar el codigo:
 - `hilos_antiguos`: Hilos de mensajes anteriores al modelo de conversaciones: busqueda y listado.
 - `conversaciones`: Conversaciones de equipo y de cliente: listado, detalle, alta, participantes y escalado por SLA.
 - `mensajes`: Mensajes: listado, envio, respuesta del bot L1 y revision.
+
+24-11-2026 (chat del portal completo, docs/portal/CHAT_DEL_PORTAL.md), sin
+reexportar (se importan por modulo):
+
+- `ajustes`: ajustes por empresa (llamadas, video, adjuntos, extensiones, tamaño, plazos).
+- `adjuntos`: imagenes y ficheros (validacion de contenido, AV/DLP, descarga solo participantes).
+- `interaccion`: editar y borrar el propio mensaje con rastro, reacciones.
+- `llamadas`: llamadas y videollamadas (solo las inicia el equipo).
+- `en_vivo`: avisos en tiempo real por los WebSocket (mensajes, leido, escribiendo, llamadas).
+- `rgpd`: copia y supresion de lo de un usuario del portal.
 """
 
 from app.services.portal_conversation_service._comun import (  # noqa: F401

@@ -1,12 +1,5 @@
 /* Sprints (Scrum). Solo tokens del tema. */
-
-.spr-input { padding: 9px 13px; border-radius: 8px; font-size: var(--text-base); }
 .spr-input--project { width: 300px; max-width: 100%; }
-.spr-textarea { resize: vertical; }
-.spr-label {
-  display: block; margin-bottom: 5px;
-  font-size: var(--text-xs); font-weight: 600; color: var(--text-2);
-}
 
 /* Retro */
 .spr-retro-metrics { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: var(--space-3); }
@@ -24,7 +17,6 @@
 .spr-insight__title { font-size: var(--text-sm); font-weight: 700; color: var(--spr-c); margin-bottom: 8px; }
 .spr-insight__item { font-size: var(--text-sm); color: var(--text-2); margin-bottom: 5px; display: flex; gap: 7px; }
 .spr-insight__mark { color: var(--spr-c); flex-shrink: 0; }
-.spr-label--notes { letter-spacing: normal; margin-bottom: 6px; }
 
 /* Tarjeta de tarea */
 .spr-task {
@@ -58,8 +50,8 @@
 
 /* Kanban */
 .spr-kanban { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
-@media (max-width: 900px) { .spr-kanban { grid-template-columns: repeat(2, 1fr); } }
-@media (max-width: 560px) { .spr-kanban { grid-template-columns: 1fr; } }
+@media (width <= 900px) { .spr-kanban { grid-template-columns: repeat(2, 1fr); } }
+@media (width <= 560px) { .spr-kanban { grid-template-columns: 1fr; } }
 .spr-col__head {
   display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding: 6px 10px;
   border-radius: 8px; color: var(--spr-c); background: color-mix(in srgb, var(--spr-c) 8%, transparent);
@@ -70,7 +62,6 @@
 .spr-empty-chart { text-align: center; color: var(--text-2); padding: 20px; font-size: var(--text-sm); }
 
 /* Página */
-.spr-filtros { padding: 16px 20px; }
 .spr-titulo { display: inline-flex; align-items: center; gap: 8px; }
 
 .spr-active__head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }
@@ -113,7 +104,7 @@
 }
 .spr-row__pts { font-size: var(--text-sm); color: var(--text-2); text-align: center; }
 .spr-row__pts--xs { font-size: var(--text-xs); }
-@media (max-width: 640px) {
+@media (width <= 640px) {
   .spr-row { grid-template-columns: 24px 1fr auto; }
   .spr-row > :nth-child(2), .spr-row > :nth-child(5), .spr-row > :nth-child(6) { display: none; }
 }
@@ -128,7 +119,7 @@
 .spr-retro { padding: 14px 18px; }
 .spr-retro__name { font-size: var(--text-base); font-weight: 700; margin-bottom: 10px; }
 .spr-retro__grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; font-size: var(--text-sm); }
-@media (max-width: 640px) { .spr-retro__grid { grid-template-columns: 1fr; } }
+@media (width <= 640px) { .spr-retro__grid { grid-template-columns: 1fr; } }
 .spr-retro__h { font-weight: 700; margin-bottom: 4px; }
 .spr-retro__h--success { color: var(--success); }
 .spr-retro__h--warning { color: var(--warning); }

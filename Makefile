@@ -8,7 +8,7 @@
         quality-coverage-75 quality-types-75 quality-p3 build build-frontend \
         migrate migrate-create seed seed-full init-admin backup restore clean \
         pip-audit audit audit-fast audit-info rotate-keys \
-        regression-backend regression-e2e regression-all
+        regression-backend regression-e2e regression-all \n        test-postgres cobertura lint-css
 
 # ── Puertos (23-11-2026: estaban fijos) — make dev BACKEND_PORT=8010 ─────────
 BACKEND_PORT  ?= 8000
@@ -134,6 +134,18 @@ quality-p3: ## Quality gate local P3 (coverage + type coverage + a11y report)
 test-e2e: ## Tests E2E con Playwright
 	@echo "$(CYAN)Ejecutando tests E2E...$(RESET)"
 	$(PYTHON) -m pytest tests_e2e/ -v --tb=short --headed
+
+# ── Calidad a mano (24-11-2026) ────────────────────────────────────────────────
+# Ninguno se lanza solo (ni hooks ni CI) y ninguno tiene umbral: se ejecutan
+# cuando uno quiere. Los mismos nombres en setup.bat y setup.sh.
+test-postgres: ## Tests contra un PostgreSQL efímero en Docker: make test-postgres [T="tests/test_rls_postgres.py -x"]
+	$(PYTHON) scripts/test_postgres.py $(T)
+
+cobertura: ## Cobertura backend+frontend en cobertura/: make cobertura [PARTE=backend|frontend] [T="tests/test_okrs.py"]
+	$(PYTHON) scripts/cobertura.py $(if $(PARTE),--solo $(PARTE)) $(T)
+
+lint-css: ## stylelint sobre frontend/src (npm run lint:css)
+	cd frontend && npm run lint:css
 
 # ── Build ──────────────────────────────────────────────────────────────────────
 build: build-frontend ## Build completo (frontend)

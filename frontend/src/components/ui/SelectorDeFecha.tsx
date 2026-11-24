@@ -38,6 +38,8 @@ import './SelectorDeFecha.css'
  *   son siempre los de la zona del usuario (`zona` o la del navegador).
  */
 export interface CampoFechaProps {
+  /** Etiqueta del campo (estándar del kit): lo envuelve en un `ui-field` con la etiqueta `uiinde-estiloetiqueta`. */
+  label?: ReactNode
   value?: string | null
   onChange?: (valor: string) => void
   modo?: ModoFecha
@@ -109,7 +111,7 @@ function deParedAValor(p: Pared, modo: ModoFecha, zona?: string): string {
 
 export function CampoFecha(props: CampoFechaProps) {
   const {
-    value, onChange, modo = 'fecha', min, max, zona, rango, pasoMinutos = 1,
+    label, value, onChange, modo = 'fecha', min, max, zona, rango, pasoMinutos = 1,
     id, name, className, style, placeholder, disabled, required, readOnly, autoFocus, title,
     onBlur, onFocus, idioma, textos, refCampo, ...resto
   } = props
@@ -208,7 +210,7 @@ export function CampoFecha(props: CampoFechaProps) {
   const etiquetaBoton = modo === 'hora' ? tx('abrir_hora') : tx('abrir_calendario')
   const datos = Object.fromEntries(Object.entries(resto).filter(([k]) => k.startsWith('data-')))
 
-  return (
+  const cuerpo = (
     <div ref={raiz} className={`uifecha${className ? ` ${className}` : ' uifecha--caja'}${invalido ? ' uifecha--error' : ''}${disabled ? ' uifecha--off' : ''}`} style={style} {...datos}>
       <input
         ref={campo}
@@ -269,6 +271,13 @@ export function CampoFecha(props: CampoFechaProps) {
           onCerrar={cerrar}
         />
       )}
+    </div>
+  )
+  if (!label) return cuerpo
+  return (
+    <div className="ui-field">
+      <label htmlFor={base} className="uiinde-estiloetiqueta">{label}</label>
+      {cuerpo}
     </div>
   )
 }

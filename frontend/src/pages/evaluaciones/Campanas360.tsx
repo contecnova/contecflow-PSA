@@ -145,14 +145,11 @@ export function New360CampaignModal({ cycle, onClose }: { cycle: Cycle; onClose:
       width={680}>
       <div className="ds-stack perf-box-2">
         {/* Subject */}
-        <div className="ds-field">
-          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="ds-field__label">{t('pagina_perf.persona_evaluada')}</label>
-          <Select suelto placeholder={false} id={`${idCampo}-1`} value={subjectId}
+        <Select label={t('pagina_perf.persona_evaluada')} placeholder={false} id={`${idCampo}-1`} value={subjectId}
             onChange={e => setSubjectId(e.target.value)}>
             <option value="">{t('pagina_perf.selecciona')}</option>
             {users.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
           </Select>
-        </div>
 
         {!subjectId ? (
           <div className="ds-card--inset perf-box-5">
@@ -253,10 +250,7 @@ export function New360CampaignModal({ cycle, onClose }: { cycle: Cycle; onClose:
 
             {/* Anonimización */}
             <div className="ds-field">
-              <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="ds-field__label">
-                <Lock size={11} className="perf-box-38" /> {traducir('performancereviews.umbral_de_anonimizacion')}
-              </label>
-              <Input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="number" min={1} max={20} value={threshold} onChange={e => setThreshold(e.target.value)} inputClassName="perf-input-2" />
+              <Input label={<><Lock size={11} className="perf-box-38" />{traducir('performancereviews.umbral_de_anonimizacion')}</>} id={`${idCampo}-2`} type="number" min={1} max={20} value={threshold} onChange={e => setThreshold(e.target.value)} />
               <div className="ds-field__hint">
                 {traducir('performancereviews.cuando_un_grupo_pares_upward_tenga_menos')}
               </div>

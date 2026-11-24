@@ -16,7 +16,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { projectsApi, risksApi } from '../services/api'
 import type { RiesgosDelProyecto } from '../services/api/tipos'
 import type { RiesgoSerializado } from '../services/api/tipos-proyectos'
-import { Button, KpiCard, Modal, Spinner, EmptyState, useSort, ViewToggle, Tabs, Select, IconButton, TablaSimple, useErroresDeCampo, Input, Textarea } from '../components/ui'
+import { Button, KpiCard, Modal, Spinner, EmptyState, useSort, ViewToggle, Tabs, Select, IconButton, TablaSimple, useErroresDeCampo, Input, Textarea, SelectorDeContexto } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { AlertOctagon, AlertTriangle, CircleDot, Folder, Grid3x3, List, Pencil, Plus, ShieldCheck, Trash2, User } from 'lucide-react'
@@ -164,73 +164,59 @@ function RiskFormModal({ risk, projectId, onClose }: { risk?: RiskItem | null; p
     <Modal open title={isEdit ? t('risks.edit_title') : t('risks.new_title')} onClose={onClose} width={660}>
       <div className="u-grid2-14">
         <div className="u-col-full">
-          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="rsk-label">{t('risks.form.title')}</label>
-          <Input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.title} onChange={set('title')} placeholder={t('risks.form.title_ph')} required aria-required="true" />{msg('title')}
+          <Input label={t('risks.form.title')} id={`${idCampo}-1`} value={form.title} onChange={set('title')} placeholder={t('risks.form.title_ph')} required aria-required="true" />{msg('title')}
         </div>
         <div>
-          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="rsk-label">{t('risks.form.category')}</label>
-          <Select suelto placeholder={false} id={`${idCampo}-2`} value={form.category} onChange={set('category')}>
+          <Select label={t('risks.form.category')} placeholder={false} id={`${idCampo}-2`} value={form.category} onChange={set('category')}>
             {CATEGORIES.map(c => <option key={c} value={c}>{t(`risks.options.cat_${c}`)}</option>)}
           </Select>{msg('category')}
         </div>
         <div>
-          <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="rsk-label">{t('risks.form.status')}</label>
-          <Select suelto placeholder={false} id={`${idCampo}-3`} value={form.status} onChange={set('status')}>
+          <Select label={t('risks.form.status')} placeholder={false} id={`${idCampo}-3`} value={form.status} onChange={set('status')}>
             {STATUS_OPTIONS.map(s => <option key={s} value={s}>{t(`risks.options.status_${s}`)}</option>)}
           </Select>{msg('status')}
         </div>
         <div>
-          <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="rsk-label">{t('risks.form.prob')}</label>
-          <Select suelto placeholder={false} id={`${idCampo}-4`} value={form.probability} onChange={set('probability')}>
+          <Select label={t('risks.form.prob')} placeholder={false} id={`${idCampo}-4`} value={form.probability} onChange={set('probability')}>
             {PROB_OPTIONS.map(p => <option key={p} value={p}>{t(`risks.options.prob_${p}`)}</option>)}
           </Select>{msg('probability')}
         </div>
         <div>
-          <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="rsk-label">{t('risks.form.impact')}</label>
-          <Select suelto placeholder={false} id={`${idCampo}-5`} value={form.impact} onChange={set('impact')}>
+          <Select label={t('risks.form.impact')} placeholder={false} id={`${idCampo}-5`} value={form.impact} onChange={set('impact')}>
             {IMPACT_OPTIONS.map(i => <option key={i} value={i}>{t(`risks.options.impact_${i}`)}</option>)}
           </Select>{msg('impact')}
         </div>
         <div>
-          <label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} className="rsk-label">{t('risks.form.response_type')}</label>
-          <Select suelto placeholder={false} id={`${idCampo}-6`} value={form.response_type} onChange={set('response_type')}>
+          <Select label={t('risks.form.response_type')} placeholder={false} id={`${idCampo}-6`} value={form.response_type} onChange={set('response_type')}>
             {RESPONSE_TYPES.map(r => <option key={r} value={r}>{t(`risks.options.resp_${r}`)}</option>)}
           </Select>{msg('response_type')}
         </div>
         <div>
-          <label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} className="rsk-label">{t('risks.form.owner')}</label>
-          <Select suelto placeholder={false} id={`${idCampo}-7`} value={form.owner_id} onChange={set('owner_id')}>
+          <Select label={t('risks.form.owner')} placeholder={false} id={`${idCampo}-7`} value={form.owner_id} onChange={set('owner_id')}>
             <option value="">{t('risks.form.unassigned')}</option>
             {users.map(u => <option key={u.id} value={String(u.id)}>{u.full_name}</option>)}
           </Select>{msg('owner_id')}
         </div>
         <div>
-          <label id={`${idCampo}-et8`} htmlFor={`${idCampo}-8`} className="rsk-label">{t('risks_page.coste_min')}</label>
-          <Input id={`${idCampo}-8`} aria-labelledby={`${idCampo}-et8`} type="number" value={form.cost_impact_min} onChange={set('cost_impact_min')} placeholder={t('risks.form.cost_min_ph')} />{msg('cost_impact_min')}
+          <Input label={t('risks_page.coste_min')} id={`${idCampo}-8`} type="number" value={form.cost_impact_min} onChange={set('cost_impact_min')} placeholder={t('risks.form.cost_min_ph')} />{msg('cost_impact_min')}
         </div>
         <div>
-          <label id={`${idCampo}-et9`} htmlFor={`${idCampo}-9`} className="rsk-label">{t('risks_page.coste_max')}</label>
-          <Input id={`${idCampo}-9`} aria-labelledby={`${idCampo}-et9`} type="number" value={form.cost_impact_max} onChange={set('cost_impact_max')} placeholder={t('risks.form.cost_max_ph')} />{msg('cost_impact_max')}
+          <Input label={t('risks_page.coste_max')} id={`${idCampo}-9`} type="number" value={form.cost_impact_max} onChange={set('cost_impact_max')} placeholder={t('risks.form.cost_max_ph')} />{msg('cost_impact_max')}
         </div>
         <div>
-          <label id={`${idCampo}-et10`} htmlFor={`${idCampo}-10`} className="rsk-label">{t('risks.form.days_impact')}</label>
-          <Input id={`${idCampo}-10`} aria-labelledby={`${idCampo}-et10`} type="number" value={form.schedule_impact_days} onChange={set('schedule_impact_days')} placeholder={t('risks.form.days_impact_ph')} />{msg('schedule_impact_days')}
+          <Input label={t('risks.form.days_impact')} id={`${idCampo}-10`} type="number" value={form.schedule_impact_days} onChange={set('schedule_impact_days')} placeholder={t('risks.form.days_impact_ph')} />{msg('schedule_impact_days')}
         </div>
         <div>
-          <label id={`${idCampo}-et11`} htmlFor={`${idCampo}-11`} className="rsk-label">{t('risks.form.review_date')}</label>
-          <DateInput id={`${idCampo}-11`} aria-labelledby={`${idCampo}-et11`} value={form.review_date} onChange={set('review_date')} className="ds-input" />{msg('review_date')}
+          <DateInput label={t('risks.form.review_date')} id={`${idCampo}-11`} value={form.review_date} onChange={set('review_date')} />{msg('review_date')}
         </div>
         <div className="u-col-full">
-          <label id={`${idCampo}-et12`} htmlFor={`${idCampo}-12`} className="rsk-label">{t('risks.form.description')}</label>
-          <Textarea id={`${idCampo}-12`} aria-labelledby={`${idCampo}-et12`} value={form.description} onChange={set('description')} rows={2} />{msg('description')}
+          <Textarea label={t('risks.form.description')} id={`${idCampo}-12`} value={form.description} onChange={set('description')} rows={2} />{msg('description')}
         </div>
         <div className="u-col-full">
-          <label id={`${idCampo}-et13`} htmlFor={`${idCampo}-13`} className="rsk-label">{t('risks.form.mitigation_plan')}</label>
-          <Textarea id={`${idCampo}-13`} aria-labelledby={`${idCampo}-et13`} value={form.mitigation_plan} onChange={set('mitigation_plan')} rows={2} placeholder={t('risks.form.mitigation_plan_ph')} />{msg('mitigation_plan')}
+          <Textarea label={t('risks.form.mitigation_plan')} id={`${idCampo}-13`} value={form.mitigation_plan} onChange={set('mitigation_plan')} rows={2} placeholder={t('risks.form.mitigation_plan_ph')} />{msg('mitigation_plan')}
         </div>
         <div className="u-col-full">
-          <label id={`${idCampo}-et14`} htmlFor={`${idCampo}-14`} className="rsk-label">{t('risks.form.contingency_plan')}</label>
-          <Textarea id={`${idCampo}-14`} aria-labelledby={`${idCampo}-et14`} value={form.contingency_plan} onChange={set('contingency_plan')} rows={2} placeholder={t('risks.form.contingency_plan_ph')} />{msg('contingency_plan')}
+          <Textarea label={t('risks.form.contingency_plan')} id={`${idCampo}-14`} value={form.contingency_plan} onChange={set('contingency_plan')} rows={2} placeholder={t('risks.form.contingency_plan_ph')} />{msg('contingency_plan')}
         </div>
         <div className="rsk-form-actions">
           <Button variant="secondary" onClick={onClose}>{t('risks.form.cancel')}</Button>
@@ -317,13 +303,12 @@ export default function RisksPage() {
       />
 
       {/* Proyecto: filtro de toda la pantalla, bajo la cabecera */}
-      <div className="ds-toolbar rsk-barra">
-        <Select suelto placeholder={false} value={selectedProject} onChange={e => setSelectedProject(e.target.value)}
-          aria-label={t('risks_page.proyecto')} className="rsk-input--project">
+      <SelectorDeContexto>
+        <Select label={t('uikit.etiqueta_proyecto')} placeholder={false} value={selectedProject} onChange={e => setSelectedProject(e.target.value)}>
           <option value="">{t('risks.all_projects')}</option>
           {projects.map(p => <option key={p.id} value={String(p.id)}>{p.code} — {p.name}</option>)}
         </Select>
-      </div>
+      </SelectorDeContexto>
 
       {/* Summary */}
       <div className="ds-grid-stats rsk-summary">

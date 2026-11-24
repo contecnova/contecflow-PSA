@@ -15,7 +15,7 @@ import type { ChangeEvent, CSSProperties, ReactNode } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { raciApi, usersApi } from '../services/api'
 import type { PersonaVisible } from '../services/api'
-import { Avatar, Spinner, EmptyState, Button, Card, Modal, Pulsable, Select, TablaSimple, useErroresDeCampo, Input } from '../components/ui'
+import { Avatar, Spinner, EmptyState, Button, Modal, Pulsable, Select, TablaSimple, useErroresDeCampo, Input, SelectorDeContexto } from '../components/ui'
 import StatusBadge from '../components/ui/StatusBadge'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -137,27 +137,23 @@ function AddEntryModal({ projectId, users, onClose, onSaved }: { projectId: IdTy
     <div className="u-stack-14">
       <div className="raci-grid">
         <div className="ui-field">
-          <label className="uiinde-estiloetiqueta" htmlFor={`${idCampo}-1`}>{t('raci_ui.tipo')}</label>
-          <Select suelto placeholder={false} id={`${idCampo}-1`} value={form.item_type} onChange={onField('item_type')}>
+          <Select label={t('raci_ui.tipo')} placeholder={false} id={`${idCampo}-1`} value={form.item_type} onChange={onField('item_type')}>
             {ITEM_TYPES.map(it => <option key={it.value} value={it.value}>{t(it.label)}</option>)}
           </Select>{msgB('item_type')}
         </div>
         <div className="ui-field">
-          <label className="uiinde-estiloetiqueta" htmlFor={`${idCampo}-4`}>{traducir('raci.nombre_del_elemento')}</label>
-          <Input id={`${idCampo}-4`} value={form.item_label} onChange={onField('item_label')} placeholder={traducir('raci.nombre_del_elemento')} />{msgB('item_label')}
+          <Input label={traducir('raci.nombre_del_elemento')} id={`${idCampo}-4`} value={form.item_label} onChange={onField('item_label')} placeholder={traducir('raci.nombre_del_elemento')} />{msgB('item_label')}
         </div>
       </div>
       <div className="raci-grid-2">
         <div className="ui-field">
-          <label className="uiinde-estiloetiqueta" htmlFor={`${idCampo}-2`}>{t('raci_ui.persona')}</label>
-          <Select suelto placeholder={false} id={`${idCampo}-2`} value={form.user_id} onChange={onField('user_id')}>
+          <Select label={t('raci_ui.persona')} placeholder={false} id={`${idCampo}-2`} value={form.user_id} onChange={onField('user_id')}>
             <option value="">{t('raci_ui.selecciona_persona')}</option>
             {users.map(u => <option key={u.id} value={u.id}>{u.full_name}{(u.job_title || u.role) ? ` (${u.job_title || u.role})` : ''}</option>)}
           </Select>{msgB('user_id')}
         </div>
         <div className="ui-field">
-          <label className="uiinde-estiloetiqueta" htmlFor={`${idCampo}-3`}>{t('raci_ui.rol_raci')}</label>
-          <Select suelto placeholder={false} id={`${idCampo}-3`} value={form.role} onChange={onField('role')}>
+          <Select label={t('raci_ui.rol_raci')} placeholder={false} id={`${idCampo}-3`} value={form.role} onChange={onField('role')}>
             {Object.entries(ROLES_META).map(([k, v]) => <option key={k} value={k}>{k} — {t(v.label)}</option>)}
           </Select>{msgB('role')}
         </div>
@@ -217,15 +213,12 @@ export default function RACIPage({ projectId }: { projectId?: string } = {}) {
     <div className="u-stack-16">
       {/* Project selector (solo en la página suelta) o acción (dentro de la ficha) */}
       {!projectId ? (
-        <Card>
-          <div className="ui-field raci-selector">
-            <label className="uiinde-estiloetiqueta" htmlFor="raci-proyecto">{t('raci_ui.proyecto')}</label>
-            <Select suelto placeholder={false} id="raci-proyecto" value={String(selectedProject)} onChange={e => setSelectedProject(e.target.value)}>
+        <SelectorDeContexto>
+            <Select label={t('raci_ui.proyecto')} placeholder={false} id="raci-proyecto" value={String(selectedProject)} onChange={e => setSelectedProject(e.target.value)}>
               <option value="">{traducir('raci.selecciona_un_proyecto')}</option>
               {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
             </Select>
-          </div>
-        </Card>
+        </SelectorDeContexto>
       ) : (
         <div className="raci-acciones-ficha">{botonAnadir}</div>
       )}

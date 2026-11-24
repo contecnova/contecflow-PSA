@@ -27,7 +27,16 @@ def _registrar_uso(db: Session, p, result: dict, *, user_id, module,
     Revisión 2026-11: con la empresa de la llamada explícita (antes dependía del
     sellado de la sesión, vacío en los trabajos de fondo); es lo que suma el
     gasto diario de cada empresa.
+
+    24-11-2026 (migración 208): sin empresa (ni la de la llamada ni la de la
+    sesión) no se registra: el sellado cortaría el `commit` y el `rollback`
+    de abajo se llevaría también el trabajo de quien llama.
     """
+    from app.db.empresa_obligatoria import empresa_para_registro
+    organization_id = empresa_para_registro(db, organization_id)
+    if not organization_id:
+        _logger.warning("Uso de IA sin empresa (módulo %s): no se registra en AIUsageLog", module)
+        return
     db.add(AIUsageLog(
         organization_id=organization_id,
         provider_id=p.id if p else None,

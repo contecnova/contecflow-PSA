@@ -111,10 +111,7 @@ function FormularioDeEvaluacion({ subId, onClose }: { subId: string; onClose: ()
           ))}
         </div>
         <Checkbox checked={diligencia} onChange={setDiligencia} label={t('proveedores.due_diligence')} />
-        <div className="ui-field">
-          <label htmlFor="prv-evaluacion-notas" className="uiinde-estiloetiqueta">{t('subcontractors.notes')}</label>
-          <Textarea id="prv-evaluacion-notas" value={notas} onChange={e => setNotas(e.target.value)} inputClassName="prv-textarea" />
-        </div>
+        <Textarea label={t('subcontractors.notes')} id="prv-evaluacion-notas" value={notas} onChange={e => setNotas(e.target.value)} />
         <div className="u-actions-8">
           <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
           <Button onClick={() => guardar.mutate()} loading={guardar.isPending} disabled={guardar.isPending}>{t('common.save')}</Button>

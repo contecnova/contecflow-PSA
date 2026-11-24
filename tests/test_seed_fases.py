@@ -34,9 +34,12 @@ from app.db.seed_parts import core
 
 ORDEN_ESPERADO = [
     "_sembrar_ajustes",
-    "_sembrar_departamentos",
     # 17-11-2026: los festivos van despues de la empresa (llevan su organization_id).
+    # 24-11-2026 (migración 208, empresa obligatoria): los departamentos también, a
+    # propósito: se siembran con la empresa (`_sembrar_departamentos(db, org)`); antes
+    # iban antes de crearla y sin empresa, y el filtro de tenant los escondía.
     "_sembrar_organizacion",
+    "_sembrar_departamentos",
     "_sembrar_festivos",
     "_sembrar_usuarios",
     "_sembrar_catalogo_de_habilidades",
@@ -148,7 +151,16 @@ def test_las_fases_de_catalogo_son_idempotentes(db, fase):
     from sqlalchemy import func, select
     from app.db.base import Base
 
-    f = getattr(core, fase)
+    fase_real = getattr(core, fase)
+    if "org" in inspect.signature(fase_real).parameters:
+        # 24-11-2026 (208): las fases que siembran datos de la empresa la reciben.
+        org = core._sembrar_organizacion(db)
+        db.commit()
+
+        def f(sesion):
+            return fase_real(sesion, org)
+    else:
+        f = fase_real
     f(db)
     db.commit()
 

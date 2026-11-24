@@ -1,5 +1,5 @@
 import { forwardRef } from 'react'
-import type { ChangeEvent, CSSProperties, FocusEvent } from 'react'
+import type { ChangeEvent, CSSProperties, FocusEvent, ReactNode } from 'react'
 import { CampoFecha } from './SelectorDeFecha'
 
 /**
@@ -18,6 +18,8 @@ import { CampoFecha } from './SelectorDeFecha'
  * y solo cuando el valor está completo y es válido ('' al vaciar).
  */
 export interface DateInputProps {
+  /** Etiqueta del campo (estándar del kit). */
+  label?: ReactNode
   /** `true` = fecha y hora. */
   withTime?: boolean
   value?: string | null

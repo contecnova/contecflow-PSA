@@ -108,15 +108,12 @@ export function SoftwareTab() {
         <div className="u-stack-12">
           <div className="sdm-form">
             <Buscador label={t('sw.buscar')} value={q} placeholder={t('sw.buscar_ph')} onChange={setQ} />
-            <label className="sdm-field"><span>{t('sw.categoria')}</span>
-              <Select suelto placeholder={false} value={categoria} onChange={ev => setCategoria(ev.target.value)}>
-                <Opciones valores={meta.data?.categories} catalogo="cat" todos={t('sw.todas')} /></Select></label>
-            <label className="sdm-field"><span>{t('sw.origen')}</span>
-              <Select suelto placeholder={false} value={origen} onChange={ev => setOrigen(ev.target.value)}>
-                <Opciones valores={meta.data?.origins} catalogo="origen" todos={t('sw.todos')} /></Select></label>
-            <label className="sdm-field"><span>{t('sw.ciclo')}</span>
-              <Select suelto placeholder={false} value={ciclo} onChange={ev => setCiclo(ev.target.value)}>
-                <Opciones valores={meta.data?.lifecycles} catalogo="ciclo" todos={t('sw.todos')} /></Select></label>
+            <Select label={t('sw.categoria')} placeholder={false} value={categoria} onChange={ev => setCategoria(ev.target.value)}>
+                <Opciones valores={meta.data?.categories} catalogo="cat" todos={t('sw.todas')} /></Select>
+            <Select label={t('sw.origen')} placeholder={false} value={origen} onChange={ev => setOrigen(ev.target.value)}>
+                <Opciones valores={meta.data?.origins} catalogo="origen" todos={t('sw.todos')} /></Select>
+            <Select label={t('sw.ciclo')} placeholder={false} value={ciclo} onChange={ev => setCiclo(ev.target.value)}>
+                <Opciones valores={meta.data?.lifecycles} catalogo="ciclo" todos={t('sw.todos')} /></Select>
           </div>
           {gestiona && meta.data && <div className="u-text3-xs">{t('sw.csv_columnas')}: <span className="u-mono">{meta.data.csv_columns.join(', ')}</span></div>}
           {productos.isLoading ? <Spinner /> : items.length === 0 ? (
@@ -187,10 +184,9 @@ function DuplicadosModal({ onClose }: { onClose: () => void }) {
               <li key={i} className="sdm-list__item">
                 <div className="u-flex1-min0 u-stack-6">
                   <StatusBadge caps={false}>{e('motivo_dup', g.reason)}</StatusBadge>
-                  <label className="sdm-field"><span>{t('sw.conservar')}</span>
-                    <Select suelto placeholder={false} value={dest} onChange={ev => setDestino({ ...destino, [i]: ev.target.value })}>
+                  <Select label={t('sw.conservar')} placeholder={false} value={dest} onChange={ev => setDestino({ ...destino, [i]: ev.target.value })}>
                       {g.products.map(p => <option key={p.id} value={p.id}>{p.name} · {e('cat', p.category)}</option>)}
-                    </Select></label>
+                    </Select>
                   <div className="u-wrap-6">
                     {g.products.filter(p => p.id !== dest).map(p => (
                       <Button key={p.id} size="xs" variant="secondary" icon={<GitMerge size={12} />} disabled={fusionar.isPending}
@@ -231,9 +227,8 @@ export function DondeSeUsaTab() {
       <Section title={t('sw.donde_titulo')} subtitle={t('sw.donde_desc')}>
         <form className="sdm-form" onSubmit={buscar}>
           <Input label={t('sw.buscar')} value={texto} placeholder={t('sw.donde_ph')} onChange={ev => setTexto(ev.target.value)} />
-          <label className="sdm-field"><span>{t('sw.entorno')}</span>
-            <Select suelto placeholder={false} value={entorno} onChange={ev => setEntorno(ev.target.value)}>
-              <Opciones valores={meta.data?.environments} catalogo="entorno" todos={t('sw.todos')} /></Select></label>
+          <Select label={t('sw.entorno')} placeholder={false} value={entorno} onChange={ev => setEntorno(ev.target.value)}>
+              <Opciones valores={meta.data?.environments} catalogo="entorno" todos={t('sw.todos')} /></Select>
           <div><Button type="submit" icon={<Search size={14} />} disabled={texto.trim().length < 2} loading={isFetching}>{t('sw.buscar')}</Button></div>
         </form>
       </Section>
@@ -340,11 +335,10 @@ export function PorMaquinaTab() {
       <Section title={t('sw.maquina_titulo')} subtitle={t('sw.maquina_desc')}>
         <div className="sdm-form">
           <Buscador label={t('sw.filtrar_ci')} value={filtro} onChange={setFiltro} placeholder={t('sw.filtrar_ci_ph')} />
-          <label className="sdm-field"><span>{t('sw.maquina')}</span>
-            <Select suelto placeholder={false} value={ciId} onChange={ev => { setCiId(ev.target.value); setVerGrafo(false) }}>
+          <Select label={t('sw.maquina')} placeholder={false} value={ciId} onChange={ev => { setCiId(ev.target.value); setVerGrafo(false) }}>
               <option value="">{t('sw.elige_ci')}</option>
               {visibles.map(c => <option key={c.id} value={c.id}>{c.code ? `${c.code} · ` : ''}{c.name}{c.ip_address ? ` (${c.ip_address})` : ''}</option>)}
-            </Select></label>
+            </Select>
         </div>
       </Section>
       {!ciId ? <EmptyState icon={<Server size={28} />} title={t('sw.elige_ci')} />
@@ -536,21 +530,18 @@ export function VulnerabilidadesTab() {
           {gestiona && <div className="u-text3-xs">{t('sw.importar_avisos_ayuda')}</div>}
           <div className="sdm-form">
             <Input label={t('sw.buscar')} value={q} placeholder={t('sw.hallazgos_ph')} onChange={ev => setQ(ev.target.value)} />
-            <label className="sdm-field"><span>{t('sw.estado')}</span>
-              <Select suelto placeholder={false} value={estado} onChange={ev => setEstado(ev.target.value)}>
+            <Select label={t('sw.estado')} placeholder={false} value={estado} onChange={ev => setEstado(ev.target.value)}>
                 <option value={ESTADOS_ABIERTOS}>{t('sw.abiertos')}</option>
                 <option value="">{t('sw.todos')}</option>
                 {(meta.data?.finding_statuses ?? []).map(s => <option key={s} value={s}>{e('estado', s)}</option>)}
-              </Select></label>
-            <label className="sdm-field"><span>{t('sw.severidad')}</span>
-              <Select suelto placeholder={false} value={severidad} onChange={ev => setSeveridad(ev.target.value)}>
-                <Opciones valores={meta.data?.severities} catalogo="sev" todos={t('sw.todas')} /></Select></label>
-            <label className="sdm-field"><span>{t('sw.posible_filtro')}</span>
-              <Select suelto placeholder={false} value={posible} onChange={ev => setPosible(ev.target.value)}>
+              </Select>
+            <Select label={t('sw.severidad')} placeholder={false} value={severidad} onChange={ev => setSeveridad(ev.target.value)}>
+                <Opciones valores={meta.data?.severities} catalogo="sev" todos={t('sw.todas')} /></Select>
+            <Select label={t('sw.posible_filtro')} placeholder={false} value={posible} onChange={ev => setPosible(ev.target.value)}>
                 <option value="">{t('sw.todos')}</option>
                 <option value="true">{t('sw.posible_solo')}</option>
                 <option value="false">{t('sw.posible_confirmados')}</option>
-              </Select></label>
+              </Select>
             <div className="u-wrap-10 sw-casillas">
               <Checkbox checked={kev} onChange={setKev} label={t('sw.solo_kev')} />
               <Checkbox checked={fueraSla} onChange={setFueraSla} label={t('sw.solo_fuera_sla')} />

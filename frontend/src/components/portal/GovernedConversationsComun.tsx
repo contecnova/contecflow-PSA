@@ -73,7 +73,7 @@ export interface AgentGroup {
 }
 
 /** Cliente axios: el del backoffice o el del portal. */
-export type ApiClient = Pick<AxiosInstance, 'get' | 'post'>
+export type ApiClient = Pick<AxiosInstance, 'get' | 'post' | 'put' | 'delete'>
 
 export type Toast = { success: (m: string) => void; error: (m: string) => void }
 

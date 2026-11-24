@@ -62,7 +62,7 @@ class UserCostProfile(Base):
     user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"),
                      nullable=False, index=True)
     organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"),
-                             nullable=True, index=True)
+                             nullable=False, index=True)
 
     # Country drives the default employer cost % when creating the profile
     country_code = Column(String(2), nullable=True, index=True)

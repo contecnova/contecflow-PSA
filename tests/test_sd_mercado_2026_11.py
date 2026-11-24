@@ -64,14 +64,14 @@ def test_config_del_agente_y_playbooks_de_otra_empresa_no_se_ven(client, admin_t
     assert r.status_code == 200, r.text
     datos = r.json()["data"]
     assert datos["mode"] == "execute" and datos["disabled_playbooks"] == ["pw-reset"]
-    from tests.conftest import fila_global
-    # Sin `fila_global` el sellado al insertar le ponia la empresa 1 (la de la sesion
-    # del fixture) y la fila «de nadie» era en realidad de la empresa 1.
-    with fila_global(db):
-        db.add(AutonomousPlaybook(organization_id=None, name="De nadie", playbook_type="x", steps_json="[]"))
-        db.commit()
+    # Migración 208: `organization_id` es obligatorio; la fila ajena es de otra empresa.
+    from app.models.mfa import Organization
+    db.add(Organization(id="org-ajena-mercado", name="Ajena", slug="ajena-mercado"))
+    db.add(AutonomousPlaybook(organization_id="org-ajena-mercado", name="De otra", playbook_type="x",
+                              steps_json="[]"))
+    db.commit()
     nombres = {p["name"] for p in client.get("/api/v1/sd/autonomous/playbooks", headers=auth(admin_token)).json()["items"]}
-    assert "De nadie" not in nombres
+    assert "De otra" not in nombres
     pw = next(p for p in client.get("/api/v1/sd/autonomous/playbooks", headers=auth(admin_token)).json()["items"]
               if p["id"] == "pw-reset")
     assert pw["enabled"] is False

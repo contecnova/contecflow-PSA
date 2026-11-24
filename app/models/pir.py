@@ -46,7 +46,7 @@ class PirRevision(Base):
     __tablename__ = "pir_revisiones"
 
     id = Column(String(36), primary_key=True, default=_id)
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     codigo = Column(String(30), nullable=False)                       # PIR-0001 (PIR-H0001: migradas)
     titulo = Column(String(300), nullable=False)
 
@@ -109,7 +109,7 @@ class PirAccion(Base):
     __tablename__ = "pir_acciones"
 
     id = Column(String(36), primary_key=True, default=_id)
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     pir_id = Column(String(36), ForeignKey("pir_revisiones.id", ondelete="CASCADE"), nullable=False, index=True)
     descripcion = Column(Text, nullable=False)
     responsable_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
@@ -125,7 +125,7 @@ class PirPlantilla(Base):
     __tablename__ = "pir_plantillas"
 
     id = Column(String(36), primary_key=True, default=_id)
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     nombre = Column(String(200), nullable=False)
     ambito = Column(String(10), nullable=False, index=True)          # change | project
     tipo = Column(String(50), nullable=True)                          # standard|normal|emergency o clave de tipo de proyecto
@@ -145,7 +145,7 @@ class PirConfiguracion(Base):
     __tablename__ = "pir_configuracion"
 
     id = Column(String(36), primary_key=True, default=_id)
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True,
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False,
                              unique=True, index=True)
     dias_cambio = Column(Integer, nullable=False, default=7, server_default="7")
     dias_proyecto = Column(Integer, nullable=False, default=30, server_default="30")

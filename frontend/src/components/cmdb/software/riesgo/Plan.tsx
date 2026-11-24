@@ -44,10 +44,11 @@ export default function Plan({ ambito }: { ambito: Ambito }) {
         actions={<Button size="sm" variant="secondary" icon={<ListOrdered size={14} />} onClick={() => setVerEventos(true)}>{t('swr.ver_eventos')}</Button>}>
         <div className="u-stack-12">
           <form className="sdm-form" onSubmit={ev => { ev.preventDefault(); if (valido) setAplicado(Number(objetivo)) }}>
-            <Input label={t('swr.objetivo')} type="number" min={0} max={100} value={objetivo} placeholder={p ? String(Math.round(p.target)) : ''}
-              hint={t('swr.objetivo_ayuda')} onChange={ev => setObjetivo(ev.target.value)} />
+            <Input label={t('swr.objetivo')} type="number" min={0} max={100} value={objetivo} placeholder={p ? String(Math.round(p.target)) : ''} onChange={ev => setObjetivo(ev.target.value)} />
             <div><Button type="submit" icon={<Target size={14} />} disabled={!valido} loading={plan.isFetching}>{t('swr.calcular_plan')}</Button></div>
           </form>
+          {/* La ayuda va bajo la fila: dentro del campo lo alargaba y «Calcular» quedaba desalineado (24-11-2026). */}
+          <p className="u-text3-xs">{t('swr.objetivo_ayuda')}</p>
           {plan.isLoading ? <Spinner /> : p && <>
             <div className="sw-aviso">
               {t('swr.plan_de_a', { de: Math.round(p.current), a: Math.round(p.target) })}{' '}
@@ -127,11 +128,10 @@ function EventosModal({ ambito, onClose, onAbrir }: { ambito: Ambito; onClose: (
   return (
     <Modal open size="xl" onClose={onClose} title={t('swr.eventos')} subtitle={t('swr.eventos_desc')}>
       <div className="u-stack-12">
-        <label className="sdm-field sw-campo-estrecho"><span>{t('swr.tipo_evento')}</span>
-          <Select suelto placeholder={false} value={tipo} onChange={ev => { setTipo(ev.target.value); setPagina(1) }}>
+        <Select label={t('swr.tipo_evento')} placeholder={false} value={tipo} onChange={ev => { setTipo(ev.target.value); setPagina(1) }}>
             <option value="">{t('swr.todos')}</option>
             {TIPOS_DE_EVENTO.map(k => <option key={k} value={k}>{e('evento', k)}</option>)}
-          </Select></label>
+          </Select>
         {isLoading ? <Spinner /> : items.length === 0 ? <EmptyState title={t('swr.sin_eventos')} /> : (
           <TablaSimple etiqueta={t('swr.eventos')} densidad="compacta">
             <thead><tr>

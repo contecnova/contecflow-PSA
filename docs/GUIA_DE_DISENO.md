@@ -355,6 +355,9 @@ estiraba a sus hijos y el botón no tenía alto fijo.
 </div>
 ```
 
+- **Un icono, un significado (24-11-2026):** `Trash2` solo para borrar o
+  archivar; desactivar una persona/contacto usa `UserX`; la supresión RGPD,
+  `ShieldX`. Dos acciones distintas nunca comparten icono en la misma fila.
 - Tamaños `xs` 26 / `sm` 32 (por defecto) / `md` 38 px; tonos `neutro`,
   `peligro`, `acento`. Detalle y excepciones: `frontend/src/components/ui/DESIGN_SYSTEM.md`.
 - Migración del 23-11-2026: 115 botones de solo icono hechos a mano
@@ -437,7 +440,41 @@ Inicio y Fin mueven el foco y seleccionan, saltando las deshabilitadas.
 
 ---
 
+### 8.9 Selector de contexto de la pantalla: `SelectorDeContexto` (24-11-2026)
+
+El selector de contexto de una pantalla (proyecto, cliente, unidad, sprint, periodo…) es SIEMPRE el de Matriz RACI:
+una tarjeta con campos del kit con etiqueta («PROYECTO»), desplegable de ancho estándar y texto claro, y un hueco opcional
+de acciones. Ningún selector de contexto va suelto en una barra, a todo el ancho ni con etiqueta propia.
+
+```tsx
+<SelectorDeContexto acciones={<Button onClick={sincronizar}>Sincronizar</Button>}>
+  <Select label={t('uikit.etiqueta_proyecto')} placeholder={false} value={project} onChange={e => setProject(e.target.value)}>
+    <option value="">{t('raci.selecciona_un_proyecto')}</option>
+    {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
+  </Select>
+</SelectorDeContexto>
+```
+
+Claves de etiqueta comunes (es/en/zh): `uikit.etiqueta_proyecto`, `etiqueta_cliente`, `etiqueta_sprint`, `etiqueta_periodo`,
+`etiqueta_unidad`. Varios campos (proyecto + sprint, proyecto + periodo con `SelectorDePeriodo` bajo una
+`<span className="uiinde-estiloetiqueta">`) caben en el mismo `SelectorDeContexto`. Los selectores dentro de un `Modal`,
+`Drawer` o `FormField` son campos de formulario, no contexto. El vigilante `selectorDeContextoAMano` cuenta los
+`Select`/`ProjectSelect`/`ClientSelect` de contexto fuera de `SelectorDeContexto`.
+
 ## 9. Formularios
+
+> **Regla (24-11-2026): los campos con etiqueta siempre con la prop del componente del kit; nunca `<label>` + control sueltos.**
+> `<Select label=… />`, `<Input label=… />`, `<Textarea label=… />`, `<CampoFecha label=… />` / `<DateInput label=… />`,
+> `<SelectRico label=… />`, `<Buscador label=… />`, `<UserSelect label=… />`, `<ClientSelect label=… />`, `<ProjectSelect label=… />`.
+> El kit pone la etiqueta `uiinde-estiloetiqueta` (11 px, 600, mayúsculas, `--text-2`), el control a `--alto-control`,
+> los desplegables al ancho estándar `--ancho-min-desplegable` (regla `.ui-field[class="ui-field"]:has(> select)`, que solo
+> se aplica si el campo NO lleva clase extra) y el texto en `--text-1` también vacío. Por eso un campo con etiqueta
+> **no lleva** `className`, ancho, alto ni clase de etiqueta propios (`spl-label`, `spl-input--project`…): el mismo campo
+> («Proyecto») sale igual en todas las pantallas. Si el control está en una celda de tabla o barra sin etiqueta visible,
+> va suelto (`<Select suelto aria-label=… />`): no es un campo con etiqueta. Una etiqueta a mano sin control del kit
+> (p. ej. sobre un `SelectorDePeriodo`) usa la clase `uiinde-estiloetiqueta`, nunca una propia.
+> Vigilante: `node scripts/kit_pendientes.mjs` cuenta (sección `campos` de `kit-pendientes.json`, cupo que solo baja)
+> `campoConEtiquetaPropia` y `selectorDeContextoAMano` (ver 8.9). Casos especiales de verdad: comentario `/* excepción kit: motivo */`.
 
 El patrón que siguen las pantallas de configuración, en código:
 
@@ -486,9 +523,23 @@ marca su uso en `style`.
   lo oculta al lector y reserva su hueco (`Input icono` / `iconoFinal` /
   `onLimpiar`). La búsqueda es un componente propio (`Buscador`: lupa, X para
   vaciar con nombre accesible, espera opcional antes de consultar).
-- **Fila de filtros ancha:** el buscador crece hasta un máximo legible; cada
-  desplegable mide su opción más larga; se salta de línea antes de recortar; con
-  etiquetas, se alinea por abajo.
+- **Fila de filtros ancha:** el buscador crece hasta un máximo legible; se salta
+  de línea antes de recortar.
+- **Todos los desplegables miden lo mismo (24-11-2026).** Un `Select` con
+  etiqueta mide `--ancho-min-desplegable` (320 px) y uno suelto
+  `--ancho-min-desplegable-suelto` (200 px), sin depender de sus opciones (antes
+  «Unidad» y «Proyecto» salían de anchos distintos en la misma pantalla). En una
+  rejilla o columna se estiran como siempre. Un `Select` con clase propia (p. ej.
+  el selector de periodo) fija su ancho en su CSS.
+- **Alineación de filas con campos (24-11-2026).** Nada bajo un control puede
+  alargar un campo que comparte fila con botones u otros campos: la ayuda larga
+  va debajo de la fila (no en `hint` del campo) y las filas con etiquetas se
+  alinean **arriba** si algún campo lleva nota. El selector de periodo muestra su
+  explicación como icono ⓘ con tooltip en la misma línea (texto oculto para
+  lectores de pantalla), no como línea extra.
+- **`gap` solo en flex o grid.** Un `gap` en un contenedor sin `display:flex` o
+  `grid` (p. ej. una `Card`) no hace nada y deja controles pegados; se declara el
+  `display` en la misma regla (caso «Previsualizar» del constructor de informes).
 - **Columna estrecha:** buscador a todo el ancho, segmentado de botones iguales
   para 2–4 opciones cortas, y el resto de dos en dos. Nunca tres desplegables
   que no quepan enteros.

@@ -30,27 +30,16 @@
   font-size: var(--text-2xs); padding: 1px 6px; border-radius: var(--radius-md);
   background: var(--surface-3); color: var(--text-3);
 }
-.chl-card-title { font-size: var(--text-md); font-weight: 700; color: var(--text-1); }
+.chl-card-title { font-size: var(--text-md); font-weight: 700; color: var(--text-1); overflow-wrap: anywhere; }
 .chl-card-side { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
-.chl-card-desc { font-size: var(--text-sm); color: var(--text-2); line-height: 1.5; }
+.chl-card-desc { font-size: var(--text-sm); color: var(--text-2); line-height: 1.5; overflow-wrap: anywhere; }
 .chl-card-author { font-size: var(--text-xs); color: var(--text-3); margin-top: 8px; }
 
 /* Formularios de los modales */
 .chl-grid3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
-@media (max-width: 560px) {
+@media (width <= 560px) {
   .chl-grid3 { grid-template-columns: minmax(0, 1fr); }
 }
-.chl-label {
-  font-size: var(--text-xs); font-weight: 700; color: var(--text-2);  display: block; margin-bottom: 5px;
-}
-.chl-input {
-  width: 100%; background: var(--surface-3); border: 1px solid var(--surface-4);
-  border-radius: 8px; padding: 9px 12px; color: var(--text-1); font-size: var(--text-base);
-  outline: none; font-family: inherit; box-sizing: border-box;
-}
-.chl-input:focus-visible { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
-.chl-input[aria-invalid="true"] { border: 1px solid var(--danger); box-shadow: 0 0 0 1px var(--danger-border); }
-textarea.chl-input { resize: vertical; }
 
 .chl-note {
   border-radius: 8px; padding: 10px 14px;
@@ -63,12 +52,4 @@ textarea.chl-input { resize: vertical; }
 .chl-note--empty { --chl-color: var(--warning); font-size: var(--text-base); font-weight: 500; }
 
 /* Barra de filtros */
-.chl-project {
-  flex: 1; max-width: 380px; min-width: 0; background: var(--surface-3); border: 1px solid var(--surface-4);
-  border-radius: 8px; padding: 9px 13px; color: var(--text-1); font-size: var(--text-base);
-  outline: none; font-family: inherit; cursor: pointer;
-}
-.chl-project:focus-visible { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
 .chl-loading { display: flex; gap: 10px; align-items: center; padding: 40px 0; }
-.chl-card-title { overflow-wrap: anywhere; }
-.chl-card-desc { overflow-wrap: anywhere; }

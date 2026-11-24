@@ -14,7 +14,7 @@ class CurrencyConversionLog(Base):
     __tablename__ = "currency_conversion_logs"
 
     id              = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)  # audit #7
     entity_type     = Column(String(50), nullable=False)  # expense | invoice | budget
     entity_id       = Column(String(36), nullable=False)
     from_currency   = Column(String(3), nullable=False)

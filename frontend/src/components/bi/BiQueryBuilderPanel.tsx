@@ -214,8 +214,7 @@ export default function BiQueryBuilderPanel() {
         <div>
           {/* Dataset selector */}
           <div className="biqubupa-ps">
-            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="biqubupa-ls">{traducir('biquerybuilder.conjunto_de_datos')}</label>
-            <Select suelto id={`${idCampo}-1`} className="biqubupa-is" value={dataset} onChange={e => { setDataset(e.target.value); setSelectedFields([]); setGroupBy([]) }} placeholder={traducir('biquerybuilder.seleccionar_dataset')}>
+            <Select label={traducir('biquerybuilder.conjunto_de_datos')} id={`${idCampo}-1`} value={dataset} onChange={e => { setDataset(e.target.value); setSelectedFields([]); setGroupBy([]) }} placeholder={traducir('biquerybuilder.seleccionar_dataset')}>
               {datasets.map(d => <option key={d.name} value={d.name}>{d.label ?? d.name}</option>)}
             </Select>
           </div>
@@ -286,29 +285,25 @@ export default function BiQueryBuilderPanel() {
               {/* Sort + Limit */}
               <div className="biqubupa-ps3">
                 <div className="biqubupa-box-3">
-                  <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="biqubupa-ls">{traducir('biquerybuilder.ordenar_por')}</label>
-                  <Select suelto id={`${idCampo}-2`} className="biqubupa-is" value={sortBy} onChange={e => setSortBy(e.target.value)} placeholder={traducir('biquerybuilder.sin_orden')}>
+                  <Select label={traducir('biquerybuilder.ordenar_por')} id={`${idCampo}-2`} value={sortBy} onChange={e => setSortBy(e.target.value)} placeholder={traducir('biquerybuilder.sin_orden')}>
                     {availableFields.map(f => <option key={f.name} value={f.name}>{f.label ?? f.name}</option>)}
                   </Select>
                 </div>
                 <div className="biqubupa-box-4">
-                  <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="biqubupa-ls">{traducir('biquerybuilder.direccion')}</label>
-                  <Select suelto id={`${idCampo}-3`} className="biqubupa-is" value={sortDir} onChange={e => setSortDir(e.target.value)} placeholder={false}>
+                  <Select label={traducir('biquerybuilder.direccion')} id={`${idCampo}-3`} value={sortDir} onChange={e => setSortDir(e.target.value)} placeholder={false}>
                     <option value="asc">{traducir('biquerybuilder.asc')}</option>
                     <option value="desc">{traducir('biquerybuilder.desc')}</option>
                   </Select>
                 </div>
                 <div className="biqubupa-box-4">
-                  <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="biqubupa-ls">{traducir('biquerybuilder.limite')}</label>
-                  <Input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} type="number" value={limit} min={1} max={5000} onChange={e => setLimit(Number(e.target.value))} inputClassName="biqubupa-is" />
+                  <Input label={traducir('biquerybuilder.limite')} id={`${idCampo}-4`} type="number" value={limit} min={1} max={5000} onChange={e => setLimit(Number(e.target.value))} />
                 </div>
               </div>
 
               {/* Save name + Run */}
               <div className="biqubupa-row-7">
                 <div className="biqubupa-box-5">
-                  <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="biqubupa-ls">{traducir('biquerybuilder.nombre_de_la_query_requerido_para_guardar')}</label>
-                  <Input id={`${idCampo}-5`} placeholder={traducir('biquerybuilder.mi_query')} value={queryName} onChange={e => setQueryName(e.target.value)} inputClassName="biqubupa-is" />
+                  <Input label={traducir('biquerybuilder.nombre_de_la_query_requerido_para_guardar')} id={`${idCampo}-5`} placeholder={traducir('biquerybuilder.mi_query')} value={queryName} onChange={e => setQueryName(e.target.value)} />
                 </div>
                 <Button variant="secondary" icon={<Save size={14} />} onClick={handleSaveBuilder}
                   disabled={!dataset || !queryName.trim() || saveMut.isPending} loading={saveMut.isPending}>

@@ -95,9 +95,7 @@ export function AlertConfigSection() {
                 <div className="set-alert-body">
                   {cfg.threshold_value !== null && (
                     <div className="u-row-center-8">
-                      <label id={`${idCampo}-${cfg.alert_type}-etc723`} htmlFor={`${idCampo}-${cfg.alert_type}-c723`} className="u-text2-xs">{t('settings_sections.umbral')}:</label>
-                      <Input id={`${idCampo}-${cfg.alert_type}-c723`} aria-labelledby={`${idCampo}-${cfg.alert_type}-etc723`} type="number" defaultValue={cfg.threshold_value ?? undefined} onBlur={e => update({ type: cfg.alert_type, data: { threshold_value: +e.target.value } })}
-                        inputClassName="set-threshold" />
+                      <Input label={<>{t('settings_sections.umbral')}:</>} id={`${idCampo}-${cfg.alert_type}-c723`} type="number" defaultValue={cfg.threshold_value ?? undefined} onBlur={e => update({ type: cfg.alert_type, data: { threshold_value: +e.target.value } })} />
                       <span className="u-text2-xs">{cfg.threshold_unit}</span>
                     </div>
                   )}
@@ -150,43 +148,25 @@ export function AlertConfigSection() {
       {showCreate && (
         <Modal open title={t('settings.nueva_regla_de_alerta')} onClose={() => { setShowCreate(false); setRuleForm(EMPTY_RULE) }} width={480}>
           <div className="u-stack-14">
-            <div>
-              <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="set-label">{t('common.name')}</label>
-              <Input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={ruleForm.name} onChange={setR('name')} placeholder={t('settings.ej_ingresos_por_debajo_del_objetivo')} inputClassName="set-input" />
-            </div>
-            <div>
-              <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="set-label">{t('settings.metrica')}</label>
-              <Select suelto placeholder={t('settings.selecciona_una_metrica')} id={`${idCampo}-2`} value={ruleForm.metric_key} onChange={setR('metric_key')} className="set-input">
+            <Input label={t('common.name')} id={`${idCampo}-1`} value={ruleForm.name} onChange={setR('name')} placeholder={t('settings.ej_ingresos_por_debajo_del_objetivo')} />
+            <Select label={t('settings.metrica')} placeholder={t('settings.selecciona_una_metrica')} id={`${idCampo}-2`} value={ruleForm.metric_key} onChange={setR('metric_key')}>
                 {metrics.map(m => <option key={m.key} value={m.key}>{m.label}</option>)}
               </Select>
-            </div>
             <div className="u-grid2-12">
-              <div>
-                <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="set-label">{t('settings.condicion')}</label>
-                <Select suelto placeholder={false} id={`${idCampo}-3`} value={ruleForm.condition} onChange={setR('condition')} className="set-input">
+              <Select label={t('settings.condicion')} placeholder={false} id={`${idCampo}-3`} value={ruleForm.condition} onChange={setR('condition')}>
                   {CONDITION_CODES.map(k => <option key={k} value={k}>{condLabel(k)}</option>)}
                 </Select>
-              </div>
               {THRESHOLD_CONDITIONS.includes(ruleForm.condition) && (
-                <div>
-                  <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="set-label">{t('settings_sections.umbral')}</label>
-                  <Input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} type="number" value={ruleForm.threshold} onChange={setR('threshold')} placeholder="0" inputClassName="set-input" />
-                </div>
+                <Input label={t('settings_sections.umbral')} id={`${idCampo}-4`} type="number" value={ruleForm.threshold} onChange={setR('threshold')} placeholder="0" />
               )}
             </div>
             <div className="u-grid2-12">
-              <div>
-                <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="set-label">{t('settings_sections.severidad')}</label>
-                <Select suelto placeholder={false} id={`${idCampo}-5`} value={ruleForm.severity} onChange={setR('severity')} className="set-input">
+              <Select label={t('settings_sections.severidad')} placeholder={false} id={`${idCampo}-5`} value={ruleForm.severity} onChange={setR('severity')}>
                   <option value="info">{t('settings_sections.sev_info')}</option>
                   <option value="warning">{t('settings_sections.sev_warning')}</option>
                   <option value="critical">{t('settings_sections.sev_critical')}</option>
                 </Select>
-              </div>
-              <div>
-                <label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} className="set-label">{t('settings_sections.cooldown_minutos')}</label>
-                <Input id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} type="number" value={ruleForm.cooldown_minutes} onChange={setR('cooldown_minutes')} min={5} inputClassName="set-input" />
-              </div>
+              <Input label={t('settings_sections.cooldown_minutos')} id={`${idCampo}-6`} type="number" value={ruleForm.cooldown_minutes} onChange={setR('cooldown_minutes')} min={5} />
             </div>
             <div className="u-actions-10 set-mt4">
               <Button variant="secondary" onClick={() => { setShowCreate(false); setRuleForm(EMPTY_RULE) }}>{t('common.cancel')}</Button>
@@ -301,36 +281,21 @@ export function MetricsSection() {
       {showCreate && (
         <Modal open title={t('settings.nueva_metrica_personalizada')} onClose={() => { setShowCreate(false); setForm(EMPTY_METRIC) }} width={500}>
           <div className="u-stack-14">
-            <div>
-              <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="set-label">{t('common.name')}</label>
-              <Input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.label} onChange={setF('label')} placeholder={t('settings_sections.ej_ratio')} inputClassName="set-input" />
-            </div>
-            <div>
-              <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="set-label">{t('settings.descripcion_opcional')}</label>
-              <Input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.description} onChange={setF('description')} placeholder={t('settings.para_que_sirve_esta_metrica')} inputClassName="set-input" />
-            </div>
+            <Input label={t('common.name')} id={`${idCampo}-1`} value={form.label} onChange={setF('label')} placeholder={t('settings_sections.ej_ratio')} />
+            <Input label={t('settings.descripcion_opcional')} id={`${idCampo}-2`} value={form.description} onChange={setF('description')} placeholder={t('settings.para_que_sirve_esta_metrica')} />
             <div className="set-formula-box">
               <div className="set-formula-title">{t('settings.formula_a_operador_b_escala')}</div>
               <div className="set-formula-grid">
-                <div>
-                  <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="set-label">{t('settings.metrica_a')}</label>
-                  <Select suelto placeholder={t('settings_sections.selecciona')} id={`${idCampo}-3`} value={form.operand_a} onChange={setF('operand_a')} className="set-input">
+                <Select label={t('settings.metrica_a')} placeholder={t('settings_sections.selecciona')} id={`${idCampo}-3`} value={form.operand_a} onChange={setF('operand_a')}>
                     {builtinMetrics.map(m => <option key={m.key} value={m.key}>{m.label}</option>)}
                   </Select>
-                </div>
-                <div>
-                  <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="set-label" title={t('settings_sections.operador')}>{t('settings_sections.op')}</label>
-                  <Select suelto placeholder={false} id={`${idCampo}-4`} value={form.operator} onChange={setF('operator')} className="set-input set-input--w70">
+                <Select label={<span title={t('settings_sections.operador')}>{t('settings_sections.op')}</span>} placeholder={false} id={`${idCampo}-4`} value={form.operator} onChange={setF('operator')}>
                     {Object.entries(OPERATOR_KEYS).map(([k, v]) => <option key={k} value={k}>{k} ({t(v)})</option>)}
                   </Select>
-                </div>
-                <div>
-                  <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="set-label">{t('settings_sections.tipo_b')}</label>
-                  <Select suelto placeholder={false} id={`${idCampo}-5`} value={form.operand_b_type} onChange={setF('operand_b_type')} className="set-input">
+                <Select label={t('settings_sections.tipo_b')} placeholder={false} id={`${idCampo}-5`} value={form.operand_b_type} onChange={setF('operand_b_type')}>
                     <option value="metric">{t('settings.otra_metrica')}</option>
                     <option value="constant">{t('settings_sections.constante')}</option>
                   </Select>
-                </div>
               </div>
               <div className="u-grid2-10">
                 <div>
@@ -343,10 +308,7 @@ export function MetricsSection() {
                     <Input id={`${idCampo}-opb`} aria-labelledby={`${idCampo}-etopb`} type="number" value={form.operand_b} onChange={setF('operand_b')} placeholder="0" inputClassName="set-input" />
                   )}
                 </div>
-                <div>
-                  <label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} className="set-label">{t('settings_sections.escala')}</label>
-                  <Input id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} type="number" value={form.scale} onChange={setF('scale')} placeholder="1" step="any" inputClassName="set-input" />
-                </div>
+                <Input label={t('settings_sections.escala')} id={`${idCampo}-6`} type="number" value={form.scale} onChange={setF('scale')} placeholder="1" step="any" />
               </div>
               {preview && (
                 <div className="set-preview">

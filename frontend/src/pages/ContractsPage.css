@@ -50,7 +50,7 @@ textarea.ctr-input { resize: vertical; }
 .ctr-detail-head { display: flex; gap: 8px; margin-bottom: 16px; }
 .ctr-facts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 0 0 20px; }
 .ctr-facts dd { margin: 0; }
-@media (max-width: 640px) { .ctr-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (width <= 640px) { .ctr-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .ctr-fact { background: var(--surface-3); border-radius: 8px; padding: 10px 14px; }
 .ctr-fact__label { font-size: var(--text-xs); color: var(--text-2); margin-bottom: 3px; }
 
@@ -92,7 +92,7 @@ textarea.ctr-input { resize: vertical; }
   border-radius: var(--radius-md);
 }
 .ctr-wo-form__grid { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1fr; gap: 10px; margin-bottom: 10px; }
-@media (max-width: 640px) { .ctr-wo-form__grid { grid-template-columns: 1fr 1fr; } }
+@media (width <= 640px) { .ctr-wo-form__grid { grid-template-columns: 1fr 1fr; } }
 .ctr-wo-form .ctr-input { width: auto; max-width: 100%; }
 
 /* ── Banner de vencimientos ──────────────────────────────────────────────── */

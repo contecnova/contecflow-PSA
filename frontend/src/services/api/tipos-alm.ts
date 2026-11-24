@@ -691,6 +691,73 @@ export interface PortalMensajeDeConversacion {
   created_at: string
   delivered_at: string | null
   read_at: string | null
+  // 24-11-2026: chat del portal completo (docs/portal/CHAT_DEL_PORTAL.md).
+  edited_at?: string | null
+  deleted_at?: string | null
+  is_deleted?: boolean
+  attachments?: PortalAdjuntoDeMensaje[]
+  reactions?: PortalReaccionDeMensaje[]
+  reply_to?: PortalCitaDeMensaje | null
+}
+
+/** serializacion._adjunto_out (sin enlace: se descarga por la API con la sesión). */
+export interface PortalAdjuntoDeMensaje {
+  id: string
+  name: string
+  mime_type: string | null
+  size_bytes: number
+  is_image: boolean
+  is_quarantined: boolean
+  av_status?: string | null
+  dlp_status?: string | null
+  created_at?: string | null
+}
+
+export interface PortalReaccionDeMensaje {
+  emoji: string
+  user_id: string | null
+  client_user_id: string | null
+}
+
+/** serializacion._cita_out: el mensaje al que se responde. */
+export interface PortalCitaDeMensaje {
+  id: string
+  sender_name: string
+  sender_type: 'team' | 'client' | 'system'
+  body: string
+  is_deleted: boolean
+}
+
+/** llamadas._salida / _con_token. */
+export interface PortalLlamada {
+  id: string
+  conversation_id: string
+  kind: 'audio' | 'video'
+  status: 'ringing' | 'active' | 'declined' | 'missed' | 'ended'
+  initiated_by_user_id: string | null
+  answered_by_client_id: string | null
+  created_at: string | null
+  answered_at: string | null
+  ended_at: string | null
+  duration_seconds: number
+  is_recorded: boolean
+  conversation_title?: string | null
+  role?: string
+  livekit_url?: string
+  livekit_room?: string
+  livekit_token?: string
+}
+
+/** ajustes.AjustesDelChat.salida (+ can_call). */
+export interface PortalAjustesDelChat {
+  calls_enabled: boolean
+  video_enabled: boolean
+  attachments_enabled: boolean
+  allowed_extensions: string[]
+  max_file_mb: number
+  edit_window_minutes: number
+  call_ring_seconds: number
+  can_call: boolean
 }
 
 /** serializacion._uat_test_cases_out. */

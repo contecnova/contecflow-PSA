@@ -4,7 +4,6 @@
 .wfd-c { color: var(--wfd-c); }
 
 /* Formularios */
-.wfd-label { font-size: var(--text-xs); font-weight: 600; color: var(--text-2); letter-spacing: 0.06em; display: block; margin-bottom: 4px; }
 /* 16-11-2026: los campos usan ds-input (foco y radio del kit); wfd-input solo añade esto. */
 textarea.wfd-input { resize: vertical; }
 .wfd-input--mono { font-variant-numeric: tabular-nums; font-size: var(--text-xs); }
@@ -15,7 +14,6 @@ textarea.wfd-input { resize: vertical; }
 /* Listado */
 .wfd-search { position: relative; flex: 1 1 280px; max-width: 360px; }
 .ui-select--suelto.wfd-filter { min-width: 160px; }
-.ui-select--suelto.wfd-sel { width: 100%; }
 .wfd-loading-flex { display: flex; justify-content: center; padding: 60px; }
 .ds-row-between.wfd-card-top { align-items: flex-start; }
 .wfd-card-name { font-weight: 700; color: var(--text-1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

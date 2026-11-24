@@ -304,8 +304,8 @@ function InvoicesTab() {
             <div className="invs-card">
               <div className="invs-box-6">{t('invoices.generate_from_timesheets')}</div>
               <div className="invs-grid-4">
-                <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="invoices-page-e10">{t('invoices.project_label')}</label>
-                  <Select suelto placeholder={false} id={`${idCampo}-1`} value={form.project_id} onChange={e => {
+                <div>
+                  <Select label={t('invoices.project_label')} placeholder={false} id={`${idCampo}-1`} value={form.project_id} onChange={e => {
                     campos.limpiar('project_id')
                     const proj = projects.find(p => p.id === e.target.value)
                     const client = proj?.client_id ? clients.find(c => c.id === proj.client_id) : null
@@ -313,13 +313,13 @@ function InvoicesTab() {
                       client_id: proj?.client_id ? String(proj.client_id) : f.client_id,
                       client_name: client?.name ?? f.client_name
                     }))
-                  }} className="invoices-page-e11">
+                  }}>
                     <option value="">{t('invoices.select')}</option>
                     {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
                   </Select>{msg('project_id')}
                 </div>
-                <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="invoices-page-e10">{t('invoices.period_from')}</label><DateInput id={`${idCampo}-2`} value={form.period_from} onChange={e => { campos.limpiar('period_from'); setForm(f=>({...f,period_from:e.target.value})) }} className="invoices-page-e11" />{msg('period_from')}</div>
-                <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="invoices-page-e10">{t('invoices.period_to')}</label><DateInput id={`${idCampo}-3`} value={form.period_to} onChange={e => { campos.limpiar('period_to'); setForm(f=>({...f,period_to:e.target.value})) }} className="invoices-page-e11" />{msg('period_to')}</div>
+                <div><DateInput label={t('invoices.period_from')} id={`${idCampo}-2`} value={form.period_from} onChange={e => { campos.limpiar('period_from'); setForm(f=>({...f,period_from:e.target.value})) }} />{msg('period_from')}</div>
+                <div><DateInput label={t('invoices.period_to')} id={`${idCampo}-3`} value={form.period_to} onChange={e => { campos.limpiar('period_to'); setForm(f=>({...f,period_to:e.target.value})) }} />{msg('period_to')}</div>
                 <Button onClick={() => generatePreview({ project_id: form.project_id, date_from: form.period_from, date_to: form.period_to, tax_rate: form.tax_rate })} disabled={!form.project_id}>
                   {t('invoices.generate_lines')}
                 </Button>
@@ -328,21 +328,20 @@ function InvoicesTab() {
             </div>
 
             <div className="u-grid2-14">
-              <div><label className="invoices-page-e10">{t('invoices.client_label')}</label>
-                <ClientSelect
+              <div>
+                <ClientSelect label={t('invoices.client_label')}
                   value={form.client_id}
                   onChange={(id, client) => { campos.limpiar('client_id'); setForm(f => ({...f, client_id: id, client_name: client ? client.name : ''})) }}
-                  className="invoices-page-e11"
                 />
                 {msg('client_id')}
               </div>
-              <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="invoices-page-e10">{t('invoices.client_email')}</label><Input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.client_email} onChange={e => { campos.limpiar('client_email'); setForm(f=>({...f,client_email:e.target.value})) }} inputClassName="invoices-page-e11" />{msg('client_email')}</div>
-              <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="invoices-page-e10">{t('invoices.client_vat')}</label><Input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={form.client_vat} onChange={e => { campos.limpiar('client_vat'); setForm(f=>({...f,client_vat:e.target.value})) }} inputClassName="invoices-page-e11" />{msg('client_vat')}</div>
-              <div><label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} className="invoices-page-e10">{t('invoices.po_reference')}</label><Input id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} value={form.po_reference||''} onChange={e => { campos.limpiar('po_reference'); setForm(f=>({...f,po_reference:e.target.value})) }} inputClassName="invoices-page-e11" />{msg('po_reference')}</div>
-              <div><label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} className="invoices-page-e10">{t('invoices.issue_date_label')}</label><DateInput id={`${idCampo}-7`} value={form.issue_date} onChange={e => { campos.limpiar('issue_date'); setForm(f=>({...f,issue_date:e.target.value})) }} className="invoices-page-e11" />{msg('issue_date')}</div>
-              <div><label id={`${idCampo}-et8`} htmlFor={`${idCampo}-8`} className="invoices-page-e10">{t('invoices.due_date_label')}</label><DateInput id={`${idCampo}-8`} value={form.due_date} onChange={e => { campos.limpiar('due_date'); setForm(f=>({...f,due_date:e.target.value})) }} className="invoices-page-e11" />{msg('due_date')}</div>
-              <div><label id={`${idCampo}-et9`} htmlFor={`${idCampo}-9`} className="invoices-page-e10">{t('invoices.tax_rate')}</label><Input id={`${idCampo}-9`} aria-labelledby={`${idCampo}-et9`} type="number" value={form.tax_rate} onChange={e => { campos.limpiar('tax_rate'); setIvaTocado(true); setForm(f=>({...f,tax_rate:+e.target.value})) }} inputClassName="invoices-page-e11" />{msg('tax_rate')}</div>
-              <div><label id={`${idCampo}-et10`} htmlFor={`${idCampo}-10`} className="invoices-page-e10">{t('invoices.notes')}</label><Input id={`${idCampo}-10`} aria-labelledby={`${idCampo}-et10`} value={form.notes} onChange={e => { campos.limpiar('notes'); setForm(f=>({...f,notes:e.target.value})) }} inputClassName="invoices-page-e11" />{msg('notes')}</div>
+              <div><Input label={t('invoices.client_email')} id={`${idCampo}-4`} value={form.client_email} onChange={e => { campos.limpiar('client_email'); setForm(f=>({...f,client_email:e.target.value})) }} />{msg('client_email')}</div>
+              <div><Input label={t('invoices.client_vat')} id={`${idCampo}-5`} value={form.client_vat} onChange={e => { campos.limpiar('client_vat'); setForm(f=>({...f,client_vat:e.target.value})) }} />{msg('client_vat')}</div>
+              <div><Input label={t('invoices.po_reference')} id={`${idCampo}-6`} value={form.po_reference||''} onChange={e => { campos.limpiar('po_reference'); setForm(f=>({...f,po_reference:e.target.value})) }} />{msg('po_reference')}</div>
+              <div><DateInput label={t('invoices.issue_date_label')} id={`${idCampo}-7`} value={form.issue_date} onChange={e => { campos.limpiar('issue_date'); setForm(f=>({...f,issue_date:e.target.value})) }} />{msg('issue_date')}</div>
+              <div><DateInput label={t('invoices.due_date_label')} id={`${idCampo}-8`} value={form.due_date} onChange={e => { campos.limpiar('due_date'); setForm(f=>({...f,due_date:e.target.value})) }} />{msg('due_date')}</div>
+              <div><Input label={t('invoices.tax_rate')} id={`${idCampo}-9`} type="number" value={form.tax_rate} onChange={e => { campos.limpiar('tax_rate'); setIvaTocado(true); setForm(f=>({...f,tax_rate:+e.target.value})) }} />{msg('tax_rate')}</div>
+              <div><Input label={t('invoices.notes')} id={`${idCampo}-10`} value={form.notes} onChange={e => { campos.limpiar('notes'); setForm(f=>({...f,notes:e.target.value})) }} />{msg('notes')}</div>
             </div>
 
             {/* Lines preview */}

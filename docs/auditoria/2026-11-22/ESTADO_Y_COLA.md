@@ -115,3 +115,72 @@ Orden (decidido por el usuario ~16:00): el cierre (fila 21: migraciones con setu
 - Fuentes de Google: locales (frente D).
 - Oportunidades canceladas: estándar de mercado (frente D).
 - Sin tests mientras se trabaja; prueba general final obligatoria siempre antes de subir.
+
+## 6. Ronda 24-11-2026 (en curso, sin subir)
+
+- Diseño (kit, para todo el sistema): todos los desplegables con el mismo ancho (`--ancho-min-desplegable`); nota del selector de periodo como icono ⓘ en la misma línea; ayuda larga fuera de filas con botones (Plan de reducción); `gap` sin `display` corregido (constructor de informes, plantillas, formularios públicos); flujo acumulado alineado arriba. Reglas en `docs/GUIA_DE_DISENO.md` §8.1 bis y §9.1.
+- Clientes → contactos: «desactivar contacto» con `UserX` (antes la misma papelera que «eliminar usuario del portal»); la estrella de principal con la caja estándar.
+- NPS: el ranking ya no oculta los clientes sin salud calculada al calcular la de uno. Cálculo de salud (componentes con campos inexistentes y valores fijos) en manos de un agente.
+- Salud del cliente ✅ hecho (sin probar; tests escritos, se ejecutan en la prueba general): un único cálculo (`compute_composite_health`) con los campos reales (hitos `is_completed`/`completed_date`/`due_date`, coste real de `margen_en_bloque` frente a `budget_amount`, `sla_resolution_breached`); componente sin datos = no puntúa y su peso se reparte (Gainsight/ChurnZero); «Calcular salud» guarda todos los componentes y audita quién; ranking sin duplicados y solo clientes activos; CSAT 1-5 fuera del NPS (resumen, listado, salud y métricas); retención nueva `client_nps_responses` y `client_health_snapshots`; pantalla NPS muestra los componentes. Detalle: README §27.4. Tests: `tests/test_salud_cliente_2026_11_24.py`.
+- Los 500 de `ws/ticket`, `timer/current` y notificaciones eran del reinicio del backend (proxy de Vite sin backend); medido después: 200.
+- Chat del portal completo ✅ hecho (sin probar; tests escritos, se ejecutan en la prueba general): conversaciones formales operador ↔ cliente con imágenes y adjuntos (vista previa, descarga solo por la API para participantes de la misma empresa, validación de contenido por bytes, AV/DLP, tipos y tamaño por empresa), emojis y reacciones, responder citando, editar/borrar el propio mensaje con rastro (versiones + auditoría, plazo por empresa), enlaces seguros, «escribiendo…», leído y tiempo real por los WebSocket existentes; llamadas y videollamadas **solo del operador** (capacidad `clientes.llamar`; el cliente acepta/rechaza/cuelga y `POST /portal/conversations/{id}/calls` le da siempre 403 `portal_llamada_solo_operador`), activables por empresa en Configuración › Portal › Chat del portal (grupo `portal_chat`); sin grabación (aviso al cliente). GRC: auditoría de subidas/borrados/llamadas/ediciones, retención `portal_conversation_attachments`/`_message_versions`/`_calls` con bloqueo legal, RGPD (copia y supresión). Arreglados de paso: el cliente veía mensajes del equipo pendientes de aprobación y, como «último mensaje», notas internas; el cliente podía mandar cualquier `message_type`. Migración `209_chat_del_portal_completo` (padre 208). Doc: `docs/portal/CHAT_DEL_PORTAL.md`. Tests: `tests/test_chat_del_portal_2026_11_24.py`. Pestaña «Chat» del portal (dominio colaboración) ✅ hecha también (sin probar): mismo nivel en el cliente (adjuntos validados y descarga por la API, emojis, reacciones, citas —ahora ve las respuestas en hilo del equipo—, editar/borrar con rastro y plazo, enlaces, leído, «escribiendo…», avisos del bus por el WebSocket del portal, aceptar/rechazar/colgar; `POST /portal/collaboration/calls` siempre 403); en el chat interno, con clientes en la conversación: `clientes.llamar` y ajustes `portal_chat` para llamar, mismas reglas de adjuntos, sin grabación/asistente/transcripción (409 `portal_llamada_no_se_graba`), borrado con rastro, cita y enlaces en la burbuja. Migración `210_chat_del_portal_colaboracion` (padre 209). Tests: `tests/test_chat_del_portal_colaboracion_2026_11_24.py`.
+- Métricas BI `nps_by_client`/`nps_trend`: NPS real (−100 a 100) en vez de la media de la nota 0-10 (estándar de mercado); `avg_score` se conserva. README §27.4.
+- `organization_id` obligatorio: caminos sin empresa en la sesión ✅ hecho (sin probar; tests escritos, se ejecutan en la prueba general): 210 tablas en riesgo medidas (sin clave ajena NOT NULL a un padre con empresa) y revisados los contextos sin empresa (tareas, planificador de colaboración, hilos, webhooks, rutas anónimas, WebSockets, siembra, scripts, `sin_filtro_de_tenant`, inserts masivos). Arreglados: mensajes programados de colaboración por empresa, correo/SMS entrante sin empresa destinataria → se ignora (con una sola empresa, esa), agente de la CMDB y webhook de colaboración publican su empresa, Stripe, aprobación por correo de superadmin, SoD y cupos (inserts sin sellado), instantánea colaborativa, ticket del bot, caché semántica y registros accesorios (uso/acciones de IA, guardarraíles, conectores, traducción) que ya no rompen a quien llama; superadmin sin empresa elegida → 409 `empresa_requerida` (antes 500). BPM: paso nuevo en `multichannel_intake` (es/en/zh). Doc: `docs/seguridad/empresa_obligatoria.md` §6. Tests: `tests/test_empresa_en_segundo_plano_2026_11_24.py` (+2 ajustados).
+- **Aparcado para después:** módulo de Certificaciones (TISAX, NIS2, ISO 27001, SOX, J-SOX, IEC 62443): punto de control tipo Licencias, plantillas de proyecto completas y certificación de contecflow. Propuesta completa en `docs/propuestas/CERTIFICACIONES.md`; pendiente de las decisiones de su §8.
+- Menú lateral: pulsar el nombre de un grupo lo pliega o despliega igual que la flecha. Si está plegado, además abre su panel (`components/layout/Layout.tsx`).
+- Campos con etiqueta del kit + `SelectorDeContexto` ✅ hecho (sin probar; se verifica en la prueba general): ~1.050 pares `<label>`+control suelto migrados a la prop `label` de `Select`/`Input`/`Textarea`/`DateInput`/`CampoFecha`/`Buscador`/`UserSelect`/`ClientSelect`/`ProjectSelect` (se añade `label` a `CampoFecha`, `DateInput` y los selectores de entidad), clases propias de etiqueta/ancho/alto y sus reglas CSS muertas borradas, y nuevo componente `SelectorDeContexto` (patrón de Matriz RACI) en ~30 pantallas (proyecto/cliente/unidad/sprint/periodo). Vigilante en `scripts/kit_pendientes.mjs` (`campoConEtiquetaPropia`, `selectorDeContextoAMano`, sección `campos` de `kit-pendientes.json`, cupo que solo baja; residuo: chat del portal y 5 filtros/formularios). Regla en `docs/GUIA_DE_DISENO.md` §8.9 y §9.
+- **Prueba general (24-11-2026): 26 tests en rojo tras la ronda, en verde.** Código arreglado: chat del portal
+  sin ciclo de imports (`visible_para_cliente` pasa a `portal_conversation_service/_comun.py`; `adjuntos` importa
+  `mensajes` arriba), oyentes de borrado de ficheros del chat fuera del modelo (`app/db/portal_chat_borrado.py`,
+  un modelo no importa servicios), sesión de arranque de la sincronización BPM con contexto de sistema declarado
+  (`app/main.py::_sincronizar_catalogo_bpm`), dos `except Exception` silenciosos en `app/db/empresa_obligatoria.py`
+  y únicos de `portal_conversation_reactions` por empresa (modelo y 209 editada antes de subirse; base de
+  desarrollo reconstruida con un arreglo puntual idempotente, tabla vacía, `comprobar_esquema` OK). Tests
+  adaptados al comportamiento nuevo deliberado (comentario 24-11-2026 en cada uno): listas del chat en `items`,
+  empresa obligatoria (OAuth, festivos, avisos de un trabajo, plantilla BPM global sin versión), orden de siembra
+  (departamentos tras la empresa), zona por defecto `DEFAULT_TIMEZONE`, reacción válida antes de buscar el
+  mensaje, y contadores de guardas (+7 rutas del equipo con capacidad, +15 del cliente del portal acotadas).
+  Pendiente de decidir: plantillas BPM globales frente a `bpmn_process_versions` NOT NULL
+  (`docs/seguridad/empresa_obligatoria.md` §6.x).
+
+## 7. Programa de estabilidad de diseño (medido el 24-11-2026, en cola tras «campos al kit»)
+
+Medición estática de `frontend/src` (sin contar `components/ui`), script en el scratchpad `medir_diseno.py`:
+
+| Patrón | Medido | Estándar a imponer |
+|---|---|---|
+| Campos con etiqueta hecha a mano | 417 desplegables + 508 de texto/fecha/área | Prop de etiqueta del kit (agente en curso) |
+| Selector de contexto arriba | Mínimo 23 pantallas, 4 formas distintas | `SelectorDeContexto` del kit, patrón Matriz RACI (agente en curso) |
+| Cabecera de página | 44 `*Page.tsx` sin `PageHeader`, 15 `<h1>` a mano | `PageHeader` siempre |
+| Tarjetas | 252 clases CSS propias con fondo, borde y radio; 8 o más rellenos distintos | `Card` con relleno único por tamaño |
+| Modales | 17 anchos distintos (460 a 880) | 3 tamaños: `sm` 480, `md` 620, `lg` 760 (+ `xl` excepcional) |
+| Iconos | 12 tamaños (10 a 36) | Tamaño fijado por contexto (botón xs/sm/md, fila, estado vacío) |
+| Botones | `xs` 350 / `sm` 547 / `md` 8 / `lg` 7 usados sin regla | Regla por contexto (cabecera, barra, fila, tarjeta) |
+| Radios | `8px` 554, `12px` 157, `4px` 108, `20px` 64, `7px`, `5px`, `3px`, `2px`… | Tokens `--radius-*` |
+| Espaciado (`gap`) | 15 valores literales (2 a 20 px) | Escala `--space-*` |
+| Colores literales en CSS | 256 | Tokens de color |
+| Alto de control a mano | 85 | `--alto-control-*` |
+| Estilos en línea | 390 en 145 ficheros | Clases y tokens |
+| Pastillas propias | 30 | `StatusBadge` |
+| «Cargando…» a mano | 45 | `Spinner` / esqueleto del kit |
+
+| Enlaces a Configuración desde otras pantallas | 28 en 25 ficheros, solo unos 5 comprueban permiso | Componente `AvisoDeConfiguracion` del kit: con permiso, aviso + enlace; sin permiso, aviso + «Pídeselo a tu administrador», sin enlace (decidido por el usuario el 24-11-2026) |
+
+Orden (un agente detrás de otro, máximo 3 a la vez):
+0. `AvisoDeConfiguracion` (los 28 enlaces).
+   Con él, los restos de «campos al kit»:
+   - 14 campos con etiqueta propia y 1 selector de contexto en el chat del portal y el chat global;
+   - campos dinámicos de `AltaDeTarea` y `DetalleDeTarea`;
+   - `type="month"`, que falta en el `Input` del kit (`BudgetsPage`, `FormularioDePartida`).
+1. Cabeceras.
+2. Tarjetas.
+3. Modales.
+4. Iconos y botones.
+5. Tokens (radios, espacio, color, altos, estilos en línea).
+6. Pastillas, cargas y vacíos.
+
+Cada paso:
+- deja su vigilante con cupo en `scripts/kit_pendientes.mjs`, que solo puede bajar;
+- documenta la regla en `docs/GUIA_DE_DISENO.md`;
+- no ejecuta pruebas: la prueba general es al final.
+- Cerrados los dos pendientes de «empresa obligatoria»: el superadmin sin empresa recibe 409 `empresa_requerida` al encolar trabajo, y los procesos BPM sembrados sin editar se ponen al día solos al arrancar.

@@ -148,6 +148,13 @@ def ocupacion(db: Session, clave: str, huecos: list[tuple], excluir: Optional[st
 
 
 def _asegurar(db: Session, org: Optional[str], clave: str, huecos: list[tuple], capacidad: int) -> None:
+    # 24-11-2026 (migración 208): el insert de núcleo no pasa por el sellado del
+    # flush; sin empresa (de la ausencia o de la sesión) se corta con el mismo
+    # código que el sellado, en vez de un IntegrityError de NOT NULL.
+    org = org or (getattr(db, "info", None) or {}).get("organization_id")
+    if not org:
+        from app.core.codigos_de_error import error
+        raise error(500, "fila_sin_empresa", tabla="huecos_de_cupo")
     filas = [{"id": str(uuid.uuid4()), "organization_id": org, "clave": clave, "fecha": f, "turno": t, "grupo": g,
               "capacidad": capacidad, "ocupadas": 0, "version": 0} for f, t, g in huecos]
     if not filas:

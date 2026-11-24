@@ -7,7 +7,7 @@
  * - View portal stats
  */
 import { useState } from 'react'
-import { Select, EmptyState, Page, Tabs } from '../components/ui'
+import { Select, EmptyState, Page, Tabs, SelectorDeContexto } from '../components/ui'
 import { Globe, Users, FlaskConical, Lightbulb, FileText, BookOpen, MessageSquare } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 import './ClientPortalPage.css'
@@ -43,13 +43,12 @@ export default function ClientPortalPage(): JSX.Element {
     >
       {/* 16-11-2026 (pasada de diseño): el selector de proyecto es un filtro y va
           en la barra de filtros, no en la cabecera. */}
-      <div className="ds-toolbar">
-        <Select suelto value={selectedProject} onChange={e => setSelectedProject(e.target.value)}
-          aria-label={t('client_portal.select_project')} placeholder={t('client_portal.select_project')}
-          className="cpp-project-select">
+      <SelectorDeContexto>
+        <Select label={t('uikit.etiqueta_proyecto')} value={selectedProject} onChange={e => setSelectedProject(e.target.value)}
+          placeholder={t('client_portal.select_project')}>
           {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
         </Select>
-      </div>
+      </SelectorDeContexto>
 
       {selectedProject && <StatsPanel projectId={selectedProject} />}
 

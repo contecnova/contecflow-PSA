@@ -103,6 +103,19 @@ def _satisfaccion_interna():
     return ClientNPS
 
 
+# 24-11-2026 (salud del cliente): NPS de clientes externos (nombre de quien
+# responde y comentario = datos personales) y fotos de salud (sin datos
+# personales; histórico que crece con cada recálculo).
+def _respuesta_nps():
+    from app.models.nps import ClientNPS
+    return ClientNPS
+
+
+def _foto_de_salud():
+    from app.models.nps import ClientHealthSnapshot
+    return ClientHealthSnapshot
+
+
 def _designacion_interna():
     from app.models.clientes_internos import InternalClientRole
     return InternalClientRole
@@ -288,6 +301,39 @@ def _conversacion_ask():
     return AskDataConversation
 
 
+# Migracion 209 (chat del portal completo, docs/portal/CHAT_DEL_PORTAL.md):
+# definidas ANTES de TIPOS, como las anteriores.
+def _adjunto_del_chat_del_portal():
+    from app.models.portal_conversations import PortalConversationAttachment
+    return PortalConversationAttachment
+
+
+def _version_de_mensaje_del_portal():
+    from app.models.portal_conversations import PortalConversationMessageVersion
+    return PortalConversationMessageVersion
+
+
+def _llamada_del_portal():
+    from app.models.portal_conversations import PortalConversationCall
+    return PortalConversationCall
+
+
+# Migracion 211 (chat en vivo de Soporte completo, docs/portal/CHAT_DEL_PORTAL.md §10).
+def _adjunto_del_chat_en_vivo():
+    from app.models.service_desk.mercado import ChannelAttachment
+    return ChannelAttachment
+
+
+def _version_de_mensaje_del_chat_en_vivo():
+    from app.models.service_desk.mercado import ChannelMessageVersion
+    return ChannelMessageVersion
+
+
+def _llamada_del_chat_en_vivo():
+    from app.models.service_desk.mercado import ChannelCall
+    return ChannelCall
+
+
 TIPOS: dict[str, Tipo] = {
     # Sólo tickets cerrados, contando desde el cierre.
     "tickets": Tipo(_ticket, lambda M: M.closed_at, lambda M: M.closed_at.isnot(None),
@@ -351,6 +397,9 @@ TIPOS: dict[str, Tipo] = {
     "internal_satisfaction": Tipo(_satisfaccion_interna, lambda M: M.created_at,
                                   lambda M: M.respondent_user_id.isnot(None),
                                   ("id", "client_id", "respondent_user_id")),
+    "client_nps_responses": Tipo(_respuesta_nps, lambda M: M.created_at,
+                                 lambda M: M.respondent_user_id.is_(None), ("id", "client_id")),
+    "client_health_snapshots": Tipo(_foto_de_salud, lambda M: M.snapshot_at, None, ("id", "client_id")),
     "internal_client_roles": Tipo(_designacion_interna, lambda M: M.created_at, None, ("id", "client_id", "user_id")),
     "internal_charges": Tipo(_cargo_interno, lambda M: func.coalesce(M.issued_at, M.cancelled_at, M.created_at),
                              lambda M: M.status.in_(("emitido", "exportado", "anulado")),
@@ -446,6 +495,28 @@ TIPOS: dict[str, Tipo] = {
                         lambda M: func.coalesce(M.cerrado_en, M.aprobado_en, M.updated_at, M.created_at),
                         lambda M: M.estado.in_(("aprobado", "cerrado", "descartado")),
                         ("id", "change_id", "project_id", "responsable_id")),
+    # Migracion 209 (docs/portal/CHAT_DEL_PORTAL.md §GRC): chat del portal.
+    # Adjuntos (imágenes y ficheros: datos personales), desde la subida; borrar
+    # la fila borra el fichero del almacén al confirmar. Rastro de ediciones y
+    # borrados (texto anterior), desde el cambio. Llamadas terminadas
+    # (metadatos: quién, cuándo, cuánto; sin grabación), desde que acabaron.
+    "portal_conversation_attachments": Tipo(_adjunto_del_chat_del_portal, lambda M: M.created_at, None,
+                                            ("id", "conversation_id", "uploaded_by_client_id",
+                                             "uploaded_by_user_id")),
+    "portal_conversation_message_versions": Tipo(_version_de_mensaje_del_portal, lambda M: M.edited_at, None,
+                                                 ("id", "message_id", "edited_by_client_id", "edited_by_user_id")),
+    "portal_conversation_calls": Tipo(_llamada_del_portal, lambda M: func.coalesce(M.ended_at, M.created_at),
+                                      lambda M: M.status.in_(("ended", "declined", "missed")),
+                                      ("id", "conversation_id", "initiated_by_user_id", "answered_by_client_id")),
+    # Migracion 211: lo mismo para el chat en vivo de Soporte (`sd_channel_*`).
+    "sd_channel_attachments": Tipo(_adjunto_del_chat_en_vivo, lambda M: M.created_at, None,
+                                   ("id", "conversation_id", "uploaded_by_client_id", "uploaded_by_user_id")),
+    "sd_channel_message_versions": Tipo(_version_de_mensaje_del_chat_en_vivo, lambda M: M.edited_at, None,
+                                        ("id", "conversation_id", "message_id", "edited_by_client_id",
+                                         "edited_by_user_id")),
+    "sd_channel_calls": Tipo(_llamada_del_chat_en_vivo, lambda M: func.coalesce(M.ended_at, M.created_at),
+                             lambda M: M.status.in_(("ended", "declined", "missed")),
+                             ("id", "conversation_id", "initiated_by_user_id", "answered_by_client_id")),
 }
 
 

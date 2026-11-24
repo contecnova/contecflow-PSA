@@ -100,8 +100,8 @@ function FormComponente({ pendiente, onCancelar, onGuardar }: { pendiente: boole
   return (
     <div className="u-stack-12">
       <div className="copadees-grid-1">
-        <div><label className="copadees-ls" htmlFor="sp-name">{t('sd_cfg.chg_name')} *</label><Input id="sp-name" aria-label={t('sd_cfg.chg_name')} value={f.name} onChange={e => setF({ ...f, name: e.target.value })} /></div>
-        <div><label className="copadees-ls" htmlFor="sp-group">{t('sd_cfg.sp_group')}</label><Input id="sp-group" aria-label={t('sd_cfg.sp_group')} value={f.group_name} onChange={e => setF({ ...f, group_name: e.target.value })} /></div>
+        <Input label={<>{t('sd_cfg.chg_name')}*</>} id="sp-name" aria-label={t('sd_cfg.chg_name')} value={f.name} onChange={e => setF({ ...f, name: e.target.value })} />
+        <Input label={t('sd_cfg.sp_group')} id="sp-group" aria-label={t('sd_cfg.sp_group')} value={f.group_name} onChange={e => setF({ ...f, group_name: e.target.value })} />
       </div>
       <Checkbox className="copadees-check" aria-label={t('sd_cfg.sp_public')} checked={!!f.is_public} onChange={v => setF({ ...f, is_public: v })} label={t('sd_cfg.sp_public')} />
       <div className="u-actions-10">
@@ -120,12 +120,11 @@ function FormIncidente({ pendiente, onCancelar, onGuardar }: { pendiente: boolea
   const [mensaje, setMensaje] = useState('')
   return (
     <div className="u-stack-12">
-      <div><label className="copadees-ls" htmlFor="sp-title">{t('sd_cfg.sp_incident_title')} *</label><Input id="sp-title" aria-label={t('sd_cfg.sp_incident_title')} value={titulo} onChange={e => setTitulo(e.target.value)} /></div>
-      <div><label className="copadees-ls" htmlFor="sp-impact">{t('sd_cfg.chg_status')}</label>
-        <Select suelto placeholder={false} id="sp-impact" aria-label={t('sd_cfg.chg_status')} value={impacto} onChange={e => setImpacto(e.target.value)}>
+      <Input label={<>{t('sd_cfg.sp_incident_title')}*</>} id="sp-title" aria-label={t('sd_cfg.sp_incident_title')} value={titulo} onChange={e => setTitulo(e.target.value)} />
+      <Select label={t('sd_cfg.chg_status')} placeholder={false} id="sp-impact" aria-label={t('sd_cfg.chg_status')} value={impacto} onChange={e => setImpacto(e.target.value)}>
           {ESTADOS.filter(s => s !== 'operational').map(s => <option key={s} value={s}>{t(`sd_cfg.sp_st_${s}`)}</option>)}
-        </Select></div>
-      <div><label className="copadees-ls" htmlFor="sp-msg">{t('sd_cfg.sp_message')}</label><Textarea id="sp-msg" aria-label={t('sd_cfg.sp_message')} rows={3} value={mensaje} onChange={e => setMensaje(e.target.value)} inputClassName="copadees-texto" /></div>
+        </Select>
+      <Textarea label={t('sd_cfg.sp_message')} id="sp-msg" aria-label={t('sd_cfg.sp_message')} rows={3} value={mensaje} onChange={e => setMensaje(e.target.value)} />
       <div className="u-actions-10">
         <Button variant="secondary" onClick={onCancelar}>{t('common.cancel')}</Button>
         <Button disabled={!titulo.trim() || pendiente} loading={pendiente}

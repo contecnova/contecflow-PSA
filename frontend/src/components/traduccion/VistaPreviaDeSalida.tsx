@@ -130,8 +130,7 @@ export default function VistaPreviaDeSalida({ contextType, contextId, texto, onC
                 ? t('traduccion_ui.idioma_desconocido')
                 : t('traduccion_ui.idioma_cliente', { idioma: nombreDestino, procedencia })}
             </span>
-            <label htmlFor={idSelector} className="trad-salida__etiqueta">{t('traduccion_ui.enviar_en')}</label>
-            <Select suelto id={idSelector} className="ds-input trad-salida__select" value={vista.target_language ?? ''}
+            <Select label={t('traduccion_ui.enviar_en')} id={idSelector} value={vista.target_language ?? ''}
               disabled={pedir.isPending} onChange={e => cambiarIdioma(e.target.value)} placeholder={false}>
               {!vista.target_language && <option value="">{t('traduccion_ui.elegir_idioma')}</option>}
               {idiomas.map(c => <option key={c} value={c}>{nombreDeIdioma(c, lang)}</option>)}
@@ -161,8 +160,7 @@ export default function VistaPreviaDeSalida({ contextType, contextId, texto, onC
 
           {!noDisponible && vista.status === 'translated' && (
             <div className="trad-salida__campo">
-              <label htmlFor={idTexto} className="trad-salida__etiqueta">{t('traduccion_ui.lo_que_recibira')}</label>
-              <Textarea id={idTexto} rows={3} lang={vista.target_language ?? undefined} value={editada} onChange={e => setEditada(e.target.value)} aria-invalid={desfasada || !editada.trim()} inputClassName="trad-salida__texto" />
+              <Textarea label={t('traduccion_ui.lo_que_recibira')} id={idTexto} rows={3} lang={vista.target_language ?? undefined} value={editada} onChange={e => setEditada(e.target.value)} aria-invalid={desfasada || !editada.trim()} />
               {!editada.trim() && (
                 <div className="trad-aviso" role="note">
                   <AlertTriangle size={12} aria-hidden="true" />

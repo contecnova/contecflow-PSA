@@ -33,10 +33,9 @@
 
 /* Reglas de escalado */
 .coesya-regla {
-  flex-direction: row;
+  flex-flow: row wrap;
   gap: 16px;
   align-items: center;
-  flex-wrap: wrap;
 }
 .coesya-regla--inactiva { opacity: 0.7; }
 .coesya-regla__cuerpo {
@@ -65,7 +64,6 @@
 
 /* Formulario de regla */
 .coesya-grupo { margin: 0; }
-.coesya-corto { max-width: 160px; }
 .coesya-personas {
   display: flex;
   gap: 6px;
@@ -127,10 +125,6 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   gap: 16px;
-}
-.coesya-codigo {
-  resize: vertical;
-  font-variant-numeric: tabular-nums;
 }
 .coesya-vista { background: var(--surface-1); }
 .coesya-vista__asunto {

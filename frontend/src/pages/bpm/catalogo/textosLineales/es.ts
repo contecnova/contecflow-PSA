@@ -50,9 +50,10 @@ const textos: TextosLineales = {
   },
   "multichannel_intake": {
     "name": "Intake Multi-Canal",
-    "description": "Recepción de tickets desde email, chat, portal, móvil.",
+    "description": "Recepción de tickets desde email, chat, portal, móvil. Sin empresa destinataria (dirección o número de ninguna empresa, con varias empresas) el mensaje se ignora y no se abre ticket.",
     "steps": [
       "Mensaje entrante",
+      "Identificar empresa destinataria (sin ella, se ignora)",
       "Normalizar canal",
       "Extraer datos",
       "Crear ticket",
@@ -435,6 +436,20 @@ const textos: TextosLineales = {
       "Aprobación",
       "Publicado",
       "Auditoría"
+    ]
+  },
+  "portal_conversation": {
+    "name": "Conversación del portal (chat y llamadas)",
+    "description": "Chat operador-cliente (conversaciones formales y chat de colaboración): adjuntos validados (contenido, AV/DLP, tipos y tamaño por empresa); llamada o videollamada solo iniciada por el operador, el cliente acepta o rechaza; sin grabación.",
+    "steps": [
+      "Mensaje del cliente",
+      "Validar adjuntos (contenido, AV/DLP)",
+      "Política GRC y aprobación",
+      "Respuesta del operador",
+      "Operador inicia llamada o videollamada",
+      "Cliente acepta o rechaza",
+      "Llamada (sin grabación) y cierre",
+      "Conversación atendida"
     ]
   }
 }

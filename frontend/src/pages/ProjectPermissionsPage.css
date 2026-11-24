@@ -1,8 +1,6 @@
 /* ProjectPermissionsPage — solo tokens de index.css.
    16-11-2026: rehecho; fuera los campos grises, las cajas de vacío propias,
    las tarjetas de resumen con borde de color y los botones hechos a mano. */
-
-.pperm-selector { max-width: 480px; }
 .pperm-ayuda {
   display: flex;
   align-items: flex-start;

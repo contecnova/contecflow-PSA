@@ -166,7 +166,7 @@
 .wk-result { padding: 10px 0; border-bottom: 1px solid var(--surface-4); cursor: pointer; color: var(--accent); }
 .wk-strong-500 { font-weight: 500; }
 .wk-layout { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 20px; }
-@media (max-width: 900px) { .wk-layout { grid-template-columns: minmax(0, 1fr); } }
+@media (width <= 900px) { .wk-layout { grid-template-columns: minmax(0, 1fr); } }
 .wk-side-title {
   font-size: var(--text-xs); font-weight: 700; color: var(--text-3);
   letter-spacing: 0.07em; margin-bottom: 10px;
@@ -223,7 +223,7 @@
   line-height: 1.2; border-bottom: 2px solid var(--accent); padding-bottom: 16px;
 }
 .wk-present-content { font-size: var(--text-17); line-height: 1.9; color: var(--text-1); }
-@media (max-width: 600px) {
+@media (width <= 600px) {
   .wk-present-body { padding: 24px 16px; }
   .wk-templates { grid-template-columns: 1fr; }
 }

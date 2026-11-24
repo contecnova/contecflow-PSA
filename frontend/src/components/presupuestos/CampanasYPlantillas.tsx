@@ -18,7 +18,6 @@ import { useToast } from '../../context/ToastContext'
 import { extractErr, fmtDate } from '../../utils/helpers'
 import { CalendarRange, LayoutTemplate } from 'lucide-react'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
-import { CLASE_CAMPO } from './FormularioDePartida'
 import DateInput from '../ui/DateInput'
 import './CampanasYPlantillas.css'
 import { Input } from '../ui'
@@ -44,11 +43,10 @@ export function CampanasDePresupuesto() {
   return (
     <div className="campypla-stack-1">
       <div className="campanas-yplantillas-e1">
-        <label><span className="campypla-lbl">{t('pres.campana_nombre')}</span><Input aria-label={t('pres.campana_nombre')} value={f.nombre} onChange={e => setF(v => ({ ...v, nombre: e.target.value }))} /></label>
-        <label><span className="campypla-lbl">{t('pres.ejercicio')}</span><Input aria-label={t('pres.ejercicio')} type="number" value={f.year} onChange={e => setF(v => ({ ...v, year: e.target.value }))} /></label>
-        <label><span className="campypla-lbl">{t('pres.fecha_limite')}</span><DateInput aria-label={t('pres.fecha_limite')} value={f.fecha_limite} onChange={e => setF(v => ({ ...v, fecha_limite: e.target.value }))} className={CLASE_CAMPO} /></label>
-        <label className="u-col-full"><span className="campypla-lbl">{t('pres.instrucciones')}</span>
-          <Textarea aria-label={t('pres.instrucciones')} rows={2} value={f.instrucciones} onChange={e => setF(v => ({ ...v, instrucciones: e.target.value }))} inputClassName="fodepa-campo--vertical" /></label>
+        <Input label={t('pres.campana_nombre')} aria-label={t('pres.campana_nombre')} value={f.nombre} onChange={e => setF(v => ({ ...v, nombre: e.target.value }))} />
+        <Input label={t('pres.ejercicio')} aria-label={t('pres.ejercicio')} type="number" value={f.year} onChange={e => setF(v => ({ ...v, year: e.target.value }))} />
+        <DateInput label={t('pres.fecha_limite')} aria-label={t('pres.fecha_limite')} value={f.fecha_limite} onChange={e => setF(v => ({ ...v, fecha_limite: e.target.value }))} />
+        <Textarea label={t('pres.instrucciones')} aria-label={t('pres.instrucciones')} rows={2} value={f.instrucciones} onChange={e => setF(v => ({ ...v, instrucciones: e.target.value }))} />
         <div><Button loading={ocupado} disabled={!f.nombre.trim() || !f.fecha_limite || !f.year}
           onClick={() => guardar({ nombre: f.nombre, year: Number(f.year), fecha_limite: f.fecha_limite, instrucciones: f.instrucciones || null })}>{t('pres.abrir_campana')}</Button></div>
       </div>
@@ -97,11 +95,10 @@ export function PlantillasDePresupuesto() {
   return (
     <div className="campypla-stack-1">
       <div className="campanas-yplantillas-e1">
-        <label><span className="campypla-lbl">{t('pres.plantilla_nombre')}</span><Input aria-label={t('pres.plantilla_nombre')} value={nombre} onChange={e => setNombre(e.target.value)} /></label>
-        <label><span className="campypla-lbl">{t('pres.desde_presupuesto')}</span>
-          <Select suelto aria-label={t('pres.desde_presupuesto')} value={desde} onChange={e => setDesde(e.target.value)} className={CLASE_CAMPO} placeholder={t('pres.elige_presupuesto')}>
+        <Input label={t('pres.plantilla_nombre')} aria-label={t('pres.plantilla_nombre')} value={nombre} onChange={e => setNombre(e.target.value)} />
+        <Select label={t('pres.desde_presupuesto')} aria-label={t('pres.desde_presupuesto')} value={desde} onChange={e => setDesde(e.target.value)} placeholder={t('pres.elige_presupuesto')}>
             {(lista.data ?? []).map(b => <option key={b.id} value={b.id}>{b.name} · {b.year} · v{b.version}</option>)}
-          </Select></label>
+          </Select>
         <div><Button loading={ocupado} disabled={!nombre.trim() || !desde} onClick={crear}>{t('pres.guardar_como_plantilla')}</Button></div>
       </div>
       {q.isLoading ? <Spinner /> : (q.data ?? []).length === 0 ? <EmptyState icon={<LayoutTemplate size={28} />} title={t('pres.sin_plantillas')} description={t('pres.plantillas_ayuda')} />

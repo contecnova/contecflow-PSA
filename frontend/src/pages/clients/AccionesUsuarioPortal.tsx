@@ -69,7 +69,7 @@ export function CampoDeContrasenaManual({ valor, onChange, error }: { valor: str
   const [visible, setVisible] = useState(false)
   return (
     <div className="u-stack-8">
-      <label id={`${id}-et`} htmlFor={`${id}-campo`} className="u-text2-sm">{t('portalacc.contrasena')} *</label>
+      <label id={`${id}-et`} htmlFor={`${id}-campo`} className="uiinde-estiloetiqueta">{t('portalacc.contrasena')} *</label>
       <div className="u-row-8">
         <Input id={`${id}-campo`} aria-labelledby={`${id}-et`} className="u-flex1" type={visible ? 'text' : 'password'}
           value={valor} onChange={e => onChange(e.target.value)} autoComplete="new-password" spellCheck={false}

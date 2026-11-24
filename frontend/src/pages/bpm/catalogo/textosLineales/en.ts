@@ -49,9 +49,10 @@ const textos: TextosLineales = {
   },
   "multichannel_intake": {
     "name": "Multi-Channel Intake",
-    "description": "Receiving tickets from email, chat, portal and mobile.",
+    "description": "Receiving tickets from email, chat, portal and mobile. With no recipient company (an address or number of no company, with several companies) the message is ignored and no ticket is opened.",
     "steps": [
       "Incoming message",
+      "Identify the recipient company (ignored without one)",
       "Normalise channel",
       "Extract data",
       "Create ticket",
@@ -434,6 +435,20 @@ const textos: TextosLineales = {
       "Approval",
       "Published",
       "Audit"
+    ]
+  },
+  "portal_conversation": {
+    "name": "Portal conversation (chat and calls)",
+    "description": "Operator-customer chat (formal conversations and collaboration chat): validated attachments (content, AV/DLP, types and size per company); voice or video call started only by the operator, the customer accepts or declines; not recorded.",
+    "steps": [
+      "Customer message",
+      "Validate attachments (content, AV/DLP)",
+      "GRC policy and approval",
+      "Operator reply",
+      "Operator starts voice or video call",
+      "Customer accepts or declines",
+      "Call (not recorded) and wrap-up",
+      "Conversation handled"
     ]
   }
 }

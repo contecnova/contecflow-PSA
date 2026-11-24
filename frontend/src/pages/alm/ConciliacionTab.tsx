@@ -53,32 +53,32 @@ function NuevaFactura({ factura, onClose }: { factura?: FacturaDeProveedor | nul
   return (
     <Modal open onClose={onClose} width={680} title={factura ? t('alm.invoice_edit') : t('alm.invoice_new')}>
       <div className="almf-rejilla-2">
-        <div><label className="alm-label" htmlFor={`${id}-n`}>{t('alm.invoice_number')} *</label>
-          <Input id={`${id}-n`} value={f.number} onChange={campo('number')} inputClassName="alm-input" />{msg('number')}</div>
-        <div><label className="alm-label" htmlFor={`${id}-d`}>{t('alm.invoice_date')} *</label>
-          <DateInput id={`${id}-d`} className="alm-input" value={f.issue_date} onChange={campo('issue_date')} />{msg('issue_date')}</div>
-        <div><label className="alm-label" htmlFor={`${id}-c`}>{t('alm.licenses_label_contract')}</label>
-          <Select suelto placeholder={false} id={`${id}-c`} className="alm-input" value={f.contract_id} onChange={campo('contract_id')}>
+        <div>
+          <Input label={<>{t('alm.invoice_number')}*</>} id={`${id}-n`} value={f.number} onChange={campo('number')} />{msg('number')}</div>
+        <div>
+          <DateInput label={<>{t('alm.invoice_date')}*</>} id={`${id}-d`} value={f.issue_date} onChange={campo('issue_date')} />{msg('issue_date')}</div>
+        <div>
+          <Select label={t('alm.licenses_label_contract')} placeholder={false} id={`${id}-c`} value={f.contract_id} onChange={campo('contract_id')}>
             <option value="">{t('alm.licenses_none_contract')}</option>
             {contratos.map(c => <option key={c.id} value={c.id}>{c.title}{c.vendor_name ? ` · ${c.vendor_name}` : ''}</option>)}
           </Select>{msg('contract_id')}</div>
-        <div><label className="alm-label" htmlFor={`${id}-v`}>{t('alm.licenses_label_vendor')}</label>
-          <Select suelto placeholder={false} id={`${id}-v`} className="alm-input" value={f.vendor_id} onChange={campo('vendor_id')}>
+        <div>
+          <Select label={t('alm.licenses_label_vendor')} placeholder={false} id={`${id}-v`} value={f.vendor_id} onChange={campo('vendor_id')}>
             <option value="">{t('alm.vendor_from_contract')}</option>
             {proveedores.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
           </Select>{msg('vendor_id')}</div>
-        <div><label className="alm-label" htmlFor={`${id}-pf`}>{t('alm.period_from')}</label>
-          <DateInput id={`${id}-pf`} className="alm-input" value={f.period_from} onChange={campo('period_from')} />{msg('period_from')}</div>
-        <div><label className="alm-label" htmlFor={`${id}-pt`}>{t('alm.period_to')}</label>
-          <DateInput id={`${id}-pt`} className="alm-input" value={f.period_to} onChange={campo('period_to')} />{msg('period_to')}</div>
-        <div><label className="alm-label" htmlFor={`${id}-a`}>{t('alm.invoice_amount')} *</label>
-          <Input id={`${id}-a`} type="number" min={0} step="0.01" value={f.amount} onChange={campo('amount')} inputClassName="alm-input" />{msg('amount')}</div>
-        <div><label className="alm-label" htmlFor={`${id}-t`}>{t('alm.invoice_tax')}</label>
-          <Input id={`${id}-t`} type="number" min={0} step="0.01" value={f.tax_amount} onChange={campo('tax_amount')} inputClassName="alm-input" />{msg('tax_amount')}</div>
-        <div><label className="alm-label" htmlFor={`${id}-cur`}>{t('alm.cost_centers_label_currency')}</label>
-          <Input id={`${id}-cur`} maxLength={3} value={f.currency} onChange={campo('currency')} placeholder={t('alm.currency_from_contract')} inputClassName="alm-input" />{msg('currency')}</div>
-        <div className="almf-col-completa"><label className="alm-label" htmlFor={`${id}-no`}>{t('alm.contracts_label_notes')}</label>
-          <Textarea id={`${id}-no`} rows={2} value={f.notes} onChange={campo('notes')} inputClassName="alm-input" />{msg('notes')}</div>
+        <div>
+          <DateInput label={t('alm.period_from')} id={`${id}-pf`} value={f.period_from} onChange={campo('period_from')} />{msg('period_from')}</div>
+        <div>
+          <DateInput label={t('alm.period_to')} id={`${id}-pt`} value={f.period_to} onChange={campo('period_to')} />{msg('period_to')}</div>
+        <div>
+          <Input label={<>{t('alm.invoice_amount')}*</>} id={`${id}-a`} type="number" min={0} step="0.01" value={f.amount} onChange={campo('amount')} />{msg('amount')}</div>
+        <div>
+          <Input label={t('alm.invoice_tax')} id={`${id}-t`} type="number" min={0} step="0.01" value={f.tax_amount} onChange={campo('tax_amount')} />{msg('tax_amount')}</div>
+        <div>
+          <Input label={t('alm.cost_centers_label_currency')} id={`${id}-cur`} maxLength={3} value={f.currency} onChange={campo('currency')} placeholder={t('alm.currency_from_contract')} />{msg('currency')}</div>
+        <div className="almf-col-completa">
+          <Textarea label={t('alm.contracts_label_notes')} id={`${id}-no`} rows={2} value={f.notes} onChange={campo('notes')} />{msg('notes')}</div>
       </div>
       {error && <p className="u-field-error" role="alert">{error}</p>}
       <div className="almf-acciones-modal">
@@ -140,8 +140,7 @@ function AceptarDiscrepancia({ factura, onClose }: { factura: FacturaDeProveedor
   })
   return (
     <Modal open onClose={onClose} width={520} title={t('alm.invoice_accept_title', { number: factura.number })}>
-      <label className="alm-label" htmlFor="almf-nota">{t('alm.invoice_accept_note')} *</label>
-      <Textarea id="almf-nota" rows={3} value={nota} onChange={e => setNota(e.target.value)} inputClassName="alm-input" />
+      <Textarea label={<>{t('alm.invoice_accept_note')}*</>} id="almf-nota" rows={3} value={nota} onChange={e => setNota(e.target.value)} />
       {error && <p className="u-field-error" role="alert">{error}</p>}
       <div className="almf-acciones-modal">
         <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>

@@ -3,7 +3,6 @@
 .iap-titulo svg { color: var(--text-3); flex-shrink: 0; }
 
 .iap-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px; align-items: start; }
-.campo-form.iap-textarea { resize: vertical; }
 .iap-fila { display: flex; align-items: flex-end; gap: 8px; flex-wrap: wrap; }
 .iap-fila__campo { flex: 1 1 180px; min-width: 0; }
 .iap-cargando { padding: 32px; text-align: center; }

@@ -20,6 +20,9 @@ from app.models.portal_conversations import (  # noqa: F401
     PortalConversationMessage, PortalConversationMessageType,
     PortalConversationClassification, PortalConversationGRCStatus, PortalConversationSource,
     PortalConversationAudit,
+    # Migracion 209: chat del portal completo.
+    PortalConversationMessageVersion, PortalConversationAttachment,
+    PortalConversationReaction, PortalConversationCall,
 )
 from app.models.service_desk import ServiceCategory, ServiceItem, SLAPolicy, ConfigurationItem, CIType, CIStatus, AgentGroup, AgentGroupMember, Ticket, TicketType, TicketStatus, TicketPriority, TicketUrgency, TicketImpact, SupportLevel, SLAStatus, TicketComment, TicketHistory, TicketTimeLog, Problem, ProblemStatus, KBArticle, KBArticleVersion, KBStatus, Announcement, AutonomousPlaybook, AutonomousPlaybookExecution, ITSMMetricSnapshot, ComplianceReport  # noqa: F401
 
@@ -276,10 +279,13 @@ from app.models.pir import PirRevision, PirAccion, PirPlantilla, PirConfiguracio
 # - Rev. 199: desactivar a un usuario revoca sus sesiones y dispositivos de confianza.
 # - Rev. 202: la baja de una persona aplica la política de sus cuadernos, y al borrar
 #   páginas o adjuntos del cuaderno se borran sus ficheros e instantáneas tras confirmar.
+# - 24-11-2026: al borrar adjuntos del chat del portal se borran sus ficheros tras confirmar.
 from app.db import cuaderno_baja as _cuaderno_baja  # noqa: E402
 from app.db import cuaderno_borrado as _cuaderno_borrado  # noqa: E402
+from app.db import portal_chat_borrado as _portal_chat_borrado  # noqa: E402
 from app.db import revocar_al_desactivar as _revocar_al_desactivar  # noqa: E402
 
 _revocar_al_desactivar.registrar()
 _cuaderno_baja.registrar()
 _cuaderno_borrado.registrar()
+_portal_chat_borrado.registrar()

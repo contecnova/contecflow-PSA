@@ -1,38 +1,7 @@
 /* ClientsPage — lista de clientes + ficha con pestañas (#17: estilos en línea → CSS). */
 
 /* ── Controles de formulario ─────────────────────────────────────────────── */
-.cli-input {
-  background: var(--surface-3);
-  border: 1px solid var(--surface-4);
-  border-radius: 8px;
-  padding: 9px 13px;
-  color: var(--text-1);
-  font-size: var(--text-base);
-  outline: none;
-  font-family: inherit;
-  width: 100%;
-  box-sizing: border-box;
-  transition: border-color 0.15s var(--easing), box-shadow 0.15s var(--easing);
-}
-.cli-input:focus-visible {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-glow);
-}
-.cli-input[aria-invalid="true"] {
-  border-color: var(--danger);
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--danger) 18%, transparent);
-}
-textarea.cli-input { min-height: 70px; resize: vertical; }
 .cli-input--auto { width: auto; }
-
-.cli-label {
-  font-size: var(--text-xs);
-  font-weight: 700;
-  color: var(--text-2);
-  letter-spacing: 0.06em;
-  display: block;
-  margin-bottom: 5px;
-}
 
 .cli-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
 
@@ -40,7 +9,7 @@ textarea.cli-input { min-height: 70px; resize: vertical; }
 .cli-layout { display: grid; grid-template-columns: 320px minmax(0, 1fr); gap: 0; }
 .cli-list { padding-right: 24px; min-width: 0; }
 .cli-detail { border-left: 1px solid var(--surface-4); padding-left: 24px; min-width: 0; }
-@media (max-width: 900px) {
+@media (width <= 900px) {
   .cli-layout { grid-template-columns: minmax(0, 1fr); gap: 20px; }
   .cli-list { padding-right: 0; }
   .cli-detail { border-left: none; padding-left: 0; border-top: 1px solid var(--surface-4); padding-top: 20px; }

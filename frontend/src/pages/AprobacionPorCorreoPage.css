@@ -14,21 +14,4 @@
 .apc-summary { margin: 0 0 6px; }
 .apc-step { margin: 0 0 16px; color: var(--text-2); font-size: var(--text-sm); }
 
-.apc-note {
-  width: 100%;
-  box-sizing: border-box;
-  margin: 6px 0 16px;
-  padding: 10px;
-  border-radius: 8px;
-  background: var(--surface-2);
-  color: var(--text-1);
-  border: 1px solid var(--surface-4);
-  font-family: inherit;
-}
-.apc-note:focus-visible {
-  outline: none;
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-glow);
-}
-
 .apc-error { color: var(--danger); margin-top: 12px; }

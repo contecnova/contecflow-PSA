@@ -238,17 +238,11 @@ export default function MentionsPage() {
               {t('mentions.threaded_comments_info')}
             </div>
             <div className="ment-grid">
-              <div>
-                <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="mentions-page-e9">{t('mentions.type_label')}</label>
-                <Select suelto placeholder={false} id={`${idCampo}-1`} value={demoType} onChange={e=>setDemoType(e.target.value)} className="mentions-page-e5">
+              <Select label={t('mentions.type_label')} placeholder={false} id={`${idCampo}-1`} value={demoType} onChange={e=>setDemoType(e.target.value)}>
                   <option value="task">📌 {t('mentions.type_task')}</option>
                   <option value="ticket">🎫 {t('mentions.type_ticket')}</option>
                 </Select>
-              </div>
-              <div>
-                <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="mentions-page-e9">{t('mentions.entity_id_label')}</label>
-                <Input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={demoEntity} onChange={e=>setDemoEntity(e.target.value)} placeholder={t('mentions.entity_id_placeholder')} inputClassName="mentions-page-e10" />
-              </div>
+              <Input label={t('mentions.entity_id_label')} id={`${idCampo}-2`} value={demoEntity} onChange={e=>setDemoEntity(e.target.value)} placeholder={t('mentions.entity_id_placeholder')} />
             </div>
           </div>
 

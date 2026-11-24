@@ -285,29 +285,43 @@ def sesion_del_portal_cortada(carga: dict) -> bool:
 # Vivían en `app/api/v1/endpoints/client_portal_password.py`, que consultaba
 # `client_users` y confirmaba la transacción en la capa API.
 
-def pedir_en_el_portal(db, correo: str, origen) -> None:
+def nombre_de_empresa(db, org_id: Optional[str]) -> Optional[str]:
+    """Nombre de la empresa (para que la pantalla diga de qué cuenta se trata)."""
+    if not org_id:
+        return None
+    from app.models.mfa import Organization
+    org = db.get(Organization, org_id)
+    return getattr(org, "name", None)
+
+
+def pedir_en_el_portal(db, correo: str, origen, *, codigo: Optional[str] = None, host: Optional[str] = None) -> None:
     """«¿Olvidaste tu contraseña?» del portal: envía el enlace si la cuenta existe.
 
     Misma respuesta pase lo que pase (sin oráculo): un fallo se deshace y queda en
     el log sin datos. Si la cuenta no existe no se apunta nada (RGPD: minimización).
+
+    Migración 208 (24-11-2026): el correo es único POR EMPRESA. Con código de
+    acceso o dominio propio, solo la cuenta de esa empresa; si no, un enlace por
+    cada empresa con cuenta activa (cada correo lleva la marca de su empresa y el
+    token es de esa cuenta: restablecer en una no toca las otras).
     """
-    from sqlalchemy import func
     from app.db.session import exigir_organizacion_activa
-    from app.models.client_portal import ClientUser
+    from app.services.client_portal_service.autenticacion import empresa_por_codigo_o_host
+    from app.services.client_portal_service.clientes import cuentas_del_portal
     from app.services.seguridad_de_cuentas.auditoria import auditar
-    cliente = db.query(ClientUser).filter(func.lower(ClientUser.email) == correo,
-                                          ClientUser.is_active == True).first()  # noqa: E712
-    if cliente is None or not cliente.hashed_password:
-        return
-    try:
-        exigir_organizacion_activa(db, cliente.organization_id)
-        enviar_enlace_al_cliente(db, cliente)
-        auditar(db, None, "PORTAL_PASSWORD_RESET_REQUEST", cliente, org_id=cliente.organization_id,
-                origen=origen, recurso="client_user")
-        db.commit()
-    except Exception as exc:  # misma respuesta pase lo que pase (sin oráculo)
-        db.rollback()
-        logger.warning("portal: restablecimiento no enviado client_id=%s: %s", cliente.id, type(exc).__name__)
+    empresa, _via = empresa_por_codigo_o_host(db, codigo, host)
+    for cliente in cuentas_del_portal(db, correo, empresa):
+        if not cliente.hashed_password:
+            continue
+        try:
+            exigir_organizacion_activa(db, cliente.organization_id)
+            enviar_enlace_al_cliente(db, cliente)
+            auditar(db, None, "PORTAL_PASSWORD_RESET_REQUEST", cliente, org_id=cliente.organization_id,
+                    origen=origen, recurso="client_user")
+            db.commit()
+        except Exception as exc:  # misma respuesta pase lo que pase (sin oráculo)
+            db.rollback()
+            logger.warning("portal: restablecimiento no enviado client_id=%s: %s", cliente.id, type(exc).__name__)
 
 
 def restablecer_en_el_portal(db, cliente, carga: dict, nueva: str, minimo: int, origen) -> None:

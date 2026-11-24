@@ -152,6 +152,38 @@ def get_portal_session_config(db: Session) -> dict:
     }
 
 
+# ── Empresa del portal sin preguntar (migración 208, 24-11-2026) ─────────────
+# El correo del portal es único POR EMPRESA: la misma persona puede tener acceso
+# en dos. Si la empresa sale del código de acceso del portal (`slug` de la
+# empresa, `/portal?empresa=<código>`) o del host (dominio propio activo con el
+# portal encendido, `OrgBranding.custom_domain`), el login y «¿Olvidaste tu
+# contraseña?» la usan sin preguntar. Un código o host que no casa se ignora
+# (se pregunta como sin ellos): no confirma ni niega que exista una empresa.
+
+def empresa_por_codigo_o_host(db: Session, codigo: Optional[str] = None,
+                              host: Optional[str] = None) -> tuple[Optional[str], Optional[str]]:
+    """(id de empresa activa, vía: `codigo` | `host`) o (None, None)."""
+    from app.models.mfa import Organization
+    from app.db.session import sin_filtro_de_tenant
+    codigo = (codigo or "").strip().lower()
+    host = (host or "").strip().lower()
+    with sin_filtro_de_tenant(db):
+        if codigo:
+            org = db.query(Organization.id).filter(Organization.slug == codigo,
+                                                   Organization.is_active == True).first()  # noqa: E712
+            if org:
+                return org[0], "codigo"
+        if host:
+            from app.models.white_label import OrgBranding
+            fila = db.query(OrgBranding.organization_id).join(
+                Organization, Organization.id == OrgBranding.organization_id).filter(
+                OrgBranding.custom_domain == host, OrgBranding.is_active == True,  # noqa: E712
+                OrgBranding.enable_portal == True, Organization.is_active == True).first()  # noqa: E712
+            if fila:
+                return fila[0], "host"
+    return None, None
+
+
 def create_portal_share_token(project_id: str) -> str:
     expire = datetime.now(timezone.utc) + timedelta(hours=PORTAL_SHARE_LINK_EXPIRE_HOURS)
     return jwt.encode(

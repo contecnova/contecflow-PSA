@@ -28,7 +28,6 @@ import './ProjectDetailPage.css'
 const LoadBar = LoadBarRaw as (props: { value: number; max?: number; height?: number; label?: string; color?: string }) => JSX.Element
 
 // ── Loose project / task / member / risk shapes (API slices are narrowly typed) ──
- 
 /**
  * `ProjectOut` (app/schemas/projects.py), tal como lo tipa el slice de proyectos.
  * `pm_name` NO viene en `GET /projects/{id}` (ProjectOut trae `project_manager`):
@@ -36,10 +35,7 @@ const LoadBar = LoadBarRaw as (props: { value: number; max?: number; height?: nu
  * opcional para no cambiar el comportamiento; ver informe de la auditoría #25.
  */
 type Project = ProjectDetail & { pm_name?: string | null }
- 
- 
 type Member = { id?: string; user_id?: string; full_name?: string; name?: string; role?: string; project_role?: string; allocation_pct?: number | null; external_company?: string | null }
- 
 type Risk = { id?: string; title?: string; description?: string; impact?: string; severity?: string; status?: string }
 
 const STATUS_COLOR_MAP: Record<string, string> = {
@@ -283,32 +279,17 @@ function EditProjectForm({ project, onSave, onCancel, isPending }: {
 
   return (
     <div className="pd-stack">
-      <div>
-        <label className="pd-label-style" id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`}>{t('project_detail.project_name_label')}</label>
-        <Input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.name} onChange={e => set('name', e.target.value)} onFocus={e => e.target.style.borderColor = 'var(--accent)'} onBlur={e => e.target.style.borderColor = 'var(--surface-4)'} inputClassName="pd-input-style" />
-      </div>
-      <div>
-        <label className="pd-label-style" id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`}>{t('project_detail.status_label')}</label>
-        <Select suelto placeholder={false} className="pd-input-style pd-input" id={`${idCampo}-2`} value={form.status} onChange={e => set('status', e.target.value)}>
+      <Input label={t('project_detail.project_name_label')} id={`${idCampo}-1`} value={form.name} onChange={e => set('name', e.target.value)} onFocus={e => e.target.style.borderColor = 'var(--accent)'} onBlur={e => e.target.style.borderColor = 'var(--surface-4)'} />
+      <Select label={t('project_detail.status_label')} placeholder={false} id={`${idCampo}-2`} value={form.status} onChange={e => set('status', e.target.value)}>
           {Object.entries(STATUS_CFG).map(([v, cfg]) => (
             <option key={v} value={v}>{cfg.label}</option>
           ))}
         </Select>
-      </div>
-      <div>
-        <label className="pd-label-style" id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`}>{t('project_detail.end_date_label')}</label>
-        <DateInput id={`${idCampo}-3`} value={form.end_date_planned} onChange={e => set('end_date_planned', e.target.value)} className="pd-input-style"
+      <DateInput label={t('project_detail.end_date_label')} id={`${idCampo}-3`} value={form.end_date_planned} onChange={e => set('end_date_planned', e.target.value)}
           onFocus={e => e.target.style.borderColor = 'var(--accent)'}
           onBlur={e => e.target.style.borderColor = 'var(--surface-4)'} />
-      </div>
-      <div>
-        <label className="pd-label-style" id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`}>{t('project_detail.budget_label')}</label>
-        <Input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} type="number" value={form.budget_amount} onChange={e => set('budget_amount', e.target.value)} onFocus={e => e.target.style.borderColor = 'var(--accent)'} onBlur={e => e.target.style.borderColor = 'var(--surface-4)'} inputClassName="pd-input-style" />
-      </div>
-      <div>
-        <label className="pd-label-style" id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`}>{t('project_detail.description_label')}</label>
-        <Textarea id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={form.description} onChange={e => set('description', e.target.value)} rows={4} onFocus={e => e.target.style.borderColor = 'var(--accent)'} onBlur={e => e.target.style.borderColor = 'var(--surface-4)'} inputClassName="pd-input-style pd-input-2" />
-      </div>
+      <Input label={t('project_detail.budget_label')} id={`${idCampo}-4`} type="number" value={form.budget_amount} onChange={e => set('budget_amount', e.target.value)} onFocus={e => e.target.style.borderColor = 'var(--accent)'} onBlur={e => e.target.style.borderColor = 'var(--surface-4)'} />
+      <Textarea label={t('project_detail.description_label')} id={`${idCampo}-5`} value={form.description} onChange={e => set('description', e.target.value)} rows={4} onFocus={e => e.target.style.borderColor = 'var(--accent)'} onBlur={e => e.target.style.borderColor = 'var(--surface-4)'} />
       <div className="u-row-8">
         <Pulsable className="pd-btn-sm" onClick={() => onSave(form)} disabled={isPending || !form.name.trim()}
           style={{ '--pd-btn-sm-cursor': isPending || !form.name.trim() ? 'not-allowed' : 'pointer', '--pd-btn-sm-opacity': !form.name.trim() ? '0.5' : '1' } as CSSProperties}>

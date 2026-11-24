@@ -18,7 +18,7 @@ Este documento lo comprueba `tests/test_readme_ajustes_completo.py`: cada campo 
 
 ## 2. Variables de entorno (`Settings`)
 
-Total medido: **728 campos de `Settings`**.
+Total medido: **735 campos de `Settings`**.
 
 Los valores por defecto son los del código, nunca valores del `.env`. Los significados se toman del nombre del campo, de su comentario en línea y del código que lo lee; el comportamiento descrito en negrita se comprobó en el código que consume la variable.
 
@@ -197,6 +197,13 @@ Los valores por defecto son los del código, nunca valores del `.env`. Los signi
 | `COLLAB_WEBHOOK_INCOMING_PER_MIN` | `120` | Límite de tasa del webhook entrante de colaboración. |
 | `COLLAB_CALENDAR_MAX_EVENTS` | `20` | Eventos de calendario devueltos. |
 | `COLLAB_PORTAL_MESSAGE_PER_MIN` | `25` | Límite de tasa de mensajes del portal. |
+| `PORTAL_CHAT_CALLS_ENABLED` | `True` | Chat del portal: el equipo puede llamar a clientes (por empresa, grupo `portal_chat`; docs/portal/CHAT_DEL_PORTAL.md). |
+| `PORTAL_CHAT_VIDEO_ENABLED` | `True` | Chat del portal: el equipo puede hacer videollamadas (requiere llamadas activas). |
+| `PORTAL_CHAT_ATTACHMENTS_ENABLED` | `True` | Chat del portal: imágenes y adjuntos. |
+| `PORTAL_CHAT_ALLOWED_EXTENSIONS` | `'.pdf,.png,.jpg,.jpeg,.gif,.webp,.txt,.csv,.docx,.xlsx,.pptx,.odt,.ods'` | Chat del portal: extensiones permitidas (CSV); solo acota el catálogo aprobado de `core/uploads.py` (sin SVG). |
+| `PORTAL_CHAT_MAX_FILE_MB` | `20` | Chat del portal: tamaño máximo de un adjunto (MB); nunca más que `MAX_FILE_SIZE_MB`. |
+| `PORTAL_CHAT_EDIT_WINDOW_MINUTES` | `60` | Chat del portal: minutos para editar o borrar el propio mensaje (0 = sin límite). |
+| `PORTAL_CHAT_CALL_RING_SECONDS` | `60` | Chat del portal: segundos que suena una llamada antes de darla por perdida. |
 | `STT_PROVIDER` | `'openai'` | Proveedor de voz a texto. |
 | `STT_FALLBACK_PROVIDERS` | `''` | Lista separada por comas de alternativas. |
 | `AZURE_SPEECH_KEY` | `''` | Clave de STT de Azure. |
@@ -823,7 +830,7 @@ Valores por defecto de la plataforma. Cada empresa activa el módulo (desactivad
 ## 3. Ajustes en vivo (Configuración → Sistema → Config. dinámica)
 
 
-La fuente es `RUNTIME_FLAG_GROUPS` en `app/services/settings_service/`: **32 grupos, 445 claves**. «Defecto» es el valor por defecto del código en `Settings` (`app/core/config.py` más `config_groups/*`); un valor del `.env` lo sobrescribe. Ejemplo medido: el `.env` local define `ACCESS_TOKEN_EXPIRE_MINUTES=60`.
+La fuente es `RUNTIME_FLAG_GROUPS` en `app/services/settings_service/`: **33 grupos, 452 claves**. «Defecto» es el valor por defecto del código en `Settings` (`app/core/config.py` más `config_groups/*`); un valor del `.env` lo sobrescribe. Ejemplo medido: el `.env` local define `ACCESS_TOKEN_EXPIRE_MINUTES=60`.
 
 «Uso» es lo que encontró un grep de `app/`:
 - **en vivo**: se lee en ejecución mediante `get_runtime_*`, de modo que un cambio en la interfaz surte efecto en 60 s.
@@ -892,9 +899,9 @@ La fuente es `RUNTIME_FLAG_GROUPS` en `app/services/settings_service/`: **32 gru
 | service_desk | KEDB_DEFAULT_REVIEW_DAYS | int | 90 | Errores conocidos: días hasta la revisión al publicar o revisar uno, si la petición no indica ninguno (7-365) | en vivo (empresa) |
 | service_desk | SD_EVENT_MAX_ATTEMPTS | int | 5 | Entrega de eventos, máximo de intentos | en vivo (solo global) |
 | service_desk | SD_EVENT_BATCH_SIZE | int | 200 | Entrega de eventos, eventos por ejecución | en vivo (solo global) |
-| health | HEALTH_NPS_LOOKBACK_DAYS | int | 90 | Salud del cliente: retrospectiva de NPS (días) | en vivo |
+| health | HEALTH_NPS_LOOKBACK_DAYS | int | 90 | Salud del cliente: retrospectiva de NPS y de hitos de entrega (días) | en vivo |
 | health | HEALTH_TICKET_LOOKBACK_DAYS | int | 30 | Salud del cliente: retrospectiva de tickets (días) | en vivo |
-| health | HEALTH_DEFAULT_NO_DATA | float | 70.0 | Puntuación cuando no hay datos (0-100) | en vivo |
+| health | HEALTH_DEFAULT_NO_DATA | float | 70.0 | Puntuación cuando NINGÚN componente tiene datos (0-100); un componente sin datos no puntúa y su peso se reparte | en vivo |
 | health | HEALTH_PORTAL_BASE_SCORE | float | 30.0 | Puntuación base del componente de portal | en vivo |
 | health | HEALTH_PORTAL_SCORE_PER_SESSION | float | 7.0 | Puntuación añadida por cada sesión del portal | en vivo |
 | health | HEALTH_WEIGHT_NPS | float | 0.4 | Peso, NPS | en vivo |
@@ -1052,6 +1059,13 @@ La fuente es `RUNTIME_FLAG_GROUPS` en `app/services/settings_service/`: **32 gru
 | storage | S3_URL_EXPIRATION_HOURS | int | 24 | TTL de las URL prefirmadas (h) | en vivo (`s3_service`, ficheros de colaboración) |
 | storage | DOCUMENT_CHECKOUT_HOURS | int | 24 | Check-out de documentos — la reserva caduca por sí sola tras (h) | en vivo |
 | storage | MAX_FILE_SIZE_MB | int | 100 | Tamaño máximo de subida de documentos (MB) | en vivo en `documents.py`; `core/uploads.py` lee `settings` (estático) |
+| portal_chat | PORTAL_CHAT_CALLS_ENABLED | bool | true | El equipo puede llamar a clientes desde el chat del portal (el cliente nunca inicia) | en vivo (`portal_conversation_service/ajustes.py`) |
+| portal_chat | PORTAL_CHAT_VIDEO_ENABLED | bool | true | El equipo puede hacer videollamadas | en vivo |
+| portal_chat | PORTAL_CHAT_ATTACHMENTS_ENABLED | bool | true | Imágenes y adjuntos en el chat del portal | en vivo |
+| portal_chat | PORTAL_CHAT_ALLOWED_EXTENSIONS | str | `.pdf,.png,.jpg,…` | Extensiones permitidas (CSV; solo acotan el catálogo aprobado) | en vivo |
+| portal_chat | PORTAL_CHAT_MAX_FILE_MB | int | 20 | Tamaño máximo de un adjunto (MB; tope: `MAX_FILE_SIZE_MB`) | en vivo |
+| portal_chat | PORTAL_CHAT_EDIT_WINDOW_MINUTES | int | 60 | Minutos para editar o borrar el propio mensaje (0: sin límite) | en vivo |
+| portal_chat | PORTAL_CHAT_CALL_RING_SECONDS | int | 60 | Segundos de tono antes de dar la llamada por perdida | en vivo |
 | security_network | TRUST_PROXY_HEADERS | bool | false | Confiar en `X-Forwarded-*` para la IP del cliente | en vivo (solo global) |
 | security_network | TRUSTED_PROXY_CIDRS | str | `127.0.0.1/32,::1/128` | Proxies cuyas `X-Forwarded-*` son de confianza | en vivo (solo global) |
 | ui_branding | WEBAUTHN_RP_NAME | str | `Contecflow PSA` | Nombre visible de la parte confiante (relying party) de WebAuthn | en vivo (`auth_mfa`) |

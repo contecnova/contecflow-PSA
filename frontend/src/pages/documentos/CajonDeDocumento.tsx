@@ -507,20 +507,11 @@ export function DocumentDrawer({ documentId, onClose, onRefresh }: { documentId:
                     )}
               {tab === 'meta' && isEditingMeta && metaForm && (
                 <div className="u-stack-14">
-                  <div>
-                    <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="docs-label-12">{t('documents.titulo')}</label>
-                    <Input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={metaForm.title} onChange={e => setMetaForm(f => f && ({ ...f, title: e.target.value }))} inputClassName="documents-page-e8" />
-                  </div>
-                  <div>
-                    <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="docs-label-12">{t('documents.descripcion')}</label>
-                    <Textarea id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={metaForm.description} onChange={e => setMetaForm(f => f && ({ ...f, description: e.target.value }))} rows={3} inputClassName="documents-page-e6" />
-                  </div>
-                  <div>
-                    <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="docs-label-12">{t('documents.categoria')}</label>
-                    <Select suelto placeholder={false} id={`${idCampo}-3`} value={metaForm.category} onChange={e => setMetaForm(f => f && ({ ...f, category: e.target.value }))} className="documents-page-e8">
+                  <Input label={t('documents.titulo')} id={`${idCampo}-1`} value={metaForm.title} onChange={e => setMetaForm(f => f && ({ ...f, title: e.target.value }))} />
+                  <Textarea label={t('documents.descripcion')} id={`${idCampo}-2`} value={metaForm.description} onChange={e => setMetaForm(f => f && ({ ...f, description: e.target.value }))} rows={3} />
+                  <Select label={t('documents.categoria')} placeholder={false} id={`${idCampo}-3`} value={metaForm.category} onChange={e => setMetaForm(f => f && ({ ...f, category: e.target.value }))}>
                       {CATS.map(c => <option key={c} value={c}>{etiquetaCategoria(t, c)}</option>)}
                     </Select>
-                  </div>
                   <div className="u-row-center-10">
                     <Checkbox id="meta-req-approval" checked={metaForm.requires_approval} onChange={(_, e) => setMetaForm(f => f && ({ ...f, requires_approval: e.target.checked }))} className="docs-input-3" />
                     <label id="meta-req-approval-et" htmlFor="meta-req-approval" className="docs-label-13">{t('documents.requiere_aprobacion')}</label>

@@ -119,7 +119,7 @@ export default function ResetPasswordPage() {
         <div className="u-stack-16">
           {/* New password */}
           <div>
-            <label className="rpw-label-muted" id={`${idCampo}-etpwd`} htmlFor={`${idCampo}-pwd`}>
+            <label className="uiinde-estiloetiqueta" id={`${idCampo}-etpwd`} htmlFor={`${idCampo}-pwd`}>
               {t('reset_password.new_password_placeholder')}
             </label>
             <div className="rpw-box-2">
@@ -164,12 +164,7 @@ export default function ResetPasswordPage() {
           </div>
 
           {/* Confirm */}
-          <div>
-            <label className="rpw-label-muted" id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`}>
-              {t('reset_password.confirm_password_placeholder')}
-            </label>
-            <Input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} autoComplete="new-password" onFocus={e => { e.target.style.borderColor = 'var(--accent)' }} onBlur={e => { e.target.style.borderColor = 'var(--surface-4)' }} inputClassName="rpw-input-2" />
-          </div>
+          <Input label={t('reset_password.confirm_password_placeholder')} id={`${idCampo}-1`} type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} autoComplete="new-password" onFocus={e => { e.target.style.borderColor = 'var(--accent)' }} onBlur={e => { e.target.style.borderColor = 'var(--surface-4)' }} />
 
           {error && (
             <div className="rpw-row-danger" role="alert">

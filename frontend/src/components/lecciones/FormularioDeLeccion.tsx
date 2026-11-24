@@ -99,26 +99,23 @@ export default function FormularioDeLeccion({ origen, leccion, onClose, onGuarda
                 <Sparkles size={13} />{borrador.data.ia ? t('lec.propuesta_ia') : (borrador.data.aviso || t('lec.propuesta_hechos'))}
               </div>
             )}
-            <label><span className="fodele-etiqueta">{t('lec.titulo')}</span><Input aria-label={t('lec.titulo')} value={form.titulo} onChange={set('titulo')} maxLength={300} inputClassName="fodele-campo" /></label>
+            <Input label={t('lec.titulo')} aria-label={t('lec.titulo')} value={form.titulo} onChange={set('titulo')} maxLength={300} />
             <div className="fodele-grid-1">
-              <label><span className="fodele-etiqueta">{t('lec.tipo')}</span>
-                <Select suelto aria-label={t('lec.tipo')} value={form.tipo} onChange={set('tipo')} className="fodele-campo" placeholder={false}>
+              <Select label={t('lec.tipo')} aria-label={t('lec.tipo')} value={form.tipo} onChange={set('tipo')} placeholder={false}>
                   <option value="evitar">{t('lec.tipo_evitar')}</option><option value="repetir">{t('lec.tipo_repetir')}</option>
-                </Select></label>
-              <label><span className="fodele-etiqueta">{t('lec.categoria')}</span>
-                <Select suelto aria-label={t('lec.categoria')} value={form.categoria} onChange={set('categoria')} className="fodele-campo" placeholder={false}>
+                </Select>
+              <Select label={t('lec.categoria')} aria-label={t('lec.categoria')} value={form.categoria} onChange={set('categoria')} placeholder={false}>
                   {(cfg.data?.categorias ?? []).map(c => <option key={c} value={c}>{t(`lec.cat_${c}`, c)}</option>)}
-                </Select></label>
-              <label><span className="fodele-etiqueta">{t('lec.severidad')}</span>
-                <Select suelto aria-label={t('lec.severidad')} value={form.severidad} onChange={set('severidad')} className="fodele-campo" placeholder={false}>
+                </Select>
+              <Select label={t('lec.severidad')} aria-label={t('lec.severidad')} value={form.severidad} onChange={set('severidad')} placeholder={false}>
                   {['baja', 'media', 'alta'].map(s => <option key={s} value={s}>{t(`lec.sev_${s}`)}</option>)}
-                </Select></label>
+                </Select>
             </div>
-            <label><span className="fodele-etiqueta">{t('lec.que_paso')}</span><Textarea rows={4} aria-label={t('lec.que_paso')} value={form.que_paso} onChange={set('que_paso')} inputClassName="fodele-campo" /></label>
-            <label><span className="fodele-etiqueta">{t('lec.causa')}</span><Textarea rows={2} aria-label={t('lec.causa')} value={form.causa} onChange={set('causa')} inputClassName="fodele-campo" /></label>
-            <label><span className="fodele-etiqueta">{t('lec.impacto')}</span><Textarea rows={2} aria-label={t('lec.impacto')} value={form.impacto} onChange={set('impacto')} inputClassName="fodele-campo" /></label>
-            <label><span className="fodele-etiqueta">{t('lec.recomendacion')}</span><Textarea rows={3} aria-label={t('lec.recomendacion')} value={form.recomendacion} onChange={set('recomendacion')} placeholder={t('lec.recomendacion_ayuda')} inputClassName="fodele-campo" /></label>
-            <label><span className="fodele-etiqueta">{t('lec.etiquetas')}</span><Input aria-label={t('lec.etiquetas')} value={form.etiquetas} onChange={set('etiquetas')} placeholder="erp, migracion" inputClassName="fodele-campo" /></label>
+            <Textarea label={t('lec.que_paso')} rows={4} aria-label={t('lec.que_paso')} value={form.que_paso} onChange={set('que_paso')} />
+            <Textarea label={t('lec.causa')} rows={2} aria-label={t('lec.causa')} value={form.causa} onChange={set('causa')} />
+            <Textarea label={t('lec.impacto')} rows={2} aria-label={t('lec.impacto')} value={form.impacto} onChange={set('impacto')} />
+            <Textarea label={t('lec.recomendacion')} rows={3} aria-label={t('lec.recomendacion')} value={form.recomendacion} onChange={set('recomendacion')} placeholder={t('lec.recomendacion_ayuda')} />
+            <Input label={t('lec.etiquetas')} aria-label={t('lec.etiquetas')} value={form.etiquetas} onChange={set('etiquetas')} placeholder="erp, migracion" />
             <div className="fodele-row-1">
               <Button variant="secondary" onClick={onClose}>{t('lec.cancelar')}</Button>
               <Button variant="secondary" disabled={!listo} loading={guardando} onClick={() => guardar(false)}>{t('lec.guardar_borrador')}</Button>

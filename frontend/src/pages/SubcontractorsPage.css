@@ -8,13 +8,8 @@
   color: var(--text-1); font-size: var(--text-base); outline: none; font-family: inherit; width: 100%; box-sizing: border-box;
 }
 .sub-input:focus-visible { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
-.sub-textarea { min-height: 60px; resize: vertical; }
 .sub-textarea--sm { min-height: 52px; }
 .sub-input--flex { flex: 1; }
-.sub-label {
-  font-size: var(--text-xs); font-weight: 600; color: var(--text-2);
-  display: block; margin-bottom: 5px;
-}
 .sub-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px; }
 .sub-form-grid--mb16 { margin-bottom: 16px; }
 

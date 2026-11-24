@@ -140,6 +140,8 @@
 
 .grc-label-3 {
   font-size: var(--text-md-em);
+  display: inline-flex;
+  color: var(--text-2);
 }
 
 .grc-label-4 {
@@ -972,18 +974,6 @@
   display: block;
   margin-bottom: 5px;
 }
-.grc-page-e19 {
-  width: 100%;
-  background: var(--surface-3);
-  border: 1px solid var(--surface-4);
-  border-radius: 8px;
-  padding: 9px 13px;
-  color: var(--text-1);
-  font-size: var(--text-base);
-  outline: none;
-  font-family: inherit;
-  box-sizing: border-box;
-}
 .grc-page-e20 {
   text-align: left;
   padding: 6px 8px;
@@ -1022,4 +1012,3 @@
 .grc-girando { animation: grc-giro 0.9s linear infinite; vertical-align: middle; }
 @keyframes grc-giro { to { transform: rotate(360deg); } }
 .grc-mb { margin-bottom: 16px; }
-.grc-label-3 { display: inline-flex; color: var(--text-2); }

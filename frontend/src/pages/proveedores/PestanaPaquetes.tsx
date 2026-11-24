@@ -130,14 +130,8 @@ function FormularioDePaquete({ sub, paquete, onClose }: { sub: Subcontratista; p
           <Select className="prv-completo" label={t('externos.responsable_interno')} value={f.internal_owner_id} onChange={set('internal_owner_id')} placeholder={t('externos.elegir_responsable')}
             options={personas.map(p => ({ value: p.id, label: etiquetaDePersona(tApp, p) }))} />
         </div>
-        <div className="ui-field">
-          <label htmlFor="prv-paquete-desc" className="uiinde-estiloetiqueta">{t('subcontractors.descripcion')}</label>
-          <Textarea id="prv-paquete-desc" value={f.description} onChange={set('description')} inputClassName="prv-textarea" />
-        </div>
-        <div className="ui-field">
-          <label htmlFor="prv-paquete-criterios" className="uiinde-estiloetiqueta">{t('proveedores.criterios_aceptacion')}</label>
-          <Textarea id="prv-paquete-criterios" value={f.acceptance_criteria} onChange={set('acceptance_criteria')} inputClassName="prv-textarea" />
-        </div>
+        <Textarea label={t('subcontractors.descripcion')} id="prv-paquete-desc" value={f.description} onChange={set('description')} />
+        <Textarea label={t('proveedores.criterios_aceptacion')} id="prv-paquete-criterios" value={f.acceptance_criteria} onChange={set('acceptance_criteria')} />
         <div className="u-actions-8">
           <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
           <Button onClick={() => guardar.mutate()} loading={guardar.isPending} disabled={!f.title.trim() || !f.project_id || !alcanceOk || guardar.isPending}>{t('common.save')}</Button>
@@ -228,14 +222,10 @@ export function FormularioDeInforme({ sub, paqueteId, servicioId, onClose }: { s
           {paqueteId && <Input label={t('proveedores.avance_pct')} type="number" min={0} max={100} value={f.progress_pct} onChange={set('progress_pct')} error={campos.de('progress_pct')} />}
         </div>
         <div className="ui-field">
-          <label htmlFor="prv-informe-resumen" className="uiinde-estiloetiqueta">{t('proveedores.resumen')} *</label>
-          <Textarea id="prv-informe-resumen" value={f.summary} onChange={set('summary')} inputClassName="prv-textarea" />
+          <Textarea label={<>{t('proveedores.resumen')}*</>} id="prv-informe-resumen" value={f.summary} onChange={set('summary')} />
           {campos.de('summary') && <div className="u-field-error" role="alert">{campos.de('summary')}</div>}
         </div>
-        <div className="ui-field">
-          <label htmlFor="prv-informe-riesgos" className="uiinde-estiloetiqueta">{t('proveedores.riesgos')}</label>
-          <Textarea id="prv-informe-riesgos" value={f.risks} onChange={set('risks')} inputClassName="prv-textarea" />
-        </div>
+        <Textarea label={t('proveedores.riesgos')} id="prv-informe-riesgos" value={f.risks} onChange={set('risks')} />
         <Input label={t('proveedores.evidencia_enlace')} value={f.enlace} onChange={set('enlace')} placeholder="https://" error={campos.de('attachments')} />
         <div className="ui-field">
           <label htmlFor="prv-informe-ficheros" className="uiinde-estiloetiqueta">{t('proveedores.evidencias')}</label>

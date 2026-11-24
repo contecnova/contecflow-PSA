@@ -5,7 +5,8 @@ Covers:
   - NPS response submission and category classification
   - NPS summary computation (promoters / detractors / score)
   - Health snapshot creation and compute
-  - Composite health score formula (NPS 40%, delivery 20%, budget 15%, tickets 15%, portal 10%)
+  - Composite health score formula (NPS 40%, delivery 20%, budget 15%, tickets 15%, portal 10%;
+    sin datos → su peso se reparte; ver tests/test_salud_cliente_2026_11_24.py)
   - NPS leaderboard and health trend
 """
 import pytest
@@ -251,7 +252,9 @@ class TestCustomerHealthScore:
         assert res.status_code == 200
 
     def test_health_composite_formula_unit(self, db):
-        """Validate the composite health formula directly from the service."""
+        """Sin datos (24-11-2026): ningún componente puntúa; la salud es
+        HEALTH_DEFAULT_NO_DATA y la categoría ``no_data`` (antes NPS 50 y
+        entrega 70 inventados)."""
         from app.services.customer_health_service import compute_composite_health
         from app.models.clients import Client
 
@@ -261,10 +264,13 @@ class TestCustomerHealthScore:
 
         result = compute_composite_health(c.id, db)
         assert "components" in result
-        # Default NPS component (no data) should be 50
-        assert result["components"]["nps"]["value"] == pytest.approx(50.0)
-        # Delivery default is 70
-        assert result["components"]["delivery"]["value"] == pytest.approx(70.0)
+        assert result["components"]["nps"]["value"] is None
+        assert result["components"]["nps"]["has_data"] is False
+        assert result["components"]["delivery"]["value"] is None
+        assert result["has_data"] is False
+        assert result["data_coverage"] == 0.0
+        assert result["category"] == "no_data"
+        assert result["composite_score"] == pytest.approx(70.0)
 
     def test_health_compute_nonexistent_client(self, db):
         from app.services.customer_health_service import compute_composite_health

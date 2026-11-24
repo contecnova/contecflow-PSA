@@ -59,27 +59,15 @@ export function WorkflowSimulatorTab() {
       <div className="ds-card apv-tarjeta">
         <div className="apv-tarjeta__texto">{t('approvals.simula_antes_de_publicar_para_validar_ruta')}</div>
         <div className="apv-simulador__rejilla">
-          <div>
-            <label htmlFor={id('tipo')} className="apv-label">{t('approvals.entity_type')}</label>
-            <Select suelto placeholder={false} id={id('tipo')} value={entityType} onChange={e => setEntityType(e.target.value)} className="apv-input">
+          <Select label={t('approvals.entity_type')} placeholder={false} id={id('tipo')} value={entityType} onChange={e => setEntityType(e.target.value)}>
               {['document', 'expense', 'timesheet', 'milestone', 'purchase'].map(k => <option key={k} value={k}>{entityLabels(t)[k].label}</option>)}
             </Select>
-          </div>
-          <div>
-            <label htmlFor={id('cat')} className="apv-label">{t('approvals.categoria')}</label>
-            <Input id={id('cat')} value={category} onChange={e => setCategory(e.target.value)} placeholder={t('approvals.categoria_ejemplo')} inputClassName="apv-input" />
-          </div>
-          <div>
-            <label htmlFor={id('dep')} className="apv-label">{t('approvals.department')}</label>
-            <Select suelto placeholder={false} id={id('dep')} value={department} onChange={e => setDepartment(e.target.value)} className="apv-input">
+          <Input label={t('approvals.categoria')} id={id('cat')} value={category} onChange={e => setCategory(e.target.value)} placeholder={t('approvals.categoria_ejemplo')} />
+          <Select label={t('approvals.department')} placeholder={false} id={id('dep')} value={department} onChange={e => setDepartment(e.target.value)}>
               <option value="">{t('approvals.sin_departamento')}</option>
               {depts.filter(d => d.is_active !== false).map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
             </Select>
-          </div>
-          <div>
-            <label htmlFor={id('imp')} className="apv-label">{t('approvals.importe')}</label>
-            <Input id={id('imp')} value={amount} onChange={e => setAmount(e.target.value)} type="number" inputClassName="apv-input" />
-          </div>
+          <Input label={t('approvals.importe')} id={id('imp')} value={amount} onChange={e => setAmount(e.target.value)} type="number" />
           <div className="apv-span-2">
             <label htmlFor={id('sol')} className="apv-label">{t('approvals.solicitante_opcional')}</label>
             <span id={id('sol')}><UserSelect value={requestedByUserId} onChange={setRequestedByUserId} placeholder={t('approvals.elige_a_quien')} /></span>
@@ -190,8 +178,7 @@ export function WorkflowBottlenecksTab() {
       <div className="ds-card apv-barra">
         <span className="u-text2-sm">{t('approvals.ventana')}</span>
         <SelectorDePeriodo {...periodo.selector} />
-        <label htmlFor={`${idCampo}-flujo`} className="u-text2-sm">{t('approvals.flujo')}</label>
-        <Select suelto placeholder={false} id={`${idCampo}-flujo`} value={workflowFilter} onChange={e => setWorkflowFilter(e.target.value)} className="apv-input apv-input--w200">
+        <Select label={t('approvals.flujo')} placeholder={false} id={`${idCampo}-flujo`} value={workflowFilter} onChange={e => setWorkflowFilter(e.target.value)}>
           <option value="">{t('approvals.todos_los_flujos')}</option>
           {workflowsData.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
         </Select>

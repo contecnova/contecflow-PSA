@@ -174,8 +174,7 @@ export function RoutingTab({ providers }: { providers: AiProvider[] }) {
           const etiqueta = t(claveModulo) !== claveModulo ? t(claveModulo) : m.label
           return (
             <Fragment key={m.key}>
-              <label id={`ruta-${m.key}-et`} htmlFor={`ruta-${m.key}`} className="aih-routing-label">{etiqueta}</label>
-              <Select suelto placeholder={false} id={`ruta-${m.key}`} value={ruta.provider_id || ''} onChange={e => cambiar(m.key, 'provider_id', e.target.value)} className="aih-input">
+              <Select label={etiqueta} placeholder={false} id={`ruta-${m.key}`} value={ruta.provider_id || ''} onChange={e => cambiar(m.key, 'provider_id', e.target.value)}>
                 <option value="">{t('aihub.routing_default')}</option>
                 {providers.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
               </Select>

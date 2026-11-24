@@ -30,7 +30,6 @@ import { useListaDeUsuarios } from '../hooks/useListas'
 
 // ── Estilos compartidos (SkillsPage.css) ─────────────────────────────────────
 const fs = 'ds-input skl-input'
-const ls = 'skl-label'
 
 // ── Tipos de dominio ──────────────────────────────────────────────────────────
 type CatalogSkill = SkillDelCatalogo
@@ -253,8 +252,7 @@ function UserSkillModal({ user, onClose }: { user: DomainUser; onClose: () => vo
         <div className="skl-add__title">{t('skills.anadir_nuevo_skill')}</div>
         <div className="skl-add__grid">
           <div>
-            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className={ls}>{t('skills.skill_req')}</label>
-            <Select suelto placeholder={false} id={`${idCampo}-1`} value={form.skill_id} onChange={e => { campos.limpiar('skill_id'); setForm(f => ({ ...f, skill_id: e.target.value })) }} className={`${fs}${form.skill_id ? ' skl-input--picked' : ''}`}>
+            <Select label={t('skills.skill_req')} placeholder={false} id={`${idCampo}-1`} value={form.skill_id} onChange={e => { campos.limpiar('skill_id'); setForm(f => ({ ...f, skill_id: e.target.value })) }}>
               <option value="">{t('skills.selecciona_un_skill')}</option>
               {CATEGORIES.map(cat => (
                 <optgroup key={cat} label={catLabel(cat)}>
@@ -264,14 +262,12 @@ function UserSkillModal({ user, onClose }: { user: DomainUser; onClose: () => vo
             </Select>{msg('skill_id')}
           </div>
           <div>
-            <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className={ls}>{t('skills.nivel_req')}</label>
-            <Select suelto placeholder={false} id={`${idCampo}-2`} value={form.level} onChange={e => { campos.limpiar('level'); setForm(f => ({ ...f, level: e.target.value })) }} className={fs}>
+            <Select label={t('skills.nivel_req')} placeholder={false} id={`${idCampo}-2`} value={form.level} onChange={e => { campos.limpiar('level'); setForm(f => ({ ...f, level: e.target.value })) }}>
               {LEVELS.map(l => <option key={l} value={l}>{t(LEVEL_CFG[l].label)}</option>)}
             </Select>{msg('level')}
           </div>
           <div>
-            <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className={ls}>{t('skills.anos_exp')}</label>
-            <Input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="number" min="0" max="30" step="0.5" value={form.years_experience} onChange={e => { campos.limpiar('years_experience'); setForm(f => ({ ...f, years_experience: e.target.value })) }} placeholder={t('skills.anos_placeholder')} inputClassName="skl-input" />{msg('years_experience')}
+            <Input label={t('skills.anos_exp')} id={`${idCampo}-3`} type="number" min="0" max="30" step="0.5" value={form.years_experience} onChange={e => { campos.limpiar('years_experience'); setForm(f => ({ ...f, years_experience: e.target.value })) }} placeholder={t('skills.anos_placeholder')} />{msg('years_experience')}
           </div>
         </div>
         <div className="skl-add__row">
@@ -331,8 +327,7 @@ function StaffingSearch() {
           </div>
         </div>
         <div className="u-flex1">
-          <label htmlFor={idNivel} className="skl-eyebrow skl-eyebrow--block">{t('skills.nivel_minimo')}</label>
-          <Select suelto placeholder={false} id={idNivel} value={minLevel} onChange={e => setMinLevel(e.target.value)} className={fs}>
+          <Select label={t('skills.nivel_minimo')} placeholder={false} id={idNivel} value={minLevel} onChange={e => setMinLevel(e.target.value)}>
             {LEVELS.map(l => <option key={l} value={l}>{t(LEVEL_CFG[l].label)}</option>)}
           </Select>
         </div>

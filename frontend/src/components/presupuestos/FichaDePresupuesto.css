@@ -72,7 +72,7 @@
   margin-left: 6px;
   font-size: var(--text-2xs);
   color: var(--accent);
-  border: 1px solid currentColor;
+  border: 1px solid currentcolor;
   border-radius: 4px;
   padding: 0 4px;
 }
@@ -119,15 +119,6 @@
 .fidepr-box-9 {
   cursor: pointer;
 }
-.fidepr-box-10 {
-  flex: 1 1 160px;
-}
-.fidepr-box-11 {
-  flex: 0 1 140px;
-}
-.fidepr-box-12 {
-  flex: 1 1 220px;
-}
 .fidepr-stack-3 {
   display: flex;
   flex-direction: column;
@@ -136,7 +127,7 @@
 }
 
 .fidepr-box-13 {
-  border: 1px solid currentColor;
+  border: 1px solid currentcolor;
   border-radius: 99px;
   padding: 1px 10px;
   font-size: var(--text-xs);

@@ -274,28 +274,20 @@ export default function ContractsAIPage(): JSX.Element {
         {/* Common fields */}
         <div className="cai-fields">
           <div className="u-flex1">
-            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="cai-label">
-              {t('contractsaipage.proyecto_opcional')}
-            </label>
-            <Select suelto placeholder={false} id={`${idCampo}-1`}
+            <Select label={t('contractsaipage.proyecto_opcional')} placeholder={false} id={`${idCampo}-1`}
               value={projectId}
               onChange={e => setProjectId(e.target.value)}
-              className="cai-input"
             >
               <option value="">{t('contractsai.sin_proyecto_ad_hoc')}</option>
               {projects.map((p) => <option key={p.id} value={String(p.id)}>{p.code} — {p.name}</option>)}
             </Select>
           </div>
           <div className="u-flex1">
-            <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="cai-label">
-              {t('contractsaipage.cliente_opcional')}
-            </label>
-            <Input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`}
+            <Input label={t('contractsaipage.cliente_opcional')} id={`${idCampo}-2`}
               type="text"
               value={clientName}
               onChange={e => setClientName(e.target.value)}
               placeholder={t('contractsai.nombre_del_cliente')}
-              inputClassName="cai-input"
             />
           </div>
         </div>

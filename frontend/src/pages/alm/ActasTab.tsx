@@ -18,8 +18,7 @@ export default function ActasTab() {
     <div>
       <div className="almf-filtros">
         <div className="almf-filtro">
-          <label className="alm-label" htmlFor="alma-est">{t('alm.status')}</label>
-          <Select suelto placeholder={false} id="alma-est" className="alm-input" value={estado} onChange={e => setEstado(e.target.value)}>
+          <Select label={t('alm.status')} placeholder={false} id="alma-est" value={estado} onChange={e => setEstado(e.target.value)}>
             <option value="pending_signature">{t('alm.st_pending_signature')}</option>
             <option value="signed">{t('alm.st_signed')}</option>
             <option value="unsigned">{t('alm.st_unsigned')}</option>

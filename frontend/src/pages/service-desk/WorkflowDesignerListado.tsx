@@ -7,7 +7,7 @@ import { useToast } from '../../context/ToastContext'
 import { Buscador, Button, Spinner, StatusBadge, Modal, EmptyState, Pulsable, Select, Input, Textarea } from '../../components/ui'
 import { useAppLang } from '../../i18n/AppLangContext'
 import { extractErr } from '../../utils/helpers'
-import { type Blueprint, type ErrorDeFlujo, PROCESOS, type PlantillaFlujo, labelStyle, mensajeDelDetalle, nombreDeNodo, nombreDeProceso } from './WorkflowDesignerComun'
+import { type Blueprint, type ErrorDeFlujo, PROCESOS, type PlantillaFlujo, mensajeDelDetalle, nombreDeNodo, nombreDeProceso } from './WorkflowDesignerComun'
 
 // ── Listado de blueprints ────────────────────────────────────────────────────
 export function BlueprintList({ onOpen, onNew }: { onOpen: (id: string) => void; onNew: () => void }) {
@@ -154,10 +154,7 @@ function CloneBlueprintModal({ bp, onClose, onConfirm }: { bp: { name: string };
   return (
     <Modal open width={480} title={traducir('workflowdesigner.clonar_titulo')} onClose={onClose}>
       <div className="u-stack-12">
-        <div>
-          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className={labelStyle}>{traducir('workflowdesigner.nombre_de_la_copia')}</label>
-          <Input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} autoFocus value={name} onChange={e => setName(e.target.value)} inputClassName="wfd-input" />
-        </div>
+        <Input label={traducir('workflowdesigner.nombre_de_la_copia')} id={`${idCampo}-1`} autoFocus value={name} onChange={e => setName(e.target.value)} />
         <div className="wfd-actions">
           <Button variant="secondary" onClick={onClose}>{traducir('workflowdesigner.cancelar')}</Button>
           <Button onClick={() => onConfirm(name.trim())} disabled={!name.trim()}>{traducir('workflowdesigner.clonar')}</Button>
@@ -212,20 +209,11 @@ export function CreateBlueprintModal({ onClose, onCreated }: { onClose: () => vo
   return (
     <Modal open width={480} title={traducir('workflowdesigner.nuevo_blueprint')} onClose={onClose}>
       <div className="u-stack-12">
-        <div>
-          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className={labelStyle}>{traducir('workflowdesigner.nombre')}</label>
-          <Input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} autoFocus value={name} onChange={e => setName(e.target.value)} placeholder={traducir('workflowdesigner.p_ej_triaje_de_incidentes')} inputClassName="wfd-input" />
-        </div>
-        <div>
-          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className={labelStyle}>{traducir('workflowdesigner.tipo_de_proceso')}</label>
-          <Select suelto placeholder={false} id={`${idCampo}-2`} value={processType} onChange={e => setProcessType(e.target.value)} className="wfd-sel">
+        <Input label={traducir('workflowdesigner.nombre')} id={`${idCampo}-1`} autoFocus value={name} onChange={e => setName(e.target.value)} placeholder={traducir('workflowdesigner.p_ej_triaje_de_incidentes')} />
+        <Select label={traducir('workflowdesigner.tipo_de_proceso')} placeholder={false} id={`${idCampo}-2`} value={processType} onChange={e => setProcessType(e.target.value)}>
             {PROCESOS.map(p => <option key={p} value={p}>{nombreDeProceso(p, traducir)}</option>)}
           </Select>
-        </div>
-        <div>
-          <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className={labelStyle}>{traducir('workflowdesigner.descripcion_opcional')}</label>
-          <Textarea id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} rows={3} value={description} onChange={e => setDescription(e.target.value)} inputClassName="wfd-input" />
-        </div>
+        <Textarea label={traducir('workflowdesigner.descripcion_opcional')} id={`${idCampo}-3`} rows={3} value={description} onChange={e => setDescription(e.target.value)} />
         <div className="wfd-actions">
           <Button variant="secondary" onClick={onClose}>{traducir('workflowdesigner.cancelar')}</Button>
           <Button onClick={() => create.mutate()} disabled={!name.trim()} loading={create.isPending}>

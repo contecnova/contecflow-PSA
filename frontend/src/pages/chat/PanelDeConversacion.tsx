@@ -189,7 +189,8 @@ export function ConversationPane({ onBack, newConvAction, conv, currentUser, _bo
     const handler = (e: Event) => {
       const { conversation_id, payload }: TypingDetail = (e as CustomEvent<TypingDetail>).detail || {}
       if (conversation_id !== conv?.id) return
-      const uid = payload?.user_id
+      // 24-11-2026: también escribe el cliente del portal (llega con `client_user_id`).
+      const uid = payload?.user_id || (payload?.client_user_id ? `client:${payload.client_user_id}` : undefined)
       const active = !!payload?.active
       if (!uid || uid === currentUser?.id) return
       setTypingUsers(prev => {

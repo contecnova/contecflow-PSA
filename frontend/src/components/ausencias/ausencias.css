@@ -37,7 +37,7 @@
 
 /* Formulario con vista previa */
 .aus-formulario { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 16px; }
-@media (max-width: 860px) { .aus-formulario { grid-template-columns: 1fr; } }
+@media (width <= 860px) { .aus-formulario { grid-template-columns: 1fr; } }
 .aus-formulario-datos { display: flex; flex-direction: column; gap: 10px; }
 .aus-tipos { border: 0; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 6px; }
 .aus-previa { background: var(--surface-2); border: 1px solid var(--surface-4); border-radius: var(--radius-md, 10px); padding: 12px; min-width: 0; }
@@ -93,9 +93,8 @@
 .aus-explicacion summary { cursor: pointer; font-size: var(--text-sm); color: var(--accent); }
 
 /* Calendario de equipo */
-.aus-calendario { display: flex; flex-direction: column; gap: 16px; }
+.aus-calendario { display: flex; flex-direction: column; gap: 16px; width: 100%; }
 /* La rejilla es la común del kit (RejillaPersonaDia). */
-.aus-calendario { width: 100%; }
 .aus-titulo-seccion { font-size: var(--text-md); font-weight: 700; color: var(--text-1); margin: 0; }
 
 /* Rev. 180: horario efectivo (celdas de la rejilla) */

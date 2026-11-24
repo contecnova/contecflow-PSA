@@ -169,25 +169,19 @@ function NewDevPlanModal({ subjectId, onClose }: { subjectId?: string; onClose: 
       width={560}>
       <div className="ds-stack">
         <div className="ds-field">
-          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="ds-field__label">{traducir('performancereviews.titulo')}</label>
-          <Input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.title} onChange={e => { campos.limpiar('title'); setForm(f => ({ ...f, title: e.target.value })) }} placeholder={traducir('performancereviews.ej_mejora_comunicacion_2026')} autoFocus />{msg('title')}
+          <Input label={traducir('performancereviews.titulo')} id={`${idCampo}-1`} value={form.title} onChange={e => { campos.limpiar('title'); setForm(f => ({ ...f, title: e.target.value })) }} placeholder={traducir('performancereviews.ej_mejora_comunicacion_2026')} autoFocus />{msg('title')}
         </div>
         <div className="ds-field">
-          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="ds-field__label">{t('pagina_perf.resumen_contexto')}</label>
-          <Textarea id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.summary} onChange={e => { campos.limpiar('summary'); setForm(f => ({ ...f, summary: e.target.value })) }} rows={3} placeholder={traducir('performancereviews.resumen_del_360_y_areas_de_mejora')} inputClassName="perf-input" />{msg('summary')}
+          <Textarea label={t('pagina_perf.resumen_contexto')} id={`${idCampo}-2`} value={form.summary} onChange={e => { campos.limpiar('summary'); setForm(f => ({ ...f, summary: e.target.value })) }} rows={3} placeholder={traducir('performancereviews.resumen_del_360_y_areas_de_mejora')} />{msg('summary')}
         </div>
         <div className="performance-reviews-page-e15">
           <div className="ds-field">
-            <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="ds-field__label">{t('pagina_perf.fecha_objetivo')}</label>
-            <DateInput id={`${idCampo}-3`} value={form.target_date}
-              onChange={e => { campos.limpiar('target_date'); setForm(f => ({ ...f, target_date: e.target.value })) }}
-              className="ds-input" />{msg('target_date')}
+            <DateInput label={t('pagina_perf.fecha_objetivo')} id={`${idCampo}-3`} value={form.target_date}
+              onChange={e => { campos.limpiar('target_date'); setForm(f => ({ ...f, target_date: e.target.value })) }} />{msg('target_date')}
           </div>
           <div className="ds-field">
-            <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="ds-field__label">{traducir('performancereviews.proxima_revision_2')}</label>
-            <DateInput id={`${idCampo}-4`} value={form.next_review_at}
-              onChange={e => { campos.limpiar('next_review_at'); setForm(f => ({ ...f, next_review_at: e.target.value })) }}
-              className="ds-input" />{msg('next_review_at')}
+            <DateInput label={traducir('performancereviews.proxima_revision_2')} id={`${idCampo}-4`} value={form.next_review_at}
+              onChange={e => { campos.limpiar('next_review_at'); setForm(f => ({ ...f, next_review_at: e.target.value })) }} />{msg('next_review_at')}
           </div>
         </div>
         <div className="ds-field" role="group" aria-labelledby={`${idCampo}-objetivos-et`}>

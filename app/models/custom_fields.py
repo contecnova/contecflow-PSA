@@ -20,7 +20,7 @@ class WorkflowState(Base):
     __tablename__ = "workflow_states"
 
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)  # audit #7
     project_id  = Column(String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
     name        = Column(String(100), nullable=False)       # "En revisión QA"
     # Migracion 200: texto de serie por clave de `textos_de_salida` y sus datos;
@@ -45,7 +45,7 @@ class WorkflowTransition(Base):
     __tablename__ = "workflow_transitions"
 
     id              = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)  # audit #7
     project_id      = Column(String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
     from_state_id   = Column(String(36), ForeignKey("workflow_states.id", ondelete="CASCADE"), nullable=False, index=True)
     to_state_id     = Column(String(36), ForeignKey("workflow_states.id", ondelete="CASCADE"), nullable=False, index=True)
@@ -72,7 +72,7 @@ class ProjectCustomField(Base):
     __tablename__ = "project_custom_fields"
 
     id            = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)  # audit #7
     project_id    = Column(String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
     name          = Column(String(100), nullable=False)
     field_key     = Column(String(50), nullable=False)
@@ -89,7 +89,7 @@ class ProjectCustomFieldValue(Base):
     __tablename__ = "project_custom_field_values"
 
     id         = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)  # audit #7
     field_id   = Column(String(36), ForeignKey("project_custom_fields.id", ondelete="CASCADE"), nullable=False, index=True)
     task_id    = Column(String(36), ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False, index=True)
     value      = Column(Text, nullable=True)

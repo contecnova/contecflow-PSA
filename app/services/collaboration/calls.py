@@ -84,6 +84,10 @@ def _llamada_de_la_org(db: Session, call_id: str, org: str) -> CollaborationCall
 def start_call(db: Session, user, *, conversation_id: str, kind: str) -> CollaborationCall:
     """Abre una llamada en una conversación y mete a quien la inicia como anfitrión."""
     assert_conversation_access(db, user, conversation_id)
+    # 24-11-2026 (docs/portal/CHAT_DEL_PORTAL.md): con clientes en la conversación,
+    # solo con `clientes.llamar` y si la empresa tiene activadas llamadas (y vídeo).
+    from app.services.collaboration import portal_chat
+    portal_chat.exigir_llamada_permitida(db, user, conversation_id, kind)
     org = _org(user)
     _exigir_cuota(
         db, org, user.id, ambito="collab.call.start.user",
@@ -112,6 +116,9 @@ def start_call(db: Session, user, *, conversation_id: str, kind: str) -> Collabo
         payload={"conversation_id": conversation_id, "kind": kind},
     )
     db.commit()
+    # El cliente del portal se entera al momento (su aviso de llamada entrante).
+    if portal_chat.conversacion_con_clientes(db, conversation_id):
+        portal_chat._publicar(conversation_id, "call.started", None, {"call_id": call.id, "kind": kind})
     return call
 
 
@@ -203,6 +210,9 @@ def start_recording(db: Session, user, call_id: str) -> str:
     """Marca la llamada como grabada y crea la fila de la grabación."""
     org = _org(user)
     call = _llamada_de_la_org(db, call_id, org)
+    # 24-11-2026: con clientes en la conversación no se graba (docs/portal/CHAT_DEL_PORTAL.md).
+    from app.services.collaboration import portal_chat
+    portal_chat.exigir_sin_grabacion(db, call.conversation_id)
     call.is_recorded = True
     rec = CollaborationRecording(
         organization_id=org, call_id=call_id,

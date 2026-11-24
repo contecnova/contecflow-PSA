@@ -7,7 +7,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { tasksApi, taskDependenciesApi } from '../services/api'
 import { useListaDeProyectos } from '../hooks/useListas'
 import type { DependenciaDeTarea } from '../services/api/tipos-proyectos'
-import { Button, Spinner, EmptyState, Modal, KpiCard, IconButton, Tabs, Pulsable, Select, TablaSimple, useErroresDeCampo, Input, EstadoDeError } from '../components/ui'
+import { Button, Spinner, EmptyState, Modal, KpiCard, IconButton, Tabs, Pulsable, Select, TablaSimple, useErroresDeCampo, Input, EstadoDeError, SelectorDeContexto } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { ArrowLeft, ArrowRight, Check, FolderKanban, GitMerge, List, Network, Plus, Trash2 } from 'lucide-react'
@@ -86,15 +86,13 @@ function DepForm({ projectId, tasks, onClose }: { projectId: string; tasks: Task
       <div className="u-stack-14">
         <div className="u-grid2-12">
           <div>
-            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="dependencies-page-e7">{t('dependencies.from_task')}</label>
-            <Select suelto placeholder={false} id={`${idCampo}-1`} className="dependencies-page-e8" value={form.predecessor_id} onChange={e => set('predecessor_id')(e.target.value)}>
+            <Select label={t('dependencies.from_task')} placeholder={false} id={`${idCampo}-1`} value={form.predecessor_id} onChange={e => set('predecessor_id')(e.target.value)}>
               <option value="">{t('dependencies.select')}</option>
               {tasks.map(tk => <option key={tk.id} value={String(tk.id)}>{tk.title?.slice(0,45)}</option>)}
             </Select>{msg('predecessor_id')}
           </div>
           <div>
-            <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="dependencies-page-e7">{t('dependencies.to_task')}</label>
-            <Select suelto placeholder={false} id={`${idCampo}-2`} className="dependencies-page-e8" value={form.successor_id} onChange={e => set('successor_id')(e.target.value)}>
+            <Select label={t('dependencies.to_task')} placeholder={false} id={`${idCampo}-2`} value={form.successor_id} onChange={e => set('successor_id')(e.target.value)}>
               <option value="">{t('dependencies.select')}</option>
               {tasks.filter(tk => String(tk.id) !== form.predecessor_id).map(tk => (
                 <option key={tk.id} value={String(tk.id)}>{tk.title?.slice(0,45)}</option>))}
@@ -121,8 +119,7 @@ function DepForm({ projectId, tasks, onClose }: { projectId: string; tasks: Task
 
         <div className="u-grid2-12">
           <div>
-            <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="dependencies-page-e7">{t('dependencies.dias_de_lag_retraso')}</label>
-            <Input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="number" value={form.lag_days} min={0} onChange={e => set('lag_days')(+e.target.value)} inputClassName="dependencies-page-e8" />{msg('lag_days')}
+            <Input label={t('dependencies.dias_de_lag_retraso')} id={`${idCampo}-3`} type="number" value={form.lag_days} min={0} onChange={e => set('lag_days')(+e.target.value)} />{msg('lag_days')}
             <div className="u-hint">{t('dependencies.dias_extra_tras_cumplir_la_condicion')}</div>
           </div>
         </div>
@@ -286,13 +283,12 @@ export default function DependenciesPage(): JSX.Element {
           <Button icon={<Plus size={14} />} onClick={() => setShowForm(true)}>{t('dependencies.nueva_dependencia')}</Button>
         ) : undefined} />
 
-      <div className="ds-toolbar deps-filtros">
-        <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="u-sr-only">{t('pagina_deps.proyecto')}</label>
-        <Select suelto placeholder={false} id={`${idCampo}-1`} value={project} onChange={e => setProject(e.target.value)} className="ds-input deps-proyecto">
+      <SelectorDeContexto>
+        <Select label={t('pagina_deps.proyecto')} placeholder={false} id={`${idCampo}-1`} value={project} onChange={e => setProject(e.target.value)}>
           <option value="">{t('dependencies.selecciona_un_proyecto')}</option>
           {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
         </Select>
-      </div>
+      </SelectorDeContexto>
 
       {project && (
         <Tabs

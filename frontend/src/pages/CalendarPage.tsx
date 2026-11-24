@@ -172,8 +172,7 @@ export default function CalendarPage(): JSX.Element {
 
         {/* Filtro por tipo */}
         <div className="u-row-center-8">
-          <label htmlFor={`${idFiltro}-tipo`} className="u-text2-sm">{t('calendar.filter_label')}</label>
-          <Select suelto placeholder={false} id={`${idFiltro}-tipo`} value={filter} onChange={e => setFilter(e.target.value as 'all' | EventType)} className="ds-input cal-filtro">
+          <Select label={t('calendar.filter_label')} placeholder={false} id={`${idFiltro}-tipo`} value={filter} onChange={e => setFilter(e.target.value as 'all' | EventType)}>
             <option value="all">{t('calendar.filter_all')}</option>
             {(Object.keys(EVENT_TYPES) as EventType[]).map(k => <option key={k} value={k}>{t(EVENT_TYPES[k].labelKey)}</option>)}
           </Select>

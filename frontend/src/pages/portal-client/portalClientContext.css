@@ -45,7 +45,7 @@
   display: flex;
   background: var(--surface-0);
   color: var(--text-1);
-  font-family: 'Inter', system-ui, sans-serif;
+  font-family: Inter, system-ui, sans-serif;
 }
 .poclco-stack-1 {
   flex: 1;

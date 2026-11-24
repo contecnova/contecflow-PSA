@@ -35,7 +35,7 @@
 .viqubuwi-grid-2 {
   display: grid;
   gap: 6px;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
 }
 .viqubuwi-box-5 {
@@ -117,9 +117,10 @@
   cursor: pointer;
 }
 .viqubuwi-grid-5 {
-  display: grid;
+  display: flex;
   gap: 6px;
-  grid-template-columns: 1.2fr 1fr 1fr auto;
+  flex-wrap: wrap;
+  align-items: center;
 }
 .viqubuwi-box-13 {
   background: var(--surface-1);
@@ -136,9 +137,10 @@
   cursor: pointer;
 }
 .viqubuwi-grid-6 {
-  display: grid;
+  display: flex;
   gap: 7px;
-  grid-template-columns: 1fr 120px auto;
+  flex-wrap: wrap;
+  align-items: center;
 }
 .viqubuwi-box-15 {
   border: none;
@@ -162,11 +164,8 @@
 /* Pasada de diseño 16-11-2026: nada se corta en una columna estrecha. Los
    selectores encogen (min-width: 0) y la fila de orden y de filtros pasa a
    varias líneas cuando no cabe. */
-.viqubuwi-grid-2 { grid-template-columns: minmax(0, 1fr) auto; }
 .viqubuwi-box-5, .viqubuwi-box-13 { min-width: 0; width: 100%; box-sizing: border-box; text-overflow: ellipsis; }
-.viqubuwi-grid-5 { display: flex; flex-wrap: wrap; align-items: center; }
 .viqubuwi-grid-5 > select, .viqubuwi-grid-5 > input { flex: 1 1 110px; }
-.viqubuwi-grid-6 { display: flex; flex-wrap: wrap; align-items: center; }
 .viqubuwi-grid-6 > select { flex: 1 1 120px; }
 .viqubuwi-del { color: var(--text-3); }
 .viqubuwi-del:hover { color: var(--danger); }

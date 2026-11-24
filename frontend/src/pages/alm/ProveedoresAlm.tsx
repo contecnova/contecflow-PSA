@@ -54,21 +54,20 @@ function VendorModal({ vendor, onClose }: { vendor: Partial<Vendor> | null; onCl
   return (
     <Modal open onClose={onClose} title={isEdit ? t('alm.vendor_modal_edit') : t('alm.vendor_modal_new')} width={640}>
       <div className="u-grid2-14">
-        <div className="u-col-full"><label id={`${idPrefix}-name-et`} htmlFor={`${idPrefix}-name`} className="alm-label">{t('alm.vendor_label_name')} *</label><Input id={`${idPrefix}-name`} aria-labelledby={`${idPrefix}-name-et`} value={form.name} onChange={s('name')} placeholder={t('alm.vendor_placeholder_name')} inputClassName="alm-input" />{msgD('name')}</div>
+        <div className="u-col-full"><Input label={<>{t('alm.vendor_label_name')}*</>} id={`${idPrefix}-name`} value={form.name} onChange={s('name')} placeholder={t('alm.vendor_placeholder_name')} />{msgD('name')}</div>
         <div>
-          <label htmlFor={`${idPrefix}-category`} className="alm-label">{t('alm.vendor_label_category')}</label>
-          <Select suelto placeholder={false} id={`${idPrefix}-category`} value={form.category} onChange={s('category')} className="alm-input">
+          <Select label={t('alm.vendor_label_category')} placeholder={false} id={`${idPrefix}-category`} value={form.category} onChange={s('category')}>
             {Object.keys(VENDOR_CATS).map(k => <option key={k} value={k}>{t(`alm.vendor_cat_${k}`)}</option>)}
           </Select>{msgD('category')}
         </div>
-        <div><label id={`${idPrefix}-country-et`} htmlFor={`${idPrefix}-country`} className="alm-label">{t('alm.vendor_label_country')}</label><Input id={`${idPrefix}-country`} aria-labelledby={`${idPrefix}-country-et`} value={form.country} onChange={s('country')} placeholder={t('alm.ej_espana')} inputClassName="alm-input" />{msgD('country')}</div>
-        <div><label id={`${idPrefix}-website-et`} htmlFor={`${idPrefix}-website`} className="alm-label">{t('alm.vendor_label_web')}</label><Input id={`${idPrefix}-website`} aria-labelledby={`${idPrefix}-website-et`} value={form.website} onChange={s('website')} placeholder={t('alm.vendor_placeholder_web')} inputClassName="alm-input" />{msgD('website')}</div>
-        <div><label id={`${idPrefix}-support-email-et`} htmlFor={`${idPrefix}-support-email`} className="alm-label">{t('alm.vendor_label_support_email')}</label><Input id={`${idPrefix}-support-email`} aria-labelledby={`${idPrefix}-support-email-et`} value={form.support_email} onChange={s('support_email')} inputClassName="alm-input" />{msgD('support_email')}</div>
-        <div><label id={`${idPrefix}-support-phone-et`} htmlFor={`${idPrefix}-support-phone`} className="alm-label">{t('alm.vendor_label_support_phone')}</label><Input id={`${idPrefix}-support-phone`} aria-labelledby={`${idPrefix}-support-phone-et`} value={form.support_phone} onChange={s('support_phone')} inputClassName="alm-input" />{msgD('support_phone')}</div>
-        <div><label id={`${idPrefix}-account-manager-et`} htmlFor={`${idPrefix}-account-manager`} className="alm-label">{t('alm.vendor_label_account_manager')}</label><Input id={`${idPrefix}-account-manager`} aria-labelledby={`${idPrefix}-account-manager-et`} value={form.account_manager} onChange={s('account_manager')} inputClassName="alm-input" />{msgD('account_manager')}</div>
-        <div><label id={`${idPrefix}-account-number-et`} htmlFor={`${idPrefix}-account-number`} className="alm-label">{t('alm.vendor_label_account_number')}</label><Input id={`${idPrefix}-account-number`} aria-labelledby={`${idPrefix}-account-number-et`} value={form.account_number} onChange={s('account_number')} inputClassName="alm-input" />{msgD('account_number')}</div>
-        <div><label id={`${idPrefix}-tax-id-et`} htmlFor={`${idPrefix}-tax-id`} className="alm-label">{t('alm.vendor_label_tax_id')}</label><Input id={`${idPrefix}-tax-id`} aria-labelledby={`${idPrefix}-tax-id-et`} value={form.tax_id} onChange={s('tax_id')} inputClassName="alm-input" />{msgD('tax_id')}</div>
-        <div className="u-col-full"><label id={`${idPrefix}-notes-et`} htmlFor={`${idPrefix}-notes`} className="alm-label">{t('alm.vendor_label_notes')}</label><Textarea id={`${idPrefix}-notes`} aria-labelledby={`${idPrefix}-notes-et`} value={form.notes} onChange={s('notes')} rows={3} inputClassName="alm-input" />{msgD('notes')}</div>
+        <div><Input label={t('alm.vendor_label_country')} id={`${idPrefix}-country`} value={form.country} onChange={s('country')} placeholder={t('alm.ej_espana')} />{msgD('country')}</div>
+        <div><Input label={t('alm.vendor_label_web')} id={`${idPrefix}-website`} value={form.website} onChange={s('website')} placeholder={t('alm.vendor_placeholder_web')} />{msgD('website')}</div>
+        <div><Input label={t('alm.vendor_label_support_email')} id={`${idPrefix}-support-email`} value={form.support_email} onChange={s('support_email')} />{msgD('support_email')}</div>
+        <div><Input label={t('alm.vendor_label_support_phone')} id={`${idPrefix}-support-phone`} value={form.support_phone} onChange={s('support_phone')} />{msgD('support_phone')}</div>
+        <div><Input label={t('alm.vendor_label_account_manager')} id={`${idPrefix}-account-manager`} value={form.account_manager} onChange={s('account_manager')} />{msgD('account_manager')}</div>
+        <div><Input label={t('alm.vendor_label_account_number')} id={`${idPrefix}-account-number`} value={form.account_number} onChange={s('account_number')} />{msgD('account_number')}</div>
+        <div><Input label={t('alm.vendor_label_tax_id')} id={`${idPrefix}-tax-id`} value={form.tax_id} onChange={s('tax_id')} />{msgD('tax_id')}</div>
+        <div className="u-col-full"><Textarea label={t('alm.vendor_label_notes')} id={`${idPrefix}-notes`} value={form.notes} onChange={s('notes')} rows={3} />{msgD('notes')}</div>
       </div>
       <div className="alm-modal-actions">
         <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>

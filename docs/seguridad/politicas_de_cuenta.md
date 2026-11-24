@@ -306,6 +306,37 @@ Enterprise › RGPD.
 
 Pruebas: `tests/test_portal_usuarios_contrasena_y_archivo.py`.
 
+## 3 quater. Portal: varias empresas con el mismo correo (24-11-2026, migración 208)
+
+**Antes.** `client_users.email` era único en toda la base y comparando tal cual: el mismo contacto no podía
+tener acceso al portal de dos empresas, y `Ana@x.com` y `ana@x.com` sí podían convivir. El login buscaba «el
+primero» con ese correo.
+
+**Ahora.**
+
+- Índice único `uq_client_users_org_email` en (`organization_id`, `lower(email)`); `ix_client_users_email`
+  deja de ser único. Alta y edición comprueban el duplicado dentro de la empresa (`email_ya_registrado`).
+- La migración busca duplicados dentro de una misma empresa antes de crear el índice: si los hay, **no borra
+  nada**, los lista con el correo enmascarado (`a***@dominio`) y para.
+- **Login** (`client_portal_service.clientes.client_login`): la empresa sale de la elegida, del código de acceso
+  (`organization_code`, el `slug` de la empresa; en la URL, `/portal?empresa=<código>`) o del host (dominio propio
+  activo con el portal encendido). Sin ella, si la contraseña vale en varias empresas activas, responde
+  `choose_organization` con `{id, name}` **solo de esas** —las empresas donde la contraseña no vale no se revelan— y
+  sin token; el portal vuelve a llamar con `organization_id`. Una empresa elegida donde la contraseña no vale es
+  `credenciales_incorrectas`, igual que una contraseña mala. Un código u host que no casa se ignora.
+- **Auditoría**: `PORTAL_LOGIN_EMPRESA_ELEGIDA` (empresa de la cuenta, IP, agente y
+  `{via: eleccion|codigo|host, cuentas_con_ese_correo, empresas_ofrecidas}`) cuando se elige o cuando el código o
+  el host deciden entre varias cuentas. Sin contraseña ni datos de las otras cuentas (minimización, RGPD art. 5.1.c).
+- **Restablecimiento por empresa**: «¿Olvidaste tu contraseña?» envía un enlace por cada cuenta activa con ese
+  correo (o solo la de la empresa del código o del host). El token es de la cuenta (`sub` = id del usuario del
+  portal), así que restablecer en una empresa no toca las otras; la pantalla nombra la empresa
+  (`organization_name` en `/portal/auth/password/policy`). Misma respuesta exista o no la cuenta.
+- **Aislamiento**: el token del portal sigue siendo de UNA cuenta de UNA empresa; elegir empresa no da acceso a
+  la otra. Las búsquedas por correo del servicio (solicitante de un ticket, contacto del cliente) se acotan a la
+  empresa.
+
+Pruebas: `tests/test_portal_empresa_por_correo.py`.
+
 ## 4. Bloqueo de cuenta
 
 | Ajuste | Defecto | Recomendado |

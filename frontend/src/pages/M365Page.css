@@ -19,7 +19,7 @@
   gap: 12px;
   align-items: end;
 }
-@media (max-width: 640px) {
+@media (width <= 640px) {
   .m365-fila { grid-template-columns: minmax(0, 1fr); }
 }
 
@@ -77,11 +77,6 @@
   font-size: var(--text-sm);
   color: var(--text-3);
   font-variant-numeric: tabular-nums;
-}
-
-.m365-textarea {
-  width: 100%;
-  resize: vertical;
 }
 .m365-color {
   width: 110px;

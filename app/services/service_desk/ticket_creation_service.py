@@ -285,8 +285,14 @@ def _solicitante_externo(db: Session, payload: TicketCreateIn, agente_id: str) -
     correo = (payload.requester_email or "").strip().lower()
     if not correo:
         return {"requester_user_id": agente_id}
-    cliente = db.query(ClientUser).filter(func.lower(ClientUser.email) == correo,
-                                          ClientUser.is_active == True).first()  # noqa: E712
+    q = db.query(ClientUser).filter(func.lower(ClientUser.email) == correo, ClientUser.is_active == True)  # noqa: E712
+    # Migración 208: el correo del portal es único por empresa, no en toda la base;
+    # se busca en la empresa del agente (también si su sesión no filtra).
+    agente = db.get(User, agente_id) if agente_id else None
+    empresa = (db.info or {}).get("organization_id") or getattr(agente, "organization_id", None)
+    if empresa:
+        q = q.filter(ClientUser.organization_id == empresa)
+    cliente = q.first()
     if cliente is not None:
         return {"requester_user_id": None, "requester_client_id": cliente.id}
     usuario = db.query(User).filter(func.lower(User.email) == correo, User.is_active == True).first()  # noqa: E712

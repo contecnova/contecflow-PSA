@@ -8,7 +8,7 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 import { epicsApi } from '../services/api'
 import { useListaDeProyectos } from '../hooks/useListas'
 import type { FlujoAcumulado } from '../services/api/tipos-proyectos'
-import { Button, Spinner, EmptyState, EstadoDeError, KpiCard, SelectorDePeriodo, Select, TablaSimple } from '../components/ui'
+import { Button, Spinner, EmptyState, EstadoDeError, KpiCard, SelectorDePeriodo, Select, TablaSimple, SelectorDeContexto } from '../components/ui'
 import { usePeriodo } from '../hooks/usePeriodo'
 import { SIN_HORA, codigoDeErrorDePeriodo, formatearTramo } from '../utils/periodo'
 import PageHeader from '../components/layout/PageHeader'
@@ -90,22 +90,17 @@ export default function CumulativeFlowPage(): JSX.Element {
       <div className="ds-page">
 
       {/* Filtros */}
-      <div className="cfd-panel">
-        <div className="cfd-controls">
-          <div className="cfd-controls__project">
-            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="cfd-label">{t('cumulative_flow.project')}</label>
-            <Select suelto placeholder={false} id={`${idCampo}-1`} value={project} onChange={e=>setProject(e.target.value)} className="cfd-input">
+      <SelectorDeContexto>
+            <Select label={t('cumulative_flow.project')} placeholder={false} id={`${idCampo}-1`} value={project} onChange={e=>setProject(e.target.value)}>
               <option value="">{t('cumulative_flow.select_project')}</option>
               {projects.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}
             </Select>
-          </div>
-          <div>
-            <span className="cfd-label">{t('cumulative_flow.period')}</span>
+          <div className="ui-field">
+            <span className="uiinde-estiloetiqueta">{t('cumulative_flow.period')}</span>
             <SelectorDePeriodo {...periodo.selector} />
           </div>
-        </div>
-        <div className="cfd-help">{t('cumulative_flow.snapshot_help')}</div>
-      </div>
+      </SelectorDeContexto>
+      <div className="cfd-help">{t('cumulative_flow.snapshot_help')}</div>
 
       {!project && <EmptyState icon={<TrendingUp size={28} />} title={t('cumulative_flow.empty_title')} description={t('cumulative_flow.empty_desc')}/>}
       {project&&isLoading&&<Spinner/>}

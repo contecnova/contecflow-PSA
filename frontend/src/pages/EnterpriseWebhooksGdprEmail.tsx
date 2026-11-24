@@ -81,14 +81,12 @@ export function WebhooksTab({ showCreate, setShowCreate }: AltaProps) {
       {showCreate && (
         <Modal open title={traducir('enterprise.nuevo_webhook_2')} onClose={() => setShowCreate(false)} width={480}>
           <div className="u-stack-14">
-            <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="enterprise-page-e16">{t('pagina_ent.nombre')}</label><Input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.name} onChange={e => setForm(f => ({...f, name:e.target.value}))} inputClassName="enterprise-page-e17" /></div>
-            <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="enterprise-page-e16">{t('pagina_ent.slug_url')}</label><Input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.slug} onChange={e => setForm(f => ({...f, slug:e.target.value.toLowerCase().replace(/\s+/g,'-')}))} placeholder="mi-webhook" inputClassName="enterprise-page-e17" /></div>
-            <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="enterprise-page-e16">{t('pagina_ent.workflow')}</label>
-              <Select suelto placeholder={false} id={`${idCampo}-2`} value={form.workflow_id} onChange={e => setForm(f => ({...f, workflow_id:e.target.value}))} className="enterprise-page-e17">
+            <Input label={t('pagina_ent.nombre')} id={`${idCampo}-1`} value={form.name} onChange={e => setForm(f => ({...f, name:e.target.value}))} />
+            <Input label={t('pagina_ent.slug_url')} id={`${idCampo}-3`} value={form.slug} onChange={e => setForm(f => ({...f, slug:e.target.value.toLowerCase().replace(/\s+/g,'-')}))} placeholder="mi-webhook" />
+            <Select label={t('pagina_ent.workflow')} placeholder={false} id={`${idCampo}-2`} value={form.workflow_id} onChange={e => setForm(f => ({...f, workflow_id:e.target.value}))}>
                 <option value="">{traducir('enterprise.sin_workflow')}</option>
                 {workflows.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
               </Select>
-            </div>
             <div className="ent-card-3">
               {t('pagina_ent.url')}{' '}<code className="ds-codigo">POST {apiUrl(`/webhooks/fire/${form.slug || 'tu-slug'}`)}</code>
             </div>
@@ -187,26 +185,18 @@ export function GDPRTab({ showCreate, setShowCreate }: AltaProps) {
       {showCreate && (
         <Modal open title={traducir('enterprise.nueva_solicitud_rgpd')} onClose={() => setShowCreate(false)} width={480}>
           <div className="u-stack-14">
-            <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="enterprise-page-e16">{t('pagina_ent.tipo')}</label>
-              <Select suelto placeholder={false} id={`${idCampo}-1`} value={form.request_type} onChange={e => setForm(f => ({...f, request_type:e.target.value}))} className="enterprise-page-e17">
+            <Select label={t('pagina_ent.tipo')} placeholder={false} id={`${idCampo}-1`} value={form.request_type} onChange={e => setForm(f => ({...f, request_type:e.target.value}))}>
                 <option value="erasure">{traducir('enterprise.derecho_al_olvido_art_17')}</option>
                 <option value="portability">{t('pagina_ent.portabilidad_art_20')}</option>
                 <option value="access">{t('pagina_ent.acceso_art_15')}</option>
                 <option value="rectification">{traducir('enterprise.rectificacion_art_16')}</option>
               </Select>
-            </div>
-            <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="enterprise-page-e16">{t('pagina_ent.usuario')}</label>
-              <Select suelto placeholder={false} id={`${idCampo}-2`} value={form.subject_user_id} onChange={e => setForm(f => ({...f, subject_user_id:e.target.value}))} className="enterprise-page-e17">
+            <Select label={t('pagina_ent.usuario')} placeholder={false} id={`${idCampo}-2`} value={form.subject_user_id} onChange={e => setForm(f => ({...f, subject_user_id:e.target.value}))}>
                 <option value="">{t('pagina_ent.seleccionar')}</option>
                 {users.map(u => <option key={u.id} value={u.id}>{u.full_name}{esFichaCompleta(u) ? ` — ${u.email}` : ''}</option>)}
               </Select>
-            </div>
-            <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="enterprise-page-e16">{traducir('enterprise.email_si_ya_no_existe')}</label>
-              <Input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.subject_email} onChange={e => setForm(f => ({...f, subject_email:e.target.value}))} inputClassName="enterprise-page-e17" />
-            </div>
-            <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="enterprise-page-e16">{t('pagina_ent.notas')}</label>
-              <Textarea id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.notes} onChange={e => setForm(f => ({...f, notes:e.target.value}))} rows={3} inputClassName="enterprise-page-e4" />
-            </div>
+            <Input label={traducir('enterprise.email_si_ya_no_existe')} id={`${idCampo}-3`} value={form.subject_email} onChange={e => setForm(f => ({...f, subject_email:e.target.value}))} />
+            <Textarea label={t('pagina_ent.notas')} id={`${idCampo}-4`} value={form.notes} onChange={e => setForm(f => ({...f, notes:e.target.value}))} rows={3} />
             <div className="u-actions-10">
               <Button variant="secondary" onClick={() => setShowCreate(false)}>{t('pagina_ent.cancelar')}</Button>
               <Button onClick={() => create(form)} disabled={isPending || (!form.subject_user_id && !form.subject_email)}>{t('pagina_ent.crear')}</Button>
@@ -280,16 +270,14 @@ export function EmailTab({ showSend, setShowSend, showCreate, setShowCreate }: A
       {showSend && (
         <Modal open title={t('pagina_ent.enviar_email_2')} onClose={() => setShowSend(false)} width={500}>
           <div className="u-stack-14">
-            <div><label id={`${idCampo}-et8`} htmlFor={`${idCampo}-8`} className="enterprise-page-e16">{traducir('enterprise.para')}</label><Input id={`${idCampo}-8`} aria-labelledby={`${idCampo}-et8`} value={sendForm.to} onChange={e => setSendForm(f => ({...f, to:e.target.value}))} placeholder={t('pagina_ent.destinatario_empresa_com')} inputClassName="enterprise-page-e17" /></div>
-            <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="enterprise-page-e16">{t('pagina_ent.plantilla_2')}</label>
-              <Select suelto placeholder={false} id={`${idCampo}-1`} value={sendForm.template_id} onChange={e => setSendForm(f => ({...f, template_id:e.target.value}))} className="enterprise-page-e17">
+            <Input label={traducir('enterprise.para')} id={`${idCampo}-8`} value={sendForm.to} onChange={e => setSendForm(f => ({...f, to:e.target.value}))} placeholder={t('pagina_ent.destinatario_empresa_com')} />
+            <Select label={t('pagina_ent.plantilla_2')} placeholder={false} id={`${idCampo}-1`} value={sendForm.template_id} onChange={e => setSendForm(f => ({...f, template_id:e.target.value}))}>
                 <option value="">{traducir('enterprise.sin_plantilla')}</option>
                 {allTpl.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
               </Select>
-            </div>
             {!sendForm.template_id && <>
-              <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="enterprise-page-e16">{t('pagina_ent.asunto')}</label><Input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={sendForm.subject} onChange={e => setSendForm(f => ({...f, subject:e.target.value}))} inputClassName="enterprise-page-e17" /></div>
-              <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="enterprise-page-e16">HTML</label><Textarea id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={sendForm.body_html} onChange={e => setSendForm(f => ({...f, body_html:e.target.value}))} rows={4} inputClassName="enterprise-page-e4" /></div>
+              <Input label={t('pagina_ent.asunto')} id={`${idCampo}-2`} value={sendForm.subject} onChange={e => setSendForm(f => ({...f, subject:e.target.value}))} />
+              <Textarea label="HTML" id={`${idCampo}-3`} value={sendForm.body_html} onChange={e => setSendForm(f => ({...f, body_html:e.target.value}))} rows={4} />
             </>}
             <div className="u-actions-10">
               <Button variant="secondary" onClick={() => setShowSend(false)}>{t('pagina_ent.cancelar')}</Button>
@@ -301,14 +289,12 @@ export function EmailTab({ showSend, setShowSend, showCreate, setShowCreate }: A
       {showCreate && (
         <Modal open title={traducir('enterprise.nueva_plantilla_de_email')} onClose={() => setShowCreate(false)} width={560}>
           <div className="u-stack-14">
-            <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="enterprise-page-e16">{t('pagina_ent.nombre')}</label><Input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={newTpl.name} onChange={e => setNewTpl(f => ({...f, name:e.target.value}))} inputClassName="enterprise-page-e17" /></div>
-            <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="enterprise-page-e16">{t('pagina_ent.asunto_usa')}{' '}{'{{variable}}'})</label><Input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={newTpl.subject} onChange={e => setNewTpl(f => ({...f, subject:e.target.value}))} inputClassName="enterprise-page-e17" /></div>
-            <div><label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} className="enterprise-page-e16">{traducir('enterprise.categoria')}</label>
-              <Select suelto placeholder={false} id={`${idCampo}-6`} value={newTpl.category} onChange={e => setNewTpl(f => ({...f, category:e.target.value}))} className="enterprise-page-e17">
+            <Input label={t('pagina_ent.nombre')} id={`${idCampo}-4`} value={newTpl.name} onChange={e => setNewTpl(f => ({...f, name:e.target.value}))} />
+            <Input label={<>{t('pagina_ent.asunto_usa')}{' '}{'{{variable}}'})</>} id={`${idCampo}-5`} value={newTpl.subject} onChange={e => setNewTpl(f => ({...f, subject:e.target.value}))} />
+            <Select label={traducir('enterprise.categoria')} placeholder={false} id={`${idCampo}-6`} value={newTpl.category} onChange={e => setNewTpl(f => ({...f, category:e.target.value}))}>
                 {['automation','alert','report','invoice'].map((c: string) => <option key={c} value={c}>{t(`pagina_ent.tpl_cat_${c}`)}</option>)}
               </Select>
-            </div>
-            <div><label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} className="enterprise-page-e16">{traducir('enterprise.html_del_cuerpo')}</label><Textarea id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} value={newTpl.body_html} onChange={e => setNewTpl(f => ({...f, body_html:e.target.value}))} rows={5} inputClassName="enterprise-page-e4" /></div>
+            <Textarea label={traducir('enterprise.html_del_cuerpo')} id={`${idCampo}-7`} value={newTpl.body_html} onChange={e => setNewTpl(f => ({...f, body_html:e.target.value}))} rows={5} />
             <div className="u-actions-10">
               <Button variant="secondary" onClick={() => setShowCreate(false)}>{t('pagina_ent.cancelar')}</Button>
               <Button onClick={() => createTpl(newTpl)} disabled={!newTpl.name || !newTpl.subject || !newTpl.body_html}>{t('pagina_ent.crear')}</Button>

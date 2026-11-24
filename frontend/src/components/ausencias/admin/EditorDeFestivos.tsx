@@ -118,37 +118,32 @@ function FormularioDeFestivo({ id, inicial, onCerrar }: { id: string | null; ini
     <Modal open onClose={onCerrar} title={id ? ta('editar_festivo') : ta('nuevo_festivo')}>
       <form className="ausadm-form" onSubmit={e => { e.preventDefault(); if (d.name && d.date) guardar.mutate() }}>
         <div className="ausadm-grid-2">
-          <label className="ausadm-campo-con-etiqueta">
-            <span className="ausadm-etiqueta">{ta('nombre')}</span>
-            <Input aria-label={ta('nombre')} required value={d.name} onChange={e => cambiar({ name: e.target.value })} inputClassName="ausadm-campo" />
+          <div className="ausadm-campo-con-etiqueta">
+            <Input label={ta('nombre')} aria-label={ta('nombre')} required value={d.name} onChange={e => cambiar({ name: e.target.value })} />
             <ErrorDeCampo texto={campos.de('name')} />
-          </label>
-          <label className="ausadm-campo-con-etiqueta">
-            <span className="ausadm-etiqueta">{ta('fecha')}</span>
-            <DateInput aria-label={ta('fecha')} className="ausadm-campo" required value={d.date} onChange={e => cambiar({ date: e.target.value })} />
+          </div>
+          <div className="ausadm-campo-con-etiqueta">
+            <DateInput label={ta('fecha')} aria-label={ta('fecha')} required value={d.date} onChange={e => cambiar({ date: e.target.value })} />
             <ErrorDeCampo texto={campos.de('date')} />
-          </label>
-          <label className="ausadm-campo-con-etiqueta">
-            <span className="ausadm-etiqueta">{ta('tipo_festivo')}</span>
-            <Select suelto className="ausadm-campo" value={d.type} placeholder={false} onChange={e => cambiar({ type: e.target.value })}>
+          </div>
+          <div className="ausadm-campo-con-etiqueta">
+            <Select label={ta('tipo_festivo')} value={d.type} placeholder={false} onChange={e => cambiar({ type: e.target.value })}>
               {TIPOS.map(x => <option key={x} value={x}>{ta(`festivo_${x}`)}</option>)}
             </Select>
             <ErrorDeCampo texto={campos.de('type')} />
-          </label>
-          <label className="ausadm-campo-con-etiqueta">
-            <span className="ausadm-etiqueta">{ta('sede')}</span>
-            <Select suelto className="ausadm-campo" value={d.office_id ?? ''} onChange={e => cambiar({ office_id: e.target.value || null })} placeholder={ta('toda_la_empresa')}>
+          </div>
+          <div className="ausadm-campo-con-etiqueta">
+            <Select label={ta('sede')} value={d.office_id ?? ''} onChange={e => cambiar({ office_id: e.target.value || null })} placeholder={ta('toda_la_empresa')}>
               {oficinas.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
             </Select>
             <ErrorDeCampo texto={campos.de('office_id')} />
-          </label>
+          </div>
         </div>
-        <label className="ausadm-campo-con-etiqueta">
-          <span className="ausadm-etiqueta">{ta('ambito_opcional')}</span>
-          <Input aria-label={ta('ambito_opcional')} value={d.applies_to ?? ''} aria-describedby="ausadm-festivo-ambito" onChange={e => cambiar({ applies_to: e.target.value || null })} inputClassName="ausadm-campo" />
+        <div className="ausadm-campo-con-etiqueta">
+          <Input label={ta('ambito_opcional')} aria-label={ta('ambito_opcional')} value={d.applies_to ?? ''} aria-describedby="ausadm-festivo-ambito" onChange={e => cambiar({ applies_to: e.target.value || null })} />
           <span id="ausadm-festivo-ambito" className="ausadm-ayuda">{ta('festivo_ambito_ayuda')}</span>
           <ErrorDeCampo texto={campos.de('applies_to')} />
-        </label>
+        </div>
         <AvisoDeError error={hayDeCampo(campos) ? null : guardar.error} defecto={ta('error_guardar')} />
         <div className="ausadm-acciones">
           <Button variant="secondary" onClick={onCerrar}>{ta('cancelar')}</Button>

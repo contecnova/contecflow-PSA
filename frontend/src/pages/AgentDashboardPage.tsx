@@ -63,15 +63,12 @@ export default function AgentDashboardPage(): JSX.Element {
       {/* Filters */}
       <div className="ds-card">
         <div className="agd-filters">
-          <div className="ds-field">
-            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="ds-field__label">{t('agent_dashboard.agent')}</label>
-            <Select suelto placeholder={false} id={`${idCampo}-1`} value={agentId} onChange={e => setAgentId(e.target.value)} className="ds-input">
+          <Select label={t('agent_dashboard.agent')} placeholder={false} id={`${idCampo}-1`} value={agentId} onChange={e => setAgentId(e.target.value)}>
               <option value="">{t('agent_dashboard.select_agent')}</option>
               {users.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
             </Select>
-          </div>
           <div className="ds-field">
-            <span className="ds-field__label">{t('agent_dashboard.period')}</span>
+            <span className="uiinde-estiloetiqueta">{t('agent_dashboard.period')}</span>
             <SelectorDePeriodo {...periodo.selector} />
           </div>
         </div>

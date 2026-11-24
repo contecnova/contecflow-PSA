@@ -81,10 +81,7 @@ export function NombresPorIdioma({ valor, onChange }: {
       <legend className="ausadm-etiqueta">{ta('nombre_por_idioma')}</legend>
       <div className="ausadm-grid-3">
         {IDIOMAS.map(l => (
-          <label key={l} className="ausadm-campo-con-etiqueta">
-            <span className="ausadm-ayuda">{ta(`idioma_${l}`)}</span>
-            <Input aria-label={ta(`idioma_${l}`)} value={valor[l] ?? ''} lang={l} onChange={e => onChange({ ...valor, [l]: e.target.value })} inputClassName="ausadm-campo" />
-          </label>
+          <Input key={l} label={ta(`idioma_${l}`)} aria-label={ta(`idioma_${l}`)} value={valor[l] ?? ''} lang={l} onChange={e => onChange({ ...valor, [l]: e.target.value })} />
         ))}
       </div>
     </fieldset>

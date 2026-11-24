@@ -530,7 +530,8 @@ export type ResumenNps = {
   periodo?: Record<string, unknown>
 }
 
-/** Foto de salud (`GET /nps/{id}/health`); los componentes son `null` si no se calcularon. */
+/** Foto de salud (`GET /nps/{id}/health`); un componente `null` = sin datos (su peso se repartió entre los demás).
+ *  `activity_component` = tickets + portal combinados; el desglose va en `note`. */
 export type FotoDeSalud = {
   id: string
   health_score: number
@@ -542,8 +543,8 @@ export type FotoDeSalud = {
   snapshot_at: string | null
 }
 
-/** `POST /nps/{id}/health-compute`. */
-export type FotoDeSaludCreada = Pick<FotoDeSalud, 'id' | 'health_score' | 'snapshot_at'>
+/** `POST /nps/{id}/health-compute`: la foto completa con sus componentes (24-11-2026). */
+export type FotoDeSaludCreada = FotoDeSalud
 
 /** `POST /nps/{id}/responses`. */
 export type RespuestaNpsCreada = {

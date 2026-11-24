@@ -121,12 +121,9 @@ export default function PanelDeLineasBase({ projectId }: { projectId: string }) 
         <div className="plan-card plan-stack">
           <div className="plan-row plan-row--between">
             <h3 className="plan-card__titulo">{t('planificador.comparacion')}</h3>
-            <label className="plan-row plan-muted">
-              {t('planificador.comparar_contra')}
-              <Select suelto className="plan-select" value={comparar.contra} onChange={e => setComparar(c => ({ ...c, contra: e.target.value }))} placeholder={t('planificador.plan_de_hoy')}>
+            <Select label={t('planificador.comparar_contra')} value={comparar.contra} onChange={e => setComparar(c => ({ ...c, contra: e.target.value }))} placeholder={t('planificador.plan_de_hoy')}>
                 {lineas.filter(l => l.id !== comparar.id).map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
               </Select>
-            </label>
           </div>
           {comparando || !cmp ? <Spinner /> : (
             <>

@@ -159,9 +159,8 @@ export function EditarProductoModal({ producto, onClose, onSaved }: { producto: 
     <Input label={etiqueta} inputClassName={mono ? 'u-mono' : undefined} value={d[k]} placeholder={ph} onChange={ev => set(k)(ev.target.value)} />
   )
   const lista = (k: keyof typeof d, etiqueta: string, valores: readonly string[] | undefined, catalogo: string, vacio?: string) => (
-    <label className="sdm-field"><span>{etiqueta}</span>
-      <Select suelto placeholder={false} value={d[k]} onChange={ev => set(k)(ev.target.value)}>
-        <Opciones valores={valores} catalogo={catalogo} todos={vacio} /></Select></label>
+    <Select label={etiqueta} placeholder={false} value={d[k]} onChange={ev => set(k)(ev.target.value)}>
+        <Opciones valores={valores} catalogo={catalogo} todos={vacio} /></Select>
   )
   return (
     <Modal open size="lg" onClose={onClose} title={producto ? t('sw.editar_software') : t('sw.nuevo_software')}>
@@ -182,11 +181,10 @@ export function EditarProductoModal({ producto, onClose, onSaved }: { producto: 
         </div>
         <div className="u-text3-xs">{t('sw.identificadores_ayuda')}</div>
         <div className="sdm-form">
-          <label className="sdm-field"><span>{t('sw.responsable')}</span>
-            <Select suelto placeholder={false} value={d.owner_user_id} onChange={ev => set('owner_user_id')(ev.target.value)}>
+          <Select label={t('sw.responsable')} placeholder={false} value={d.owner_user_id} onChange={ev => set('owner_user_id')(ev.target.value)}>
               <option value="">{t('sw.sin_responsable')}</option>
               {(usuarios.data ?? []).map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
-            </Select></label>
+            </Select>
           {texto('repository_url', t('sw.repositorio'), 'https://')}
         </div>
         <Textarea label={t('sw.descripcion')} rows={3} value={d.description} onChange={ev => set('description')(ev.target.value)} />
@@ -268,7 +266,7 @@ function Versiones({ producto, versiones }: { producto: ProductoSw; versiones: V
               <Input label={t('sw.version')} value={form.version} disabled={!!form.id} onChange={ev => setForm({ ...form, version: ev.target.value })} inputClassName="u-mono" />
               <Input label={t('sw.rama')} value={form.cycle} placeholder="1.24" onChange={ev => setForm({ ...form, cycle: ev.target.value })} inputClassName="u-mono" />
               {(['release_date', 'support_end', 'eol_date', 'extended_support_end'] as const).map(k => (
-                <label key={k} className="sdm-field"><span>{t(`sw.f_${k}`)}</span><DateInput className="ds-input" value={form[k]} onChange={ev => setForm({ ...form, [k]: ev.target.value })} /></label>
+                <DateInput key={k} label={t(`sw.f_${k}`)} value={form[k]} onChange={ev => setForm({ ...form, [k]: ev.target.value })} />
               ))}
             </div>
             <Checkbox checked={form.is_latest} onChange={v => setForm({ ...form, is_latest: v })} label={t('sw.es_la_ultima')} />
@@ -319,16 +317,14 @@ function Composicion({ versiones }: { versiones: VersionSw[] }) {
   return (
     <div className="u-stack-12">
       <div className="sdm-form">
-        <label className="sdm-field"><span>{t('sw.version')}</span>
-          <Select suelto placeholder={false} value={versionId} onChange={ev => setVersionId(ev.target.value)}>
+        <Select label={t('sw.version')} placeholder={false} value={versionId} onChange={ev => setVersionId(ev.target.value)}>
             {versiones.map(v => <option key={v.id} value={v.id}>{v.version}</option>)}
-          </Select></label>
+          </Select>
         {gestiona && <>
-          <label className="sdm-field"><span>{t('sw.formato')}</span>
-            <Select suelto placeholder={false} value={formato} onChange={ev => setFormato(ev.target.value)}>
+          <Select label={t('sw.formato')} placeholder={false} value={formato} onChange={ev => setFormato(ev.target.value)}>
               <option value="">{t('sw.formato_auto')}</option>
               {(meta.data?.sbom_formats ?? []).map(x => <option key={x} value={x}>{x}</option>)}
-            </Select></label>
+            </Select>
           <div className="u-wrap-8 sw-casillas">
             <Checkbox checked={reemplazar} onChange={setReemplazar} label={t('sw.reemplazar')} />
             <BotonFichero multiple accept=".json,.xml,.txt,.lock,.toml,.mod,.sum,.spdx,.cdx,.zip,application/zip" icon={<FileUp size={14} />} loading={importar.isPending} onFicheros={f => importar.mutate(f)}>{t('sw.importar_sbom')}</BotonFichero>
@@ -359,12 +355,10 @@ function Composicion({ versiones }: { versiones: VersionSw[] }) {
               <Input label={t('sw.col_nombre')} value={nuevo.name} onChange={ev => setNuevo({ ...nuevo, name: ev.target.value })} />
               <Input label={t('sw.version')} value={nuevo.component_version} onChange={ev => setNuevo({ ...nuevo, component_version: ev.target.value })} inputClassName="u-mono" />
               <Input label="purl" value={nuevo.purl} placeholder="pkg:npm/lodash@4.17.21" onChange={ev => setNuevo({ ...nuevo, purl: ev.target.value })} inputClassName="u-mono" />
-              <label className="sdm-field"><span>{t('sw.relacion')}</span>
-                <Select suelto placeholder={false} value={nuevo.relation} onChange={ev => setNuevo({ ...nuevo, relation: ev.target.value })}>
-                  <Opciones valores={meta.data?.component_relations} catalogo="rel_comp" /></Select></label>
-              <label className="sdm-field"><span>{t('sw.ambito')}</span>
-                <Select suelto placeholder={false} value={nuevo.scope} onChange={ev => setNuevo({ ...nuevo, scope: ev.target.value })}>
-                  <Opciones valores={meta.data?.scopes} catalogo="ambito" /></Select></label>
+              <Select label={t('sw.relacion')} placeholder={false} value={nuevo.relation} onChange={ev => setNuevo({ ...nuevo, relation: ev.target.value })}>
+                  <Opciones valores={meta.data?.component_relations} catalogo="rel_comp" /></Select>
+              <Select label={t('sw.ambito')} placeholder={false} value={nuevo.scope} onChange={ev => setNuevo({ ...nuevo, scope: ev.target.value })}>
+                  <Opciones valores={meta.data?.scopes} catalogo="ambito" /></Select>
               <Input label={t('sw.licencia_spdx')} value={nuevo.license_spdx} onChange={ev => setNuevo({ ...nuevo, license_spdx: ev.target.value })} inputClassName="u-mono" />
             </div>
             <Checkbox checked={nuevo.direct} onChange={v => setNuevo({ ...nuevo, direct: v })} label={t('sw.dependencia_directa')} />
@@ -477,38 +471,32 @@ export function InstanciaModal({ inicial, productId, ciId, onClose, onSaved }: {
         {pestana === 'datos' && <>
           <div className="sdm-form">
             {!productId && !inicial && (
-              <label className="sdm-field"><span>{t('sw.software')}</span>
-                <Select suelto placeholder={false} value={d.product_id} onChange={ev => set('product_id')(ev.target.value)}>
+              <Select label={t('sw.software')} placeholder={false} value={d.product_id} onChange={ev => set('product_id')(ev.target.value)}>
                   <option value="">{t('sw.elige_software')}</option>
                   {(productos.data?.items ?? []).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                </Select></label>
+                </Select>
             )}
-            <label className="sdm-field"><span>{t('sw.maquina')}</span>
-              <Select suelto placeholder={false} value={d.ci_id} onChange={ev => set('ci_id')(ev.target.value)}>
+            <Select label={t('sw.maquina')} placeholder={false} value={d.ci_id} onChange={ev => set('ci_id')(ev.target.value)}>
                 <option value="">{t('sw.sin_maquina')}</option>
                 {(cis.data ?? []).map(c => <option key={c.id} value={c.id}>{c.code ? `${c.code} · ` : ''}{c.name}{c.ip_address ? ` (${c.ip_address})` : ''}</option>)}
-              </Select></label>
-            <label className="sdm-field"><span>{t('sw.version')}</span>
-              <Input list="sw-versiones" value={d.version} onChange={ev => set('version')(ev.target.value)} inputClassName="u-mono" />
-              <datalist id="sw-versiones">{(versiones.data?.versions ?? []).map(v => <option key={v.id} value={v.version} />)}</datalist></label>
+              </Select>
+            <div className="sdm-field">
+              <Input label={t('sw.version')} list="sw-versiones" value={d.version} onChange={ev => set('version')(ev.target.value)} inputClassName="u-mono" />
+              <datalist id="sw-versiones">{(versiones.data?.versions ?? []).map(v => <option key={v.id} value={v.version} />)}</datalist></div>
             <Input label={t('sw.col_nombre')} value={d.name} placeholder={t('sw.nombre_instancia_ph')} onChange={ev => set('name')(ev.target.value)} />
-            <label className="sdm-field"><span>{t('sw.entorno')}</span>
-              <Select suelto placeholder={false} value={d.environment} onChange={ev => set('environment')(ev.target.value)}><Opciones valores={meta.data?.environments} catalogo="entorno" /></Select></label>
-            <label className="sdm-field"><span>{t('sw.estado')}</span>
-              <Select suelto placeholder={false} value={d.status} onChange={ev => set('status')(ev.target.value)}><Opciones valores={meta.data?.instance_statuses} catalogo="est_inst" /></Select></label>
-            <label className="sdm-field"><span>{t('sw.exposicion')}</span>
-              <Select suelto placeholder={false} value={d.exposure} onChange={ev => set('exposure')(ev.target.value)}><Opciones valores={meta.data?.exposures} catalogo="expo" /></Select></label>
+            <Select label={t('sw.entorno')} placeholder={false} value={d.environment} onChange={ev => set('environment')(ev.target.value)}><Opciones valores={meta.data?.environments} catalogo="entorno" /></Select>
+            <Select label={t('sw.estado')} placeholder={false} value={d.status} onChange={ev => set('status')(ev.target.value)}><Opciones valores={meta.data?.instance_statuses} catalogo="est_inst" /></Select>
+            <Select label={t('sw.exposicion')} placeholder={false} value={d.exposure} onChange={ev => set('exposure')(ev.target.value)}><Opciones valores={meta.data?.exposures} catalogo="expo" /></Select>
             <Input label={t('sw.puertos')} value={d.ports} placeholder="80, 443" onChange={ev => set('ports')(ev.target.value)} inputClassName="u-mono" />
             <Input label={t('sw.ruta_instalacion')} value={d.install_path} onChange={ev => set('install_path')(ev.target.value)} inputClassName="u-mono" />
             <Input label={t('sw.ruta_configuracion')} value={d.config_path} placeholder="/etc/nginx/nginx.conf" onChange={ev => set('config_path')(ev.target.value)} inputClassName="u-mono" />
           </div>
           <div className="ds-eyebrow">{t('sw.configuracion')}</div>
           <div className="sdm-form">
-            <label className="sdm-field"><span>{t('sw.formato_config')}</span>
-              <Select suelto placeholder={false} value={d.config_format} onChange={ev => set('config_format')(ev.target.value)}>
+            <Select label={t('sw.formato_config')} placeholder={false} value={d.config_format} onChange={ev => set('config_format')(ev.target.value)}>
                 <option value="">{t('sw.formato_auto')}</option>
                 {(meta.data?.config_formats ?? []).map(x => <option key={x} value={x}>{e('formato_cfg', x)}</option>)}
-              </Select></label>
+              </Select>
           </div>
           <Textarea label={t('sw.config_texto')} rows={8} value={d.config_text} placeholder={t('sw.config_texto_ph')} onChange={ev => set('config_text')(ev.target.value)} inputClassName="u-mono" />
           <div className="u-text3-xs">{t('sw.config_ayuda')}</div>
@@ -572,10 +560,8 @@ function RelacionesDeInstancia({ instancia, relaciones, onCambio, cis }: { insta
         ))}</ul>
       )}
       <div className="sdm-form">
-        <label className="sdm-field"><span>{t('sw.relacion')}</span>
-          <Select suelto placeholder={false} value={tipo} onChange={ev => setTipo(ev.target.value)}><Opciones valores={meta.data?.relations} catalogo="rel" /></Select></label>
-        <label className="sdm-field"><span>{t('sw.destino')}</span>
-          <Select suelto placeholder={false} value={destino} onChange={ev => setDestino(ev.target.value)}>
+        <Select label={t('sw.relacion')} placeholder={false} value={tipo} onChange={ev => setTipo(ev.target.value)}><Opciones valores={meta.data?.relations} catalogo="rel" /></Select>
+        <Select label={t('sw.destino')} placeholder={false} value={destino} onChange={ev => setDestino(ev.target.value)}>
             <option value="">{t('sw.elige_destino')}</option>
             <optgroup label={t('sw.instancias')}>
               {(otras.data ?? []).filter(i => i.id !== instancia.id).map(i => <option key={i.id} value={`ins:${i.id}`}>{nombreInst(i.id)}</option>)}
@@ -583,7 +569,7 @@ function RelacionesDeInstancia({ instancia, relaciones, onCambio, cis }: { insta
             <optgroup label={t('sw.elementos_cmdb')}>
               {cis.map(c => <option key={c.id} value={`ci:${c.id}`}>{c.name}</option>)}
             </optgroup>
-          </Select></label>
+          </Select>
         <div><Button icon={<Plus size={14} />} disabled={!destino} loading={crear.isPending} onClick={() => crear.mutate()}>{t('sw.anadir_relacion')}</Button></div>
       </div>
     </div>
@@ -634,11 +620,10 @@ function Licencias({ producto, licencias }: { producto: ProductoSw; licencias: {
       )}
       {gestiona && (
         <div className="sdm-form">
-          <label className="sdm-field"><span>{t('sw.vincular_licencia')}</span>
-            <Select suelto placeholder={false} value={elegida} onChange={ev => setElegida(ev.target.value)}>
+          <Select label={t('sw.vincular_licencia')} placeholder={false} value={elegida} onChange={ev => setElegida(ev.target.value)}>
               <option value="">{t('sw.elige_licencia')}</option>
               {(todas.data ?? []).filter(l => !ya.has(l.id)).map(l => <option key={l.id} value={l.id}>{l.name}{l.version ? ` ${l.version}` : ''}</option>)}
-            </Select></label>
+            </Select>
           <div><Button icon={<Link2 size={14} />} disabled={!elegida} loading={vincular.isPending} onClick={() => vincular.mutate()}>{t('sw.vincular')}</Button></div>
         </div>
       )}
@@ -698,9 +683,8 @@ function LineasBase({ producto, lineas }: { producto: ProductoSw; lineas: LineaB
           <div className="u-stack-12">
             <div className="sdm-form">
               <Input label={t('sw.col_nombre')} value={form.name} onChange={ev => setForm({ ...form, name: ev.target.value })} />
-              <label className="sdm-field"><span>{t('sw.entorno')}</span>
-                <Select suelto placeholder={false} value={form.environment} onChange={ev => setForm({ ...form, environment: ev.target.value })}>
-                  <Opciones valores={meta.data?.environments} catalogo="entorno" todos={t('sw.todos')} /></Select></label>
+              <Select label={t('sw.entorno')} placeholder={false} value={form.environment} onChange={ev => setForm({ ...form, environment: ev.target.value })}>
+                  <Opciones valores={meta.data?.environments} catalogo="entorno" todos={t('sw.todos')} /></Select>
             </div>
             <div className="ds-eyebrow">{t('sw.reglas')}</div>
             {form.rules.map((r, i) => (

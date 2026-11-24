@@ -8,7 +8,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { issueTypesApi, customFieldsApi } from '../services/api'
 import { useListaDeProyectos } from '../hooks/useListas'
 import type { CampoPersonalizado, TipoDeIncidencia } from '../services/api/tipos-rendimiento'
-import { Button, Spinner, EmptyState, Modal, Pulsable, Select, TablaSimple, Checkbox, useErroresDeCampo, Input, EstadoDeError } from '../components/ui'
+import { Button, Spinner, EmptyState, Modal, Pulsable, Select, TablaSimple, Checkbox, useErroresDeCampo, Input, EstadoDeError, SelectorDeContexto } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { Pencil, Plus, Tag, Trash2, Wand2 } from 'lucide-react'
@@ -76,24 +76,21 @@ function IssueTypeForm({ projectId, type, customFields, onClose }: { projectId: 
       <div className="u-stack-14">
         <div className="u-grid2-12">
           <div>
-            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="issue-types-page-e9">{t('issue_types.name')}</label>
-            <Input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.name} onChange={e => {
+            <Input label={t('issue_types.name')} id={`${idCampo}-1`} value={form.name} onChange={e => {
               const n = e.target.value
               setForm(f => ({...f, name:n, value: isEdit ? f.value : autoValue(n)}))
-            }} inputClassName="issue-types-page-e10" />{msg('name')}
+            }} />{msg('name')}
           </div>
           <div>
-            <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="issue-types-page-e9">{t('issue_types.value_internal')}</label>
-            <Input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.value} onChange={e => set('value')(e.target.value)} disabled={isEdit} inputClassName="ds-codigo issue-types-page-e1" />{msg('value')}
+            <Input label={t('issue_types.value_internal')} id={`${idCampo}-2`} value={form.value} onChange={e => set('value')(e.target.value)} disabled={isEdit} inputClassName="ds-codigo" />{msg('value')}
           </div>
         </div>
         <div className="ityp-grid">
           <div>
-            <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="issue-types-page-e9">{t('issue_types.icon')}</label>
-            <Input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.icon} onChange={e => set('icon')(e.target.value)} inputClassName="issue-types-page-e2" />{msg('icon')}
+            <Input label={t('issue_types.icon')} id={`${idCampo}-3`} value={form.icon} onChange={e => set('icon')(e.target.value)} />{msg('icon')}
           </div>
           <div>
-            <label className="issue-types-page-e9">{t('issue_types.color')}</label>
+            <label className="uiinde-estiloetiqueta">{t('issue_types.color')}</label>
             <div className="ityp-row">
               {COLORS.map(c => (
                 <Pulsable key={c} aria-label={`${t('issue_types.color')} ${c}`} aria-pressed={form.color===c} onClick={() => set('color')(c)}
@@ -105,8 +102,7 @@ function IssueTypeForm({ projectId, type, customFields, onClose }: { projectId: 
           </div>
         </div>
         <div>
-          <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="issue-types-page-e9">{t('issue_types.description')}</label>
-          <Input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.description} onChange={e => set('description')(e.target.value)} inputClassName="issue-types-page-e10" />{msg('description')}
+          <Input label={t('issue_types.description')} id={`${idCampo}-4`} value={form.description} onChange={e => set('description')(e.target.value)} />{msg('description')}
         </div>
         <label className="u-row-center-8-pointer">
           <Checkbox aria-label={t('issue_types.subtask_checkbox')} checked={form.is_subtask} onChange={(_, e) => set('is_subtask')(e.target.checked)} />
@@ -184,13 +180,12 @@ export default function IssueTypesPage(): JSX.Element {
           <Button icon={<Plus size={14} />} onClick={() => { setEditing(null); setShowForm(true) }}>{t('issue_types.new_type')}</Button>
         ) : undefined} />
 
-      <div className="issue-types-page-e5">
-        <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="issue-types-page-e9">{t('issue_types.project_label')}</label>
-        <Select suelto placeholder={false} id={`${idCampo}-1`} value={project} onChange={e => setProject(e.target.value)} className="issue-types-page-e6">
+      <SelectorDeContexto>
+        <Select label={t('issue_types.project_label')} placeholder={false} id={`${idCampo}-1`} value={project} onChange={e => setProject(e.target.value)}>
           <option value="">{t('issue_types.select_project_option')}</option>
           {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
         </Select>
-      </div>
+      </SelectorDeContexto>
 
       {!project && <EmptyState icon={<Tag size={28} />} title={t('issue_types.select_project_title')} description={t('issue_types.select_project_desc')} />}
       {project && isLoading && <Spinner />}

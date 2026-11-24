@@ -14,7 +14,7 @@
 import { useEffect, useState } from 'react'
 import type { ChangeEvent, FormEvent } from 'react'
 import { KeyRound, Mail } from 'lucide-react'
-import { CLIENT_API, LangContext, TextosDeInterfazDelPortal, useErrorDelPortal, useLang } from './portalClientContext'
+import { CLIENT_API, LangContext, TextosDeInterfazDelPortal, codigoDeAccesoDelPortal, useErrorDelPortal, useLang } from './portalClientContext'
 import { PortalBanner, PortalButton, PortalCard, PortalField, PortalInput, PortalSection } from './PortalUI'
 import { idiomaInicialDelPortal } from '../../i18n/portalTranslations'
 import './CambioDeContrasenaObligatorio.css'
@@ -25,6 +25,8 @@ export interface ReglasDeContrasena {
   PASSWORD_REQUIRE_UPPERCASE: boolean; PASSWORD_REQUIRE_LOWERCASE: boolean
   PASSWORD_REQUIRE_DIGIT: boolean; PASSWORD_REQUIRE_SPECIAL: boolean
   PASSWORD_BLOCK_COMMON: boolean; PASSWORD_BLOCK_PERSONAL: boolean
+  /** Migración 208: la cuenta es de una empresa; la pantalla la nombra. */
+  organization_name?: string | null
 }
 
 /** Primer incumplimiento local de `reglas` (clave de texto), o null. El servidor valida igual. */
@@ -51,7 +53,8 @@ export function OlvideMiContrasena({ onVolver }: { onVolver: () => void }) {
     e.preventDefault()
     setAviso(''); setEnviando(true)
     try {
-      await CLIENT_API.post('/portal/auth/password/forgot', { email: email.trim() })
+      // Migración 208: con código de acceso, solo esa empresa; si no, un enlace por empresa.
+      await CLIENT_API.post('/portal/auth/password/forgot', { email: email.trim(), organization_code: codigoDeAccesoDelPortal() })
       setEnviado(true)
     } catch (err) {
       setAviso(errorDe(err, traducir('portal_recuperar.error')))
@@ -63,7 +66,10 @@ export function OlvideMiContrasena({ onVolver }: { onVolver: () => void }) {
       <h2 className="poclco-box-10">{traducir('portal_recuperar.titulo')}</h2>
       <p className="poclco-box-11">{traducir('portal_recuperar.explicacion')}</p>
       {enviado ? (
-        <PortalBanner tone="success" icon={<Mail size={16} />} title={traducir('portal_recuperar.enviado')} />
+        <>
+          <PortalBanner tone="success" icon={<Mail size={16} />} title={traducir('portal_recuperar.enviado')} />
+          <p className="u-text2-sm">{traducir('portal_recuperar.varias_empresas')}</p>
+        </>
       ) : (
         <>
           <PortalField label={traducir('login_email')} required>
@@ -160,6 +166,9 @@ function NuevaContrasena() {
   return (
     <PortalCard>
       <PortalSection title={traducir('portal_restablecer.titulo')} hint={traducir('portal_restablecer.explicacion')}>
+        {reglas?.organization_name && (
+          <p className="u-text2-sm">{traducir('portal_restablecer.empresa', { empresa: reglas.organization_name })}</p>
+        )}
         {reglas && (
           <div className="u-text2-sm">
             <p>{traducir('portal_restablecer.reglas')}</p>

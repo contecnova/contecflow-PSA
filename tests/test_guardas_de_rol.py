@@ -190,7 +190,13 @@ EXENCIONES_ESPERADAS = {
     # (docs/FLUJO_DE_DEMANDA.md): POST /portal/demand/requests y, sobre una solicitud
     # propia, PATCH, /comments, /decide, /documents, /submit y /withdraw, con la sesión
     # del cliente del portal y acotadas a su cliente (404 si es de otro).
-    "superficie: portal de cliente": 28,  # +1: valorar una respuesta del chat del portal (2026-11)
+    # 43 desde 2026-11-24 (+15, medido con _clasificar e identificadas con el diff de rutas frente a
+    # HEAD): chat del portal completo con la sesión del cliente (docs/portal/CHAT_DEL_PORTAL.md):
+    # en /portal/conversations/{id}/ adjuntos, editar y borrar el propio mensaje, reacción, llamar
+    # (siempre 403 `portal_llamada_solo_operador`), aceptar, rechazar y colgar (8); y en
+    # /portal/collaboration/ adjuntos, editar y borrar el propio mensaje, llamar (siempre 403),
+    # aceptar, rechazar y colgar (7). Todas acotadas al cliente participante (404/403 si no lo es).
+    "superficie: portal de cliente": 43,  # antes 28 (+1: valorar una respuesta del chat del portal, 2026-11)
     # 38 desde 2026-11-02: POST /sd/events/{source} autentica el token de la
     # organizacion y POST /sd/kb/{id}/deflected exige `lector_de_la_kb`
     # (cliente del portal o usuario); el clasificador no reconoce ninguno.

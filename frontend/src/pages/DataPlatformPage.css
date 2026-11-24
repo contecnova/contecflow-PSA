@@ -47,7 +47,7 @@
   box-shadow: 0 0 0 3px var(--accent-glow);
 }
 
-@media (max-width: 900px) {
+@media (width <= 900px) {
   .page-content.dpl-page { padding-left: 14px; padding-right: 14px; }
   .dpl-grid { grid-template-columns: minmax(0, 1fr); }
 }

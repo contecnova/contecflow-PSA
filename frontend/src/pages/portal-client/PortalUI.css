@@ -68,7 +68,7 @@
   text-overflow: ellipsis;
 }
 .portui-box-9 {
-  padding: 12px 12px;
+  padding: 12px;
   border-top: 1px solid var(--surface-4);
 }
 .portui-row-2 {
@@ -194,7 +194,9 @@
 }
 .portui-box-15 {
   flex: 1;
-  padding: 28px 32px 48px;
+  /* Abajo deja sitio a la burbuja flotante del asistente (56 px a 24 px del borde,
+     `.portalai-sx1`): antes tapaba los botones del final de la página (24-11-2026). */
+  padding: 28px 32px 104px;
   overflow-y: auto;
 }
 .portui-box-16 {
@@ -338,7 +340,7 @@
   display: inline-block;
   width: 12px;
   height: 12px;
-  border: 2px solid currentColor;
+  border: 2px solid currentcolor;
   border-top-color: transparent;
   border-radius: 50%;
   animation: portalspin 0.7s linear infinite;

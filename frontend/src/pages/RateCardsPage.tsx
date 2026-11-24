@@ -140,12 +140,10 @@ function EntryForm({ tableId, entry, onClose }: { tableId: string | number; entr
           <Input error={campos.de('escalation_pct')} label={t('tarifas_ui.escalado_anual_pct')} type="number" value={form.escalation_pct} onChange={e => setForm(f=>({...f,escalation_pct:e.target.value}))} />
           <div />
           <div className="ui-field">
-            <label className="uiinde-estiloetiqueta" htmlFor="rc-desde">{t('ratecards.valido_desde')}</label>
-            <DateInput id="rc-desde" value={form.valid_from} onChange={e => setForm(f=>({...f,valid_from:e.target.value}))} className="ds-input" />{msg('valid_from')}
+            <DateInput label={t('ratecards.valido_desde')} id="rc-desde" value={form.valid_from} onChange={e => setForm(f=>({...f,valid_from:e.target.value}))} />{msg('valid_from')}
           </div>
           <div className="ui-field">
-            <label className="uiinde-estiloetiqueta" htmlFor="rc-hasta">{t('ratecards.valido_hasta')}</label>
-            <DateInput id="rc-hasta" value={form.valid_to} onChange={e => setForm(f=>({...f,valid_to:e.target.value}))} className="ds-input" />{msg('valid_to')}
+            <DateInput label={t('ratecards.valido_hasta')} id="rc-hasta" value={form.valid_to} onChange={e => setForm(f=>({...f,valid_to:e.target.value}))} />{msg('valid_to')}
           </div>
           <div className="u-col-full">
             <Input error={campos.de('notes')} label={t('tarifas_ui.notas')} value={form.notes} onChange={e => setForm(f=>({...f,notes:e.target.value}))} placeholder={t('tarifas_ui.notas_internas')} />

@@ -29,7 +29,8 @@ GLOBALES_A_PROPOSITO = {
     ("portal_content_translations", ("content_type", "content_id", "language")): "content_id es el UUID de un aviso o elemento del catalogo, ya de una sola organizacion",
     ("users", ("email",)): "el correo identifica al usuario en el login, sea de la empresa que sea",
     ("users", ("username",)): _IDENTIDAD,
-    ("client_users", ("email",)): "el correo identifica al cliente en el login del portal",
+    # 24-11-2026 (migración 208): fuera ("client_users", ("email",)): el correo del portal pasa a
+    # ser único POR EMPRESA (`uq_client_users_org_email`, organization_id + lower(email)).
     ("api_keys", ("key_digest",)): _IDENTIDAD,
     ("api_keys", ("key_hash",)): _IDENTIDAD,
     ("cmdb_agent_registrations", ("token_hash",)): _IDENTIDAD,

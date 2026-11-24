@@ -1,0 +1,5 @@
+/* SelectorDeContexto: tarjeta con los campos de contexto de la pantalla. Sin anchos propios:
+   el ancho de los desplegables lo da el kit (--ancho-min-desplegable). */
+.ui-contexto { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px; }
+.ui-contexto__campos { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; min-width: 0; }
+.ui-contexto__acciones { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }

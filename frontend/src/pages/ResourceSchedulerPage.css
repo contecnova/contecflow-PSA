@@ -53,8 +53,7 @@
 }
 
 /* 16-11-2026: los campos usan .ds-input; aquí solo el espaciado. */
-.rsch-input,
-.rsch-input-2 {
+.rsch-input {
   margin-bottom: 10px;
 }
 
@@ -424,7 +423,6 @@
 
 /* Accesibilidad: estos campos quitaban el contorno; se devuelve un foco visible. */
 .rsch-input:focus-visible,
-.rsch-input-2:focus-visible,
 .rsch-input-3:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 1px;

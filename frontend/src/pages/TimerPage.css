@@ -44,7 +44,7 @@
 .tm-meta { font-size: var(--text-sm); color: var(--text-3); }
 .tm-controls { display: flex; gap: var(--space-3); flex-wrap: wrap; justify-content: center; }
 
-@media (max-width: 600px) {
+@media (width <= 600px) {
   .tm-clock { font-size: var(--text-3xl); letter-spacing: 1px; }
 }
 

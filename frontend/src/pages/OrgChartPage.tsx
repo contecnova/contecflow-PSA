@@ -143,17 +143,11 @@ function EditPositionModal({ user, allUsers, onClose, onSaved }: {
           </div>
         </div>
 
-        <div className="ds-field">
-          <label htmlFor={`${idCampo}-1`} className="ds-field__label">{t('pagina_orgc.cargo_puesto')}</label>
-          <Input id={`${idCampo}-1`} value={jobTitle} onChange={e => setJobTitle(e.target.value)} placeholder={t('pagina_orgc.ej_desarrollador_senior')} />
-        </div>
-        <div className="ds-field">
-          <label htmlFor={`${idCampo}-2`} className="ds-field__label">{t('pagina_orgc.departamento')}</label>
-          <Select suelto placeholder={false} id={`${idCampo}-2`} value={department} onChange={e => setDepartment(e.target.value)}>
+        <Input label={t('pagina_orgc.cargo_puesto')} id={`${idCampo}-1`} value={jobTitle} onChange={e => setJobTitle(e.target.value)} placeholder={t('pagina_orgc.ej_desarrollador_senior')} />
+        <Select label={t('pagina_orgc.departamento')} placeholder={false} id={`${idCampo}-2`} value={department} onChange={e => setDepartment(e.target.value)}>
             <option value="">{t('orgchart.sin_departamento')}</option>
             {departments.filter(d => d.is_active !== false).map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
           </Select>
-        </div>
         <div className="ds-field">
           <label htmlFor={`${idCampo}-3`} className="ds-field__label">{t('pagina_orgc.reporta_a_aprobador_directo')}</label>
           <div className="orgc-ayuda">

@@ -10,7 +10,6 @@
 }
 
 /* Barra de filtros */
-.mbill-filtros__proyecto { max-width: 420px; }
 .mbill-barra {
   display: flex;
   justify-content: flex-end;

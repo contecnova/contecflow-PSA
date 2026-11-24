@@ -1,12 +1,6 @@
 /* CumulativeFlowPage — flujo acumulado (CFD). Solo tokens de index.css. */
 .cfd-panel { background: var(--surface-2); border: 1px solid var(--surface-4); border-radius: 12px; padding: 20px 24px; }
-.cfd-panel--table { margin-top: 16px; }
-
-.cfd-controls { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
-.cfd-controls__project { flex: 1 1 220px; min-width: 0; }
-
-.cfd-label { display: block; margin-bottom: 5px; font-size: var(--text-xs); font-weight: 600; color: var(--text-2);letter-spacing: 0.07em; }
-.cfd-input { width: 100%; box-sizing: border-box; background: var(--surface-3); border: 1px solid var(--surface-4); border-radius: 8px; padding: 9px 13px; color: var(--text-1); font-size: var(--text-base); font-family: inherit; outline: none; }
+.cfd-panel--table { margin-top: 16px; }  /* arriba: la nota del periodo empujaba el proyecto hacia abajo */
 .cfd-input--days { width: 140px; }
 
 .cfd-help { margin-top: 10px; font-size: var(--text-sm); color: var(--text-3); line-height: 1.6; }

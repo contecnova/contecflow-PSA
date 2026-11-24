@@ -6,7 +6,8 @@ usuarios». El portal no tenía nada; el patrón es el del operador
 de `app/services/seguridad_de_cuentas/restablecimiento.py`:
 
 - `POST /portal/auth/password/forgot`: misma respuesta y tiempo parecido exista o
-  no el correo; límite por (hash del correo, IP) y por minuto; auditado solo si la
+  no el correo; 24-11-2026 (migración 208): un enlace por cada empresa en la que
+  existe la cuenta, o solo el de la empresa del código de acceso o del host; límite por (hash del correo, IP) y por minuto; auditado solo si la
   cuenta existe (`PORTAL_PASSWORD_RESET_REQUEST`), sin guardar lo tecleado si no.
 - `POST /portal/auth/password/policy`: las reglas de la empresa para la pantalla.
 - `POST /portal/auth/password/reset`: token de un solo uso (30 min), política de
@@ -26,6 +27,7 @@ from __future__ import annotations
 
 import logging
 import time
+from typing import Optional
 
 from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel, EmailStr, Field
@@ -51,6 +53,9 @@ _RESPUESTA_GENERICA = {"ok": True, "message": "Si existe una cuenta asociada, se
 
 class OlvidoIn(BaseModel):
     email: EmailStr = Field(..., max_length=254)
+    # Migración 208: código de acceso del portal (`slug` de la empresa); sin él ni
+    # dominio propio, un enlace por cada empresa en la que existe la cuenta.
+    organization_code: Optional[str] = Field(None, max_length=100)
 
 
 class TokenIn(BaseModel):
@@ -95,7 +100,9 @@ def portal_password_forgot(request: Request, payload: OlvidoIn,
         raise error(429, "portal_recuperacion_demasiadas_solicitudes", segundos=ttl)
 
     # Si la cuenta no existe no se apunta nada (RGPD: minimización).
-    _rest.pedir_en_el_portal(db, correo, Origen.de(request))
+    from app.core.network import extract_host
+    _rest.pedir_en_el_portal(db, correo, Origen.de(request), codigo=payload.organization_code,
+                             host=extract_host(request))
     _rest.igualar_tiempo(inicio)
     return APIResponse.ok(data=_RESPUESTA_GENERICA)
 
@@ -110,6 +117,8 @@ def portal_password_policy(request: Request, payload: TokenIn,
     # Mismo mínimo que `validar_del_portal`; el portal no guarda historial.
     campos["MIN_PASSWORD_LENGTH"] = max(int(campos["MIN_PASSWORD_LENGTH"]), int(settings.MIN_PASSWORD_LENGTH))
     campos["PASSWORD_HISTORY_COUNT"] = 0
+    # Migración 208: el restablecimiento es de la cuenta de UNA empresa; la pantalla la nombra.
+    campos["organization_name"] = _rest.nombre_de_empresa(db, cliente.organization_id)
     return APIResponse.ok(data=campos)
 
 

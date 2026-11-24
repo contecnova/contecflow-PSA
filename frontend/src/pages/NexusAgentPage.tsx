@@ -366,8 +366,7 @@ export default function ContecflowAgentPage() {
           <div className="u-stack-16 u-min0">
             {/* Instrucción */}
             <Card>
-              <label htmlFor="nexus-instruccion" className="nexus-etiqueta">{t('nexusagent.instruccion')}</label>
-              <Textarea id="nexus-instruccion" ref={textareaRef} value={instruction} onChange={e => setInstruction(e.target.value)} onKeyDown={handleKey} placeholder={t('nexusagent.ej_resume_el_estado_de_todos_los')} rows={4} inputClassName="nexus-instruccion" />
+              <Textarea label={t('nexusagent.instruccion')} id="nexus-instruccion" ref={textareaRef} value={instruction} onChange={e => setInstruction(e.target.value)} onKeyDown={handleKey} placeholder={t('nexusagent.ej_resume_el_estado_de_todos_los')} rows={4} />
               <div className="nexus-controles">
                 <div className="nexus-opciones">
                   <span className="nexus-pista">{t('nexusagent.enter_para_ejecutar')}</span>

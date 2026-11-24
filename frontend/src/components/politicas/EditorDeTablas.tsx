@@ -90,30 +90,25 @@ function Tabla({ id, onVolver, onCreada }: { id: string | null; onVolver: () => 
           onClick={async () => { if (await confirmar({ title: t('pol.borrar'), danger: true, message: t('pol.borrar_tabla_confirmar') })) borrar.mutate() }}>{t('pol.borrar')}</Button>}
       </div>
       <section className="pol-tarjeta pol-grid-2" aria-label={t('pol.cabecera_de_tabla')}>
-        <label><span className="pol-etiqueta">{t('pol.nombre')}</span>
-          <Input required value={cab.nombre ?? ''} onChange={e => setCab({ ...cab, nombre: e.target.value })} className="pol-campo--ancho" /></label>
-        <label><span className="pol-etiqueta">{t('pol.tipo_de_valor')}</span>
-          <Select suelto className="pol-campo" value={cab.tipo_de_valor} onChange={e => setCab({ ...cab, tipo_de_valor: e.target.value as 'importe' | 'numero' })} placeholder={false}>
+        <Input label={t('pol.nombre')} required value={cab.nombre ?? ''} onChange={e => setCab({ ...cab, nombre: e.target.value })} />
+        <Select label={t('pol.tipo_de_valor')} value={cab.tipo_de_valor} onChange={e => setCab({ ...cab, tipo_de_valor: e.target.value as 'importe' | 'numero' })} placeholder={false}>
             <option value="importe">{t('pol.valor_importe')}</option><option value="numero">{t('pol.valor_numero')}</option>
-          </Select></label>
+          </Select>
         {esImporte && <label><span className="pol-etiqueta">{t('pol.moneda_por_defecto')}</span>
           <SelectorDeMoneda valor={cab.moneda} opciones={opciones} etiqueta={t('pol.moneda_por_defecto')} onChange={m => setCab({ ...cab, moneda: m })} /></label>}
-        <label><span className="pol-etiqueta">{t('pol.dominio')}</span>
-          <Select suelto className="pol-campo" value={cab.dominio ?? ''} onChange={e => setCab({ ...cab, dominio: e.target.value || null })} placeholder={t('pol.todos_los_dominios')}>
+        <Select label={t('pol.dominio')} value={cab.dominio ?? ''} onChange={e => setCab({ ...cab, dominio: e.target.value || null })} placeholder={t('pol.todos_los_dominios')}>
             {(catalogo?.dominios ?? []).map(d => <option key={d.clave} value={d.clave}>{t(`pol.dominio_${d.clave}`)}</option>)}
-          </Select></label>
+          </Select>
         {(() => {
           // Rev. 166: un uso del dominio además de las reglas (gastos: tarifa por km).
           const usos = (catalogo?.dominios ?? []).find(d => d.clave === cab.dominio)?.usos_de_tabla ?? []
           return usos.length > 0 && (
-            <label><span className="pol-etiqueta">{t('pol.uso_de_tabla')}</span>
-              <Select suelto className="pol-campo" aria-label={t('pol.uso_de_tabla')} value={cab.uso ?? ''} onChange={e => setCab({ ...cab, uso: e.target.value || null })} placeholder={t('pol.uso_solo_reglas')}>
+            <Select label={t('pol.uso_de_tabla')} aria-label={t('pol.uso_de_tabla')} value={cab.uso ?? ''} onChange={e => setCab({ ...cab, uso: e.target.value || null })} placeholder={t('pol.uso_solo_reglas')}>
                 {usos.map(u => <option key={u.valor} value={u.valor}>{t(`pol.uso_${cab.dominio}_${u.valor}`, u.etiqueta)}</option>)}
-              </Select></label>
+              </Select>
           )
         })()}
-        <label className="u-col-full"><span className="pol-etiqueta">{t('pol.descripcion')}</span>
-          <Input value={cab.descripcion ?? ''} onChange={e => setCab({ ...cab, descripcion: e.target.value })} className="pol-campo--ancho" /></label>
+        <Input label={t('pol.descripcion')} value={cab.descripcion ?? ''} onChange={e => setCab({ ...cab, descripcion: e.target.value })} />
         <div className="pol-fila-fin u-col-full"><Button icon={<Save size={14} />} loading={guardarCab.isPending} onClick={() => guardarCab.mutate()}>{t('pol.guardar_cabecera')}</Button></div>
       </section>
       {id && (

@@ -1,11 +1,4 @@
 /* Formación y certificaciones. Solo tokens del tema. */
-
-.trn-input { width: 100%; box-sizing: border-box; }
-.trn-label {
-  display: block; margin-bottom: 4px;
-  font-size: var(--text-xs); font-weight: 700; color: var(--text-2);
-  letter-spacing: 0.07em;
-}
 .trn-grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
 
 .trn-alert {

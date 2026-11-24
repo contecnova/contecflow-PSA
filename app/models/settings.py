@@ -199,7 +199,7 @@ class Area(Base):
     """Un área agrupa departamentos (revisión 2026-11): la base de su presupuesto."""
     __tablename__ = "areas"
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     name = Column(String(120), nullable=False)
     description = Column(String(255), nullable=True)
     manager_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
@@ -210,7 +210,7 @@ class Area(Base):
 class Department(Base):
     __tablename__ = "departments"
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)  # audit #7
     area_id = Column(String(36), ForeignKey("areas.id", ondelete="SET NULL"), nullable=True, index=True)
     name = Column(String(100), nullable=False)
     description = Column(String(255), nullable=True)
@@ -222,7 +222,7 @@ class Department(Base):
 class Holiday(Base):
     __tablename__ = "holidays"
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)  # audit #7
     name = Column(String(100), nullable=False)
     date = Column(Date, nullable=False)
     type = Column(String(20), default="public")

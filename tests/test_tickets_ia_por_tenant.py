@@ -294,6 +294,7 @@ def _ejecutar_migracion_093(db):
     return mig
 
 
+@pytest.mark.skip(reason="Migración 208 (24-11-2026): sd_tickets.organization_id es NOT NULL; ya no se puede crear el ticket sin empresa que la 093 venía a rellenar (su relleno lo cubre ahora la 208)")
 def test_la_migracion_093_hereda_la_organizacion_del_creador_y_del_padre(db):
     """Las seis referencias, su orden de preferencia, y lo que NO toca."""
     from app.models.clients import Client
@@ -350,6 +351,7 @@ def test_la_migracion_093_hereda_la_organizacion_del_creador_y_del_padre(db):
     assert hija.organization_id == "MIG-C"
 
 
+@pytest.mark.skip(reason="Migración 208 (24-11-2026): sd_tickets.organization_id es NOT NULL; ya no se puede crear el ticket sin empresa que la 093 venía a rellenar (su relleno lo cubre ahora la 208)")
 def test_la_migracion_093_no_reparte_al_cliente_por_defecto(db):
     """La 076 y la 080 usaban la organización por defecto como respaldo.
 

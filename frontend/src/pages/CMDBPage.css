@@ -76,7 +76,7 @@ textarea.cmdb-input { min-height: 70px; resize: vertical; }
   letter-spacing: 0.06em;
   margin-bottom: 8px;
 }
-.cmdb-section-title--mb10 { margin-bottom: 10px; }
+.cmdb-section-title--mb10 { margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
 .cmdb-divided { border-top: 1px solid var(--surface-4); padding-top: 12px; }
 
 /* Formulario */
@@ -115,7 +115,7 @@ textarea.cmdb-input { min-height: 70px; resize: vertical; }
 }
 .cmdb-log__head { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; flex-wrap: wrap; }
 .cmdb-log__summary { font-size: var(--text-base); color: var(--text-1); }
-.cmdb-log__field { margin-top: 4px; font-size: var(--text-xs); color: var(--text-2); word-break: break-word; }
+.cmdb-log__field { margin-top: 4px; font-size: var(--text-xs); color: var(--text-2); overflow-wrap: anywhere; }
 .cmdb-code { background: var(--surface-3); padding: 1px 5px; border-radius: 4px; }
 
 /* Activos vinculados */
@@ -251,7 +251,7 @@ textarea.cmdb-input { min-height: 70px; resize: vertical; }
 .cmdb-cell { padding: 10px 12px; color: var(--text-2); font-size: var(--text-sm); }
 .cmdb-cell--mono { font-variant-numeric: tabular-nums; }
 
-@media (max-width: 640px) {
+@media (width <= 640px) {
   .cmdb-agent-form { grid-template-columns: 1fr; }
   .cmdb-class-row { grid-template-columns: 1fr 1fr; }
   .cmdb-rel-add__grid { grid-template-columns: 1fr; }
@@ -260,4 +260,3 @@ textarea.cmdb-input { min-height: 70px; resize: vertical; }
 
 /* Pasada de diseño 16-11-2026 */
 .cmdb-ci-ref { display: inline-flex; align-items: center; gap: 4px; }
-.cmdb-section-title--mb10 { display: flex; align-items: center; gap: 6px; }

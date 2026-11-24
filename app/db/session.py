@@ -821,19 +821,11 @@ def _org_del_registro(session, obj):
     tenant lo escondia a todos los demas: una sesion UAT, un documento o una
     encuesta que el cliente nunca veia en el portal.
     """
-    for campo, modelo_ruta in (("project_id", "app.models.project:Project"), ("user_id", "app.models.user:User")):
-        ref = getattr(obj, campo, None) if hasattr(type(obj), campo) else None
-        if not ref:
-            continue
-        modulo, nombre = modelo_ruta.split(":")
-        import importlib
-        modelo = getattr(importlib.import_module(modulo), nombre)
-        with session.no_autoflush:
-            fila = session.get(modelo, ref)
-        org = getattr(fila, "organization_id", None)
-        if org:
-            return org
-    return None
+    # 24-11-2026 (migración 208, `organization_id` obligatorio): cualquier padre
+    # con empresa (proyecto, ticket y usuario primero), y el que esté en memoria
+    # aunque sea nuevo en este mismo flush. Ver `app/db/empresa_obligatoria.py`.
+    from app.db.empresa_obligatoria import empresa_deducida
+    return empresa_deducida(session, obj)
 
 
 def _org_del_superadmin(info) -> Optional[str]:
@@ -846,16 +838,24 @@ def _org_del_superadmin(info) -> Optional[str]:
 def _sellar_organizacion(session) -> None:
     """Pone la organizacion de la sesion en las filas nuevas que no la traigan.
 
-    Sin organizacion en la sesion (superadmin, jobs), la del proyecto o del
-    usuario del propio registro.
+    Sin organizacion en la sesion (superadmin, jobs), la del proyecto, ticket,
+    usuario u otro padre del propio registro.
+
+    24-11-2026 (migración 208): `organization_id` es NOT NULL salvo en
+    `TABLAS_SIN_EMPRESA_PERMITIDA`. Lo que siga sin empresa al final corta el
+    flush con `fila_sin_empresa` y la tabla (`exigir_empresa`).
     """
+    from app.db.empresa_obligatoria import exigir_empresa
     info = getattr(session, "info", {}) or {}
     org_id = info.get("organization_id")
     if org_id is None:
         if info.get("fila_global"):
-            # Quien crea declara que quiere filas globales (organizacion NULL).
+            # Quien crea declara que quiere filas globales (organizacion NULL):
+            # solo valen en las tablas exceptuadas.
+            exigir_empresa(session)
             return
-        for obj in list(session.new):
+        # Dos pasadas: el hijo nuevo hereda del padre nuevo sellado en la primera.
+        for obj in list(session.new) * 2:
             cls = type(obj)
             if getattr(cls, "_tenant_exempt", False) or getattr(cls, "_tenant_filter_include_global", False):
                 continue
@@ -871,6 +871,7 @@ def _sellar_organizacion(session) -> None:
                     obj.organization_id = derivada
             except Exception:
                 logging.getLogger(__name__).debug("sin organizacion derivable en %s", cls.__name__, exc_info=True)
+        exigir_empresa(session)
         return
     for obj in session.new:
         cls = type(obj)
@@ -889,6 +890,7 @@ def _sellar_organizacion(session) -> None:
             logging.getLogger(__name__).debug(
                 "no se pudo sellar la organizacion en %s", cls.__name__,
                 exc_info=True)
+    exigir_empresa(session)
 
 
 if _TENANT_AUTO_STAMP:

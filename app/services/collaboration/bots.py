@@ -517,7 +517,7 @@ def _ai_summarize(text: str) -> Optional[str]:
 # ── Service Desk auto-ticket escalation ──────────────────────────────────────
 def _escalate_to_ticket(db: Session, user, conversation_id: str, query: str, *, force: bool = False, priority: str = "p3_medium") -> dict:
     from app.models.service_desk import Ticket, TicketStatus, TicketType, TicketPriority
-    _org(user)  # authz guard: lanza 403 si el usuario no tiene organización
+    org_id = _org(user)  # authz guard: lanza 403 si el usuario no tiene organización
     title = (query or _t(db, user, "solicitud_desde_chat")).strip()[:120]
     description = query or _t(db, user, "generado_desde_chat")
     # FIX: el modelo Ticket usa ``requester_user_id`` (no ``reporter_user_id``)
@@ -529,10 +529,10 @@ def _escalate_to_ticket(db: Session, user, conversation_id: str, query: str, *, 
         priority=TicketPriority.p3_medium if priority == "p3_medium" else TicketPriority.p2_high,
         status=TicketStatus.new,
         requester_user_id=user.id,
+        # 24-11-2026 (migración 208): la empresa explícita, la activa de quien
+        # escribe (la deducción por `requester_user_id` daría la de su ficha).
+        organization_id=org_id,
     )
-    # NOTA: Ticket no tiene columna organization_id; el scope multi-tenant
-    # viene vía project_id → Project.organization_id. El bot crea tickets
-    # ad-hoc sin project, así que la org se deriva del requester user.
     if hasattr(ticket, "number"):
         # Auditoría 22-11-2026 (A35): `SD-{timestamp % 1e6}` colisionaba; la
         # numeración común de tickets (por empresa y tipo).

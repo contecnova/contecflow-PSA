@@ -51,14 +51,13 @@ textarea.cpp-input { resize: vertical; }
 .cpp-project-code { color: var(--text-1); font-weight: 500; }
 .cpp-grid-2-1 { display: grid; grid-template-columns: 2fr 1fr; gap: 12px; }
 .cpp-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
-@media (max-width: 640px) {
+@media (width <= 640px) {
   .cpp-grid-2-1,
   .cpp-grid-3 { grid-template-columns: 1fr; }
 }
 
 /* ── Cabecera de pestaña ─────────────────────────────────────────────────── */
 .cpp-tab-head { display: flex; justify-content: space-between; margin-bottom: 16px; }
-.cpp-project-select { min-width: 240px; }
 .cpp-tabs { align-self: flex-start; }
 
 /* ── Contactos del portal ────────────────────────────────────────────────── */
@@ -137,7 +136,7 @@ textarea.cpp-input { resize: vertical; }
   background: var(--surface-3);
   border-radius: 8px;
 }
-@media (max-width: 640px) { .cpp-case { grid-template-columns: 1fr 30px; } }
+@media (width <= 640px) { .cpp-case { grid-template-columns: 1fr 30px; } }
 .cpp-case__remove { background: none; border: none; color: var(--danger); cursor: pointer; font-size: var(--text-lg); border-radius: var(--radius-sm); }
 .cpp-case__remove:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .cpp-add-case {

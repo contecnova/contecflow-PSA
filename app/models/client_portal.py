@@ -1,7 +1,7 @@
 """
 Client Portal models – everything needed for the external client-facing portal.
 """
-from sqlalchemy import Column, String, Float, DateTime, ForeignKey, Text, Boolean, Integer, Enum, Date
+from sqlalchemy import Column, String, Float, DateTime, ForeignKey, Text, Boolean, Integer, Enum, Date, Index
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func, false
 import enum
@@ -28,9 +28,15 @@ class ClientUser(Base):
     `project_id` se mantiene como columna legacy/nullable; la relación oficial es via client_user_projects.
     """
     __tablename__ = "client_users"
+    # Migración 208 (24-11-2026): el correo es único POR EMPRESA, sin distinguir
+    # mayúsculas (antes único en toda la base, comparando tal cual). Una misma
+    # persona puede tener acceso al portal de dos empresas; el login le deja
+    # elegir entre las empresas en las que su contraseña vale
+    # (`client_portal_service.clientes.client_login`).
+    # El índice va tras la clase (expresión sobre sus columnas).
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)  # audit #7
     # Empresa cliente (entidad central) — ahora OPCIONAL para compatibilidad
     client_org_id = Column(String(36), ForeignKey("clients.id", ondelete="SET NULL"), nullable=True, index=True)
     # Proyecto principal legacy — nullable (usar `projects` M2M)
@@ -38,7 +44,7 @@ class ClientUser(Base):
 
     # Identity
     full_name = Column(String(255), nullable=False)
-    email = Column(String(255), unique=True, nullable=False, index=True)
+    email = Column(String(255), nullable=False, index=True)  # único por empresa: `uq_client_users_org_email`
     job_title = Column(String(100), nullable=True)
     company = Column(String(255), nullable=True)
     phone = Column(String(50), nullable=True)
@@ -91,10 +97,14 @@ class ClientUser(Base):
         return ids
 
 
+# Migración 208: correo único por empresa, sin distinguir mayúsculas.
+Index("uq_client_users_org_email", ClientUser.organization_id, func.lower(ClientUser.email), unique=True)
+
+
 class ClientSession(Base):
     __tablename__ = "client_sessions"
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)  # audit #7
     client_id = Column(String(36), ForeignKey("client_users.id", ondelete="CASCADE"), nullable=False, index=True)
     token_hash = Column(String(255), nullable=False, index=True)
     expires_at = Column(DateTime(timezone=True), nullable=False)
@@ -126,7 +136,7 @@ class FeatureRequest(Base):
     __tablename__ = "feature_requests"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)  # audit #7
     code = Column(String(20), nullable=False)  # FR-001
     project_id = Column(String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
     client_id = Column(String(36), ForeignKey("client_users.id", ondelete="SET NULL"), nullable=True, index=True)
@@ -178,7 +188,7 @@ class UATSession(Base):
     __tablename__ = "uat_sessions"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)  # audit #7
     code = Column(String(20), nullable=False)  # UAT-001
     project_id = Column(String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
     deliverable_id = Column(String(36), ForeignKey("deliverables.id", ondelete="SET NULL"), nullable=True, index=True)
@@ -219,7 +229,7 @@ class UATTestCase(Base):
     __tablename__ = "uat_test_cases"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)  # audit #7
     session_id = Column(String(36), ForeignKey("uat_sessions.id", ondelete="CASCADE"), nullable=False, index=True)
     title = Column(String(255), nullable=False)
     steps = Column(Text, nullable=True)
@@ -238,7 +248,7 @@ class UATIssue(Base):
     __tablename__ = "uat_issues"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)  # audit #7
     session_id = Column(String(36), ForeignKey("uat_sessions.id", ondelete="CASCADE"), nullable=False, index=True)
     title = Column(String(255), nullable=False)
     description = Column(Text, nullable=False)
@@ -261,7 +271,7 @@ class ClientMessage(Base):
     __tablename__ = "client_messages"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)  # audit #7
     project_id = Column(String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
 
     # Context – message can be linked to different entities
@@ -304,7 +314,7 @@ class ClientSurvey(Base):
     __tablename__ = "client_surveys"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)  # audit #7
     project_id = Column(String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
     client_id = Column(String(36), ForeignKey("client_users.id", ondelete="SET NULL"), nullable=True, index=True)
     milestone_id = Column(String(36), ForeignKey("project_milestones.id", ondelete="SET NULL"), nullable=True, index=True)
@@ -338,7 +348,7 @@ class ClientDocument(Base):
     __tablename__ = "client_documents"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)  # audit #7
     project_id = Column(String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
 
     title = Column(String(255), nullable=False)

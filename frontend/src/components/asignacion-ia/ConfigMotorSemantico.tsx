@@ -23,7 +23,6 @@ import { extractErr } from '../../utils/helpers'
 import '../../pages/SemanticEnginePage.css'
 import { Input } from '../ui'
 
-const fs = 'ds-input sem-input'
 const ls = 'sem-label'
 
 // Textos: claves de i18n del bloque `semanticengine`.
@@ -105,8 +104,7 @@ export default function ConfigMotorSemantico() {
             <div className="sem-h">{traducir('semanticengine.embeddings_y_modelo')}</div>
 
             <div className="u-mb-14">
-              <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className={ls}>{traducir('semanticengine.backend_de_embeddings')}</label>
-              <Select suelto placeholder={false} id={`${idCampo}-1`}
+              <Select label={traducir('semanticengine.backend_de_embeddings')} placeholder={false} id={`${idCampo}-1`}
                 value={backendActual}
                 onChange={e => {
                   const backend = e.target.value
@@ -117,7 +115,6 @@ export default function ConfigMotorSemantico() {
                   }
                   saveConfig({ embeddings_backend: 'tfidf', local_model_name: 'tfidf' })
                 }}
-                className={fs}
                 disabled={savingConfig}
               >
                 {Object.entries(EMBEDDINGS_BACKENDS).map(([key, meta]) => (
@@ -136,7 +133,7 @@ export default function ConfigMotorSemantico() {
             </div>
 
             <div className="u-mb-10">
-              <label id={`${idCampo}-eta463`} htmlFor={`${idCampo}-a463`} className={ls}>{traducir('semanticengine.modelo_hf')}</label>
+              <label id={`${idCampo}-eta463`} htmlFor={`${idCampo}-a463`} className="uiinde-estiloetiqueta">{traducir('semanticengine.modelo_hf')}</label>
               <div className="u-row-8">
                 <Input id={`${idCampo}-a463`} aria-labelledby={`${idCampo}-eta463`} value={hfModelDraft} onChange={e => setHfModelDraft(e.target.value)} placeholder={traducir('semanticengine.modelo_hf_placeholder')} disabled={backendActual !== 'transformer' || savingConfig} className="sem-input--min0" />
                 <Button

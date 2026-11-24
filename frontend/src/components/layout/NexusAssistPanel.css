@@ -84,7 +84,7 @@
   gap: 6px;
   padding: 12px 14px;
   background: var(--surface-2);
-  border-radius: 4px 16px 16px 16px;
+  border-radius: 4px 16px 16px;
   width: fit-content;
   border: .5px solid var(--surface-4);
 }
@@ -302,11 +302,11 @@
   align-items: flex-start;
 }
 .nexus-assist-panel-m6 {
-  border-radius: 16px 16px 4px 16px;
+  border-radius: 16px 16px 4px;
   background: var(--accent-muted);
 }
 .nexus-assist-panel-m7 {
-  border-radius: 4px 16px 16px 16px;
+  border-radius: 4px 16px 16px;
   background: var(--surface-2);
 }
 .nexus-assist-panel-m9 {

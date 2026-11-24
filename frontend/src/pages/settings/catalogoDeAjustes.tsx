@@ -195,6 +195,8 @@ export const SECCIONES_DE_AJUSTES: SeccionDeAjustes[] = [
   // Portal de clientes
   { id: 'public-forms', grupo: 'portal', capacidad: 'portal.formularios', rutaAntigua: '/public-forms', componente: pagina(() => import('../PublicFormsPage')) },
   { id: 'portal-translations', grupo: 'portal', capacidad: ADMIN, envolver: true, componente: pagina(() => import('../../components/traduccion/RevisionDeContenidoDelPortal')) },
+  // 24-11-2026 (docs/portal/CHAT_DEL_PORTAL.md): llamadas, vídeo, adjuntos y plazos del chat del portal (grupo `portal_chat`).
+  { id: 'portal-chat', grupo: 'portal', capacidad: ADMIN, envolver: true, componente: pagina(() => import('../../components/portal/AjustesDelChatDelPortal')) },
 
   // Alertas y métricas
   { id: 'alert-config', grupo: 'alertas', capacidad: ADMIN, componente: seccionDe('AlertConfigSection') },

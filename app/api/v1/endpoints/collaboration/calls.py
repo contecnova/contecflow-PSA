@@ -107,6 +107,9 @@ def transcribe_chunk(
     # La llamada se comprueba ANTES de leer el fichero: no tiene sentido
     # descargar audio de una llamada a la que no se tiene acceso.
     svc.exigir_llamada_accesible(db, current_user, call_id)
+    # 24-11-2026: con clientes del portal no se transcribe (docs/portal/CHAT_DEL_PORTAL.md).
+    from app.services.collaboration import portal_chat
+    portal_chat.exigir_sin_grabacion_de_llamada(db, call_id)
     # Auditoria 2026-11: `def` (threadpool). La transcripcion es un POST de
     # hasta 30 s o un subproceso de whisper: en `async def` paraba el bucle.
     datos = read_upload_within_limit_sync(audio, 25 * 1024 * 1024)

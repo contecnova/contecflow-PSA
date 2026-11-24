@@ -138,28 +138,20 @@ export function WorkflowTemplatesTab() {
       {showCreateScratch && (
         <Modal open title={t('approvals.crear_flujo_desde_cero')} onClose={() => setShowCreateScratch(false)} width={760}>
           <div className="apv-rejilla-2">
-            <div>
-              <label htmlFor={id('scratch-name')} className="apv-label">{t('approvals.nombre')}</label>
-              <Input id={id('scratch-name')} value={scratch.name} onChange={e => setScratch(s => ({ ...s, name: e.target.value }))} placeholder={t('approvals.nombre_ejemplo')} inputClassName="apv-input" />
-            </div>
-            <div>
-              <label htmlFor={id('scratch-entity')} className="apv-label">{t('approvals.entidad')}</label>
-              <Select suelto placeholder={false} id={id('scratch-entity')} value={scratch.entity_type} onChange={e => setScratch(s => ({ ...s, entity_type: e.target.value }))} className="apv-input">
+            <Input label={t('approvals.nombre')} id={id('scratch-name')} value={scratch.name} onChange={e => setScratch(s => ({ ...s, name: e.target.value }))} placeholder={t('approvals.nombre_ejemplo')} />
+            <Select label={t('approvals.entidad')} placeholder={false} id={id('scratch-entity')} value={scratch.entity_type} onChange={e => setScratch(s => ({ ...s, entity_type: e.target.value }))}>
                 {Object.entries(entityLabels(t)).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
               </Select>
-            </div>
             {scratch.entity_type === 'document' && (
               <div className="u-col-full">
-                <label htmlFor={id('scratch-category')} className="apv-label">{t('approvals.categoria_documento_opcional')}</label>
-                <Select suelto placeholder={false} id={id('scratch-category')} value={scratch.document_category} onChange={e => setScratch(s => ({ ...s, document_category: e.target.value }))} className="apv-input">
+                <Select label={t('approvals.categoria_documento_opcional')} placeholder={false} id={id('scratch-category')} value={scratch.document_category} onChange={e => setScratch(s => ({ ...s, document_category: e.target.value }))}>
                   <option value="">{t('approvals.fallback_aplica_a_todos_los_documentos')}</option>
                   {CATEGORIAS_DE_DOCUMENTO.map(c => <option key={c} value={c}>{t(`approvals.doc_cat_${c}`, c)}</option>)}
                 </Select>
               </div>
             )}
             <div className="u-col-full">
-              <label htmlFor={id('scratch-description')} className="apv-label">{t('approvals.description')}</label>
-              <Input id={id('scratch-description')} value={scratch.description} onChange={e => setScratch(s => ({ ...s, description: e.target.value }))} placeholder={t('approvals.descripcion_ejemplo')} inputClassName="apv-input" />
+              <Input label={t('approvals.description')} id={id('scratch-description')} value={scratch.description} onChange={e => setScratch(s => ({ ...s, description: e.target.value }))} placeholder={t('approvals.descripcion_ejemplo')} />
             </div>
             <label htmlFor={id('scratch-default')} className="apv-check apv-check--fila">
               <Checkbox id={id('scratch-default')} checked={scratch.is_default} onChange={(_, e) => setScratch(s => ({ ...s, is_default: e.target.checked }))} />
@@ -176,37 +168,24 @@ export function WorkflowTemplatesTab() {
             {scratch.steps.map((step, idx) => (
               <div key={idx} className="apv-paso-borrador">
                 <div className="apv-paso-borrador__fila">
-                  <div>
-                    <label htmlFor={id(`step-name-${idx}`)} className="apv-label">{t('approvals.paso_n_nombre', { n: idx + 1 })}</label>
-                    <Input id={id(`step-name-${idx}`)} value={step.name} onChange={e => updateScratchStep(idx, 'name', e.target.value)} placeholder={t('approvals.nombre_del_paso')} inputClassName="apv-input" />
-                  </div>
-                  <div>
-                    <label htmlFor={id(`step-type-${idx}`)} className="apv-label">{t('approvals.aprobador')}</label>
-                    <Select suelto placeholder={false} id={id(`step-type-${idx}`)} value={step.approver_type} onChange={e => updateScratchStep(idx, 'approver_type', e.target.value)} className="apv-input">
+                  <Input label={t('approvals.paso_n_nombre', { n: idx + 1 })} id={id(`step-name-${idx}`)} value={step.name} onChange={e => updateScratchStep(idx, 'name', e.target.value)} placeholder={t('approvals.nombre_del_paso')} />
+                  <Select label={t('approvals.aprobador')} placeholder={false} id={id(`step-type-${idx}`)} value={step.approver_type} onChange={e => updateScratchStep(idx, 'approver_type', e.target.value)}>
                       <option value="role">{t('approvals.approver_role')}</option>
                       <option value="manager">{t('approvals.approver_manager')}</option>
                       <option value="any_in_department">{t('approvals.department')}</option>
                     </Select>
-                  </div>
-                  <div>
-                    <label htmlFor={id(`step-timeout-${idx}`)} className="apv-label">{t('approvals.timeout_hours')}</label>
-                    <Input id={id(`step-timeout-${idx}`)} type="number" min="1" value={step.timeout_hours} onChange={e => updateScratchStep(idx, 'timeout_hours', e.target.value)} inputClassName="apv-input" />
-                  </div>
-                  <div>
-                    <label htmlFor={id(`step-ontimeout-${idx}`)} className="apv-label">{t('approvals.on_timeout')}</label>
-                    <Select suelto placeholder={false} id={id(`step-ontimeout-${idx}`)} value={step.on_timeout} onChange={e => updateScratchStep(idx, 'on_timeout', e.target.value)} className="apv-input">
+                  <Input label={t('approvals.timeout_hours')} id={id(`step-timeout-${idx}`)} type="number" min="1" value={step.timeout_hours} onChange={e => updateScratchStep(idx, 'timeout_hours', e.target.value)} />
+                  <Select label={t('approvals.on_timeout')} placeholder={false} id={id(`step-ontimeout-${idx}`)} value={step.on_timeout} onChange={e => updateScratchStep(idx, 'on_timeout', e.target.value)}>
                       <option value="escalate">{t('approvals.timeout_escalate')}</option>
                       <option value="auto_approve">{t('approvals.timeout_auto_approve')}</option>
                       <option value="reject">{t('approvals.timeout_reject')}</option>
                     </Select>
-                  </div>
                   <Button size="sm" variant="ghost" icon={<Trash2 size={14} />} onClick={() => removeScratchStep(idx)} disabled={scratch.steps.length === 1}>{t('approvals.eliminar')}</Button>
                 </div>
 
                 {step.approver_type === 'role' && (
                   <div className="apv-mt-8">
-                    <label htmlFor={id(`step-role-${idx}`)} className="apv-label">{t('approvals.required_role')}</label>
-                    <Select suelto placeholder={false} id={id(`step-role-${idx}`)} value={step.approver_role || ''} onChange={e => updateScratchStep(idx, 'approver_role', e.target.value)} className="apv-input">
+                    <Select label={t('approvals.required_role')} placeholder={false} id={id(`step-role-${idx}`)} value={step.approver_role || ''} onChange={e => updateScratchStep(idx, 'approver_role', e.target.value)}>
                       <option value="">{t('approvals.select_role')}</option>
                       {roles.map(r => <option key={r.id} value={r.id}>{r.etiqueta}</option>)}
                     </Select>
@@ -215,8 +194,7 @@ export function WorkflowTemplatesTab() {
 
                 {step.approver_type === 'any_in_department' && (
                   <div className="apv-mt-8">
-                    <label htmlFor={id(`step-dept-${idx}`)} className="apv-label">{t('approvals.department')}</label>
-                    <Select suelto placeholder={false} id={id(`step-dept-${idx}`)} value={step.approver_department || ''} onChange={e => updateScratchStep(idx, 'approver_department', e.target.value)} className="apv-input">
+                    <Select label={t('approvals.department')} placeholder={false} id={id(`step-dept-${idx}`)} value={step.approver_department || ''} onChange={e => updateScratchStep(idx, 'approver_department', e.target.value)}>
                       <option value="">{t('approvals.sin_departamento')}</option>
                       {depts.filter(d => d.is_active !== false).map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
                     </Select>

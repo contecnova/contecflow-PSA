@@ -11,7 +11,7 @@ import { COLOR } from '../../constants/theme'
 import { sdApprovalsApi, ticketsApi } from '../../services/api'
 import { useAuth } from '../../context/AuthContext'
 import { TICKET_LINK_SEARCH_LIMIT } from '../../constants/pagination'
-import { type Aprobacion, LS, type Sugerencia, colorVar } from './TicketDetailComun'
+import { type Aprobacion, type Sugerencia, colorVar } from './TicketDetailComun'
 
 /** Estado de la aprobación y, para quien la tiene que dar, los botones. */
 export function AprobacionDelTicket({ ticket, yo, rechazando, motivo, setRechazando, setMotivo }: {
@@ -51,8 +51,7 @@ export function AprobacionDelTicket({ ticket, yo, rechazando, motivo, setRechaza
       )}
       {puedeDecidir && rechazando && (
         <div className="u-stack-8">
-          <label htmlFor="apr-motivo" className={LS}>{t('sd_cfg.apr_reason')}</label>
-          <Textarea id="apr-motivo" aria-label={t('sd_cfg.apr_reason')} value={motivo} onChange={e => setMotivo(e.target.value)} rows={3} autoFocus inputClassName="tkd-input" />
+          <Textarea label={t('sd_cfg.apr_reason')} id="apr-motivo" aria-label={t('sd_cfg.apr_reason')} value={motivo} onChange={e => setMotivo(e.target.value)} rows={3} autoFocus />
           <div className="u-row-8">
             <Button variant="secondary" onClick={() => setRechazando(false)}>{t('common.cancel')}</Button>
             <Button disabled={!motivo.trim()} loading={decidir.isPending}

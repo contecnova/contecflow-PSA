@@ -11,6 +11,9 @@
   transition: color 0.12s, background 0.12s, border-color 0.12s;
   white-space: nowrap;
   box-shadow: none;
+  cursor: pointer;
+  color: var(--text-2);
+  background: transparent;
 }
 .uitabs-box-1 {
   font-size: var(--text-2xs);
@@ -19,6 +22,8 @@
   padding: 1px 7px;
   min-width: 16px;
   text-align: center;
+  background: var(--surface-4);
+  color: var(--text-2);
 }
 
 /* Contenedor: con :where() su especificidad es 0, así la clase que pase la
@@ -30,8 +35,6 @@
 }
 :where(.uitabs--pill) { gap: 6px; border-bottom: none; }
 :where(.uitabs--underline) { gap: 0; border-bottom: 1px solid var(--surface-4); }
-
-.uitabs-row-2 { cursor: pointer; color: var(--text-2); background: transparent; }
 .uitabs-row-2:disabled { cursor: not-allowed; opacity: 0.5; }
 .uitabs-row-2--sm { padding: 4px 12px; font-size: var(--text-2xs); }
 .uitabs-row-2--md { padding: 5px 14px; font-size: var(--text-xs); }
@@ -41,8 +44,6 @@
 .uitabs-row-2.is-active { color: var(--accent); }
 .uitabs-row-2--pill.is-active { border-color: var(--accent); background: var(--accent-muted); }
 .uitabs-row-2--underline.is-active { border-bottom-color: var(--accent); }
-
-.uitabs-box-1 { background: var(--surface-4); color: var(--text-2); }
 .is-active > .uitabs-box-1 { background: var(--accent); color: var(--on-accent); }
 
 .uitabs-panel { padding-top: 12px; }

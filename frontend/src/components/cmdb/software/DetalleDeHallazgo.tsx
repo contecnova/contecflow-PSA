@@ -178,16 +178,14 @@ export default function DetalleDeHallazgo({ id, onClose }: { id: string; onClose
               </div>
               {cerrado ? <div className="u-text3-xs">{t('sw.hallazgo_cerrado')}</div> : <>
                 <div className="sdm-form">
-                  <label className="sdm-field"><span>{t('sw.remediar_con')}</span>
-                    <Select suelto placeholder={false} value={remedio} onChange={ev => setRemedio(ev.target.value as Remedio)}>
+                  <Select label={t('sw.remediar_con')} placeholder={false} value={remedio} onChange={ev => setRemedio(ev.target.value as Remedio)}>
                       {REMEDIOS.map(r => <option key={r} value={r}>{e('remedio', r)}</option>)}
-                    </Select></label>
+                    </Select>
                   {remedio === 'task' && (
-                    <label className="sdm-field"><span>{t('sw.proyecto')}</span>
-                      <Select suelto placeholder={false} value={proyecto} onChange={ev => setProyecto(ev.target.value)}>
+                    <Select label={t('sw.proyecto')} placeholder={false} value={proyecto} onChange={ev => setProyecto(ev.target.value)}>
                         <option value="">{t('sw.proyecto_del_software')}</option>
                         {(proyectos.data ?? []).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                      </Select></label>
+                      </Select>
                   )}
                 </div>
                 {remedio === 'change' && (
@@ -210,8 +208,7 @@ export default function DetalleDeHallazgo({ id, onClose }: { id: string; onClose
                 <div className="u-text3-xs">{t('sw.excepcion_ayuda')}</div>
                 <Textarea label={t('sw.motivo')} rows={3} value={motivo} onChange={ev => setMotivo(ev.target.value)} />
                 <Textarea label={t('sw.controles')} rows={3} value={controles} onChange={ev => setControles(ev.target.value)} />
-                <label className="sdm-field"><span>{t('sw.caduca')}</span>
-                  <DateInput className="ds-input" value={caduca} min={enDias(1)} onChange={ev => setCaduca(ev.target.value)} /></label>
+                <DateInput label={t('sw.caduca')} value={caduca} min={enDias(1)} onChange={ev => setCaduca(ev.target.value)} />
                 <div className="u-actions-10">
                   <Button icon={<ShieldAlert size={14} />} disabled={motivo.trim().length < 10 || !caduca} loading={excepcion.isPending} onClick={() => excepcion.mutate()}>{t('sw.pedir_excepcion')}</Button>
                 </div>

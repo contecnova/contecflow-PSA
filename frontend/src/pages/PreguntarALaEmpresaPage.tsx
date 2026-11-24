@@ -293,8 +293,7 @@ function DetalleMetrica({ m }: { m: Metrica }) {
         <div className="pae-sub">{m.description}</div>
       </div>
       <div className="u-wrap-center-8">
-        <label className="pae-sub" htmlFor="ci-dim">{t('ci.desglose')}</label>
-        <Select suelto placeholder={false} className="pae-campo" id="ci-dim" value={dim} onChange={e => setDim(e.target.value)}>
+        <Select label={t('ci.desglose')} placeholder={false} id="ci-dim" value={dim} onChange={e => setDim(e.target.value)}>
           <option value="">{t('ci.sin_desglose')}</option>
           {m.dimensions.map(d => <option key={d} value={d}>{d}</option>)}
         </Select>
@@ -313,11 +312,9 @@ function DetalleMetrica({ m }: { m: Metrica }) {
         <strong className="u-sm">{t('ci.explicar_cambio')}</strong>
         <div className="u-wrap-center-8">
           <Input inputClassName="pae-campo" aria-label={t('ci.columna_fecha')} placeholder={t('ci.columna_fecha')} value={col} onChange={e => setCol(e.target.value)} />
-          <span className="pae-sub">{t('ci.periodo_actual')}</span>
-          <DateInput aria-label={t('ci.periodo_actual')} value={actual.start} onChange={e => setActual(v => ({ ...v, start: e.target.value }))} className="pae-campo" />
+          <DateInput label={t('ci.periodo_actual')} aria-label={t('ci.periodo_actual')} value={actual.start} onChange={e => setActual(v => ({ ...v, start: e.target.value }))} />
           <DateInput aria-label={t('ci.periodo_actual')} value={actual.end} onChange={e => setActual(v => ({ ...v, end: e.target.value }))} className="pae-campo" />
-          <span className="pae-sub">{t('ci.periodo_anterior')}</span>
-          <DateInput aria-label={t('ci.periodo_anterior')} value={anterior.start} onChange={e => setAnterior(v => ({ ...v, start: e.target.value }))} className="pae-campo" />
+          <DateInput label={t('ci.periodo_anterior')} aria-label={t('ci.periodo_anterior')} value={anterior.start} onChange={e => setAnterior(v => ({ ...v, start: e.target.value }))} />
           <DateInput aria-label={t('ci.periodo_anterior')} value={anterior.end} onChange={e => setAnterior(v => ({ ...v, end: e.target.value }))} className="pae-campo" />
           <Button size="sm" variant="secondary" disabled={!col} loading={explicar.isPending} onClick={() => explicar.mutate()}>{t('ci.explicar')}</Button>
         </div>

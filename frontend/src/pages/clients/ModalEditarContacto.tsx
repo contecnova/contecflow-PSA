@@ -46,13 +46,9 @@ export function ModalEditarContacto({ cid, contacto, onClose }: { cid: string; c
   })
 
   const campo = (clave: keyof FormContacto, etiqueta: string, tipo = 'text') => (
-    <div>
-      <label id={`${idCampo}-et-${clave}`} htmlFor={`${idCampo}-${clave}`} className="clpata-lbl">{etiqueta}</label>
-      <Input id={`${idCampo}-${clave}`} aria-labelledby={`${idCampo}-et-${clave}`} type={tipo} value={form[clave]}
+    <Input label={etiqueta} id={`${idCampo}-${clave}`} type={tipo} value={form[clave]}
         error={campos.de(clave)}
-        onChange={e => { campos.limpiar(clave); setForm(f => ({ ...f, [clave]: e.target.value })) }}
-        inputClassName="clpata-inp" />
-    </div>
+        onChange={e => { campos.limpiar(clave); setForm(f => ({ ...f, [clave]: e.target.value })) }} />
   )
 
   return (
@@ -71,8 +67,7 @@ export function ModalEditarContacto({ cid, contacto, onClose }: { cid: string; c
           </div>
         </div>
         <div className="u-mb-16">
-          <label id={`${idCampo}-et-notes`} htmlFor={`${idCampo}-notes`} className="clpata-lbl">{t('clicontactos.notas')}</label>
-          <Textarea id={`${idCampo}-notes`} aria-labelledby={`${idCampo}-et-notes`} value={form.notes} aria-invalid={campos.de('notes') ? true : undefined} onChange={e => { campos.limpiar('notes'); setForm(f => ({ ...f, notes: e.target.value })) }} inputClassName="clpata-inp" />
+          <Textarea label={t('clicontactos.notas')} id={`${idCampo}-notes`} value={form.notes} aria-invalid={campos.de('notes') ? true : undefined} onChange={e => { campos.limpiar('notes'); setForm(f => ({ ...f, notes: e.target.value })) }} />
           {campos.de('notes') && <div className="u-field-error">{campos.de('notes')}</div>}
         </div>
         <div className="u-actions-8">

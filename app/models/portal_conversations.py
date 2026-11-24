@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, Column, DateTime, Enum, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, Column, DateTime, Enum, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import enum
@@ -138,7 +138,7 @@ class PortalConversationParticipant(Base):
     __tablename__ = "portal_conversation_participants"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)  # audit #7
     conversation_id = Column(String(36), ForeignKey("portal_conversations.id", ondelete="CASCADE"), nullable=False, index=True)
     participant_type = Column(Enum(PortalConversationParticipantType), nullable=False, index=True)
     user_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
@@ -184,6 +184,12 @@ class PortalConversationMessage(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     delivered_at = Column(DateTime(timezone=True), nullable=True)
     read_at = Column(DateTime(timezone=True), nullable=True)
+    # Migracion 209 (chat del portal completo, docs/portal/CHAT_DEL_PORTAL.md):
+    # edicion y borrado del propio mensaje con rastro (versiones + auditoria).
+    edited_at = Column(DateTime(timezone=True), nullable=True)
+    deleted_at = Column(DateTime(timezone=True), nullable=True, index=True)
+    deleted_by_user_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    deleted_by_client_id = Column(String(36), ForeignKey("client_users.id", ondelete="SET NULL"), nullable=True, index=True)
 
     conversation = relationship("PortalConversation", back_populates="messages")
     organization = relationship("Organization")
@@ -193,6 +199,10 @@ class PortalConversationMessage(Base):
     sender_client = relationship("ClientUser", foreign_keys=[sender_client_id])
     legacy_message = relationship("ClientMessage", foreign_keys=[legacy_message_id])
     approval_request = relationship("ApprovalRequest", foreign_keys=[approval_request_id])
+    attachments = relationship("PortalConversationAttachment", back_populates="message",
+                               order_by="PortalConversationAttachment.created_at")
+    reactions = relationship("PortalConversationReaction", back_populates="message",
+                             cascade="all, delete-orphan", order_by="PortalConversationReaction.created_at")
 
 
 class PortalConversationAudit(Base):
@@ -214,3 +224,108 @@ class PortalConversationAudit(Base):
     organization = relationship("Organization")
     actor_user = relationship("User", foreign_keys=[actor_user_id])
     actor_client = relationship("ClientUser", foreign_keys=[actor_client_id])
+
+
+# ── Migracion 209: chat del portal completo (docs/portal/CHAT_DEL_PORTAL.md) ──
+
+class PortalConversationMessageVersion(Base):
+    """Rastro de ediciones y borrados: el texto ANTERIOR de cada cambio.
+
+    Lo ve el equipo (no el cliente). Entra en la retencion
+    (`portal_conversation_message_versions`) y en la supresion RGPD.
+    """
+    __tablename__ = "portal_conversation_message_versions"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+    message_id = Column(String(36), ForeignKey("portal_conversation_messages.id", ondelete="CASCADE"), nullable=False, index=True)
+    body = Column(Text, nullable=True)
+    raw_body = Column(Text, nullable=True)
+    change_type = Column(String(10), nullable=False, default="edit")  # edit | delete
+    edited_by_user_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    edited_by_client_id = Column(String(36), ForeignKey("client_users.id", ondelete="SET NULL"), nullable=True, index=True)
+    edited_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
+class PortalConversationAttachment(Base):
+    """Imagen o fichero de un mensaje del chat del portal.
+
+    El fichero vive en el almacen de objetos (`collaboration._storage`), con la
+    clave segmentada por empresa y conversacion. Solo lo descargan los
+    participantes de la conversacion de la misma empresa, por la API (nunca por
+    enlace firmado al portador). Borrar la fila (retencion, cascada) borra el
+    fichero al confirmar; el bloqueo legal impide ambas cosas.
+    """
+    __tablename__ = "portal_conversation_attachments"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+    conversation_id = Column(String(36), ForeignKey("portal_conversations.id", ondelete="CASCADE"), nullable=False, index=True)
+    message_id = Column(String(36), ForeignKey("portal_conversation_messages.id", ondelete="CASCADE"), nullable=True, index=True)
+    uploaded_by_user_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    uploaded_by_client_id = Column(String(36), ForeignKey("client_users.id", ondelete="SET NULL"), nullable=True, index=True)
+    name = Column(String(255), nullable=False)
+    mime_type = Column(String(160), nullable=True)
+    size_bytes = Column(Integer, nullable=False, default=0)
+    storage_provider = Column(String(40), nullable=False, default="local")
+    storage_key = Column(String(800), nullable=False)
+    sha256 = Column(String(64), nullable=True)
+    av_status = Column(String(40), nullable=False, default="pending")
+    dlp_status = Column(String(40), nullable=False, default="pending")
+    is_quarantined = Column(Boolean, nullable=False, default=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False, index=True)
+    deleted_at = Column(DateTime(timezone=True), nullable=True)
+
+    message = relationship("PortalConversationMessage", back_populates="attachments")
+
+
+class PortalConversationReaction(Base):
+    __tablename__ = "portal_conversation_reactions"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+    message_id = Column(String(36), ForeignKey("portal_conversation_messages.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True)
+    client_user_id = Column(String(36), ForeignKey("client_users.id", ondelete="CASCADE"), nullable=True, index=True)
+    emoji = Column(String(32), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    message = relationship("PortalConversationMessage", back_populates="reactions")
+
+    # 24-11-2026: únicos por empresa (organization_id delante), como el resto de tablas con
+    # empresa (tests/test_unicos_por_organizacion.py); el mensaje ya es de una sola empresa.
+    __table_args__ = (
+        UniqueConstraint("organization_id", "message_id", "user_id", "emoji", name="uq_portal_conv_reaction_user"),
+        UniqueConstraint("organization_id", "message_id", "client_user_id", "emoji", name="uq_portal_conv_reaction_client"),
+    )
+
+
+class PortalConversationCall(Base):
+    """Llamada o videollamada del chat del portal.
+
+    SOLO la inicia el equipo: el cliente acepta, rechaza o cuelga, nunca inicia
+    (se impone en el servidor con 403 `portal_llamada_solo_operador`). Estados:
+    ringing, active, declined, missed, ended. No se graban ni se transcriben.
+    """
+    __tablename__ = "portal_conversation_calls"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+    conversation_id = Column(String(36), ForeignKey("portal_conversations.id", ondelete="CASCADE"), nullable=False, index=True)
+    initiated_by_user_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    kind = Column(String(10), nullable=False, default="audio")  # audio | video
+    status = Column(String(20), nullable=False, default="ringing", index=True)
+    livekit_room = Column(String(160), nullable=False)
+    answered_by_client_id = Column(String(36), ForeignKey("client_users.id", ondelete="SET NULL"), nullable=True, index=True)
+    declined_by_client_id = Column(String(36), ForeignKey("client_users.id", ondelete="SET NULL"), nullable=True, index=True)
+    ended_by_user_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    ended_by_client_id = Column(String(36), ForeignKey("client_users.id", ondelete="SET NULL"), nullable=True, index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False, index=True)
+    answered_at = Column(DateTime(timezone=True), nullable=True)
+    ended_at = Column(DateTime(timezone=True), nullable=True)
+    duration_seconds = Column(Integer, nullable=False, default=0)
+
+
+# Ficheros de adjuntos borrados por fila (retención, cascada, supresión): se quitan del
+# almacén DESPUÉS de confirmar. 24-11-2026: los oyentes viven en app/db/portal_chat_borrado.py
+# (un modelo no importa servicios); los registra app/models/__init__.py.

@@ -166,13 +166,10 @@ function AsignarModal({ projectId, datos, onClose }: { projectId: string; datos:
           <Select error={campos.de('parent_id')} label={t('almint.de_la_bolsa')} value={f.parent_id} onChange={e => setF({ ...f, parent_id: e.target.value })}
             options={bolsas.map(b => ({ value: b.id, label: t('almint.bolsa_uso', { usados: b.used_in_pool ?? 0, total: b.quantity }) }))} />}
         <div className="almint-fila">
-          {f.recurso === 'license' && f.holder_type === 'project' && <label className="almint-campo">{t('almint.asientos')}
-            <Input type="number" min={1} value={f.quantity} onChange={e => setF({ ...f, quantity: e.target.value })} />{msg('quantity')}</label>}
-          <label className="almint-campo">{f.recurso === 'asset' ? t('almint.devolver_antes_de') : t('almint.hasta')}
-            <DateInput className="ds-input" value={f.valid_to} onChange={e => setF({ ...f, valid_to: e.target.value })} />{msg('valid_to')}</label>
+          {f.recurso === 'license' && f.holder_type === 'project' && <div className="almint-campo"><Input label={t('almint.asientos')} type="number" min={1} value={f.quantity} onChange={e => setF({ ...f, quantity: e.target.value })} />{msg('quantity')}</div>}
+          <div className="almint-campo"><DateInput label={f.recurso === 'asset' ? t('almint.devolver_antes_de') : t('almint.hasta')} value={f.valid_to} onChange={e => setF({ ...f, valid_to: e.target.value })} />{msg('valid_to')}</div>
         </div>
-        <label className="almint-campo">{t('almint.motivo')}
-          <Textarea rows={2} value={f.reason} onChange={e => setF({ ...f, reason: e.target.value })} />{msg('reason')}</label>
+        <div className="almint-campo"><Textarea label={t('almint.motivo')} rows={2} value={f.reason} onChange={e => setF({ ...f, reason: e.target.value })} />{msg('reason')}</div>
         <div className="almint-acciones almint-acciones--fin">
           <Button variant="ghost" onClick={onClose}>{t('common.cancel')}</Button>
           <Button disabled={!listo} loading={m.isPending} onClick={() => m.mutate()}>{t('almint.asignar')}</Button>

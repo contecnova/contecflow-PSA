@@ -134,6 +134,7 @@ def create_health_snapshot(
         budget_component    = body.budget_component,
         activity_component  = body.activity_component,
         note                = body.note,
+        user                = current_user,
     )
     return APIResponse.ok(data={"id": snap.id, "health_score": snap.health_score, "snapshot_at": snap.snapshot_at})
 
@@ -149,8 +150,10 @@ def auto_compute_health(
     if not nps_service.client_exists(db, client_id):
         raise error_http(404, "no_encontrado", detail="Cliente no encontrado", que="cliente")
 
-    snap = nps_service.compute_and_save_health(db, client_id)
-    return APIResponse.ok(data={"id": snap.id, "health_score": snap.health_score, "snapshot_at": snap.snapshot_at})
+    # Revisión 24-11-2026: el cálculo único (`compute_composite_health`) y la foto
+    # con todos sus componentes; quién recalcula queda en auditoría.
+    snap = nps_service.compute_and_save_health(db, client_id, user=current_user)
+    return APIResponse.ok(data=_foto_dict(snap))
 
 
 @router.get("/{client_id}/health")
@@ -161,19 +164,21 @@ def client_health_history(
     _: User = Depends(get_current_user),
 ):
     rows = nps_service.get_health_history(db, client_id, limit)
-    return APIListResponse.ok(items=[
-        {
-            "id":                 r.id,
-            "health_score":       r.health_score,
-            "nps_component":      r.nps_component,
-            "delivery_component": r.delivery_component,
-            "budget_component":   r.budget_component,
-            "activity_component": r.activity_component,
-            "note":               r.note,
-            "snapshot_at":        r.snapshot_at,
-        }
-        for r in rows
-    ])
+    return APIListResponse.ok(items=[_foto_dict(r) for r in rows])
+
+
+def _foto_dict(r) -> dict:
+    """Foto de salud; un componente ``None`` = sin datos (su peso se repartió)."""
+    return {
+        "id":                 r.id,
+        "health_score":       r.health_score,
+        "nps_component":      r.nps_component,
+        "delivery_component": r.delivery_component,
+        "budget_component":   r.budget_component,
+        "activity_component": r.activity_component,
+        "note":               r.note,
+        "snapshot_at":        r.snapshot_at,
+    }
 
 
 # ── Cross-client trend + leaderboard ─────────────────────────────────────

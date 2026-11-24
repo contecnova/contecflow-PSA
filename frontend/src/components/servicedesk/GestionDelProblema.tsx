@@ -169,12 +169,11 @@ function CrearCambio({ problema, esAdmin }: { problema: SdProblema; esAdmin: boo
     <div className="u-stack-12">
       <div className="u-text2-xs">{t('sd_mercado.cambio_desde_problema_desc')}</div>
       <div className="sdm-form">
-        <label className="sdm-field"><span>{t('sd_mercado.tipo_cambio')}</span>
-          <Select suelto placeholder={false} value={tipo} onChange={e => setTipo(e.target.value)}>
+        <Select label={t('sd_mercado.tipo_cambio')} placeholder={false} value={tipo} onChange={e => setTipo(e.target.value)}>
             {['standard', 'normal', 'emergency'].map(x => <option key={x} value={x}>{etiquetaSd('chg_type', x)}</option>)}
-          </Select></label>
-        <label className="sdm-field"><span>{t('sd_mercado.inicio_previsto')}</span><DateInput className="ds-input" withTime value={inicio} onChange={e => setInicio(e.target.value)} /></label>
-        <label className="sdm-field"><span>{t('sd_mercado.fin_previsto')}</span><DateInput className="ds-input" withTime value={fin} onChange={e => setFin(e.target.value)} /></label>
+          </Select>
+        <DateInput label={t('sd_mercado.inicio_previsto')} withTime value={inicio} onChange={e => setInicio(e.target.value)} />
+        <DateInput label={t('sd_mercado.fin_previsto')} withTime value={fin} onChange={e => setFin(e.target.value)} />
       </div>
       {creado && <StatusBadge kind="success" caps={false}>{t('sd_mercado.cambio_creado_n', { n: creado })}</StatusBadge>}
       <div className="u-row-end"><Button onClick={() => crear.mutate()} loading={crear.isPending}>{t('sd_mercado.crear_cambio')}</Button></div>

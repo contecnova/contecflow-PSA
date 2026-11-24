@@ -16,7 +16,7 @@ import { projectsApi, projectSprintsApi } from '../services/api'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { Activity, BarChart2, CheckCircle2, FolderKanban, Gauge, Target, TrendingUp } from 'lucide-react'
-import { Card, KpiCard, Section, Spinner, EmptyState, Select } from '../components/ui'
+import { Card, KpiCard, Section, Spinner, EmptyState, Select, SelectorDeContexto } from '../components/ui'
 import { useAppT } from '../i18n/AppLangContext'
 import { localeActivo } from '../utils/helpers'
 import {
@@ -89,34 +89,22 @@ export default function SprintChartsPage() {
 
       <div className="u-stack-16">
       {/* Project + Sprint selectors */}
-      <Card className="spc-filtros">
-      <div className="spc-selectors">
-        <div className="spc-field">
-          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="spc-label">
-            {t('sprint_charts_page.proyecto')}
-          </label>
-          <Select suelto placeholder={false} id={`${idCampo}-1`} value={projectId} onChange={e => { setProjectId(e.target.value); setSprintId('') }}>
+      <SelectorDeContexto>
+          <Select label={t('sprint_charts_page.proyecto')} placeholder={false} id={`${idCampo}-1`} value={projectId} onChange={e => { setProjectId(e.target.value); setSprintId('') }}>
             <option value="">{t('sprintcharts.selecciona_un_proyecto')}</option>
             {projects.map(p => (
               <option key={p.id} value={p.id}>{p.code} — {p.name}</option>
             ))}
           </Select>
-        </div>
         {projectId && (
-          <div className="spc-field spc-field--sprint">
-            <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="spc-label">
-              {t('sprintcharts.sprint_para_burnup')}
-            </label>
-            <Select suelto placeholder={false} id={`${idCampo}-2`} value={sprintId} onChange={e => setSprintId(e.target.value)}>
+            <Select label={t('sprintcharts.sprint_para_burnup')} placeholder={false} id={`${idCampo}-2`} value={sprintId} onChange={e => setSprintId(e.target.value)}>
               <option value="">{t('sprintcharts.selecciona_un_sprint')}</option>
               {sprints.map(s => (
                 <option key={s.id} value={s.id}>{s.name} ({t(`sprints.status_${s.status}`, s.status || '')})</option>
               ))}
             </Select>
-          </div>
         )}
-      </div>
-      </Card>
+      </SelectorDeContexto>
 
       {!projectId && (
         <EmptyState icon={<FolderKanban size={28} />} title={t('sprintcharts.selecciona_un_proyecto_2')} description={t('sprint_charts_page.vacio_proyecto')} />

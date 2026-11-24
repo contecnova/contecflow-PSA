@@ -36,6 +36,8 @@ async def _tick():
     from app.services.collaboration._search import search_engine
     from app.services.collaboration.messages import _notify_recipients, _serialize_message
 
+    from app.db.contexto_de_tenant import con_empresa
+
     db = SessionLocal()
     from app.db.contexto_de_tenant import declarar_sistema as _declarar_sistema
     _declarar_sistema(db, "colaboración: mensajes programados de todas las empresas")  # auditoría 22-11-2026: TENANT_SESION_SIN_CONTEXTO=cerrar
@@ -63,14 +65,18 @@ async def _tick():
                 msg.metadata_json = meta
                 db.commit()
                 continue
-            mentions = db.query(CollaborationMention).filter(CollaborationMention.message_id == msg.id).all()
-            _notify_recipients(db, organization_id=msg.organization_id, conv=conv, message=msg, mentions=mentions)
-            meta["_scheduled_delivered"] = True
-            msg.metadata_json = meta
-            conv.last_activity_at = now
-            conv.last_message_id = msg.id
-            db.commit()
-            search_engine.index(db, msg.id)
+            # 24-11-2026 (migración 208, `organization_id` obligatorio): la
+            # sesión recorre todas las empresas; los avisos y el índice de cada
+            # mensaje se crean en SU empresa (filtro y sellado), no «de nadie».
+            with con_empresa(db, msg.organization_id):
+                mentions = db.query(CollaborationMention).filter(CollaborationMention.message_id == msg.id).all()
+                _notify_recipients(db, organization_id=msg.organization_id, conv=conv, message=msg, mentions=mentions)
+                meta["_scheduled_delivered"] = True
+                msg.metadata_json = meta
+                conv.last_activity_at = now
+                conv.last_message_id = msg.id
+                db.commit()
+                search_engine.index(db, msg.id)
 
             # Realtime publish
             event = {

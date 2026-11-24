@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { integrationsApi, jiraApi } from '../services/api'
 import { useListaDeProyectos } from '../hooks/useListas'
-import { Button, Card, Page, Section, SelectorDePeriodo, Select, Checkbox } from '../components/ui'
+import { Button, Card, Page, Section, SelectorDePeriodo, Select, Checkbox, SelectorDeContexto } from '../components/ui'
 import { Download, FileSpreadsheet, FolderKanban, Link2, RefreshCw } from 'lucide-react'
 import { downloadBlob, extractErr } from '../utils/helpers'
 import { useAuth } from '../context/AuthContext'
@@ -157,19 +157,18 @@ export default function ExportsPage(): JSX.Element {
             title={<span className="exps-titulo"><Link2 size={16} aria-hidden />{t('exports.sincronizar_con_jira')}</span>}
             subtitle={t('exports.importa_issues_de_jira_como_tareas_en')}
           >
-            <div className="exps-row-3">
-              <Select suelto placeholder={false} value={jiraProject} onChange={e => setJiraProject(e.target.value)}
-                aria-label={t('pagina_exps.selecciona_proyecto')}
-                className={`exps-input ${jiraProject ? 'exportsp-sx7' : 'exportsp-sx8'}`}>
+            <SelectorDeContexto acciones={
+              <Button onClick={syncJira} disabled={!jiraProject} loading={jiraSyncing} icon={<RefreshCw size={14} />}>
+                {jiraSyncing ? t('pagina_exps.sincronizando') : t('pagina_exps.sincronizar')}
+              </Button>
+            }>
+              <Select label={t('uikit.etiqueta_proyecto')} placeholder={false} value={jiraProject} onChange={e => setJiraProject(e.target.value)}>
                 <option value="">{t('pagina_exps.selecciona_proyecto')}</option>
                 {projects.filter(p => p.status === 'active').map(p => (
                   <option key={p.id} value={p.id}>{p.code} — {p.name}</option>
                 ))}
               </Select>
-              <Button onClick={syncJira} disabled={!jiraProject} loading={jiraSyncing} icon={<RefreshCw size={14} />}>
-                {jiraSyncing ? t('pagina_exps.sincronizando') : t('pagina_exps.sincronizar')}
-              </Button>
-            </div>
+            </SelectorDeContexto>
             <p className="exps-text-2">
               {t('pagina_exps.requiere_jira_enabled_true_y_credenciales')}
             </p>

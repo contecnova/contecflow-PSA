@@ -2,8 +2,7 @@
    16-11-2026: la nota de alertas deja de ser una caja discontinua. */
 
 .pred-nota {
-  flex-direction: row;
-  flex-wrap: wrap;
+  flex-flow: row wrap;
   align-items: center;
   gap: 10px;
   padding: 14px 18px;

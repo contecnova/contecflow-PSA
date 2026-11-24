@@ -9,11 +9,6 @@
   font-size: var(--text-sm);
   color: var(--text-2);
 }
-.marcsect-grid-2 {
-  display: grid;
-  gap: 4px;
-  font-size: var(--text-sm);
-}
 .marcsect-row-1 {
   display: flex;
   align-items: center;

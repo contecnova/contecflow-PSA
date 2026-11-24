@@ -18,7 +18,7 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { BellRing, CalendarRange, FolderOpen, History, Scale, Sparkles } from 'lucide-react'
 import Page from '../components/ui/Page'
-import { Button, Checkbox, EmptyState, Pulsable, Select, Spinner, StatusBadge, Tabs, TablaSimple, Input } from '../components/ui'
+import { Button, Checkbox, EmptyState, Pulsable, Select, Spinner, StatusBadge, Tabs, TablaSimple, Input, SelectorDeContexto } from '../components/ui'
 import { recursosApi, skillsApi, usersApi } from '../services/api'
 import VistasDeTrabajo from '../components/planificador/VistasDeTrabajo'
 import PanelDeNivelacion from '../components/planificador/PanelDeNivelacion'
@@ -38,10 +38,10 @@ export default function PlanificacionDeRecursosPage() {
   const { data: proyectos = [] } = useListaDeProyectos()
 
   const selector = (
-    <Select suelto placeholder={false} className="plr-campo" aria-label={t('planificador.elige_proyecto')} value={proyecto} onChange={e => setProyecto(e.target.value)}>
+    <SelectorDeContexto><Select label={t('uikit.etiqueta_proyecto')} placeholder={false} value={proyecto} onChange={e => setProyecto(e.target.value)}>
       <option value="">{t('planificador.elige_proyecto')}</option>
       {proyectos.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
-    </Select>
+    </Select></SelectorDeContexto>
   )
 
   return (
@@ -62,7 +62,7 @@ export default function PlanificacionDeRecursosPage() {
       {tab === 'history' && <PanelHistorico />}
       {tab === 'leveling' && (
         <div className="plan-stack">
-          <div className="plan-row">{selector}</div>
+          {selector}
           {proyecto ? <PanelDeNivelacion projectId={proyecto} /> : (
             <EmptyState icon={<FolderOpen size={28} />} title={t('planificador.elige_proyecto')}
               description={t('planificador.elige_proyecto_nivelacion')} />
@@ -89,7 +89,7 @@ function PanelDeSkills({ selector, proyecto }: { selector: JSX.Element; proyecto
   const faltan = catalogo.filter(c => !enEquipo.has(c.id))
   return (
     <div className="plan-stack">
-      <div className="plan-row">{selector}</div>
+      {selector}
       {proyecto && (isLoading ? <Spinner /> : (
         <div className="plan-card">
           <h3 className="plan-card__titulo">{t('planificador.skills_del_equipo')}</h3>
@@ -112,13 +112,10 @@ function PanelDeSkills({ selector, proyecto }: { selector: JSX.Element; proyecto
         </div>
       ))}
       <div className="plan-card plan-stack">
-        <label className="plan-row plan-muted">
-          {t('planificador.buscar_por_skill')}
-          <Select suelto placeholder={false} className="plr-campo" value={skill} onChange={e => setSkill(e.target.value)}>
+        <Select label={t('planificador.buscar_por_skill')} placeholder={false} value={skill} onChange={e => setSkill(e.target.value)}>
             <option value="">{t('planificador.elige_skill')}</option>
             {catalogo.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
           </Select>
-        </label>
         {skill && (isFetching ? <Spinner /> : libres.length === 0 ? <p className="plan-muted">{t('planificador.nadie_con_skill')}</p> : (
           <TablaSimple claseTabla="plan-tabla">
             <thead><tr><th>{t('planificador.col_persona')}</th><th>{t('planificador.col_nivel')}</th><th className="plan-num">{t('planificador.col_libres')}</th><th className="plan-num">{t('planificador.col_carga')}</th></tr></thead>
@@ -177,9 +174,7 @@ function PanelHistorico() {
   const { data = [], isLoading } = useQuery({ queryKey: ['utilizacion', semanas], queryFn: () => recursosApi.historico(semanas) })
   return (
     <div className="plan-stack">
-      <label className="plan-row plan-muted">{t('planificador.semanas_atras')}
-        <Input type="number" min={1} max={52} inputClassName="plr-campo plr-campo--num" value={semanas} onChange={e => setSemanas(Math.min(52, Math.max(1, Number(e.target.value) || 1)))} />
-      </label>
+      <Input label={t('planificador.semanas_atras')} type="number" min={1} max={52} value={semanas} onChange={e => setSemanas(Math.min(52, Math.max(1, Number(e.target.value) || 1)))} />
       {isLoading ? <Spinner /> : data.length === 0 ? <EmptyState icon={<History size={28} />} title={t('planificador.sin_historico')} description={t('planificador.sin_historico_desc')} /> : (
         <div className="plan-card plan-tabla-scroll">
           <TablaSimple claseTabla="plan-tabla">

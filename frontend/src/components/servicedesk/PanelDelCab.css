@@ -1,3 +1,2 @@
 /* PanelDelCab (16-11-2026): el filtro de riesgo mínimo como campo estrecho en su barra. */
 .pcab-filtros { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
-.pcab-campo { width: 200px; max-width: 100%; }

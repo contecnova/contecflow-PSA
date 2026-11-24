@@ -82,15 +82,11 @@ function Formulario({ id, inicial, turnos, onCerrar }: { id: string | null; inic
     <Modal open onClose={onCerrar} title={id ? ta('editar_rotacion') : ta('nueva_rotacion')} size="lg">
       <form className="ausadm-form" onSubmit={e => { e.preventDefault(); guardar.mutate() }}>
         <div className="ausadm-grid-2">
-          <label className="ausadm-campo-con-etiqueta">
-            <span className="ausadm-etiqueta">{ta('nombre')}</span>
-            <Input aria-label={ta('nombre')} required value={d.nombre} onChange={e => setD({ ...d, nombre: e.target.value })} inputClassName="ausadm-campo" />
+          <div className="ausadm-campo-con-etiqueta">
+            <Input label={ta('nombre')} aria-label={ta('nombre')} required value={d.nombre} onChange={e => setD({ ...d, nombre: e.target.value })} />
             <ErrorDeCampo texto={campos.de('nombre')} />
-          </label>
-          <label className="ausadm-campo-con-etiqueta">
-            <span className="ausadm-etiqueta">{ta('inicio_del_ciclo')}</span>
-            <DateInput aria-label={ta('inicio_del_ciclo')} className="ausadm-campo" required value={d.inicio} onChange={e => setD({ ...d, inicio: e.target.value })} />
-          </label>
+          </div>
+          <DateInput label={ta('inicio_del_ciclo')} aria-label={ta('inicio_del_ciclo')} required value={d.inicio} onChange={e => setD({ ...d, inicio: e.target.value })} />
         </div>
         <fieldset className="ds-grupo-opciones ausadm-fieldset">
           <legend className="ausadm-etiqueta">{ta('ciclo')}</legend>
@@ -120,14 +116,11 @@ function Formulario({ id, inicial, turnos, onCerrar }: { id: string | null; inic
               <span className="ausadm-selector-persona">
                 <UserSelect value={m.user_id} onChange={(v: string) => setD({ ...d, miembros: d.miembros.map((x, j) => (j === i ? { ...x, user_id: v } : x)) })} />
               </span>
-              <label className="ausadm-fila"><span className="ausadm-ayuda">{ta('desde')}</span>
-                <DateInput aria-label={ta('desde')} className="ausadm-campo" required value={m.desde}
-                  onChange={e => setD({ ...d, miembros: d.miembros.map((x, j) => (j === i ? { ...x, desde: e.target.value } : x)) })} /></label>
-              <label className="ausadm-fila"><span className="ausadm-ayuda">{ta('hasta')}</span>
-                <DateInput aria-label={ta('hasta')} className="ausadm-campo" value={m.hasta ?? ''}
-                  onChange={e => setD({ ...d, miembros: d.miembros.map((x, j) => (j === i ? { ...x, hasta: e.target.value || null } : x)) })} /></label>
-              <label className="ausadm-fila"><span className="ausadm-ayuda">{ta('desfase')}</span>
-                <Input aria-label={ta('desfase')} type="number" min={0} max={d.ciclo.length - 1} value={m.desfase} onChange={e => setD({ ...d, miembros: d.miembros.map((x, j) => (j === i ? { ...x, desfase: Number(e.target.value) || 0 } : x)) })} className="ausadm-campo--corto" /></label>
+              <DateInput label={ta('desde')} aria-label={ta('desde')} required value={m.desde}
+                  onChange={e => setD({ ...d, miembros: d.miembros.map((x, j) => (j === i ? { ...x, desde: e.target.value } : x)) })} />
+              <DateInput label={ta('hasta')} aria-label={ta('hasta')} value={m.hasta ?? ''}
+                  onChange={e => setD({ ...d, miembros: d.miembros.map((x, j) => (j === i ? { ...x, hasta: e.target.value || null } : x)) })} />
+              <Input label={ta('desfase')} aria-label={ta('desfase')} type="number" min={0} max={d.ciclo.length - 1} value={m.desfase} onChange={e => setD({ ...d, miembros: d.miembros.map((x, j) => (j === i ? { ...x, desfase: Number(e.target.value) || 0 } : x)) })} />
               <Button size="xs" variant="ghost" icon={<Trash2 size={13} />} title={ta('quitar')}
                 onClick={() => setD({ ...d, miembros: d.miembros.filter((_, j) => j !== i) })}><span className="u-sr-only">{ta('quitar')}</span></Button>
             </div>

@@ -57,10 +57,14 @@ def test_superadmin_bypasses_org(db):
     assert got.id == bp.id
 
 
-def test_null_org_row_is_global(db):
-    bp = _mk_blueprint(db, None)
-    got = org_scoped_or_404(db, WorkflowBlueprint, bp.id, _User("org-A"))
-    assert got.id == bp.id
+def test_ya_no_hay_filas_sin_organizacion(db):
+    """Migración 208 (24-11-2026): `organization_id` es NOT NULL salvo en
+    `TABLAS_SIN_EMPRESA_PERMITIDA`; una fila «global» de una tabla que no está en
+    la lista no se puede crear (antes `org_scoped_or_404` la daba por global)."""
+    with pytest.raises(ErrorDeDominio) as exc:
+        _mk_blueprint(db, None)
+    db.rollback()
+    assert exc.value.code == "fila_sin_empresa"
 
 
 def test_assert_same_org_raises_on_mismatch():

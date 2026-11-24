@@ -151,39 +151,34 @@ function AssignModal({ prefill, onClose }: { prefill: AssignPrefill | null; onCl
     <Modal open title={t('capacity.nueva_asignacion')} onClose={onClose} width={460}>
       <div className="cap-form">
         <div>
-          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="cap-label">{t('capacity.persona_obligatoria')}</label>
-          <Select suelto placeholder={false} id={`${idCampo}-1`} value={form.user_id} onChange={setField('user_id')} className="cap-input" aria-invalid={!!validation.errors.user_id}>
+          <Select label={t('capacity.persona_obligatoria')} placeholder={false} id={`${idCampo}-1`} value={form.user_id} onChange={setField('user_id')} aria-invalid={!!validation.errors.user_id}>
             <option value="">{t('capacity.seleccionar')}</option>
             {users.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
           </Select>{msg('user_id')}
           {validation.errors.user_id && <div className="u-field-error" role="alert">{validation.errors.user_id}</div>}
         </div>
         <div>
-          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="cap-label">{t('capacity.proyecto')}</label>
-          <Select suelto placeholder={false} id={`${idCampo}-2`} value={form.project_id} onChange={setField('project_id')} className="cap-input">
+          <Select label={t('capacity.proyecto')} placeholder={false} id={`${idCampo}-2`} value={form.project_id} onChange={setField('project_id')}>
             <option value="">{t('capacity.sin_proyecto_disponible')}</option>
             {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
           </Select>{msg('project_id')}
         </div>
         <div className="u-grid2-12">
           <div>
-            <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="cap-label">{t('capacity.semana')}</label>
-            <DateInput id={`${idCampo}-3`} value={form.week_start}
+            <DateInput label={t('capacity.semana')} id={`${idCampo}-3`} value={form.week_start}
               onChange={e => {
                 setForm(current => ({ ...current, week_start: monday(e.target.value) }))
                 validation.clearFieldError('week_start')
-              }} className="cap-input" aria-invalid={!!validation.errors.week_start} />{msg('week_start')}
+              }} aria-invalid={!!validation.errors.week_start} />{msg('week_start')}
             {validation.errors.week_start && <div className="u-field-error" role="alert">{validation.errors.week_start}</div>}
           </div>
           <div>
-            <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="cap-label">{t('capacity.horas_planificadas')}</label>
-            <Input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} type="number" value={form.planned_hours} min="1" max={2 * capacidadSemanal} step="0.5" onChange={setField('planned_hours')} aria-invalid={!!validation.errors.planned_hours} inputClassName="cap-input" />{msg('planned_hours')}
+            <Input label={t('capacity.horas_planificadas')} id={`${idCampo}-4`} type="number" value={form.planned_hours} min="1" max={2 * capacidadSemanal} step="0.5" onChange={setField('planned_hours')} aria-invalid={!!validation.errors.planned_hours} />{msg('planned_hours')}
             {validation.errors.planned_hours && <div className="u-field-error" role="alert">{validation.errors.planned_hours}</div>}
           </div>
         </div>
         <div>
-          <label id={`${idCampo}-eta183`} htmlFor={`${idCampo}-a183`} className="cap-label">{t('capacity.notas')}</label>
-          <Input id={`${idCampo}-a183`} aria-labelledby={`${idCampo}-eta183`} value={form.notes} onChange={setField('notes')} placeholder={t('capacity.notas_de_la_asignacion')} inputClassName="cap-input" />{msg('notes')}
+          <Input label={t('capacity.notas')} id={`${idCampo}-a183`} value={form.notes} onChange={setField('notes')} placeholder={t('capacity.notas_de_la_asignacion')} />{msg('notes')}
         </div>
       </div>
       <div className="u-actions-8">

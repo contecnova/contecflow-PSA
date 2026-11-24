@@ -39,7 +39,7 @@ import { useAuth } from '../../context/AuthContext'
 import { PBadge, SBadge, fmtDate, fmtMinutes } from './sdUtils'
 import { POLL_FREQUENT_MS } from '../../constants/timings'
 import './TicketDetail.css'
-import { LS, type Sugerencia, type TicketComment, type TicketHistoryEntry, type TicketLink, type UcContract, colorVar, lineaDeHistorial } from './TicketDetailComun'
+import { type Sugerencia, type TicketComment, type TicketHistoryEntry, type TicketLink, type UcContract, colorVar, lineaDeHistorial } from './TicketDetailComun'
 import { CannedResponsePicker, SplitTicketModal, TicketEditModal } from './TicketDetailModales'
 import { ApoyoDeLaSugerencia, AprobacionDelTicket, SeguirYFusionar } from './TicketDetailPaneles'
 import { ESTADO_TICKET, ESTADOS_TICKET_RESUELTOS, ESTADOS_TICKET_TERMINADOS } from '../../constants/estadosDeTicket'
@@ -532,8 +532,7 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
       {resolviendo && ticket && (
         <Modal open title={`${t('sd_cfg.qa_resolve')} ${ticket.number}`} onClose={() => setResolviendo(false)}>
           <div className="u-stack-12">
-            <label htmlFor="sd-resolucion" className={LS}>{t('sd_cfg.qa_resolution')}</label>
-            <Textarea id="sd-resolucion" aria-label={t('sd_cfg.qa_resolution')} value={textoResolucion} onChange={e => setTextoResolucion(e.target.value)} rows={5} autoFocus inputClassName="tkd-input" />
+            <Textarea label={t('sd_cfg.qa_resolution')} id="sd-resolucion" aria-label={t('sd_cfg.qa_resolution')} value={textoResolucion} onChange={e => setTextoResolucion(e.target.value)} rows={5} autoFocus />
             <div className="u-text3-xs">{t('sd_cfg.qa_resolution_hint')}</div>
             <div className="u-actions-10">
               <Button variant="secondary" onClick={() => setResolviendo(false)}>{t('common.cancel')}</Button>

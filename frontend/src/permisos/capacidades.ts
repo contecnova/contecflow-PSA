@@ -53,6 +53,8 @@ export const CAPACIDADES = [
   'seguridad.administrar', 'seguridad.recertificar',
   // PIR (migración 206, docs/PIR.md): ver y rellenar las propias, gestionar, aprobar (con segregación) y administrar.
   'pir.ver', 'pir.gestionar', 'pir.aprobar', 'pir.administrar',
+  // Chat del portal (24-11-2026, docs/portal/CHAT_DEL_PORTAL.md): llamar y videollamar a clientes.
+  'clientes.llamar',
   // >>> guardas_a_capacidades (generado: scripts/codemods/guardas_a_capacidades.py --aplicar)
   // Auditoría 22-11-2026 (M9): capacidades de las guardas de la API que eran de rol.
   'alertas.administrar', 'alertas.gestionar', 'alertas.usar', 'alm.administrar', 'analitica.gestionar',

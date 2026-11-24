@@ -97,20 +97,16 @@ function AppModal({ app, onClose }: { app?: AplicacionOAuth | null; onClose: () 
     <Modal open title={isEdit ? t('developer.edit_app', { name: app.name }) : t('developer.new_oauth_app')} onClose={onClose} width={540}>
       <div className="u-stack-14">
         <div>
-          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="developer-portal-page-e7">{t('developer.app_name_label')}</label>
-          <Input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={f.name} onChange={set('name')} placeholder={t('developer.app_name_placeholder')} inputClassName="developer-portal-page-e8" />{msg('name')}
+          <Input label={t('developer.app_name_label')} id={`${idCampo}-1`} value={f.name} onChange={set('name')} placeholder={t('developer.app_name_placeholder')} />{msg('name')}
         </div>
         <div>
-          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="developer-portal-page-e7">{t('developer.app_description_label')}</label>
-          <Textarea id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={f.description} onChange={set('description')} rows={2} inputClassName="developer-portal-page-e2" />{msg('description')}
+          <Textarea label={t('developer.app_description_label')} id={`${idCampo}-2`} value={f.description} onChange={set('description')} rows={2} />{msg('description')}
         </div>
         <div>
-          <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="developer-portal-page-e7">{t('developer.app_homepage_label')}</label>
-          <Input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={f.homepage_url} onChange={set('homepage_url')} placeholder={t('developer.app_homepage_placeholder')} inputClassName="developer-portal-page-e8" />{msg('homepage_url')}
+          <Input label={t('developer.app_homepage_label')} id={`${idCampo}-3`} value={f.homepage_url} onChange={set('homepage_url')} placeholder={t('developer.app_homepage_placeholder')} />{msg('homepage_url')}
         </div>
         <div>
-          <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="developer-portal-page-e7">{t('developer.app_redirect_label')}</label>
-          <Textarea id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={f.redirect_uris} onChange={set('redirect_uris')} rows={3} placeholder={t('developer.app_redirect_placeholder')} inputClassName="ds-codigo developer-portal-page-e3" />{msg('redirect_uris')}
+          <Textarea label={t('developer.app_redirect_label')} id={`${idCampo}-4`} value={f.redirect_uris} onChange={set('redirect_uris')} rows={3} placeholder={t('developer.app_redirect_placeholder')} inputClassName="ds-codigo" />{msg('redirect_uris')}
         </div>
         <div>
           <label className="developer-portal-page-e7">{t('developer.app_scopes_label')}</label>

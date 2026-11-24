@@ -25,7 +25,7 @@ class Leccion(Base):
     __tablename__ = "lecciones"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     codigo = Column(String(20), nullable=False)                    # LEC-0001
     titulo = Column(String(300), nullable=False)
     tipo = Column(String(10), nullable=False, default="evitar")     # evitar | repetir
@@ -68,7 +68,7 @@ class LeccionUso(Base):
     __tablename__ = "leccion_usos"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     leccion_id = Column(String(36), ForeignKey("lecciones.id", ondelete="CASCADE"), nullable=False, index=True)
     contexto_tipo = Column(String(20), nullable=False)             # project | ticket | change | nuevo_proyecto
     contexto_id = Column(String(64), nullable=True)
@@ -84,7 +84,7 @@ class LeccionAccion(Base):
     __tablename__ = "leccion_acciones"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     leccion_id = Column(String(36), ForeignKey("lecciones.id", ondelete="CASCADE"), nullable=False, index=True)
     descripcion = Column(Text, nullable=False)
     responsable_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)

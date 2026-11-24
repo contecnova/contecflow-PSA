@@ -28,7 +28,7 @@ export interface ExternalizarTareaProps {
   error?: (campo: string) => ReactNode
 }
 
-export default function ExternalizarTarea({ projectId, supplierId, paqueteId, nombreActual, onChange, idBase, claseEtiqueta = '', claseControl = '', error }: ExternalizarTareaProps) {
+export default function ExternalizarTarea({ projectId, supplierId, paqueteId, nombreActual, onChange, idBase, error }: ExternalizarTareaProps) {
   const t = useAppT()
   const { data: proveedores = [], isError } = useQuery({
     queryKey: ['suppliers', 'assignable', projectId || ''],
@@ -43,9 +43,8 @@ export default function ExternalizarTarea({ projectId, supplierId, paqueteId, no
   return (
     <>
       <div className="u-col-full">
-        <label id={`${idBase}-prov-et`} htmlFor={`${idBase}-prov`} className={claseEtiqueta}>{t('proveedores.externalizar_a')}</label>
-        <Select suelto placeholder={false} id={`${idBase}-prov`} aria-describedby={`${idBase}-prov-ayuda`} value={supplierId}
-          onChange={e => onChange('supplier_id', e.target.value)} className={claseControl}>
+        <Select label={t('proveedores.externalizar_a')} placeholder={false} id={`${idBase}-prov`} aria-describedby={`${idBase}-prov-ayuda`} value={supplierId}
+          onChange={e => onChange('supplier_id', e.target.value)}>
           <option value="">{t('proveedores.no_externalizada')}</option>
           {proveedores.map(p => <option key={p.id} value={p.id}>{p.code ? `${p.code} — ${p.name}` : p.name}</option>)}
           {supplierId && !elegido && <option value={supplierId}>{nombreActual || supplierId}</option>}
@@ -55,8 +54,7 @@ export default function ExternalizarTarea({ projectId, supplierId, paqueteId, no
       </div>
       {supplierId && (
         <div className="u-col-full">
-          <label id={`${idBase}-paq-et`} htmlFor={`${idBase}-paq`} className={claseEtiqueta}>{t('proveedores.paquete_de_trabajo')}</label>
-          <Select suelto placeholder={false} id={`${idBase}-paq`} value={paqueteId} onChange={e => onChange('supplier_work_package_id', e.target.value)} className={claseControl}>
+          <Select label={t('proveedores.paquete_de_trabajo')} placeholder={false} id={`${idBase}-paq`} value={paqueteId} onChange={e => onChange('supplier_work_package_id', e.target.value)}>
             <option value="">{t('proveedores.sin_paquete')}</option>
             {paquetes.map(w => <option key={w.id} value={w.id}>{w.title}</option>)}
           </Select>

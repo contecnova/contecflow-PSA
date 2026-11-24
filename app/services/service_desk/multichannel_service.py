@@ -115,6 +115,14 @@ def process_inbound_sms(db: Session, from_phone: str, body: str, to_phone: Optio
         # sola empresa activa, es esa; si no, el remitente queda sin identificar.
         from app.services.git_service import unica_empresa
         org_id = unica_empresa(db)
+    if org_id is None:
+        # 24-11-2026 (migración 208, `organization_id` obligatorio): sin empresa
+        # del número receptor y con varias empresas no se abre nada (el ticket
+        # sin empresa no lo veía nadie y ahora cortaría el guardado). Twilio
+        # recibe 200: reintentar no lo arreglaría. Sin teléfonos en el log (RGPD).
+        logger.warning("SMS entrante sin empresa del número receptor: ignorado")
+        return {"ticket_id": None, "ticket_number": None, "source": "sms", "ignored": True,
+                "reason": "sin empresa destinataria"}
     with como_organizacion(db, org_id):
         cliente = usuario = None
         if org_id is not None:

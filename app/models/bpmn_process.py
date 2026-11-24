@@ -81,7 +81,7 @@ class BPMNProcessVersion(Base):
     __tablename__ = "bpmn_process_versions"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)  # audit #7
     process_id = Column(String(36), ForeignKey("bpmn_processes.id", ondelete="CASCADE"),
                         nullable=False, index=True)
     version = Column(Integer, nullable=False)
@@ -112,7 +112,7 @@ class BPMNInstance(Base):
     __tablename__ = "bpmn_instances"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     process_id = Column(String(36), ForeignKey("bpmn_processes.id", ondelete="CASCADE"), nullable=False, index=True)
     version = Column(Integer, nullable=False)
     status = Column(String(20), nullable=False, default="running", index=True)  # running | suspended | completed | cancelled | failed
@@ -141,7 +141,7 @@ class BPMNInstanceStep(Base):
     __tablename__ = "bpmn_instance_steps"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     instance_id = Column(String(36), ForeignKey("bpmn_instances.id", ondelete="CASCADE"), nullable=False, index=True)
     element_id = Column(String(120), nullable=False)
     element_type = Column(String(40), nullable=False)

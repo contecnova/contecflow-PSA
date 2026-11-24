@@ -62,6 +62,6 @@
   font-weight: 700;
 }
 
-@media (max-width: 700px) {
+@media (width <= 700px) {
   .alr-item-head { flex-wrap: wrap; }
 }

@@ -37,7 +37,13 @@ def buscar(db: Session, org_id: str, claves: list[str]) -> dict[str, Translation
 
 def guardar(db: Session, org_id: str, clave_: str, origen: Optional[str], destino: str, texto: str,
             proveedor: str, caracteres: int) -> None:
-    existente = db.query(TranslationCacheEntry).filter(TranslationCacheEntry.organization_id == org_id,
+    # 24-11-2026 (migración 208): la caché es por empresa; sin ella no se guarda
+    # (la fila cortaría el guardado de quien traduce con `fila_sin_empresa`).
+    from app.db.empresa_obligatoria import empresa_para_registro
+    org_id = empresa_para_registro(db, org_id)
+    if not org_id:
+        return
+    existente =db.query(TranslationCacheEntry).filter(TranslationCacheEntry.organization_id == org_id,
                                                        TranslationCacheEntry.cache_key == clave_).first()
     ahora = datetime.now(timezone.utc)
     if existente is not None:

@@ -54,10 +54,7 @@ export default function MarcaSection() {
   return (
     <div className="marcsect-grid-1">
       <p className="marcsect-box-1">{t('marca.intro')}</p>
-      <label className="marcsect-grid-2">
-        {t('marca.nombre')}
-        <Input aria-label={t('marca.nombre')} value={form.app_name || ''} onChange={e => setForm(f => ({ ...f, app_name: e.target.value }))} inputClassName="marcsect-campo" />
-      </label>
+      <Input label={t('marca.nombre')} aria-label={t('marca.nombre')} value={form.app_name || ''} onChange={e => setForm(f => ({ ...f, app_name: e.target.value }))} />
       {(['primary_color', 'accent_color', 'text_color'] as const).map(c => (
         <label key={c} className="marcsect-row-1">
           <input type="color" aria-label={t(`marca.${c}`)} value={/^#[0-9a-f]{6}$/i.test(form[c] || '') ? form[c] : MARCA_POR_DEFECTO.selector}

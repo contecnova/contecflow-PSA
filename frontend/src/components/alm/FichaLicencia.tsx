@@ -181,8 +181,7 @@ export default function FichaLicencia({ licenseId, onClose }: { licenseId: strin
                     <h4 className="almf-bloque__titulo">{t('alm.peaks')}</h4>
                     <div className="almf-filtros">
                       <div className="almf-filtro">
-                        <label className="alm-label" htmlFor="almf-pico">{t('alm.peak_record')}</label>
-                        <Input id="almf-pico" type="number" min={0} value={pico} onChange={e => setPico(e.target.value)} inputClassName="alm-input" />
+                        <Input label={t('alm.peak_record')} id="almf-pico" type="number" min={0} value={pico} onChange={e => setPico(e.target.value)} />
                       </div>
                       <Button variant="secondary" disabled={pico === '' || anotarPico.isPending} loading={anotarPico.isPending}
                         onClick={() => anotarPico.mutate()}>{t('common.save')}</Button>

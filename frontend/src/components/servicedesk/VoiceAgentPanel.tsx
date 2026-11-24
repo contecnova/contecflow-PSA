@@ -149,8 +149,7 @@ function ActiveSessionCard({ session, onClose, onCreateTicket, onAddTurn, sendin
 
       {showCloseConfirm && (
         <div className="vap-cierre">
-          <label className="u-text2-sm" htmlFor={`vap-cierre-${session.id}`}>{t('voiceagent.cerrar_como')}</label>
-          <Select suelto placeholder={false} id={`vap-cierre-${session.id}`} value={resolution} onChange={e => setResolution(e.target.value)}>
+          <Select label={t('voiceagent.cerrar_como')} placeholder={false} id={`vap-cierre-${session.id}`} value={resolution} onChange={e => setResolution(e.target.value)}>
             {RESOLUCIONES.map(id => <option key={id} value={id}>{etiquetaCodigo(t, 'voiceagent.resolucion', id)}</option>)}
           </Select>
           <Button size="sm" loading={closing} onClick={() => onClose(resolution)}>{t('voiceagent.confirmar_cierre')}</Button>
@@ -295,15 +294,11 @@ export default function VoiceAgentPanel() {
               <div className="ds-eyebrow">{t('sd.voice.new_session')}</div>
               <div className="vap-fila">
                 <div className="ui-field vap-fila__campo">
-                  <label htmlFor={`${id}-numero`} className="campo-etiqueta">{t('voiceagent.numero_que_llama')}</label>
-                  <Input id={`${id}-numero`} type="tel" placeholder="+34 600 000 000" value={callerInput} onChange={e => setCallerInput(e.target.value)} inputClassName="campo-form" />
+                  <Input label={t('voiceagent.numero_que_llama')} id={`${id}-numero`} type="tel" placeholder="+34 600 000 000" value={callerInput} onChange={e => setCallerInput(e.target.value)} />
                 </div>
-                <div className="ui-field">
-                  <label htmlFor={`${id}-canal`} className="campo-etiqueta">{t('voiceagent.canal_lbl')}</label>
-                  <Select suelto placeholder={false} id={`${id}-canal`} value={channel} onChange={e => setChannel(e.target.value)} className="campo-form vap-select">
+                <Select label={t('voiceagent.canal_lbl')} placeholder={false} id={`${id}-canal`} value={channel} onChange={e => setChannel(e.target.value)}>
                     {CANALES.map(c => <option key={c} value={c}>{etiquetaCodigo(t, 'voiceagent.canal', c)}</option>)}
                   </Select>
-                </div>
                 <Button
                   onClick={() => createSessionMutation.mutate({ caller_id: callerInput.trim(), channel })}
                   disabled={createSessionMutation.isPending || !callerInput.trim()}

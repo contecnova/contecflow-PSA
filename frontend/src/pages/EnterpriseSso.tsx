@@ -149,66 +149,33 @@ export function SSOTab({ showCreate, setShowCreate }: AltaProps) {
         <div className="enterprise-page-e11">
           <div className="ent-box-25">{editId ? traducir('enterprise.sso_editar') : traducir('enterprise.nuevo_proveedor_sso')}</div>
           <div className={`ent-grid-10 ${isNarrow ? 'enterpri-sx10' : 'enterpri-sx11'}`}>
-            <div>
-              <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="enterprise-page-e20">{t('pagina_ent.proveedor')}</label>
-              <Select suelto placeholder={false} id={`${idCampo}-1`} value={form.provider} disabled={!!editId} onChange={e => {
+            <Select label={t('pagina_ent.proveedor')} placeholder={false} id={`${idCampo}-1`} value={form.provider} disabled={!!editId} onChange={e => {
                 const info: { label?: string; discovery?: string } = PROVIDER_INFO[e.target.value] || {}
                 setForm(f => ({ ...f, provider: e.target.value, oidc_discovery_url: info.discovery || '' }))
-              }} className="enterprise-page-e19">
+              }}>
                 {Object.entries(PROVIDER_INFO).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
               </Select>
-            </div>
-            <div>
-              <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="enterprise-page-e20">{traducir('enterprise.nombre_para_mostrar_en_login')}</label>
-              <Input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.name} onChange={e => setForm(f=>({...f,name:e.target.value}))} placeholder={PROVIDER_INFO[form.provider]?.label} inputClassName="enterprise-page-e19" />
-            </div>
+            <Input label={traducir('enterprise.nombre_para_mostrar_en_login')} id={`${idCampo}-2`} value={form.name} onChange={e => setForm(f=>({...f,name:e.target.value}))} placeholder={PROVIDER_INFO[form.provider]?.label} />
             {!esSaml && (<>
-            <div>
-              <label id={`${idCampo}-et10`} htmlFor={`${idCampo}-10`} className="enterprise-page-e20">{t('pagina_ent.client_id')}</label>
-              <Input id={`${idCampo}-10`} aria-labelledby={`${idCampo}-et10`} value={form.oidc_client_id} onChange={e => setForm(f=>({...f,oidc_client_id:e.target.value}))} placeholder={traducir('enterprise.client_id_del_proveedor')} inputClassName="enterprise-page-e19" />
-            </div>
-            <div>
-              <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="enterprise-page-e20">{t('pagina_ent.client_secret')}</label>
-              <Input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="password" value={form.oidc_client_secret} onChange={e => setForm(f=>({...f,oidc_client_secret:e.target.value}))} inputClassName="enterprise-page-e19" />
-            </div>
+            <Input label={t('pagina_ent.client_id')} id={`${idCampo}-10`} value={form.oidc_client_id} onChange={e => setForm(f=>({...f,oidc_client_id:e.target.value}))} placeholder={traducir('enterprise.client_id_del_proveedor')} />
+            <Input label={t('pagina_ent.client_secret')} id={`${idCampo}-3`} type="password" value={form.oidc_client_secret} onChange={e => setForm(f=>({...f,oidc_client_secret:e.target.value}))} />
             <div className="u-col-full">
-              <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="enterprise-page-e20">{t('pagina_ent.discovery_url_openid_connect')}</label>
-              <Input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.oidc_discovery_url} onChange={e => setForm(f=>({...f,oidc_discovery_url:e.target.value}))} placeholder={PROVIDER_INFO[form.provider]?.discovery} inputClassName="enterprise-page-e19" />
+              <Input label={t('pagina_ent.discovery_url_openid_connect')} id={`${idCampo}-4`} value={form.oidc_discovery_url} onChange={e => setForm(f=>({...f,oidc_discovery_url:e.target.value}))} placeholder={PROVIDER_INFO[form.provider]?.discovery} />
             </div>
-            <div>
-              <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="enterprise-page-e20">{traducir('enterprise.sso_scopes')}</label>
-              <Input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={form.oidc_scopes} onChange={e => setForm(f=>({...f,oidc_scopes:e.target.value}))} inputClassName="enterprise-page-e19" />
-            </div>
+            <Input label={traducir('enterprise.sso_scopes')} id={`${idCampo}-5`} value={form.oidc_scopes} onChange={e => setForm(f=>({...f,oidc_scopes:e.target.value}))} />
             </>)}
             {esSaml && (<>
             <div className="u-col-full">
-              <label id={`${idCampo}-et11`} htmlFor={`${idCampo}-11`} className="enterprise-page-e20">{traducir('enterprise.saml_entity_id')}</label>
-              <Input id={`${idCampo}-11`} aria-labelledby={`${idCampo}-et11`} value={form.saml_entity_id} onChange={e => setForm(f=>({...f,saml_entity_id:e.target.value}))} placeholder="https://idp.example.com/metadata" inputClassName="enterprise-page-e19" />
+              <Input label={traducir('enterprise.saml_entity_id')} id={`${idCampo}-11`} value={form.saml_entity_id} onChange={e => setForm(f=>({...f,saml_entity_id:e.target.value}))} placeholder="https://idp.example.com/metadata" />
             </div>
-            <div>
-              <label id={`${idCampo}-et12`} htmlFor={`${idCampo}-12`} className="enterprise-page-e20">{traducir('enterprise.saml_sso_url')}</label>
-              <Input id={`${idCampo}-12`} aria-labelledby={`${idCampo}-et12`} value={form.saml_sso_url} onChange={e => setForm(f=>({...f,saml_sso_url:e.target.value}))} placeholder="https://idp.example.com/sso" inputClassName="enterprise-page-e19" />
-            </div>
-            <div>
-              <label id={`${idCampo}-et13`} htmlFor={`${idCampo}-13`} className="enterprise-page-e20">{traducir('enterprise.saml_slo_url')}</label>
-              <Input id={`${idCampo}-13`} aria-labelledby={`${idCampo}-et13`} value={form.saml_slo_url} onChange={e => setForm(f=>({...f,saml_slo_url:e.target.value}))} placeholder="https://idp.example.com/slo" inputClassName="enterprise-page-e19" />
-            </div>
+            <Input label={traducir('enterprise.saml_sso_url')} id={`${idCampo}-12`} value={form.saml_sso_url} onChange={e => setForm(f=>({...f,saml_sso_url:e.target.value}))} placeholder="https://idp.example.com/sso" />
+            <Input label={traducir('enterprise.saml_slo_url')} id={`${idCampo}-13`} value={form.saml_slo_url} onChange={e => setForm(f=>({...f,saml_slo_url:e.target.value}))} placeholder="https://idp.example.com/slo" />
             <div className="u-col-full">
-              <label id={`${idCampo}-et14`} htmlFor={`${idCampo}-14`} className="enterprise-page-e20">{traducir('enterprise.saml_certificado')}</label>
-              <Textarea id={`${idCampo}-14`} aria-labelledby={`${idCampo}-et14`} rows={4} value={form.saml_certificate} onChange={e => setForm(f=>({...f,saml_certificate:e.target.value}))} placeholder={certGuardado ? traducir('enterprise.saml_certificado_guardado') : '-----BEGIN CERTIFICATE-----'} inputClassName="ds-codigo enterprise-page-e12" />
+              <Textarea label={traducir('enterprise.saml_certificado')} id={`${idCampo}-14`} rows={4} value={form.saml_certificate} onChange={e => setForm(f=>({...f,saml_certificate:e.target.value}))} placeholder={certGuardado ? traducir('enterprise.saml_certificado_guardado') : '-----BEGIN CERTIFICATE-----'} inputClassName="ds-codigo" />
             </div>
-            <div>
-              <label id={`${idCampo}-et15`} htmlFor={`${idCampo}-15`} className="enterprise-page-e20">{traducir('enterprise.saml_attr_email')}</label>
-              <Input id={`${idCampo}-15`} aria-labelledby={`${idCampo}-et15`} value={form.saml_attribute_email} onChange={e => setForm(f=>({...f,saml_attribute_email:e.target.value}))} inputClassName="enterprise-page-e19" />
-            </div>
-            <div>
-              <label id={`${idCampo}-et16`} htmlFor={`${idCampo}-16`} className="enterprise-page-e20">{traducir('enterprise.saml_attr_nombre')}</label>
-              <Input id={`${idCampo}-16`} aria-labelledby={`${idCampo}-et16`} value={form.saml_attribute_name} onChange={e => setForm(f=>({...f,saml_attribute_name:e.target.value}))} inputClassName="enterprise-page-e19" />
-            </div>
-            <div>
-              <label id={`${idCampo}-et17`} htmlFor={`${idCampo}-17`} className="enterprise-page-e20">{traducir('enterprise.saml_attr_rol')}</label>
-              <Input id={`${idCampo}-17`} aria-labelledby={`${idCampo}-et17`} value={form.saml_attribute_role} onChange={e => setForm(f=>({...f,saml_attribute_role:e.target.value}))} inputClassName="enterprise-page-e19" />
-            </div>
+            <Input label={traducir('enterprise.saml_attr_email')} id={`${idCampo}-15`} value={form.saml_attribute_email} onChange={e => setForm(f=>({...f,saml_attribute_email:e.target.value}))} />
+            <Input label={traducir('enterprise.saml_attr_nombre')} id={`${idCampo}-16`} value={form.saml_attribute_name} onChange={e => setForm(f=>({...f,saml_attribute_name:e.target.value}))} />
+            <Input label={traducir('enterprise.saml_attr_rol')} id={`${idCampo}-17`} value={form.saml_attribute_role} onChange={e => setForm(f=>({...f,saml_attribute_role:e.target.value}))} />
             {urlsSp && (
               <div className="u-col-full u-text2-xs">
                 <strong className="u-text1">{traducir('enterprise.saml_datos_sp')}</strong><br/>
@@ -219,23 +186,13 @@ export function SSOTab({ showCreate, setShowCreate }: AltaProps) {
               </div>
             )}
             </>)}
-            <div>
-              <label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} className="enterprise-page-e20">{traducir('enterprise.sso_dominios')}</label>
-              <Input id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} value={form.allowed_domains} onChange={e => setForm(f=>({...f,allowed_domains:e.target.value}))} placeholder={t('pagina_ent.empresa_com_filial_es')} inputClassName="enterprise-page-e19" />
-            </div>
-            <div>
-              <label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} className="enterprise-page-e20">{traducir('enterprise.sso_rol_defecto')}</label>
-              <Select suelto placeholder={false} id={`${idCampo}-7`} value={form.default_role} onChange={e => setForm(f=>({...f,default_role:e.target.value}))} className="enterprise-page-e19">
+            <Input label={traducir('enterprise.sso_dominios')} id={`${idCampo}-6`} value={form.allowed_domains} onChange={e => setForm(f=>({...f,allowed_domains:e.target.value}))} placeholder={t('pagina_ent.empresa_com_filial_es')} />
+            <Select label={traducir('enterprise.sso_rol_defecto')} placeholder={false} id={`${idCampo}-7`} value={form.default_role} onChange={e => setForm(f=>({...f,default_role:e.target.value}))}>
                 {roles.map(r => <option key={r.id} value={r.id}>{r.etiqueta}</option>)}
               </Select>
-            </div>
-            <div>
-              <label id={`${idCampo}-et8`} htmlFor={`${idCampo}-8`} className="enterprise-page-e20">{traducir('enterprise.sso_claim_grupos')}</label>
-              <Input id={`${idCampo}-8`} aria-labelledby={`${idCampo}-et8`} value={form.groups_claim} onChange={e => setForm(f=>({...f,groups_claim:e.target.value}))} inputClassName="enterprise-page-e19" />
-            </div>
+            <Input label={traducir('enterprise.sso_claim_grupos')} id={`${idCampo}-8`} value={form.groups_claim} onChange={e => setForm(f=>({...f,groups_claim:e.target.value}))} />
             <div className="u-col-full">
-              <label id={`${idCampo}-et9`} htmlFor={`${idCampo}-9`} className="enterprise-page-e20">{traducir('enterprise.sso_mapeo')}</label>
-              <Textarea id={`${idCampo}-9`} aria-labelledby={`${idCampo}-et9`} rows={3} value={form.role_mapping_text} onChange={e => setForm(f=>({...f,role_mapping_text:e.target.value}))} placeholder={'Contecflow-Admins=admin\nContecflow-PM=pm'} inputClassName="ds-codigo enterprise-page-e12" />
+              <Textarea label={traducir('enterprise.sso_mapeo')} id={`${idCampo}-9`} rows={3} value={form.role_mapping_text} onChange={e => setForm(f=>({...f,role_mapping_text:e.target.value}))} placeholder={'Contecflow-Admins=admin\nContecflow-PM=pm'} inputClassName="ds-codigo" />
             </div>
             <label className="ent-label-9">
               <Checkbox aria-label={traducir('enterprise.sso_autocrear')} checked={form.auto_create_users} onChange={(_, e) => setForm(f=>({...f,auto_create_users:e.target.checked}))} />

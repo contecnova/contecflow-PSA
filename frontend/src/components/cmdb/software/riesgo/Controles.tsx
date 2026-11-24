@@ -157,10 +157,9 @@ export function ControlModal({ inicial, onClose, onSaved }: { inicial: HallazgoB
           ))}
         </div>
         <div className="sdm-form">
-          <label className="sdm-field"><span>{t('swr.tipo_control')}</span>
-            <Select suelto placeholder={false} value={tipo} onChange={ev => { setTipo(ev.target.value); setReduccion('') }}>
+          <Select label={t('swr.tipo_control')} placeholder={false} value={tipo} onChange={ev => { setTipo(ev.target.value); setReduccion('') }}>
               {tipos.map(x => <option key={x} value={x}>{e('control', x)}</option>)}
-            </Select></label>
+            </Select>
           <Input label={t('swr.reduccion_pct')} type="number" min={10} max={90} step={5} value={reduccion}
             placeholder={porDefecto != null ? String(Math.round(porDefecto * 100)) : ''}
             hint={porDefecto != null ? t('swr.reduccion_defecto', { n: Math.round(porDefecto * 100) }) : undefined}

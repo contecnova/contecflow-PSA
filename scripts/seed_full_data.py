@@ -634,6 +634,9 @@ def main():
     db = SessionLocal()
     from app.db.contexto_de_tenant import declarar_sistema as _declarar_sistema
     _declarar_sistema(db, "script: siembra completa")  # auditoría 22-11-2026: TENANT_SESION_SIN_CONTEXTO=cerrar
+    # 24-11-2026 (migración 208): `organization_id` es obligatorio; lo nuevo es de la empresa demo.
+    from app.db.seed_parts._sesion import publicar_org_de_demo
+    publicar_org_de_demo(db)
     try:
         print("=" * 60)
         print("  SEED FULL DATA — Contecflow-PSA 2025-2027")

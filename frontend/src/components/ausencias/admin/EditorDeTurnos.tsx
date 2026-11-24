@@ -112,22 +112,20 @@ function Formulario({ id, inicial, oficinas, onCerrar }: { id: string | null; in
     <Modal open onClose={onCerrar} title={id ? ta('editar_turno') : ta('nuevo_turno')}>
       <form className="ausadm-form" onSubmit={e => { e.preventDefault(); guardar.mutate() }}>
         <div className="ausadm-grid-2">
-          <label className="ausadm-campo-con-etiqueta">
-            <span className="ausadm-etiqueta">{ta('nombre')}</span>
-            <Input aria-label={ta('nombre')} required value={d.nombre} onChange={e => cambiar({ nombre: e.target.value })} inputClassName="ausadm-campo" />
+          <div className="ausadm-campo-con-etiqueta">
+            <Input label={ta('nombre')} aria-label={ta('nombre')} required value={d.nombre} onChange={e => cambiar({ nombre: e.target.value })} />
             <ErrorDeCampo texto={campos.de('nombre')} />
-          </label>
+          </div>
           <label className="ausadm-campo-con-etiqueta">
-            <span className="ausadm-etiqueta">{ta('color')}</span>
+            <span className="uiinde-estiloetiqueta">{ta('color')}</span>
             <input aria-label={ta('color')} type="color" className="ausadm-color" value={d.color} onChange={e => cambiar({ color: e.target.value })} />
           </label>
         </div>
         <EditorDeTramos tramos={d.tramos} onChange={tramos => cambiar({ tramos })} leyenda={ta('tramos_del_turno')} />
-        <label className="ausadm-campo-con-etiqueta">
-          <span className="ausadm-etiqueta">{ta('pausa_minutos')}</span>
-          <Input aria-label={ta('pausa_minutos')} type="number" min={0} step={5} value={d.pausa_minutos} aria-describedby="ausadm-horario" onChange={e => cambiar({ pausa_minutos: Math.max(0, Number(e.target.value) || 0) })} inputClassName="ausadm-campo ausadm-campo--corto" />
+        <div className="ausadm-campo-con-etiqueta">
+          <Input label={ta('pausa_minutos')} aria-label={ta('pausa_minutos')} type="number" min={0} step={5} value={d.pausa_minutos} aria-describedby="ausadm-horario" onChange={e => cambiar({ pausa_minutos: Math.max(0, Number(e.target.value) || 0) })} />
           <ErrorDeCampo texto={campos.de('pausa_minutos')} />
-        </label>
+        </div>
         <p id="ausadm-horario" className="ausadm-ayuda" aria-live="polite">
           {h.cruza ? ta('horario_cruza', { n: h.horas }) : ta('horario_dura', { n: h.horas })}
           {d.tramos.length > 1 ? ` · ${ta('turno_partido')}` : ''}
@@ -143,33 +141,29 @@ function Formulario({ id, inicial, oficinas, onCerrar }: { id: string | null; in
           <span className="ausadm-ayuda">{ta('dias_vacio_todos')}</span>
         </fieldset>
         <div className="ausadm-grid-2">
-          <label className="ausadm-campo-con-etiqueta">
-            <span className="ausadm-etiqueta">{ta('equipo')}</span>
-            <Select suelto className="ausadm-campo" value={d.equipo ?? ''} onChange={e => cambiar({ equipo: e.target.value || null })} placeholder={ta('cualquiera')}>
+          <div className="ausadm-campo-con-etiqueta">
+            <Select label={ta('equipo')} value={d.equipo ?? ''} onChange={e => cambiar({ equipo: e.target.value || null })} placeholder={ta('cualquiera')}>
               {(opciones?.equipos ?? []).map(x => <option key={x} value={x}>{x}</option>)}
             </Select>
             <ErrorDeCampo texto={campos.de('equipo')} />
-          </label>
-          <label className="ausadm-campo-con-etiqueta">
-            <span className="ausadm-etiqueta">{ta('departamento')}</span>
-            <Select suelto className="ausadm-campo" value={d.departamento ?? ''} onChange={e => cambiar({ departamento: e.target.value || null })} placeholder={ta('cualquiera')}>
+          </div>
+          <div className="ausadm-campo-con-etiqueta">
+            <Select label={ta('departamento')} value={d.departamento ?? ''} onChange={e => cambiar({ departamento: e.target.value || null })} placeholder={ta('cualquiera')}>
               {(opciones?.departamentos ?? []).map(x => <option key={x} value={x}>{x}</option>)}
             </Select>
             <ErrorDeCampo texto={campos.de('departamento')} />
-          </label>
-          <label className="ausadm-campo-con-etiqueta">
-            <span className="ausadm-etiqueta">{ta('oficina')}</span>
-            <Select suelto className="ausadm-campo" value={d.office_id ?? ''} onChange={e => cambiar({ office_id: e.target.value || null })} placeholder={ta('cualquiera')}>
+          </div>
+          <div className="ausadm-campo-con-etiqueta">
+            <Select label={ta('oficina')} value={d.office_id ?? ''} onChange={e => cambiar({ office_id: e.target.value || null })} placeholder={ta('cualquiera')}>
               {oficinas.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
             </Select>
             <ErrorDeCampo texto={campos.de('office_id')} />
-          </label>
-          <label className="ausadm-campo-con-etiqueta">
-            <span className="ausadm-etiqueta">{ta('personas_requeridas')}</span>
-            <Input aria-label={ta('personas_requeridas')} type="number" min={0} value={d.personas_requeridas} onChange={e => cambiar({ personas_requeridas: Math.max(0, Number(e.target.value) || 0) })} inputClassName="ausadm-campo ausadm-campo--corto" />
+          </div>
+          <div className="ausadm-campo-con-etiqueta">
+            <Input label={ta('personas_requeridas')} aria-label={ta('personas_requeridas')} type="number" min={0} value={d.personas_requeridas} onChange={e => cambiar({ personas_requeridas: Math.max(0, Number(e.target.value) || 0) })} />
             <span className="ausadm-ayuda">{ta('personas_requeridas_ayuda')}</span>
             <ErrorDeCampo texto={campos.de('personas_requeridas')} />
-          </label>
+          </div>
         </div>
         <Casilla etiqueta={ta('trabaja_festivos')} valor={d.trabaja_festivos} onChange={v => cambiar({ trabaja_festivos: v })} />
         <Casilla etiqueta={ta('activo')} valor={d.activo} onChange={v => cambiar({ activo: v })} />

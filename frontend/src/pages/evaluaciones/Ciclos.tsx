@@ -200,21 +200,16 @@ export function NewCycleModal({ existingCycles, onClose }: { existingCycles: Cyc
     <Modal open onClose={onClose} title={traducir('performancereviews.nuevo_ciclo_de_evaluacion')} width={520}>
       <div className="ds-stack">
         <div className="ds-field">
-          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="ds-field__label">{t('pagina_perf.nombre')}</label>
-          <Input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.name} onChange={e => { camposB.limpiar('name'); setForm(f => ({ ...f, name: e.target.value })) }} placeholder={traducir('performancereviews.ej_evaluacion_q1_2026')} autoFocus />{msgB('name')}
+          <Input label={t('pagina_perf.nombre')} id={`${idCampo}-1`} value={form.name} onChange={e => { camposB.limpiar('name'); setForm(f => ({ ...f, name: e.target.value })) }} placeholder={traducir('performancereviews.ej_evaluacion_q1_2026')} autoFocus />{msgB('name')}
         </div>
         <div className="performance-reviews-page-e15">
           <div className="ds-field">
-            <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="ds-field__label">{t('pagina_perf.inicio')}</label>
-            <DateInput id={`${idCampo}-2`} value={form.start_date}
-              onChange={e => { camposB.limpiar('start_date'); setForm(f => ({ ...f, start_date: e.target.value })) }}
-              className="ds-input" />{msgB('start_date')}
+            <DateInput label={t('pagina_perf.inicio')} id={`${idCampo}-2`} value={form.start_date}
+              onChange={e => { camposB.limpiar('start_date'); setForm(f => ({ ...f, start_date: e.target.value })) }} />{msgB('start_date')}
           </div>
           <div className="ds-field">
-            <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="ds-field__label">{t('pagina_perf.fin')}</label>
-            <DateInput id={`${idCampo}-3`} value={form.end_date}
-              onChange={e => { camposB.limpiar('end_date'); setForm(f => ({ ...f, end_date: e.target.value })) }}
-              className="ds-input" />{msgB('end_date')}
+            <DateInput label={t('pagina_perf.fin')} id={`${idCampo}-3`} value={form.end_date}
+              onChange={e => { camposB.limpiar('end_date'); setForm(f => ({ ...f, end_date: e.target.value })) }} />{msgB('end_date')}
           </div>
         </div>
         <div className="ds-field">

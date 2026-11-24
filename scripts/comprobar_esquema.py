@@ -45,11 +45,39 @@ def faltantes() -> tuple[list[str], dict[str, list[str]]]:
     return tablas, columnas
 
 
+def empresa_nulable() -> list[str]:
+    """Tablas donde el modelo exige `organization_id` (migración 208) y la base lo admite vacío.
+
+    24-11-2026: una base marcada en la 208 sin haberla ejecutado aceptaría filas
+    sin empresa que el modelo ya no contempla (y nadie vería).
+    """
+    import sqlalchemy as sa
+
+    import app.models  # noqa: F401
+    from app.db.base import Base
+    from app.db.session import engine
+
+    insp = sa.inspect(engine)
+    en_bd = set(insp.get_table_names())
+    salida = []
+    for nombre, tabla in sorted(Base.metadata.tables.items()):
+        if nombre not in en_bd or "organization_id" not in tabla.c or tabla.c.organization_id.nullable:
+            continue
+        col = {c["name"]: c for c in insp.get_columns(nombre)}.get("organization_id")
+        if col is not None and col.get("nullable"):
+            salida.append(nombre)
+    return salida
+
+
 def main() -> int:
     tablas, columnas = faltantes()
-    if not tablas and not columnas:
+    sin_empresa = empresa_nulable() if not tablas and not columnas else []
+    if not tablas and not columnas and not sin_empresa:
         print("[OK] Esquema completo: la base tiene todas las tablas y columnas de los modelos")
         return 0
+    if sin_empresa:
+        print(f"[ERROR] {len(sin_empresa)} tablas admiten organization_id vacio y el modelo lo exige "
+              f"(p. ej. {', '.join(sin_empresa[:5])}): la migracion 208_empresa_obligatoria_y_portal no se aplico.")
     print("[ERROR] La base NO tiene el esquema de los modelos aunque Alembic diga que esta al dia.")
     for t in tablas:
         print(f"[ERROR]   falta la tabla {t}")

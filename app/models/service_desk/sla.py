@@ -14,7 +14,7 @@ class SLAEvent(Base):
     __tablename__ = "sd_sla_events"
 
     id         = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)  # audit #7
     ticket_id  = Column(String(36), ForeignKey("sd_tickets.id", ondelete="CASCADE"), nullable=False, index=True)
     event_type = Column(Enum(SLAEventType), nullable=False)
     sla_type   = Column(String(20), default="resolution")  # response | resolution
@@ -33,7 +33,7 @@ class EscalationRule(Base):
     __tablename__ = "sd_escalation_rules"
 
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)  # audit #7
     name        = Column(String(255), nullable=False)
     is_active   = Column(Boolean, default=True)
     sort_order  = Column(Integer, default=100)
@@ -61,7 +61,7 @@ class EscalationLog(Base):
     __tablename__ = "sd_escalation_logs"
 
     id         = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)  # audit #7
     rule_id    = Column(String(36), ForeignKey("sd_escalation_rules.id", ondelete="RESTRICT"), nullable=False, index=True)
     ticket_id  = Column(String(36), ForeignKey("sd_tickets.id", ondelete="CASCADE"), nullable=False, index=True)
     action_taken = Column(String(255), nullable=True)
@@ -75,7 +75,7 @@ class OnCallSchedule(Base):
     __tablename__ = "sd_oncall_schedules"
 
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)  # audit #7
     name        = Column(String(255), nullable=False)
     group_id    = Column(String(36), ForeignKey("sd_agent_groups.id", ondelete="CASCADE"), nullable=False, index=True)
     rotation    = Column(Enum(OnCallRotationType), default=OnCallRotationType.weekly)
@@ -93,7 +93,7 @@ class OnCallEntry(Base):
     __tablename__ = "sd_oncall_entries"
 
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)  # audit #7
     schedule_id = Column(String(36), ForeignKey("sd_oncall_schedules.id", ondelete="CASCADE"), nullable=False, index=True)
     user_id     = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     start_dt    = Column(DateTime(timezone=True), nullable=False)

@@ -20,6 +20,7 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  color: var(--text-1);
 }
 .glchpa-row-3 {
   display: inline-flex;
@@ -112,6 +113,10 @@
   overflow: hidden;
   text-overflow: ellipsis;
   font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
 }
 .glchpa-row-10 {
   font-size: var(--text-xs);
@@ -157,6 +162,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  color: var(--text-1);
 }
 .glchpa-box-7 {
   margin-left: auto;
@@ -265,6 +271,9 @@
   border: none;
   background: var(--accent);
   color: var(--on-accent-light);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .glchpa-fieldstyle3 {
@@ -411,14 +420,6 @@
 }
 h2.glchpa-box-1,
 h3.glchpa-row-12 { margin: 0; }
-.glchpa-box-1 { color: var(--text-1); }
-.glchpa-row-12 { color: var(--text-1); }
-.glchpa-box-5 {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-}
 .glchpa-box-5 svg,
 .glchpa-row-12 svg { flex-shrink: 0; color: var(--text-3); }
 .glchpa-ellipsis {
@@ -431,4 +432,3 @@ h3.glchpa-row-12 { margin: 0; }
 .glchpa-row-6:hover { background: var(--surface-3); color: var(--text-1); }
 .glchpa-box-13:hover { background: var(--surface-2); }
 .glchpa-box-13.global-chat-panel-m11:hover { background: var(--accent-muted); }
-.glchpa-box-16 { display: inline-flex; align-items: center; justify-content: center; }

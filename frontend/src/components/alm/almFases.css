@@ -17,9 +17,7 @@
 
 .almf-checklist { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
 .almf-checklist__fila { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: 8px; align-items: center; }
-.almf-checklist__item { display: flex; align-items: center; gap: 8px; font-size: var(--text-sm); color: var(--text-1); min-width: 0; }
-.almf-checklist__item span { overflow-wrap: anywhere; }
-@media (max-width: 560px) { .almf-checklist__fila { grid-template-columns: 1fr; } }
+@media (width <= 560px) { .almf-checklist__fila { grid-template-columns: 1fr; } }
 
 .almf-dato { display: grid; grid-template-columns: minmax(120px, 38%) minmax(0, 1fr); gap: 8px; padding: 6px 0;
   border-bottom: 1px solid var(--surface-4); font-size: var(--text-sm); }
@@ -67,7 +65,7 @@
 .almf-filtros > * { min-width: 0; }
 .almf-filtro { display: grid; gap: 4px; }
 .almf-rejilla-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-@media (max-width: 640px) { .almf-rejilla-2 { grid-template-columns: 1fr; } }
+@media (width <= 640px) { .almf-rejilla-2 { grid-template-columns: 1fr; } }
 .almf-col-completa { grid-column: 1 / -1; }
 
 .almf-aviso { display: flex; gap: 8px; align-items: flex-start; padding: 10px 12px; border-radius: 10px;

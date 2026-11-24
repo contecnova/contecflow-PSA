@@ -7,8 +7,7 @@
 .cai-modes { margin-bottom: 16px; }
 
 .cai-fields { display: flex; gap: 12px; margin-bottom: 12px; }
-@media (max-width: 640px) { .cai-fields { flex-direction: column; } }
-.cai-label { font-size: var(--text-xs); color: var(--text-3); display: block; margin-bottom: 4px; }
+@media (width <= 640px) { .cai-fields { flex-direction: column; } }
 .cai-input {
   width: 100%;
   box-sizing: border-box;
@@ -57,7 +56,6 @@
   color: var(--cai-color, var(--text-2));
 }
 .cai-risk--list { padding: 4px 10px; display: inline-block; flex-shrink: 0; }
-.cai-risk--list::first-letter {}
 .cai-risk--head { padding: 2px 8px; margin-left: 10px; }
 
 /* ── Panel de detalle (dentro de <Drawer>) ───────────────────────────────── */
@@ -66,7 +64,7 @@
 .cai-panel__title { margin: 0; font-size: var(--text-lg); font-weight: 700; }
 .cai-panel__meta { font-size: var(--text-sm); color: var(--text-3); margin-top: 4px; }
 .cai-subheading {
-  margin: 0 0 8px 0;
+  margin: 0 0 8px;
   font-size: var(--text-sm);
   letter-spacing: 0.07em;
   color: var(--text-3);
@@ -78,7 +76,7 @@
 .cai-kpi__value--warning { color: var(--warning); }
 
 .cai-group { margin-bottom: 18px; }
-.cai-group__title { margin: 0 0 8px 0; font-size: var(--text-sm); color: var(--text-2); display: flex; align-items: center; gap: 6px; }
+.cai-group__title { margin: 0 0 8px; font-size: var(--text-sm); color: var(--text-2); display: flex; align-items: center; gap: 6px; }
 
 /* Cláusula: misma caja que <Card>, con borde rojo de 2px si está en riesgo. */
 .cai-clause {
@@ -108,7 +106,7 @@
   color: var(--text-2);
   border-left: 3px solid var(--surface-4);
   padding: 4px 10px;
-  margin: 6px 0 0 0;
+  margin: 6px 0 0;
 }
 
 /* Pasada de diseño 16-11-2026 */

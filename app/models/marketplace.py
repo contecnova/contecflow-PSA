@@ -20,7 +20,7 @@ class GanttBaseline(Base):
     __tablename__ = "gantt_baselines"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)  # audit #7
     project_id   = Column(String(36), ForeignKey("projects.id", ondelete="CASCADE"),
                           nullable=False, index=True)
     name         = Column(String(100), nullable=False)           # "Kick-off Baseline", "End Sprint 3"
@@ -57,7 +57,7 @@ class GanttBaselineTask(Base):
     __tablename__ = "gantt_baseline_tasks"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     baseline_id = Column(String(36), ForeignKey("gantt_baselines.id", ondelete="CASCADE"), nullable=False, index=True)
     # Sin clave ajena a `tasks`: una tarea borrada después sigue en la foto.
     task_id = Column(String(36), nullable=False, index=True)
@@ -159,7 +159,7 @@ class TemplateDocument(Base):
     __tablename__ = "template_documents"
 
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)  # audit #7
     template_id = Column(String(36), ForeignKey("project_templates.id", ondelete="CASCADE"),
                          nullable=False, index=True)
     name        = Column(String(255), nullable=False)
@@ -176,7 +176,7 @@ class TemplateRole(Base):
     __tablename__ = "template_roles"
 
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)  # audit #7
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)  # audit #7
     template_id = Column(String(36), ForeignKey("project_templates.id", ondelete="CASCADE"),
                          nullable=False, index=True)
     role_name   = Column(String(100), nullable=False)               # "Senior Developer", "BA"

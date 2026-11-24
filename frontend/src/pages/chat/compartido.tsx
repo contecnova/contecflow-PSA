@@ -51,6 +51,8 @@ export interface Msg {
   // `_serialize_message` los envía desde la auditoría 2026-11 (antes no llegaban nunca).
   linked_deliverable_id?: string | null; linked_risk_id?: string | null
   edited_at: string | null; deleted_at: string | null; sent_at: string
+  // 24-11-2026 (chat del portal): el mensaje al que responde.
+  reply_to?: { id: string; author_name: string | null; body: string; is_deleted: boolean } | null
 }
 
 export interface Team { id: string; name: string }
@@ -86,7 +88,7 @@ export interface Decision { id: string; text: string | null }
 
 export type LinkPicker = { messageId: string; kind: string }
 
-export type TypingDetail = { conversation_id?: string; payload?: { user_id?: string; active?: boolean } }
+export type TypingDetail = { conversation_id?: string; payload?: { user_id?: string | null; client_user_id?: string | null; name?: string; active?: boolean } }
 
 /** Título visible. El backend titula los canales "# nombre" y aquí el «#» ya lo
  *  pone el icono: se quita del texto (antes salía «# # General»). */

@@ -13,7 +13,7 @@ class SDAIEvaluationRun(Base):
     __tablename__ = "sd_ai_evaluation_runs"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     model_name = Column(String(120), nullable=False)
     task_type = Column(String(50), nullable=False)  # triage|routing|auto_resolution
     dataset_name = Column(String(120), nullable=True)
@@ -29,7 +29,7 @@ class SDAIDriftSnapshot(Base):
     __tablename__ = "sd_ai_drift_snapshots"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     model_name = Column(String(120), nullable=False)
     feature_set = Column(String(120), nullable=False, default="default")
     drift_score = Column(Integer, nullable=False, default=0)  # 0-100

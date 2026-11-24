@@ -50,11 +50,11 @@ export function CostCentersTab() {
         <div className="alm-card alm-cc-form">
           <h4 className="alm-cc-form__title">{editing ? t('alm.cost_centers_edit') : t('alm.cost_centers_new')}</h4>
           <div className="alm-cc-form__grid">
-            <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="alm-label">{t('alm.cost_centers_label_code')} *</label><Input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.code} onChange={s('code')} placeholder={t('alm.cost_centers_placeholder_code')} inputClassName="alm-input" /></div>
-            <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="alm-label">{t('alm.cost_centers_label_name')} *</label><Input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.name} onChange={s('name')} placeholder={t('alm.cost_centers_placeholder_name')} inputClassName="alm-input" /></div>
-            <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="alm-label">{t('alm.cost_centers_label_budget')}</label><Input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="number" value={form.budget_annual} onChange={s('budget_annual')} inputClassName="alm-input" /></div>
-            <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="alm-label">{t('alm.cost_centers_label_currency')}</label><Input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.currency} onChange={s('currency')} inputClassName="alm-input" /></div>
-            <div className="u-col-full"><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="alm-label">{t('alm.cost_centers_label_description')}</label><Input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={form.description} onChange={s('description')} inputClassName="alm-input" /></div>
+            <Input label={<>{t('alm.cost_centers_label_code')}*</>} id={`${idCampo}-1`} value={form.code} onChange={s('code')} placeholder={t('alm.cost_centers_placeholder_code')} />
+            <Input label={<>{t('alm.cost_centers_label_name')}*</>} id={`${idCampo}-2`} value={form.name} onChange={s('name')} placeholder={t('alm.cost_centers_placeholder_name')} />
+            <Input label={t('alm.cost_centers_label_budget')} id={`${idCampo}-3`} type="number" value={form.budget_annual} onChange={s('budget_annual')} />
+            <Input label={t('alm.cost_centers_label_currency')} id={`${idCampo}-4`} value={form.currency} onChange={s('currency')} />
+            <div className="u-col-full"><Input label={t('alm.cost_centers_label_description')} id={`${idCampo}-5`} value={form.description} onChange={s('description')} /></div>
           </div>
           <div className="alm-cc-form__actions">
             <Button variant="secondary" onClick={() => { setShowForm(false); setEditing(null) }}>{t('common.cancel')}</Button>

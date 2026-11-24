@@ -117,8 +117,7 @@ export default function ConfigSoftware() {
           <Switch checked={!!b.auto_sync} onChange={v => set('auto_sync', v)} label={t('sw.cfg_auto_sync')} />
           <div className="sdm-form">
             {(['max_queries', 'timeout_seconds'] as const).map(k => (
-              <label key={k} className="sdm-field"><span>{t(`sw.cfg_${k}`)}</span>
-                <Input type="number" min={1} value={b[k] ?? ''} onChange={ev => set(k, Number(ev.target.value) || 0)} /></label>
+              <Input key={k} label={t(`sw.cfg_${k}`)} type="number" min={1} value={b[k] ?? ''} onChange={ev => set(k, Number(ev.target.value) || 0)} />
             ))}
           </div>
           <div className="u-text3-xs">{t('sw.ultima_sync')}: {config.last_sync_at ? fmtDateTime(config.last_sync_at) : t('sw.nunca')}{config.last_sync_status ? ` · ${e('ejec', config.last_sync_status)}` : ''}</div>
@@ -128,8 +127,7 @@ export default function ConfigSoftware() {
       <Section title={t('sw.cfg_plazos')} subtitle={t('sw.cfg_plazos_desc')}>
         <div className="sdm-form">
           {NUMEROS.filter(k => k.startsWith('sla_') || k === 'exception_max_days' || k === 'eol_warning_days').map(k => (
-            <label key={k} className="sdm-field"><span>{t(`sw.cfg_${k}`)}</span>
-              <Input type="number" min={1} value={b[k] ?? ''} onChange={ev => set(k, Number(ev.target.value) || 0)} /></label>
+            <Input key={k} label={t(`sw.cfg_${k}`)} type="number" min={1} value={b[k] ?? ''} onChange={ev => set(k, Number(ev.target.value) || 0)} />
           ))}
         </div>
       </Section>
@@ -142,11 +140,10 @@ export default function ConfigSoftware() {
       </Section>
 
       <Section title={t('sw.cfg_ticket')} subtitle={t('sw.cfg_ticket_desc')}>
-        <label className="sdm-field sw-campo-estrecho"><span>{t('sw.cfg_ticket_desde')}</span>
-          <Select suelto placeholder={false} value={b.auto_ticket_min_severity ?? ''} onChange={ev => set('auto_ticket_min_severity', (ev.target.value || null) as Severidad | null)}>
+        <Select label={t('sw.cfg_ticket_desde')} placeholder={false} value={b.auto_ticket_min_severity ?? ''} onChange={ev => set('auto_ticket_min_severity', (ev.target.value || null) as Severidad | null)}>
             <option value="">{t('sw.cfg_ticket_nunca')}</option>
             {(['critical', 'high', 'medium', 'low'] as Severidad[]).map(s => <option key={s} value={s}>{t('sw.cfg_ticket_o_mas', { sev: e('sev', s) })}</option>)}
-          </Select></label>
+          </Select>
       </Section>
 
       <div className="u-actions-10">

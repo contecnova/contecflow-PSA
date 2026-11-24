@@ -154,10 +154,7 @@ export default function AltaDeProveedor({ onClose, onCreado }: { onClose: () => 
               options={currencies.map(c => ({ value: c, label: c }))} error={campos.de('currency')} />
           </div>
           <ModosDeRelacion valor={modos} onChange={setModos} />
-          <div className="ui-field">
-            <label htmlFor="prv-alta-notas" className="uiinde-estiloetiqueta">{t('subcontractors.notes')}</label>
-            <Textarea id="prv-alta-notas" value={empresa.notes} onChange={campoEmpresa('notes')} inputClassName="prv-textarea" />
-          </div>
+          <Textarea label={t('subcontractors.notes')} id="prv-alta-notas" value={empresa.notes} onChange={campoEmpresa('notes')} />
           <div className="u-actions-8">
             <Button variant="ghost" onClick={() => setTipo(null)}>{t('proveedores.cambiar_tipo')}</Button>
             <Button onClick={() => altaEmpresa.mutate()} loading={altaEmpresa.isPending} disabled={!empresa.name.trim() || modos.length === 0 || altaEmpresa.isPending}>

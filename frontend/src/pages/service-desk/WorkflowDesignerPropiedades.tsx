@@ -4,7 +4,7 @@ import { Trash2, MousePointerClick } from 'lucide-react'
 import { IconButton, Select, Input, Textarea } from '../../components/ui'
 import { useAppLang } from '../../i18n/AppLangContext'
 import { ESTADOS_DE_TICKET } from '../../constants/catalogos'
-import { type DatosNodo, NODE_VISUAL, type NodoFlujo, type ValorConfig, colorVar, labelStyle, nombreDeNodo } from './WorkflowDesignerComun'
+import { type DatosNodo, NODE_VISUAL, type NodoFlujo, type ValorConfig, colorVar, nombreDeNodo } from './WorkflowDesignerComun'
 
 // Los mismos que `workflow_triggers.DISPARADORES` y `TicketStatus` del servidor.
 const DISPARADORES_DE_FLUJO = ['created', 'assigned', 'group_assigned', 'status_changed', 'priority_changed',
@@ -43,10 +43,7 @@ export function PropertiesPanel({ node, onChange, onDelete }: { node: NodoFlujo 
           <Trash2 size={14} aria-hidden="true" />
         </IconButton>
       </div>
-      <div>
-        <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className={labelStyle}>{traducir('workflowdesigner.etiqueta')}</label>
-        <Input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={node.data.label || ''} onChange={e => onChange({ label: e.target.value })} inputClassName="wfd-input" />
-      </div>
+      <Input label={traducir('workflowdesigner.etiqueta')} id={`${idCampo}-1`} value={node.data.label || ''} onChange={e => onChange({ label: e.target.value })} />
 
       {/* Campos por tipo */}
       {t === 'start' && <>
@@ -110,32 +107,23 @@ export function PropertiesPanel({ node, onChange, onDelete }: { node: NodoFlujo 
 function FieldText({ label, value, onChange, placeholder }: { label: string; value: ValorConfig; onChange: (v: string) => void; placeholder?: string }) {
   const idCampo = useId()
   return (
-    <div>
-      <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className={labelStyle}>{label}</label>
-      <Input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={value || ''} onChange={e => onChange(e.target.value)} placeholder={placeholder} inputClassName="wfd-input" />
-    </div>
+    <Input label={label} id={`${idCampo}-1`} value={value || ''} onChange={e => onChange(e.target.value)} placeholder={placeholder} />
   )
 }
 
 function FieldNumber({ label, value, onChange }: { label: string; value: ValorConfig; onChange: (v: number | null) => void }) {
   const idCampo = useId()
   return (
-    <div>
-      <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className={labelStyle}>{label}</label>
-      <Input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} type="number" value={value ?? ''} onChange={e => onChange(e.target.value === '' ? null : Number(e.target.value))} inputClassName="wfd-input" />
-    </div>
+    <Input label={label} id={`${idCampo}-1`} type="number" value={value ?? ''} onChange={e => onChange(e.target.value === '' ? null : Number(e.target.value))} />
   )
 }
 
 function FieldSelect({ label, value, onChange, options }: { label: string; value: ValorConfig; onChange: (v: string) => void; options: { v: string; l: string }[] }) {
   const idCampo = useId()
   return (
-    <div>
-      <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className={labelStyle}>{label}</label>
-      <Select suelto placeholder={false} id={`${idCampo}-1`} value={value || ''} onChange={e => onChange(e.target.value)} className="wfd-sel">
+    <Select label={label} placeholder={false} id={`${idCampo}-1`} value={value || ''} onChange={e => onChange(e.target.value)}>
         {options.map((o) => <option key={o.v} value={o.v}>{o.l}</option>)}
       </Select>
-    </div>
   )
 }
 

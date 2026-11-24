@@ -66,9 +66,11 @@ if __name__ == "__main__":
     seed_enterprise()
     seed_v12()
     seed_v13()
-    db_main = SessionLocal()
-    from app.db.contexto_de_tenant import declarar_sistema as _declarar_sistema
-    _declarar_sistema(db_main, "siembra de datos")  # auditoría 22-11-2026: TENANT_SESION_SIN_CONTEXTO=cerrar
+    # 24-11-2026 (migración 208): con la empresa de la demo publicada; antes las
+    # plantillas de correo, Slack, el presupuesto y la gobernanza de IA nacían
+    # sin empresa y `organization_id` ya es obligatorio.
+    from app.db.seed_parts._sesion import sesion_de_siembra
+    db_main = sesion_de_siembra()
     seed_v14(db_main)
     seed_v15(db_main)
     seed_v16(db_main)

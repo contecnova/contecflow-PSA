@@ -87,15 +87,13 @@ export function PortalSettingsTab({ cid }: { cid: string }) {
         <div className="clpata-panel5">
           <div className="clpata-box-22 clpata-ico"><Globe size={15} aria-hidden="true" />{traducir('clientstabs.idioma_y_sla')}</div>
           <div className="u-mb-14">
-            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="clpata-lbl">{traducir('clients.idioma_por_defecto_del_portal')}</label>
-            <Select suelto placeholder={false} id={`${idCampo}-1`} value={defaultLang} onChange={e => setDefaultLang(e.target.value)} className="clpata-inp">
+            <Select label={traducir('clients.idioma_por_defecto_del_portal')} placeholder={false} id={`${idCampo}-1`} value={defaultLang} onChange={e => setDefaultLang(e.target.value)}>
               {languages.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}
             </Select>
             <div className="clpata-box-26">{traducir('clients.se_aplica_a_nuevos_usuarios_cada_usuario')}</div>
           </div>
           <div>
-            <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="clpata-lbl">{traducir('clientstabs.tier_sla')}</label>
-            <Select suelto placeholder={false} id={`${idCampo}-2`} value={slaTier} onChange={e => setSlaTier(e.target.value)} className="clpata-inp">
+            <Select label={traducir('clientstabs.tier_sla')} placeholder={false} id={`${idCampo}-2`} value={slaTier} onChange={e => setSlaTier(e.target.value)}>
               <option value="">{traducir('clients.sin_tier')}</option>
               <option value="bronze">{traducir('clientstabs.sla_bronze')}</option>
               <option value="silver">{traducir('clientstabs.sla_silver')}</option>
@@ -124,8 +122,7 @@ export function PortalSettingsTab({ cid }: { cid: string }) {
             </label>
           ))}
           <div className="clpata-sp-2">
-            <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="clpata-lbl">{traducir('clients.max_usuarios_de_portal')}</label>
-            <Input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="number" min={1} max={100} value={maxUsers} onChange={e => setMaxUsers(+e.target.value)} inputClassName="clpata-inp" />
+            <Input label={traducir('clients.max_usuarios_de_portal')} id={`${idCampo}-3`} type="number" min={1} max={100} value={maxUsers} onChange={e => setMaxUsers(+e.target.value)} />
           </div>
         </div>
 

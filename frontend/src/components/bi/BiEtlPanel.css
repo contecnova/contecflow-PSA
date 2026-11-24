@@ -4,12 +4,6 @@
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   gap: 10px;
 }
-.bietpa-grid-2 {
-  display: grid;
-  gap: 4px;
-  font-size: var(--text-xs);
-  color: var(--text-2);
-}
 .bietpa-grid-3 {
   display: grid;
   gap: 14px;
@@ -121,18 +115,6 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr));
   gap: 10px;
-}
-
-.bietpa-campo {
-  background: var(--surface-1);
-  border: 1px solid var(--surface-4);
-  border-radius: 8px;
-  padding: 7px 10px;
-  color: var(--text-1);
-  font-size: var(--text-sm);
-  font-family: inherit;
-  width: 100%;
-  box-sizing: border-box;
 }
 
 /* ── Estilos estaticos extraidos de BiEtlPanel.tsx (#17) ── */

@@ -117,10 +117,7 @@ function DatosDeResultado({ dominio, r, onChange }: { dominio: DominioDePolitica
     case 'add_approval_levels':
       return (
         <div className="u-stack-10">
-          <label className="pol-fila">
-            <span className="pol-ayuda">{t('pol.niveles_jerarquicos')}</span>
-            <Input type="number" min={0} max={catalogo?.max_niveles ?? 10} aria-label={t('pol.niveles')} value={r.niveles ?? 0} onChange={e => onChange({ ...r, niveles: Number(e.target.value) || null })} className="pol-campo--corto" />
-          </label>
+          <Input label={t('pol.niveles_jerarquicos')} type="number" min={0} max={catalogo?.max_niveles ?? 10} aria-label={t('pol.niveles')} value={r.niveles ?? 0} onChange={e => onChange({ ...r, niveles: Number(e.target.value) || null })} />
           <PasosConcretos pasos={r.pasos ?? []} onChange={p => onChange({ ...r, pasos: p })} />
         </div>
       )
@@ -172,9 +169,7 @@ function Parametro({ dominio, propio, p, valor, onChange }: {
   switch (p.tipo) {
     case 'numero':
       return (
-        <label className="pol-fila"><span className="pol-ayuda">{etiqueta}</span>
-          <Input type="number" min={p.minimo ?? undefined} aria-label={etiqueta} value={(valor as number | null) ?? ''} onChange={e => onChange(e.target.value === '' ? null : Number(e.target.value))} className="pol-campo--corto" />
-        </label>
+        <Input label={etiqueta} type="number" min={p.minimo ?? undefined} aria-label={etiqueta} value={(valor as number | null) ?? ''} onChange={e => onChange(e.target.value === '' ? null : Number(e.target.value))} />
       )
     case 'booleano':
       return (
@@ -182,11 +177,9 @@ function Parametro({ dominio, propio, p, valor, onChange }: {
       )
     case 'enum':
       return (
-        <label className="pol-fila"><span className="pol-ayuda">{etiqueta}</span>
-          <Select suelto className="pol-campo pol-campo--medio" aria-label={etiqueta} value={String(valor ?? '')} onChange={e => onChange(e.target.value)} placeholder={false}>
+        <Select label={etiqueta} aria-label={etiqueta} value={String(valor ?? '')} onChange={e => onChange(e.target.value)} placeholder={false}>
             {p.opciones.map(o => <option key={o.valor} value={o.valor}>{t(`pol.par_${propio}_${p.clave}_${o.valor}`)}</option>)}
           </Select>
-        </label>
       )
     case 'entidad':
       return (
@@ -261,9 +254,7 @@ function PasosConcretos({ pasos, onChange }: { pasos: PasoAnadido[]; onChange: (
         <div key={i} className="pol-fila">
           <Input aria-label={t('pol.nombre_del_paso')} value={p.nombre ?? ''} placeholder={t('pol.nombre_del_paso')} onChange={e => cambiar(i, { ...p, nombre: e.target.value })} className="pol-campo--medio" />
           <SelectorDeAprobador paso={p} onChange={n => cambiar(i, n)} />
-          <label className="pol-fila"><span className="pol-ayuda">{t('pol.quorum')}</span>
-            <Input type="number" min={1} aria-label={t('pol.quorum')} value={p.required_approvals ?? 1} onChange={e => cambiar(i, { ...p, required_approvals: Number(e.target.value) || 1 })} className="pol-campo--corto" />
-          </label>
+          <Input label={t('pol.quorum')} type="number" min={1} aria-label={t('pol.quorum')} value={p.required_approvals ?? 1} onChange={e => cambiar(i, { ...p, required_approvals: Number(e.target.value) || 1 })} />
           <Button size="xs" variant="ghost" icon={<Trash2 size={13} />} onClick={() => onChange(pasos.filter((_, j) => j !== i))}
             title={t('pol.quitar_paso')}><span className="u-sr-only">{t('pol.quitar_paso')}</span></Button>
         </div>

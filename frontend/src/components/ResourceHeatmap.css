@@ -45,15 +45,6 @@
   border-radius: 4px;
   text-align: center;
 }
-.resoheat-ls {
-  font-size: var(--text-xs);
-  font-weight: 700;
-  color: var(--text-2);
-
-  letter-spacing: 0.07em;
-  display: block;
-  margin-bottom: var(--space-1);
-}
 .resoheat-fs2 {
   width: auto;
   min-width: 150px;

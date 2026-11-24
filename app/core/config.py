@@ -530,6 +530,23 @@ class Settings(
     # Estaba en duro a 25 en el endpoint. Auditoria 2026-08.
     COLLAB_PORTAL_MESSAGE_PER_MIN: int = Field(
         default=25, env="COLLAB_PORTAL_MESSAGE_PER_MIN")
+    # Chat del portal operador <-> cliente (24-11-2026, docs/portal/CHAT_DEL_PORTAL.md).
+    # Valores por defecto; cada empresa los cambia en caliente en Configuración ›
+    # Portal › Chat del portal (grupo de ajustes `portal_chat`).
+    PORTAL_CHAT_CALLS_ENABLED: bool = Field(default=True, env="PORTAL_CHAT_CALLS_ENABLED")
+    PORTAL_CHAT_VIDEO_ENABLED: bool = Field(default=True, env="PORTAL_CHAT_VIDEO_ENABLED")
+    PORTAL_CHAT_ATTACHMENTS_ENABLED: bool = Field(default=True, env="PORTAL_CHAT_ATTACHMENTS_ENABLED")
+    # Extensiones permitidas (CSV). Sólo puede acotar el catálogo aprobado de
+    # adjuntos (`app/core/uploads.py`): lo que no esté allí no entra nunca.
+    PORTAL_CHAT_ALLOWED_EXTENSIONS: str = Field(
+        default=".pdf,.png,.jpg,.jpeg,.gif,.webp,.txt,.csv,.docx,.xlsx,.pptx,.odt,.ods",
+        env="PORTAL_CHAT_ALLOWED_EXTENSIONS")
+    # Tamaño máximo de un adjunto (MB). Nunca pasa del tope global MAX_FILE_SIZE_MB.
+    PORTAL_CHAT_MAX_FILE_MB: int = Field(default=20, env="PORTAL_CHAT_MAX_FILE_MB")
+    # Minutos durante los que se puede editar o borrar el propio mensaje (0 = sin límite).
+    PORTAL_CHAT_EDIT_WINDOW_MINUTES: int = Field(default=60, env="PORTAL_CHAT_EDIT_WINDOW_MINUTES")
+    # Segundos que suena una llamada sin respuesta antes de darla por perdida.
+    PORTAL_CHAT_CALL_RING_SECONDS: int = Field(default=60, env="PORTAL_CHAT_CALL_RING_SECONDS")
 
     # NOTE: OpenAI fallback key & STT models live in AISettingsMixin.
 

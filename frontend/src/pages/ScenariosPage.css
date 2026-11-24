@@ -50,10 +50,6 @@
 .scn-tag { font-size: var(--text-2xs); padding: 1px 5px; border-radius: 4px; background: var(--accent-muted); color: var(--accent); }
 
 /* Formulario del modal */
-.scn-label {
-  font-size: var(--text-xs); font-weight: 500; color: var(--text-2);
-  letter-spacing: .07em; display: block; margin-bottom: 5px;
-}
 .scn-input {
   width: 100%; background: var(--surface-3); border: 1px solid var(--surface-4); border-radius: 8px; padding: 9px 13px;
   color: var(--text-1); font-size: var(--text-base); outline: none; font-family: inherit; box-sizing: border-box;

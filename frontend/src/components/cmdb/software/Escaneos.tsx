@@ -172,27 +172,27 @@ function ConexionModal({ inicial, onClose, onSaved }: { inicial: ConexionDeEscan
     }
     if (ENUMERADOS[k]) {
       return (
-        <label key={k} className="sdm-field"><span>{etiqueta(k)}</span>
-          <Select suelto placeholder={false} value={String(config[k] ?? '')} onChange={ev => setConfig({ ...config, [k]: ev.target.value || null })}>
+        <div key={k} className="sdm-field">
+          <Select label={etiqueta(k)} placeholder={false} value={String(config[k] ?? '')} onChange={ev => setConfig({ ...config, [k]: ev.target.value || null })}>
             <option value="">{t('sw.esc_por_defecto')}</option>{opciones(k)}
-          </Select>{pie}</label>
+          </Select>{pie}</div>
       )
     }
     if (NUMEROS.has(k)) {
       return (
-        <label key={k} className="sdm-field"><span>{etiqueta(k)}</span>
-          <Input type="number" min={1} value={config[k] == null ? '' : String(config[k])} onChange={ev => setConfig({ ...config, [k]: ev.target.value === '' ? null : Number(ev.target.value) })} />{pie}</label>
+        <div key={k} className="sdm-field">
+          <Input label={etiqueta(k)} type="number" min={1} value={config[k] == null ? '' : String(config[k])} onChange={ev => setConfig({ ...config, [k]: ev.target.value === '' ? null : Number(ev.target.value) })} />{pie}</div>
       )
     }
     if (TEXTOS_LARGOS.has(k)) {
       return (
-        <label key={k} className="sdm-field sw-campo-ancho"><span>{etiqueta(k)}</span>
-          <Textarea rows={k === 'hosts' ? 2 : 3} value={config[k] == null ? '' : Array.isArray(config[k]) ? (config[k] as unknown[]).join(', ') : String(config[k])} onChange={ev => setConfig({ ...config, [k]: ev.target.value })} inputClassName="u-mono" />{pie}</label>
+        <div key={k} className="sdm-field sw-campo-ancho">
+          <Textarea label={etiqueta(k)} rows={k === 'hosts' ? 2 : 3} value={config[k] == null ? '' : Array.isArray(config[k]) ? (config[k] as unknown[]).join(', ') : String(config[k])} onChange={ev => setConfig({ ...config, [k]: ev.target.value })} inputClassName="u-mono" />{pie}</div>
       )
     }
     return (
-      <label key={k} className="sdm-field"><span>{etiqueta(k)}</span>
-        <Input value={config[k] == null ? '' : String(config[k])} onChange={ev => setConfig({ ...config, [k]: ev.target.value })} inputClassName="u-mono" />{pie}</label>
+      <div key={k} className="sdm-field">
+        <Input label={etiqueta(k)} value={config[k] == null ? '' : String(config[k])} onChange={ev => setConfig({ ...config, [k]: ev.target.value })} inputClassName="u-mono" />{pie}</div>
     )
   }
   return (
@@ -200,13 +200,12 @@ function ConexionModal({ inicial, onClose, onSaved }: { inicial: ConexionDeEscan
       <div className="u-stack-12">
         <div className="sdm-form">
           <Input label={t('sw.col_nombre')} value={nombre} onChange={ev => setNombre(ev.target.value)} />
-          <label className="sdm-field"><span>{t('sw.tipo')}</span>
-            <Select suelto placeholder={false} value={tipo} disabled={!!inicial} onChange={ev => setTipo(ev.target.value as TipoDeConexion)}>
+          <Select label={t('sw.tipo')} placeholder={false} value={tipo} disabled={!!inicial} onChange={ev => setTipo(ev.target.value as TipoDeConexion)}>
               {TIPOS.map(x => <option key={x} value={x}>{e('tipo_conexion', x)}</option>)}
-            </Select></label>
-          <label className="sdm-field"><span>{t('sw.esc_intervalo')}</span>
-            <Input type="number" min={INTERVALO_MIN} value={intervalo} onChange={ev => setIntervalo(Math.max(INTERVALO_MIN, Number(ev.target.value) || INTERVALO_MIN))} />
-            <span className="u-text3-xs">{t('sw.esc_intervalo_ayuda')}</span></label>
+            </Select>
+          <div className="sdm-field">
+            <Input label={t('sw.esc_intervalo')} type="number" min={INTERVALO_MIN} value={intervalo} onChange={ev => setIntervalo(Math.max(INTERVALO_MIN, Number(ev.target.value) || INTERVALO_MIN))} />
+            <span className="u-text3-xs">{t('sw.esc_intervalo_ayuda')}</span></div>
           <div className="sdm-field"><Checkbox checked={activa} onChange={setActiva} label={t('sw.esc_activa')} /></div>
         </div>
         <div className="u-text3-xs">{t(`sw.esc_tipo_ayuda_${tipo}`)}</div>

@@ -62,34 +62,33 @@ function AccionModal({ assetId, accion, onClose }: { assetId: string; accion: st
         <p className="alm-hint">{t(`alm.action_${accion}_hint`)}</p>
         {accion === 'repair_sent' && (
           <div className="almf-rejilla-2">
-            <div><label className="alm-label" htmlFor={`${id}-v`}>{t('alm.repair_vendor')}</label>
-              <Input id={`${id}-v`} value={datos.vendor ?? ''} onChange={campo('vendor')} inputClassName="alm-input" />{msg('vendor')}</div>
-            <div><label className="alm-label" htmlFor={`${id}-tk`}>{t('alm.repair_ticket')}</label>
-              <Input id={`${id}-tk`} value={datos.ticket ?? ''} onChange={campo('ticket')} inputClassName="alm-input" />{msg('ticket')}</div>
-            <div><label className="alm-label" htmlFor={`${id}-b`}>{t('alm.repair_expected_back')}</label>
-              <DateInput id={`${id}-b`} className="alm-input" value={datos.expected_back ?? ''} onChange={campo('expected_back')} />{msg('expected_back')}</div>
-            <div><label className="alm-label" htmlFor={`${id}-c`}>{t('alm.repair_cost')}</label>
-              <Input id={`${id}-c`} type="number" min={0} value={datos.cost ?? ''} onChange={campo('cost')} inputClassName="alm-input" />{msg('cost')}</div>
+            <div>
+              <Input label={t('alm.repair_vendor')} id={`${id}-v`} value={datos.vendor ?? ''} onChange={campo('vendor')} />{msg('vendor')}</div>
+            <div>
+              <Input label={t('alm.repair_ticket')} id={`${id}-tk`} value={datos.ticket ?? ''} onChange={campo('ticket')} />{msg('ticket')}</div>
+            <div>
+              <DateInput label={t('alm.repair_expected_back')} id={`${id}-b`} value={datos.expected_back ?? ''} onChange={campo('expected_back')} />{msg('expected_back')}</div>
+            <div>
+              <Input label={t('alm.repair_cost')} id={`${id}-c`} type="number" min={0} value={datos.cost ?? ''} onChange={campo('cost')} />{msg('cost')}</div>
           </div>
         )}
         {accion === 'retired' && (
-          <div><label className="alm-label" htmlFor={`${id}-r`}>{t('alm.disposal_reason')}</label>
-            <Select suelto placeholder={false} id={`${id}-r`} className="alm-input" value={datos.reason} onChange={campo('reason')}>
+          <div>
+            <Select label={t('alm.disposal_reason')} placeholder={false} id={`${id}-r`} value={datos.reason} onChange={campo('reason')}>
               {MOTIVOS_DE_BAJA.map(m => <option key={m} value={m}>{t(`alm.disposal_reason_${m}`)}</option>)}
             </Select>{msg('reason')}</div>
         )}
         {accion === 'disposed' && (
           <div className="almf-rejilla-2">
-            <div><label className="alm-label" htmlFor={`${id}-m`}>{t('alm.disposal_method')}</label>
-              <Select suelto placeholder={false} id={`${id}-m`} className="alm-input" value={datos.method} onChange={campo('method')}>
+            <div>
+              <Select label={t('alm.disposal_method')} placeholder={false} id={`${id}-m`} value={datos.method} onChange={campo('method')}>
                 {METODOS.map(m => <option key={m} value={m}>{t(`alm.disposal_method_${m}`)}</option>)}
               </Select>{msg('method')}</div>
-            <div><label className="alm-label" htmlFor={`${id}-val`}>{t('alm.disposal_value')}</label>
-              <Input id={`${id}-val`} type="number" min={0} value={datos.value ?? ''} onChange={campo('value')} inputClassName="alm-input" />{msg('value')}</div>
+            <div>
+              <Input label={t('alm.disposal_value')} id={`${id}-val`} type="number" min={0} value={datos.value ?? ''} onChange={campo('value')} />{msg('value')}</div>
           </div>
         )}
-        <div><label className="alm-label" htmlFor={`${id}-mot`}>{t('alm.reason')}</label>
-          <Textarea id={`${id}-mot`} rows={2} value={motivo} onChange={e => setMotivo(e.target.value)} inputClassName="alm-input" /></div>
+        <Textarea label={t('alm.reason')} id={`${id}-mot`} rows={2} value={motivo} onChange={e => setMotivo(e.target.value)} />
         {error && <p className="u-field-error" role="alert">{error}</p>}
       </div>
       <div className="almf-acciones-modal">
@@ -339,7 +338,7 @@ export default function FichaActivo({ assetId, onClose }: { assetId: string; onC
               <div className="almf-bloque">
                 <div className="almf-filtros">
                   <div className="almf-filtro">
-                    <span className="alm-label">{t('alm.install_license')}</span>
+                    <span className="uiinde-estiloetiqueta">{t('alm.install_license')}</span>
                     <LicenseSelect value={licencia} onChange={v => setLicencia(v)} />
                   </div>
                   <Button icon={<Plus size={14} />} disabled={!licencia || instalar.isPending} loading={instalar.isPending}

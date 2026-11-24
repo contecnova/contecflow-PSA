@@ -9,7 +9,7 @@ import { useAppLang } from '../../i18n/AppLangContext'
 import { extractErr, fmtDateTime } from '../../utils/helpers'
 import { openConfirmGlobal } from '../../context/ConfirmContext'
 import { POLL_RUN_DETAIL_MS, POLL_RUN_LIST_MS } from '../../constants/timings'
-import { type Blueprint, type DetalleEjecucion, ESTADO_KIND, NODE_VISUAL, PROCESOS, colorVar, labelStyle, nombreDeEntidad, nombreDeEstado, nombreDeNodo, nombreDeRama } from './WorkflowDesignerComun'
+import { type Blueprint, type DetalleEjecucion, ESTADO_KIND, NODE_VISUAL, PROCESOS, colorVar, nombreDeEntidad, nombreDeEstado, nombreDeNodo, nombreDeRama } from './WorkflowDesignerComun'
 
 // ── Runs tab ────────────────────────────────────────────────────────────────
 export function RunsTab({ blueprintId }: { blueprintId: string }) {
@@ -229,14 +229,12 @@ export function StartRunModal({ blueprint, onClose, onStarted }: { blueprint: Bl
       <div className="u-stack-12">
         <div className="u-row-10">
           <div className="u-flex1">
-            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className={labelStyle}>{traducir('workflowdesigner.tipo_de_entidad')}</label>
-            <Select suelto placeholder={false} id={`${idCampo}-1`} value={targetType} onChange={e => setTargetType(e.target.value)} className="wfd-sel">
+            <Select label={traducir('workflowdesigner.tipo_de_entidad')} placeholder={false} id={`${idCampo}-1`} value={targetType} onChange={e => setTargetType(e.target.value)}>
               {[...PROCESOS, 'manual'].map(p => <option key={p} value={p}>{nombreDeEntidad(p, traducir)}</option>)}
             </Select>
           </div>
           <div className="u-flex1">
-            <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className={labelStyle}>{traducir('workflowdesigner.id_de_entidad_opcional')}</label>
-            <Input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={targetId} onChange={e => setTargetId(e.target.value)} placeholder="123e4567-…" inputClassName="wfd-input" />
+            <Input label={traducir('workflowdesigner.id_de_entidad_opcional')} id={`${idCampo}-2`} value={targetId} onChange={e => setTargetId(e.target.value)} placeholder="123e4567-…" />
           </div>
         </div>
         <div>

@@ -36,7 +36,6 @@ const FS: CSSProperties = {
   borderRadius: 8, padding: '10px 14px', color: 'var(--text-1)', fontSize: "var(--text-md)",
   outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box',
 }
-const LS: CSSProperties = { fontSize: "var(--text-base)", fontWeight: 600, color: 'var(--text-2)', display: 'block', marginBottom: 6 }
 
 export default function IntakeFormPage(): JSX.Element {
   const idCampo = useId()
@@ -117,20 +116,14 @@ export default function IntakeFormPage(): JSX.Element {
 
           <Input id={`${idCampo}-3`} label={t('intake_form.subject_label')} value={fields.subject} onChange={set('subject')} placeholder={t('intake_form.subject_placeholder')} required />
 
-          <div>
-            <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={LS}>{t('intake_form.description_label')}</label>
-            <Textarea id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={fields.description} onChange={set('description')} rows={5} placeholder={t('intake_form.description_placeholder')} inputClassName="intake-form-page-e1" />
-          </div>
+          <Textarea label={t('intake_form.description_label')} id={`${idCampo}-4`} value={fields.description} onChange={set('description')} rows={5} placeholder={t('intake_form.description_placeholder')} />
 
-          <div>
-            <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} style={LS}>{t('intake_form.priority_label')}</label>
-            <Select suelto placeholder={false} id={`${idCampo}-5`} value={fields.priority || form.default_priority} onChange={set('priority')} style={FS}>
+          <Select label={t('intake_form.priority_label')} placeholder={false} id={`${idCampo}-5`} value={fields.priority || form.default_priority} onChange={set('priority')} style={FS}>
               <option value="low">{t('intake_form.priority_low')}</option>
               <option value="medium">{t('intake_form.priority_medium')}</option>
               <option value="high">{t('intake_form.priority_high')}</option>
               <option value="critical">{t('intake_form.priority_critical')}</option>
             </Select>
-          </div>
 
           {isError && (
             <div className="intake-card">

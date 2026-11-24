@@ -196,55 +196,48 @@ function NuevoPresupuesto({ onClose, onCreado }: { onClose: () => void; onCreado
   return (
     <Modal open onClose={onClose} size="lg" title={t('pres.nuevo')}>
       <div className="u-stack-12">
-        <label><span className="bud-lbl">{t('pres.nombre')}</span><Input aria-label={t('pres.nombre')} value={f.name} onChange={set('name')} inputClassName="bud-campo" /></label>
+        <Input label={t('pres.nombre')} aria-label={t('pres.nombre')} value={f.name} onChange={set('name')} />
         <div className="bud-rejilla">
-          <label><span className="bud-lbl">{t('pres.ambito')}</span>
-            <Select suelto placeholder={false} aria-label={t('pres.ambito')} value={f.ambito} onChange={set('ambito')} className="bud-campo">
+          <Select label={t('pres.ambito')} placeholder={false} aria-label={t('pres.ambito')} value={f.ambito} onChange={set('ambito')}>
               {AMBITOS.map(a => <option key={a} value={a}>{t(`pres.ambito_${a}`)}</option>)}
-            </Select></label>
+            </Select>
           {f.ambito === 'proyecto' && (
-            <label><span className="bud-lbl">{t('pres.proyecto')}</span>
-              <Select suelto placeholder={false} aria-label={t('pres.proyecto')} value={f.project_id} onChange={set('project_id')} className="bud-campo">
+            <Select label={t('pres.proyecto')} placeholder={false} aria-label={t('pres.proyecto')} value={f.project_id} onChange={set('project_id')}>
                 <option value="">{t('pres.elige_proyecto')}</option>
                 {(proyectos.data ?? []).map(p => <option key={p.id} value={p.id}>{p.code ? `${p.code} — ` : ''}{p.name}</option>)}
-              </Select></label>
+              </Select>
           )}
           {f.ambito === 'departamento' && (
-            <label><span className="bud-lbl">{t('pres.departamento')}</span>
-              <Select suelto placeholder={false} aria-label={t('pres.departamento')} value={f.department} onChange={set('department')} className="bud-campo">
+            <Select label={t('pres.departamento')} placeholder={false} aria-label={t('pres.departamento')} value={f.department} onChange={set('department')}>
                 <option value="">{t('pres.elige_departamento')}</option>
                 {(depts.data ?? []).map(d => <option key={d.name} value={d.name}>{d.name}</option>)}
-              </Select></label>
+              </Select>
           )}
           {f.ambito === 'area' && (
-            <label><span className="bud-lbl">{t('pres.area')}</span>
-              <Select suelto placeholder={false} aria-label={t('pres.area')} value={f.area_id} onChange={set('area_id')} className="bud-campo">
+            <Select label={t('pres.area')} placeholder={false} aria-label={t('pres.area')} value={f.area_id} onChange={set('area_id')}>
                 <option value="">{t('pres.elige_area')}</option>
                 {(areas.data ?? []).map(a => <option key={a.id} value={a.id}>{a.name}{a.departamentos.length ? ` (${a.departamentos.join(', ')})` : ''}</option>)}
-              </Select></label>
+              </Select>
           )}
           {f.ambito === 'proyecto_previsto' && (
-            <label><span className="bud-lbl">{t('pres.tipo_proyecto')}</span><Input aria-label={t('pres.tipo_proyecto')} value={f.tipo_proyecto} onChange={set('tipo_proyecto')} inputClassName="bud-campo" /></label>
+            <Input label={t('pres.tipo_proyecto')} aria-label={t('pres.tipo_proyecto')} value={f.tipo_proyecto} onChange={set('tipo_proyecto')} />
           )}
         </div>
         <div className="u-text3-xs">{t(`pres.ambito_${f.ambito}_ayuda`)}</div>
         {f.ambito === 'area' && (areas.data ?? []).length === 0 && <div role="status" className="bud-aviso">{t('pres.sin_areas')}</div>}
         <div className="bud-rejilla">
-          <label><span className="bud-lbl">{t('pres.desde')}</span><input aria-label={t('pres.desde')} type="month" value={f.desde} onChange={set('desde')} className="bud-campo" /></label>
-          <label><span className="bud-lbl">{t('pres.hasta')}</span><input aria-label={t('pres.hasta')} type="month" value={f.hasta} onChange={set('hasta')} className="bud-campo" /></label>
-          <label><span className="bud-lbl">{t('pres.moneda')}</span>
-            <Select suelto placeholder={false} aria-label={t('pres.moneda')} value={f.currency || currency} onChange={set('currency')} className="bud-campo">
+          <label><span className="uiinde-estiloetiqueta">{t('pres.desde')}</span><input aria-label={t('pres.desde')} type="month" value={f.desde} onChange={set('desde')} className="bud-campo" /></label>
+          <label><span className="uiinde-estiloetiqueta">{t('pres.hasta')}</span><input aria-label={t('pres.hasta')} type="month" value={f.hasta} onChange={set('hasta')} className="bud-campo" /></label>
+          <Select label={t('pres.moneda')} placeholder={false} aria-label={t('pres.moneda')} value={f.currency || currency} onChange={set('currency')}>
               {currencies.map(c => <option key={c} value={c}>{c}</option>)}
-            </Select></label>
-          <label><span className="bud-lbl">{t('pres.inflacion')}</span><Input aria-label={t('pres.inflacion')} type="number" step="any" value={f.inflacion} onChange={set('inflacion')} placeholder="0" inputClassName="bud-campo" /></label>
-          {conTecho && <label><span className="bud-lbl">{t('pres.techo')}</span><Input aria-label={t('pres.techo')} type="number" min={0} step="any" value={f.techo} onChange={set('techo')} placeholder={t('pres.techo_ayuda')} inputClassName="bud-campo" /></label>}
-          <label><span className="bud-lbl">{t('pres.campana')}</span>
-            <Select suelto placeholder={false} aria-label={t('pres.campana')} value={f.campana_id} onChange={set('campana_id')} className="bud-campo">
+            </Select>
+          <Input label={t('pres.inflacion')} aria-label={t('pres.inflacion')} type="number" step="any" value={f.inflacion} onChange={set('inflacion')} placeholder="0" />
+          {conTecho && <Input label={t('pres.techo')} aria-label={t('pres.techo')} type="number" min={0} step="any" value={f.techo} onChange={set('techo')} placeholder={t('pres.techo_ayuda')} />}
+          <Select label={t('pres.campana')} placeholder={false} aria-label={t('pres.campana')} value={f.campana_id} onChange={set('campana_id')}>
               <option value="">—</option>
               {(campanas.data ?? []).filter(c => c.abierta).map(c => <option key={c.id} value={c.id}>{c.nombre} · {fmtDate(c.fecha_limite)}</option>)}
-            </Select></label>
-          <div><span className="bud-lbl">{t('pres.responsable')}</span>
-            <UserSelect value={f.responsable_id} onChange={(uid: string) => setF(v => ({ ...v, responsable_id: uid }))} placeholder={t('pres.responsable_yo')} /></div>
+            </Select>
+          <UserSelect label={t('pres.responsable')} value={f.responsable_id} onChange={(uid: string) => setF(v => ({ ...v, responsable_id: uid }))} placeholder={t('pres.responsable_yo')} />
         </div>
         <fieldset className="ds-grupo-opciones bud-origen">
           <legend className="bud-origen__legend">{t('pres.empezar_de')}</legend>

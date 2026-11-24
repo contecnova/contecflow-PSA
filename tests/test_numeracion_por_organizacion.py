@@ -26,17 +26,24 @@ def test_cada_organizacion_tiene_su_secuencia(db):
     assert next_numbered_code(db, "project", prefix="PRJ", padding=4) == "PRJ-0002"
 
 
-def test_una_organizacion_sigue_desde_la_secuencia_antigua_sin_organizacion(db):
+def test_ya_no_hay_secuencias_sin_organizacion(db):
+    """Migración 208 (24-11-2026): `numbering_sequences.organization_id` es NOT NULL.
+
+    La secuencia única de antes de 2026-11 se rellenó con la empresa al migrar
+    (la 208), así que `_heredada` ya no encuentra nada que heredar; crear una
+    secuencia sin empresa corta el flush con `fila_sin_empresa`.
+    """
+    import pytest
+    from app.core.errores import ErrorDeDominio
     from app.models.advanced_config import NumberingSequence
-    from app.services.numbering import next_numbered_code
     from tests.conftest import fila_global
 
     with fila_global(db):
         db.add(NumberingSequence(entity="task", prefix="TSK", padding=5, current_value=41))
-        db.commit()
-    _como(db, "org-a")
-    assert next_numbered_code(db, "task", prefix="T", padding=4) == "TSK-00042", (
-        "arrancar de cero repetiria numeros ya emitidos con la secuencia unica")
+        with pytest.raises(ErrorDeDominio) as exc:
+            db.commit()
+    db.rollback()
+    assert exc.value.code == "fila_sin_empresa"
 
 
 def test_dos_organizaciones_tienen_su_inc_0001(db):

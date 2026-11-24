@@ -405,34 +405,20 @@ export function SubDetail({ sub, onBack, onCambio }: { sub: Sub; onBack: () => v
           <p className="u-text2-sm">{t('externos.parte_manual_ayuda')}</p>
           <div className="sub-form-grid">
             <div className="u-col-full">
-              <label id={`${idCampo}-tlw-et`} htmlFor={`${idCampo}-tlw`} className="sub-label">{t('externos.persona_sin_acceso')} *</label>
-              <Select suelto placeholder={false} id={`${idCampo}-tlw`} value={tlForm.worker_id} onChange={e => setTlForm(f=>({...f,worker_id:e.target.value}))} className="sub-input">
+              <Select label={<>{t('externos.persona_sin_acceso')}*</>} placeholder={false} id={`${idCampo}-tlw`} value={tlForm.worker_id} onChange={e => setTlForm(f=>({...f,worker_id:e.target.value}))}>
                 <option value="">{sinAcceso.length ? t('subcontractors.seleccionar') : t('externos.nadie_sin_acceso')}</option>
                 {sinAcceso.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
               </Select>
             </div>
-            <div>
-              <label id={`${idCampo}-1-et`} htmlFor={`${idCampo}-1`} className="sub-label">{t('subcontractors.asignacion')}</label>
-              <Select suelto placeholder={false} id={`${idCampo}-1`} value={tlForm.assignment_id} onChange={e => setTlForm(f=>({...f,assignment_id:e.target.value}))} className="sub-input">
+            <Select label={t('subcontractors.asignacion')} placeholder={false} id={`${idCampo}-1`} value={tlForm.assignment_id} onChange={e => setTlForm(f=>({...f,assignment_id:e.target.value}))}>
                 <option value="">{t('subcontractors.sin_asignacion')}</option>
                 {assignments.map(a => <option key={a.id} value={a.id}>{a.project_code} — {a.project_name}</option>)}
               </Select>
-            </div>
-            <div>
-              <label id={`${idCampo}-2-et`} htmlFor={`${idCampo}-2`} className="sub-label">{t('subcontractors.col_fecha')}</label>
-              <DateInput id={`${idCampo}-2`} aria-labelledby={`${idCampo}-2-et`} value={tlForm.log_date} onChange={e => setTlForm(f=>({...f,log_date:e.target.value}))} className="sub-input" />
-            </div>
-            <div>
-              <label id={`${idCampo}-3-et`} htmlFor={`${idCampo}-3`} className="sub-label">{t('subcontractors.horas_obligatorio')}</label>
-              <Input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-3-et`} type="number" value={tlForm.hours} onChange={e => setTlForm(f=>({...f,hours:+e.target.value}))} min="0.5" step="0.5" inputClassName="sub-input" />
-            </div>
-            <div>
-              <label id={`${idCampo}-a599-et`} htmlFor={`${idCampo}-a599`} className="sub-label">{t('subcontractors.referencia_de_tarea')}</label>
-              <Input id={`${idCampo}-a599`} aria-labelledby={`${idCampo}-a599-et`} value={tlForm.task_reference} onChange={e => setTlForm(f=>({...f,task_reference:e.target.value}))} placeholder={t('subcontractors.referencia_de_tarea')} inputClassName="sub-input" />
-            </div>
+            <DateInput label={t('subcontractors.col_fecha')} id={`${idCampo}-2`} value={tlForm.log_date} onChange={e => setTlForm(f=>({...f,log_date:e.target.value}))} />
+            <Input label={t('subcontractors.horas_obligatorio')} id={`${idCampo}-3`} type="number" value={tlForm.hours} onChange={e => setTlForm(f=>({...f,hours:+e.target.value}))} min="0.5" step="0.5" />
+            <Input label={t('subcontractors.referencia_de_tarea')} id={`${idCampo}-a599`} value={tlForm.task_reference} onChange={e => setTlForm(f=>({...f,task_reference:e.target.value}))} placeholder={t('subcontractors.referencia_de_tarea')} />
             <div className="u-col-full">
-              <label id={`${idCampo}-tl-desc-et`} htmlFor={`${idCampo}-tl-desc`} className="sub-label">{t('subcontractors.descripcion')}</label>
-              <Input id={`${idCampo}-tl-desc`} aria-labelledby={`${idCampo}-tl-desc-et`} value={tlForm.description} onChange={e => setTlForm(f=>({...f,description:e.target.value}))} placeholder={t('subcontractors.descripcion_del_parte')} inputClassName="sub-input" />
+              <Input label={t('subcontractors.descripcion')} id={`${idCampo}-tl-desc`} value={tlForm.description} onChange={e => setTlForm(f=>({...f,description:e.target.value}))} placeholder={t('subcontractors.descripcion_del_parte')} />
             </div>
           </div>
           <div className="u-actions-8">
@@ -446,30 +432,17 @@ export function SubDetail({ sub, onBack, onCambio }: { sub: Sub; onBack: () => v
       {showInvoice && (
         <Modal open title={t('subcontractors.registrar_factura')} onClose={() => setShowInvoice(false)} width={480}>
           <div className="sub-form-grid">
-            <div>
-              <label id={`${idCampo}-a619-et`} htmlFor={`${idCampo}-a619`} className="sub-label">{t('subcontractors.n_factura_obligatorio')}</label>
-              <Input id={`${idCampo}-a619`} aria-labelledby={`${idCampo}-a619-et`} value={invForm.invoice_number} onChange={e => setInvForm(f=>({...f,invoice_number:e.target.value}))} placeholder={t('subcontractors.numero_de_factura')} inputClassName="sub-input" />
-            </div>
-            <div>
-              <label id={`${idCampo}-4-et`} htmlFor={`${idCampo}-4`} className="sub-label">{t('subcontractors.fecha_emision')}</label>
-              <DateInput id={`${idCampo}-4`} aria-labelledby={`${idCampo}-4-et`} value={invForm.issue_date} onChange={e => setInvForm(f=>({...f,issue_date:e.target.value}))} className="sub-input" />
-            </div>
-            <div>
-              <label id={`${idCampo}-5-et`} htmlFor={`${idCampo}-5`} className="sub-label">{t('subcontractors.importe_base_moneda', { moneda: fmtMoneda.simbolo })}</label>
-              <Input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-5-et`} type="number" value={invForm.amount} onChange={e => setInvForm(f=>({...f,amount:e.target.value}))} min="0" step="0.01" inputClassName="sub-input" />
-            </div>
-            <div>
-              <label id={`${idCampo}-6-et`} htmlFor={`${idCampo}-6`} className="sub-label">{t('subcontractors.iva_pct')}</label>
-              <Input id={`${idCampo}-6`} aria-labelledby={`${idCampo}-6-et`} type="number" value={invForm.tax_pct} onChange={e => { setIvaSubTocado(true); setInvForm(f=>({...f,tax_pct:+e.target.value})) }} min="0" max="30" inputClassName="sub-input" />
-            </div>
+            <Input label={t('subcontractors.n_factura_obligatorio')} id={`${idCampo}-a619`} value={invForm.invoice_number} onChange={e => setInvForm(f=>({...f,invoice_number:e.target.value}))} placeholder={t('subcontractors.numero_de_factura')} />
+            <DateInput label={t('subcontractors.fecha_emision')} id={`${idCampo}-4`} value={invForm.issue_date} onChange={e => setInvForm(f=>({...f,issue_date:e.target.value}))} />
+            <Input label={t('subcontractors.importe_base_moneda', { moneda: fmtMoneda.simbolo })} id={`${idCampo}-5`} type="number" value={invForm.amount} onChange={e => setInvForm(f=>({...f,amount:e.target.value}))} min="0" step="0.01" />
+            <Input label={t('subcontractors.iva_pct')} id={`${idCampo}-6`} type="number" value={invForm.tax_pct} onChange={e => { setIvaSubTocado(true); setInvForm(f=>({...f,tax_pct:+e.target.value})) }} min="0" max="30" />
             {invForm.amount && (
               <div className="sub-total-box">
                 {t('subcontractors.total_con_iva')} <strong>{fmtMoneda(redondear2(+invForm.amount * (1 + invForm.tax_pct/100)))}</strong>
               </div>
             )}
             <div className="u-col-full">
-              <label id={`${idCampo}-7-et`} htmlFor={`${idCampo}-7`} className="sub-label">{t('subcontractors.descripcion')}</label>
-              <Input id={`${idCampo}-7`} aria-labelledby={`${idCampo}-7-et`} value={invForm.description} onChange={e => setInvForm(f=>({...f,description:e.target.value}))} inputClassName="sub-input" />
+              <Input label={t('subcontractors.descripcion')} id={`${idCampo}-7`} value={invForm.description} onChange={e => setInvForm(f=>({...f,description:e.target.value}))} />
             </div>
           </div>
           <div className="u-actions-8">
@@ -484,53 +457,28 @@ export function SubDetail({ sub, onBack, onCambio }: { sub: Sub; onBack: () => v
         <Modal open title={t('subcontractors.nueva_asignacion_2')} onClose={() => setShowAssign(false)} width={500}>
           <div className="sub-form-grid">
             <div className="u-col-full">
-              <label id={`${idCampo}-8-et`} htmlFor={`${idCampo}-8`} className="sub-label">{t('subcontractors.proyecto_obligatorio')}</label>
-              <Select suelto placeholder={false} id={`${idCampo}-8`} value={asgForm.project_id} onChange={e => setAsgForm(f=>({...f,project_id:e.target.value}))} className="sub-input">
+              <Select label={t('subcontractors.proyecto_obligatorio')} placeholder={false} id={`${idCampo}-8`} value={asgForm.project_id} onChange={e => setAsgForm(f=>({...f,project_id:e.target.value}))}>
                 <option value="">{t('subcontractors.seleccionar')}</option>
                 {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
               </Select>
             </div>
-            <div>
-              <label id={`${idCampo}-asw-et`} htmlFor={`${idCampo}-asw`} className="sub-label">{t('externos.persona')} *</label>
-              <Select suelto placeholder={false} id={`${idCampo}-asw`} value={asgForm.worker_id} onChange={e => setAsgForm(f=>({...f,worker_id:e.target.value}))} className="sub-input">
+            <Select label={<>{t('externos.persona')}*</>} placeholder={false} id={`${idCampo}-asw`} value={asgForm.worker_id} onChange={e => setAsgForm(f=>({...f,worker_id:e.target.value}))}>
                 <option value="">{t('subcontractors.seleccionar')}</option>
                 {trabajadoresActivos.map(w => <option key={w.id} value={w.id}>{w.name}{w.role ? ` (${w.role})` : ''}</option>)}
               </Select>
-            </div>
-            <div>
-              <label id={`${idCampo}-asr-et`} htmlFor={`${idCampo}-asr`} className="sub-label">{t('externos.tarifa')}</label>
-              <Select suelto placeholder={false} id={`${idCampo}-asr`} value={asgForm.rate_id} onChange={e => setAsgForm(f=>({...f,rate_id:e.target.value}))} className="sub-input">
+            <Select label={t('externos.tarifa')} placeholder={false} id={`${idCampo}-asr`} value={asgForm.rate_id} onChange={e => setAsgForm(f=>({...f,rate_id:e.target.value}))}>
                 <option value="">{tarifas.length ? t('externos.tarifa_de_la_persona') : t('externos.sin_tarifas')}</option>
                 {tarifas.map(r => <option key={r.id} value={r.id}>{[r.description, r.cost_rate != null ? fmtMoneda(r.cost_rate, { moneda: r.currency }) : null].filter(Boolean).join(' · ')}</option>)}
               </Select>
-            </div>
-            <div>
-              <label id={`${idCampo}-asp-et`} htmlFor={`${idCampo}-asp`} className="sub-label">{t('externos.papel')}</label>
-              <Select suelto placeholder={false} id={`${idCampo}-asp`} value={asgForm.member_role} onChange={e => setAsgForm(f=>({...f,member_role:e.target.value}))} className="sub-input">
+            <Select label={t('externos.papel')} placeholder={false} id={`${idCampo}-asp`} value={asgForm.member_role} onChange={e => setAsgForm(f=>({...f,member_role:e.target.value}))}>
                 <option value="">{t('externos.papel_por_defecto')}</option>
                 {PAPELES.map(r => <option key={r} value={r}>{t(`externos.papel_${r}`)}</option>)}
               </Select>
-            </div>
-            <div>
-              <label id={`${idCampo}-asa-et`} htmlFor={`${idCampo}-asa`} className="sub-label">{t('externos.dedicacion')}</label>
-              <Input id={`${idCampo}-asa`} aria-labelledby={`${idCampo}-asa-et`} type="number" min="0" max="100" step="5" value={asgForm.allocation_pct} onChange={e => setAsgForm(f=>({...f,allocation_pct:e.target.value}))} inputClassName="sub-input" />
-            </div>
-            <div>
-              <label id={`${idCampo}-a663-et`} htmlFor={`${idCampo}-a663`} className="sub-label">{t('subcontractors.n_pedido_po')}</label>
-              <Input id={`${idCampo}-a663`} aria-labelledby={`${idCampo}-a663-et`} value={asgForm.po_number} onChange={e => setAsgForm(f=>({...f,po_number:e.target.value}))} placeholder={t('subcontractors.numero_de_pedido')} inputClassName="sub-input" />
-            </div>
-            <div>
-              <label id={`${idCampo}-9-et`} htmlFor={`${idCampo}-9`} className="sub-label">{t('subcontractors.techo_po_moneda', { moneda: fmtMoneda.simbolo })}</label>
-              <Input id={`${idCampo}-9`} aria-labelledby={`${idCampo}-9-et`} type="number" value={asgForm.po_amount} onChange={e => setAsgForm(f=>({...f,po_amount:e.target.value}))} inputClassName="sub-input" />
-            </div>
-            <div>
-              <label id={`${idCampo}-10-et`} htmlFor={`${idCampo}-10`} className="sub-label">{t('subcontractors.horas_contratadas')}</label>
-              <Input id={`${idCampo}-10`} aria-labelledby={`${idCampo}-10-et`} type="number" value={asgForm.hours_contracted} onChange={e => setAsgForm(f=>({...f,hours_contracted:e.target.value}))} inputClassName="sub-input" />
-            </div>
-            <div>
-              <label id={`${idCampo}-11-et`} htmlFor={`${idCampo}-11`} className="sub-label">{t('subcontractors.fecha_inicio')}</label>
-              <DateInput id={`${idCampo}-11`} aria-labelledby={`${idCampo}-11-et`} value={asgForm.start_date} onChange={e => setAsgForm(f=>({...f,start_date:e.target.value}))} className="sub-input" />
-            </div>
+            <Input label={t('externos.dedicacion')} id={`${idCampo}-asa`} type="number" min="0" max="100" step="5" value={asgForm.allocation_pct} onChange={e => setAsgForm(f=>({...f,allocation_pct:e.target.value}))} />
+            <Input label={t('subcontractors.n_pedido_po')} id={`${idCampo}-a663`} value={asgForm.po_number} onChange={e => setAsgForm(f=>({...f,po_number:e.target.value}))} placeholder={t('subcontractors.numero_de_pedido')} />
+            <Input label={t('subcontractors.techo_po_moneda', { moneda: fmtMoneda.simbolo })} id={`${idCampo}-9`} type="number" value={asgForm.po_amount} onChange={e => setAsgForm(f=>({...f,po_amount:e.target.value}))} />
+            <Input label={t('subcontractors.horas_contratadas')} id={`${idCampo}-10`} type="number" value={asgForm.hours_contracted} onChange={e => setAsgForm(f=>({...f,hours_contracted:e.target.value}))} />
+            <DateInput label={t('subcontractors.fecha_inicio')} id={`${idCampo}-11`} value={asgForm.start_date} onChange={e => setAsgForm(f=>({...f,start_date:e.target.value}))} />
           </div>
           <div className="u-actions-8">
             <Button variant="secondary" onClick={() => setShowAssign(false)}>{t('common.cancel')}</Button>

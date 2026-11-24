@@ -698,6 +698,12 @@ def process_agent_checkin(
     # Segunda auditoría 2026-11 (#10): organización desactivada → 403.
     from app.db.session import exigir_organizacion_activa
     exigir_organizacion_activa(db, reg.organization_id)
+    # 24-11-2026 (migración 208): la ruta es anónima (token del agente); desde
+    # aquí, la empresa del agente: el filtro acota la búsqueda del CI por
+    # `external_id` y el sellado pone la empresa en los CI, activos de ALM y
+    # software que crea el inventario.
+    from app.db.session import publicar_empresa
+    publicar_empresa(db, reg.organization_id)
 
     ci_dict = normalize_agent_payload(payload, reg.id)
 

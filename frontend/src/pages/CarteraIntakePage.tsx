@@ -207,8 +207,7 @@ function FormularioDePropuesta({ propuesta, onClose }: { propuesta: Propuesta | 
           {campo('wanted_end', t('cartera.campo_fin'), 'date')}
         </div>
         <div className="ui-field">
-          <label className="uiinde-estiloetiqueta" htmlFor="cit-descripcion">{t('cartera.campo_descripcion')}</label>
-          <Textarea id="cit-descripcion" value={f.description} onChange={e => { camposB.limpiar('description'); setF(x => ({ ...x, description: e.target.value })) }} inputClassName="plan-textarea" />{msgB('description')}
+          <Textarea label={t('cartera.campo_descripcion')} id="cit-descripcion" value={f.description} onChange={e => { camposB.limpiar('description'); setF(x => ({ ...x, description: e.target.value })) }} />{msgB('description')}
         </div>
         <div className="ds-card plan-stack">
           <h3 className="plan-card__titulo">{t('cartera.roles_que_pide')}</h3>

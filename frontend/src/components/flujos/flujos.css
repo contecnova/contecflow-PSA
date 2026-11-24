@@ -8,7 +8,7 @@
 .flujo-nodo--seleccionado { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent); }
 .flujo-nodo--error { border-color: var(--danger); }
 .flujo-nodo-tipo { display: flex; align-items: center; gap: 6px; font-size: var(--text-3xs); font-weight: 700; color: var(--flujo-color, var(--accent));letter-spacing: 0.05em; }
-.flujo-nodo-nombre { font-weight: 600; line-height: 1.3; word-break: break-word; }
+.flujo-nodo-nombre { font-weight: 600; line-height: 1.3; overflow-wrap: anywhere; }
 .flujo-nodo-error { color: var(--danger); font-size: var(--text-xs); margin-top: 2px; }
 .flujo-asa { background: var(--flujo-color, var(--accent)) !important; width: 9px !important; height: 9px !important; }
 .flujo-asa-etiqueta { position: absolute; left: 12px; top: -7px; font-size: var(--text-2xs); color: var(--text-2); white-space: nowrap; pointer-events: none; }
@@ -24,4 +24,4 @@
 .flujo-aviso { position: absolute; left: 12px; right: 12px; bottom: 12px; z-index: calc(var(--z-content) + 4); background: var(--surface-1); border: 1px solid var(--danger);
   border-radius: 8px; padding: 8px 12px; font-size: var(--text-sm); max-height: 30%; overflow-y: auto; }
 .flujo-aviso li { color: var(--danger); }
-@media (max-width: 960px) { .flujo-editor { grid-template-columns: 1fr; } }
+@media (width <= 960px) { .flujo-editor { grid-template-columns: 1fr; } }

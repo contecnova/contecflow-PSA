@@ -60,8 +60,15 @@ PROCESS_CATALOGUE: list[dict] = [
      "steps": ["Llamada entrante", "Identificar usuario", "Intent detection", "Resolver / escalar", "Cierre llamada"]},
     {"key": "multichannel_intake", "category": "servicedesk", "icon": "📨",
      "name": "Intake Multi-Canal",
-     "description": "Recepción de tickets desde email, chat, portal, móvil.",
-     "steps": ["Mensaje entrante", "Normalizar canal", "Extraer datos", "Crear ticket", "Confirmación"]},
+     "description": "Recepción de tickets desde email, chat, portal, móvil. Sin empresa destinataria (dirección o número de ninguna empresa, con varias empresas) el mensaje se ignora y no se abre ticket.",
+     # 24-11-2026 (migración 208, docs/seguridad/empresa_obligatoria.md §6): paso de empresa destinataria.
+     "steps": ["Mensaje entrante", "Identificar empresa destinataria (sin ella, se ignora)", "Normalizar canal", "Extraer datos", "Crear ticket", "Confirmación"]},
+    # 24-11-2026 (docs/portal/CHAT_DEL_PORTAL.md): chat del portal con adjuntos y llamadas que
+    # solo inicia el operador (el cliente acepta o rechaza; 403 si intenta llamar).
+    {"key": "portal_conversation", "category": "servicedesk", "icon": "💬",
+     "name": "Conversación del portal (chat y llamadas)",
+     "description": "Chat operador-cliente (conversaciones formales y chat de colaboración): adjuntos validados (contenido, AV/DLP, tipos y tamaño por empresa); llamada o videollamada solo iniciada por el operador, el cliente acepta o rechaza; sin grabación.",
+     "steps": ["Mensaje del cliente", "Validar adjuntos (contenido, AV/DLP)", "Política GRC y aprobación", "Respuesta del operador", "Operador inicia llamada o videollamada", "Cliente acepta o rechaza", "Llamada (sin grabación) y cierre", "Conversación atendida"]},
     {"key": "escalation_routing", "category": "servicedesk", "icon": "🚨",
      "name": "Escalado",
      "description": "Reglas de escalado por SLA, prioridad y on-call.",
@@ -832,6 +839,33 @@ def duplicate_process(db: Session, process_id: str, *, new_name: str,
 
 
 # ── Seeding ───────────────────────────────────────────────────────────────────
+def _sin_tocar_y_desfasado(db: Session, proc, xml: str) -> bool:
+    """¿La última versión de `proc` la escribió el sistema (sin autor) y difiere de `xml`?"""
+    v = (db.query(BPMNProcessVersion)
+         .filter(BPMNProcessVersion.process_id == proc.id)
+         .order_by(BPMNProcessVersion.version.desc()).first())
+    return v is not None and v.created_by_user_id is None and v.bpmn_xml != xml
+
+
+def sincronizar_catalogo_sembrado(db: Session) -> int:
+    """Pone al día los procesos sembrados sin editar de cada empresa que ya sembró el catálogo.
+
+    Se llama al arrancar (24-11-2026): antes, un cambio del catálogo solo llegaba
+    a una base existente si alguien pulsaba «sembrar» con `force`.
+    """
+    from app.db.session import sin_filtro_de_tenant
+    from app.db.contexto_de_tenant import con_empresa
+    with sin_filtro_de_tenant(db):
+        orgs = [r[0] for r in db.query(BPMNProcess.organization_id)
+                .filter(BPMNProcess.is_seeded.is_(True), BPMNProcess.organization_id.isnot(None))
+                .distinct().all()]
+    total = 0
+    for org in orgs:
+        with con_empresa(db, org):
+            total += seed_catalogue(db, organization_id=org)["updated"]
+    return total
+
+
 def seed_catalogue(db: Session, organization_id: Optional[str] = None,
                    *, force: bool = False) -> dict:
     """
@@ -861,6 +895,14 @@ def seed_catalogue(db: Session, organization_id: Optional[str] = None,
         elif force and existing.is_seeded:
             save_new_version(db, process_id=existing.id, bpmn_xml=xml,
                              notes="re-seeded from catalogue")
+            updated += 1
+        elif existing.is_seeded and _sin_tocar_y_desfasado(db, existing, xml):
+            # 24-11-2026: el BPM tiene que estar siempre al día. Un proceso
+            # sembrado que nadie ha editado (su última versión no tiene autor)
+            # se pone al día con el catálogo sin `force`; si alguien lo editó,
+            # no se toca.
+            save_new_version(db, process_id=existing.id, bpmn_xml=xml,
+                             notes="actualizado desde el catálogo")
             updated += 1
         else:
             skipped += 1

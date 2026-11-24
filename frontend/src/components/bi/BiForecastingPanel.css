@@ -31,6 +31,6 @@
   gap: 12px;
   align-items: end;
 }
-@media (max-width: 760px) {
+@media (width <= 760px) {
   .bifopa-controles { grid-template-columns: minmax(0, 1fr); }
 }

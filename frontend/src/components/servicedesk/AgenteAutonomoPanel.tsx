@@ -100,12 +100,10 @@ function Registro() {
         </div>
       )}
       <div className="u-row-8">
-        <label className="sdm-field"><span>{t('sd_mercado.filtrar_estado')}</span>
-          <Select suelto placeholder={false} value={estado} onChange={e => { setEstado(e.target.value); setPage(1) }}>
+        <Select label={t('sd_mercado.filtrar_estado')} placeholder={false} value={estado} onChange={e => { setEstado(e.target.value); setPage(1) }}>
             <option value="">{t('sd_mercado.todos')}</option>
             {Object.keys(ESTADO_KIND).map(k => <option key={k} value={k}>{etiquetaCodigo(t, 'sd_mercado.ejec', k)}</option>)}
           </Select>
-        </label>
       </div>
       {log.isLoading ? <Spinner /> : items.length === 0 ? <EmptyState icon={<Bot size={28} />} title={t('sd_mercado.registro_vacio')} description={t('sd_mercado.agente_desc')} /> : (
         <ul className="sdm-list">
@@ -225,10 +223,9 @@ function PlaybookModal({ inicial, onClose, onSaved }: { inicial: Playbook | null
       <div className="u-stack-12">
         <div className="sdm-form">
           <Input label={t('sd_mercado.nombre')} value={nombre} onChange={e => setNombre(e.target.value)} />
-          <label className="sdm-field"><span>{t('sd_mercado.hasta_prioridad')}</span>
-            <Select suelto placeholder={false} value={maxPrioridad} onChange={e => setMaxPrioridad(e.target.value)}>
+          <Select label={t('sd_mercado.hasta_prioridad')} placeholder={false} value={maxPrioridad} onChange={e => setMaxPrioridad(e.target.value)}>
               {PRIORIDADES.map(p => <option key={p} value={p}>{etiquetaCodigo(t, 'estado', p)}</option>)}
-            </Select></label>
+            </Select>
         </div>
         <Input label={t('sd_mercado.descripcion')} value={descripcion} onChange={e => setDescripcion(e.target.value)} />
         <Input label={t('sd_mercado.palabras_hint')} value={palabras} onChange={e => setPalabras(e.target.value)} />

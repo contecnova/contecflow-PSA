@@ -147,33 +147,22 @@ function CreateEnvelopeModal({ onClose, onCreated }: { onClose: () => void; onCr
   return (
     <Modal open title={t('esign.create_title')} onClose={onClose} width={560}>
       <div className="u-stack-14">
-        <div>
-          <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="esign-page-e10">{t('esign.document')}</label>
-          <Select suelto placeholder={false} id={`${idCampo}-1`} value={form.document_id} onChange={setField('document_id')} className="esign-page-e11">
+        <Select label={t('esign.document')} placeholder={false} id={`${idCampo}-1`} value={form.document_id} onChange={setField('document_id')}>
             <option value="">{t('esign.select_document')}</option>
             {documents.map(d => <option key={d.id} value={d.id}>{d.title}</option>)}
           </Select>
-        </div>
-        <div>
-          <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="esign-page-e10">{t('esign.subject')}</label>
-          <Input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.subject} onChange={setField('subject')} placeholder={t('esign.subject_ph')} inputClassName="esign-page-e11" />
-        </div>
-        <div>
-          <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="esign-page-e10">{t('esign.message')}</label>
-          <Textarea id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.message} onChange={setField('message')} rows={2} placeholder={t('esign.message_ph')} inputClassName="esign-page-e2" />
-        </div>
+        <Input label={t('esign.subject')} id={`${idCampo}-2`} value={form.subject} onChange={setField('subject')} placeholder={t('esign.subject_ph')} />
+        <Textarea label={t('esign.message')} id={`${idCampo}-3`} value={form.message} onChange={setField('message')} rows={2} placeholder={t('esign.message_ph')} />
         <div className="u-wrap-10">
           <div className="esign-box">
-            <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="esign-page-e10">{t('esign.provider')}</label>
-            <Select suelto placeholder={false} id={`${idCampo}-4`} value={form.provider} onChange={setField('provider')} className="esign-page-e11">
+            <Select label={t('esign.provider')} placeholder={false} id={`${idCampo}-4`} value={form.provider} onChange={setField('provider')}>
               <option value="manual">{t('esign.provider_manual')}</option>
               <option value="docusign">DocuSign</option>
               <option value="adobe_sign">Adobe Sign</option>
             </Select>
           </div>
           <div className="esign-box-2">
-            <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="esign-page-e10">{t('esign.valid_days')}</label>
-            <Input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} type="number" value={form.expires_days} onChange={setField('expires_days')} min={1} max={30} inputClassName="esign-page-e11" />
+            <Input label={t('esign.valid_days')} id={`${idCampo}-5`} type="number" value={form.expires_days} onChange={setField('expires_days')} min={1} max={30} />
           </div>
         </div>
 

@@ -129,8 +129,7 @@ function CamposDeOportunidad({ form, setForm, campos }: { form: OppForm; setForm
     <div className="pipe-grid">
       <Input label={t('pipeline.opportunity_name')} value={form.name} onChange={campo('name')} required placeholder={undefined} hint={undefined} error={campos.de('name')} />
       <div>
-        <label className="ds-field__label">{t('pipeline.cliente_existente')}</label>
-        <ClientSelect value={form.client_id} placeholder={t('pipeline.cliente_nuevo')} className="campo-form"
+        <ClientSelect label={t('pipeline.cliente_existente')} value={form.client_id} placeholder={t('pipeline.cliente_nuevo')}
           onChange={(id, cliente) => { campos.limpiar('client_id'); setForm(c => ({ ...c, client_id: id, client_name: cliente ? cliente.name : c.client_name })) }} />
         {campos.de('client_id') && <div className="u-field-error">{campos.de('client_id')}</div>}
       </div>
@@ -248,8 +247,7 @@ function OpportunityDetailModal({ opp, onClose, stageLabels, onUpdate }: { opp: 
             <div className="pipe-grid-3">
               <CamposDeOportunidad form={edicion} setForm={f => setEdicion(c => (c ? f(c) : c))} campos={camposEdicion} />
               <div>
-                <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="ds-field__label">{t('pipeline.descripcion')}</label>
-                <Textarea id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={edicion.description} onChange={e => { camposEdicion.limpiar('description'); setEdicion(c => (c ? { ...c, description: e.target.value } : c)) }} rows={3} inputClassName="pipe-textarea" />
+                <Textarea label={t('pipeline.descripcion')} id={`${idCampo}-1`} value={edicion.description} onChange={e => { camposEdicion.limpiar('description'); setEdicion(c => (c ? { ...c, description: e.target.value } : c)) }} rows={3} />
                 {camposEdicion.de('description') && <div className="u-field-error">{camposEdicion.de('description')}</div>}
               </div>
               <div className="u-actions-8">
@@ -706,10 +704,7 @@ export default function PipelinePage() {
                           <div className="pipe-op__responsable">
                             {t('pagina_pipe.responsable_2')}{' '}{opportunity.owner_name || t('pagina_pipe.sin_asignar')}
                           </div>
-                          <label className="pipe-op__etapa">
-                            <span className="ds-field__label">{t('pagina_pipe.mover_a_etapa')}</span>
-                            <Select
-                              suelto
+                          <Select label={t('pagina_pipe.mover_a_etapa')}
                               placeholder={false}
                               key={`${opportunity.id}:${opportunity.stage}`}
                               value={opportunity.stage || ''}
@@ -722,7 +717,6 @@ export default function PipelinePage() {
                                 </option>
                               ))}
                             </Select>
-                          </label>
                         </div>
 
                         {opportunity.description ? (
@@ -754,8 +748,7 @@ export default function PipelinePage() {
           />
 
           <div>
-            <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="ds-field__label">{t('pipeline.descripcion')}</label>
-            <Textarea id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.description} onChange={(event) => { camposNueva.limpiar('description'); setForm((current) => ({ ...current, description: event.target.value })) }} rows={4} inputClassName="pipe-textarea" />
+            <Textarea label={t('pipeline.descripcion')} id={`${idCampo}-1`} value={form.description} onChange={(event) => { camposNueva.limpiar('description'); setForm((current) => ({ ...current, description: event.target.value })) }} rows={4} />
             {camposNueva.de('description') && <div className="u-field-error">{camposNueva.de('description')}</div>}
           </div>
 
