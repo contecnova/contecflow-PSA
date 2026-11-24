@@ -48,7 +48,7 @@
   padding: 0;
   font-variant-numeric: tabular-nums;
 }
-.uifecha-campo::placeholder { color: var(--text-3); }
+.uifecha-campo::placeholder { color: var(--texto-campo-vacio); opacity: 1; }
 .uifecha-campo:disabled { cursor: not-allowed; }
 
 .uifecha-boton {

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import api, { portalClientsApi, portalConversationsApi, apiWsUrl } from '../../services/api'
@@ -8,17 +8,17 @@ import { confirmar } from '../../context/ConfirmContext'
 import { useAuth } from '../../context/AuthContext'
 import { extractErr } from '../../utils/helpers'
 import { CLIENT_API, S as PORTAL_STYLES, useClientAuth, useErrorDelPortal } from '../../pages/portal-client/portalClientContext'
-import { Button, EmptyState, Modal, Select } from '../ui'
+import { Button, Modal, Select } from '../ui'
 import { MessagesSquare, Phone, PhoneIncoming, PhoneOff, Plus, Video } from 'lucide-react'
-import StatusBadge from '../ui/StatusBadge'
 import { POLL_ACTIVE_CHAT_MS, POLL_FAST_MS, POLL_FREQUENT_MS, WS_HEARTBEAT_MS } from '../../constants/timings'
 import type { PortalAjustesDelChat, PortalLlamada } from '../../services/api/tipos-alm'
 import './GovernedConversations.css'
 import './ChatDelPortal.css'
-import { type ApiClient, type Conversation, EMPTY_LIST, type Message, type Mode, type ProjectOption, SOURCE_KEY, type Toast, type UserOption, etiquetaDeTema, useTextoConversacion } from './GovernedConversationsComun'
-import { ConversationComposer, ConversationListItem, type CreateConversationForm, CreateConversationModal, MessageBubble } from './GovernedConversationsPiezas'
+import { type ApiClient, type Conversation, EMPTY_LIST, type Message, type Mode, type ProjectOption, type Toast, type UserOption, useTextoConversacion } from './GovernedConversationsComun'
+import { ConversationComposer, type CreateConversationForm, CreateConversationModal, MessageBubble, esCompacto } from './GovernedConversationsPiezas'
 import { chatDelPortalApi, type VersionDeMensaje } from './chatDelPortalApi'
 import LlamadaDelPortal from './LlamadaDelPortal'
+import { BotonesDeLlamada, CabeceraDeConversacion, Escribiendo, FilaDeConversacion, IndicadorDeCabecera, ListaDeChats, PanelDeChat, PanelVacio, PantallaDeChat, SeparadorDeDia, ZonaDeMensajes, cambiaDeDia } from '../chat'
 export { useTextoConversacion } from './GovernedConversationsComun'
 export { ConversationPoliciesPanel } from './ConversationPoliciesPanel'
 
@@ -86,6 +86,7 @@ export function GovernedConversationInbox({
   const [draft, setDraft] = useState<string>('')
   const [isInternalNote, setIsInternalNote] = useState<boolean>(false)
   const [showCreate, setShowCreate] = useState<boolean>(false)
+  const [filtro, setFiltro] = useState('')
   // 24-11-2026 (chat del portal completo): responder, editar, escribiendo, historial y llamadas.
   const [replyTo, setReplyTo] = useState<Message | null>(null)
   const [editing, setEditing] = useState<Message | null>(null)
@@ -433,21 +434,34 @@ export function GovernedConversationInbox({
   const escribiendoAqui = escribiendo && escribiendo.conversationId === selectedConversationId ? escribiendo : null
   const puedeLlamar = mode === 'team' && esNativa && !!ajustes?.can_call && !llamada
 
+  // 24-11-2026 («un solo chat»): la pantalla es la del chat interno (components/chat):
+  // lista de conversaciones a la izquierda, panel con su barra superior, zona de
+  // mensajes y editor. «Con supervisión» solo lo ve el equipo, como indicador
+  // discreto en la cabecera con su explicación.
+  const botonNueva = (
+    <Button icon={<Plus size={14} />} onClick={() => setShowCreate(true)}>{t('governedconversations.nueva_conversacion')}</Button>
+  )
+  const politica = selectedConversation?.policy
+  const explicacionDeSupervision = [
+    politica?.requires_team_message_approval ? t('governedconversations.supervision_equipo') : null,
+    politica?.requires_client_message_approval ? t('governedconversations.supervision_cliente') : null,
+    politica?.redact_sensitive_content ? t('governedconversations.supervision_ocultar') : null,
+  ].filter(Boolean).join(' ') || t('governedconversations.supervision_general')
+
   return (
-    <div>
-      <div className="goveconv-row-6">
-        <div>
-          <div className="goveconv-box-6">{title}</div>
-          <div className="u-text2-sm">{t('governedconversations.resumen', { n: conversations.length, sin_leer: headerKpi })}</div>
+    <div className="u-stack-12">
+      <div className="ds-toolbar">
+        <div className="u-min0">
+          <div className="u-sm-700">{title}</div>
+          <div className="u-text3-xs">{t('governedconversations.resumen', { n: conversations.length, sin_leer: headerKpi })}</div>
         </div>
-        <div className="u-wrap-10">
-          {projectOptions.length > 1 && (
-            <Select suelto aria-label={t('gas.proyecto')} placeholder={t('governedconversations.todos_los_proyectos')} value={selectedProject} onChange={(event) => setSelectedProject(event.target.value)} className="goveconv-inputstyle5">
-              {projectOptions.map((project) => <option key={project.id} value={project.id}>{project.code ? `${project.code} — ` : ''}{project.name}</option>)}
-            </Select>
-          )}
-          <Button icon={<Plus size={14} />} onClick={() => setShowCreate(true)}>{t('governedconversations.nueva_conversacion')}</Button>
-        </div>
+        <span className="ds-toolbar__spacer" />
+        {projectOptions.length > 1 && (
+          <Select suelto aria-label={t('gas.proyecto')} placeholder={t('governedconversations.todos_los_proyectos')} value={selectedProject} onChange={(event) => setSelectedProject(event.target.value)}>
+            {projectOptions.map((project) => <option key={project.id} value={project.id}>{project.code ? `${project.code} — ` : ''}{project.name}</option>)}
+          </Select>
+        )}
+        {botonNueva}
       </div>
 
       {entrante && (
@@ -466,93 +480,73 @@ export function GovernedConversationInbox({
         </div>
       )}
 
-      {loadingConversations ? (
-        <div className="goveconv-box-8">{t('governedconversations.cargando_conversaciones')}</div>
-      ) : conversations.length === 0 ? (
-        <EmptyState icon={<MessagesSquare size={28} />} title={emptyTitle} description={emptyDescription}
-          action={<Button icon={<Plus size={14} />} onClick={() => setShowCreate(true)}>{t('governedconversations.nueva_conversacion')}</Button>} />
-      ) : (
-        <div className="goveconv-grid-1">
-          <div className="u-stack-10">
-            {conversations.map((conversation) => (
-              <ConversationListItem key={conversation.id} conversation={conversation} selected={conversation.id === selectedConversationId} onSelect={setSelectedConversationId} mode={mode} />
-            ))}
-          </div>
+      <PantallaDeChat incrustada>
+        <ListaDeChats
+          buscar={{ valor: filtro, onCambiar: setFiltro, etiqueta: t('governedconversations.buscar') }}
+          cargando={loadingConversations}
+          vacio={!loadingConversations && conversations.length === 0
+            ? { icono: <MessagesSquare size={28} />, titulo: String(emptyTitle || t('governedconversations.sin_mensajes')), descripcion: emptyDescription ? String(emptyDescription) : undefined }
+            : null}
+          accion={botonNueva}>
+          {conversations.filter(c => !filtro || (c.title || '').toLowerCase().includes(filtro.toLowerCase())).map((conversation) => (
+            <FilaDeConversacion key={conversation.id} avatar
+              titulo={conversation.title || t('governedconversations.sin_titulo')}
+              activa={conversation.id === selectedConversationId}
+              onClick={() => setSelectedConversationId(conversation.id)}
+              noLeidos={(mode === 'team' ? conversation.unread_for_team : conversation.unread_for_client) || 0}
+              etiquetaNoLeidos={t('governedconversations.sin_leer')} />
+          ))}
+        </ListaDeChats>
 
-          <div className="u-stack-14">
-            {selectedConversation && (
-              <div className="goveconv-cardstyle4">
-                <div className="goveconv-row-7">
-                  <div>
-                    <div className="goveconv-txt-5">{selectedConversation.title}</div>
-                    <div className="goveconv-box-11">
-                      {t('risks_page.tipo')} {etiquetaDeTema(t, selectedConversation.topic_type)}
-                      {selectedConversation.assigned_group_name ? ` · ${t('governedconversations.cola', { name: selectedConversation.assigned_group_name })}` : ''}
-                      {selectedConversation.assigned_role_key ? ` · ${t('governedconversations.rol', { name: selectedConversation.assigned_role_key })}` : ''}
-                    </div>
-                  </div>
-                  <div className="u-wrap-6">
-                    <StatusBadge color={selectedConversation.source === 'legacy_client_message' ? 'var(--warning)' : 'var(--accent)'}>{SOURCE_KEY[selectedConversation.source] ? t(SOURCE_KEY[selectedConversation.source]) : selectedConversation.source}</StatusBadge>
-                    {selectedConversation.policy?.requires_client_message_approval && <StatusBadge color="var(--warning)">{t('governedconversations.aprobacion_cliente')}</StatusBadge>}
-                    {selectedConversation.policy?.requires_team_message_approval && <StatusBadge color="var(--warning)">{t('governedconversations.aprobacion_equipo')}</StatusBadge>}
-                    {selectedConversation.is_sla_breached && <StatusBadge color="var(--danger)">{t('governedconversations.sla_vencido')}</StatusBadge>}
-                    {puedeLlamar && !llamadaEnCurso && (
-                      <>
-                        <Button size="sm" variant="secondary" icon={<Phone size={13} />} loading={llamar.isPending} onClick={() => llamar.mutate('audio')}>
-                          {t('governedconversations.llamar')}
-                        </Button>
-                        {ajustes?.video_enabled && (
-                          <Button size="sm" variant="secondary" icon={<Video size={13} />} loading={llamar.isPending} onClick={() => llamar.mutate('video')}>
-                            {t('governedconversations.videollamada')}
-                          </Button>
-                        )}
-                      </>
-                    )}
-                    {puedeLlamar && llamadaEnCurso && (
-                      <Button size="sm" icon={llamadaEnCurso.kind === 'video' ? <Video size={13} /> : <Phone size={13} />} loading={unirse.isPending} onClick={() => unirse.mutate(llamadaEnCurso.id)}>
-                        {t('governedconversations.unirse')}
-                      </Button>
-                    )}
-                  </div>
-                </div>
-                {Array.isArray(selectedConversation.participants) && selectedConversation.participants.length > 0 && (
-                  <div className="u-text2-sm">
-                    {t('governedconversations.participantes')} {selectedConversation.participants.map((participant) => participant.display_name).join(', ')}
-                  </div>
-                )}
-              </div>
-            )}
-
-            <div className="goveconv-cardstyle5">
-              {loadingMessages ? (
-                <div className="u-text2-base">{t('governedconversations.cargando_mensajes')}</div>
+        {!selectedConversation ? (
+          <PanelVacio icono={<MessagesSquare size={28} />} titulo={String(emptyTitle || t('governedconversations.sin_mensajes'))}
+            descripcion={emptyDescription ? String(emptyDescription) : undefined} accion={botonNueva} />
+        ) : (
+          <PanelDeChat etiqueta={selectedConversation.title || t('governedconversations.sin_titulo')}>
+            <CabeceraDeConversacion
+              titulo={selectedConversation.title || t('governedconversations.sin_titulo')}
+              icono={<MessagesSquare size={18} aria-hidden="true" />}
+              indicador={mode === 'team' && esNativa
+                ? <IndicadorDeCabecera texto={t('governedconversations.origen_gobernada')} explicacion={explicacionDeSupervision} />
+                : null}
+              subtitulo={(selectedConversation.participants || []).map((participant) => participant.display_name).join(', ') || null}
+              acciones={puedeLlamar ? (llamadaEnCurso ? (
+                <Button size="sm" icon={llamadaEnCurso.kind === 'video' ? <Video size={13} /> : <Phone size={13} />} loading={unirse.isPending} onClick={() => unirse.mutate(llamadaEnCurso.id)}>
+                  {t('governedconversations.unirse')}
+                </Button>
               ) : (
-                <div className="u-stack-12">
-                  {messages.map((message) => (
-                    <MessageBubble key={message.id} message={message} mode={mode}
-                      onReview={(item, decision) => reviewMessage.mutate({ messageId: item.id, decision })}
-                      conversationId={selectedConversationId || undefined}
-                      api={chat}
-                      isMine={esMio(message)}
-                      viewerUserId={viewerUserId}
-                      viewerClientId={viewerClientId}
-                      onReply={(m) => { setEditing(null); setReplyTo(m) }}
-                      onEdit={empezarEdicion}
-                      onDelete={borrarMensaje}
-                      onReact={(m, emoji) => react.mutate({ messageId: m.id, emoji })}
-                      onHistory={mode === 'team' ? verHistorial : undefined}
-                      onError={(e) => toast.error(errorDe(e, t('governedconversations.err_descargar')))}
-                    />
-                  ))}
-                </div>
-              )}
-              {escribiendoAqui && (
-                <div className="chat-portal-escribiendo" aria-live="polite">
-                  {t('governedconversations.escribiendo', { name: escribiendoAqui.name || t(mode === 'team' ? 'governedconversations.remitente_cliente' : 'governedconversations.remitente_equipo') })}
-                </div>
-              )}
-            </div>
-
+                <BotonesDeLlamada onLlamar={(kind) => llamar.mutate(kind)} desactivado={llamar.isPending}
+                  video={!!ajustes?.video_enabled}
+                  etiquetaVoz={t('governedconversations.llamar')} etiquetaVideo={t('governedconversations.videollamada')} />
+              )) : null}
+            />
+            <ZonaDeMensajes etiqueta={t('governedconversations.mensajes')}>
+              {loadingMessages && <div className="u-text3-xs" role="status">{t('governedconversations.cargando_mensajes')}</div>}
+              {messages.map((message, i) => (
+                // 24-11-2026 (burbujas): separador de día; lo de quien mira (`esMio`) a la derecha.
+                <Fragment key={message.id}>
+                {cambiaDeDia(messages[i - 1]?.created_at, message.created_at) && <SeparadorDeDia fecha={message.created_at} />}
+                <MessageBubble message={message} mode={mode}
+                  compact={esCompacto(messages[i - 1], message)}
+                  onReview={(item, decision) => reviewMessage.mutate({ messageId: item.id, decision })}
+                  conversationId={selectedConversationId || undefined}
+                  api={chat}
+                  isMine={esMio(message)}
+                  viewerUserId={viewerUserId}
+                  viewerClientId={viewerClientId}
+                  onReply={(m) => { setEditing(null); setReplyTo(m) }}
+                  onEdit={empezarEdicion}
+                  onDelete={borrarMensaje}
+                  onReact={(m, emoji) => react.mutate({ messageId: m.id, emoji })}
+                  onHistory={mode === 'team' ? verHistorial : undefined}
+                  onError={(e) => toast.error(errorDe(e, t('governedconversations.err_descargar')))}
+                />
+                </Fragment>
+              ))}
+            </ZonaDeMensajes>
+            <Escribiendo texto={escribiendoAqui
+              ? t('governedconversations.escribiendo', { name: escribiendoAqui.name || t(mode === 'team' ? 'governedconversations.remitente_cliente' : 'governedconversations.remitente_equipo') })
+              : null} />
             <ConversationComposer
               mode={mode}
               value={draft}
@@ -572,9 +566,9 @@ export function GovernedConversationInbox({
               settings={ajustes || null}
               onTyping={avisarEscribiendo}
             />
-          </div>
-        </div>
-      )}
+          </PanelDeChat>
+        )}
+      </PantallaDeChat>
 
       <CreateConversationModal
         mode={mode}

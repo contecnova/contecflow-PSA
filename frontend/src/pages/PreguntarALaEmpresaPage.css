@@ -41,12 +41,6 @@
   resize: vertical;
 }
 
-.pae-text-sm {
-  margin-top: 8px;
-  white-space: pre-wrap;
-  font-size: var(--text-sm);
-}
-
 .pae-row-danger {
   border-color: var(--danger);
   color: var(--danger);
@@ -192,4 +186,10 @@
 .pae-progreso {
   margin: 8px 0 0;
   padding-left: 18px;
+}
+
+/* 24-11-2026 (burbujas «como WhatsApp»): pregunta y avance con la fila de todos los chats. */
+.pae-conversacion {
+  display: flex;
+  flex-direction: column;
 }

@@ -13,9 +13,10 @@
 import { type CSSProperties, useState, useEffect, useRef } from 'react'
 import { CLIENT_API, useErrorDelPortal, useLang } from './portalClientContext'
 import { useToast } from '../../context/ToastContext'
-import { MessageCircle, X, Send, Sparkles, AlertTriangle, ThumbsUp, ThumbsDown } from 'lucide-react'
+import { MessageCircle, X, Sparkles, AlertTriangle, ThumbsUp, ThumbsDown } from 'lucide-react'
 import './PortalAIChatWidget.css'
-import { Pulsable, Input, IconButton } from '../../components/ui'
+import { Pulsable, IconButton } from '../../components/ui'
+import { EditorDeChat, FilaDeMensaje } from '../../components/chat'
 
 const SESSION_KEY = 'portal_ai_session_id'
 
@@ -28,6 +29,7 @@ interface ChatMessage {
   role: ChatRole
   content: string
   sources?: Fuente[]   // revisión 2026-11: artículos de la base en que se apoya
+  created_at?: string | null
 }
 
 interface ChatPostResponse {
@@ -89,7 +91,7 @@ export default function PortalAIChatWidget() {
     setSending(true)
     setInput('')
     // Optimistic insert user message
-    setMessages(prev => [...prev, { role: 'user', content: msg }])
+    setMessages(prev => [...prev, { role: 'user', content: msg, created_at: new Date().toISOString() }])
     try {
       const res = await CLIENT_API.post('/portal/ai-chat', {
         message: msg,
@@ -100,7 +102,7 @@ export default function PortalAIChatWidget() {
         setSessionId(data.session_id)
         try { localStorage.setItem(SESSION_KEY, data.session_id) } catch { /* accesorio: sin almacenamiento, la sesión solo vive en memoria */ }
       }
-      setMessages(prev => [...prev, { id: data.message_id, role: 'assistant', content: data.response || '...', sources: data.sources || [] }])
+      setMessages(prev => [...prev, { id: data.message_id, role: 'assistant', content: data.response || '...', sources: data.sources || [], created_at: new Date().toISOString() }])
     } catch (e: unknown) {
       // 16-11-2026: código del servidor en el idioma del portal; si no, `detail`
       // y, sin respuesta, el aviso de conexión (no el mensaje técnico de axios).
@@ -180,24 +182,31 @@ export default function PortalAIChatWidget() {
             </div>
           </div>
         ) : (
-          messages.map((m, idx) => (
-            <div className={`poaiwi-box-10 portalai-sx4 ${m.role === 'user' ? 'portal-aichat-widget-m1' : 'portal-aichat-widget-m2'}`} key={idx}>
-              {m.content}
-              {!!m.sources?.length && (
-                <div className="poaiwi-box-6">
-                  {t('portalaichatwidget.fuentes')}: {m.sources.map(s => `${s.title} (${s.number})`).join(' · ')}
-                </div>
-              )}
-              {m.role === 'assistant' && m.id && <Voto id={m.id} />}
-            </div>
-          ))
+          // 24-11-2026 (burbujas «como WhatsApp»): la fila de todos los chats; lo del cliente
+          // a la derecha y el asistente a la izquierda.
+          messages.map((m, idx) => {
+            const propio = m.role === 'user'
+            const autor = propio ? t('pas_you') : t('nexusassist.asistente_ia')
+            return (
+              <FilaDeMensaje key={m.id || idx} propio={propio} esBot={!propio} autor={autor} fecha={m.created_at}
+                compacto={idx > 0 && messages[idx - 1].role === m.role}
+                textos={{ mensajeDe: t('governedconversations.mensaje_de', { name: autor }) }}
+                cuerpo={<div className="chat-msg__body">{m.content}</div>}
+                extras={<>
+                  {!!m.sources?.length && (
+                    <div className="poaiwi-box-6">
+                      {t('portalaichatwidget.fuentes')}: {m.sources.map(s => `${s.title} (${s.number})`).join(' · ')}
+                    </div>
+                  )}
+                  {m.role === 'assistant' && m.id && <Voto id={m.id} />}
+                </>} />
+            )
+          })
         )}
         {sending && (
-          <div className="poaiwi-box-7">
-            <span className="poaiwi-box-8">
-              {t('portalaichatwidget.pensando')}
-            </span>
-          </div>
+          <FilaDeMensaje autor={t('nexusassist.asistente_ia')} fecha={null} esBot
+            textos={{ mensajeDe: t('governedconversations.mensaje_de', { name: t('nexusassist.asistente_ia') }) }}
+            cuerpo={<div className="chat-msg__pensando" role="status">{t('portalaichatwidget.pensando')}</div>} />
         )}
         {error && (
           <div className="portalai-sx5 poaiwi-sugerencia">
@@ -207,20 +216,16 @@ export default function PortalAIChatWidget() {
       </div>
 
       {/* Input */}
-      <div className="poaiwi-row-2">
-        <Input aria-label={t('portalaichatwidget.escribe_tu_pregunta')} value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() } }} disabled={sending} placeholder={t('portalaichatwidget.escribe_tu_pregunta')} className="u-flex1" />
-        <Pulsable /* eslint-disable-line contec/sin-boton-de-icono-propio -- excepción: botón de envío relleno del compositor */ className={`poaiwi-row-4 ${input.trim() && !sending ? 'portal-aichat-widget-m3' : 'portal-aichat-widget-m4'}`} onClick={() => handleSend()} disabled={!input.trim() || sending}
-          aria-label={t('chat.send')}>
-          <Send size={14} />
-        </Pulsable>
-      </div>
-
-      <style>{`
-        @keyframes pulse {
-          0%, 100% { opacity: 0.5; }
-          50%      { opacity: 1; }
-        }
-      `}</style>
+      <EditorDeChat
+        valor={input}
+        onCambiar={setInput}
+        onEnviar={() => { void handleSend() }}
+        etiquetaCampo={t('portalaichatwidget.escribe_tu_pregunta')}
+        placeholder={t('portalaichatwidget.escribe_tu_pregunta')}
+        etiquetaEnviar={t('chat.send')}
+        etiquetaEmoji={t('governedconversations.insertar_emoji')}
+        desactivado={sending}
+      />
     </div>
   )
 }

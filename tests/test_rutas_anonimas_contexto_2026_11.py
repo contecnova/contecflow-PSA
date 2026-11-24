@@ -57,7 +57,7 @@ DECLARAN = (
 #:   10 sin credencial y sin base (JS estáticos, health/ready, ayudas).
 #: De las 93, 13 no abren sesión ORM (`SIN_BASE`).
 
-RUTAS_ANONIMAS = 102  # 23-11-2026 (prueba global): +1 WS /ws/notebook/{page_id} («Mi cuaderno», ticket de un uso, `declarar_sistema` hasta resolver al usuario); +4 del restablecimiento de contraseña (operador y portal); +4 de SAML (login, ACS, canje, SLO)
+RUTAS_ANONIMAS = 104  # 24-11-2026: +2 del acceso temporal del auditor de Certificaciones (migración 212). 23-11-2026 (prueba global): +1 WS /ws/notebook/{page_id} («Mi cuaderno», ticket de un uso, `declarar_sistema` hasta resolver al usuario); +4 del restablecimiento de contraseña (operador y portal); +4 de SAML (login, ACS, canje, SLO)
 
 #: Rutas anónimas que no abren sesión ORM, con su motivo.
 SIN_BASE = {

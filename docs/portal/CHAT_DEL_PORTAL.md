@@ -3,7 +3,8 @@
 24-11-2026. Las conversaciones formales del portal (las «gobernadas»: política GRC por tema, ocultación de datos
 sensibles, aprobación previa, SLA de primera respuesta) pasan a tener lo mismo que el chat interno. Migración
 `209_chat_del_portal_completo` (padre `208_empresa_obligatoria_y_portal`) y, para la pestaña «Chat» (§9),
-`210_chat_del_portal_colaboracion` (padre 209).
+`210_chat_del_portal_colaboracion` (padre 209) y, para el chat en vivo de Soporte (§10),
+`211_chat_en_vivo_completo` (padre 210). Los tres chats usan la MISMA pantalla que el chat interno (§11).
 
 - Operador: **Clientes → ficha → Portal → Conversaciones** y **Portal de clientes → Solicitudes**
   (`TeamGovernedConversationInbox`, `frontend/src/components/portal/GovernedConversations*.tsx`).
@@ -208,7 +209,129 @@ reuniones o transcribir trozos de audio en una llamada de una conversación con 
   (`portal_collaboration_chat`); la supresión deja «[ERASED]» y borra versiones, adjuntos con fichero y
   reacciones; bajo bloqueo legal de sus mensajes, 409 antes de tocar nada.
 
-## 10. Pendiente
+## 10. Chat en vivo de Soporte
+
+24-11-2026, migración `211_chat_en_vivo_completo` (padre `210_chat_del_portal_colaboracion`). Es el tercer chat del
+portal: **Portal → Soporte → Chat en vivo** (`PortalChatEnVivo` en
+`frontend/src/pages/portal-client/PortalAsistenteYChat.tsx`): empieza con el asistente (artículos de la base de
+conocimiento) y pasa a una persona del equipo; el operador lo atiende en **Service Desk → Bandeja de canales**
+(`frontend/src/components/servicedesk/BandejaDeCanales.tsx`). Cada mensaje sigue siendo también comentario público
+del ticket. Backend: `app/services/service_desk/chat_en_vivo.py` (nuevo), `conversaciones.py`, `canales_en_vivo.py`
+y las rutas de `app/api/v1/endpoints/service_desk/canales.py`. Solo para conversaciones `livechat` (WhatsApp, Slack y
+Teams siguen con lo suyo: 422 con código).
+
+| Función | Operador (bandeja de canales) | Cliente (Soporte → Chat en vivo) |
+|---|---|---|
+| Imágenes y ficheros | `POST /sd/channels/conversations/{id}/files`; descarga `GET …/files/{adj}` | `POST /sd/channels/livechat/{id}/attachments`; descarga `GET …/attachments/{adj}` |
+| Emojis y reacciones | `POST …/messages/{m}/reactions` | igual en `/livechat/{id}/…` |
+| Responder citando | `reply_to_message_id` en `POST …/reply` y en la subida | en `POST /livechat/{id}/messages` y en la subida |
+| Editar y borrar lo propio (plazo `PORTAL_CHAT_EDIT_WINDOW_MINUTES`) | `PUT`/`DELETE …/messages/{m}`; historial `GET …/messages/{m}/versions` | `PUT`/`DELETE /livechat/{id}/messages/{m}` |
+| Enlaces seguros | `TextoConEnlaces` / texto traducido | `TextoConEnlaces` |
+| Escribiendo / Leído | como antes, y «Leído» en cada mensaje propio | igual |
+| Tiempo real | `sd_channel`: `message` (con `change` = `edited`/`deleted`), `reaction`, `call` | `livechat`: los mismos eventos |
+| Llamar / videollamar | `POST …/calls` con `clientes.llamar` (y `sd.completo`), `…/join`, `…/end` | **nunca**: `POST /livechat/{id}/calls` siempre 403 `portal_llamada_solo_operador` (auditado); `GET /livechat/calls/ringing`, `…/accept`, `…/decline`, `…/end` |
+| Grabar / transcribir | `POST …/calls/{c}/recording` → siempre 409 `portal_llamada_no_se_graba` | igual |
+| Ajustes | `GET /sd/channels/chat-settings` (`can_call` según capacidad y empresa) | `GET /sd/channels/livechat/settings` (`can_call` siempre `false`) |
+
+Reutiliza, sin duplicar: ajustes `portal_chat`, `adjuntos.validar_fichero` (contenido por bytes, catálogo de la
+plataforma sin SVG, tamaño por empresa), `collaboration.files.escanear` (AV/DLP → cuarentena, 409
+`portal_adjunto_en_cuarentena`), el almacén `collaboration._storage` (clave `livechat/<empresa>/<conversación>/…`), la
+regla de emojis de `interaccion` y la sala y los tokens de LiveKit sin permiso de grabador. Descarga solo por la API,
+como `attachment`, con `nosniff` y `private, no-store`.
+
+**«Solo el operador llama».** (1) La única vía de servicio que crea una `ChannelCall` es
+`chat_en_vivo.iniciar_llamada`, que recibe un usuario del equipo; su ruta exige `clientes.llamar` y el servicio,
+además, `sd.completo`, llamadas (y vídeo) activadas en la empresa, conversación abierta con cliente y ninguna llamada
+viva. (2) La ruta del cliente para iniciar existe y siempre responde 403 `portal_llamada_solo_operador` (auditoría
+`livechat.call_start_denied`). (3) El cliente solo acepta (único modo de recibir su token; se comprueba que la inició
+el equipo), rechaza o cuelga. (4) La pantalla del cliente no tiene botón de llamar y su cliente de API rechaza
+`llamar` sin pedirlo.
+
+**Edición y rastro.** El texto anterior de cada edición o borrado queda en `sd_channel_message_versions`; el borrado
+es lógico («Mensaje eliminado», sin texto para nadie), quita sus reacciones y sus adjuntos (el fichero se borra al
+confirmar; 409 `portal_mensaje_bajo_bloqueo_legal` si alguno está bajo bloqueo). El comentario del ticket que es el
+mensaje se actualiza al editar y pasa a «[mensaje eliminado]» al borrar (el rastro queda en las versiones). Un mensaje
+del agente editado se envía tal cual, sin volver a traducir.
+
+**Aislamiento de empresa.** Toda consulta filtra por el `organization_id` de la conversación; el cliente, además, por
+`client_user_id` y su empresa; el operador, por la empresa de su sesión (404 si no).
+
+**GRC.**
+- Auditoría (`audit_logs`, recurso `livechat`, con `organization_id` y `actor_client_id` si es el cliente):
+  `LIVECHAT.ATTACHMENT_UPLOADED` / `_QUARANTINED` / `_DOWNLOADED` / `_DELETED`, `MESSAGE_EDITED`, `MESSAGE_DELETED`,
+  `REACTION_ADDED` / `_REMOVED`, `CALL_STARTED`, `CALL_ACCEPTED`, `CALL_DECLINED`, `CALL_MISSED`, `CALL_JOINED`,
+  `CALL_ENDED`, `CALL_START_DENIED` y `CALL_RECORDING_DENIED`.
+- Retención y bloqueo legal (`app/db/bloqueo_legal.py`): `sd_channel_attachments` (desde la subida; bloqueo por id,
+  conversación o quien lo subió), `sd_channel_message_versions` (desde el cambio; por id, conversación, mensaje o quien
+  editó) y `sd_channel_calls` (terminadas, rechazadas o perdidas, desde el final). Borrar la fila de un adjunto borra
+  su fichero al confirmar (`app/db/portal_chat_borrado.py`).
+- RGPD (`cab_service/gdpr.py` → `chat_en_vivo.copia_rgpd` / `suprimir_rgpd`, clave `livechat`): copia de sus mensajes
+  del chat en vivo, ediciones, adjuntos (metadatos y huella), reacciones y llamadas; la supresión deja «[ERASED]» en
+  sus mensajes y en el nombre del visitante y borra versiones, adjuntos (con fichero) y reacciones; bajo bloqueo legal
+  de un adjunto suyo, 409 antes de tocar nada. Antes el chat en vivo no entraba en el RGPD.
+- Errores: los códigos `portal_*` del §7 (sin códigos nuevos), con texto en los 8 idiomas del portal y en es/en/zh.
+
+**Tablas (211)**, todas con `organization_id` NOT NULL: `sd_channel_message_versions`, `sd_channel_attachments`,
+`sd_channel_reactions` (únicos con la empresa delante) y `sd_channel_calls`; en `sd_channel_messages`:
+`reply_to_message_id`, `edited_at`, `deleted_at`, `deleted_by_user_id` y `deleted_by_client_id`. Idempotente, SQLite y
+Postgres (`batch_alter_table`), deshacer real.
+
+**BPM.** El proceso sembrado `portal_conversation` cubre ahora los tres chats (descripción en la semilla y en es/en/zh).
+
+Tests (escritos, sin ejecutar): `tests/test_chat_en_vivo_completo_2026_11_24.py`; frontend
+`src/__tests__/chatEnVivoYChatUnico.test.ts`.
+
+## 11. Un solo chat: las mismas piezas en el interno y en el portal
+
+24-11-2026 (petición del usuario: «todos los chats iguales en comportamiento y diseño que el chat interno»). Las
+piezas del chat interno se extrajeron a `frontend/src/components/chat/` (su CSS, `chat.css`, sale tal cual de
+`pages/ChatPage.css`) y las usan el chat interno y los tres chats del portal en los dos lados:
+
+| Pieza | Qué es | Dónde se usa |
+|---|---|---|
+| `PantallaDeChat` | la raíz: lista a la izquierda y panel (`incrustada` dentro de otra página) | formales (equipo y cliente), pestaña «Chat», chat en vivo (cliente y bandeja de canales) |
+| `ListaDeChats`, `GrupoDeChats`, `FilaDeConversacion` | la columna de conversaciones: buscador, grupos y filas (avatar o icono + nombre, no leídos) | chat interno (`ListaDeConversaciones`), formales, pestaña «Chat», bandeja de canales |
+| `PanelDeChat`, `CabeceraDeConversacion`, `ZonaDeMensajes`, `PanelVacio` | el panel con su barra superior (título, subtítulo, acciones a la derecha) y la zona de mensajes | chat interno (`PanelDeConversacion`) y los tres del portal |
+| `FilaDeMensaje` | burbuja (propia a la derecha, ajena a la izquierda con avatar y nombre; §11.1): cita, texto, adjuntos, hora y estado dentro, reacciones debajo; las acciones en una **barra flotante junto a la burbuja** (al pasar el ratón o al enfocar con teclado; si no cabe, encima y hacia dentro; no cambia la altura de la fila) | chat interno (`MessageBubble`), formales, pestaña «Chat», chat en vivo (`MensajeDelChatEnVivo`) |
+| `EditorDeChat`, `AvisoDelEditor` | un único cuadro: el texto; arriba a la derecha la @ (solo donde hay menciones) y el emoji; abajo, el clip a la izquierda y enviar a la derecha | todos (el interno gana el emoji) |
+| `BotonesDeLlamada`, `BotonDeChat` | llamar y videollamar en la cabecera, como en el interno | interno; en el portal solo el operador con `clientes.llamar` |
+| `EtiquetaDeAutor`, `EstadoDeEntrega`, `Escribiendo`, `IndicadorDeCabecera` | etiqueta junto al nombre (estilo de la de bot: «Cliente», «Interna»), Enviado/Leído, «escribiendo…», indicador discreto de la cabecera | los tres del portal |
+
+Lo que cambia por contexto son las props: las acciones de la barra (el cliente no fija, guarda ni enlaza a tareas;
+notas internas, aprobar e historial, solo el operador), los textos (cada lado con su diccionario) y lo que va bajo el
+texto (adjuntos por la API, botones de revisión). **«Con supervisión» nunca se enseña al cliente**; al operador, una
+sola vez, como indicador en la cabecera con su explicación según la política del tema
+(`governedconversations.supervision_*`). El estado GRC y «ocultado» de cada mensaje solo los ve el equipo.
+
+Se quitaron `ConversationListItem` y el CSS propio sin uso (`chat-portal-burbuja`, `-acciones`, `-reaccion*`, `-cita`,
+`-contexto`, `-herramientas`, `-escribiendo`, `-estado`, `-texto`, `-adjunto…` de `ChatDelPortal.css` y 41 clases
+`goveconv-*`/`governed-*` de `GovernedConversations.css`); los adjuntos del portal usan las clases del interno
+(`chat-att*`). Vigilante: `frontend/scripts/kit_pendientes.mjs` (`comprobarChatUnico`) y el test
+`chatEnVivoYChatUnico.test.ts` fallan si un chat del portal deja de importar `components/chat` o vuelve a pintar su
+propia lista, burbuja o editor. Regla de diseño: `docs/GUIA_DE_DISENO.md` §17.
+
+### 11.1 Cómo se ve: burbujas como en WhatsApp o Teams
+
+24-11-2026 (pedido del usuario). En los tres chats del portal, en los dos lados, **lo que escribes tú aparece a la
+derecha** (burbuja con el color del tema, sin foto) y **lo que escribe el otro, a la izquierda** (burbuja gris con
+su inicial y su nombre):
+
+- **El cliente** ve sus mensajes a la derecha y los del equipo (y los del asistente) a la izquierda.
+- **El operador** ve los suyos a la derecha; el cliente, el asistente y los compañeros del equipo, a la izquierda
+  (con su nombre, como en Teams).
+- Dentro de cada burbuja, abajo a la derecha: la hora, «editado» si se cambió y, en los propios, ✓ (enviado) o ✓✓
+  (leído). Las etiquetas «Cliente», «Interna» o el estado GRC (solo el equipo) van ahí mismo, en pequeño.
+- Mensajes seguidos de la misma persona van juntos, sin repetir la foto ni el nombre. Entre días, un separador
+  («Hoy», «Ayer» o la fecha). Los avisos del sistema («El cliente pide hablar con una persona») salen centrados en
+  una pastilla.
+- Las reacciones van en pastillas bajo la burbuja; al pasar el ratón (o con el teclado) aparece la barra de
+  acciones al lado de la burbuja (a la izquierda de las tuyas, a la derecha de las de los demás).
+- El asistente de Soporte y el asistente de IA del portal se ven igual: tu pregunta a la derecha y la respuesta
+  del asistente a la izquierda, con el mismo cuadro de escribir.
+
+Regla de diseño: `docs/GUIA_DE_DISENO.md` §17.1.
+
+## 12. Pendiente
 
 - Las llamadas con clientes no se graban (decisión); si se quisiera, consentimiento previo del cliente y retención
   como `meetings`.

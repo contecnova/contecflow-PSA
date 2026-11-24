@@ -49,4 +49,7 @@ export const ESTRUCTURA_LINEAL: readonly EstructuraLineal[] = [
   { id: 'jira_sync', category: 'admin', pasos: 5 },
   { id: 'etl_pipeline', category: 'admin', pasos: 5 },
   { id: 'data_governance_review', category: 'admin', pasos: 5 },
+  { id: 'cert_program', category: 'admin', pasos: 9 },
+  { id: 'cert_audit_capa', category: 'admin', pasos: 8 },
+  { id: 'nis2_incident', category: 'admin', pasos: 7 },
 ]

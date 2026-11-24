@@ -1,0 +1,1539 @@
+# Contenido redactado por contecflow. ISO/IEC 27001, IEC 62443, VDA ISA (TISAX) y COSO tienen derechos
+# de autor: aquí solo hay identificadores y descripciones propias. NIS2 y la ley SOX son públicas.
+# Ver docs/CERTIFICACIONES_CONTENIDO.md.
+# Plantilla de programa. `aplica_si`: expresión simple sobre `parametros` (ver docs/CERTIFICACIONES_CONTENIDO.md §4).
+# Si una tarea no aplica, sus sucesoras heredan sus dependencias.
+clave: iec62443
+nombre: Programa IEC 62443 (2-1, 3-2, 3-3, 4-1 y 4-2)
+marcos:
+- iec62443
+parametros:
+- clave: num_sedes
+  tipo: entero
+  opciones: null
+  por_defecto: 12
+- clave: tiene_ot
+  tipo: booleano
+  opciones: null
+  por_defecto: true
+- clave: sl_objetivo
+  tipo: opcion
+  opciones:
+  - SL1
+  - SL2
+  - SL3
+  - SL4
+  por_defecto: SL3
+- clave: desarrolla_producto
+  tipo: booleano
+  opciones: null
+  por_defecto: true
+fases:
+- clave: arranque
+  nombre: Arranque y alcance
+  tareas:
+  - clave: comite
+    nombre: Constituir el comité del programa y nombrar al patrocinador de la dirección
+    raci:
+      R: responsable_cumplimiento
+      A: direccion
+      C:
+      - responsable_seguridad
+      - finanzas
+      I:
+      - ti
+      - ot
+      - rrhh
+    dias: 10
+    depende_de: []
+    controles:
+    - responsabilidad-direccion
+    - roles-responsabilidades-seguridad
+    entregables:
+    - Acta de constitución del comité
+    - Nombramientos firmados
+  - clave: contexto
+    nombre: Analizar el contexto, las partes interesadas y los requisitos legales por país
+    raci:
+      R: responsable_cumplimiento
+      A: responsable_seguridad
+      C:
+      - direccion
+      - finanzas
+      I:
+      - propietario_proceso
+    dias: 10
+    depende_de:
+    - comite
+    controles:
+    - contexto-partes-interesadas
+    - requisitos-legales
+    entregables:
+    - Análisis de contexto
+    - Registro de requisitos legales
+  - clave: alcance
+    nombre: Definir y aprobar el alcance (entidades, sedes, plantas, sistemas y procesos)
+    raci:
+      R: responsable_seguridad
+      A: direccion
+      C:
+      - responsable_cumplimiento
+      - ot
+      - finanzas
+      I:
+      - auditoria_interna
+    dias: 10
+    depende_de:
+    - contexto
+    controles:
+    - alcance-sistema-gestion
+    entregables:
+    - Documento de alcance aprobado
+  - clave: coordinacion_sedes
+    nombre: Nombrar coordinadores por sede y acordar el modelo de muestreo multisede
+    raci:
+      R: responsable_cumplimiento
+      A: direccion
+      C:
+      - responsable_seguridad
+      I:
+      - ti
+      - ot
+    dias: 10
+    depende_de:
+    - alcance
+    controles:
+    - roles-responsabilidades-seguridad
+    entregables:
+    - Red de coordinadores por sede
+    - Plan de muestreo de sedes
+    aplica_si: num_sedes > 1
+  - clave: plan
+    nombre: Elaborar el plan del programa, el calendario y el presupuesto
+    raci:
+      R: responsable_cumplimiento
+      A: direccion
+      C:
+      - finanzas
+      - responsable_seguridad
+      I:
+      - ti
+      - ot
+      - rrhh
+    dias: 5
+    depende_de:
+    - alcance
+    controles:
+    - planificacion-operacional
+    - objetivos-seguridad
+    entregables:
+    - Plan del programa
+    - Presupuesto aprobado
+  - clave: i6_programa
+    nombre: Establecer el programa de seguridad OT del propietario del activo (2-1)
+    raci:
+      R: ot
+      A: direccion
+      C:
+      - responsable_seguridad
+      - ti
+      I:
+      - propietario_proceso
+    dias: 20
+    depende_de:
+    - alcance
+    controles:
+    - programa-seguridad-ot
+    entregables:
+    - Programa OT aprobado
+    aplica_si: tiene_ot == true
+  - clave: i6_alcance_producto
+    nombre: Definir a qué productos y versiones se aplica el desarrollo seguro (4-1)
+    raci:
+      R: propietario_proceso
+      A: responsable_seguridad
+      C:
+      - ti
+      I:
+      - direccion
+    dias: 10
+    depende_de:
+    - alcance
+    controles:
+    - alcance-proceso-desarrollo-seguro
+    entregables:
+    - Matriz de aplicabilidad por producto
+    aplica_si: desarrolla_producto == true
+- clave: carencias
+  nombre: Análisis de carencias
+  tareas:
+  - clave: inventario
+    nombre: Inventariar activos, sistemas, servicios externos y proveedores del alcance en la CMDB
+    raci:
+      R: ti
+      A: responsable_seguridad
+      C:
+      - ot
+      - propietario_proceso
+      I:
+      - responsable_cumplimiento
+    dias: 20
+    depende_de:
+    - alcance
+    controles:
+    - inventario-activos
+    - clasificacion-informacion
+    entregables:
+    - Inventario de activos en la CMDB
+    - Listado de proveedores en alcance
+  - clave: carencias
+    nombre: Analizar carencias frente a la biblioteca de controles
+    raci:
+      R: responsable_seguridad
+      A: responsable_cumplimiento
+      C:
+      - ti
+      - ot
+      - finanzas
+      - rrhh
+      I:
+      - direccion
+    dias: 25
+    depende_de:
+    - inventario
+    - plan
+    controles: []
+    entregables:
+    - Informe de carencias por control y sede
+    - Estimación de esfuerzo de cierre
+  - clave: i6_suc
+    nombre: Definir los sistemas bajo consideración de cada planta (ZCR 1)
+    raci:
+      R: ot
+      A: responsable_seguridad
+      C:
+      - ti
+      - proveedor
+      I:
+      - propietario_proceso
+    dias: 15
+    depende_de:
+    - i6_programa
+    - inventario
+    controles:
+    - sistema-bajo-consideracion
+    entregables:
+    - Documento del sistema bajo consideración
+    aplica_si: tiene_ot == true
+  - clave: i6_carencias_41
+    nombre: Analizar carencias del proceso de desarrollo frente a 4-1
+    raci:
+      R: propietario_proceso
+      A: responsable_seguridad
+      C:
+      - ti
+      I:
+      - direccion
+    dias: 20
+    depende_de:
+    - i6_alcance_producto
+    controles:
+    - ciclo-desarrollo-seguro
+    entregables:
+    - Informe de carencias 4-1
+    aplica_si: desarrolla_producto == true
+- clave: riesgos
+  nombre: Análisis y tratamiento de riesgos
+  tareas:
+  - clave: metodologia_riesgos
+    nombre: Aprobar la metodología de riesgos y los criterios de aceptación
+    raci:
+      R: responsable_seguridad
+      A: direccion
+      C:
+      - responsable_cumplimiento
+      - finanzas
+      I:
+      - auditoria_interna
+    dias: 10
+    depende_de:
+    - plan
+    controles:
+    - evaluacion-riesgos
+    entregables:
+    - Metodología de riesgos aprobada
+  - clave: evaluacion_riesgos
+    nombre: Evaluar los riesgos con los propietarios de los procesos
+    raci:
+      R: responsable_seguridad
+      A: responsable_cumplimiento
+      C:
+      - propietario_proceso
+      - ti
+      - ot
+      I:
+      - direccion
+    dias: 25
+    depende_de:
+    - metodologia_riesgos
+    - carencias
+    controles:
+    - evaluacion-riesgos
+    entregables:
+    - Registro de riesgos
+  - clave: tratamiento_riesgos
+    nombre: Elaborar el plan de tratamiento de riesgos y aceptar los residuales
+    raci:
+      R: responsable_seguridad
+      A: direccion
+      C:
+      - propietario_proceso
+      - finanzas
+      I:
+      - auditoria_interna
+    dias: 10
+    depende_de:
+    - evaluacion_riesgos
+    controles:
+    - tratamiento-riesgos-declaracion-aplicabilidad
+    entregables:
+    - Plan de tratamiento de riesgos
+    - Aceptación de riesgos residuales
+  - clave: i6_riesgo_inicial
+    nombre: Evaluación inicial de riesgos de ciberseguridad OT (ZCR 2)
+    raci:
+      R: ot
+      A: responsable_seguridad
+      C:
+      - propietario_proceso
+      I:
+      - direccion
+    dias: 15
+    depende_de:
+    - i6_suc
+    - metodologia_riesgos
+    controles:
+    - evaluacion-riesgos-ot
+    entregables:
+    - Evaluación inicial OT
+    aplica_si: tiene_ot == true
+  - clave: i6_zonas
+    nombre: Particionar en zonas y conductos y reflejarlos en la CMDB (ZCR 3)
+    raci:
+      R: ot
+      A: responsable_seguridad
+      C:
+      - ti
+      - proveedor
+      I:
+      - propietario_proceso
+    dias: 20
+    depende_de:
+    - i6_riesgo_inicial
+    controles:
+    - zonas-y-conductos
+    entregables:
+    - Diagrama de zonas y conductos
+    aplica_si: tiene_ot == true
+  - clave: i6_riesgo_detallado
+    nombre: Evaluación detallada y nivel de seguridad objetivo por zona (ZCR 4 y 5)
+    raci:
+      R: ot
+      A: responsable_seguridad
+      C:
+      - propietario_proceso
+      I:
+      - direccion
+    dias: 25
+    depende_de:
+    - i6_zonas
+    controles:
+    - evaluacion-riesgos-ot
+    - nivel-seguridad-objetivo-por-zona
+    entregables:
+    - Registro de SL-T por zona
+    aplica_si: tiene_ot == true
+  - clave: i6_modelo_amenazas
+    nombre: Modelar las amenazas de cada producto (4-1 SR-2)
+    raci:
+      R: propietario_proceso
+      A: responsable_seguridad
+      C:
+      - ti
+      I: []
+    dias: 20
+    depende_de:
+    - i6_carencias_41
+    controles:
+    - modelado-amenazas
+    - contexto-seguridad-producto
+    entregables:
+    - Modelos de amenazas
+    aplica_si: desarrolla_producto == true
+- clave: aplicabilidad
+  nombre: Declaración de aplicabilidad y matriz de controles
+  tareas:
+  - clave: soa
+    nombre: Elaborar la declaración de aplicabilidad y la matriz control × norma × sede
+    raci:
+      R: responsable_seguridad
+      A: responsable_cumplimiento
+      C:
+      - ti
+      - ot
+      - finanzas
+      I:
+      - auditoria_interna
+    dias: 10
+    depende_de:
+    - tratamiento_riesgos
+    controles:
+    - tratamiento-riesgos-declaracion-aplicabilidad
+    entregables:
+    - Declaración de aplicabilidad
+    - Matriz cruzada de controles
+  - clave: soa_aprobacion
+    nombre: Aprobar la declaración de aplicabilidad
+    raci:
+      R: responsable_seguridad
+      A: direccion
+      C:
+      - responsable_cumplimiento
+      I:
+      - auditoria_interna
+      - ti
+      - ot
+    dias: 3
+    depende_de:
+    - soa
+    controles:
+    - tratamiento-riesgos-declaracion-aplicabilidad
+    entregables:
+    - Declaración de aplicabilidad aprobada (flujo de Documentos)
+  - clave: i6_crs
+    nombre: Especificar los requisitos de ciberseguridad y obtener la aprobación del propietario (ZCR 6 y 7)
+    raci:
+      R: ot
+      A: direccion
+      C:
+      - responsable_seguridad
+      I:
+      - propietario_proceso
+    dias: 15
+    depende_de:
+    - i6_riesgo_detallado
+    controles:
+    - especificacion-requisitos-ciberseguridad
+    - aprobacion-propietario-activo
+    entregables:
+    - Especificación aprobada
+    aplica_si: tiene_ot == true
+  - clave: i6_brecha_sl
+    nombre: Comparar el SL objetivo con el alcanzado por zona usando los requisitos de 3-3
+    raci:
+      R: ot
+      A: responsable_seguridad
+      C:
+      - ti
+      I: []
+    dias: 15
+    depende_de:
+    - i6_crs
+    controles:
+    - nivel-seguridad-objetivo-por-zona
+    entregables:
+    - Análisis de brecha SL
+    aplica_si: tiene_ot == true
+  - clave: i6_mejoras_sl_alto
+    nombre: Seleccionar las mejoras de requisitos para zonas con SL3 o SL4
+    raci:
+      R: ot
+      A: responsable_seguridad
+      C:
+      - ti
+      - proveedor
+      I: []
+    dias: 10
+    depende_de:
+    - i6_brecha_sl
+    controles:
+    - nivel-seguridad-objetivo-por-zona
+    entregables:
+    - Lista de mejoras de requisitos por zona
+    aplica_si: tiene_ot == true and sl_objetivo in ['SL3', 'SL4']
+- clave: implantacion
+  nombre: Diseño e implantación
+  tareas:
+  - clave: politicas
+    nombre: Redactar y aprobar políticas y procedimientos con el flujo de Documentos
+    raci:
+      R: responsable_seguridad
+      A: direccion
+      C:
+      - responsable_cumplimiento
+      - rrhh
+      - ti
+      I:
+      - propietario_proceso
+    dias: 30
+    depende_de:
+    - soa_aprobacion
+    controles:
+    - politica-seguridad-informacion
+    - informacion-documentada
+    - comunicacion-interna-externa
+    entregables:
+    - Políticas y procedimientos aprobados
+  - clave: impl_gobierno
+    nombre: 'Implantar controles: Gobierno del sistema de gestión'
+    raci:
+      R: responsable_seguridad
+      A: direccion
+      C:
+      - responsable_cumplimiento
+      I:
+      - auditoria_interna
+    dias: 51
+    depende_de:
+    - politicas
+    controles:
+    - contexto-partes-interesadas
+    - alcance-sistema-gestion
+    - recursos-competencia
+    - informacion-documentada
+    - auditoria-interna
+    - no-conformidades-acciones-correctivas
+    - mejora-continua
+    - politica-seguridad-informacion
+    - roles-responsabilidades-seguridad
+    entregables:
+    - Controles de gobierno del sistema de gestión implantados con evidencia
+  - clave: impl_riesgos
+    nombre: 'Implantar controles: Gestión de riesgos'
+    raci:
+      R: responsable_seguridad
+      A: direccion
+      C:
+      - propietario_proceso
+      I:
+      - auditoria_interna
+    dias: 19
+    depende_de:
+    - politicas
+    controles:
+    - evaluacion-riesgos
+    entregables:
+    - Controles de gestión de riesgos implantados con evidencia
+  - clave: impl_activos
+    nombre: 'Implantar controles: Activos y clasificación de la información'
+    raci:
+      R: ti
+      A: responsable_seguridad
+      C:
+      - propietario_proceso
+      I:
+      - auditoria_interna
+    dias: 23
+    depende_de:
+    - politicas
+    controles:
+    - inventario-activos
+    - clasificacion-informacion
+    entregables:
+    - Controles de activos y clasificación de la información implantados con evidencia
+  - clave: impl_accesos
+    nombre: 'Implantar controles: Identidades y control de acceso'
+    raci:
+      R: ti
+      A: responsable_seguridad
+      C:
+      - propietario_proceso
+      - rrhh
+      I:
+      - auditoria_interna
+    dias: 51
+    depende_de:
+    - politicas
+    controles:
+    - politica-control-acceso
+    - gestion-identidades
+    - informacion-autenticacion
+    - restriccion-acceso-informacion
+    - cuentas-servicio-y-dispositivos
+    - autenticacion-segura
+    - control-sesiones
+    - notificacion-uso-sistema
+    - no-repudio
+    entregables:
+    - Controles de identidades y control de acceso implantados con evidencia
+  - clave: impl_criptografia
+    nombre: 'Implantar controles: Criptografía'
+    raci:
+      R: ti
+      A: responsable_seguridad
+      C:
+      - proveedor
+      I:
+      - auditoria_interna
+    dias: 27
+    depende_de:
+    - politicas
+    controles:
+    - certificados-y-claves-publicas
+    - confidencialidad-informacion
+    - uso-criptografia
+    entregables:
+    - Controles de criptografía implantados con evidencia
+  - clave: impl_personas
+    nombre: 'Implantar controles: Seguridad ligada a las personas'
+    raci:
+      R: rrhh
+      A: responsable_seguridad
+      C:
+      - responsable_cumplimiento
+      I:
+      - auditoria_interna
+    dias: 19
+    depende_de:
+    - politicas
+    controles:
+    - formacion-concienciacion
+    entregables:
+    - Controles de seguridad ligada a las personas implantados con evidencia
+  - clave: impl_fisica
+    nombre: 'Implantar controles: Seguridad física y del entorno'
+    raci:
+      R: responsable_seguridad
+      A: direccion
+      C:
+      - ti
+      - ot
+      I:
+      - auditoria_interna
+    dias: 23
+    depende_de:
+    - politicas
+    controles:
+    - suministros-apoyo
+    - eliminacion-segura-equipos
+    entregables:
+    - Controles de seguridad física y del entorno implantados con evidencia
+  - clave: impl_operaciones_1
+    nombre: 'Implantar controles: Seguridad en las operaciones (1/2)'
+    raci:
+      R: ti
+      A: responsable_seguridad
+      C:
+      - ot
+      - proveedor
+      I:
+      - auditoria_interna
+    dias: 55
+    depende_de:
+    - politicas
+    controles:
+    - procedimientos-operacion
+    - dispositivos-usuario
+    - gestion-capacidad
+    - proteccion-malware
+    - codigo-movil
+    - gestion-vulnerabilidades-tecnicas
+    - gestion-configuracion
+    - minima-funcionalidad
+    - borrado-informacion
+    - registro-eventos
+    entregables:
+    - Controles de seguridad en las operaciones implantados con evidencia
+  - clave: impl_operaciones_2
+    nombre: 'Implantar controles: Seguridad en las operaciones (2/2)'
+    raci:
+      R: ti
+      A: responsable_seguridad
+      C:
+      - ot
+      - proveedor
+      I:
+      - auditoria_interna
+    dias: 35
+    depende_de:
+    - politicas
+    controles:
+    - integridad-registros-auditoria
+    - monitorizacion
+    - sincronizacion-relojes
+    - integridad-software-informacion
+    - verificacion-funciones-seguridad
+    entregables:
+    - Controles de seguridad en las operaciones implantados con evidencia
+  - clave: impl_comunicaciones
+    nombre: 'Implantar controles: Redes y comunicaciones'
+    raci:
+      R: ti
+      A: responsable_seguridad
+      C:
+      - ot
+      - proveedor
+      I:
+      - auditoria_interna
+    dias: 47
+    depende_de:
+    - politicas
+    controles:
+    - acceso-redes-no-confiables
+    - acceso-inalambrico
+    - seguridad-redes
+    - segmentacion-redes
+    - filtrado-web
+    - particionado-aplicaciones
+    - integridad-comunicaciones
+    - proteccion-denegacion-servicio
+    entregables:
+    - Controles de redes y comunicaciones implantados con evidencia
+  - clave: impl_desarrollo_1
+    nombre: 'Implantar controles: Desarrollo y gestión de cambios (1/2)'
+    raci:
+      R: propietario_proceso
+      A: responsable_seguridad
+      C:
+      - ti
+      - auditoria_interna
+      I:
+      - auditoria_interna
+    dias: 55
+    depende_de:
+    - politicas
+    controles:
+    - acceso-codigo-fuente
+    - desarrollo-externalizado
+    - ciclo-desarrollo-seguro
+    - requisitos-seguridad-aplicaciones
+    - principios-arquitectura-segura
+    - codificacion-segura
+    - revision-codigo-seguridad
+    - validacion-entradas
+    - integridad-sesion
+    - pruebas-seguridad
+    entregables:
+    - Controles de desarrollo y gestión de cambios implantados con evidencia
+  - clave: impl_desarrollo_2
+    nombre: 'Implantar controles: Desarrollo y gestión de cambios (2/2)'
+    raci:
+      R: propietario_proceso
+      A: responsable_seguridad
+      C:
+      - ti
+      - auditoria_interna
+      I:
+      - auditoria_interna
+    dias: 27
+    depende_de:
+    - politicas
+    controles:
+    - pruebas-intrusion
+    - independencia-probadores
+    - separacion-entornos
+    entregables:
+    - Controles de desarrollo y gestión de cambios implantados con evidencia
+  - clave: impl_producto_1
+    nombre: 'Implantar controles: Seguridad del producto (software y dispositivos) (1/2)'
+    raci:
+      R: propietario_proceso
+      A: responsable_seguridad
+      C:
+      - ti
+      - proveedor
+      I:
+      - auditoria_interna
+    dias: 55
+    depende_de:
+    - politicas
+    - i6_modelo_amenazas
+    controles:
+    - proteccion-claves-firma
+    - alcance-proceso-desarrollo-seguro
+    - contexto-seguridad-producto
+    - modelado-amenazas
+    - revision-diseno-seguridad
+    - integridad-artefactos-desarrollo
+    - sbom-y-versiones-firmadas
+    - recepcion-notificaciones-vulnerabilidades
+    - gestion-defectos-seguridad-producto
+    - divulgacion-vulnerabilidades
+    entregables:
+    - Controles de seguridad del producto (software y dispositivos) implantados con evidencia
+    aplica_si: desarrolla_producto == true
+  - clave: impl_producto_2
+    nombre: 'Implantar controles: Seguridad del producto (software y dispositivos) (2/2)'
+    raci:
+      R: propietario_proceso
+      A: responsable_seguridad
+      C:
+      - ti
+      - proveedor
+      I:
+      - auditoria_interna
+    dias: 39
+    depende_de:
+    - politicas
+    - i6_modelo_amenazas
+    controles:
+    - actualizaciones-seguridad-producto
+    - guias-seguridad-producto
+    - interfaces-diagnostico-fisicas
+    - resistencia-manipulacion-fisica
+    - raices-confianza
+    - arranque-seguro
+    entregables:
+    - Controles de seguridad del producto (software y dispositivos) implantados con evidencia
+    aplica_si: desarrolla_producto == true
+  - clave: impl_proveedores
+    nombre: 'Implantar controles: Proveedores y cadena de suministro'
+    raci:
+      R: responsable_cumplimiento
+      A: responsable_seguridad
+      C:
+      - proveedor
+      - finanzas
+      I:
+      - auditoria_interna
+    dias: 23
+    depende_de:
+    - politicas
+    controles:
+    - seguridad-proveedores
+    - cadena-suministro-tic
+    entregables:
+    - Controles de proveedores y cadena de suministro implantados con evidencia
+  - clave: impl_incidentes
+    nombre: 'Implantar controles: Incidentes y notificaciones'
+    raci:
+      R: responsable_seguridad
+      A: direccion
+      C:
+      - ti
+      - ot
+      - responsable_cumplimiento
+      I:
+      - auditoria_interna
+    dias: 19
+    depende_de:
+    - politicas
+    controles:
+    - preparacion-gestion-incidentes
+    entregables:
+    - Controles de incidentes y notificaciones implantados con evidencia
+  - clave: impl_continuidad
+    nombre: 'Implantar controles: Continuidad y recuperación'
+    raci:
+      R: ti
+      A: direccion
+      C:
+      - ot
+      - propietario_proceso
+      I:
+      - auditoria_interna
+    dias: 23
+    depende_de:
+    - politicas
+    controles:
+    - preparacion-tic-continuidad
+    - copias-seguridad
+    entregables:
+    - Controles de continuidad y recuperación implantados con evidencia
+  - clave: impl_ot
+    nombre: 'Implantar controles: Seguridad de los sistemas de automatización (OT)'
+    raci:
+      R: ot
+      A: responsable_seguridad
+      C:
+      - ti
+      - proveedor
+      I:
+      - auditoria_interna
+    dias: 55
+    depende_de:
+    - politicas
+    - i6_crs
+    controles:
+    - salida-determinista
+    - programa-seguridad-ot
+    - sistema-bajo-consideracion
+    - evaluacion-riesgos-ot
+    - zonas-y-conductos
+    - nivel-seguridad-objetivo-por-zona
+    - especificacion-requisitos-ciberseguridad
+    - aprobacion-propietario-activo
+    - proteccion-datos-ot
+    - gestion-eventos-ot
+    entregables:
+    - Controles de seguridad de los sistemas de automatización (ot) implantados con evidencia
+    aplica_si: tiene_ot == true
+  - clave: cumplimiento_continuo_alta
+    nombre: Activar la medición automática de los controles que mide la plataforma
+    raci:
+      R: ti
+      A: responsable_seguridad
+      C:
+      - responsable_cumplimiento
+      I:
+      - auditoria_interna
+    dias: 15
+    depende_de:
+    - politicas
+    controles:
+    - inventario-activos
+    - informacion-autenticacion
+    - autenticacion-segura
+    - acceso-redes-no-confiables
+    - no-repudio
+    - seguridad-proveedores
+    - cadena-suministro-tic
+    - preparacion-gestion-incidentes
+    - preparacion-tic-continuidad
+    - copias-seguridad
+    - gestion-vulnerabilidades-tecnicas
+    - borrado-informacion
+    - registro-eventos
+    - integridad-registros-auditoria
+    - pruebas-intrusion
+    - independencia-probadores
+    - separacion-entornos
+    - recepcion-notificaciones-vulnerabilidades
+    - gestion-defectos-seguridad-producto
+    - sistema-bajo-consideracion
+    - zonas-y-conductos
+    - gestion-eventos-ot
+    - seguimiento-medicion
+    entregables:
+    - Controles medibles en verde o rojo con evidencia automática
+  - clave: i6_segmentacion
+    nombre: Implantar la segmentación y la protección de conductos en planta
+    raci:
+      R: ot
+      A: responsable_seguridad
+      C:
+      - ti
+      - proveedor
+      I:
+      - propietario_proceso
+    dias: 60
+    depende_de:
+    - i6_crs
+    - politicas
+    controles:
+    - segmentacion-redes
+    - zonas-y-conductos
+    - acceso-redes-no-confiables
+    entregables:
+    - Segmentación implantada y verificada
+    aplica_si: tiene_ot == true
+  - clave: i6_parcheo_ot
+    nombre: Plan de parcheo y antimalware OT por ventanas de mantenimiento
+    raci:
+      R: ot
+      A: responsable_seguridad
+      C:
+      - proveedor
+      I:
+      - propietario_proceso
+    dias: 20
+    depende_de:
+    - i6_crs
+    controles:
+    - gestion-vulnerabilidades-tecnicas
+    - proteccion-malware
+    entregables:
+    - Plan de parcheo OT
+    aplica_si: tiene_ot == true
+  - clave: i6_sdl
+    nombre: Implantar las prácticas 4-1 (SM, SR, SD, SI, SVV, DM, SUM, SG) en el desarrollo
+    raci:
+      R: propietario_proceso
+      A: responsable_seguridad
+      C:
+      - ti
+      I:
+      - direccion
+    dias: 60
+    depende_de:
+    - i6_modelo_amenazas
+    - politicas
+    controles:
+    - ciclo-desarrollo-seguro
+    - requisitos-seguridad-aplicaciones
+    - revision-diseno-seguridad
+    - revision-codigo-seguridad
+    - pruebas-seguridad
+    - gestion-defectos-seguridad-producto
+    - actualizaciones-seguridad-producto
+    - guias-seguridad-producto
+    entregables:
+    - Proceso de desarrollo seguro implantado
+    aplica_si: desarrolla_producto == true
+  - clave: i6_sbom_firma
+    nombre: SBOM, versiones etiquetadas y firmadas y revisión independiente por versión
+    raci:
+      R: propietario_proceso
+      A: responsable_seguridad
+      C:
+      - ti
+      I:
+      - auditoria_interna
+    dias: 20
+    depende_de:
+    - i6_alcance_producto
+    controles:
+    - sbom-y-versiones-firmadas
+    - proteccion-claves-firma
+    - aprobacion-independiente-paso-produccion
+    entregables:
+    - SBOM por versión
+    - Firma verificable
+    aplica_si: desarrolla_producto == true
+  - clave: i6_requisitos_componente
+    nombre: Verificar los requisitos de componente 4-2 en dispositivos y aplicaciones
+    raci:
+      R: propietario_proceso
+      A: responsable_seguridad
+      C:
+      - ti
+      - proveedor
+      I: []
+    dias: 40
+    depende_de:
+    - i6_sdl
+    controles:
+    - arranque-seguro
+    - raices-confianza
+    - resistencia-manipulacion-fisica
+    - interfaces-diagnostico-fisicas
+    entregables:
+    - Matriz de cumplimiento CR por componente
+    aplica_si: desarrolla_producto == true
+- clave: formacion
+  nombre: Formación y concienciación
+  tareas:
+  - clave: plan_formacion
+    nombre: Definir el plan de formación por perfiles
+    raci:
+      R: rrhh
+      A: responsable_seguridad
+      C:
+      - responsable_cumplimiento
+      I:
+      - direccion
+    dias: 10
+    depende_de:
+    - soa_aprobacion
+    controles:
+    - formacion-concienciacion
+    - recursos-competencia
+    entregables:
+    - Plan de formación
+  - clave: concienciacion
+    nombre: Campaña de concienciación para todo el personal
+    raci:
+      R: rrhh
+      A: responsable_seguridad
+      C:
+      - ti
+      I:
+      - direccion
+    dias: 30
+    depende_de:
+    - plan_formacion
+    - politicas
+    controles:
+    - formacion-concienciacion
+    entregables:
+    - Registros de asistencia
+    - Resultados de evaluación
+  - clave: formacion_especifica
+    nombre: Formación específica de responsables de control y equipos técnicos
+    raci:
+      R: rrhh
+      A: responsable_seguridad
+      C:
+      - ti
+      - ot
+      - finanzas
+      I:
+      - auditoria_interna
+    dias: 30
+    depende_de:
+    - plan_formacion
+    controles:
+    - recursos-competencia
+    entregables:
+    - Registros de formación específica
+- clave: auditoria_interna
+  nombre: Auditoría interna
+  tareas:
+  - clave: plan_auditoria
+    nombre: Planificar la auditoría interna (independiente de quien implantó)
+    raci:
+      R: auditoria_interna
+      A: direccion
+      C:
+      - responsable_seguridad
+      I:
+      - responsable_cumplimiento
+    dias: 5
+    depende_de:
+    - politicas
+    - impl_gobierno
+    - impl_riesgos
+    - impl_activos
+    - impl_accesos
+    - impl_criptografia
+    - impl_personas
+    - impl_fisica
+    - impl_operaciones_1
+    - impl_operaciones_2
+    - impl_comunicaciones
+    - impl_desarrollo_1
+    - impl_desarrollo_2
+    - impl_producto_1
+    - impl_producto_2
+    - impl_proveedores
+    - impl_incidentes
+    - impl_continuidad
+    - impl_ot
+    - cumplimiento_continuo_alta
+    - i6_segmentacion
+    - i6_parcheo_ot
+    - i6_sdl
+    - i6_sbom_firma
+    - i6_requisitos_componente
+    - concienciacion
+    - formacion_especifica
+    controles:
+    - auditoria-interna
+    entregables:
+    - Programa y plan de auditoría
+  - clave: ejecucion_auditoria
+    nombre: Ejecutar la auditoría interna en todas las normas y sedes del muestreo
+    raci:
+      R: auditoria_interna
+      A: direccion
+      C:
+      - responsable_seguridad
+      - propietario_proceso
+      I:
+      - ti
+      - ot
+    dias: 15
+    depende_de:
+    - plan_auditoria
+    controles:
+    - auditoria-interna
+    - cumplimiento-politicas
+    entregables:
+    - Papeles de trabajo
+    - Hallazgos registrados
+  - clave: informe_auditoria
+    nombre: Informe de auditoría interna y apertura de acciones correctivas
+    raci:
+      R: auditoria_interna
+      A: direccion
+      C:
+      - responsable_seguridad
+      I:
+      - responsable_cumplimiento
+    dias: 5
+    depende_de:
+    - ejecucion_auditoria
+    controles:
+    - auditoria-interna
+    - no-conformidades-acciones-correctivas
+    entregables:
+    - Informe de auditoría interna
+    - CAPA abiertas
+- clave: revision_direccion
+  nombre: Revisión por la dirección
+  tareas:
+  - clave: revision
+    nombre: Revisión por la dirección del programa
+    raci:
+      R: responsable_seguridad
+      A: direccion
+      C:
+      - responsable_cumplimiento
+      - finanzas
+      - auditoria_interna
+      I:
+      - ti
+      - ot
+      - rrhh
+    dias: 5
+    depende_de:
+    - informe_auditoria
+    controles:
+    - revision-direccion
+    - seguimiento-medicion
+    entregables:
+    - Acta de revisión por la dirección
+- clave: certificacion
+  nombre: Auditorías de certificación o evaluación
+  tareas:
+  - clave: i6_eval_41
+    nombre: Evaluación de certificación del proceso 4-1 (organismo acreditado)
+    raci:
+      R: propietario_proceso
+      A: direccion
+      C:
+      - responsable_seguridad
+      I:
+      - ti
+    dias: 10
+    depende_de:
+    - revision
+    - i6_sdl
+    controles: []
+    entregables:
+    - Certificado 4-1
+    aplica_si: desarrolla_producto == true
+  - clave: i6_eval_42
+    nombre: Certificación de componentes 4-2
+    raci:
+      R: propietario_proceso
+      A: direccion
+      C:
+      - responsable_seguridad
+      I:
+      - ti
+    dias: 20
+    depende_de:
+    - i6_eval_41
+    - i6_requisitos_componente
+    controles: []
+    entregables:
+    - Certificados de componente
+    aplica_si: desarrolla_producto == true
+  - clave: i6_eval_sistema
+    nombre: Evaluación de los sistemas de planta frente a 3-3 y del programa 2-1
+    raci:
+      R: ot
+      A: direccion
+      C:
+      - responsable_seguridad
+      I:
+      - propietario_proceso
+    dias: 15
+    depende_de:
+    - revision
+    - i6_segmentacion
+    controles: []
+    entregables:
+    - Informe de evaluación OT
+    aplica_si: tiene_ot == true
+- clave: cierre_hallazgos
+  nombre: Cierre de hallazgos
+  tareas:
+  - clave: capa
+    nombre: Analizar causas y planificar las acciones correctivas de todos los hallazgos externos
+    raci:
+      R: responsable_seguridad
+      A: responsable_cumplimiento
+      C:
+      - propietario_proceso
+      - ti
+      - ot
+      I:
+      - direccion
+    dias: 10
+    depende_de:
+    - i6_eval_42
+    - i6_eval_sistema
+    controles:
+    - no-conformidades-acciones-correctivas
+    entregables:
+    - Plan de acciones correctivas
+  - clave: verificacion_eficacia
+    nombre: Verificar la eficacia de las acciones (quien verifica no es quien corrigió)
+    raci:
+      R: auditoria_interna
+      A: responsable_cumplimiento
+      C:
+      - responsable_seguridad
+      I:
+      - direccion
+    dias: 45
+    depende_de:
+    - capa
+    controles:
+    - no-conformidades-acciones-correctivas
+    entregables:
+    - Verificaciones de eficacia
+  - clave: cierre_formal
+    nombre: Cerrar formalmente los hallazgos y comunicar al auditor externo
+    raci:
+      R: responsable_cumplimiento
+      A: direccion
+      C:
+      - auditoria_interna
+      I:
+      - responsable_seguridad
+    dias: 5
+    depende_de:
+    - verificacion_eficacia
+    controles:
+    - no-conformidades-acciones-correctivas
+    entregables:
+    - Hallazgos cerrados
+- clave: seguimiento
+  nombre: Seguimiento y mejora continua
+  tareas:
+  - clave: cumplimiento_continuo
+    nombre: Supervisar los controles medibles y la caducidad de las evidencias
+    raci:
+      R: responsable_seguridad
+      A: responsable_cumplimiento
+      C:
+      - ti
+      I:
+      - direccion
+    dias: 365
+    depende_de:
+    - cierre_formal
+    controles:
+    - seguimiento-medicion
+    - mejora-continua
+    entregables:
+    - Panel de cumplimiento continuo
+  - clave: recertificacion_accesos
+    nombre: Campañas trimestrales de recertificación de accesos
+    raci:
+      R: ti
+      A: responsable_seguridad
+      C:
+      - propietario_proceso
+      I:
+      - auditoria_interna
+    dias: 365
+    depende_de:
+    - cierre_formal
+    controles:
+    - revision-periodica-accesos
+    entregables:
+    - Campañas cerradas con evidencia
+  - clave: riesgos_anual
+    nombre: Actualizar el análisis de riesgos y la declaración de aplicabilidad
+    raci:
+      R: responsable_seguridad
+      A: direccion
+      C:
+      - propietario_proceso
+      I:
+      - auditoria_interna
+    dias: 20
+    depende_de:
+    - cierre_formal
+    controles:
+    - evaluacion-riesgos
+    - tratamiento-riesgos-declaracion-aplicabilidad
+    entregables:
+    - Registro de riesgos actualizado
+  - clave: auditoria_interna_anual
+    nombre: Auditoría interna anual
+    raci:
+      R: auditoria_interna
+      A: direccion
+      C:
+      - responsable_seguridad
+      I:
+      - responsable_cumplimiento
+    dias: 20
+    depende_de:
+    - riesgos_anual
+    controles:
+    - auditoria-interna
+    entregables:
+    - Informe de auditoría interna anual
+  - clave: revision_direccion_anual
+    nombre: Revisión anual por la dirección
+    raci:
+      R: responsable_seguridad
+      A: direccion
+      C:
+      - responsable_cumplimiento
+      - finanzas
+      I:
+      - auditoria_interna
+    dias: 5
+    depende_de:
+    - auditoria_interna_anual
+    controles:
+    - revision-direccion
+    - mejora-continua
+    entregables:
+    - Acta anual de revisión por la dirección
+  - clave: i6_revision_zonas
+    nombre: Revisión anual de zonas, conductos y SL alcanzado
+    raci:
+      R: ot
+      A: responsable_seguridad
+      C:
+      - ti
+      I:
+      - direccion
+    dias: 10
+    depende_de:
+    - revision_direccion_anual
+    controles:
+    - zonas-y-conductos
+    - nivel-seguridad-objetivo-por-zona
+    entregables:
+    - Registro de zonas actualizado
+    aplica_si: tiene_ot == true
+  - clave: i6_avisos_producto
+    nombre: Gestión continua de avisos de vulnerabilidad y actualizaciones del producto
+    raci:
+      R: propietario_proceso
+      A: responsable_seguridad
+      C:
+      - ti
+      I: []
+    dias: 365
+    depende_de:
+    - cierre_formal
+    controles:
+    - recepcion-notificaciones-vulnerabilidades
+    - divulgacion-vulnerabilidades
+    - actualizaciones-seguridad-producto
+    entregables:
+    - Avisos publicados
+    - Plazos de parcheo medidos
+    aplica_si: desarrolla_producto == true
+riesgos:
+- clave: falta-patrocinio
+  titulo: Falta de patrocinio real de la dirección
+  probabilidad: media
+  impacto: alto
+  mitigacion: Patrocinador nombrado en el arranque, revisión mensual del avance en el comité y objetivos ligados
+    a la dirección.
+- clave: recursos-insuficientes
+  titulo: Recursos internos insuficientes para implantar y mantener los controles
+  probabilidad: alta
+  impacto: alto
+  mitigacion: Plan de capacidad por rol, apoyo externo acotado y priorización por riesgo.
+- clave: evidencias-dispersas
+  titulo: Evidencias dispersas, caducadas o sin flujo de aprobación
+  probabilidad: alta
+  impacto: medio
+  mitigacion: Evidencias solo en Documentos con flujo, caducidad y avisos; medición automática donde sea posible.
+- clave: alcance-mal-definido
+  titulo: Alcance mal definido o cambiante
+  probabilidad: media
+  impacto: alto
+  mitigacion: Alcance aprobado por la dirección y control de cambios del alcance en el comité.
+- clave: resistencia-cambio
+  titulo: Resistencia al cambio de procesos y herramientas
+  probabilidad: media
+  impacto: medio
+  mitigacion: Comunicación, formación por perfiles y responsables de control en cada área.
+- clave: parada-planta
+  titulo: Parada de planta al aplicar controles en OT
+  probabilidad: media
+  impacto: critico
+  mitigacion: Pruebas en entorno de réplica, ventanas de mantenimiento y vuelta atrás planificada.
+- clave: legado-ot
+  titulo: Sistemas OT antiguos sin soporte que no alcanzan el SL objetivo
+  probabilidad: alta
+  impacto: alto
+  mitigacion: Contramedidas compensatorias por zona, aislamiento y plan de renovación.
+- clave: proceso-sdl-sin-independencia
+  titulo: Revisión de versiones sin independencia real
+  probabilidad: media
+  impacto: alto
+  mitigacion: Revisión por versión por persona distinta del autor, registrada en la plataforma.
+documentos:
+- clave: politica-desarrollo-seguro
+  nombre: Política de desarrollo seguro
+  tipo: politica
+  controles:
+  - ciclo-desarrollo-seguro
+  - requisitos-seguridad-aplicaciones
+  - codificacion-segura
+  - pruebas-seguridad
+  - separacion-entornos
+  - aprobacion-independiente-paso-produccion
+  - sbom-y-versiones-firmadas
+- clave: politica-seguridad-ot
+  nombre: Política de seguridad de los sistemas de automatización
+  tipo: politica
+  controles:
+  - programa-seguridad-ot
+  - zonas-y-conductos
+  - nivel-seguridad-objetivo-por-zona
+  - acceso-redes-no-confiables
+  - gestion-eventos-ot
+- clave: procedimiento-gestion-incidentes
+  nombre: Procedimiento de gestión de incidentes
+  tipo: procedimiento
+  controles:
+  - preparacion-gestion-incidentes
+  - evaluacion-eventos
+  - respuesta-incidentes
+  - lecciones-incidentes
+  - recogida-evidencias
+  - notificacion-eventos
+- clave: procedimiento-gestion-vulnerabilidades
+  nombre: Procedimiento de gestión de vulnerabilidades
+  tipo: procedimiento
+  controles:
+  - gestion-vulnerabilidades-tecnicas
+  - inteligencia-amenazas
+  - pruebas-intrusion
+- clave: procedimiento-zonas-conductos
+  nombre: Procedimiento de zonas, conductos y nivel de seguridad
+  tipo: procedimiento
+  controles:
+  - sistema-bajo-consideracion
+  - evaluacion-riesgos-ot
+  - zonas-y-conductos
+  - nivel-seguridad-objetivo-por-zona
+  - especificacion-requisitos-ciberseguridad
+  - aprobacion-propietario-activo
+- clave: procedimiento-gestion-defectos-producto
+  nombre: Procedimiento de gestión de defectos de seguridad del producto
+  tipo: procedimiento
+  controles:
+  - recepcion-notificaciones-vulnerabilidades
+  - gestion-defectos-seguridad-producto
+  - divulgacion-vulnerabilidades
+- clave: procedimiento-actualizaciones-seguridad-producto
+  nombre: Procedimiento de actualizaciones de seguridad del producto
+  tipo: procedimiento
+  controles:
+  - actualizaciones-seguridad-producto
+  - sbom-y-versiones-firmadas
+  - integridad-artefactos-desarrollo
+- clave: registro-inventario-activos
+  nombre: Inventario de activos
+  tipo: registro
+  controles:
+  - inventario-activos
+  - clasificacion-informacion
+- clave: registro-riesgos
+  nombre: Registro de riesgos
+  tipo: registro
+  controles:
+  - evaluacion-riesgos
+- clave: registro-zonas-conductos-sl
+  nombre: Registro de zonas, conductos y niveles de seguridad
+  tipo: registro
+  controles:
+  - zonas-y-conductos
+  - nivel-seguridad-objetivo-por-zona
+- clave: registro-hallazgos-capa
+  nombre: Registro de hallazgos y acciones correctivas
+  tipo: registro
+  controles:
+  - no-conformidades-acciones-correctivas
+- clave: registro-sbom-versiones
+  nombre: Registro de versiones, SBOM y firmas
+  tipo: registro
+  controles:
+  - sbom-y-versiones-firmadas
+  - aprobacion-independiente-paso-produccion

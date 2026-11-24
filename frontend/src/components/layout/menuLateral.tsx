@@ -19,7 +19,7 @@ import {
   Flag, Layers, Shield, BarChart, LayoutGrid,
   Wrench, FolderOpen, ScrollText, ClipboardCheck,
   CalendarRange, Inbox, Database, MessageSquareText, Lightbulb,
-  Laptop, UserMinus, Globe, ClipboardList, Building, Building2, FileSignature, NotebookPen,
+  Laptop, UserMinus, Globe, ClipboardList, Building, Building2, FileSignature, NotebookPen, ShieldCheck,
 } from 'lucide-react'
 
 export interface NavItemConfig {
@@ -72,6 +72,7 @@ export const PATH_NAV_KEY: Record<string, string> = {
   '/sd/workflow-designer': 'sd_workflow_designer',
   '/client-portal': 'client_portal', '/contracts-ai': 'contracts_ai',
   '/notebook': 'notebook',
+  '/certificaciones': 'certificaciones',
 }
 
 export function getNavKeyForPath(path: string): string {
@@ -195,6 +196,11 @@ export const NAV_GROUPS: NavGroupConfig[] = [
     { to: '/exports',         icon: <Download size={SZ} />,        label: 'Data Export' },
     { to: '/data-platform',   icon: <Database size={SZ} />,        label: 'Data Platform' },
     { to: '/data-governance', icon: <Shield size={SZ} />,          label: 'Data Governance' },
+  ]},
+  // Migración 212 (docs/CERTIFICACIONES.md): cumplimiento y certificaciones (ISO 27001, TISAX, NIS2, SOX,
+  // J-SOX, IEC 62443). El GRC de la plataforma sigue en Configuración › Seguridad y GRC.
+  { id: 'cumplimiento', label: 'Compliance', groupKey: 'group_compliance', icon: <ShieldCheck size={12} />, items: [
+    { to: '/certificaciones',  icon: <ShieldCheck size={SZ} />,     label: 'Certifications' },
   ]},
   { id: 'ia', label: 'AI & Automation', groupKey: 'group_ai', icon: <Brain size={12} />, items: [
     { to: '/nexus-agent',     icon: <Zap size={SZ} />,           label: 'NexusAgent' },

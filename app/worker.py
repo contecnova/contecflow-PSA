@@ -363,6 +363,15 @@ celery_app.conf.beat_schedule = {
         "task": "app.worker.pir_vencidas",
         "schedule": crontab(hour=7, minute=20),
     },
+    # Certificaciones (migración 212, docs/CERTIFICACIONES.md): vencimientos a diario y relojes NIS2.
+    "cert-vencimientos": {
+        "task": "app.worker.cert_vencimientos",
+        "schedule": crontab(hour=7, minute=35),
+    },
+    "cert-nis2-relojes": {
+        "task": "app.worker.cert_nis2_relojes",
+        "schedule": crontab(minute="*/15"),
+    },
 }
 
 celery_app.conf.timezone = settings.DEFAULT_TIMEZONE
@@ -976,3 +985,17 @@ def pir_vencidas():
     """PIR (migración 206, docs/PIR.md): aviso previo y aviso de vencida, una vez cada uno, por empresa."""
     from app.services.pir.programacion import revisar_vencidas
     return _por_organizacion("pir_vencidas", revisar_vencidas)
+
+
+@celery_app.task(name="app.worker.cert_vencimientos")
+def cert_vencimientos():
+    """Certificaciones (migración 212): certificados, auditorías, evidencias y CAPA por vencer; evidencia de tareas."""
+    from app.services.certificaciones.trabajos import revisar_vencimientos
+    return _por_organizacion("cert_vencimientos", revisar_vencimientos)
+
+
+@celery_app.task(name="app.worker.cert_nis2_relojes")
+def cert_nis2_relojes():
+    """Certificaciones (migración 212): avisos de los relojes NIS2 (24 h, 72 h, 1 mes), una vez cada uno."""
+    from app.services.certificaciones.trabajos import relojes_nis2
+    return _por_organizacion("cert_nis2_relojes", relojes_nis2)

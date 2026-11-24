@@ -440,7 +440,7 @@ const textos: TextosLineales = {
   },
   "portal_conversation": {
     "name": "Conversación del portal (chat y llamadas)",
-    "description": "Chat operador-cliente (conversaciones formales y chat de colaboración): adjuntos validados (contenido, AV/DLP, tipos y tamaño por empresa); llamada o videollamada solo iniciada por el operador, el cliente acepta o rechaza; sin grabación.",
+    "description": "Chat operador-cliente (conversaciones formales, chat de colaboración y chat en vivo de Soporte): adjuntos validados (contenido, AV/DLP, tipos y tamaño por empresa); llamada o videollamada solo iniciada por el operador, el cliente acepta o rechaza; sin grabación.",
     "steps": [
       "Mensaje del cliente",
       "Validar adjuntos (contenido, AV/DLP)",
@@ -450,6 +450,48 @@ const textos: TextosLineales = {
       "Cliente acepta o rechaza",
       "Llamada (sin grabación) y cierre",
       "Conversación atendida"
+    ]
+  },
+  "cert_program": {
+    "name": "Programa de certificación",
+    "description": "Alcance, declaración de aplicabilidad, implantación, pruebas independientes, auditorías y certificado (ISO 27001, TISAX, NIS2, SOX, J-SOX, IEC 62443).",
+    "steps": [
+      "Alcance y objetivos",
+      "Análisis de carencias y riesgos",
+      "Declaración de aplicabilidad",
+      "Implantación de controles",
+      "Pruebas de eficacia (otra persona)",
+      "Auditoría interna",
+      "Revisión por la dirección",
+      "Auditoría de certificación",
+      "Certificado vigente"
+    ]
+  },
+  "cert_audit_capa": {
+    "name": "Auditoría, hallazgo y acción correctiva",
+    "description": "De la auditoría al cierre del hallazgo: acción correctiva como tarea, verificación de eficacia y cierre por otra persona.",
+    "steps": [
+      "Auditoría planificada",
+      "Muestras y trabajo de campo",
+      "Hallazgo registrado",
+      "Acción correctiva (tarea)",
+      "Acción hecha",
+      "Verificación de eficacia (otra persona)",
+      "Hallazgo corregido",
+      "Cierre (no quien corrigió)"
+    ]
+  },
+  "nis2_incident": {
+    "name": "Incidente notificable NIS2",
+    "description": "Incidente significativo desde el Service Desk con los relojes de 24 h, 72 h y 1 mes y el registro de comunicaciones a la autoridad.",
+    "steps": [
+      "Incidente detectado (ticket)",
+      "Evaluación de significatividad",
+      "Alerta temprana (24 h)",
+      "Notificación (72 h)",
+      "Informes intermedios",
+      "Informe final (1 mes)",
+      "Cierre y lecciones"
     ]
   }
 }

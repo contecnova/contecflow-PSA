@@ -471,6 +471,11 @@ from app.services.textos_de_salida_pir import TEXTOS_PIR as _TEXTOS_PIR  # noqa:
 
 TEXTOS.update(_TEXTOS_PIR)
 
+# 24-11-2026: certificaciones (migración 212, docs/CERTIFICACIONES.md): avisos y plantillas NIS2.
+from app.services.textos_de_salida_certificaciones import TEXTOS_CERTIFICACIONES as _TEXTOS_CERT  # noqa: E402
+
+TEXTOS.update(_TEXTOS_CERT)
+
 
 def texto(clave: str, idioma: Optional[str] = None, **params) -> str:
     """El texto `clave` en `idioma` (castellano si no lo hay) con sus datos.

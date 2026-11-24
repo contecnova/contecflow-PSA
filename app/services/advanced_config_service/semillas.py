@@ -127,3 +127,20 @@ def seed_system_roles(db: Session, org_id: Optional[str] = None):
             nuevos = True
     if nuevos:
         db.commit()
+
+def sembrar_roles_de_sistema_en_todas(db: Session) -> int:
+    """Siembra los roles de sistema que falten en cada empresa activa (idempotente).
+
+    24-11-2026: antes solo se sembraban al abrir «Roles y permisos» con una sesión
+    que tuviera empresa; el superadmin entra sin empresa activa y veía la lista
+    vacía. Se llama al arrancar.
+    """
+    from app.db.session import sin_filtro_de_tenant
+    from app.db.contexto_de_tenant import con_empresa
+    from app.models.mfa import Organization
+    with sin_filtro_de_tenant(db):
+        orgs = [o for (o,) in db.query(Organization.id).filter(Organization.is_active.is_(True)).all()]
+    for org in orgs:
+        with con_empresa(db, org):
+            seed_system_roles(db, org)
+    return len(orgs)

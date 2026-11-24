@@ -1,0 +1,1056 @@
+# Contenido redactado por contecflow. ISO/IEC 27001, IEC 62443, VDA ISA (TISAX) y COSO tienen derechos
+# de autor: aquí solo hay identificadores y descripciones propias. NIS2 y la ley SOX son públicas.
+# Ver docs/CERTIFICACIONES_CONTENIDO.md.
+# Plantilla de programa. `aplica_si`: expresión simple sobre `parametros` (ver docs/CERTIFICACIONES_CONTENIDO.md §4).
+# Si una tarea no aplica, sus sucesoras heredan sus dependencias.
+clave: jsox
+nombre: Programa J-SOX
+marcos:
+- jsox
+parametros:
+- clave: num_sedes
+  tipo: entero
+  opciones: null
+  por_defecto: 12
+- clave: cotiza_en
+  tipo: opcion
+  opciones:
+  - ninguno
+  - eeuu
+  - japon
+  - ambos
+  por_defecto: ambos
+fases:
+- clave: arranque
+  nombre: Arranque y alcance
+  tareas:
+  - clave: comite
+    nombre: Constituir el comité del programa y nombrar al patrocinador de la dirección
+    raci:
+      R: responsable_cumplimiento
+      A: direccion
+      C:
+      - responsable_seguridad
+      - finanzas
+      I:
+      - ti
+      - ot
+      - rrhh
+    dias: 10
+    depende_de: []
+    controles:
+    - responsabilidad-direccion
+    - roles-responsabilidades-seguridad
+    entregables:
+    - Acta de constitución del comité
+    - Nombramientos firmados
+  - clave: contexto
+    nombre: Analizar el contexto, las partes interesadas y los requisitos legales por país
+    raci:
+      R: responsable_cumplimiento
+      A: responsable_seguridad
+      C:
+      - direccion
+      - finanzas
+      I:
+      - propietario_proceso
+    dias: 10
+    depende_de:
+    - comite
+    controles:
+    - contexto-partes-interesadas
+    - requisitos-legales
+    entregables:
+    - Análisis de contexto
+    - Registro de requisitos legales
+  - clave: alcance
+    nombre: Definir y aprobar el alcance (entidades, sedes, plantas, sistemas y procesos)
+    raci:
+      R: responsable_seguridad
+      A: direccion
+      C:
+      - responsable_cumplimiento
+      - ot
+      - finanzas
+      I:
+      - auditoria_interna
+    dias: 10
+    depende_de:
+    - contexto
+    controles:
+    - alcance-sistema-gestion
+    entregables:
+    - Documento de alcance aprobado
+  - clave: coordinacion_sedes
+    nombre: Nombrar coordinadores por sede y acordar el modelo de muestreo multisede
+    raci:
+      R: responsable_cumplimiento
+      A: direccion
+      C:
+      - responsable_seguridad
+      I:
+      - ti
+      - ot
+    dias: 10
+    depende_de:
+    - alcance
+    controles:
+    - roles-responsabilidades-seguridad
+    entregables:
+    - Red de coordinadores por sede
+    - Plan de muestreo de sedes
+    aplica_si: num_sedes > 1
+  - clave: plan
+    nombre: Elaborar el plan del programa, el calendario y el presupuesto
+    raci:
+      R: responsable_cumplimiento
+      A: direccion
+      C:
+      - finanzas
+      - responsable_seguridad
+      I:
+      - ti
+      - ot
+      - rrhh
+    dias: 5
+    depende_de:
+    - alcance
+    controles:
+    - planificacion-operacional
+    - objetivos-seguridad
+    entregables:
+    - Plan del programa
+    - Presupuesto aprobado
+  - clave: js_alcance
+    nombre: Determinar el alcance J-SOX (controles a nivel de empresa, procesos significativos y cierre)
+    raci:
+      R: finanzas
+      A: direccion
+      C:
+      - auditoria_interna
+      - ti
+      I:
+      - responsable_cumplimiento
+    dias: 15
+    depende_de:
+    - alcance
+    controles:
+    - alcance-cuentas-significativas
+    - entorno-ti-comprension
+    entregables:
+    - Memorando de alcance J-SOX
+- clave: carencias
+  nombre: Análisis de carencias
+  tareas:
+  - clave: inventario
+    nombre: Inventariar activos, sistemas, servicios externos y proveedores del alcance en la CMDB
+    raci:
+      R: ti
+      A: responsable_seguridad
+      C:
+      - ot
+      - propietario_proceso
+      I:
+      - responsable_cumplimiento
+    dias: 20
+    depende_de:
+    - alcance
+    controles:
+    - inventario-activos
+    - clasificacion-informacion
+    entregables:
+    - Inventario de activos en la CMDB
+    - Listado de proveedores en alcance
+  - clave: carencias
+    nombre: Analizar carencias frente a la biblioteca de controles
+    raci:
+      R: responsable_seguridad
+      A: responsable_cumplimiento
+      C:
+      - ti
+      - ot
+      - finanzas
+      - rrhh
+      I:
+      - direccion
+    dias: 25
+    depende_de:
+    - inventario
+    - plan
+    controles: []
+    entregables:
+    - Informe de carencias por control y sede
+    - Estimación de esfuerzo de cierre
+  - clave: js_tres_documentos
+    nombre: 'Elaborar los tres documentos: diagrama de flujo, descripción del proceso y RCM'
+    raci:
+      R: propietario_proceso
+      A: finanzas
+      C:
+      - auditoria_interna
+      I:
+      - direccion
+    dias: 30
+    depende_de:
+    - js_alcance
+    controles: []
+    entregables:
+    - Diagramas
+    - Descripciones
+    - RCM
+- clave: riesgos
+  nombre: Análisis y tratamiento de riesgos
+  tareas:
+  - clave: metodologia_riesgos
+    nombre: Aprobar la metodología de riesgos y los criterios de aceptación
+    raci:
+      R: responsable_seguridad
+      A: direccion
+      C:
+      - responsable_cumplimiento
+      - finanzas
+      I:
+      - auditoria_interna
+    dias: 10
+    depende_de:
+    - plan
+    controles:
+    - evaluacion-riesgos
+    entregables:
+    - Metodología de riesgos aprobada
+  - clave: evaluacion_riesgos
+    nombre: Evaluar los riesgos con los propietarios de los procesos
+    raci:
+      R: responsable_seguridad
+      A: responsable_cumplimiento
+      C:
+      - propietario_proceso
+      - ti
+      - ot
+      I:
+      - direccion
+    dias: 25
+    depende_de:
+    - metodologia_riesgos
+    - carencias
+    controles:
+    - evaluacion-riesgos
+    entregables:
+    - Registro de riesgos
+  - clave: tratamiento_riesgos
+    nombre: Elaborar el plan de tratamiento de riesgos y aceptar los residuales
+    raci:
+      R: responsable_seguridad
+      A: direccion
+      C:
+      - propietario_proceso
+      - finanzas
+      I:
+      - auditoria_interna
+    dias: 10
+    depende_de:
+    - evaluacion_riesgos
+    controles:
+    - tratamiento-riesgos-declaracion-aplicabilidad
+    entregables:
+    - Plan de tratamiento de riesgos
+    - Aceptación de riesgos residuales
+- clave: aplicabilidad
+  nombre: Declaración de aplicabilidad y matriz de controles
+  tareas:
+  - clave: soa
+    nombre: Elaborar la declaración de aplicabilidad y la matriz control × norma × sede
+    raci:
+      R: responsable_seguridad
+      A: responsable_cumplimiento
+      C:
+      - ti
+      - ot
+      - finanzas
+      I:
+      - auditoria_interna
+    dias: 10
+    depende_de:
+    - tratamiento_riesgos
+    controles:
+    - tratamiento-riesgos-declaracion-aplicabilidad
+    entregables:
+    - Declaración de aplicabilidad
+    - Matriz cruzada de controles
+  - clave: soa_aprobacion
+    nombre: Aprobar la declaración de aplicabilidad
+    raci:
+      R: responsable_seguridad
+      A: direccion
+      C:
+      - responsable_cumplimiento
+      I:
+      - auditoria_interna
+      - ti
+      - ot
+    dias: 3
+    depende_de:
+    - soa
+    controles:
+    - tratamiento-riesgos-declaracion-aplicabilidad
+    entregables:
+    - Declaración de aplicabilidad aprobada (flujo de Documentos)
+- clave: implantacion
+  nombre: Diseño e implantación
+  tareas:
+  - clave: politicas
+    nombre: Redactar y aprobar políticas y procedimientos con el flujo de Documentos
+    raci:
+      R: responsable_seguridad
+      A: direccion
+      C:
+      - responsable_cumplimiento
+      - rrhh
+      - ti
+      I:
+      - propietario_proceso
+    dias: 30
+    depende_de:
+    - soa_aprobacion
+    controles:
+    - politica-seguridad-informacion
+    - informacion-documentada
+    - comunicacion-interna-externa
+    entregables:
+    - Políticas y procedimientos aprobados
+  - clave: impl_gobierno
+    nombre: 'Implantar controles: Gobierno del sistema de gestión'
+    raci:
+      R: responsable_seguridad
+      A: direccion
+      C:
+      - responsable_cumplimiento
+      I:
+      - auditoria_interna
+    dias: 19
+    depende_de:
+    - politicas
+    controles:
+    - no-conformidades-acciones-correctivas
+    entregables:
+    - Controles de gobierno del sistema de gestión implantados con evidencia
+  - clave: impl_accesos
+    nombre: 'Implantar controles: Identidades y control de acceso'
+    raci:
+      R: ti
+      A: responsable_seguridad
+      C:
+      - propietario_proceso
+      - rrhh
+      I:
+      - auditoria_interna
+    dias: 47
+    depende_de:
+    - politicas
+    controles:
+    - segregacion-funciones
+    - politica-control-acceso
+    - informacion-autenticacion
+    - alta-modificacion-accesos
+    - baja-accesos
+    - revision-periodica-accesos
+    - accesos-privilegiados
+    - cuentas-servicio-y-dispositivos
+    entregables:
+    - Controles de identidades y control de acceso implantados con evidencia
+  - clave: impl_operaciones
+    nombre: 'Implantar controles: Seguridad en las operaciones'
+    raci:
+      R: ti
+      A: responsable_seguridad
+      C:
+      - ot
+      - proveedor
+      I:
+      - auditoria_interna
+    dias: 27
+    depende_de:
+    - politicas
+    controles:
+    - gestion-configuracion
+    - planificacion-supervision-procesos-lote
+    - incidencias-operacion-ti
+    entregables:
+    - Controles de seguridad en las operaciones implantados con evidencia
+  - clave: impl_desarrollo
+    nombre: 'Implantar controles: Desarrollo y gestión de cambios'
+    raci:
+      R: propietario_proceso
+      A: responsable_seguridad
+      C:
+      - ti
+      - auditoria_interna
+      I:
+      - auditoria_interna
+    dias: 47
+    depende_de:
+    - politicas
+    controles:
+    - ciclo-desarrollo-seguro
+    - pruebas-aceptacion-usuario
+    - migracion-conversion-datos
+    - separacion-entornos
+    - gestion-cambios
+    - pruebas-cambios
+    - aprobacion-independiente-paso-produccion
+    - cambios-emergencia
+    entregables:
+    - Controles de desarrollo y gestión de cambios implantados con evidencia
+  - clave: impl_proveedores
+    nombre: 'Implantar controles: Proveedores y cadena de suministro'
+    raci:
+      R: responsable_cumplimiento
+      A: responsable_seguridad
+      C:
+      - proveedor
+      - finanzas
+      I:
+      - auditoria_interna
+    dias: 19
+    depende_de:
+    - politicas
+    controles:
+    - seguimiento-proveedores
+    entregables:
+    - Controles de proveedores y cadena de suministro implantados con evidencia
+  - clave: impl_continuidad
+    nombre: 'Implantar controles: Continuidad y recuperación'
+    raci:
+      R: ti
+      A: direccion
+      C:
+      - ot
+      - propietario_proceso
+      I:
+      - auditoria_interna
+    dias: 23
+    depende_de:
+    - politicas
+    controles:
+    - preparacion-tic-continuidad
+    - copias-seguridad
+    entregables:
+    - Controles de continuidad y recuperación implantados con evidencia
+  - clave: impl_cumplimiento
+    nombre: 'Implantar controles: Cumplimiento legal y privacidad'
+    raci:
+      R: responsable_cumplimiento
+      A: direccion
+      C:
+      - rrhh
+      - ti
+      I:
+      - auditoria_interna
+    dias: 19
+    depende_de:
+    - politicas
+    controles:
+    - proteccion-registros
+    entregables:
+    - Controles de cumplimiento legal y privacidad implantados con evidencia
+  - clave: impl_informacion_financiera_1
+    nombre: 'Implantar controles: Control interno sobre la información financiera (1/2)'
+    raci:
+      R: finanzas
+      A: direccion
+      C:
+      - auditoria_interna
+      - ti
+      I:
+      - auditoria_interna
+    dias: 55
+    depende_de:
+    - politicas
+    controles:
+    - alcance-cuentas-significativas
+    - acceso-directo-datos-financieros
+    - certificacion-estados-financieros
+    - evaluacion-direccion-control-interno
+    - atestacion-auditor-externo
+    - ambiente-control-etica
+    - supervision-comite-auditoria
+    - riesgo-fraude
+    - evaluacion-deficiencias-control
+    - cierre-periodos-contables
+    entregables:
+    - Controles de control interno sobre la información financiera implantados con evidencia
+  - clave: impl_informacion_financiera_2
+    nombre: 'Implantar controles: Control interno sobre la información financiera (2/2)'
+    raci:
+      R: finanzas
+      A: direccion
+      C:
+      - auditoria_interna
+      - ti
+      I:
+      - auditoria_interna
+    dias: 39
+    depende_de:
+    - politicas
+    controles:
+    - asientos-manuales
+    - conciliaciones-cuentas
+    - hojas-calculo-criticas
+    - informacion-generada-por-entidad
+    - controles-aplicacion
+    - entorno-ti-comprension
+    entregables:
+    - Controles de control interno sobre la información financiera implantados con evidencia
+  - clave: cumplimiento_continuo_alta
+    nombre: Activar la medición automática de los controles que mide la plataforma
+    raci:
+      R: ti
+      A: responsable_seguridad
+      C:
+      - responsable_cumplimiento
+      I:
+      - auditoria_interna
+    dias: 15
+    depende_de:
+    - politicas
+    controles:
+    - segregacion-funciones
+    - informacion-autenticacion
+    - revision-periodica-accesos
+    - accesos-privilegiados
+    - seguimiento-proveedores
+    - preparacion-tic-continuidad
+    - copias-seguridad
+    - proteccion-registros
+    - incidencias-operacion-ti
+    - separacion-entornos
+    - gestion-cambios
+    - pruebas-cambios
+    - aprobacion-independiente-paso-produccion
+    - cambios-emergencia
+    - cierre-periodos-contables
+    - asientos-manuales
+    - entorno-ti-comprension
+    - seguimiento-medicion
+    entregables:
+    - Controles medibles en verde o rojo con evidencia automática
+  - clave: js_controles_empresa
+    nombre: Evaluar los controles a nivel de empresa y del entorno de TI
+    raci:
+      R: auditoria_interna
+      A: direccion
+      C:
+      - finanzas
+      - ti
+      I:
+      - responsable_cumplimiento
+    dias: 20
+    depende_de:
+    - js_tres_documentos
+    - politicas
+    controles:
+    - ambiente-control-etica
+    - riesgo-fraude
+    - entorno-ti-comprension
+    entregables:
+    - Evaluación de controles de empresa
+- clave: formacion
+  nombre: Formación y concienciación
+  tareas:
+  - clave: plan_formacion
+    nombre: Definir el plan de formación por perfiles
+    raci:
+      R: rrhh
+      A: responsable_seguridad
+      C:
+      - responsable_cumplimiento
+      I:
+      - direccion
+    dias: 10
+    depende_de:
+    - soa_aprobacion
+    controles:
+    - formacion-concienciacion
+    - recursos-competencia
+    entregables:
+    - Plan de formación
+  - clave: concienciacion
+    nombre: Campaña de concienciación para todo el personal
+    raci:
+      R: rrhh
+      A: responsable_seguridad
+      C:
+      - ti
+      I:
+      - direccion
+    dias: 30
+    depende_de:
+    - plan_formacion
+    - politicas
+    controles:
+    - formacion-concienciacion
+    entregables:
+    - Registros de asistencia
+    - Resultados de evaluación
+  - clave: formacion_especifica
+    nombre: Formación específica de responsables de control y equipos técnicos
+    raci:
+      R: rrhh
+      A: responsable_seguridad
+      C:
+      - ti
+      - ot
+      - finanzas
+      I:
+      - auditoria_interna
+    dias: 30
+    depende_de:
+    - plan_formacion
+    controles:
+    - recursos-competencia
+    entregables:
+    - Registros de formación específica
+- clave: auditoria_interna
+  nombre: Auditoría interna
+  tareas:
+  - clave: plan_auditoria
+    nombre: Planificar la auditoría interna (independiente de quien implantó)
+    raci:
+      R: auditoria_interna
+      A: direccion
+      C:
+      - responsable_seguridad
+      I:
+      - responsable_cumplimiento
+    dias: 5
+    depende_de:
+    - politicas
+    - impl_gobierno
+    - impl_accesos
+    - impl_operaciones
+    - impl_desarrollo
+    - impl_proveedores
+    - impl_continuidad
+    - impl_cumplimiento
+    - impl_informacion_financiera_1
+    - impl_informacion_financiera_2
+    - cumplimiento_continuo_alta
+    - js_controles_empresa
+    - concienciacion
+    - formacion_especifica
+    controles:
+    - auditoria-interna
+    entregables:
+    - Programa y plan de auditoría
+  - clave: ejecucion_auditoria
+    nombre: Ejecutar la auditoría interna en todas las normas y sedes del muestreo
+    raci:
+      R: auditoria_interna
+      A: direccion
+      C:
+      - responsable_seguridad
+      - propietario_proceso
+      I:
+      - ti
+      - ot
+    dias: 15
+    depende_de:
+    - plan_auditoria
+    controles:
+    - auditoria-interna
+    - cumplimiento-politicas
+    entregables:
+    - Papeles de trabajo
+    - Hallazgos registrados
+  - clave: informe_auditoria
+    nombre: Informe de auditoría interna y apertura de acciones correctivas
+    raci:
+      R: auditoria_interna
+      A: direccion
+      C:
+      - responsable_seguridad
+      I:
+      - responsable_cumplimiento
+    dias: 5
+    depende_de:
+    - ejecucion_auditoria
+    controles:
+    - auditoria-interna
+    - no-conformidades-acciones-correctivas
+    entregables:
+    - Informe de auditoría interna
+    - CAPA abiertas
+  - clave: js_pruebas
+    nombre: Evaluar la eficacia operativa (procesos, ITGC y cierre)
+    raci:
+      R: auditoria_interna
+      A: finanzas
+      C:
+      - propietario_proceso
+      - ti
+      I:
+      - direccion
+    dias: 30
+    depende_de:
+    - js_controles_empresa
+    - plan_auditoria
+    controles:
+    - evaluacion-direccion-control-interno
+    entregables:
+    - Papeles de evaluación
+- clave: revision_direccion
+  nombre: Revisión por la dirección
+  tareas:
+  - clave: revision
+    nombre: Revisión por la dirección del programa
+    raci:
+      R: responsable_seguridad
+      A: direccion
+      C:
+      - responsable_cumplimiento
+      - finanzas
+      - auditoria_interna
+      I:
+      - ti
+      - ot
+      - rrhh
+    dias: 5
+    depende_de:
+    - informe_auditoria
+    controles:
+    - revision-direccion
+    - seguimiento-medicion
+    entregables:
+    - Acta de revisión por la dirección
+  - clave: js_informe
+    nombre: Informe de control interno (art. 24-4-4) y carta de confirmación (art. 24-4-2)
+    raci:
+      R: finanzas
+      A: direccion
+      C:
+      - auditoria_interna
+      I:
+      - responsable_cumplimiento
+    dias: 10
+    depende_de:
+    - js_pruebas
+    - revision
+    controles:
+    - evaluacion-direccion-control-interno
+    - certificacion-estados-financieros
+    entregables:
+    - Informe de control interno
+    - Carta de confirmación
+- clave: certificacion
+  nombre: Auditorías de certificación o evaluación
+  tareas:
+  - clave: js_auditoria
+    nombre: Auditoría del informe de control interno (art. 193-2-2)
+    raci:
+      R: finanzas
+      A: direccion
+      C:
+      - auditoria_interna
+      I:
+      - responsable_cumplimiento
+    dias: 30
+    depende_de:
+    - js_informe
+    controles:
+    - atestacion-auditor-externo
+    entregables:
+    - Informe de auditoría de control interno
+  - clave: js_presentacion
+    nombre: Presentar el informe junto con el informe anual de valores
+    raci:
+      R: finanzas
+      A: direccion
+      C: []
+      I:
+      - responsable_cumplimiento
+    dias: 5
+    depende_de:
+    - js_auditoria
+    controles: []
+    entregables:
+    - Justificante de presentación
+- clave: cierre_hallazgos
+  nombre: Cierre de hallazgos
+  tareas:
+  - clave: capa
+    nombre: Analizar causas y planificar las acciones correctivas de todos los hallazgos externos
+    raci:
+      R: responsable_seguridad
+      A: responsable_cumplimiento
+      C:
+      - propietario_proceso
+      - ti
+      - ot
+      I:
+      - direccion
+    dias: 10
+    depende_de:
+    - js_presentacion
+    controles:
+    - no-conformidades-acciones-correctivas
+    entregables:
+    - Plan de acciones correctivas
+  - clave: verificacion_eficacia
+    nombre: Verificar la eficacia de las acciones (quien verifica no es quien corrigió)
+    raci:
+      R: auditoria_interna
+      A: responsable_cumplimiento
+      C:
+      - responsable_seguridad
+      I:
+      - direccion
+    dias: 45
+    depende_de:
+    - capa
+    controles:
+    - no-conformidades-acciones-correctivas
+    entregables:
+    - Verificaciones de eficacia
+  - clave: cierre_formal
+    nombre: Cerrar formalmente los hallazgos y comunicar al auditor externo
+    raci:
+      R: responsable_cumplimiento
+      A: direccion
+      C:
+      - auditoria_interna
+      I:
+      - responsable_seguridad
+    dias: 5
+    depende_de:
+    - verificacion_eficacia
+    controles:
+    - no-conformidades-acciones-correctivas
+    entregables:
+    - Hallazgos cerrados
+- clave: seguimiento
+  nombre: Seguimiento y mejora continua
+  tareas:
+  - clave: cumplimiento_continuo
+    nombre: Supervisar los controles medibles y la caducidad de las evidencias
+    raci:
+      R: responsable_seguridad
+      A: responsable_cumplimiento
+      C:
+      - ti
+      I:
+      - direccion
+    dias: 365
+    depende_de:
+    - cierre_formal
+    controles:
+    - seguimiento-medicion
+    - mejora-continua
+    entregables:
+    - Panel de cumplimiento continuo
+  - clave: recertificacion_accesos
+    nombre: Campañas trimestrales de recertificación de accesos
+    raci:
+      R: ti
+      A: responsable_seguridad
+      C:
+      - propietario_proceso
+      I:
+      - auditoria_interna
+    dias: 365
+    depende_de:
+    - cierre_formal
+    controles:
+    - revision-periodica-accesos
+    entregables:
+    - Campañas cerradas con evidencia
+  - clave: riesgos_anual
+    nombre: Actualizar el análisis de riesgos y la declaración de aplicabilidad
+    raci:
+      R: responsable_seguridad
+      A: direccion
+      C:
+      - propietario_proceso
+      I:
+      - auditoria_interna
+    dias: 20
+    depende_de:
+    - cierre_formal
+    controles:
+    - evaluacion-riesgos
+    - tratamiento-riesgos-declaracion-aplicabilidad
+    entregables:
+    - Registro de riesgos actualizado
+  - clave: auditoria_interna_anual
+    nombre: Auditoría interna anual
+    raci:
+      R: auditoria_interna
+      A: direccion
+      C:
+      - responsable_seguridad
+      I:
+      - responsable_cumplimiento
+    dias: 20
+    depende_de:
+    - riesgos_anual
+    controles:
+    - auditoria-interna
+    entregables:
+    - Informe de auditoría interna anual
+  - clave: revision_direccion_anual
+    nombre: Revisión anual por la dirección
+    raci:
+      R: responsable_seguridad
+      A: direccion
+      C:
+      - responsable_cumplimiento
+      - finanzas
+      I:
+      - auditoria_interna
+    dias: 5
+    depende_de:
+    - auditoria_interna_anual
+    controles:
+    - revision-direccion
+    - mejora-continua
+    entregables:
+    - Acta anual de revisión por la dirección
+  - clave: js_ciclo_anual
+    nombre: 'Ciclo anual J-SOX: actualizar alcance, documentos y evaluaciones'
+    raci:
+      R: finanzas
+      A: direccion
+      C:
+      - auditoria_interna
+      I:
+      - responsable_cumplimiento
+    dias: 60
+    depende_de:
+    - revision_direccion_anual
+    controles:
+    - evaluacion-direccion-control-interno
+    entregables:
+    - Plan anual J-SOX
+riesgos:
+- clave: falta-patrocinio
+  titulo: Falta de patrocinio real de la dirección
+  probabilidad: media
+  impacto: alto
+  mitigacion: Patrocinador nombrado en el arranque, revisión mensual del avance en el comité y objetivos ligados
+    a la dirección.
+- clave: recursos-insuficientes
+  titulo: Recursos internos insuficientes para implantar y mantener los controles
+  probabilidad: alta
+  impacto: alto
+  mitigacion: Plan de capacidad por rol, apoyo externo acotado y priorización por riesgo.
+- clave: evidencias-dispersas
+  titulo: Evidencias dispersas, caducadas o sin flujo de aprobación
+  probabilidad: alta
+  impacto: medio
+  mitigacion: Evidencias solo en Documentos con flujo, caducidad y avisos; medición automática donde sea posible.
+- clave: alcance-mal-definido
+  titulo: Alcance mal definido o cambiante
+  probabilidad: media
+  impacto: alto
+  mitigacion: Alcance aprobado por la dirección y control de cambios del alcance en el comité.
+- clave: resistencia-cambio
+  titulo: Resistencia al cambio de procesos y herramientas
+  probabilidad: media
+  impacto: medio
+  mitigacion: Comunicación, formación por perfiles y responsables de control en cada área.
+- clave: plazo-informe-jsox
+  titulo: Retraso del informe de control interno respecto al informe anual
+  probabilidad: media
+  impacto: alto
+  mitigacion: Calendario sincronizado con el cierre y reutilización de las pruebas SOX.
+- clave: diferencias-criterio-jsox
+  titulo: Diferencias de criterio entre auditores de EE. UU. y Japón
+  probabilidad: media
+  impacto: medio
+  mitigacion: Matriz única con correspondencias y acuerdos de muestreo comunes.
+documentos:
+- clave: politica-control-acceso
+  nombre: Política de control de acceso
+  tipo: politica
+  controles:
+  - politica-control-acceso
+  - gestion-identidades
+  - informacion-autenticacion
+  - autenticacion-segura
+  - accesos-privilegiados
+  - segregacion-funciones
+  - revision-periodica-accesos
+- clave: politica-retencion-registros
+  nombre: Política de conservación de registros
+  tipo: politica
+  controles:
+  - proteccion-registros
+  - privacidad-datos-personales
+  - integridad-registros-auditoria
+  - borrado-informacion
+- clave: politica-gestion-cambios
+  nombre: Política de gestión de cambios
+  tipo: politica
+  controles:
+  - gestion-cambios
+  - pruebas-cambios
+  - aprobacion-independiente-paso-produccion
+  - cambios-emergencia
+  - separacion-entornos
+- clave: procedimiento-altas-bajas-accesos
+  nombre: Procedimiento de altas, cambios y bajas de accesos
+  tipo: procedimiento
+  controles:
+  - alta-modificacion-accesos
+  - baja-accesos
+  - gestion-identidades
+  - cuentas-servicio-y-dispositivos
+- clave: procedimiento-recertificacion-accesos
+  nombre: Procedimiento de recertificación de accesos
+  tipo: procedimiento
+  controles:
+  - revision-periodica-accesos
+  - accesos-privilegiados
+  - segregacion-funciones
+- clave: procedimiento-gestion-cambios-pase-produccion
+  nombre: Procedimiento de cambios y paso a producción
+  tipo: procedimiento
+  controles:
+  - gestion-cambios
+  - pruebas-cambios
+  - aprobacion-independiente-paso-produccion
+  - cambios-emergencia
+  - gestion-configuracion
+- clave: procedimiento-cierre-periodo
+  nombre: Procedimiento de cierre de periodos contables
+  tipo: procedimiento
+  controles:
+  - cierre-periodos-contables
+  - asientos-manuales
+  - conciliaciones-cuentas
+  - hojas-calculo-criticas
+  - informacion-generada-por-entidad
+- clave: procedimiento-pruebas-controles
+  nombre: Procedimiento de pruebas de controles (SOX y J-SOX)
+  tipo: procedimiento
+  controles:
+  - evaluacion-direccion-control-interno
+  - evaluacion-deficiencias-control
+  - controles-aplicacion
+  - independencia-probadores
+- clave: registro-matriz-sod
+  nombre: Matriz de segregación de funciones
+  tipo: registro
+  controles:
+  - segregacion-funciones
+  - asientos-manuales
+- clave: registro-pruebas-controles
+  nombre: Registro de pruebas de controles
+  tipo: registro
+  controles:
+  - evaluacion-direccion-control-interno
+  - independencia-probadores
+- clave: registro-hallazgos-capa
+  nombre: Registro de hallazgos y acciones correctivas
+  tipo: registro
+  controles:
+  - no-conformidades-acciones-correctivas

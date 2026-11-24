@@ -65,3 +65,6 @@ router.include_router(errores_del_frontend.router, prefix="/client-errors",     
 # Revisión posterior a la implantación (PIR) de cambios y proyectos (migración 206, docs/PIR.md)
 from app.api.v1.endpoints import pir  # noqa: E402
 router.include_router(pir.router,                  prefix="/pir",                   tags=["PIR"])
+# Certificaciones y cumplimiento continuo (migración 212, docs/CERTIFICACIONES.md)
+from app.api.v1.endpoints import certificaciones  # noqa: E402
+router.include_router(certificaciones.router,      prefix="/certificaciones",       tags=["Certificaciones"])

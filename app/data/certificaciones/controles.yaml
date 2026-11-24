@@ -1,0 +1,3606 @@
+# Contenido redactado por contecflow. ISO/IEC 27001, IEC 62443, VDA ISA (TISAX) y COSO tienen derechos
+# de autor: aquí solo hay identificadores y descripciones propias. NIS2 y la ley SOX son públicas.
+# Ver docs/CERTIFICACIONES_CONTENIDO.md.
+# Biblioteca única de controles comunes con correspondencias entre normas.
+- clave_comun: contexto-partes-interesadas
+  titulo: Contexto de la organización y partes interesadas
+  descripcion: Se identifican las cuestiones internas y externas y las expectativas de las partes interesadas que
+    condicionan la seguridad, y se revisan al menos una vez al año.
+  dominio: gobierno
+  evidencia_sugerida:
+  - Análisis de contexto aprobado
+  - Registro de partes interesadas y requisitos
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iso27001
+    id_control: '4.1'
+    nivel: clausulas
+  - marco: iso27001
+    id_control: '4.2'
+    nivel: clausulas
+  - marco: iec62443
+    id_control: SPE 1
+    nivel: 2-1
+- clave_comun: alcance-sistema-gestion
+  titulo: Alcance del sistema de gestión
+  descripcion: El alcance (entidades, sedes, procesos, sistemas, plantas OT y servicios) está definido, justificado
+    y aprobado, con sus exclusiones motivadas.
+  dominio: gobierno
+  evidencia_sugerida:
+  - Documento de alcance aprobado
+  - Mapa de sedes y entidades incluidas
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iso27001
+    id_control: '4.3'
+    nivel: clausulas
+  - marco: iso27001
+    id_control: '4.4'
+    nivel: clausulas
+  - marco: tisax
+    id_control: 1.2.1
+    nivel: AL2
+  - marco: iec62443
+    id_control: SPE 1
+    nivel: 2-1
+- clave_comun: objetivos-seguridad
+  titulo: Objetivos de seguridad medibles
+  descripcion: Hay objetivos de seguridad medibles, con responsable, plazo y recursos, alineados con la política
+    y revisados periódicamente.
+  dominio: gobierno
+  evidencia_sugerida:
+  - Cuadro de objetivos e indicadores
+  - Actas de seguimiento
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iso27001
+    id_control: '6.2'
+    nivel: clausulas
+- clave_comun: recursos-competencia
+  titulo: Recursos y competencia del personal clave
+  descripcion: Se asignan recursos suficientes y se asegura y documenta la competencia de quienes tienen funciones
+    de seguridad o desarrollo seguro.
+  dominio: gobierno
+  evidencia_sugerida:
+  - Matriz de competencias
+  - Certificados y planes de formación
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iso27001
+    id_control: '7.1'
+    nivel: clausulas
+  - marco: iso27001
+    id_control: '7.2'
+    nivel: clausulas
+  - marco: iec62443
+    id_control: SM-4
+    nivel: 4-1
+- clave_comun: informacion-documentada
+  titulo: Control de la información documentada
+  descripcion: Las políticas, procedimientos y registros se crean, aprueban, versionan, distribuyen y conservan
+    con un flujo controlado.
+  dominio: gobierno
+  evidencia_sugerida:
+  - Listado maestro de documentos
+  - Historial de versiones y aprobaciones
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iso27001
+    id_control: '7.5'
+    nivel: clausulas
+  - marco: iec62443
+    id_control: SPE 1
+    nivel: 2-1
+- clave_comun: seguimiento-medicion
+  titulo: Seguimiento, medición y eficacia de las medidas
+  descripcion: Se define qué se mide, cómo y cuándo, y se analizan los resultados para evaluar la eficacia de las
+    medidas de seguridad.
+  dominio: gobierno
+  evidencia_sugerida:
+  - Cuadro de mando de indicadores
+  - Informe periódico de eficacia
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iso27001
+    id_control: '9.1'
+    nivel: clausulas
+  - marco: nis2
+    id_control: art.21.2.f
+    nivel: medidas
+- clave_comun: auditoria-interna
+  titulo: Programa de auditoría interna
+  descripcion: Se planifica y ejecuta un programa de auditorías internas independientes que cubre todo el alcance
+    y los requisitos de cada norma.
+  dominio: gobierno
+  evidencia_sugerida:
+  - Programa anual de auditoría
+  - Informes de auditoría interna
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iso27001
+    id_control: '9.2'
+    nivel: clausulas
+  - marco: tisax
+    id_control: 1.5.1
+    nivel: AL2
+  - marco: iec62443
+    id_control: SM-12
+    nivel: 4-1
+- clave_comun: revision-direccion
+  titulo: Revisión por la dirección
+  descripcion: La dirección revisa a intervalos planificados el desempeño del sistema, los riesgos, los hallazgos
+    y las oportunidades de mejora, y deja constancia de sus decisiones.
+  dominio: gobierno
+  evidencia_sugerida:
+  - Acta de revisión por la dirección
+  - Plan de acciones derivado
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iso27001
+    id_control: '9.3'
+    nivel: clausulas
+  - marco: nis2
+    id_control: art.20.1
+    nivel: gobernanza
+- clave_comun: no-conformidades-acciones-correctivas
+  titulo: No conformidades y acciones correctivas
+  descripcion: Cada no conformidad se registra, se analiza su causa, se corrige con plan y responsable y se verifica
+    la eficacia antes del cierre.
+  dominio: gobierno
+  evidencia_sugerida:
+  - Registro de hallazgos y CAPA
+  - Verificaciones de eficacia
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iso27001
+    id_control: '10.2'
+    nivel: clausulas
+  - marco: nis2
+    id_control: art.21.4
+    nivel: medidas
+  - marco: iec62443
+    id_control: SM-11
+    nivel: 4-1
+  - marco: sox
+    id_control: ELC-04
+    nivel: entidad
+  - marco: jsox
+    id_control: ELC-04
+    nivel: entidad
+- clave_comun: mejora-continua
+  titulo: Mejora continua
+  descripcion: Se identifican y priorizan mejoras del sistema de gestión y del proceso de desarrollo a partir de
+    indicadores, auditorías e incidentes.
+  dominio: gobierno
+  evidencia_sugerida:
+  - Registro de mejoras
+  - Lecciones aprendidas incorporadas
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iso27001
+    id_control: '10.1'
+    nivel: clausulas
+  - marco: iec62443
+    id_control: SM-13
+    nivel: 4-1
+- clave_comun: politica-seguridad-informacion
+  titulo: Política de seguridad y políticas temáticas
+  descripcion: La dirección aprueba una política de seguridad y las políticas temáticas necesarias, las comunica
+    y las revisa cuando hay cambios relevantes.
+  dominio: gobierno
+  evidencia_sugerida:
+  - Política aprobada y firmada
+  - Evidencia de comunicación
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iso27001
+    id_control: '5.2'
+    nivel: clausulas
+  - marco: iso27001
+    id_control: A.5.1
+    nivel: anexo_a
+  - marco: tisax
+    id_control: 1.1.1
+    nivel: AL2
+  - marco: nis2
+    id_control: art.21.2.a
+    nivel: medidas
+  - marco: iec62443
+    id_control: SPE 1
+    nivel: 2-1
+- clave_comun: roles-responsabilidades-seguridad
+  titulo: Funciones y responsabilidades de seguridad
+  descripcion: Las funciones de seguridad están definidas y asignadas, incluido un responsable de seguridad con
+    autoridad y acceso a la dirección.
+  dominio: gobierno
+  evidencia_sugerida:
+  - Organigrama de seguridad
+  - Nombramientos firmados
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iso27001
+    id_control: '5.3'
+    nivel: clausulas
+  - marco: iso27001
+    id_control: A.5.2
+    nivel: anexo_a
+  - marco: tisax
+    id_control: 1.2.2
+    nivel: AL2
+  - marco: iec62443
+    id_control: SM-2
+    nivel: 4-1
+  - marco: iec62443
+    id_control: SPE 1
+    nivel: 2-1
+- clave_comun: segregacion-funciones
+  titulo: Segregación de funciones
+  descripcion: Las funciones incompatibles se separan o, si no es posible, se compensan con controles de supervisión;
+    los conflictos se detectan y se revisan.
+  dominio: accesos
+  evidencia_sugerida:
+  - Matriz de incompatibilidades (SoD)
+  - Informe de conflictos y compensaciones
+  medible_por_plataforma: sod_conflictos
+  correspondencias:
+  - marco: iso27001
+    id_control: A.5.3
+    nivel: anexo_a
+  - marco: sox
+    id_control: ITGC-APD-06
+    nivel: itgc
+  - marco: jsox
+    id_control: ITGC-SEG-06
+    nivel: itgc
+- clave_comun: responsabilidad-direccion
+  titulo: Compromiso y responsabilidad de la dirección
+  descripcion: La dirección aprueba las medidas de gestión de riesgos, supervisa su aplicación y responde de su
+    cumplimiento; exige a todo el personal que aplique las políticas.
+  dominio: gobierno
+  evidencia_sugerida:
+  - Acta de aprobación de medidas por el órgano de dirección
+  - Informes de supervisión periódicos
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iso27001
+    id_control: '5.1'
+    nivel: clausulas
+  - marco: iso27001
+    id_control: A.5.4
+    nivel: anexo_a
+  - marco: nis2
+    id_control: art.20.1
+    nivel: gobernanza
+  - marco: tisax
+    id_control: 1.2.1
+    nivel: AL2
+- clave_comun: formacion-ciberseguridad-direccion
+  titulo: Formación en ciberseguridad del órgano de dirección
+  descripcion: Los miembros del órgano de dirección reciben formación periódica para identificar riesgos y valorar
+    las prácticas de gestión de ciberseguridad.
+  dominio: personas
+  evidencia_sugerida:
+  - Registro de asistencia de la dirección
+  - Contenido de la formación
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: nis2
+    id_control: art.20.2
+    nivel: gobernanza
+- clave_comun: contacto-autoridades
+  titulo: Relación con autoridades
+  descripcion: Se mantienen los contactos con autoridades competentes, CSIRT y fuerzas de seguridad, con quién comunica
+    qué y cuándo.
+  dominio: incidentes
+  evidencia_sugerida:
+  - Directorio de autoridades y CSIRT
+  - Registro de comunicaciones
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iso27001
+    id_control: A.5.5
+    nivel: anexo_a
+  - marco: nis2
+    id_control: art.23.1
+    nivel: notificacion
+- clave_comun: contacto-grupos-especializados
+  titulo: Relación con grupos especializados
+  descripcion: La organización participa en foros, asociaciones sectoriales y redes de intercambio de información
+    de seguridad.
+  dominio: gobierno
+  evidencia_sugerida:
+  - Membresías y suscripciones
+  - Boletines recibidos
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iso27001
+    id_control: A.5.6
+    nivel: anexo_a
+- clave_comun: inteligencia-amenazas
+  titulo: Inteligencia de amenazas
+  descripcion: Se recoge y analiza información sobre amenazas relevantes para el sector y los activos, y se usa
+    para ajustar controles.
+  dominio: operaciones
+  evidencia_sugerida:
+  - Informes de inteligencia
+  - Acciones derivadas
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iso27001
+    id_control: A.5.7
+    nivel: anexo_a
+  - marco: nis2
+    id_control: art.21.2.e
+    nivel: medidas
+- clave_comun: seguridad-en-proyectos
+  titulo: Seguridad en la gestión de proyectos
+  descripcion: Todo proyecto evalúa sus riesgos de seguridad desde el inicio e incorpora los requisitos de seguridad
+    en su plan.
+  dominio: gobierno
+  evidencia_sugerida:
+  - Plantilla de proyecto con apartado de seguridad
+  - Evaluaciones de riesgo de proyectos
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iso27001
+    id_control: A.5.8
+    nivel: anexo_a
+  - marco: tisax
+    id_control: 1.2.3
+    nivel: AL2
+- clave_comun: evaluacion-riesgos
+  titulo: Evaluación de riesgos de seguridad
+  descripcion: Se aplica una metodología repetible para identificar, analizar y valorar los riesgos de seguridad,
+    con propietarios y criterios de aceptación aprobados.
+  dominio: riesgos
+  evidencia_sugerida:
+  - Metodología de riesgos aprobada
+  - Registro de riesgos actualizado
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iso27001
+    id_control: 6.1.1
+    nivel: clausulas
+  - marco: iso27001
+    id_control: 6.1.2
+    nivel: clausulas
+  - marco: iso27001
+    id_control: '8.2'
+    nivel: clausulas
+  - marco: tisax
+    id_control: 1.4.1
+    nivel: AL2
+  - marco: nis2
+    id_control: art.21.1
+    nivel: medidas
+  - marco: nis2
+    id_control: art.21.2.a
+    nivel: medidas
+  - marco: iec62443
+    id_control: SPE 1
+    nivel: 2-1
+- clave_comun: tratamiento-riesgos-declaracion-aplicabilidad
+  titulo: Tratamiento de riesgos y declaración de aplicabilidad
+  descripcion: Se eligen las opciones de tratamiento, se comparan con la biblioteca de controles y se justifica
+    en la declaración de aplicabilidad qué aplica y qué no.
+  dominio: riesgos
+  evidencia_sugerida:
+  - Plan de tratamiento aprobado
+  - Declaración de aplicabilidad firmada
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iso27001
+    id_control: 6.1.3
+    nivel: clausulas
+  - marco: iso27001
+    id_control: '8.3'
+    nivel: clausulas
+  - marco: nis2
+    id_control: art.21.1
+    nivel: medidas
+- clave_comun: planificacion-operacional
+  titulo: Planificación operacional y de cambios en el sistema
+  descripcion: Los procesos del sistema de gestión y sus cambios se planifican y controlan, incluidos los subcontratados.
+  dominio: gobierno
+  evidencia_sugerida:
+  - Plan operativo anual
+  - Registro de cambios del sistema de gestión
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iso27001
+    id_control: '6.3'
+    nivel: clausulas
+  - marco: iso27001
+    id_control: '8.1'
+    nivel: clausulas
+- clave_comun: comunicacion-interna-externa
+  titulo: Comunicación interna y externa sobre seguridad
+  descripcion: Se define qué se comunica sobre seguridad, a quién, cuándo y por qué canal.
+  dominio: gobierno
+  evidencia_sugerida:
+  - Plan de comunicación
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iso27001
+    id_control: '7.4'
+    nivel: clausulas
+- clave_comun: alcance-cuentas-significativas
+  titulo: 'Alcance de la evaluación: cuentas, procesos y sistemas significativos'
+  descripcion: Se determinan con criterios cuantitativos y cualitativos las entidades, cuentas, procesos y aplicaciones
+    dentro del alcance de la evaluación del control interno.
+  dominio: informacion_financiera
+  evidencia_sugerida:
+  - Análisis de materialidad y alcance
+  - Listado de procesos y aplicaciones en alcance
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: sox
+    id_control: ELC-05
+    nivel: entidad
+  - marco: jsox
+    id_control: ELC-05
+    nivel: entidad
+- clave_comun: inventario-activos
+  titulo: Inventario de activos de información
+  descripcion: Existe un inventario actualizado de información, sistemas, componentes OT y servicios, con propietario
+    y criticidad.
+  dominio: activos
+  evidencia_sugerida:
+  - Extracto de la CMDB
+  - Revisión periódica del inventario
+  medible_por_plataforma: inventario_activos_cmdb
+  correspondencias:
+  - marco: iso27001
+    id_control: A.5.9
+    nivel: anexo_a
+  - marco: tisax
+    id_control: 1.3.1
+    nivel: AL2
+  - marco: nis2
+    id_control: art.21.2.i
+    nivel: medidas
+  - marco: iec62443
+    id_control: SR 7.8
+    nivel: 3-3
+  - marco: iec62443
+    id_control: CR 7.8
+    nivel: 4-2
+  - marco: iec62443
+    id_control: SPE 2
+    nivel: 2-1
+- clave_comun: uso-aceptable
+  titulo: Uso aceptable de la información y los activos
+  descripcion: Las normas de uso de la información y los activos están escritas, se comunican y se aceptan expresamente.
+  dominio: activos
+  evidencia_sugerida:
+  - Normas de uso aceptadas
+  - Registro de aceptación
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iso27001
+    id_control: A.5.10
+    nivel: anexo_a
+- clave_comun: devolucion-activos
+  titulo: Devolución de activos
+  descripcion: Al terminar la relación laboral o contractual se recuperan todos los activos y la información entregados.
+  dominio: activos
+  evidencia_sugerida:
+  - Lista de comprobación de salida
+  - Acta de devolución
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iso27001
+    id_control: A.5.11
+    nivel: anexo_a
+- clave_comun: clasificacion-informacion
+  titulo: Clasificación de la información
+  descripcion: La información se clasifica por confidencialidad, integridad y disponibilidad según un esquema único
+    y se protege conforme a su clase.
+  dominio: activos
+  evidencia_sugerida:
+  - Esquema de clasificación
+  - Inventario con clasificación asignada
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iso27001
+    id_control: A.5.12
+    nivel: anexo_a
+  - marco: tisax
+    id_control: 1.3.2
+    nivel: AL2
+  - marco: iec62443
+    id_control: SPE 5
+    nivel: 2-1
+- clave_comun: etiquetado-informacion
+  titulo: Etiquetado de la información
+  descripcion: La información clasificada se marca de forma visible o en sus metadatos según el esquema aprobado.
+  dominio: activos
+  evidencia_sugerida:
+  - Procedimiento de etiquetado
+  - Muestras de documentos etiquetados
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iso27001
+    id_control: A.5.13
+    nivel: anexo_a
+  - marco: tisax
+    id_control: 1.3.2
+    nivel: AL2
+- clave_comun: transferencia-informacion
+  titulo: Intercambio de información
+  descripcion: Las transferencias de información dentro y fuera de la organización siguen normas y acuerdos que
+    protegen su clase.
+  dominio: comunicaciones
+  evidencia_sugerida:
+  - Normas de transferencia
+  - Acuerdos de intercambio firmados
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iso27001
+    id_control: A.5.14
+    nivel: anexo_a
+  - marco: tisax
+    id_control: 5.1.2
+    nivel: AL2
+- clave_comun: servicios-nube
+  titulo: Uso seguro de servicios en la nube y externos
+  descripcion: Los servicios de TI externos y en la nube se evalúan, aprueban, gestionan y abandonan según criterios
+    de seguridad definidos.
+  dominio: proveedores
+  evidencia_sugerida:
+  - Registro de servicios externos aprobados
+  - Evaluaciones de seguridad del servicio
+  medible_por_plataforma: revision_proveedores
+  correspondencias:
+  - marco: iso27001
+    id_control: A.5.23
+    nivel: anexo_a
+  - marco: tisax
+    id_control: 1.3.3
+    nivel: AL2
+  - marco: tisax
+    id_control: 5.3.3
+    nivel: AL2
+  - marco: tisax
+    id_control: 5.3.4
+    nivel: AL2
+- clave_comun: instalacion-software-produccion
+  titulo: Software autorizado en sistemas operativos
+  descripcion: Solo se instala software evaluado y aprobado, mediante un proceso controlado y con inventario.
+  dominio: operaciones
+  evidencia_sugerida:
+  - Lista de software autorizado
+  - Registro de instalaciones
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iso27001
+    id_control: A.8.19
+    nivel: anexo_a
+  - marco: tisax
+    id_control: 1.3.4
+    nivel: AL2
+- clave_comun: politica-control-acceso
+  titulo: Política de control de acceso
+  descripcion: El acceso a la información y los sistemas se concede por necesidad de conocer y mínimo privilegio,
+    según reglas escritas.
+  dominio: accesos
+  evidencia_sugerida:
+  - Política de control de acceso
+  - Modelo de roles
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iso27001
+    id_control: A.5.15
+    nivel: anexo_a
+  - marco: tisax
+    id_control: 4.2.1
+    nivel: AL2
+  - marco: nis2
+    id_control: art.21.2.i
+    nivel: medidas
+  - marco: iec62443
+    id_control: SPE 6
+    nivel: 2-1
+  - marco: sox
+    id_control: ITGC-APD-00
+    nivel: itgc
+  - marco: jsox
+    id_control: ITGC-SEG-00
+    nivel: itgc
+- clave_comun: gestion-identidades
+  titulo: Ciclo de vida de identidades
+  descripcion: Cada identidad es única, tiene responsable y se gestiona desde el alta hasta la baja; las cuentas
+    compartidas son excepción justificada.
+  dominio: accesos
+  evidencia_sugerida:
+  - Procedimiento de identidades
+  - Listado de cuentas con responsable
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iso27001
+    id_control: A.5.16
+    nivel: anexo_a
+  - marco: tisax
+    id_control: 4.1.1
+    nivel: AL2
+  - marco: tisax
+    id_control: 4.1.3
+    nivel: AL2
+  - marco: iec62443
+    id_control: SR 1.1
+    nivel: 3-3
+  - marco: iec62443
+    id_control: SR 1.3
+    nivel: 3-3
+  - marco: iec62443
+    id_control: SR 1.4
+    nivel: 3-3
+  - marco: iec62443
+    id_control: CR 1.1
+    nivel: 4-2
+  - marco: iec62443
+    id_control: CR 1.3
+    nivel: 4-2
+  - marco: iec62443
+    id_control: CR 1.4
+    nivel: 4-2
+  - marco: iec62443
+    id_control: SG-6
+    nivel: 4-1
+- clave_comun: informacion-autenticacion
+  titulo: Gestión de credenciales y contraseñas
+  descripcion: Las credenciales se entregan de forma segura y cumplen una política de calidad, renovación y protección.
+  dominio: accesos
+  evidencia_sugerida:
+  - Política de contraseñas configurada
+  - Informe de cumplimiento de la política
+  medible_por_plataforma: politica_contrasenas
+  correspondencias:
+  - marco: iso27001
+    id_control: A.5.17
+    nivel: anexo_a
+  - marco: tisax
+    id_control: 4.1.2
+    nivel: AL2
+  - marco: iec62443
+    id_control: SR 1.5
+    nivel: 3-3
+  - marco: iec62443
+    id_control: SR 1.7
+    nivel: 3-3
+  - marco: iec62443
+    id_control: CR 1.5
+    nivel: 4-2
+  - marco: iec62443
+    id_control: CR 1.7
+    nivel: 4-2
+  - marco: sox
+    id_control: ITGC-APD-05
+    nivel: itgc
+  - marco: jsox
+    id_control: ITGC-SEG-05
+    nivel: itgc
+- clave_comun: alta-modificacion-accesos
+  titulo: Alta y modificación de accesos con aprobación
+  descripcion: Los accesos se conceden o cambian solo con solicitud y aprobación del propietario, dejando constancia.
+  dominio: accesos
+  evidencia_sugerida:
+  - Solicitudes aprobadas
+  - Muestra de altas cotejada con aprobaciones
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iso27001
+    id_control: A.5.18
+    nivel: anexo_a
+  - marco: tisax
+    id_control: 4.2.1
+    nivel: AL2
+  - marco: sox
+    id_control: ITGC-APD-01
+    nivel: itgc
+  - marco: jsox
+    id_control: ITGC-SEG-01
+    nivel: itgc
+- clave_comun: baja-accesos
+  titulo: Retirada oportuna de accesos
+  descripcion: Los accesos se retiran en plazo definido tras una baja o cambio de puesto, y se comprueba que no
+    quedan cuentas activas.
+  dominio: accesos
+  evidencia_sugerida:
+  - Informe de bajas frente a cuentas activas
+  - Plazos de retirada medidos
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iso27001
+    id_control: A.5.18
+    nivel: anexo_a
+  - marco: sox
+    id_control: ITGC-APD-02
+    nivel: itgc
+  - marco: jsox
+    id_control: ITGC-SEG-02
+    nivel: itgc
+- clave_comun: revision-periodica-accesos
+  titulo: Recertificación periódica de accesos
+  descripcion: Los propietarios revisan periódicamente quién tiene acceso a qué y se corrigen las desviaciones detectadas.
+  dominio: accesos
+  evidencia_sugerida:
+  - Campañas de recertificación cerradas
+  - Correcciones aplicadas
+  medible_por_plataforma: recertificacion_accesos
+  correspondencias:
+  - marco: iso27001
+    id_control: A.5.18
+    nivel: anexo_a
+  - marco: tisax
+    id_control: 4.2.1
+    nivel: AL2
+  - marco: sox
+    id_control: ITGC-APD-03
+    nivel: itgc
+  - marco: jsox
+    id_control: ITGC-SEG-03
+    nivel: itgc
+- clave_comun: accesos-privilegiados
+  titulo: Accesos privilegiados
+  descripcion: Los privilegios elevados se limitan, se conceden de forma temporal y justificada y su uso queda registrado
+    y revisado.
+  dominio: accesos
+  evidencia_sugerida:
+  - Inventario de cuentas privilegiadas
+  - Revisión del registro de actividad privilegiada
+  medible_por_plataforma: mfa_cobertura
+  correspondencias:
+  - marco: iso27001
+    id_control: A.8.2
+    nivel: anexo_a
+  - marco: tisax
+    id_control: 4.2.1
+    nivel: AL2
+  - marco: sox
+    id_control: ITGC-APD-04
+    nivel: itgc
+  - marco: jsox
+    id_control: ITGC-SEG-04
+    nivel: itgc
+- clave_comun: restriccion-acceso-informacion
+  titulo: Autorización y restricción del acceso
+  descripcion: Los sistemas aplican las autorizaciones definidas a cada usuario, proceso o dispositivo y bloquean
+    lo no autorizado.
+  dominio: accesos
+  evidencia_sugerida:
+  - Configuración de permisos
+  - Pruebas de autorización
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iso27001
+    id_control: A.8.3
+    nivel: anexo_a
+  - marco: tisax
+    id_control: 4.2.1
+    nivel: AL2
+  - marco: iec62443
+    id_control: SR 2.1
+    nivel: 3-3
+  - marco: iec62443
+    id_control: CR 2.1
+    nivel: 4-2
+- clave_comun: acceso-directo-datos-financieros
+  titulo: Acceso directo a datos y bases de datos financieras
+  descripcion: El acceso directo a bases de datos y tablas con información financiera se restringe a perfiles autorizados
+    y se supervisa.
+  dominio: informacion_financiera
+  evidencia_sugerida:
+  - Listado de accesos directos
+  - Revisión del registro de consultas y cambios
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: sox
+    id_control: ITGC-APD-07
+    nivel: itgc
+  - marco: jsox
+    id_control: ITGC-SEG-07
+    nivel: itgc
+- clave_comun: cuentas-servicio-y-dispositivos
+  titulo: Cuentas de servicio, genéricas y de dispositivos
+  descripcion: Los procesos de software y los dispositivos se identifican y autentican; las cuentas de servicio
+    y genéricas tienen responsable y uso restringido.
+  dominio: accesos
+  evidencia_sugerida:
+  - Inventario de cuentas de servicio
+  - Rotación de secretos documentada
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iec62443
+    id_control: SR 1.2
+    nivel: 3-3
+  - marco: iec62443
+    id_control: CR 1.2
+    nivel: 4-2
+  - marco: sox
+    id_control: ITGC-APD-08
+    nivel: itgc
+  - marco: jsox
+    id_control: ITGC-SEG-08
+    nivel: itgc
+- clave_comun: autenticacion-segura
+  titulo: Autenticación robusta y multifactor
+  descripcion: La autenticación es proporcional al riesgo, con multifactor para accesos remotos y privilegiados,
+    bloqueo tras intentos fallidos y sin revelar información en el proceso.
+  dominio: accesos
+  evidencia_sugerida:
+  - Informe de cobertura MFA
+  - Configuración de bloqueo
+  medible_por_plataforma: mfa_cobertura
+  correspondencias:
+  - marco: iso27001
+    id_control: A.8.5
+    nivel: anexo_a
+  - marco: tisax
+    id_control: 4.1.2
+    nivel: AL2
+  - marco: nis2
+    id_control: art.21.2.j
+    nivel: medidas
+  - marco: iec62443
+    id_control: SR 1.10
+    nivel: 3-3
+  - marco: iec62443
+    id_control: SR 1.11
+    nivel: 3-3
+  - marco: iec62443
+    id_control: CR 1.10
+    nivel: 4-2
+  - marco: iec62443
+    id_control: CR 1.11
+    nivel: 4-2
+- clave_comun: control-sesiones
+  titulo: Control de sesiones
+  descripcion: Las sesiones se bloquean por inactividad, pueden terminarse en remoto y se limita la concurrencia
+    cuando el riesgo lo exige.
+  dominio: accesos
+  evidencia_sugerida:
+  - Configuración de sesiones
+  - Prueba de bloqueo y cierre
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iec62443
+    id_control: SR 2.5
+    nivel: 3-3
+  - marco: iec62443
+    id_control: SR 2.6
+    nivel: 3-3
+  - marco: iec62443
+    id_control: SR 2.7
+    nivel: 3-3
+  - marco: iec62443
+    id_control: CR 2.5
+    nivel: 4-2
+  - marco: iec62443
+    id_control: CR 2.6
+    nivel: 4-2
+  - marco: iec62443
+    id_control: CR 2.7
+    nivel: 4-2
+- clave_comun: notificacion-uso-sistema
+  titulo: Aviso de uso del sistema
+  descripcion: Antes de acceder, el sistema muestra un aviso configurable sobre su uso autorizado.
+  dominio: accesos
+  evidencia_sugerida:
+  - Captura del aviso de acceso
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iec62443
+    id_control: SR 1.12
+    nivel: 3-3
+  - marco: iec62443
+    id_control: CR 1.12
+    nivel: 4-2
+- clave_comun: acceso-redes-no-confiables
+  titulo: Acceso desde redes no confiables
+  descripcion: El acceso desde redes no confiables (incluido el remoto a planta) se controla, se autentica con fuerza
+    y se aprueba explícitamente.
+  dominio: comunicaciones
+  evidencia_sugerida:
+  - Arquitectura de acceso remoto
+  - Registro de sesiones remotas aprobadas
+  medible_por_plataforma: mfa_cobertura
+  correspondencias:
+  - marco: iec62443
+    id_control: SR 1.13
+    nivel: 3-3
+  - marco: iec62443
+    id_control: NDR 1.13
+    nivel: 4-2
+- clave_comun: acceso-inalambrico
+  titulo: Control del acceso inalámbrico
+  descripcion: Las redes inalámbricas se autorizan, autentican y supervisan, y su uso se restringe según la zona.
+  dominio: comunicaciones
+  evidencia_sugerida:
+  - Inventario de redes inalámbricas
+  - Configuración de autenticación
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iec62443
+    id_control: SR 1.6
+    nivel: 3-3
+  - marco: iec62443
+    id_control: SR 2.2
+    nivel: 3-3
+  - marco: iec62443
+    id_control: CR 1.6
+    nivel: 4-2
+  - marco: iec62443
+    id_control: CR 2.2
+    nivel: 4-2
+- clave_comun: certificados-y-claves-publicas
+  titulo: Certificados y autenticación por clave pública
+  descripcion: Los certificados y claves públicas se emiten, validan, renuevan y revocan de forma controlada; la
+    autenticación por clave tiene fuerza suficiente.
+  dominio: criptografia
+  evidencia_sugerida:
+  - Inventario de certificados
+  - Procedimiento de renovación y revocación
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iec62443
+    id_control: SR 1.8
+    nivel: 3-3
+  - marco: iec62443
+    id_control: SR 1.9
+    nivel: 3-3
+  - marco: iec62443
+    id_control: CR 1.8
+    nivel: 4-2
+  - marco: iec62443
+    id_control: CR 1.9
+    nivel: 4-2
+  - marco: iec62443
+    id_control: CR 1.14
+    nivel: 4-2
+- clave_comun: no-repudio
+  titulo: No repudio de acciones
+  descripcion: Las acciones relevantes quedan atribuidas de forma inequívoca a quien las realizó.
+  dominio: accesos
+  evidencia_sugerida:
+  - Registro de auditoría con usuario
+  - Firma de aprobaciones
+  medible_por_plataforma: registro_auditoria_inmutable
+  correspondencias:
+  - marco: iec62443
+    id_control: SR 2.12
+    nivel: 3-3
+  - marco: iec62443
+    id_control: CR 2.12
+    nivel: 4-2
+- clave_comun: acceso-codigo-fuente
+  titulo: Acceso al código fuente
+  descripcion: El código fuente, las herramientas y las bibliotecas de desarrollo tienen acceso restringido y registrado.
+  dominio: desarrollo
+  evidencia_sugerida:
+  - Permisos del repositorio
+  - Revisión de accesos al repositorio
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iso27001
+    id_control: A.8.4
+    nivel: anexo_a
+  - marco: iec62443
+    id_control: SM-6
+    nivel: 4-1
+- clave_comun: seguridad-proveedores
+  titulo: Seguridad en la relación con proveedores
+  descripcion: Se identifican los proveedores con impacto en la seguridad, se evalúan antes de contratarlos y se
+    gestionan sus riesgos durante toda la relación.
+  dominio: proveedores
+  evidencia_sugerida:
+  - Registro de proveedores con criticidad
+  - Evaluaciones de seguridad
+  medible_por_plataforma: revision_proveedores
+  correspondencias:
+  - marco: iso27001
+    id_control: A.5.19
+    nivel: anexo_a
+  - marco: tisax
+    id_control: 6.1.1
+    nivel: AL2
+  - marco: nis2
+    id_control: art.21.2.d
+    nivel: medidas
+  - marco: iec62443
+    id_control: SPE 1
+    nivel: 2-1
+- clave_comun: acuerdos-proveedores
+  titulo: Requisitos de seguridad en contratos
+  descripcion: Los contratos con proveedores incluyen requisitos de seguridad, confidencialidad, notificación de
+    incidentes, auditoría y salida.
+  dominio: proveedores
+  evidencia_sugerida:
+  - Cláusulas tipo de seguridad
+  - Contratos firmados con anexo de seguridad
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iso27001
+    id_control: A.5.20
+    nivel: anexo_a
+  - marco: tisax
+    id_control: 1.2.4
+    nivel: AL2
+  - marco: tisax
+    id_control: 6.1.1
+    nivel: AL2
+  - marco: nis2
+    id_control: art.21.2.d
+    nivel: medidas
+- clave_comun: cadena-suministro-tic
+  titulo: Seguridad de la cadena de suministro TIC
+  descripcion: Se valoran las vulnerabilidades y prácticas de desarrollo de cada proveedor directo y de los componentes
+    de terceros incorporados.
+  dominio: proveedores
+  evidencia_sugerida:
+  - Evaluación de proveedores TIC críticos
+  - Análisis de componentes de terceros
+  medible_por_plataforma: revision_proveedores
+  correspondencias:
+  - marco: iso27001
+    id_control: A.5.21
+    nivel: anexo_a
+  - marco: nis2
+    id_control: art.21.2.d
+    nivel: medidas
+  - marco: nis2
+    id_control: art.21.3
+    nivel: medidas
+  - marco: iec62443
+    id_control: SM-9
+    nivel: 4-1
+- clave_comun: seguimiento-proveedores
+  titulo: Seguimiento de servicios de proveedores e informes de aseguramiento
+  descripcion: El servicio de los proveedores se supervisa, se revisan sus informes de aseguramiento (SOC 1/SOC
+    2, etiquetas TISAX) y se gestionan sus cambios.
+  dominio: proveedores
+  evidencia_sugerida:
+  - Revisiones periódicas de proveedores
+  - Informes SOC revisados con controles complementarios
+  medible_por_plataforma: revision_proveedores
+  correspondencias:
+  - marco: iso27001
+    id_control: A.5.22
+    nivel: anexo_a
+  - marco: tisax
+    id_control: 6.1.1
+    nivel: AL2
+  - marco: sox
+    id_control: ITGC-CO-05
+    nivel: itgc
+  - marco: jsox
+    id_control: ITGC-EXT-01
+    nivel: itgc
+- clave_comun: desarrollo-externalizado
+  titulo: Desarrollo externalizado
+  descripcion: El desarrollo encargado a terceros se dirige, supervisa y verifica con los mismos requisitos de seguridad
+    que el propio.
+  dominio: desarrollo
+  evidencia_sugerida:
+  - Requisitos de seguridad en el encargo
+  - Revisiones de entregas del tercero
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iso27001
+    id_control: A.8.30
+    nivel: anexo_a
+  - marco: iec62443
+    id_control: SM-10
+    nivel: 4-1
+- clave_comun: preparacion-gestion-incidentes
+  titulo: Preparación para la gestión de incidentes
+  descripcion: Hay un proceso de gestión de incidentes con funciones, canales, clasificación y escalado, probado
+    periódicamente.
+  dominio: incidentes
+  evidencia_sugerida:
+  - Procedimiento de incidentes
+  - Informe de simulacro
+  medible_por_plataforma: gestion_incidentes
+  correspondencias:
+  - marco: iso27001
+    id_control: A.5.24
+    nivel: anexo_a
+  - marco: tisax
+    id_control: 1.6.1
+    nivel: AL2
+  - marco: nis2
+    id_control: art.21.2.b
+    nivel: medidas
+  - marco: iec62443
+    id_control: SPE 7
+    nivel: 2-1
+- clave_comun: evaluacion-eventos
+  titulo: Evaluación y clasificación de eventos
+  descripcion: Los eventos se evalúan con criterios definidos para decidir si son incidentes y si son significativos
+    a efectos regulatorios.
+  dominio: incidentes
+  evidencia_sugerida:
+  - Criterios de clasificación
+  - Registro de decisiones de clasificación
+  medible_por_plataforma: gestion_incidentes
+  correspondencias:
+  - marco: iso27001
+    id_control: A.5.25
+    nivel: anexo_a
+  - marco: tisax
+    id_control: 1.6.2
+    nivel: AL2
+  - marco: nis2
+    id_control: art.23.3
+    nivel: notificacion
+- clave_comun: respuesta-incidentes
+  titulo: Respuesta a incidentes
+  descripcion: Los incidentes se contienen, erradican y recuperan según procedimientos, con coordinación de las
+    partes implicadas.
+  dominio: incidentes
+  evidencia_sugerida:
+  - Tickets de incidentes con cronología
+  - Informes de cierre
+  medible_por_plataforma: gestion_incidentes
+  correspondencias:
+  - marco: iso27001
+    id_control: A.5.26
+    nivel: anexo_a
+  - marco: tisax
+    id_control: 1.6.2
+    nivel: AL2
+  - marco: nis2
+    id_control: art.21.2.b
+    nivel: medidas
+- clave_comun: lecciones-incidentes
+  titulo: Aprendizaje de los incidentes
+  descripcion: Tras cada incidente relevante se analizan causas y se incorporan mejoras a controles y procedimientos.
+  dominio: incidentes
+  evidencia_sugerida:
+  - Informes post-incidente
+  - Acciones de mejora derivadas
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iso27001
+    id_control: A.5.27
+    nivel: anexo_a
+  - marco: tisax
+    id_control: 1.6.2
+    nivel: AL2
+- clave_comun: recogida-evidencias
+  titulo: Recogida y custodia de evidencias
+  descripcion: Las evidencias de incidentes se recogen y custodian de forma que conserven su valor probatorio.
+  dominio: incidentes
+  evidencia_sugerida:
+  - Procedimiento forense
+  - Registros de cadena de custodia
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iso27001
+    id_control: A.5.28
+    nivel: anexo_a
+- clave_comun: notificacion-eventos
+  titulo: Comunicación de eventos por el personal
+  descripcion: Cualquier persona puede comunicar sin demora eventos de seguridad por canales conocidos y sencillos.
+  dominio: incidentes
+  evidencia_sugerida:
+  - Canal de comunicación publicado
+  - Estadística de comunicaciones recibidas
+  medible_por_plataforma: gestion_incidentes
+  correspondencias:
+  - marco: iso27001
+    id_control: A.6.8
+    nivel: anexo_a
+  - marco: tisax
+    id_control: 1.6.1
+    nivel: AL2
+- clave_comun: notificacion-incidentes-significativos
+  titulo: Notificación de incidentes significativos
+  descripcion: Los incidentes con impacto significativo en los servicios se notifican sin demora indebida al CSIRT
+    o a la autoridad competente, siguiendo un flujo con responsables.
+  dominio: incidentes
+  evidencia_sugerida:
+  - Flujo de notificación aprobado
+  - Registro de notificaciones enviadas
+  medible_por_plataforma: gestion_incidentes
+  correspondencias:
+  - marco: nis2
+    id_control: art.23.1
+    nivel: notificacion
+  - marco: nis2
+    id_control: art.23.3
+    nivel: notificacion
+- clave_comun: alerta-temprana-24h
+  titulo: Alerta temprana en 24 horas
+  descripcion: En las 24 horas siguientes a tener conocimiento de un incidente significativo se envía una alerta
+    temprana indicando si se sospecha de un acto ilícito o de efecto transfronterizo.
+  dominio: incidentes
+  evidencia_sugerida:
+  - Alertas tempranas con sello de tiempo
+  - Medición del plazo
+  medible_por_plataforma: gestion_incidentes
+  correspondencias:
+  - marco: nis2
+    id_control: art.23.4.a
+    nivel: notificacion
+- clave_comun: notificacion-incidente-72h
+  titulo: Notificación del incidente en 72 horas
+  descripcion: En las 72 horas siguientes se actualiza la alerta con una evaluación inicial de gravedad, impacto
+    e indicadores de compromiso.
+  dominio: incidentes
+  evidencia_sugerida:
+  - Notificaciones a 72 h
+  - Medición del plazo
+  medible_por_plataforma: gestion_incidentes
+  correspondencias:
+  - marco: nis2
+    id_control: art.23.4.b
+    nivel: notificacion
+- clave_comun: informe-intermedio-incidente
+  titulo: Informe intermedio a petición
+  descripcion: Si la autoridad lo solicita, se remite un informe intermedio con la evolución del incidente.
+  dominio: incidentes
+  evidencia_sugerida:
+  - Informes intermedios remitidos
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: nis2
+    id_control: art.23.4.c
+    nivel: notificacion
+- clave_comun: informe-final-incidente
+  titulo: Informe final en un mes
+  descripcion: En el mes siguiente a la notificación se remite un informe final con descripción, causa, medidas
+    y efecto transfronterizo, o un informe de situación si el incidente sigue en curso.
+  dominio: incidentes
+  evidencia_sugerida:
+  - Informes finales y de situación
+  - Medición del plazo
+  medible_por_plataforma: gestion_incidentes
+  correspondencias:
+  - marco: nis2
+    id_control: art.23.4.d
+    nivel: notificacion
+  - marco: nis2
+    id_control: art.23.4.e
+    nivel: notificacion
+- clave_comun: comunicacion-destinatarios-servicio
+  titulo: Comunicación a los destinatarios del servicio
+  descripcion: Cuando procede, se informa a los destinatarios afectados del incidente o de una amenaza significativa
+    y de las medidas que pueden adoptar.
+  dominio: incidentes
+  evidencia_sugerida:
+  - Comunicaciones a clientes
+  - Criterios de comunicación
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: nis2
+    id_control: art.23.1
+    nivel: notificacion
+  - marco: nis2
+    id_control: art.23.2
+    nivel: notificacion
+- clave_comun: clasificacion-registro-entidad-nis2
+  titulo: Clasificación y registro como entidad NIS2
+  descripcion: Se determina si la organización es entidad esencial o importante en cada Estado miembro y se facilita
+    la información de registro a la autoridad.
+  dominio: cumplimiento
+  evidencia_sugerida:
+  - Análisis de clasificación por país
+  - Justificante de registro
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: nis2
+    id_control: art.3
+    nivel: registro
+  - marco: nis2
+    id_control: art.27
+    nivel: registro
+- clave_comun: comunicaciones-seguras-emergencia
+  titulo: Comunicaciones seguras y de emergencia
+  descripcion: Se usan comunicaciones de voz, vídeo y texto seguras y existe un sistema de comunicación de emergencia
+    para crisis.
+  dominio: comunicaciones
+  evidencia_sugerida:
+  - Herramientas aprobadas
+  - Prueba del canal de emergencia
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: nis2
+    id_control: art.21.2.j
+    nivel: medidas
+- clave_comun: seguridad-durante-interrupcion
+  titulo: Seguridad durante una interrupción
+  descripcion: Los planes de continuidad mantienen el nivel de seguridad necesario también durante una crisis o
+    interrupción.
+  dominio: continuidad
+  evidencia_sugerida:
+  - Planes con requisitos de seguridad
+  - Informe de ejercicio
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iso27001
+    id_control: A.5.29
+    nivel: anexo_a
+  - marco: nis2
+    id_control: art.21.2.c
+    nivel: medidas
+- clave_comun: gestion-crisis
+  titulo: Gestión de crisis
+  descripcion: Existe un comité y un plan de crisis con funciones, comunicación y criterios de activación, probado
+    al menos una vez al año.
+  dominio: continuidad
+  evidencia_sugerida:
+  - Plan de crisis
+  - Informe del ejercicio de crisis
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: tisax
+    id_control: 1.6.3
+    nivel: AL2
+  - marco: nis2
+    id_control: art.21.2.c
+    nivel: medidas
+- clave_comun: preparacion-tic-continuidad
+  titulo: Continuidad y recuperación de TI y OT
+  descripcion: La disponibilidad de la TI y de los sistemas de control se planifica, implanta y prueba según los
+    objetivos de recuperación del negocio.
+  dominio: continuidad
+  evidencia_sugerida:
+  - Análisis de impacto (BIA)
+  - Pruebas de recuperación con RTO/RPO medidos
+  medible_por_plataforma: copias_seguridad
+  correspondencias:
+  - marco: iso27001
+    id_control: A.5.30
+    nivel: anexo_a
+  - marco: tisax
+    id_control: 5.2.8
+    nivel: AL2
+  - marco: nis2
+    id_control: art.21.2.c
+    nivel: medidas
+  - marco: iec62443
+    id_control: SR 7.4
+    nivel: 3-3
+  - marco: iec62443
+    id_control: CR 7.4
+    nivel: 4-2
+  - marco: iec62443
+    id_control: SPE 8
+    nivel: 2-1
+  - marco: sox
+    id_control: ITGC-CO-04
+    nivel: itgc
+  - marco: jsox
+    id_control: ITGC-OPE-04
+    nivel: itgc
+- clave_comun: copias-seguridad
+  titulo: Copias de seguridad y restauración
+  descripcion: Se hacen copias de información, software y configuraciones según una política, se protegen y se prueba
+    su restauración.
+  dominio: continuidad
+  evidencia_sugerida:
+  - Informe de ejecución de copias
+  - Pruebas de restauración
+  medible_por_plataforma: copias_seguridad
+  correspondencias:
+  - marco: iso27001
+    id_control: A.8.13
+    nivel: anexo_a
+  - marco: tisax
+    id_control: 5.2.9
+    nivel: AL2
+  - marco: nis2
+    id_control: art.21.2.c
+    nivel: medidas
+  - marco: iec62443
+    id_control: SR 7.3
+    nivel: 3-3
+  - marco: iec62443
+    id_control: CR 7.3
+    nivel: 4-2
+  - marco: sox
+    id_control: ITGC-CO-03
+    nivel: itgc
+  - marco: jsox
+    id_control: ITGC-OPE-03
+    nivel: itgc
+- clave_comun: redundancia
+  titulo: Redundancia de instalaciones de tratamiento
+  descripcion: Los sistemas críticos tienen redundancia suficiente para cumplir los requisitos de disponibilidad.
+  dominio: continuidad
+  evidencia_sugerida:
+  - Arquitectura de alta disponibilidad
+  - Pruebas de conmutación
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iso27001
+    id_control: A.8.14
+    nivel: anexo_a
+  - marco: tisax
+    id_control: 5.2.8
+    nivel: AL2
+- clave_comun: suministros-apoyo
+  titulo: Suministros de apoyo y alimentación de emergencia
+  descripcion: Los equipos están protegidos frente a fallos de electricidad y otros suministros, con alimentación
+    de emergencia donde sea crítica.
+  dominio: fisica
+  evidencia_sugerida:
+  - Mantenimiento de SAI y grupos
+  - Pruebas de alimentación de emergencia
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iso27001
+    id_control: A.7.11
+    nivel: anexo_a
+  - marco: iec62443
+    id_control: SR 7.5
+    nivel: 3-3
+- clave_comun: requisitos-legales
+  titulo: Requisitos legales, reglamentarios y contractuales
+  descripcion: Se identifican, documentan y mantienen al día los requisitos legales y contractuales de seguridad
+    aplicables en cada país.
+  dominio: cumplimiento
+  evidencia_sugerida:
+  - Registro de requisitos legales
+  - Revisión anual
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iso27001
+    id_control: A.5.31
+    nivel: anexo_a
+  - marco: tisax
+    id_control: 7.1.1
+    nivel: AL2
+- clave_comun: propiedad-intelectual
+  titulo: Derechos de propiedad intelectual
+  descripcion: Se protege la propiedad intelectual propia y se respetan las licencias de software y contenidos de
+    terceros.
+  dominio: cumplimiento
+  evidencia_sugerida:
+  - Inventario de licencias
+  - Revisión de cumplimiento de licencias
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iso27001
+    id_control: A.5.32
+    nivel: anexo_a
+- clave_comun: proteccion-registros
+  titulo: Protección y conservación de registros
+  descripcion: Los registros se protegen contra pérdida, destrucción, falsificación y acceso indebido, y se conservan
+    los plazos legales, con bloqueo legal cuando procede.
+  dominio: cumplimiento
+  evidencia_sugerida:
+  - Calendario de retención
+  - Registros de bloqueo legal
+  medible_por_plataforma: retencion_datos
+  correspondencias:
+  - marco: iso27001
+    id_control: A.5.33
+    nivel: anexo_a
+  - marco: sox
+    id_control: Sec.802
+    nivel: ley
+  - marco: jsox
+    id_control: FIEA-24-4-4
+    nivel: ley
+- clave_comun: privacidad-datos-personales
+  titulo: Privacidad y protección de datos personales
+  descripcion: Los datos personales se tratan conforme al RGPD y demás normas aplicables, con registro de actividades
+    y medidas adecuadas.
+  dominio: cumplimiento
+  evidencia_sugerida:
+  - Registro de actividades de tratamiento
+  - Evaluaciones de impacto
+  medible_por_plataforma: retencion_datos
+  correspondencias:
+  - marco: iso27001
+    id_control: A.5.34
+    nivel: anexo_a
+  - marco: tisax
+    id_control: 7.1.2
+    nivel: AL2
+- clave_comun: revision-independiente
+  titulo: Revisión independiente de la seguridad
+  descripcion: La gestión de la seguridad se revisa de forma independiente a intervalos planificados o cuando hay
+    cambios importantes.
+  dominio: gobierno
+  evidencia_sugerida:
+  - Informe de revisión independiente
+  - Plan de acción
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iso27001
+    id_control: A.5.35
+    nivel: anexo_a
+  - marco: tisax
+    id_control: 1.5.2
+    nivel: AL2
+- clave_comun: cumplimiento-politicas
+  titulo: Comprobación del cumplimiento de políticas y normas
+  descripcion: Los responsables comprueban regularmente que se cumplen las políticas, normas y requisitos técnicos
+    en su ámbito.
+  dominio: gobierno
+  evidencia_sugerida:
+  - Informes de comprobación
+  - Desviaciones y acciones
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iso27001
+    id_control: A.5.36
+    nivel: anexo_a
+  - marco: tisax
+    id_control: 1.5.1
+    nivel: AL2
+  - marco: nis2
+    id_control: art.21.2.f
+    nivel: medidas
+- clave_comun: procedimientos-operacion
+  titulo: Procedimientos de operación documentados
+  descripcion: Las operaciones de TI y OT están documentadas y disponibles para quien las necesita, incluidas guías
+    de operación segura del producto.
+  dominio: operaciones
+  evidencia_sugerida:
+  - Manuales de operación
+  - Guía de operación segura del producto
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iso27001
+    id_control: A.5.37
+    nivel: anexo_a
+  - marco: iec62443
+    id_control: SG-5
+    nivel: 4-1
+- clave_comun: verificacion-antecedentes
+  titulo: Verificación de antecedentes
+  descripcion: Se comprueban los antecedentes de candidatos de forma proporcionada al puesto y a la legislación
+    local.
+  dominio: personas
+  evidencia_sugerida:
+  - Procedimiento de verificación
+  - Registros de verificación
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iso27001
+    id_control: A.6.1
+    nivel: anexo_a
+  - marco: tisax
+    id_control: 2.1.1
+    nivel: AL2
+  - marco: nis2
+    id_control: art.21.2.i
+    nivel: medidas
+- clave_comun: condiciones-contratacion
+  titulo: Obligaciones de seguridad en el contrato
+  descripcion: Los contratos y normas internas recogen las responsabilidades de seguridad del personal y de los
+    colaboradores.
+  dominio: personas
+  evidencia_sugerida:
+  - Cláusulas de seguridad en contratos
+  - Aceptación de normas internas
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iso27001
+    id_control: A.6.2
+    nivel: anexo_a
+  - marco: tisax
+    id_control: 2.1.2
+    nivel: AL2
+- clave_comun: formacion-concienciacion
+  titulo: Formación y concienciación
+  descripcion: Todo el personal recibe concienciación periódica y formación específica según su función, incluidas
+    prácticas básicas de ciberhigiene.
+  dominio: personas
+  evidencia_sugerida:
+  - Plan anual de formación
+  - Registros de asistencia y resultados
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iso27001
+    id_control: '7.3'
+    nivel: clausulas
+  - marco: iso27001
+    id_control: A.6.3
+    nivel: anexo_a
+  - marco: tisax
+    id_control: 2.1.3
+    nivel: AL2
+  - marco: nis2
+    id_control: art.21.2.g
+    nivel: medidas
+  - marco: iec62443
+    id_control: SPE 1
+    nivel: 2-1
+- clave_comun: proceso-disciplinario
+  titulo: Proceso disciplinario
+  descripcion: Hay un proceso disciplinario conocido para incumplimientos de la política de seguridad.
+  dominio: personas
+  evidencia_sugerida:
+  - Procedimiento disciplinario
+  - Comunicación al personal
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iso27001
+    id_control: A.6.4
+    nivel: anexo_a
+- clave_comun: obligaciones-tras-baja
+  titulo: Obligaciones tras la baja o el cambio
+  descripcion: Las obligaciones de seguridad que siguen vigentes tras la baja o el cambio de puesto se comunican
+    y se exigen.
+  dominio: personas
+  evidencia_sugerida:
+  - Comunicación de salida firmada
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iso27001
+    id_control: A.6.5
+    nivel: anexo_a
+  - marco: tisax
+    id_control: 2.1.2
+    nivel: AL2
+- clave_comun: acuerdos-confidencialidad
+  titulo: Acuerdos de confidencialidad
+  descripcion: Se firman acuerdos de confidencialidad acordes con la información a la que se accede y se revisan
+    periódicamente.
+  dominio: personas
+  evidencia_sugerida:
+  - Modelos de NDA
+  - Registro de NDA firmados
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iso27001
+    id_control: A.6.6
+    nivel: anexo_a
+  - marco: tisax
+    id_control: 6.1.2
+    nivel: AL2
+- clave_comun: teletrabajo
+  titulo: Teletrabajo y trabajo móvil
+  descripcion: El trabajo fuera de las instalaciones sigue normas que protegen la información y los equipos.
+  dominio: personas
+  evidencia_sugerida:
+  - Normas de teletrabajo
+  - Configuración de equipos remotos
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iso27001
+    id_control: A.6.7
+    nivel: anexo_a
+  - marco: tisax
+    id_control: 2.1.4
+    nivel: AL2
+- clave_comun: perimetros-fisicos
+  titulo: Perímetros de seguridad física
+  descripcion: Se definen zonas de seguridad con perímetros adecuados a la información y los equipos que protegen.
+  dominio: fisica
+  evidencia_sugerida:
+  - Plano de zonas de seguridad
+  - Inspección del perímetro
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iso27001
+    id_control: A.7.1
+    nivel: anexo_a
+  - marco: tisax
+    id_control: 3.1.1
+    nivel: AL2
+- clave_comun: control-acceso-fisico
+  titulo: Control de entrada física
+  descripcion: La entrada a las zonas protegidas se controla y registra; los visitantes se identifican y acompañan.
+  dominio: fisica
+  evidencia_sugerida:
+  - Registros de acceso físico
+  - Revisión de tarjetas activas
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iso27001
+    id_control: A.7.2
+    nivel: anexo_a
+  - marco: tisax
+    id_control: 3.1.1
+    nivel: AL2
+- clave_comun: seguridad-oficinas-salas
+  titulo: Seguridad de oficinas, salas e instalaciones
+  descripcion: Las oficinas, salas técnicas e instalaciones se protegen según la información que contienen.
+  dominio: fisica
+  evidencia_sugerida:
+  - Inspecciones de seguridad física
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iso27001
+    id_control: A.7.3
+    nivel: anexo_a
+  - marco: tisax
+    id_control: 3.1.1
+    nivel: AL2
+- clave_comun: vigilancia-fisica
+  titulo: Vigilancia de la seguridad física
+  descripcion: Las instalaciones se supervisan de forma continua para detectar accesos no autorizados.
+  dominio: fisica
+  evidencia_sugerida:
+  - Sistema de vídeo y alarmas
+  - Registro de alarmas atendidas
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iso27001
+    id_control: A.7.4
+    nivel: anexo_a
+  - marco: tisax
+    id_control: 3.1.1
+    nivel: AL2
+- clave_comun: amenazas-fisicas-ambientales
+  titulo: Protección frente a amenazas físicas y ambientales
+  descripcion: Se protegen las instalaciones frente a incendio, inundación, temperatura y otras amenazas físicas
+    o ambientales.
+  dominio: fisica
+  evidencia_sugerida:
+  - Análisis de amenazas físicas
+  - Mantenimiento de protecciones
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iso27001
+    id_control: A.7.5
+    nivel: anexo_a
+- clave_comun: trabajo-areas-seguras
+  titulo: Trabajo en zonas seguras
+  descripcion: Hay normas específicas para trabajar en zonas seguras.
+  dominio: fisica
+  evidencia_sugerida:
+  - Normas de zonas seguras
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iso27001
+    id_control: A.7.6
+    nivel: anexo_a
+  - marco: tisax
+    id_control: 3.1.1
+    nivel: AL2
+- clave_comun: mesa-pantalla-limpias
+  titulo: Puesto despejado y pantalla bloqueada
+  descripcion: Se aplica una norma de mesa limpia y bloqueo de pantalla en puestos y salas.
+  dominio: fisica
+  evidencia_sugerida:
+  - Norma publicada
+  - Rondas de comprobación
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iso27001
+    id_control: A.7.7
+    nivel: anexo_a
+- clave_comun: ubicacion-equipos
+  titulo: Ubicación y protección de equipos
+  descripcion: Los equipos se ubican y protegen para reducir riesgos físicos y de acceso no autorizado.
+  dominio: fisica
+  evidencia_sugerida:
+  - Inspecciones de salas técnicas
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iso27001
+    id_control: A.7.8
+    nivel: anexo_a
+- clave_comun: activos-fuera-instalaciones
+  titulo: Activos fuera de las instalaciones
+  descripcion: Los equipos y la información fuera de las instalaciones se protegen teniendo en cuenta sus riesgos.
+  dominio: fisica
+  evidencia_sugerida:
+  - Normas de equipos móviles
+  - Inventario de equipos asignados
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iso27001
+    id_control: A.7.9
+    nivel: anexo_a
+  - marco: tisax
+    id_control: 3.1.4
+    nivel: AL2
+- clave_comun: soportes-almacenamiento
+  titulo: Soportes de almacenamiento
+  descripcion: 'Los soportes se gestionan durante todo su ciclo de vida: uso, transporte, almacenamiento y destrucción.'
+  dominio: fisica
+  evidencia_sugerida:
+  - Normas de soportes
+  - Registro de soportes extraíbles
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iso27001
+    id_control: A.7.10
+    nivel: anexo_a
+  - marco: tisax
+    id_control: 3.1.3
+    nivel: AL2
+  - marco: tisax
+    id_control: 3.1.4
+    nivel: AL2
+- clave_comun: seguridad-cableado
+  titulo: Seguridad del cableado
+  descripcion: El cableado de energía y datos se protege frente a interceptación, interferencia y daños.
+  dominio: fisica
+  evidencia_sugerida:
+  - Inspección de cableado
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iso27001
+    id_control: A.7.12
+    nivel: anexo_a
+- clave_comun: mantenimiento-equipos
+  titulo: Mantenimiento de equipos
+  descripcion: Los equipos se mantienen de forma que conserven su disponibilidad, integridad y confidencialidad.
+  dominio: fisica
+  evidencia_sugerida:
+  - Plan de mantenimiento
+  - Registros de intervenciones
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iso27001
+    id_control: A.7.13
+    nivel: anexo_a
+  - marco: tisax
+    id_control: 3.1.3
+    nivel: AL2
+- clave_comun: eliminacion-segura-equipos
+  titulo: Eliminación o reutilización segura de equipos
+  descripcion: Antes de eliminar o reutilizar un equipo se borra o destruye de forma segura la información; el producto
+    incluye instrucciones de retirada segura.
+  dominio: fisica
+  evidencia_sugerida:
+  - Certificados de destrucción
+  - Guía de retirada segura del producto
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iso27001
+    id_control: A.7.14
+    nivel: anexo_a
+  - marco: tisax
+    id_control: 3.1.3
+    nivel: AL2
+  - marco: iec62443
+    id_control: SG-4
+    nivel: 4-1
+- clave_comun: dispositivos-usuario
+  titulo: Dispositivos de usuario y móviles
+  descripcion: Los dispositivos finales y móviles se configuran, gestionan y protegen de forma centralizada.
+  dominio: operaciones
+  evidencia_sugerida:
+  - Informe de la herramienta de gestión de dispositivos
+  - Política de dispositivos
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iso27001
+    id_control: A.8.1
+    nivel: anexo_a
+  - marco: tisax
+    id_control: 3.1.4
+    nivel: AL2
+  - marco: iec62443
+    id_control: SR 2.3
+    nivel: 3-3
+- clave_comun: gestion-capacidad
+  titulo: Capacidad y gestión de recursos
+  descripcion: Se vigila y ajusta la capacidad de sistemas y almacenamiento de registros para evitar degradaciones.
+  dominio: operaciones
+  evidencia_sugerida:
+  - Informes de capacidad
+  - Umbrales y alertas
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iso27001
+    id_control: A.8.6
+    nivel: anexo_a
+  - marco: iec62443
+    id_control: SR 7.2
+    nivel: 3-3
+  - marco: iec62443
+    id_control: CR 7.2
+    nivel: 4-2
+  - marco: iec62443
+    id_control: SR 2.9
+    nivel: 3-3
+  - marco: iec62443
+    id_control: CR 2.9
+    nivel: 4-2
+- clave_comun: proteccion-malware
+  titulo: Protección contra código malicioso
+  descripcion: Se previene, detecta y corrige el código malicioso en TI y OT con herramientas adecuadas a cada entorno
+    y concienciación del usuario.
+  dominio: operaciones
+  evidencia_sugerida:
+  - Cobertura del antimalware
+  - Listas blancas en OT
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iso27001
+    id_control: A.8.7
+    nivel: anexo_a
+  - marco: tisax
+    id_control: 5.2.3
+    nivel: AL2
+  - marco: iec62443
+    id_control: SR 3.2
+    nivel: 3-3
+  - marco: iec62443
+    id_control: EDR 3.2
+    nivel: 4-2
+  - marco: iec62443
+    id_control: HDR 3.2
+    nivel: 4-2
+  - marco: iec62443
+    id_control: NDR 3.2
+    nivel: 4-2
+  - marco: iec62443
+    id_control: SAR 3.2
+    nivel: 4-2
+  - marco: iec62443
+    id_control: SPE 4
+    nivel: 2-1
+- clave_comun: codigo-movil
+  titulo: Control del código móvil
+  descripcion: Se restringe y controla la ejecución de código móvil (scripts, macros, applets) según el riesgo de
+    la zona.
+  dominio: operaciones
+  evidencia_sugerida:
+  - Configuración de restricciones de scripts
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iec62443
+    id_control: SR 2.4
+    nivel: 3-3
+  - marco: iec62443
+    id_control: SAR 2.4
+    nivel: 4-2
+  - marco: iec62443
+    id_control: EDR 2.4
+    nivel: 4-2
+  - marco: iec62443
+    id_control: HDR 2.4
+    nivel: 4-2
+  - marco: iec62443
+    id_control: NDR 2.4
+    nivel: 4-2
+- clave_comun: gestion-vulnerabilidades-tecnicas
+  titulo: Gestión de vulnerabilidades técnicas
+  descripcion: Se identifican, valoran y corrigen las vulnerabilidades técnicas en plazos definidos según su gravedad,
+    incluidas las de OT con su ventana de mantenimiento.
+  dominio: operaciones
+  evidencia_sugerida:
+  - Informe de escaneos
+  - Cumplimiento de plazos de parcheo
+  medible_por_plataforma: gestion_vulnerabilidades
+  correspondencias:
+  - marco: iso27001
+    id_control: A.8.8
+    nivel: anexo_a
+  - marco: tisax
+    id_control: 5.2.5
+    nivel: AL2
+  - marco: nis2
+    id_control: art.21.2.e
+    nivel: medidas
+  - marco: iec62443
+    id_control: SPE 4
+    nivel: 2-1
+  - marco: iec62443
+    id_control: SPE 8
+    nivel: 2-1
+- clave_comun: gestion-configuracion
+  titulo: Gestión de la configuración
+  descripcion: Las configuraciones de seguridad de sistemas, redes y aplicaciones financieras se establecen, documentan,
+    supervisan y revisan.
+  dominio: operaciones
+  evidencia_sugerida:
+  - Líneas base de configuración
+  - Informe de desviaciones
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iso27001
+    id_control: A.8.9
+    nivel: anexo_a
+  - marco: iec62443
+    id_control: SR 7.6
+    nivel: 3-3
+  - marco: iec62443
+    id_control: CR 7.6
+    nivel: 4-2
+  - marco: iec62443
+    id_control: SPE 2
+    nivel: 2-1
+  - marco: sox
+    id_control: ITGC-PC-06
+    nivel: itgc
+  - marco: jsox
+    id_control: ITGC-DES-06
+    nivel: itgc
+- clave_comun: minima-funcionalidad
+  titulo: Mínima funcionalidad y bastionado
+  descripcion: Se desactivan funciones, puertos, servicios y protocolos innecesarios.
+  dominio: operaciones
+  evidencia_sugerida:
+  - Guías de bastionado aplicadas
+  - Escaneo de puertos y servicios
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iec62443
+    id_control: SR 7.7
+    nivel: 3-3
+  - marco: iec62443
+    id_control: CR 7.7
+    nivel: 4-2
+- clave_comun: borrado-informacion
+  titulo: Borrado de información y persistencia
+  descripcion: La información que ya no se necesita se borra de forma segura en sistemas, dispositivos y servicios
+    externos.
+  dominio: operaciones
+  evidencia_sugerida:
+  - Registros de borrado
+  - Procedimiento de borrado seguro
+  medible_por_plataforma: retencion_datos
+  correspondencias:
+  - marco: iso27001
+    id_control: A.8.10
+    nivel: anexo_a
+  - marco: tisax
+    id_control: 5.3.3
+    nivel: AL2
+  - marco: iec62443
+    id_control: SR 4.2
+    nivel: 3-3
+  - marco: iec62443
+    id_control: CR 4.2
+    nivel: 4-2
+- clave_comun: enmascaramiento-datos
+  titulo: Enmascaramiento de datos
+  descripcion: Los datos sensibles se enmascaran, seudonimizan o anonimizan cuando el uso no requiere verlos.
+  dominio: operaciones
+  evidencia_sugerida:
+  - Reglas de enmascaramiento
+  - Muestras de datos enmascarados
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iso27001
+    id_control: A.8.11
+    nivel: anexo_a
+- clave_comun: prevencion-fuga-datos
+  titulo: Prevención de fuga de datos
+  descripcion: Se aplican medidas para detectar y evitar la salida no autorizada de información sensible.
+  dominio: operaciones
+  evidencia_sugerida:
+  - Reglas de prevención de fuga
+  - Alertas tratadas
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iso27001
+    id_control: A.8.12
+    nivel: anexo_a
+- clave_comun: registro-eventos
+  titulo: Registro de eventos
+  descripcion: Se generan, almacenan y protegen registros de actividades, excepciones y eventos de seguridad, accesibles
+    para su análisis y con respuesta ante fallos del registro.
+  dominio: operaciones
+  evidencia_sugerida:
+  - Política de registros
+  - Muestra de registros
+  medible_por_plataforma: registro_auditoria_inmutable
+  correspondencias:
+  - marco: iso27001
+    id_control: A.8.15
+    nivel: anexo_a
+  - marco: tisax
+    id_control: 5.2.4
+    nivel: AL2
+  - marco: iec62443
+    id_control: SR 2.8
+    nivel: 3-3
+  - marco: iec62443
+    id_control: SR 2.10
+    nivel: 3-3
+  - marco: iec62443
+    id_control: SR 6.1
+    nivel: 3-3
+  - marco: iec62443
+    id_control: CR 2.8
+    nivel: 4-2
+  - marco: iec62443
+    id_control: CR 2.10
+    nivel: 4-2
+  - marco: iec62443
+    id_control: CR 6.1
+    nivel: 4-2
+- clave_comun: integridad-registros-auditoria
+  titulo: Integridad del registro de auditoría
+  descripcion: El registro de auditoría es inalterable y se protege frente a modificación y borrado; cualquier manipulación
+    es detectable.
+  dominio: operaciones
+  evidencia_sugerida:
+  - Verificación de la cadena de huellas
+  - Permisos sobre el registro
+  medible_por_plataforma: registro_auditoria_inmutable
+  correspondencias:
+  - marco: iso27001
+    id_control: A.8.15
+    nivel: anexo_a
+  - marco: iec62443
+    id_control: SR 3.9
+    nivel: 3-3
+  - marco: iec62443
+    id_control: CR 3.9
+    nivel: 4-2
+- clave_comun: monitorizacion
+  titulo: Supervisión continua
+  descripcion: Redes, sistemas y aplicaciones se supervisan para detectar comportamientos anómalos y actuar.
+  dominio: operaciones
+  evidencia_sugerida:
+  - Casos de uso del SOC/SIEM
+  - Alertas tratadas
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iso27001
+    id_control: A.8.16
+    nivel: anexo_a
+  - marco: tisax
+    id_control: 5.2.4
+    nivel: AL2
+  - marco: nis2
+    id_control: art.21.2.b
+    nivel: medidas
+  - marco: iec62443
+    id_control: SR 6.2
+    nivel: 3-3
+  - marco: iec62443
+    id_control: CR 6.2
+    nivel: 4-2
+- clave_comun: sincronizacion-relojes
+  titulo: Sincronización de relojes
+  descripcion: Los relojes de los sistemas se sincronizan con fuentes aprobadas para que las marcas de tiempo sean
+    fiables.
+  dominio: operaciones
+  evidencia_sugerida:
+  - Configuración NTP/PTP
+  - Comprobación de deriva
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iso27001
+    id_control: A.8.17
+    nivel: anexo_a
+  - marco: iec62443
+    id_control: SR 2.11
+    nivel: 3-3
+  - marco: iec62443
+    id_control: CR 2.11
+    nivel: 4-2
+- clave_comun: utilidades-privilegiadas
+  titulo: Programas de utilidad privilegiados
+  descripcion: Las utilidades capaces de saltarse controles se restringen y su uso se controla.
+  dominio: operaciones
+  evidencia_sugerida:
+  - Inventario de utilidades
+  - Permisos restringidos
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iso27001
+    id_control: A.8.18
+    nivel: anexo_a
+- clave_comun: planificacion-supervision-procesos-lote
+  titulo: Planificación y supervisión de procesos por lotes
+  descripcion: Los procesos programados que afectan a la información financiera se planifican, autorizan y supervisan,
+    y sus fallos se resuelven y documentan.
+  dominio: operaciones
+  evidencia_sugerida:
+  - Calendario de trabajos
+  - Registro de fallos y resolución
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: sox
+    id_control: ITGC-CO-01
+    nivel: itgc
+  - marco: jsox
+    id_control: ITGC-OPE-01
+    nivel: itgc
+- clave_comun: incidencias-operacion-ti
+  titulo: Incidencias de operación de TI
+  descripcion: Las incidencias de operación que afectan a sistemas financieros se registran, priorizan y resuelven
+    con trazabilidad.
+  dominio: operaciones
+  evidencia_sugerida:
+  - Tickets de incidencias
+  - Informe de SLA
+  medible_por_plataforma: gestion_incidentes
+  correspondencias:
+  - marco: sox
+    id_control: ITGC-CO-02
+    nivel: itgc
+  - marco: jsox
+    id_control: ITGC-OPE-02
+    nivel: itgc
+- clave_comun: proteccion-pruebas-auditoria
+  titulo: Protección de los sistemas durante auditorías técnicas
+  descripcion: Las pruebas de auditoría sobre sistemas en producción se planifican y acotan para no afectar a la
+    operación.
+  dominio: operaciones
+  evidencia_sugerida:
+  - Plan de pruebas aprobado
+  - Informe de auditoría técnica
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iso27001
+    id_control: A.8.34
+    nivel: anexo_a
+  - marco: tisax
+    id_control: 5.2.6
+    nivel: AL2
+- clave_comun: seguridad-redes
+  titulo: Seguridad de las redes
+  descripcion: Las redes y sus dispositivos se gestionan y protegen para salvaguardar la información en sistemas
+    y aplicaciones.
+  dominio: comunicaciones
+  evidencia_sugerida:
+  - Diagrama de red
+  - Configuración de dispositivos de red
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iso27001
+    id_control: A.8.20
+    nivel: anexo_a
+  - marco: tisax
+    id_control: 5.2.7
+    nivel: AL2
+  - marco: iec62443
+    id_control: SPE 3
+    nivel: 2-1
+- clave_comun: servicios-red
+  titulo: Seguridad de los servicios de red
+  descripcion: Se definen y supervisan los mecanismos de seguridad y niveles de servicio de los servicios de red,
+    propios o contratados.
+  dominio: comunicaciones
+  evidencia_sugerida:
+  - Acuerdos de servicio de red
+  - Revisión de cumplimiento
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iso27001
+    id_control: A.8.21
+    nivel: anexo_a
+  - marco: tisax
+    id_control: 5.3.2
+    nivel: AL2
+- clave_comun: segmentacion-redes
+  titulo: Segmentación de redes y protección de fronteras
+  descripcion: Las redes se separan por grupos de servicios, usuarios y sistemas; las fronteras entre zonas se protegen
+    y supervisan.
+  dominio: comunicaciones
+  evidencia_sugerida:
+  - Diagrama de segmentación
+  - Reglas de cortafuegos revisadas
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iso27001
+    id_control: A.8.22
+    nivel: anexo_a
+  - marco: tisax
+    id_control: 5.2.7
+    nivel: AL2
+  - marco: iec62443
+    id_control: SR 5.1
+    nivel: 3-3
+  - marco: iec62443
+    id_control: SR 5.2
+    nivel: 3-3
+  - marco: iec62443
+    id_control: CR 5.1
+    nivel: 4-2
+  - marco: iec62443
+    id_control: NDR 5.2
+    nivel: 4-2
+- clave_comun: filtrado-web
+  titulo: Filtrado web y restricción de comunicaciones personales
+  descripcion: Se limita el acceso a sitios externos y el uso de correo o mensajería de propósito general desde
+    zonas sensibles.
+  dominio: comunicaciones
+  evidencia_sugerida:
+  - Política de filtrado
+  - Informe de bloqueos
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iso27001
+    id_control: A.8.23
+    nivel: anexo_a
+  - marco: iec62443
+    id_control: SR 5.3
+    nivel: 3-3
+  - marco: iec62443
+    id_control: NDR 5.3
+    nivel: 4-2
+- clave_comun: particionado-aplicaciones
+  titulo: Particionado de aplicaciones
+  descripcion: Los datos y aplicaciones se separan según su criticidad para limitar el impacto de un compromiso.
+  dominio: comunicaciones
+  evidencia_sugerida:
+  - Arquitectura de particionado
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iec62443
+    id_control: SR 5.4
+    nivel: 3-3
+- clave_comun: integridad-comunicaciones
+  titulo: Integridad de las comunicaciones
+  descripcion: Se protege la integridad de la información transmitida y se detectan alteraciones.
+  dominio: comunicaciones
+  evidencia_sugerida:
+  - Configuración de protocolos con integridad
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iec62443
+    id_control: SR 3.1
+    nivel: 3-3
+  - marco: iec62443
+    id_control: CR 3.1
+    nivel: 4-2
+- clave_comun: confidencialidad-informacion
+  titulo: Confidencialidad de la información en reposo y en tránsito
+  descripcion: La información que lo requiera se protege en confidencialidad tanto almacenada como en tránsito.
+  dominio: criptografia
+  evidencia_sugerida:
+  - Inventario de cifrado aplicado
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iec62443
+    id_control: SR 4.1
+    nivel: 3-3
+  - marco: iec62443
+    id_control: CR 4.1
+    nivel: 4-2
+- clave_comun: proteccion-denegacion-servicio
+  titulo: Resistencia a la denegación de servicio
+  descripcion: Los sistemas siguen funcionando en modo degradado ante eventos de denegación de servicio.
+  dominio: comunicaciones
+  evidencia_sugerida:
+  - Pruebas de carga y DoS
+  - Protecciones configuradas
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iec62443
+    id_control: SR 7.1
+    nivel: 3-3
+  - marco: iec62443
+    id_control: CR 7.1
+    nivel: 4-2
+- clave_comun: uso-criptografia
+  titulo: Uso de la criptografía y gestión de claves
+  descripcion: La criptografía se usa según una política que fija algoritmos, longitudes y gestión del ciclo de
+    vida de las claves.
+  dominio: criptografia
+  evidencia_sugerida:
+  - Política criptográfica
+  - Inventario de claves y algoritmos
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iso27001
+    id_control: A.8.24
+    nivel: anexo_a
+  - marco: tisax
+    id_control: 5.1.1
+    nivel: AL2
+  - marco: nis2
+    id_control: art.21.2.h
+    nivel: medidas
+  - marco: iec62443
+    id_control: SR 4.3
+    nivel: 3-3
+  - marco: iec62443
+    id_control: CR 4.3
+    nivel: 4-2
+- clave_comun: proteccion-claves-firma
+  titulo: Protección de claves privadas de firma del producto
+  descripcion: Las claves privadas para firmar código y actualizaciones se custodian con controles estrictos (HSM,
+    acceso dual).
+  dominio: producto
+  evidencia_sugerida:
+  - Inventario de claves de firma
+  - Registro de uso del HSM
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iso27001
+    id_control: A.8.24
+    nivel: anexo_a
+  - marco: iec62443
+    id_control: SM-8
+    nivel: 4-1
+- clave_comun: ciclo-desarrollo-seguro
+  titulo: Ciclo de vida de desarrollo seguro
+  descripcion: El software y los dispositivos se desarrollan con un proceso definido que integra la seguridad en
+    todas las fases.
+  dominio: desarrollo
+  evidencia_sugerida:
+  - Proceso de desarrollo seguro aprobado
+  - Evidencias por versión
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iso27001
+    id_control: A.8.25
+    nivel: anexo_a
+  - marco: tisax
+    id_control: 5.3.1
+    nivel: AL2
+  - marco: nis2
+    id_control: art.21.2.e
+    nivel: medidas
+  - marco: iec62443
+    id_control: SM-1
+    nivel: 4-1
+  - marco: sox
+    id_control: ITGC-PD-01
+    nivel: itgc
+  - marco: jsox
+    id_control: ITGC-DES-01
+    nivel: itgc
+- clave_comun: alcance-proceso-desarrollo-seguro
+  titulo: Alcance y aplicabilidad del proceso de desarrollo seguro
+  descripcion: Se define a qué productos, versiones y componentes se aplica el proceso y qué prácticas aplican a
+    cada uno.
+  dominio: producto
+  evidencia_sugerida:
+  - Matriz de aplicabilidad por producto
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iec62443
+    id_control: SM-3
+    nivel: 4-1
+  - marco: iec62443
+    id_control: SM-5
+    nivel: 4-1
+- clave_comun: requisitos-seguridad-aplicaciones
+  titulo: Requisitos de seguridad de las aplicaciones y productos
+  descripcion: Los requisitos de seguridad se identifican, especifican, revisan y aprueban antes del diseño.
+  dominio: desarrollo
+  evidencia_sugerida:
+  - Especificación de requisitos de seguridad
+  - Acta de revisión de requisitos
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iso27001
+    id_control: A.8.26
+    nivel: anexo_a
+  - marco: tisax
+    id_control: 5.3.1
+    nivel: AL2
+  - marco: iec62443
+    id_control: SR-3
+    nivel: 4-1
+  - marco: iec62443
+    id_control: SR-4
+    nivel: 4-1
+  - marco: iec62443
+    id_control: SR-5
+    nivel: 4-1
+- clave_comun: contexto-seguridad-producto
+  titulo: Contexto de seguridad del producto
+  descripcion: Se documenta el entorno previsto de uso del producto y las suposiciones de seguridad sobre él.
+  dominio: producto
+  evidencia_sugerida:
+  - Documento de contexto de seguridad
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iec62443
+    id_control: SR-1
+    nivel: 4-1
+- clave_comun: modelado-amenazas
+  titulo: Modelado de amenazas
+  descripcion: Cada producto y cambio relevante tiene un modelo de amenazas actualizado que guía requisitos, diseño
+    y pruebas.
+  dominio: producto
+  evidencia_sugerida:
+  - Modelos de amenazas versionados
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iec62443
+    id_control: SR-2
+    nivel: 4-1
+- clave_comun: principios-arquitectura-segura
+  titulo: Principios de arquitectura e ingeniería segura
+  descripcion: La arquitectura aplica principios de diseño seguro y defensa en profundidad documentados.
+  dominio: desarrollo
+  evidencia_sugerida:
+  - Principios de arquitectura
+  - Documentos de diseño
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iso27001
+    id_control: A.8.27
+    nivel: anexo_a
+  - marco: iec62443
+    id_control: SD-1
+    nivel: 4-1
+  - marco: iec62443
+    id_control: SD-2
+    nivel: 4-1
+  - marco: iec62443
+    id_control: SD-4
+    nivel: 4-1
+- clave_comun: revision-diseno-seguridad
+  titulo: Revisión de seguridad del diseño
+  descripcion: Los diseños se revisan desde el punto de vista de seguridad antes de implementarlos.
+  dominio: producto
+  evidencia_sugerida:
+  - Actas de revisión de diseño
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iec62443
+    id_control: SD-3
+    nivel: 4-1
+- clave_comun: codificacion-segura
+  titulo: Codificación segura
+  descripcion: Se aplican normas de codificación segura y herramientas de análisis estático.
+  dominio: desarrollo
+  evidencia_sugerida:
+  - Norma de codificación
+  - Informes SAST
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iso27001
+    id_control: A.8.28
+    nivel: anexo_a
+  - marco: iec62443
+    id_control: SI-2
+    nivel: 4-1
+- clave_comun: revision-codigo-seguridad
+  titulo: Revisión de seguridad de la implementación
+  descripcion: La implementación se revisa por alguien distinto del autor, con foco en seguridad, antes de liberar
+    la versión.
+  dominio: desarrollo
+  evidencia_sugerida:
+  - Registro de revisiones por versión
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iec62443
+    id_control: SI-1
+    nivel: 4-1
+- clave_comun: validacion-entradas
+  titulo: Validación de entradas y gestión de errores
+  descripcion: Las entradas se validan y los errores se gestionan sin revelar información ni dejar el sistema en
+    estado inseguro.
+  dominio: desarrollo
+  evidencia_sugerida:
+  - Pruebas de validación
+  - Revisión de mensajes de error
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iec62443
+    id_control: SR 3.5
+    nivel: 3-3
+  - marco: iec62443
+    id_control: SR 3.7
+    nivel: 3-3
+  - marco: iec62443
+    id_control: CR 3.5
+    nivel: 4-2
+  - marco: iec62443
+    id_control: CR 3.7
+    nivel: 4-2
+- clave_comun: salida-determinista
+  titulo: Salidas en estado seguro
+  descripcion: Ante un fallo o ataque, las salidas del sistema de control pasan a un estado predefinido y seguro.
+  dominio: ot
+  evidencia_sugerida:
+  - Especificación de estados seguros
+  - Pruebas de fallo
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iec62443
+    id_control: SR 3.6
+    nivel: 3-3
+  - marco: iec62443
+    id_control: CR 3.6
+    nivel: 4-2
+- clave_comun: integridad-sesion
+  titulo: Integridad de las sesiones
+  descripcion: Se protege la autenticidad de las sesiones y se rechazan identificadores inválidos o reutilizados.
+  dominio: desarrollo
+  evidencia_sugerida:
+  - Pruebas de gestión de sesión
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iec62443
+    id_control: SR 3.8
+    nivel: 3-3
+  - marco: iec62443
+    id_control: CR 3.8
+    nivel: 4-2
+- clave_comun: integridad-software-informacion
+  titulo: Integridad del software y la información
+  descripcion: Se detectan cambios no autorizados en software, firmware, configuración e información.
+  dominio: operaciones
+  evidencia_sugerida:
+  - Verificación de firmas o huellas
+  - Alertas de integridad
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iec62443
+    id_control: SR 3.4
+    nivel: 3-3
+  - marco: iec62443
+    id_control: CR 3.4
+    nivel: 4-2
+- clave_comun: verificacion-funciones-seguridad
+  titulo: Verificación de las funciones de seguridad
+  descripcion: Las funciones de seguridad se verifican periódicamente y tras cambios para confirmar que operan como
+    se espera.
+  dominio: operaciones
+  evidencia_sugerida:
+  - Informe de verificación
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iec62443
+    id_control: SR 3.3
+    nivel: 3-3
+  - marco: iec62443
+    id_control: CR 3.3
+    nivel: 4-2
+- clave_comun: pruebas-seguridad
+  titulo: Pruebas de seguridad en desarrollo y aceptación
+  descripcion: Se prueban los requisitos de seguridad, la mitigación de amenazas y las vulnerabilidades antes de
+    liberar.
+  dominio: desarrollo
+  evidencia_sugerida:
+  - Plan y resultados de pruebas de seguridad
+  - Análisis de dependencias
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iso27001
+    id_control: A.8.29
+    nivel: anexo_a
+  - marco: iec62443
+    id_control: SVV-1
+    nivel: 4-1
+  - marco: iec62443
+    id_control: SVV-2
+    nivel: 4-1
+  - marco: iec62443
+    id_control: SVV-3
+    nivel: 4-1
+- clave_comun: pruebas-intrusion
+  titulo: Pruebas de intrusión
+  descripcion: Se realizan pruebas de intrusión periódicas y antes de versiones importantes, con corrección de hallazgos.
+  dominio: desarrollo
+  evidencia_sugerida:
+  - Informes de pruebas de intrusión
+  - Seguimiento de hallazgos
+  medible_por_plataforma: gestion_vulnerabilidades
+  correspondencias:
+  - marco: iso27001
+    id_control: A.8.8
+    nivel: anexo_a
+  - marco: iso27001
+    id_control: A.8.29
+    nivel: anexo_a
+  - marco: iec62443
+    id_control: SVV-4
+    nivel: 4-1
+- clave_comun: independencia-probadores
+  titulo: Independencia de quien prueba
+  descripcion: Las pruebas de seguridad las realiza personal con independencia adecuada respecto a quien desarrolló.
+  dominio: desarrollo
+  evidencia_sugerida:
+  - Asignación de probadores
+  - Matriz de independencia
+  medible_por_plataforma: sod_conflictos
+  correspondencias:
+  - marco: iec62443
+    id_control: SVV-5
+    nivel: 4-1
+- clave_comun: pruebas-aceptacion-usuario
+  titulo: Pruebas de aceptación de usuario
+  descripcion: Los desarrollos y cambios relevantes se aceptan formalmente por el usuario propietario antes de producción.
+  dominio: desarrollo
+  evidencia_sugerida:
+  - Actas de aceptación
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iso27001
+    id_control: A.8.29
+    nivel: anexo_a
+  - marco: sox
+    id_control: ITGC-PD-02
+    nivel: itgc
+  - marco: jsox
+    id_control: ITGC-DES-02
+    nivel: itgc
+- clave_comun: migracion-conversion-datos
+  titulo: Migración y conversión de datos
+  descripcion: Las migraciones de datos se planifican, prueban y concilian para asegurar su integridad y completitud.
+  dominio: desarrollo
+  evidencia_sugerida:
+  - Plan de migración
+  - Conciliación de cargas
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: sox
+    id_control: ITGC-PD-03
+    nivel: itgc
+  - marco: jsox
+    id_control: ITGC-DES-03
+    nivel: itgc
+- clave_comun: separacion-entornos
+  titulo: Separación de entornos y seguridad del entorno de desarrollo
+  descripcion: Desarrollo, pruebas y producción están separados; quien desarrolla no tiene acceso de escritura a
+    producción y el entorno de desarrollo está protegido.
+  dominio: desarrollo
+  evidencia_sugerida:
+  - Arquitectura de entornos
+  - Listado de accesos a producción
+  medible_por_plataforma: sod_conflictos
+  correspondencias:
+  - marco: iso27001
+    id_control: A.8.31
+    nivel: anexo_a
+  - marco: tisax
+    id_control: 5.2.2
+    nivel: AL2
+  - marco: iec62443
+    id_control: SM-7
+    nivel: 4-1
+  - marco: sox
+    id_control: ITGC-PC-04
+    nivel: itgc
+  - marco: jsox
+    id_control: ITGC-DES-04
+    nivel: itgc
+- clave_comun: gestion-cambios
+  titulo: Gestión de cambios
+  descripcion: Los cambios en sistemas e infraestructuras se solicitan, evalúan, prueban, aprueban y documentan
+    antes de aplicarse.
+  dominio: desarrollo
+  evidencia_sugerida:
+  - Registro de cambios con aprobación
+  - Actas del CAB
+  medible_por_plataforma: gestion_cambios_cab
+  correspondencias:
+  - marco: iso27001
+    id_control: A.8.32
+    nivel: anexo_a
+  - marco: tisax
+    id_control: 5.2.1
+    nivel: AL2
+  - marco: nis2
+    id_control: art.21.2.e
+    nivel: medidas
+  - marco: sox
+    id_control: ITGC-PC-01
+    nivel: itgc
+  - marco: jsox
+    id_control: ITGC-DES-05
+    nivel: itgc
+- clave_comun: pruebas-cambios
+  titulo: Pruebas de los cambios
+  descripcion: Cada cambio se prueba en un entorno distinto de producción y se documenta el resultado.
+  dominio: desarrollo
+  evidencia_sugerida:
+  - Evidencias de pruebas por cambio
+  medible_por_plataforma: gestion_cambios_cab
+  correspondencias:
+  - marco: iso27001
+    id_control: A.8.32
+    nivel: anexo_a
+  - marco: sox
+    id_control: ITGC-PC-02
+    nivel: itgc
+  - marco: jsox
+    id_control: ITGC-DES-02
+    nivel: itgc
+- clave_comun: aprobacion-independiente-paso-produccion
+  titulo: Aprobación independiente del paso a producción
+  descripcion: El paso a producción lo aprueba alguien distinto de quien hizo el cambio, por versión y con registro.
+  dominio: desarrollo
+  evidencia_sugerida:
+  - Aprobaciones por versión
+  - Comparativa autor frente a aprobador
+  medible_por_plataforma: gestion_cambios_cab
+  correspondencias:
+  - marco: iso27001
+    id_control: A.8.32
+    nivel: anexo_a
+  - marco: sox
+    id_control: ITGC-PC-03
+    nivel: itgc
+  - marco: sox
+    id_control: ITGC-PD-04
+    nivel: itgc
+  - marco: jsox
+    id_control: ITGC-DES-05
+    nivel: itgc
+- clave_comun: cambios-emergencia
+  titulo: Cambios de emergencia
+  descripcion: Los cambios urgentes siguen un procedimiento abreviado con aprobación posterior documentada en plazo.
+  dominio: desarrollo
+  evidencia_sugerida:
+  - Registro de cambios de emergencia
+  - Aprobaciones a posteriori
+  medible_por_plataforma: gestion_cambios_cab
+  correspondencias:
+  - marco: iso27001
+    id_control: A.8.32
+    nivel: anexo_a
+  - marco: sox
+    id_control: ITGC-PC-05
+    nivel: itgc
+  - marco: jsox
+    id_control: ITGC-DES-05
+    nivel: itgc
+- clave_comun: datos-prueba
+  titulo: Datos de prueba
+  descripcion: Los datos de prueba se seleccionan, protegen y gestionan; no se usan datos reales sin protección.
+  dominio: desarrollo
+  evidencia_sugerida:
+  - Normas de datos de prueba
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iso27001
+    id_control: A.8.33
+    nivel: anexo_a
+- clave_comun: integridad-artefactos-desarrollo
+  titulo: Integridad de los artefactos de desarrollo
+  descripcion: El código, los artefactos de compilación y las versiones publicadas se protegen frente a modificaciones
+    no autorizadas.
+  dominio: producto
+  evidencia_sugerida:
+  - Firmas de versiones
+  - Huellas de artefactos
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iso27001
+    id_control: A.8.4
+    nivel: anexo_a
+  - marco: iec62443
+    id_control: SM-6
+    nivel: 4-1
+- clave_comun: sbom-y-versiones-firmadas
+  titulo: SBOM y versiones etiquetadas y firmadas
+  descripcion: Cada versión publicada lleva una lista de componentes (SBOM), etiqueta y firma verificable.
+  dominio: producto
+  evidencia_sugerida:
+  - SBOM por versión
+  - Verificación de firma
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iec62443
+    id_control: SM-9
+    nivel: 4-1
+  - marco: iec62443
+    id_control: SUM-3
+    nivel: 4-1
+- clave_comun: recepcion-notificaciones-vulnerabilidades
+  titulo: Recepción de avisos de vulnerabilidades del producto
+  descripcion: Existe un canal público para recibir avisos de problemas de seguridad del producto y se acusa recibo.
+  dominio: producto
+  evidencia_sugerida:
+  - Política de divulgación publicada
+  - Registro de avisos recibidos
+  medible_por_plataforma: gestion_vulnerabilidades
+  correspondencias:
+  - marco: iec62443
+    id_control: DM-1
+    nivel: 4-1
+- clave_comun: gestion-defectos-seguridad-producto
+  titulo: Gestión de defectos de seguridad del producto
+  descripcion: Los problemas de seguridad del producto se revisan, valoran y corrigen según su gravedad, y la práctica
+    se revisa periódicamente.
+  dominio: producto
+  evidencia_sugerida:
+  - Registro de defectos de seguridad
+  - Revisión periódica de la práctica
+  medible_por_plataforma: gestion_vulnerabilidades
+  correspondencias:
+  - marco: iec62443
+    id_control: DM-2
+    nivel: 4-1
+  - marco: iec62443
+    id_control: DM-3
+    nivel: 4-1
+  - marco: iec62443
+    id_control: DM-4
+    nivel: 4-1
+  - marco: iec62443
+    id_control: DM-6
+    nivel: 4-1
+- clave_comun: divulgacion-vulnerabilidades
+  titulo: Divulgación coordinada de vulnerabilidades
+  descripcion: Las vulnerabilidades del producto se comunican a clientes y autoridades de forma coordinada y oportuna.
+  dominio: producto
+  evidencia_sugerida:
+  - Avisos de seguridad publicados
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iec62443
+    id_control: DM-5
+    nivel: 4-1
+  - marco: nis2
+    id_control: art.21.2.e
+    nivel: medidas
+- clave_comun: actualizaciones-seguridad-producto
+  titulo: Actualizaciones de seguridad del producto
+  descripcion: Las actualizaciones de seguridad se cualifican, documentan, entregan de forma verificable y a tiempo,
+    incluidas las de componentes dependientes.
+  dominio: producto
+  evidencia_sugerida:
+  - Notas de actualización
+  - Plazos de entrega medidos
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iec62443
+    id_control: SUM-1
+    nivel: 4-1
+  - marco: iec62443
+    id_control: SUM-2
+    nivel: 4-1
+  - marco: iec62443
+    id_control: SUM-3
+    nivel: 4-1
+  - marco: iec62443
+    id_control: SUM-4
+    nivel: 4-1
+  - marco: iec62443
+    id_control: SUM-5
+    nivel: 4-1
+  - marco: iec62443
+    id_control: EDR 3.10
+    nivel: 4-2
+  - marco: iec62443
+    id_control: HDR 3.10
+    nivel: 4-2
+  - marco: iec62443
+    id_control: NDR 3.10
+    nivel: 4-2
+- clave_comun: guias-seguridad-producto
+  titulo: Guías de seguridad para el usuario del producto
+  descripcion: El producto incluye guías de defensa en profundidad, bastionado y entorno esperado, revisadas en
+    cada versión.
+  dominio: producto
+  evidencia_sugerida:
+  - Guías publicadas por versión
+  - Revisión de documentación
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iec62443
+    id_control: SG-1
+    nivel: 4-1
+  - marco: iec62443
+    id_control: SG-2
+    nivel: 4-1
+  - marco: iec62443
+    id_control: SG-3
+    nivel: 4-1
+  - marco: iec62443
+    id_control: SG-7
+    nivel: 4-1
+- clave_comun: interfaces-diagnostico-fisicas
+  titulo: Interfaces físicas de diagnóstico y prueba
+  descripcion: Las interfaces físicas de diagnóstico y prueba de los dispositivos se protegen frente a uso no autorizado.
+  dominio: producto
+  evidencia_sugerida:
+  - Diseño de interfaces protegidas
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iec62443
+    id_control: EDR 2.13
+    nivel: 4-2
+  - marco: iec62443
+    id_control: HDR 2.13
+    nivel: 4-2
+  - marco: iec62443
+    id_control: NDR 2.13
+    nivel: 4-2
+- clave_comun: resistencia-manipulacion-fisica
+  titulo: Resistencia y detección de manipulación física
+  descripcion: Los dispositivos resisten o detectan la manipulación física según su nivel de seguridad.
+  dominio: producto
+  evidencia_sugerida:
+  - Pruebas de manipulación
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iec62443
+    id_control: EDR 3.11
+    nivel: 4-2
+  - marco: iec62443
+    id_control: HDR 3.11
+    nivel: 4-2
+  - marco: iec62443
+    id_control: NDR 3.11
+    nivel: 4-2
+- clave_comun: raices-confianza
+  titulo: Raíces de confianza del fabricante y del propietario
+  descripcion: Los dispositivos permiten aprovisionar y proteger raíces de confianza del fabricante y del propietario
+    del activo.
+  dominio: producto
+  evidencia_sugerida:
+  - Procedimiento de aprovisionamiento de claves
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iec62443
+    id_control: EDR 3.12
+    nivel: 4-2
+  - marco: iec62443
+    id_control: EDR 3.13
+    nivel: 4-2
+  - marco: iec62443
+    id_control: HDR 3.12
+    nivel: 4-2
+  - marco: iec62443
+    id_control: HDR 3.13
+    nivel: 4-2
+  - marco: iec62443
+    id_control: NDR 3.12
+    nivel: 4-2
+  - marco: iec62443
+    id_control: NDR 3.13
+    nivel: 4-2
+- clave_comun: arranque-seguro
+  titulo: Integridad del proceso de arranque
+  descripcion: El dispositivo verifica la integridad del firmware y del software en el arranque.
+  dominio: producto
+  evidencia_sugerida:
+  - Pruebas de arranque seguro
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iec62443
+    id_control: EDR 3.14
+    nivel: 4-2
+  - marco: iec62443
+    id_control: HDR 3.14
+    nivel: 4-2
+  - marco: iec62443
+    id_control: NDR 3.14
+    nivel: 4-2
+- clave_comun: programa-seguridad-ot
+  titulo: Programa de seguridad para sistemas de automatización
+  descripcion: El propietario del activo mantiene un programa de seguridad OT con organización, políticas y responsables
+    en cada planta.
+  dominio: ot
+  evidencia_sugerida:
+  - Programa de seguridad OT aprobado
+  - Responsables por planta
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iec62443
+    id_control: SPE 1
+    nivel: 2-1
+- clave_comun: sistema-bajo-consideracion
+  titulo: Definición del sistema bajo consideración
+  descripcion: Se delimita cada sistema de automatización bajo consideración, con sus activos, fronteras y puntos
+    de acceso.
+  dominio: ot
+  evidencia_sugerida:
+  - Documento del sistema bajo consideración
+  - Inventario OT
+  medible_por_plataforma: inventario_activos_cmdb
+  correspondencias:
+  - marco: iec62443
+    id_control: ZCR 1
+    nivel: 3-2
+- clave_comun: evaluacion-riesgos-ot
+  titulo: Evaluación de riesgos de ciberseguridad OT
+  descripcion: Se hace una evaluación inicial y otra detallada de riesgos de ciberseguridad por zona, comparándolos
+    con el riesgo tolerable.
+  dominio: ot
+  evidencia_sugerida:
+  - Evaluación inicial de riesgos OT
+  - Evaluación detallada por zona
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iec62443
+    id_control: ZCR 2
+    nivel: 3-2
+  - marco: iec62443
+    id_control: ZCR 4
+    nivel: 3-2
+  - marco: iec62443
+    id_control: ZCR 5
+    nivel: 3-2
+  - marco: iec62443
+    id_control: SPE 1
+    nivel: 2-1
+- clave_comun: zonas-y-conductos
+  titulo: Zonas y conductos
+  descripcion: Los activos OT se agrupan en zonas y sus comunicaciones en conductos, documentados y reflejados en
+    la CMDB.
+  dominio: ot
+  evidencia_sugerida:
+  - Diagrama de zonas y conductos
+  - Relaciones en la CMDB
+  medible_por_plataforma: inventario_activos_cmdb
+  correspondencias:
+  - marco: iec62443
+    id_control: ZCR 3
+    nivel: 3-2
+  - marco: iec62443
+    id_control: SPE 3
+    nivel: 2-1
+- clave_comun: nivel-seguridad-objetivo-por-zona
+  titulo: Nivel de seguridad objetivo por zona
+  descripcion: Cada zona y conducto tiene un nivel de seguridad objetivo (SL-T) justificado y se compara con el
+    alcanzado (SL-A).
+  dominio: ot
+  evidencia_sugerida:
+  - Registro de SL-T y SL-A por zona
+  - Análisis de brecha
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iec62443
+    id_control: ZCR 5
+    nivel: 3-2
+  - marco: iec62443
+    id_control: ZCR 6
+    nivel: 3-2
+- clave_comun: especificacion-requisitos-ciberseguridad
+  titulo: Especificación de requisitos de ciberseguridad del sistema
+  descripcion: Se documentan los requisitos, suposiciones y restricciones de ciberseguridad de cada zona para su
+    diseño e implantación.
+  dominio: ot
+  evidencia_sugerida:
+  - Especificación de requisitos (CRS)
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iec62443
+    id_control: ZCR 6
+    nivel: 3-2
+- clave_comun: aprobacion-propietario-activo
+  titulo: Aprobación por el propietario del activo
+  descripcion: El propietario del activo aprueba formalmente los resultados de la evaluación de riesgos y la partición.
+  dominio: ot
+  evidencia_sugerida:
+  - Acta de aprobación
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iec62443
+    id_control: ZCR 7
+    nivel: 3-2
+- clave_comun: proteccion-datos-ot
+  titulo: Protección de los datos de los sistemas de automatización
+  descripcion: Los datos de configuración, recetas y producción se clasifican y protegen en confidencialidad e integridad.
+  dominio: ot
+  evidencia_sugerida:
+  - Clasificación de datos OT
+  - Medidas aplicadas
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: iec62443
+    id_control: SPE 5
+    nivel: 2-1
+- clave_comun: gestion-eventos-ot
+  titulo: Gestión de eventos e incidentes en planta
+  descripcion: Los eventos de seguridad de planta se detectan, comunican y gestionan coordinados con la respuesta
+    corporativa.
+  dominio: ot
+  evidencia_sugerida:
+  - Procedimiento de incidentes OT
+  - Ejercicio conjunto TI/OT
+  medible_por_plataforma: gestion_incidentes
+  correspondencias:
+  - marco: iec62443
+    id_control: SPE 7
+    nivel: 2-1
+- clave_comun: certificacion-estados-financieros
+  titulo: Certificación de los estados financieros por la dirección
+  descripcion: El consejero delegado y el director financiero certifican los informes periódicos y la eficacia de
+    los controles de divulgación, apoyados en subcertificaciones.
+  dominio: informacion_financiera
+  evidencia_sugerida:
+  - Certificaciones firmadas
+  - Subcertificaciones de responsables
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: sox
+    id_control: Sec.302
+    nivel: ley
+  - marco: sox
+    id_control: Sec.906
+    nivel: ley
+  - marco: jsox
+    id_control: FIEA-24-4-2
+    nivel: ley
+- clave_comun: evaluacion-direccion-control-interno
+  titulo: Evaluación por la dirección del control interno sobre la información financiera
+  descripcion: La dirección evalúa anualmente el diseño y la eficacia operativa del control interno sobre la información
+    financiera con pruebas documentadas, población y muestreo.
+  dominio: informacion_financiera
+  evidencia_sugerida:
+  - Informe de la dirección
+  - Pruebas de diseño y de eficacia
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: sox
+    id_control: Sec.404(a)
+    nivel: ley
+  - marco: jsox
+    id_control: FIEA-24-4-4
+    nivel: ley
+- clave_comun: atestacion-auditor-externo
+  titulo: Atestación del auditor externo
+  descripcion: Se coordina la auditoría externa del control interno y se le facilitan evidencias y muestras.
+  dominio: informacion_financiera
+  evidencia_sugerida:
+  - Plan de auditoría externa
+  - Informe del auditor
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: sox
+    id_control: Sec.404(b)
+    nivel: ley
+  - marco: jsox
+    id_control: FIEA-193-2-2
+    nivel: ley
+- clave_comun: ambiente-control-etica
+  titulo: Ambiente de control, ética y canal de denuncias
+  descripcion: Hay un código ético aceptado, un canal de denuncias independiente y un tono adecuado desde la dirección.
+  dominio: informacion_financiera
+  evidencia_sugerida:
+  - Código ético aceptado
+  - Informe del canal de denuncias
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: sox
+    id_control: ELC-01
+    nivel: entidad
+  - marco: jsox
+    id_control: ELC-01
+    nivel: entidad
+- clave_comun: supervision-comite-auditoria
+  titulo: Supervisión por el comité de auditoría
+  descripcion: El comité de auditoría supervisa la información financiera, el control interno y a los auditores.
+  dominio: informacion_financiera
+  evidencia_sugerida:
+  - Actas del comité de auditoría
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: sox
+    id_control: ELC-02
+    nivel: entidad
+  - marco: jsox
+    id_control: ELC-02
+    nivel: entidad
+- clave_comun: riesgo-fraude
+  titulo: Evaluación del riesgo de fraude
+  descripcion: Se evalúa periódicamente el riesgo de fraude en la información financiera y se definen controles
+    que lo mitiguen.
+  dominio: informacion_financiera
+  evidencia_sugerida:
+  - Evaluación de riesgo de fraude
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: sox
+    id_control: ELC-03
+    nivel: entidad
+  - marco: jsox
+    id_control: ELC-03
+    nivel: entidad
+- clave_comun: evaluacion-deficiencias-control
+  titulo: Evaluación y comunicación de deficiencias de control
+  descripcion: Las deficiencias se valoran por gravedad (deficiencia, significativa, debilidad material) y se comunican
+    a quien corresponde.
+  dominio: informacion_financiera
+  evidencia_sugerida:
+  - Resumen de deficiencias
+  - Comunicación al comité
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: sox
+    id_control: ELC-04
+    nivel: entidad
+  - marco: jsox
+    id_control: ELC-04
+    nivel: entidad
+- clave_comun: cierre-periodos-contables
+  titulo: Cierre de periodos contables
+  descripcion: Los periodos cerrados se bloquean y cualquier reapertura requiere autorización y queda registrada.
+  dominio: informacion_financiera
+  evidencia_sugerida:
+  - Calendario de cierre
+  - Registro de reaperturas autorizadas
+  medible_por_plataforma: registro_auditoria_inmutable
+  correspondencias:
+  - marco: sox
+    id_control: FC-01
+    nivel: cierre
+  - marco: jsox
+    id_control: FCRP-01
+    nivel: cierre
+- clave_comun: asientos-manuales
+  titulo: Asientos manuales
+  descripcion: Los asientos manuales y de ajuste se preparan, revisan y aprueban por personas distintas, con soporte.
+  dominio: informacion_financiera
+  evidencia_sugerida:
+  - Listado de asientos con aprobación
+  medible_por_plataforma: sod_conflictos
+  correspondencias:
+  - marco: sox
+    id_control: FC-02
+    nivel: cierre
+  - marco: jsox
+    id_control: FCRP-02
+    nivel: cierre
+- clave_comun: conciliaciones-cuentas
+  titulo: Conciliaciones de cuentas
+  descripcion: Las cuentas significativas se concilian periódicamente y las partidas se investigan y resuelven.
+  dominio: informacion_financiera
+  evidencia_sugerida:
+  - Conciliaciones firmadas
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: sox
+    id_control: FC-03
+    nivel: cierre
+  - marco: jsox
+    id_control: FCRP-03
+    nivel: cierre
+- clave_comun: hojas-calculo-criticas
+  titulo: Hojas de cálculo y herramientas de usuario críticas
+  descripcion: Las hojas de cálculo que intervienen en la información financiera se inventarían y protegen frente
+    a cambios y errores.
+  dominio: informacion_financiera
+  evidencia_sugerida:
+  - Inventario de hojas críticas
+  - Controles de versión y revisión
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: sox
+    id_control: FC-04
+    nivel: cierre
+  - marco: jsox
+    id_control: FCRP-04
+    nivel: cierre
+- clave_comun: informacion-generada-por-entidad
+  titulo: Exactitud y completitud de los informes del sistema
+  descripcion: Los informes que se usan como evidencia de control se validan en exactitud y completitud.
+  dominio: informacion_financiera
+  evidencia_sugerida:
+  - Validaciones de informes
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: sox
+    id_control: FC-05
+    nivel: cierre
+  - marco: jsox
+    id_control: FCRP-05
+    nivel: cierre
+- clave_comun: controles-aplicacion
+  titulo: Controles automáticos de las aplicaciones
+  descripcion: Los controles automáticos de las aplicaciones financieras (validaciones, cálculos, interfaces) se
+    identifican y prueban.
+  dominio: informacion_financiera
+  evidencia_sugerida:
+  - Inventario de controles automáticos
+  - Pruebas de controles automáticos
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: sox
+    id_control: ITAC-01
+    nivel: aplicacion
+  - marco: jsox
+    id_control: ITAC-01
+    nivel: aplicacion
+- clave_comun: entorno-ti-comprension
+  titulo: Comprensión del entorno de TI relevante
+  descripcion: Se documentan las aplicaciones, bases de datos, infraestructura y proveedores que soportan la información
+    financiera.
+  dominio: informacion_financiera
+  evidencia_sugerida:
+  - Mapa de sistemas relevantes
+  medible_por_plataforma: inventario_activos_cmdb
+  correspondencias:
+  - marco: sox
+    id_control: ITGC-CO-00
+    nivel: itgc
+  - marco: jsox
+    id_control: ITENV-01
+    nivel: itgc
+- clave_comun: concepto-seguridad-prototipos
+  titulo: Concepto de seguridad para prototipos
+  descripcion: Existe un concepto de seguridad física y organizativa específico para proteger prototipos, aprobado
+    y revisado.
+  dominio: prototipos
+  evidencia_sugerida:
+  - Concepto de seguridad de prototipos
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: tisax
+    id_control: 8.1.1
+    nivel: prototipos
+- clave_comun: perimetro-instalaciones-prototipos
+  titulo: Perímetro de las instalaciones con prototipos
+  descripcion: El recinto donde hay prototipos tiene protección perimetral que impide la entrada no autorizada.
+  dominio: prototipos
+  evidencia_sugerida:
+  - Inspección del perímetro
+  - Plano de seguridad
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: tisax
+    id_control: 8.1.2
+    nivel: prototipos
+- clave_comun: envolvente-areas-protegidas
+  titulo: Envolvente de las áreas protegidas
+  descripcion: Los muros, puertas y ventanas de las áreas de prototipos impiden la apertura o retirada sin dejar
+    rastro.
+  dominio: prototipos
+  evidencia_sugerida:
+  - Inspección de la envolvente
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: tisax
+    id_control: 8.1.3
+    nivel: prototipos
+- clave_comun: proteccion-vision-no-autorizada
+  titulo: Protección frente a vistas no autorizadas
+  descripcion: Los prototipos no pueden verse desde el exterior ni desde zonas no autorizadas.
+  dominio: prototipos
+  evidencia_sugerida:
+  - Comprobación de visibilidad
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: tisax
+    id_control: 8.1.4
+    nivel: prototipos
+- clave_comun: control-entrada-areas-prototipos
+  titulo: Control de entrada a áreas de prototipos
+  descripcion: La entrada a áreas de prototipos se limita a personas autorizadas, con registro y detección de intrusión.
+  dominio: prototipos
+  evidencia_sugerida:
+  - Registro de accesos a áreas
+  - Pruebas de alarmas
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: tisax
+    id_control: 8.1.5
+    nivel: prototipos
+- clave_comun: normas-visitantes-prototipos
+  titulo: Normas para visitantes en áreas de prototipos
+  descripcion: Los visitantes conocen y aceptan normas específicas y siempre van acompañados.
+  dominio: prototipos
+  evidencia_sugerida:
+  - Normas de visitantes
+  - Registro de visitas
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: tisax
+    id_control: 8.1.6
+    nivel: prototipos
+- clave_comun: acuerdos-confidencialidad-prototipos
+  titulo: Obligaciones contractuales sobre prototipos
+  descripcion: Los contratos con clientes y colaboradores fijan las obligaciones de protección de prototipos.
+  dominio: prototipos
+  evidencia_sugerida:
+  - Contratos con cláusulas de prototipos
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: tisax
+    id_control: 8.2.1
+    nivel: prototipos
+  - marco: iso27001
+    id_control: A.6.6
+    nivel: anexo_a
+- clave_comun: requisitos-subcontratistas-prototipos
+  titulo: Requisitos de protección para subcontratistas
+  descripcion: Los subcontratistas que manejan prototipos asumen y demuestran los mismos requisitos.
+  dominio: prototipos
+  evidencia_sugerida:
+  - Evaluaciones de subcontratistas
+  - Etiquetas TISAX de subcontratistas
+  medible_por_plataforma: revision_proveedores
+  correspondencias:
+  - marco: tisax
+    id_control: 8.2.2
+    nivel: prototipos
+- clave_comun: formacion-proteccion-prototipos
+  titulo: Formación y compromiso del personal en prototipos
+  descripcion: El personal y los colaboradores con acceso a prototipos reciben formación específica y firman su
+    compromiso.
+  dominio: prototipos
+  evidencia_sugerida:
+  - Registro de formación específica
+  - Compromisos firmados
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: tisax
+    id_control: 8.2.3
+    nivel: prototipos
+- clave_comun: clasificacion-proyectos-prototipos
+  titulo: Clasificación de proyectos con prototipos
+  descripcion: Cada proyecto con prototipos tiene una clasificación de protección y medidas asociadas.
+  dominio: prototipos
+  evidencia_sugerida:
+  - Listado de proyectos clasificados
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: tisax
+    id_control: 8.2.4
+    nivel: prototipos
+- clave_comun: control-acceso-proyectos-prototipos
+  titulo: Autorización de acceso a proyectos de prototipos
+  descripcion: Hay un proceso para conceder, revisar y retirar el acceso a proyectos y áreas de prototipos.
+  dominio: prototipos
+  evidencia_sugerida:
+  - Autorizaciones vigentes
+  - Revisiones periódicas
+  medible_por_plataforma: recertificacion_accesos
+  correspondencias:
+  - marco: tisax
+    id_control: 8.2.5
+    nivel: prototipos
+- clave_comun: normas-imagen-grabacion
+  titulo: Normas sobre fotografía y grabación
+  descripcion: Se regula el uso de cámaras y dispositivos de grabación en presencia de prototipos.
+  dominio: prototipos
+  evidencia_sugerida:
+  - Normas publicadas
+  - Registros de autorizaciones de grabación
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: tisax
+    id_control: 8.2.6
+    nivel: prototipos
+- clave_comun: transporte-prototipos
+  titulo: Transporte de prototipos
+  descripcion: Los prototipos se transportan con medidas acordadas con el cliente y según su clasificación.
+  dominio: prototipos
+  evidencia_sugerida:
+  - Instrucciones de transporte
+  - Registros de envíos
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: tisax
+    id_control: 8.3.1
+    nivel: prototipos
+- clave_comun: aparcamiento-almacenamiento-prototipos
+  titulo: Estacionamiento y almacenamiento de prototipos
+  descripcion: Los prototipos se estacionan y almacenan en lugares protegidos frente a acceso y vista.
+  dominio: prototipos
+  evidencia_sugerida:
+  - Inspección de áreas de almacenamiento
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: tisax
+    id_control: 8.3.2
+    nivel: prototipos
+- clave_comun: camuflaje-vehiculos-prueba
+  titulo: Camuflaje de vehículos de prueba
+  descripcion: Los vehículos de prueba se camuflan según los requisitos del cliente y se controla su estado.
+  dominio: prototipos
+  evidencia_sugerida:
+  - Instrucciones de camuflaje
+  - Comprobaciones previas a la salida
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: tisax
+    id_control: 8.4.1
+    nivel: prototipos
+- clave_comun: pruebas-en-via-publica
+  titulo: Pruebas en vía pública y pistas
+  descripcion: Las pruebas en exterior siguen normas de conducta, ruta y comunicación ante incidentes.
+  dominio: prototipos
+  evidencia_sugerida:
+  - Normas de pruebas
+  - Registro de salidas
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: tisax
+    id_control: 8.4.2
+    nivel: prototipos
+- clave_comun: eventos-exposiciones-prototipos
+  titulo: Eventos y presentaciones con prototipos
+  descripcion: La presencia de prototipos en eventos y presentaciones se planifica y autoriza con medidas específicas.
+  dominio: prototipos
+  evidencia_sugerida:
+  - Plan de seguridad del evento
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: tisax
+    id_control: 8.5.1
+    nivel: prototipos
+- clave_comun: rodajes-sesiones-fotograficas
+  titulo: Rodajes y sesiones fotográficas
+  descripcion: Las sesiones de foto y vídeo con prototipos se autorizan y supervisan, y el material se custodia.
+  dominio: prototipos
+  evidencia_sugerida:
+  - Autorizaciones de rodaje
+  - Custodia del material
+  medible_por_plataforma: null
+  correspondencias:
+  - marco: tisax
+    id_control: 8.5.2
+    nivel: prototipos

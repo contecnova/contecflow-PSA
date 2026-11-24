@@ -194,11 +194,15 @@ def _gdpr_portability_export(db: Session, user) -> dict:
     # Migracion 206: las PIR donde es responsable, participante, autora o aprobadora (docs/PIR.md §5).
     from app.services.pir import rgpd as rgpd_pir
     pir = rgpd_pir.copia(db, user.id)
+    # Migracion 212: sus papeles en Certificaciones (responsable, implanta, evalúa, prueba, corrige, cierra).
+    from app.services.certificaciones import rgpd as rgpd_cert
+    certificaciones = rgpd_cert.copia_de_usuario(db, user.id)
     return {
         "bpm_instances": procesos["bpm_instances"],
         "bpm_steps": procesos["bpm_steps"],
         "pir_reviews": pir["pir_reviews"],
         "pir_actions": pir["pir_actions"],
+        **certificaciones,
         "notebooks": cuadernos["notebooks"],
         "notebook_tags": cuadernos["notebook_tags"],
         "meetings": reuniones["meetings"],
@@ -269,10 +273,15 @@ def process_gdpr_request(request_id: str, current_user, db: Session) -> dict:
     # 19-11-2026: también quien solo fue asistente o hablante de una reunión (sin cuenta).
     from app.services.reuniones import rgpd as rgpd_reuniones
     en_reuniones = bool(user is None and email and rgpd_reuniones.hay_datos(db, org, None, email))
-    if tipo in _CON_COPIA and user is None and not es_contacto and not en_reuniones:
+    # 24-11-2026 (migración 212): o auditor/consultor externo de Certificaciones (sin cuenta).
+    from app.services.certificaciones import rgpd as rgpd_cert
+    es_auditor = bool(email and rgpd_cert.auditores_por_email(db, email, org))
+    if tipo in _CON_COPIA and user is None and not es_contacto and not en_reuniones and not es_auditor:
         raise error(422, "rgpd_sin_persona")
     if tipo == GDPRRequestType.erasure:
         # Segunda auditoría 2026-11: bajo bloqueo legal, 409 antes de marcarla en curso.
+        if es_auditor:
+            rgpd_cert.exigir_sin_bloqueo_legal(db, rgpd_cert.auditores_por_email(db, email, org))
         if user:
             from app.services.supresion_service import exigir_sin_bloqueo_legal
             exigir_sin_bloqueo_legal(db, user)
@@ -284,6 +293,10 @@ def process_gdpr_request(request_id: str, current_user, db: Session) -> dict:
                 db, [u.id for u in contactos_rgpd.usuarios_del_portal_de(db, email, org)], org)
             from app.services.collaboration import portal_chat as chat_colaboracion
             chat_colaboracion.exigir_sin_bloqueo_legal_rgpd(
+                db, [u.id for u in contactos_rgpd.usuarios_del_portal_de(db, email, org)], org)
+            # 24-11-2026 (migracion 211): y sus adjuntos del chat en vivo de Soporte.
+            from app.services.service_desk import chat_en_vivo as chat_de_soporte
+            chat_de_soporte.exigir_sin_bloqueo_legal_rgpd(
                 db, [u.id for u in contactos_rgpd.usuarios_del_portal_de(db, email, org)], org)
 
     # A64: todo en UNA transacción. Antes se confirmaba «processing» y, si la
@@ -321,6 +334,8 @@ def _ejecutar_solicitud(db: Session, req, tipo, user, email, es_contacto: bool, 
         chat_portal_suprimido = rgpd_chat_portal.suprimir(db, cuentas_del_portal, org) if cuentas_del_portal else None
         from app.services.collaboration import portal_chat as chat_colaboracion
         chat_colab_suprimido = chat_colaboracion.suprimir_rgpd(db, cuentas_del_portal, org) if cuentas_del_portal else None
+        from app.services.service_desk import chat_en_vivo as chat_de_soporte
+        chat_soporte_suprimido = chat_de_soporte.suprimir_rgpd(db, cuentas_del_portal, org) if cuentas_del_portal else None
         # Primero sus fichas de contacto (con el email original), luego la cuenta.
         contactos_suprimidos = contactos_rgpd.anonimizar(db, email, org) if es_contacto else None
         reuniones_suprimidas = rgpd_reuniones.suprimir(db, org, email=email) if en_reuniones else None
@@ -333,6 +348,8 @@ def _ejecutar_solicitud(db: Session, req, tipo, user, email, es_contacto: bool, 
             export_data["portal_chat"] = chat_portal_suprimido
         if chat_colab_suprimido is not None:
             export_data["portal_collaboration_chat"] = chat_colab_suprimido
+        if chat_soporte_suprimido is not None:
+            export_data["livechat"] = chat_soporte_suprimido
     elif tipo in _CON_COPIA:
         # Revisión GRC 16-11-2026: «acceso» (art. 15) se marcaba completada sin
         # entregar nada; da la misma copia que la portabilidad.
@@ -344,12 +361,22 @@ def _ejecutar_solicitud(db: Session, req, tipo, user, email, es_contacto: bool, 
                 export_data.update(rgpd_chat_portal.copia(db, cuentas_del_portal, org))
                 from app.services.collaboration import portal_chat as chat_colaboracion
                 export_data.update(chat_colaboracion.copia_rgpd(db, cuentas_del_portal, org))
+                from app.services.service_desk import chat_en_vivo as chat_de_soporte
+                export_data.update(chat_de_soporte.copia_rgpd(db, cuentas_del_portal, org))
         if en_reuniones:
             export_data["meetings"] = rgpd_reuniones.copia(db, org, email=email)["meetings"]
     elif tipo == GDPRRequestType.rectification:
         # La rectificación la hace una persona en la ficha: aquí se deja
         # constancia de quién la confirma.
         export_data = {"rectification": "confirmed_by_processor"}
+    # 24-11-2026 (migración 212): su ficha de auditor externo de Certificaciones (por su correo).
+    from app.services.certificaciones import rgpd as rgpd_cert
+    if tipo == GDPRRequestType.erasure and email:
+        auditor_suprimido = rgpd_cert.suprimir_por_email(db, email, org)
+        if auditor_suprimido is not None:
+            export_data = {**(export_data or {"anonymised": True}), **auditor_suprimido}
+    elif tipo in _CON_COPIA and email and rgpd_cert.auditores_por_email(db, email, org):
+        export_data.update(rgpd_cert.copia_por_email(db, email, org))
     return export_data
 
 

@@ -1,0 +1,231 @@
+{
+ "codigos": {
+  "cert_sin_empresa": {
+   "es": "Necesitas pertenecer a una empresa para usar Certificaciones",
+   "en": "You need to belong to a company to use Certifications",
+   "zh": "需要属于某个公司才能使用认证模块"
+  },
+  "cert_campo_no_valido": {
+   "es": "El dato «{campo}» de Certificaciones no es válido",
+   "en": "The Certifications field «{campo}» is not valid",
+   "zh": "认证字段「{campo}」无效"
+  },
+  "cert_config_no_valida": {
+   "es": "La configuración de Certificaciones no es válida ({campo})",
+   "en": "The Certifications settings are not valid ({campo})",
+   "zh": "认证配置无效（{campo}）"
+  },
+  "cert_parametro_no_valido": {
+   "es": "El parámetro «{parametro}» de la plantilla no es válido",
+   "en": "The template parameter «{parametro}» is not valid",
+   "zh": "模板参数「{parametro}」无效"
+  },
+  "cert_sod_implantador_no_evalua": {
+   "es": "Segregación de funciones: quien implantó el control no puede darlo por eficaz",
+   "en": "Segregation of duties: whoever implemented the control cannot rate it effective",
+   "zh": "职责分离：实施控制的人不能判定其有效"
+  },
+  "cert_sod_implantador_no_prueba": {
+   "es": "Segregación de funciones: quien implantó el control no puede probarlo",
+   "en": "Segregation of duties: whoever implemented the control cannot test it",
+   "zh": "职责分离：实施控制的人不能测试该控制"
+  },
+  "cert_sod_corrector_no_cierra": {
+   "es": "Segregación de funciones: quien corrigió el hallazgo no puede cerrarlo",
+   "en": "Segregation of duties: whoever corrected the finding cannot close it",
+   "zh": "职责分离：纠正发现项的人不能关闭它"
+  },
+  "cert_sod_ejecutor_no_verifica": {
+   "es": "Segregación de funciones: quien hizo la acción correctiva no puede verificar su eficacia",
+   "en": "Segregation of duties: whoever carried out the corrective action cannot verify its effectiveness",
+   "zh": "职责分离：执行纠正措施的人不能验证其有效性"
+  },
+  "cert_evidencia_sin_soporte": {
+   "es": "La evidencia necesita un documento, un enlace, un contenido o una tarea",
+   "en": "The evidence needs a document, a link, content or a task",
+   "zh": "证据需要文档、链接、内容或任务"
+  },
+  "cert_exclusion_sin_justificacion": {
+   "es": "Para excluir un control hay que justificarlo",
+   "en": "Excluding a control requires a justification",
+   "zh": "排除控制必须说明理由"
+  },
+  "cert_eficacia_sin_implantar": {
+   "es": "Solo se evalúa la eficacia de un control implantado",
+   "en": "Only an implemented control can be rated for effectiveness",
+   "zh": "只能评估已实施控制的有效性"
+  },
+  "cert_muestra_mayor_que_poblacion": {
+   "es": "La muestra no puede ser mayor que la población",
+   "en": "The sample cannot be larger than the population",
+   "zh": "样本不能大于总体"
+  },
+  "cert_auditoria_con_nc_mayor_abierta": {
+   "es": "No se puede cerrar como favorable una auditoría con no conformidades mayores abiertas",
+   "en": "An audit with open major nonconformities cannot be closed as favourable",
+   "zh": "存在未关闭的严重不符合项时，审核不能以合格结论关闭"
+  },
+  "cert_hallazgo_cerrado": {
+   "es": "El hallazgo ya está cerrado",
+   "en": "The finding is already closed",
+   "zh": "该发现项已关闭"
+  },
+  "cert_hallazgo_sin_corregir": {
+   "es": "El hallazgo tiene que estar corregido antes de cerrarlo",
+   "en": "The finding must be corrected before closing it",
+   "zh": "发现项必须先纠正才能关闭"
+  },
+  "cert_hallazgo_con_acciones_sin_verificar": {
+   "es": "Las acciones correctivas de esta no conformidad no están todas verificadas",
+   "en": "Not all corrective actions for this nonconformity have been verified",
+   "zh": "此不符合项的纠正措施尚未全部验证"
+  },
+  "cert_accion_verificada": {
+   "es": "La acción correctiva ya está verificada",
+   "en": "The corrective action has already been verified",
+   "zh": "该纠正措施已验证"
+  },
+  "cert_transicion_no_permitida": {
+   "es": "No se puede pasar de «{desde}» a «{hasta}»",
+   "en": "Cannot go from «{desde}» to «{hasta}»",
+   "zh": "不能从「{desde}」转为「{hasta}」"
+  },
+  "cert_entidad_repetida": {
+   "es": "Ya hay una empresa colaboradora con ese nombre",
+   "en": "There is already a partner company with that name",
+   "zh": "已存在同名合作公司"
+  },
+  "cert_auditor_suprimido": {
+   "es": "Los datos de este auditor se suprimieron (RGPD)",
+   "en": "This auditor's data was erased (GDPR)",
+   "zh": "该审核员的数据已删除（GDPR）"
+  },
+  "cert_auditor_inactivo": {
+   "es": "El auditor no está activo",
+   "en": "The auditor is not active",
+   "zh": "该审核员未启用"
+  },
+  "cert_auditor_sin_nda": {
+   "es": "El auditor no tiene firmado el acuerdo de confidencialidad",
+   "en": "The auditor has not signed the non-disclosure agreement",
+   "zh": "该审核员尚未签署保密协议"
+  },
+  "cert_auditor_sin_independencia": {
+   "es": "El auditor no ha declarado su independencia",
+   "en": "The auditor has not declared independence",
+   "zh": "该审核员尚未声明独立性"
+  },
+  "cert_acceso_demasiado_largo": {
+   "es": "El acceso temporal no puede durar más de {maximo} días",
+   "en": "Temporary access cannot last more than {maximo} days",
+   "zh": "临时访问不能超过 {maximo} 天"
+  },
+  "cert_acceso_fuera_de_periodo": {
+   "es": "El acceso cae fuera del periodo de actuación del auditor",
+   "en": "The access falls outside the auditor's engagement period",
+   "zh": "访问期限超出审核员的工作期间"
+  },
+  "cert_acceso_no_valido": {
+   "es": "El enlace de auditor no es válido, ha caducado o se ha revocado",
+   "en": "The auditor link is not valid, has expired or has been revoked",
+   "zh": "审核员链接无效、已过期或已撤销"
+  },
+  "cert_certificado_repetido": {
+   "es": "Ya hay un certificado con ese número",
+   "en": "There is already a certificate with that number",
+   "zh": "已存在该编号的证书"
+  },
+  "cert_tisax_mas_de_tres_anios": {
+   "es": "Una etiqueta TISAX no puede valer más de tres años",
+   "en": "A TISAX label cannot be valid for more than three years",
+   "zh": "TISAX 标签有效期不能超过三年"
+  },
+  "cert_nis2_informe_sin_notificacion": {
+   "es": "Antes del informe final hay que registrar la notificación del incidente",
+   "en": "The incident notification must be recorded before the final report",
+   "zh": "提交最终报告前必须先登记事件通报"
+  },
+  "cert_auditor_bajo_bloqueo_legal": {
+   "es": "El auditor está bajo bloqueo legal: no se pueden suprimir sus datos",
+   "en": "The auditor is under legal hold: their data cannot be erased",
+   "zh": "该审核员处于法律保留状态：无法删除其数据"
+  }
+ },
+ "que": {
+  "cert_programa_de_certificacion": {
+   "es": "programa de certificación",
+   "en": "certification programme",
+   "zh": "认证项目"
+  },
+  "cert_fila_de_aplicabilidad": {
+   "es": "fila de la declaración de aplicabilidad",
+   "en": "statement of applicability row",
+   "zh": "适用性声明条目"
+  },
+  "cert_control": {
+   "es": "control",
+   "en": "control",
+   "zh": "控制"
+  },
+  "cert_evidencia": {
+   "es": "evidencia",
+   "en": "evidence",
+   "zh": "证据"
+  },
+  "cert_auditoria": {
+   "es": "auditoría",
+   "en": "audit",
+   "zh": "审核"
+  },
+  "cert_hallazgo": {
+   "es": "hallazgo",
+   "en": "finding",
+   "zh": "发现项"
+  },
+  "cert_accion_correctiva": {
+   "es": "acción correctiva",
+   "en": "corrective action",
+   "zh": "纠正措施"
+  },
+  "cert_entidad": {
+   "es": "empresa colaboradora",
+   "en": "partner company",
+   "zh": "合作公司"
+  },
+  "cert_auditor": {
+   "es": "auditor",
+   "en": "auditor",
+   "zh": "审核员"
+  },
+  "cert_acceso": {
+   "es": "acceso de auditor",
+   "en": "auditor access",
+   "zh": "审核员访问"
+  },
+  "cert_certificado": {
+   "es": "certificado",
+   "en": "certificate",
+   "zh": "证书"
+  },
+  "cert_incidente_nis2": {
+   "es": "incidente NIS2",
+   "en": "NIS2 incident",
+   "zh": "NIS2 事件"
+  },
+  "cert_proveedor_critico": {
+   "es": "proveedor crítico",
+   "en": "critical supplier",
+   "zh": "关键供应商"
+  },
+  "cert_correspondencia": {
+   "es": "correspondencia del control",
+   "en": "control mapping",
+   "zh": "控制映射"
+  },
+  "cert_plantilla": {
+   "es": "plantilla de certificación",
+   "en": "certification template",
+   "zh": "认证模板"
+  }
+ }
+}

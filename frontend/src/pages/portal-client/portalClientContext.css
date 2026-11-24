@@ -139,29 +139,6 @@
   gap: 6px;
 }
 
-.poclco-labelstyle {
-  font-size: var(--text-xs);
-  font-weight: 700;
-  color: var(--text-2);
-
-  letter-spacing: 0.07em;
-  display: block;
-  margin-bottom: 6px;
-}
-.poclco-fieldstyle {
-  width: 100%;
-  box-sizing: border-box;
-  background: var(--surface-3);
-  border: 1px solid var(--surface-4);
-  border-radius: var(--radius-md, 8px);
-  padding: 11px 13px;
-  color: var(--text-1);
-  font-size: var(--text-base);
-  outline: none;
-  font-family: inherit;
-  transition: border-color 0.15s, box-shadow 0.15s;
-}
-
 .poclco-row-5 {
   width: 44px;
   height: 44px;
@@ -227,3 +204,4 @@
   opacity: 1;
 }
 /* <<< estilos-en-linea */
+.poclco-olvido { display: flex; justify-content: center; margin-top: 20px; }

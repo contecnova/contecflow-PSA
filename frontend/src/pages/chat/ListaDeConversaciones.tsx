@@ -3,9 +3,10 @@
  * Troceado de ChatPage.tsx sin cambio de comportamiento (23-11-2026).
  */
 import { type ReactNode, useState } from 'react'
-import { Hash, MessageSquare, Users, Phone, ChevronDown, ChevronRight, Bell } from 'lucide-react'
+import { Hash, MessageSquare, Users, Phone, Bell } from 'lucide-react'
 import { useAppLang } from '../../i18n/AppLangContext'
-import { Buscador, EmptyState, Pulsable } from '../../components/ui'
+import { Pulsable } from '../../components/ui'
+import { FilaDeConversacion, GrupoDeChats, ListaDeChats } from '../../components/chat'
 import { type Channel, type Conv, type Presence, type Team, tituloConv } from './compartido'
 import { ActivityList, Loader } from './PanelDeContexto'
 
@@ -70,21 +71,15 @@ export function ConversationsList({ narrow = false, activeTab, conversations, te
 
   const matches = (text: string | undefined | null) => !filter || (text || '').toLowerCase().includes(filter.toLowerCase())
 
+  // 24-11-2026 («un solo chat»): la columna es `ListaDeChats` (components/chat), la misma del portal.
   return (
-    <div className={`chat-list${narrow ? ' chat-list--narrow' : ''}`}>
-      <div className="chat-list__search">
-        <Buscador className="chat-search-box" aria-label={traducir('chat.search_placeholder')} value={filter} onChange={setFilter} placeholder={traducir('chat.search_placeholder')} />
-      </div>
-
-      <div className="chat-list__scroll">
+    <ListaDeChats estrecha={narrow}
+      buscar={{ valor: filter, onCambiar: setFilter, etiqueta: traducir('chat.search_placeholder') }}
+      vacio={!loading && conversations.length === 0 && teams.length === 0
+        ? { icono: <MessageSquare size={28} />, titulo: traducir('chat.vacio_titulo'), descripcion: traducir('chat.vacio_desc') }
+        : null}
+      accion={newConvAction}>
         {loading && <Loader />}
-
-        {!loading && conversations.length === 0 && teams.length === 0 && (
-          <EmptyState icon={<MessageSquare size={28} />}
-            title={traducir('chat.vacio_titulo')}
-            description={traducir('chat.vacio_desc')}
-            action={newConvAction} />
-        )}
 
         {activeTab !== 'teams' && directs.length > 0 && (
           <SectionGroup title={traducir('chat.direct_chats')} count={directs.length}>
@@ -125,49 +120,28 @@ export function ConversationsList({ narrow = false, activeTab, conversations, te
             </div>
           ))}
         </SectionGroup>}
-      </div>
-    </div>
+    </ListaDeChats>
   )
 }
 
-function SectionGroup({ title, count, children, collapsed, onToggle }: {
+const SectionGroup = ({ title, count, children, collapsed, onToggle }: {
   title: string; count?: number; children?: ReactNode; collapsed?: boolean; onToggle?: () => void
-}) {
-  return (
-    <div className="u-mb-12">
-      {onToggle ? (
-        <Pulsable type="button" onClick={onToggle} aria-expanded={!collapsed} className="chat-section-btn chat-section-btn--toggle">
-          {collapsed ? <ChevronRight size={11} aria-hidden="true" /> : <ChevronDown size={11} aria-hidden="true" />}
-          {title} {count != null && <span className="chat-section-btn__count">({count})</span>}
-        </Pulsable>
-      ) : (
-        <h3 className="chat-section-btn">
-          {title} {count != null && <span className="chat-section-btn__count">({count})</span>}
-        </h3>
-      )}
-      {!collapsed && children}
-    </div>
-  )
-}
+}) => <GrupoDeChats titulo={title} n={count} plegado={collapsed} onToggle={onToggle}>{children}</GrupoDeChats>
 
 function ConvRow({ c, active, onClick, presence, indent }: {
   c: Conv; active: boolean; onClick: () => void; presence?: string | null; indent?: boolean
 }) {
   const { t: traducir } = useAppLang()
   return (
-    <Pulsable type="button" onClick={onClick} aria-current={active ? 'true' : undefined}
-      className={`chat-conv-row${indent ? ' chat-conv-row--indent' : ''}`}>
-      {c.kind === 'channel' && <Hash size={13} aria-hidden="true" />}
-      {c.kind === 'direct'  && (
+    <FilaDeConversacion titulo={tituloConv(c)} activa={active} onClick={onClick} sangria={indent}
+      icono={c.kind === 'channel' ? <Hash size={13} aria-hidden="true" /> : c.kind === 'group' ? <Users size={13} aria-hidden="true" /> : null}
+      avatar={c.kind === 'direct' ? (
         <span className="chat-presence-wrap">
           <span className="chat-avatar" aria-hidden="true">{(c.title || '?').charAt(0).toUpperCase()}</span>
           {presence && presence !== 'offline' && (
             <span className={`chat-presence-dot chat-presence-dot--${presence}`} role="img" aria-label={traducir(`chat.presence_${presence}`, presence)} />
           )}
         </span>
-      )}
-      {c.kind === 'group' && <Users size={13} aria-hidden="true" />}
-      <span className="chat-ellipsis">{tituloConv(c)}</span>
-    </Pulsable>
+      ) : null} />
   )
 }

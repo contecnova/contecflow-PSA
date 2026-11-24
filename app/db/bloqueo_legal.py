@@ -334,6 +334,14 @@ def _llamada_del_chat_en_vivo():
     return ChannelCall
 
 
+# Migracion 212 (certificaciones, docs/CERTIFICACIONES.md §GRC): definidas ANTES de TIPOS.
+def _cert_modelo(nombre: str):
+    def _m():
+        from app.models import certificaciones
+        return getattr(certificaciones, nombre)
+    return _m
+
+
 TIPOS: dict[str, Tipo] = {
     # Sólo tickets cerrados, contando desde el cierre.
     "tickets": Tipo(_ticket, lambda M: M.closed_at, lambda M: M.closed_at.isnot(None),
@@ -517,6 +525,22 @@ TIPOS: dict[str, Tipo] = {
     "sd_channel_calls": Tipo(_llamada_del_chat_en_vivo, lambda M: func.coalesce(M.ended_at, M.created_at),
                              lambda M: M.status.in_(("ended", "declined", "missed")),
                              ("id", "conversation_id", "initiated_by_user_id", "answered_by_client_id")),
+    # Migracion 212 (certificaciones): evidencias (desde su alta), auditorias cerradas
+    # (con hallazgos y CAPA en cascada; desde el cierre), programas cerrados, incidentes
+    # NIS2 cerrados o descartados (con sus comunicaciones), auditores externos (dato
+    # personal; desde el fin de su periodo o su supresion) y lo que consultaron.
+    "cert_evidencias": Tipo(_cert_modelo("CertEvidencia"), lambda M: M.created_at, None,
+                            ("id", "programa_id", "control_id", "document_id")),
+    "cert_auditorias": Tipo(_cert_modelo("CertAuditoria"), lambda M: func.coalesce(M.cerrada_en, M.created_at),
+                            lambda M: M.estado == "cerrada", ("id", "programa_id", "entidad_id", "auditor_id")),
+    "cert_programas": Tipo(_cert_modelo("CertPrograma"), lambda M: func.coalesce(M.updated_at, M.created_at),
+                           lambda M: M.estado == "cerrado", ("id", "responsable_id")),
+    "cert_incidentes": Tipo(_cert_modelo("CertIncidente"), lambda M: func.coalesce(M.cerrado_en, M.created_at),
+                            lambda M: M.estado.in_(("cerrado", "descartado")), ("id", "ticket_id", "programa_id")),
+    "cert_auditores": Tipo(_cert_modelo("CertAuditor"), lambda M: func.coalesce(M.suprimido_en, M.updated_at,
+                                                                                M.created_at),
+                           lambda M: M.activo.is_(False), ("id", "entidad_id", "email")),
+    "cert_accesos_registro": Tipo(_cert_modelo("CertAccesoRegistro"), lambda M: M.en, None, ("id", "acceso_id")),
 }
 
 

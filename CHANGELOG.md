@@ -4,6 +4,21 @@ Cambios que afectan a quien implanta, configura o usa contecflow, de lo más rec
 
 Para actualizar una instalación: [README §11](README.md#11-actualizar-a-una-versión-nueva) y [docs/DESPLIEGUE.md](docs/DESPLIEGUE.md).
 
+## Migraciones 204–212 (24-11-2026)
+
+- **Empresa obligatoria** (208): `organization_id` NOT NULL en 463 tablas (21 exceptuadas y justificadas). Lo que no trae empresa la hereda de su proyecto, ticket o usuario; si no se puede, error con código. Correo del portal único **por empresa**: si una persona tiene cuenta en varias, elige empresa al entrar. [docs/seguridad/empresa_obligatoria.md](docs/seguridad/empresa_obligatoria.md)
+- **Chats del portal al nivel del chat interno** (209–211): conversaciones formales, pestaña «Chat» y chat en vivo de Soporte con adjuntos validados, emojis, reacciones, citas, edición y borrado con rastro, «escribiendo…» y «leído». Llamadas y vídeo **solo iniciadas por el operador**, sin grabación con clientes. Un solo chat: las mismas piezas en el interno y en el portal. [docs/portal/CHAT_DEL_PORTAL.md](docs/portal/CHAT_DEL_PORTAL.md)
+- **Certificaciones y cumplimiento continuo** (212 y 213): TISAX, NIS2, ISO 27001, SOX, J-SOX e IEC 62443 con biblioteca única de controles, plantillas de proyecto completas, evidencias, auditorías, auditores y certificados. [docs/propuestas/CERTIFICACIONES.md](docs/propuestas/CERTIFICACIONES.md) · [docs/CERTIFICACIONES_CONTENIDO.md](docs/CERTIFICACIONES_CONTENIDO.md) · [docs/CERTIFICACIONES.md](docs/CERTIFICACIONES.md)
+  - 21 tablas `cert_*` (organization_id obligatorio, únicos por empresa); la 213 añade `cert_correspondencias.id_semilla` (corregir ids al importar el texto con licencia sin perder enlaces).
+  - Biblioteca sembrada por empresa desde `app/data/certificaciones/` (validada, idempotente, puesta al día al arrancar); ISO 27001 y SOC 2 del GRC entran en ella y sus evidencias se enlazan sin copiarlas.
+  - Programa desde plantilla: proyecto con tareas RACI (solo lo que aplica según el alcance; las sucesoras heredan dependencias), declaración de aplicabilidad, enlaces tarea↔control y documentos con aprobación.
+  - Matriz control × norma × sede × estado, pruebas SOX, cumplimiento continuo (medidas automáticas con evidencia firmada), evidencias sobre Documentos con caducidad, auditorías, hallazgos y CAPA (tareas), auditores y empresas colaboradoras con acceso temporal de solo lectura (`/auditor/:token`, todo registrado), certificados con su ciclo y avisos, incidentes NIS2 con relojes de 24 h / 72 h / 1 mes, proveedores críticos y paquete del auditor firmado (Ed25519).
+  - Capacidades `certificaciones.ver|gestionar|auditar|administrar`; SoD (implanta/evalúa, implanta/prueba, corrige/cierra, hace/verifica); auditoría, retención y bloqueo legal, RGPD de auditores externos; Configuración › Seguridad y GRC › Certificaciones; procesos BPM `cert_program`, `cert_audit_capa`, `nis2_incident`; trabajos `cert-vencimientos` y `cert-nis2-relojes`.
+- **Salud del cliente** con un único cálculo y datos reales; NPS real (−100 a 100) en BI. README §27.4.
+- **Diseño estándar**: campos con la etiqueta del kit (~1.200 migrados), `SelectorDeContexto` para el contexto de cada pantalla, desplegables de ancho común, un solo color para los campos sin rellenar (`--texto-campo-vacio`) y vigilantes que impiden volver atrás. [docs/GUIA_DE_DISENO.md](docs/GUIA_DE_DISENO.md)
+- Calidad: `setup test-postgres`, `setup cobertura` y `setup lint-css` (manuales, sin CI ni hooks).
+- Roles de sistema sembrados al arrancar en todas las empresas; catálogo BPM sembrado puesto al día al arrancar.
+
 ## Migraciones 199–203 (23-11-2026)
 
 - **«Del ticket al PR»** (203): un agente de código propone el arreglo de un ticket como pull request, en un contenedor aislado y con aprobación humana. Módulo opcional por empresa, apagado por defecto. [docs/integraciones/TICKET_A_PR.md](docs/integraciones/TICKET_A_PR.md)

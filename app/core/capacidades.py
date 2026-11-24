@@ -110,6 +110,20 @@ CAPACIDADES: dict[str, Capacidad] = {
     "pir.aprobar": _c(ADMIN_PM_JEFE, "PIR: aprobar, devolver, cerrar y reabrir (con segregación si la empresa la exige)"),
     "pir.administrar": _c(ADMIN, "PIR: configuración, plantillas y borrado",
                           sonda=_get("/api/v1/pir/config", True)),
+    # Migración 212 (docs/CERTIFICACIONES.md): certificaciones y cumplimiento continuo. Privilegio
+    # mínimo: ver (responsables), gestionar (programas, declaración, evidencias, CAPA, NIS2;
+    # dirección y PM), auditar (pruebas, eficacia, auditorías, hallazgos, accesos de auditores y
+    # paquete; dirección, PM y jefes de equipo, con SoD en el servicio) y administrar
+    # (configuración, biblioteca, texto oficial con licencia, borrados y RGPD de auditores).
+    "certificaciones.ver": _c(GESTORES, "Certificaciones: panel, programas, matriz, evidencias, auditorías y NIS2",
+                              sonda=_get("/api/v1/certificaciones/panel", True)),
+    "certificaciones.gestionar": _c(ADMIN_PM, "Certificaciones: programas, declaración de aplicabilidad, evidencias, "
+                                    "CAPA, certificados, proveedores críticos e incidentes NIS2"),
+    "certificaciones.auditar": _c(ADMIN_PM_JEFE, "Certificaciones: pruebas de control, eficacia, auditorías, "
+                                  "hallazgos, acceso temporal de auditores y paquete del auditor (con SoD)"),
+    "certificaciones.administrar": _c(ADMIN, "Certificaciones: configuración, biblioteca, texto oficial con licencia, "
+                                      "borrados y RGPD de auditores externos",
+                                      sonda=_get("/api/v1/certificaciones/config", True)),
 
     # ── Trabajo diario ───────────────────────────────────────────────────────
     "colaboracion.ver": _c(INTERNOS, "Chat, calendario, documentos, wiki, búsqueda, aprobaciones, informes",

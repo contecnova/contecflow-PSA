@@ -272,6 +272,13 @@ from app.models.cuaderno import (  # noqa: F401,E402
 from app.models.ticket_a_pr import TicketPrRepo, TicketPrRun  # noqa: F401,E402
 # Revisión posterior a la implantación (PIR) de cambios y proyectos (rev. 206, 23-11-2026, docs/PIR.md)
 from app.models.pir import PirRevision, PirAccion, PirPlantilla, PirConfiguracion  # noqa: F401,E402
+# Certificaciones y cumplimiento continuo (rev. 212, 24-11-2026, docs/CERTIFICACIONES.md)
+from app.models.certificaciones import (  # noqa: F401,E402
+    CertMarco, CertControl, CertCorrespondencia, CertConfiguracion, CertPrograma, CertAplicabilidad,
+    CertControlTarea, CertPrueba, CertEvidencia, CertEntidad, CertAuditor, CertAcceso, CertAccesoRegistro,
+    CertAuditoria, CertHallazgo, CertAccion, CertCertificado, CertIncidente, CertComunicacion, CertProveedor,
+    CertPaquete,
+)
 
 # Listeners de sesión que dependen de modelos (viven en app/db). Se registran aquí,
 # con todos los modelos ya cargados, y no desde el propio modelo: un modelo no

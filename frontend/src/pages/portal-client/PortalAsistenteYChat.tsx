@@ -10,15 +10,27 @@
  *   como contexto.
  * - **Chat en vivo**: contesta con artículos de la base de conocimiento y, si
  *   el cliente lo pide, pasa a una persona del equipo (traspaso a agente).
+ *   24-11-2026 (docs/portal/CHAT_DEL_PORTAL.md §10): igual que el chat interno
+ *   (imágenes y ficheros, emojis y reacciones, citar, editar/borrar con rastro,
+ *   enlaces seguros, «leído»; llamadas solo del equipo: aceptar o rechazar).
  *   17-11-2026: en tiempo real por el WebSocket del portal (mensaje nuevo,
  *   «escribiendo…», «leído» y traspaso); sondea solo si el socket no está.
  *
  * Textos en todos los idiomas del portal (`i18n/portal/*.ts`, claves `sdm_*`).
  */
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
-import { AlertTriangle, Bot, BookOpen, Check, CheckCheck, MessagesSquare, Send, UserRound, X } from 'lucide-react'
-import { CLIENT_API, useIdiomaDelPortal, useLang } from './portalClientContext'
-import { PortalButton, PortalCard, PortalInput, PortalTabs } from './PortalUI'
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { AlertTriangle, Bot, BookOpen, Check, MessagesSquare, Pencil, Phone, PhoneIncoming, PhoneOff, Reply, UserRound, Video, X } from 'lucide-react'
+import { CLIENT_API, useClientAuth, useErrorDelPortal, useIdiomaDelPortal, useLang } from './portalClientContext'
+import { Button } from '../../components/ui'
+import { AvisoDelEditor, CabeceraDeConversacion, EditorDeChat, Escribiendo, FilaDeMensaje, MensajeDeSistema, PanelDeChat, PantallaDeChat, SeparadorDeDia, ZonaDeMensajes, cambiaDeDia } from '../../components/chat'
+import { confirmar } from '../../context/ConfirmContext'
+import { chatEnVivoApi } from '../../components/portal/chatEnVivoApi'
+import MensajeDelChatEnVivo from '../../components/portal/MensajeDelChatEnVivo'
+import LlamadaDelPortal from '../../components/portal/LlamadaDelPortal'
+import type { MensajeDeCanal } from '../../services/api/serviceDeskMercado'
+import type { PortalAjustesDelChat, PortalLlamada } from '../../services/api/tipos-alm'
+import '../../components/portal/ChatDelPortal.css'
+import { PortalButton, PortalCard, PortalTabs } from './PortalUI'
 import usePortalEnVivo, { enviarPorElPortal, type MensajeDelPortal } from './usePortalEnVivo'
 import '../../components/servicedesk/sdMercado.css'
 
@@ -46,8 +58,7 @@ interface Intencion {
   articles?: Articulo[]
   result?: { tickets: { id: string; number: string; title: string; status: string }[]; asked_number: string | null }
 }
-interface Turno { id: number; pregunta: string; respuesta: Intencion }
-interface Mensaje { id: string; direction: 'in' | 'out'; author_type: string; body: string; created_at: string | null }
+interface Turno { id: number; pregunta: string; respuesta: Intencion; fecha: string }
 interface Conversacion { id: string; status: string; ticket_number: string | null; agent_read_at?: string | null }
 
 /** 16-11-2026 (pasada de diseño): Soporte enseña el asistente y el chat como
@@ -93,7 +104,7 @@ export function PortalAsistente() {
       { role: 'user', content: t.pregunta }, { role: 'assistant', content: textoDeLaRespuesta(t.respuesta).slice(0, 1900) }])
     try {
       const respuesta = await D<Intencion>(CLIENT_API.post('/sd/portal-assistant/intent', { message: pregunta, language: idioma, history }))
-      setTurnos(prev => [...prev, { id: siguiente.current++, pregunta, respuesta }])
+      setTurnos(prev => [...prev, { id: siguiente.current++, pregunta, respuesta, fecha: new Date().toISOString() }])
       setTexto('')
     } catch { setError(tr('sdm_error')) }
     finally { setEnviando(false) }
@@ -118,25 +129,37 @@ export function PortalAsistente() {
     <PortalCard>
       <div className="u-stack-12">
         <div className="u-text2-xs">{tr('sdm_asistente_ayuda')}</div>
-        {turnos.length > 0 && (
-          <div className="sdm-chat" aria-live="polite">
+        {/* 24-11-2026 (burbujas «como WhatsApp»): la misma fila y el mismo editor que los
+            chats; la pregunta del cliente a la derecha y el asistente a la izquierda. */}
+        {(turnos.length > 0 || enviando) && (
+          <div className="sdm-chat" role="log" aria-live="polite" aria-label={tr('sdm_asistente')}>
             {turnos.map(t => (
-              <div key={t.id} className="u-stack-8">
-                <div className="sdm-chat__msg sdm-chat__msg--mine">{t.pregunta}</div>
-                <div className="sdm-chat__msg">
-                  <Respuesta r={t.respuesta} enviando={enviando} onDecidir={(a, ok) => decidir(t, a, ok)} />
-                </div>
-              </div>
+              <Fragment key={t.id}>
+                <FilaDeMensaje propio autor={tr('pas_you')} fecha={t.fecha}
+                  textos={{ mensajeDe: tr('governedconversations.mensaje_de', { name: tr('pas_you') }) }}
+                  cuerpo={<div className="chat-msg__body">{t.pregunta}</div>} />
+                <FilaDeMensaje autor={tr('sdm_asistente')} fecha={t.fecha} esBot
+                  textos={{ mensajeDe: tr('governedconversations.mensaje_de', { name: tr('sdm_asistente') }) }}
+                  cuerpo={<div className="chat-msg__body"><Respuesta r={t.respuesta} enviando={enviando} onDecidir={(a, ok) => decidir(t, a, ok)} /></div>} />
+              </Fragment>
             ))}
+            {enviando && (
+              <FilaDeMensaje autor={tr('sdm_asistente')} fecha={null} esBot
+                textos={{ mensajeDe: tr('governedconversations.mensaje_de', { name: tr('sdm_asistente') }) }}
+                cuerpo={<div className="chat-msg__pensando" role="status">{tr('portalaichatwidget.pensando')}</div>} />
+            )}
           </div>
         )}
-        <div className="u-row-8">
-          <PortalInput className="u-flex1" value={texto} aria-label={tr('sdm_asistente')} placeholder={tr('sdm_placeholder')}
-            onChange={e => setTexto(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') preguntar() }} />
-          <PortalButton icon={<Send size={13} />} onClick={preguntar} loading={enviando} disabled={!texto.trim()}>
-            {tr('sdm_enviar')}
-          </PortalButton>
-        </div>
+        <EditorDeChat
+          valor={texto}
+          onCambiar={setTexto}
+          onEnviar={() => { if (texto.trim() && !enviando) void preguntar() }}
+          etiquetaCampo={tr('sdm_asistente')}
+          placeholder={tr('sdm_placeholder')}
+          etiquetaEnviar={tr('sdm_enviar')}
+          etiquetaEmoji={tr('governedconversations.insertar_emoji')}
+          desactivado={enviando}
+        />
         {error && <div role="alert" className="u-danger u-text2-xs">{error}</div>}
         {hecho && <div role="status" className="u-success u-text2-xs">{hecho}</div>}
       </div>
@@ -196,44 +219,81 @@ function Respuesta({ r, enviando, onDecidir }: { r: Intencion; enviando: boolean
   return <div className="u-stack-8">{aviso}{respuestaLibre}{cuerpo}</div>
 }
 
+/**
+ * Chat en vivo de Soporte, lado del cliente (24-11-2026, docs/portal/CHAT_DEL_PORTAL.md §10).
+ *
+ * Igual que el chat interno («un solo chat»): `FilaDeMensaje` con la barra
+ * flotante (reaccionar, responder citando, editar y borrar lo propio dentro del
+ * plazo de la empresa) y `EditorDeChat` (clip para imágenes y ficheros, emoji y
+ * enviar dentro del cuadro). «Escribiendo…» y «Leído» por mensaje. Llamadas:
+ * el cliente NO llama; ve el aviso de llamada del equipo con Aceptar y
+ * Rechazar y cuelga (el servidor impone «solo el operador llama»).
+ */
 export function PortalChatEnVivo() {
   const tr = useLang()
+  const errorDe = useErrorDelPortal()
+  const client = useClientAuth()?.client ?? null
+  const clienteId = client?.id ? String(client.id) : null
+  const api = useMemo(() => chatEnVivoApi(CLIENT_API, 'client'), [])
   const [conv, setConv] = useState<Conversacion | null>(null)
-  const [mensajes, setMensajes] = useState<Mensaje[]>([])
+  const [mensajes, setMensajes] = useState<MensajeDeCanal[]>([])
   const [texto, setTexto] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [agenteEscribe, setAgenteEscribe] = useState(false)
+  const [respondiendo, setRespondiendo] = useState<MensajeDeCanal | null>(null)
+  const [editando, setEditando] = useState<MensajeDeCanal | null>(null)
+  const [enviando, setEnviando] = useState(false)
+  const [ajustes, setAjustes] = useState<PortalAjustesDelChat | null>(null)
+  const [sonando, setSonando] = useState<PortalLlamada[]>([])
+  const [llamada, setLlamada] = useState<PortalLlamada | null>(null)
   const ultimo = useRef<string | null>(null)
   const avisoDeEscritura = useRef(0)
   const finDeEscritura = useRef<ReturnType<typeof setTimeout> | null>(null)
   const convId = conv?.id
+  const fallo = (clave: string) => (e: unknown) => setError(errorDe(e, tr(clave)))
 
-  const anadir = useCallback((nuevos: Mensaje[]) => {
+  const anadir = useCallback((nuevos: MensajeDeCanal[]) => {
     if (!nuevos.length) return
-    setMensajes(prev => { const vistos = new Set(prev.map(m => m.id)); return [...prev, ...nuevos.filter(m => !vistos.has(m.id))] })
+    setMensajes(prev => {
+      const porId = new Map(prev.map(m => [m.id, m]))
+      const salida = prev.map(m => nuevos.find(n => n.id === m.id) || m)
+      for (const n of nuevos) if (!porId.has(n.id)) salida.push(n)
+      return salida
+    })
     ultimo.current = nuevos[nuevos.length - 1].id
   }, [])
   const empezar = async (cuerpo?: string) => {
     try {
-      const r = await D<{ conversation: Conversacion; messages: Mensaje[] }>(CLIENT_API.post('/sd/channels/livechat', { body: cuerpo, language: document.documentElement.lang || undefined }))
+      const r = await D<{ conversation: Conversacion; messages: MensajeDeCanal[] }>(CLIENT_API.post('/sd/channels/livechat', { body: cuerpo, language: document.documentElement.lang || undefined }))
       setConv(r.conversation); anadir(r.messages)
-    } catch { setError(tr('sdm_error')) }
+    } catch (e) { fallo('sdm_error')(e) }
   }
   useEffect(() => { empezar() /* abre o sigue la conversación */ // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
-  const ponerAlDia = useCallback(async (id: string) => {
+  useEffect(() => { api.ajustes().then(setAjustes).catch(() => { /* accesorio: sin ajustes no se ofrece adjuntar */ }) }, [api])
+  const ponerAlDia = useCallback(async (id: string, completo = false) => {
     try {
-      const r = await D<{ conversation: Conversacion; messages: Mensaje[] }>(CLIENT_API.get(`/sd/channels/livechat/${id}/messages`, { params: { after: ultimo.current || undefined } }))
-      setConv(r.conversation); anadir(r.messages)
+      const r = await D<{ conversation: Conversacion; messages: MensajeDeCanal[] }>(CLIENT_API.get(`/sd/channels/livechat/${id}/messages`, { params: { after: completo ? undefined : ultimo.current || undefined } }))
+      setConv(r.conversation)
+      if (completo) { setMensajes(r.messages); ultimo.current = r.messages.length ? r.messages[r.messages.length - 1].id : null }
+      else anadir(r.messages)
     } catch { /* se reintenta en el siguiente aviso o sondeo */ }
   }, [anadir])
+  const mirarLlamadas = useCallback(() => {
+    api.sonando().then(setSonando).catch(() => { /* accesorio: sin la lista, el aviso llega con el siguiente evento */ })
+  }, [api])
 
-  // Tiempo real: mensajes, «escribiendo…», «leído» y traspaso de SU conversación.
+  // Tiempo real: mensajes (nuevos, editados, borrados), reacciones, «escribiendo…», «leído», traspaso y llamadas.
   const enVivo = usePortalEnVivo(true, (m: MensajeDelPortal) => {
     if (m.type !== 'livechat' || !convId || m.conversation_id !== convId) return
     if (m.event === 'message' && m.message) {
-      anadir([m.message as Mensaje])
-      if ((m.message as Mensaje).author_type === 'agent') setAgenteEscribe(false)
+      anadir([m.message as MensajeDeCanal])
+      if ((m.message as MensajeDeCanal).author_type === 'agent') setAgenteEscribe(false)
+    } else if (m.event === 'reaction') {
+      void ponerAlDia(convId, true)
+    } else if (m.event === 'call') {
+      mirarLlamadas()
+      if (llamada && m.call_id === llamada.id && ['ended', 'declined', 'missed'].includes(String(m.status))) setLlamada(null)
     } else if (m.event === 'status' && m.conversation) {
       setConv(prev => prev ? { ...prev, ...(m.conversation as Partial<Conversacion>) } : prev)
     } else if (m.event === 'typing') {
@@ -246,13 +306,14 @@ export function PortalChatEnVivo() {
     }
   })
   useEffect(() => () => { if (finDeEscritura.current) clearTimeout(finDeEscritura.current) }, [])
-  // Al (re)conectar se recupera lo que llegara sin socket; sin socket, sondeo.
+  // Al (re)conectar se recupera lo que llegara sin socket; sin socket, sondeo (mensajes y llamadas).
   useEffect(() => {
     if (!convId) return undefined
-    if (enVivo) { void ponerAlDia(convId); return undefined }
-    const id = setInterval(() => { void ponerAlDia(convId) }, SONDEO_DEL_CHAT_MS)
+    mirarLlamadas()
+    if (enVivo) { void ponerAlDia(convId, true); return undefined }
+    const id = setInterval(() => { void ponerAlDia(convId, true); mirarLlamadas() }, SONDEO_DEL_CHAT_MS)
     return () => clearInterval(id)
-  }, [convId, enVivo, ponerAlDia])
+  }, [convId, enVivo, ponerAlDia, mirarLlamadas])
   // Leído: lo que el equipo escribió y el cliente tiene en pantalla.
   const ultimoDelEquipo = [...mensajes].reverse().find(m => m.direction === 'out')?.id
   useEffect(() => {
@@ -270,54 +331,160 @@ export function PortalChatEnVivo() {
     }
   }
   const enviar = async () => {
-    if (!conv || !texto.trim()) return
-    const cuerpo = texto.trim(); setTexto(''); setError(null)
+    if (!conv || !texto.trim() || enviando) return
+    const cuerpo = texto.trim(); setError(null); setEnviando(true)
     try {
-      const r = await D<{ message: Mensaje | null }>(CLIENT_API.post(`/sd/channels/livechat/${conv.id}/messages`, { body: cuerpo }))
-      if (r?.message) anadir([r.message])
-      // Sin socket, la respuesta del asistente se recoge ahora; con socket llega sola.
-      if (!enVivo) await ponerAlDia(conv.id)
-    } catch { setError(tr('sdm_error')) }
+      if (editando) {
+        anadir([await api.editar(conv.id, editando.id, cuerpo) as MensajeDeCanal])
+        setEditando(null)
+      } else {
+        const r = await D<{ message: MensajeDeCanal | null }>(CLIENT_API.post(`/sd/channels/livechat/${conv.id}/messages`, { body: cuerpo, reply_to_message_id: respondiendo?.id || undefined }))
+        if (r?.message) anadir([r.message])
+        setRespondiendo(null)
+        // Sin socket, la respuesta del asistente se recoge ahora; con socket llega sola.
+        if (!enVivo) await ponerAlDia(conv.id)
+      }
+      setTexto('')
+    } catch (e) { fallo(editando ? 'governedconversations.err_editar' : 'sdm_error')(e) }
+    finally { setEnviando(false) }
+  }
+  const adjuntar = async (f: File) => {
+    if (!conv) return
+    setError(null); setEnviando(true)
+    try {
+      anadir([await api.subir(conv.id, f, { caption: texto.trim() || undefined, replyTo: respondiendo?.id }) as MensajeDeCanal])
+      setTexto(''); setRespondiendo(null)
+    } catch (e) { fallo('governedconversations.err_adjuntar')(e) }
+    finally { setEnviando(false) }
+  }
+  const reaccionar = (m: MensajeDeCanal, emoji: string) => {
+    if (!conv) return
+    api.reaccionar(conv.id, m.id, emoji).then(() => ponerAlDia(conv.id, true)).catch(fallo('governedconversations.err_reaccion'))
+  }
+  const borrar = async (m: MensajeDeCanal) => {
+    if (!conv) return
+    const ok = await confirmar({
+      title: tr('governedconversations.borrar'), message: tr('governedconversations.confirmar_borrar'),
+      confirmLabel: tr('governedconversations.borrar'), cancelLabel: tr('common.cancel'), danger: true,
+    })
+    if (!ok) return
+    try { anadir([await api.borrar(conv.id, m.id) as MensajeDeCanal]) } catch (e) { fallo('governedconversations.err_borrar')(e) }
   }
   const pedirPersona = async () => {
     if (!conv) return
     try { setConv(await D<Conversacion>(CLIENT_API.post(`/sd/channels/livechat/${conv.id}/agent`))) }
-    catch { setError(tr('sdm_error')) }
+    catch (e) { fallo('sdm_error')(e) }
+  }
+  // Llamadas: solo aceptar, rechazar o colgar (el cliente no inicia nunca).
+  const entrante = !llamada ? sonando.find(c => c.conversation_id === convId) || null : null
+  const aceptar = async (c: PortalLlamada) => {
+    try { setLlamada(await api.aceptar(c.conversation_id, c.id)); setSonando([]) } catch (e) { fallo('governedconversations.err_llamada')(e) }
+  }
+  const rechazar = async (c: PortalLlamada) => {
+    try { await api.rechazar(c.conversation_id, c.id) } catch (e) { fallo('governedconversations.err_llamada')(e) }
+    mirarLlamadas()
+  }
+  const colgar = () => {
+    const actual = llamada
+    setLlamada(null)
+    if (actual) api.colgar(actual.conversation_id, actual.id).catch(() => { /* accesorio: si ya terminó no hay nada que deshacer */ })
   }
 
-  const textoDe = (m: Mensaje) => m.author_type === 'system' ? tr(`sdm_evento_${m.body}`) : m.body
-  const ultimoMio = [...mensajes].reverse().find(m => m.direction === 'in')
-  const leidoElUltimo = !!(ultimoMio?.created_at && conv?.agent_read_at && Date.parse(conv.agent_read_at) >= Date.parse(ultimoMio.created_at))
+  const textoDeSistema = (m: MensajeDeCanal) => tr(`sdm_evento_${m.body}`)
+  const autorDe = (tipo: string, nombre?: string | null, mio?: boolean) =>
+    tipo === 'bot' ? tr('sdm_asistente') : mio ? tr('pas_you') : nombre || tr(tipo === 'customer' ? 'governedconversations.remitente_cliente' : 'governedconversations.remitente_equipo')
+  const leidoHasta = conv?.agent_read_at ? Date.parse(conv.agent_read_at) : null
+  const activa = conv?.status !== 'closed'
+  // 24-11-2026 («un solo chat»): el panel del chat interno (cabecera, zona de mensajes y editor).
   return (
-    <PortalCard>
-      <div className="u-stack-12">
-        {conv && <div className="u-row-center-8 u-text2-xs">{tr(`sdm_conv_${conv.status}`)}{conv.ticket_number ? ` · ${conv.ticket_number}` : ''}</div>}
-        <div className="sdm-chat" aria-live="polite">
-          {mensajes.length === 0 && <div className="u-text3-xs">{tr('sdm_chat_bienvenida')}</div>}
-          {mensajes.map(m => (
-            <div key={m.id} className={`sdm-chat__msg${m.direction === 'in' ? ' sdm-chat__msg--mine' : ''}`}>
-              {m.author_type === 'bot' && <div className="u-text3-2xs">{tr('sdm_articulos_sugeridos')}</div>}
-              {textoDe(m)}
-              {m.id === ultimoMio?.id && leidoElUltimo && (
-                <div className="u-row-center-6 u-text3-2xs"><CheckCheck size={12} aria-hidden="true" />{tr('sdm_leido')}</div>
-              )}
+    <div className="u-stack-12">
+        {entrante && (
+          <div className="chat-portal-entrante" role="alert">
+            <PhoneIncoming size={18} aria-hidden="true" />
+            <div className="u-flex1-min0">
+              <div className="u-sm-700">{tr(entrante.kind === 'video' ? 'governedconversations.videollamada_entrante' : 'governedconversations.llamada_entrante')}</div>
+              <div className="u-text2-sm">{tr('governedconversations.llamada_no_se_graba')}</div>
             </div>
-          ))}
-          {agenteEscribe && <div className="u-text3-xs" role="status">{tr('sdm_escribiendo')}</div>}
-        </div>
-        {error && <div role="alert" className="u-danger u-text2-xs">{error}</div>}
-        {conv?.status !== 'closed' && (
-          <div className="u-row-8">
-            <PortalInput className="u-flex1" value={texto} aria-label={tr('sdm_chat')} placeholder={tr('sdm_chat_placeholder')}
-              onChange={e => escribiendo(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') enviar() }} />
-            <PortalButton icon={<Send size={13} />} onClick={enviar} disabled={!texto.trim()}>{tr('sdm_enviar')}</PortalButton>
+            <Button size="sm" icon={entrante.kind === 'video' ? <Video size={13} /> : <Phone size={13} />} onClick={() => aceptar(entrante)}>
+              {tr('governedconversations.aceptar')}
+            </Button>
+            <Button size="sm" variant="danger" icon={<PhoneOff size={13} />} onClick={() => rechazar(entrante)}>
+              {tr('governedconversations.rechazar')}
+            </Button>
           </div>
         )}
-        {conv?.status === 'bot' && (
-          <div><PortalButton variant="secondary" size="sm" icon={<UserRound size={13} />} onClick={pedirPersona}>{tr('sdm_hablar_persona')}</PortalButton></div>
+      <PantallaDeChat incrustada>
+      <PanelDeChat etiqueta={tr('sdm_chat')}>
+        <CabeceraDeConversacion titulo={tr('sdm_chat')} icono={<MessagesSquare size={18} aria-hidden="true" />}
+          subtitulo={conv ? `${tr(`sdm_conv_${conv.status}`)}${conv.ticket_number ? ` · ${conv.ticket_number}` : ''}` : null}
+          acciones={conv?.status === 'bot'
+            ? <PortalButton variant="secondary" size="sm" icon={<UserRound size={13} />} onClick={pedirPersona}>{tr('sdm_hablar_persona')}</PortalButton>
+            : conv?.status === 'closed'
+              ? <PortalButton variant="secondary" size="sm" onClick={() => { setMensajes([]); ultimo.current = null; empezar() }}>{tr('sdm_nueva_conversacion')}</PortalButton>
+              : null} />
+        <ZonaDeMensajes etiqueta={tr('sdm_chat')}>
+          {mensajes.length === 0 && <div className="u-text3-xs">{tr('sdm_chat_bienvenida')}</div>}
+          {mensajes.map((m, i) => {
+            // 24-11-2026 (burbujas): separador de día; sistema en pastilla centrada; lo del cliente a la derecha.
+            const prev = mensajes[i - 1]
+            const nuevoDia = cambiaDeDia(prev?.created_at, m.created_at)
+            if (m.author_type === 'system') return (
+              <Fragment key={m.id}>{nuevoDia && <SeparadorDeDia fecha={m.created_at} />}<MensajeDeSistema>{textoDeSistema(m)}</MensajeDeSistema></Fragment>
+            )
+            const mio = m.author_type === 'customer'
+            const compacto = !!prev && !nuevoDia && prev.author_type === m.author_type && prev.author_user_id === m.author_user_id
+              && !!prev.created_at && !!m.created_at && Date.parse(m.created_at) - Date.parse(prev.created_at) < 5 * 60_000
+            return (
+              <Fragment key={m.id}>
+              {nuevoDia && <SeparadorDeDia fecha={m.created_at} />}
+              <MensajeDelChatEnVivo m={m} lado="client" convId={conv?.id || ''} api={api}
+                autor={autorDe(m.author_type, m.author_name, mio)}
+                autorDeCita={(tipo) => autorDe(tipo, null, tipo === 'customer')}
+                esMio={mio} quien={{ clientId: clienteId }} activa={activa} compacto={compacto}
+                extras={m.author_type === 'bot' ? <div className="u-text3-2xs">{tr('sdm_articulos_sugeridos')}</div> : null}
+                leido={mio ? !!(leidoHasta && m.created_at && leidoHasta >= Date.parse(m.created_at)) : null}
+                onResponder={(x) => { setEditando(null); setRespondiendo(x) }}
+                onEditar={(x) => { setRespondiendo(null); setEditando(x); setTexto(x.body || '') }}
+                onBorrar={borrar}
+                onReaccionar={reaccionar}
+                onError={fallo('governedconversations.err_descargar')}
+              />
+              </Fragment>
+            )
+          })}
+        </ZonaDeMensajes>
+        <Escribiendo texto={agenteEscribe ? tr('sdm_escribiendo') : null} />
+        {error && <div role="alert" className="u-danger u-text2-xs">{error}</div>}
+        {activa && (
+          <EditorDeChat
+            valor={texto}
+            onCambiar={escribiendo}
+            onEnviar={() => { void enviar() }}
+            etiquetaCampo={tr('sdm_chat')}
+            placeholder={tr('sdm_chat_placeholder')}
+            etiquetaEnviar={editando ? tr('governedconversations.guardar_edicion') : tr('sdm_enviar')}
+            desactivado={!conv}
+            adjuntar={ajustes?.attachments_enabled && !editando ? {
+              etiqueta: `${tr('governedconversations.adjuntar')} · ${tr('governedconversations.adjunto_limite', { mb: ajustes.max_file_mb })}`,
+              aceptar: (ajustes.allowed_extensions || []).join(','), onFichero: (f) => { void adjuntar(f) }, desactivado: enviando,
+            } : null}
+            etiquetaEmoji={tr('governedconversations.insertar_emoji')}
+            encima={<>
+              {respondiendo && !editando && (
+                <AvisoDelEditor icono={<Reply size={12} aria-hidden="true" />}
+                  texto={`${tr('governedconversations.respondiendo_a', { name: autorDe(respondiendo.author_type, respondiendo.author_name, respondiendo.author_type === 'customer') })}: ${String(respondiendo.body || '').slice(0, 120)}`}
+                  etiquetaCancelar={tr('governedconversations.cancelar_respuesta')} onCancelar={() => setRespondiendo(null)} />
+              )}
+              {editando && (
+                <AvisoDelEditor icono={<Pencil size={12} aria-hidden="true" />} texto={tr('governedconversations.editando')}
+                  etiquetaCancelar={tr('governedconversations.cancelar_edicion')} onCancelar={() => { setEditando(null); setTexto('') }} />
+              )}
+            </>}
+          />
         )}
-        {conv?.status === 'closed' && <div><PortalButton variant="secondary" size="sm" onClick={() => { setMensajes([]); ultimo.current = null; empezar() }}>{tr('sdm_nueva_conversacion')}</PortalButton></div>}
-      </div>
-    </PortalCard>
+      </PanelDeChat>
+      </PantallaDeChat>
+      {llamada && <LlamadaDelPortal llamada={llamada} titulo={tr('sdm_chat')} onColgar={colgar} t={tr} />}
+    </div>
   )
 }

@@ -43,18 +43,30 @@
 .call-tile__name { position: absolute; bottom: 10px; left: 12px; padding: 3px 10px; border-radius: var(--radius-full); background: var(--call-overlay-soft); font-size: var(--text-sm); font-weight: 600; }
 
 /* Paneles laterales */
-.call-side { width: 320px; max-width: 100%; border-left: 1px solid var(--call-line); display: flex; flex-direction: column; }
+/* 24-11-2026 (burbujas): el chat lateral usa la fila y el editor de todos los chats; aquí se
+   les da la paleta oscura de la llamada redefiniendo los tokens que usan. */
+.call-side {
+  --surface-0: var(--call-bg);
+  --surface-1: var(--call-bg);
+  --surface-2: var(--call-tile);
+  --surface-3: var(--call-tile);
+  --surface-4: var(--call-tile-border);
+  --text-1: var(--on-accent-light);
+  --text-2: var(--call-text-muted);
+  --text-3: var(--call-text-muted);
+
+  width: 320px;
+  max-width: 100%;
+  border-left: 1px solid var(--call-line);
+  display: flex;
+  flex-direction: column;
+}
 .call-side--narrow { width: 280px; }
 .call-side__head { height: 44px; display: flex; align-items: center; justify-content: space-between; padding: 0 14px; border-bottom: 1px solid var(--call-line); }
 .call-side__title { font-weight: 700; font-size: var(--text-base); margin: 0; }
 .call-side__close { background: none; border: none; cursor: pointer; color: var(--call-text-soft); display: inline-flex; padding: 4px; border-radius: var(--radius-sm); }
 .call-side__body { flex: 1; overflow-y: auto; padding: 12px 14px; }
 .call-side__empty { font-size: var(--text-sm); color: var(--call-text-muted); }
-.call-msg__meta { font-size: var(--text-xs); color: var(--call-text-muted); }
-.call-msg__body { font-size: var(--text-base); }
-.call-side__form { padding: 10px; border-top: 1px solid var(--call-line); display: flex; gap: 6px; }
-.call-side__input { flex: 1; min-width: 0; padding: 8px 10px; background: var(--call-tile); border: 1px solid var(--call-tile-border); border-radius: 8px; color: var(--on-accent-light); font-size: var(--text-sm); outline: none; font-family: inherit; }
-.call-side__send { width: 32px; height: 32px; border-radius: 8px; border: none; background: var(--accent); color: var(--on-accent-light); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
 .call-people { padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; margin: 0; list-style: none; }
 .call-person { display: flex; align-items: center; gap: 8px; font-size: var(--text-base); }
 .call-person__audio { color: var(--call-text-muted); }

@@ -165,6 +165,15 @@ Editar, borrar, más, copiar, historial o cerrar en una **tarjeta, fila o cabece
 
 **Lo vigilan:** la regla `contec/sin-boton-de-icono-propio` (`<button>`, `<Pulsable>` o `<Button>` con un icono de lucide como único hijo, o `<Button icon>` sin texto) y la comprobación CSS `botonDeIcono` (clases propias `*-icon-btn`, `*-btn-icon`, `*-boton-icono`… o retoques de `.icon-button--caja` fuera del kit). Cupo 0 en `kit-pendientes.json`.
 
+### Novedades del 24-11-2026
+
+- **Campos con etiqueta**: siempre la prop `label` del componente (`Select`, `Input`, `Textarea`, `DateInput`, `CampoFecha`, `ClientSelect`, `UserSelect`, `ProjectSelect`). Nunca `<label>` + control sueltos. Lo vigila `scripts/kit/comprobarCampos.mjs`.
+- **`SelectorDeContexto`**: tarjeta con los campos de contexto de la pantalla (proyecto, cliente, unidad, sprint, periodo) y hueco `acciones`. Fija el ancho de sus desplegables en `--ancho-min-desplegable` (320 px, sin pasar del hueco). Fuera de él, los desplegables solo tienen ese mínimo.
+- **Campo sin rellenar**: un solo color, `--texto-campo-vacio`, para el texto de ejemplo (`::placeholder`), el desplegable sin elegir y `SelectRico`.
+- **Campo erróneo**: `aria-invalid` pinta el borde rojo en `Input`, `Textarea`, `DateInput` y `Select` (este último también con `error`).
+- **Chat único** (`src/components/chat/`): `PantallaDeChat`, `ListaDeChats`, `PanelDeChat`, `CabeceraDeConversacion`, `ZonaDeMensajes`, `FilaDeMensaje`, `EditorDeChat` y `BotonesDeLlamada`. Los usan el chat interno y todos los chats del portal; ningún chat pinta su propia lista, burbuja o editor (lo vigila `comprobarChatUnico`). La barra de acciones de un mensaje es siempre horizontal.
+  - **Burbujas** (tarde del 24-11-2026, «como WhatsApp o Teams»): `FilaDeMensaje` recibe `propio` (derecha, acento suave `color-mix(--accent 18 %, --surface-2)`, sin avatar) o no (izquierda, `--surface-2`, avatar y nombre; `mostrarNombre={false}` en 1:1); `esBot` para asistentes. Dentro de la burbuja: nombre, cita, cuerpo, `extras` y el pie (`insignias`, `fijado`, «editado», hora y `pie` = `EstadoDeEntrega` con ✓/✓✓). Reacciones en pastillas debajo. Columna máx. 70 %. Barra de acciones al lado de la burbuja (izquierda en las propias, derecha en las ajenas) o encima si no cabe. Piezas nuevas: `MensajeDeSistema` (pastilla centrada), `SeparadorDeDia` + `cambiaDeDia` + `etiquetaDeDia` (Hoy/Ayer/fecha). `reaccion`, `reaccionarCon` y `acciones` de `TextosDeFila` pasan a opcionales (los asistentes sin acciones solo dan `mensajeDe`). Clases: `chat-msg--propio`/`--ajeno`, `chat-msg__columna`, `__burbuja`, `__autor`, `__pie`, `__estado--leido`, `__pensando`, `chat-sistema`, `chat-dia` (se fueron `chat-msg__meta`, `__ancla`, `__contenido`). La usan también el panel flotante, el hilo del interno, el chat de la llamada (tokens redefinidos a la paleta `--call-*` en `.call-side`) y los asistentes de IA.
+
 ### Hojas de estilo de las pantallas
 
 Fuera de `components/ui` e `index.css` (lo comprueba `src/__tests__/kitCssSinRestos.test.ts`):

@@ -5,22 +5,23 @@
  * (dominio de colaboración, `/portal/collaboration/*`), con lo mismo que las
  * conversaciones formales y reutilizando sus piezas: `AdjuntoDelChat` (vista
  * previa y descarga por la API), `LlamadaDelPortal` (sala de LiveKit),
- * `SelectorDeEmoji`, `REACCIONES_RAPIDAS` y `TextoConEnlaces` del kit, y los
+ * `SelectorDeEmoji` y `TextoConEnlaces` del kit, la fila y el editor del chat
+ * interno (`components/chat`, «un solo chat», 24-11-2026) y los
  * ajustes por empresa `portal_chat`.
  *
  * El cliente NO puede iniciar llamadas: solo ve el aviso de llamada entrante
  * (Aceptar / Rechazar) y cuelga. El servidor lo impone (403
  * `portal_llamada_solo_operador`).
  */
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Check, CheckCheck, MessageSquare, Paperclip, Pencil, Phone, PhoneIncoming, PhoneOff, Reply, Send, Trash2, Video, X } from 'lucide-react'
+import { MessageSquare, Pencil, Phone, PhoneIncoming, PhoneOff, Reply, Trash2, Video } from 'lucide-react'
 import { apiWsUrl } from '../../services/api'
 import { useToast } from '../../context/ToastContext'
 import { confirmar } from '../../context/ConfirmContext'
-import { fmtDateTime } from '../../utils/helpers'
 import { CLIENT_API, useClientAuth, useErrorDelPortal, useLang } from '../../pages/portal-client/portalClientContext'
-import { Button, IconButton, Pulsable, REACCIONES_RAPIDAS, SelectorDeEmoji, Textarea, TextoConEnlaces } from '../ui'
+import { Button, TextoConEnlaces } from '../ui'
+import { type AccionDeMensaje, AvisoDelEditor, CabeceraDeConversacion, EditorDeChat, Escribiendo, EstadoDeEntrega, FilaDeConversacion, FilaDeMensaje, ListaDeChats, PanelDeChat, PantallaDeChat, SeparadorDeDia, ZonaDeMensajes, agruparReacciones as agruparReaccionesDelChat, cambiaDeDia } from '../chat'
 import { POLL_ACTIVE_CHAT_MS, POLL_FAST_MS, POLL_FREQUENT_MS, WS_HEARTBEAT_MS } from '../../constants/timings'
 import type { PortalAjustesDelChat, PortalLlamada } from '../../services/api/tipos-alm'
 import AdjuntoDelChat from './AdjuntoDelChat'
@@ -91,12 +92,12 @@ export default function ChatColaboracionDelPortal({ vacio }: { vacio: ReactNode 
   const { client } = useClientAuth()
   const clienteId = client?.id ? String(client.id) : null
   const [activa, setActiva] = useState<string | null>(null)
+  const [filtro, setFiltro] = useState('')
   const [borrador, setBorrador] = useState('')
   const [respondiendo, setRespondiendo] = useState<MensajeColab | null>(null)
   const [editando, setEditando] = useState<MensajeColab | null>(null)
   const [escribe, setEscribe] = useState<string | null>(null)
   const [llamada, setLlamada] = useState<PortalLlamada | null>(null)
-  const fichero = useRef<HTMLInputElement | null>(null)
   const socketRef = useRef<WebSocket | null>(null)
   const ultimoAviso = useRef(0)
   const temporizador = useRef<number | null>(null)
@@ -269,126 +270,105 @@ export default function ChatColaboracionDelPortal({ vacio }: { vacio: ReactNode 
       )}
 
       {conversaciones.length === 0 ? vacio : (
-        <div className="poadse-grid-1">
-          <div className="portalad-sx4">
-            {conversaciones.map(c => (
-              <Pulsable className={`poadse-box-29 ${activa === c.id ? 'portal-advanced-sections-m7' : 'portal-advanced-sections-m8'}`} key={c.id} onClick={() => setActiva(c.id)}>
-                <MessageSquare size={13} aria-hidden="true" /> {c.title}
-              </Pulsable>
+        // 24-11-2026 («un solo chat»): la pantalla del chat interno (components/chat): lista,
+        // cabecera, zona de mensajes y editor. El cliente no tiene botones de llamar.
+        <PantallaDeChat incrustada>
+          <ListaDeChats buscar={{ valor: filtro, onCambiar: setFiltro, etiqueta: t('governedconversations.buscar') }}>
+            {conversaciones.filter(c => !filtro || (c.title || '').toLowerCase().includes(filtro.toLowerCase())).map(c => (
+              <FilaDeConversacion key={c.id} titulo={c.title || ''} activa={activa === c.id} onClick={() => setActiva(c.id)}
+                icono={<MessageSquare size={13} aria-hidden="true" />} />
             ))}
-          </div>
-          <div className="portalad-sx5">
-            <div className="poadse-box-14">
-              {mensajes.map(m => {
+          </ListaDeChats>
+          <PanelDeChat etiqueta={conversacion?.title || t('governedconversations.mensajes')}>
+            <CabeceraDeConversacion titulo={conversacion?.title || ''} icono={<MessageSquare size={18} aria-hidden="true" />} />
+            <ZonaDeMensajes etiqueta={t('governedconversations.mensajes')}>
+              {mensajes.map((m, i) => {
+                const previo = mensajes[i - 1]
+                // 24-11-2026 (burbujas): separador de día; lo del cliente que mira a la derecha.
+                const nuevoDia = cambiaDeDia(previo?.sent_at, m.sent_at)
+                const compacto = !!previo && !nuevoDia && previo.status !== 'deleted' && m.status !== 'deleted'
+                  && (previo.user_id || previo.client_user_id) === (m.user_id || m.client_user_id)
+                  && new Date(m.sent_at).getTime() - new Date(previo.sent_at).getTime() < 5 * 60_000
                 const mio = !!clienteId && m.client_user_id === clienteId
                 const borrado = m.status === 'deleted'
-                const reacciones = agruparReacciones(m, clienteId)
+                const autor = m.author_name || (mio ? t('pas_you') : t('dashboard_team'))
+                const soloAdjunto = m.type === 'file' && (m.attachments || []).some(a => a.name === m.body)
+                const acciones: AccionDeMensaje[] = [
+                  { clave: 'responder', etiqueta: t('governedconversations.responder'), icono: <Reply size={13} aria-hidden="true" />, onClick: () => { setEditando(null); setRespondiendo(m) } },
+                  ...(mio && (m.type === 'text' || m.type === 'file') ? [
+                    { clave: 'editar', etiqueta: t('governedconversations.editar'), icono: <Pencil size={13} aria-hidden="true" />, onClick: () => { setRespondiendo(null); setEditando(m); setBorrador(m.body || '') } },
+                    { clave: 'borrar', etiqueta: t('governedconversations.borrar'), icono: <Trash2 size={13} aria-hidden="true" />, onClick: () => { void pedirBorrado(m) }, peligro: true },
+                  ] : []),
+                ]
                 return (
-                  <div key={m.id} role="article" aria-label={t('governedconversations.mensaje_de', { name: m.author_name || '' })}
-                    className={`u-mb-10 chat-portal-burbuja${borrado ? ' chat-portal-burbuja--borrada' : ''}`}>
-                    <div className="u-text3-xs">
-                      {m.author_name || (mio ? t('pas_you') : t('dashboard_team'))} · {fmtDateTime(m.sent_at)}
-                      {m.edited_at && !borrado && <span className="chat-portal-editado"> · {t('governedconversations.editado')}</span>}
-                    </div>
-                    {m.reply_to && (
-                      <blockquote className="chat-portal-cita">
-                        <span className="u-sm-700">{m.reply_to.author_name || ''}</span>
-                        <span className="chat-portal-cita__texto">{m.reply_to.is_deleted ? t('governedconversations.mensaje_borrado') : m.reply_to.body}</span>
-                      </blockquote>
-                    )}
-                    {borrado
-                      ? <div className="chat-portal-borrado">{t('governedconversations.mensaje_borrado')}</div>
-                      : (m.type !== 'file' || !(m.attachments || []).some(a => a.name === m.body)) && <TextoConEnlaces texto={m.body || ''} className="poadse-txt-4 chat-portal-texto" />}
-                    {!borrado && (m.attachments || []).length > 0 && (
-                      <div className="chat-portal-adjuntos">
+                  <Fragment key={m.id}>
+                  {nuevoDia && <SeparadorDeDia fecha={m.sent_at} />}
+                  <FilaDeMensaje
+                    autor={autor}
+                    fecha={m.sent_at}
+                    propio={mio}
+                    compacto={compacto}
+                    borrado={borrado}
+                    editado={!!m.edited_at && !borrado}
+                    textos={{
+                      mensajeDe: t('governedconversations.mensaje_de', { name: autor }),
+                      acciones: t('governedconversations.acciones_del_mensaje'),
+                      editado: t('governedconversations.editado'),
+                      eliminado: t('governedconversations.mensaje_borrado'),
+                      reaccion: (emoji, n) => t('governedconversations.reaccion_de', { emoji, n }),
+                      reaccionarCon: (emoji) => t('governedconversations.reaccionar_con', { emoji }),
+                    }}
+                    cita={m.reply_to ? { autor: m.reply_to.author_name || '', texto: m.reply_to.body, borrada: m.reply_to.is_deleted } : null}
+                    cuerpo={borrado
+                      ? <div className="chat-msg__body">{t('governedconversations.mensaje_borrado')}</div>
+                      : (!soloAdjunto && <TextoConEnlaces texto={m.body || ''} className="chat-msg__body" />)}
+                    extras={!borrado && (m.attachments || []).length > 0 ? (
+                      <div className="chat-msg__attachments">
                         {m.attachments.map(a => (
                           <AdjuntoDelChat key={a.id} adjunto={a} cargar={cargarAdjunto} t={t} onError={fallo('governedconversations.err_descargar')} />
                         ))}
                       </div>
-                    )}
-                    {reacciones.length > 0 && (
-                      <div className="chat-portal-reacciones">
-                        {reacciones.map(([emoji, g]) => (
-                          <Pulsable key={emoji} type="button" className={`chat-portal-reaccion${g.mia ? ' chat-portal-reaccion--mia' : ''}`}
-                            aria-pressed={g.mia} onClick={() => reaccionar.mutate({ id: m.id, emoji })}
-                            aria-label={t('governedconversations.reaccion_de', { emoji, n: g.n })}>{emoji} <span>{g.n}</span></Pulsable>
-                        ))}
-                      </div>
-                    )}
-                    {!borrado && (
-                      <div className="chat-portal-acciones" role="toolbar" aria-label={t('governedconversations.acciones_del_mensaje')}>
-                        {REACCIONES_RAPIDAS.slice(0, 4).map(e => (
-                          <Pulsable key={e} type="button" className="chat-portal-reaccion-rapida" onClick={() => reaccionar.mutate({ id: m.id, emoji: e })}
-                            aria-label={t('governedconversations.reaccionar_con', { emoji: e })}>{e}</Pulsable>
-                        ))}
-                        <SelectorDeEmoji tamano="xs" ariaLabel={t('governedconversations.reaccionar')} onElegir={e => reaccionar.mutate({ id: m.id, emoji: e })} />
-                        <IconButton variante="caja" tamano="xs" ariaLabel={t('governedconversations.responder')} onClick={() => { setEditando(null); setRespondiendo(m) }}>
-                          <Reply size={13} aria-hidden="true" />
-                        </IconButton>
-                        {mio && (m.type === 'text' || m.type === 'file') && (
-                          <>
-                            <IconButton variante="caja" tamano="xs" ariaLabel={t('governedconversations.editar')} onClick={() => { setRespondiendo(null); setEditando(m); setBorrador(m.body || '') }}>
-                              <Pencil size={13} aria-hidden="true" />
-                            </IconButton>
-                            <IconButton variante="caja" tamano="xs" tono="peligro" ariaLabel={t('governedconversations.borrar')} onClick={() => pedirBorrado(m)}>
-                              <Trash2 size={13} aria-hidden="true" />
-                            </IconButton>
-                          </>
-                        )}
-                      </div>
-                    )}
-                    {mio && !borrado && (
-                      <div className="chat-portal-estado">
-                        {leidoPorElEquipo(m.sent_at, conversacion?.team_last_read_at)
-                          ? <><CheckCheck size={12} aria-hidden="true" /> {t('governedconversations.leido')}</>
-                          : <><Check size={12} aria-hidden="true" /> {t('governedconversations.enviado')}</>}
-                      </div>
-                    )}
-                  </div>
+                    ) : null}
+                    reacciones={agruparReaccionesDelChat(m.reactions, { clientId: clienteId })}
+                    onReaccionar={(emoji) => reaccionar.mutate({ id: m.id, emoji })}
+                    acciones={acciones}
+                    pie={mio && !borrado ? (
+                      <EstadoDeEntrega leido={leidoPorElEquipo(m.sent_at, conversacion?.team_last_read_at)}
+                        textoLeido={t('governedconversations.leido')} textoEnviado={t('governedconversations.enviado')} />
+                    ) : null}
+                  />
+                  </Fragment>
                 )
               })}
-              {escribe === activa && (
-                <div className="chat-portal-escribiendo" aria-live="polite">
-                  {t('governedconversations.escribiendo', { name: t('dashboard_team') })}
-                </div>
-              )}
-            </div>
-            {(respondiendo || editando) && (
-              <div className="chat-portal-contexto" role="status">
-                {editando ? <Pencil size={13} aria-hidden="true" /> : <Reply size={13} aria-hidden="true" />}
-                <span className="chat-portal-contexto__texto">
-                  {editando ? t('governedconversations.editando') : `${t('governedconversations.respondiendo_a', { name: respondiendo?.author_name || '' })}: ${String(respondiendo?.body || '').slice(0, 120)}`}
-                </span>
-                <IconButton ariaLabel={t(editando ? 'governedconversations.cancelar_edicion' : 'governedconversations.cancelar_respuesta')}
-                  onClick={() => { setEditando(null); setRespondiendo(null); if (editando) setBorrador('') }}>
-                  <X size={13} aria-hidden="true" />
-                </IconButton>
-              </div>
-            )}
-            <div className="poadse-row-15">
-              <SelectorDeEmoji ariaLabel={t('governedconversations.insertar_emoji')} onElegir={e => setBorrador(v => `${v}${e}`)} />
-              {ajustes?.attachments_enabled && !editando && (
-                <>
-                  <input ref={fichero} type="file" className="chat-portal-oculto" accept={aceptados} aria-hidden="true" tabIndex={-1}
-                    onChange={(e) => { const f = e.target.files?.[0]; if (f) adjuntar.mutate(f); e.target.value = '' }} />
-                  <IconButton variante="caja" ariaLabel={t('governedconversations.adjuntar')} disabled={adjuntar.isPending} onClick={() => fichero.current?.click()}>
-                    <Paperclip size={15} aria-hidden="true" />
-                  </IconButton>
-                </>
-              )}
-              <Textarea aria-label={t('portaladvanced.escribe_un_mensaje')} value={borrador}
-                onChange={e => { setBorrador(e.target.value); if (e.target.value.trim()) avisarEscribiendo() }}
-                onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); if (borrador.trim()) enviar.mutate() } }}
-                placeholder={t('portaladvanced.escribe_un_mensaje')} rows={1}
-                className="u-flex1-min0" inputClassName="poadse-box-15" />
-              <Button size="sm" icon={<Send size={13} />} onClick={() => borrador.trim() && enviar.mutate()} disabled={!borrador.trim()} loading={enviar.isPending || adjuntar.isPending}>
-                {editando ? t('governedconversations.guardar_edicion') : t('chat.send')}
-              </Button>
-            </div>
-          </div>
-        </div>
+            </ZonaDeMensajes>
+            <Escribiendo texto={escribe === activa ? t('governedconversations.escribiendo', { name: t('dashboard_team') }) : null} />
+            <EditorDeChat
+              valor={borrador}
+              onCambiar={(v) => { setBorrador(v); if (v.trim()) avisarEscribiendo() }}
+              onEnviar={() => { if (borrador.trim() && !enviar.isPending) enviar.mutate() }}
+              etiquetaCampo={t('portaladvanced.escribe_un_mensaje')}
+              placeholder={t('portaladvanced.escribe_un_mensaje')}
+              etiquetaEnviar={editando ? t('governedconversations.guardar_edicion') : t('chat.send')}
+              adjuntar={ajustes?.attachments_enabled && !editando ? {
+                etiqueta: t('governedconversations.adjuntar'), aceptar: aceptados,
+                onFichero: (f) => adjuntar.mutate(f), desactivado: adjuntar.isPending,
+              } : null}
+              etiquetaEmoji={t('governedconversations.insertar_emoji')}
+              encima={<>
+                {respondiendo && !editando && (
+                  <AvisoDelEditor icono={<Reply size={12} aria-hidden="true" />}
+                    texto={`${t('governedconversations.respondiendo_a', { name: respondiendo.author_name || '' })}: ${String(respondiendo.body || '').slice(0, 120)}`}
+                    etiquetaCancelar={t('governedconversations.cancelar_respuesta')} onCancelar={() => setRespondiendo(null)} />
+                )}
+                {editando && (
+                  <AvisoDelEditor icono={<Pencil size={12} aria-hidden="true" />} texto={t('governedconversations.editando')}
+                    etiquetaCancelar={t('governedconversations.cancelar_edicion')} onCancelar={() => { setEditando(null); setBorrador('') }} />
+                )}
+              </>}
+            />
+          </PanelDeChat>
+        </PantallaDeChat>
       )}
-
       {llamada && (
         <LlamadaDelPortal llamada={llamada} titulo={conversacion?.title || t('governedconversations.llamada')} onColgar={colgar} t={t} />
       )}

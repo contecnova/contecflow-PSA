@@ -13,8 +13,7 @@
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  background: var(--surface-2);
+  background: var(--surface-0);
 }
 .poaiwi-box-2 {
   color: var(--text-2);
@@ -49,38 +48,6 @@
   font-size: var(--text-xs);
   color: var(--text-3);
 }
-.poaiwi-box-7 {
-  align-self: flex-start;
-  max-width: 85%;
-  background: var(--surface-1);
-  border: 1px solid var(--surface-4);
-  border-radius: var(--radius-md);
-  padding: 8px 12px;
-  color: var(--text-3);
-  font-size: var(--text-base);
-  font-style: italic;
-}
-.poaiwi-box-8 {
-  display: inline-block;
-  animation: pulse 1.2s ease-in-out infinite;
-}
-.poaiwi-row-2 {
-  padding: 10px 12px;
-  border-top: 1px solid var(--surface-4);
-  background: var(--surface-1);
-  display: flex;
-  gap: 6px;
-}
-.poaiwi-box-9 {
-  flex: 1;
-  padding: 8px 10px;
-  background: var(--surface-3);
-  border: 1px solid var(--surface-4);
-  border-radius: 8px;
-  color: var(--text-1);
-  font-size: var(--text-base);
-  outline: none;
-}
 .poaiwi-row-3 {
   margin-top: 6px;
   display: flex;
@@ -89,24 +56,6 @@
   font-size: var(--text-xs);
 }
 
-.poaiwi-box-10 {
-  max-width: 85%;
-  padding: 8px 12px;
-  font-size: var(--text-base);
-  line-height: 1.4;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-}
-.poaiwi-row-4 {
-  padding: 8px 12px;
-  background: var(--accent);
-  color: var(--on-accent);
-  border: none;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
 .poaiwi-box-11 {
   background: none;
   padding: 1px 6px;
@@ -170,9 +119,6 @@
   font-size: var(--text-xs);
   font-weight: 600;
 }
-.portalai-sx4.portalai-sx4 {
-  border-radius: var(--radius-md);
-}
 .portalai-sx5 {
   background: var(--danger-bg-strong);
   color: var(--danger);
@@ -188,26 +134,6 @@
 /* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
 .portal-aichat-widget-e5 {
   border: var(--portal-aichat-widget-border);
-}
-.portal-aichat-widget-m1 {
-  align-self: flex-end;
-  background: var(--accent);
-  color: var(--on-accent-light);
-  border: none;
-}
-.portal-aichat-widget-m2 {
-  align-self: flex-start;
-  background: var(--surface-1);
-  color: var(--text-1);
-  border: 1px solid var(--surface-4);
-}
-.portal-aichat-widget-m3 {
-  cursor: pointer;
-  opacity: 1;
-}
-.portal-aichat-widget-m4 {
-  cursor: not-allowed;
-  opacity: 0.5;
 }
 /* <<< estilos-en-linea */
 

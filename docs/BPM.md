@@ -298,6 +298,14 @@ encuentra procesos de la misma empresa.
   [docs/portal/CHAT_DEL_PORTAL.md](portal/CHAT_DEL_PORTAL.md); se resiembra con
   `seed_catalogue(force=True)` (los procesos personalizados no se tocan). Cubre
   las conversaciones formales y la pestaña «Chat» del portal (chat de colaboración).
+- 24-11-2026 (migración 212, [docs/CERTIFICACIONES.md](CERTIFICACIONES.md) §11): tres procesos lineales más
+  (59 sembrados, 43 lineales; categoría `admin`): **Programa de certificación** (`cert_program`: alcance y
+  objetivos → carencias y riesgos → declaración de aplicabilidad → implantación → pruebas de eficacia por otra
+  persona → auditoría interna → revisión por la dirección → auditoría de certificación → certificado vigente),
+  **Auditoría, hallazgo y acción correctiva** (`cert_audit_capa`: auditoría → muestras → hallazgo → CAPA como tarea →
+  hecha → verificación por otra persona → corregido → cierre por quien no corrigió) e **Incidente notificable NIS2**
+  (`nis2_incident`: ticket → significatividad → alerta 24 h → notificación 72 h → intermedios → informe final 1 mes →
+  cierre). Textos en `textosLineales/{es,en,zh}.ts`.
 - 24-11-2026 (migración 208): **Intake Multi-Canal** (`multichannel_intake`) gana el paso «Identificar
   empresa destinataria (sin ella, se ignora)»: un correo o SMS que no es de ninguna empresa (con varias) no
   abre ticket ([docs/seguridad/empresa_obligatoria.md](seguridad/empresa_obligatoria.md) §6). Se resiembra con

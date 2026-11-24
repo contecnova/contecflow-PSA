@@ -2,9 +2,6 @@
  * Tipos y utilidades compartidas del chat.
  * Troceado de ChatPage.tsx sin cambio de comportamiento (23-11-2026).
  */
-import type { ReactNode } from 'react'
-import { formateadorDeFecha } from '../../utils/helpers'
-import { IconButton, Pulsable } from '../../components/ui'
 
 // ── Entity types ────────────────────────────────────────────────────────────
 // The collaboration API client returns untyped data (`r.data` / `unknown[]`),
@@ -96,30 +93,7 @@ export function tituloConv(c: Pick<Conv, 'title'> | null | undefined): string {
   return (c?.title || '').replace(/^#\s*/, '').trim()
 }
 
-/** Hora corta (hh:mm) con el formateador de fechas de la app. */
-const HORA: Intl.DateTimeFormatOptions = { hour: '2-digit', minute: '2-digit' }
-
-export function fmtHora(d: string | null | undefined): string {
-  return d ? formateadorDeFecha(HORA).format(new Date(d)) : ''
-}
-
-/** Botón de icono 32×32. `title` sirve también de nombre accesible.
- *  ghost/danger = IconButton variante="caja" del kit (estándar de acciones de
- *  icono, 23-11-2026); primary = botón de envío relleno del compositor. */
-export function IconBtn({ children, onClick, title, variant = 'ghost', expanded }: {
-  children: ReactNode; onClick?: () => void; title?: string
-  variant?: 'ghost' | 'primary' | 'danger'; expanded?: boolean
-}) {
-  if (variant !== 'primary') {
-    return (
-      <IconButton variante="caja" tono={variant === 'danger' ? 'peligro' : 'neutro'} onClick={onClick}
-        ariaLabel={title ?? ''} aria-expanded={expanded}>{children}</IconButton>
-    )
-  }
-  return (
-    <Pulsable type="button" onClick={onClick} title={title} aria-label={title}
-      aria-expanded={expanded}
-      className="chat-enviar"
-    >{children}</Pulsable>
-  )
-}
+// 24-11-2026 («un solo chat»): el botón de icono y la hora corta viven en
+// components/chat (los usan también los chats del portal); aquí se reexportan
+// con su nombre de siempre.
+export { BotonDeChat as IconBtn, fmtHora } from '../../components/chat'

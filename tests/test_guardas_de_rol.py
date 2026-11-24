@@ -225,7 +225,7 @@ EXENCIONES_ESPERADAS = {
     # /policy y /reset: límite por minuto, token de un solo uso y misma respuesta exista
     # o no la cuenta) y SAML (POST /auth/saml/callback, firma de la aserción del IdP, y
     # /auth/saml/canjear, ticket de un solo uso emitido tras validarla).
-    "superficie: sin sujeto autenticado": 62,  # +1 elegir empresa tras la contraseña; +1 decidir desde el correo; +1 webhook de Stripe (firma); +1 POST /client-errors (solo log)
+    "superficie: sin sujeto autenticado": 71,  # 24-11-2026: +9 rutas del cliente del portal en el chat en vivo (/sd/channels/livechat/{id}/…: adjuntos, editar, borrar, reacciones, aceptar/rechazar/colgar llamada), con la sesión del portal; antes 62; +1 elegir empresa tras la contraseña; +1 decidir desde el correo; +1 webhook de Stripe (firma); +1 POST /client-errors (solo log)
 }
 
 #: Rutas de escritura que sí llevan guarda de rol. Sólo puede subir.

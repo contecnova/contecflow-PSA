@@ -382,7 +382,7 @@
 /* Desplegable sin valor elegido: mismo color que con valor (24-11-2026; antes gris
    --text-3 y cada pantalla salía distinta). */
 .ui-index-m9 {
-  color: var(--text-1);
+  color: var(--texto-campo-vacio);
 }
 .ui-index-m12 {
   color: var(--accent);
@@ -546,13 +546,12 @@ input.ui-input--icono-fin.ui-input--icono-fin { padding-inline-end: var(--campo-
 .uiinde-box-19.ui-select--sm { min-height: var(--alto-control-sm); height: var(--alto-control-sm); padding: 0 10px; font-size: var(--text-sm); }
 .ui-select--suelto { width: auto; max-width: 100%; }
 /* Mismo ancho en todos los desplegables (ver --ancho-min-desplegable en index.css). */
-/* `contain: inline-size` hace que el ancho NO salga de la opción más larga: en
-   una fila mide exactamente el mínimo; en rejilla o columna se estira igual que antes.
-   Solo los que no traen clase propia: los que fijan su ancho (p. ej. el selector de
-   periodo) no se tocan para no recortar su texto. */
-.ui-field[class="ui-field"]:has(> select) { contain: inline-size; min-width: min(var(--ancho-min-desplegable), 100%); }
+/* Mínimo común: nunca más estrechos que el estándar (sin pasar del hueco). El ancho EXACTO
+   y fijo lo pone `SelectorDeContexto` (24-11-2026: un `contain: inline-size` global dejaba
+   los desplegables a 0 px dentro de contenedores que se ajustan a su contenido). */
+.ui-field[class="ui-field"]:has(> select) { min-width: min(var(--ancho-min-desplegable), 100%); }
 .ui-field[class="ui-field"]:has(> select) > select { width: 100%; }
-.ui-select--suelto[class$="ui-select--suelto"] { contain: inline-size; min-width: min(var(--ancho-min-desplegable-suelto), 100%); }
+.ui-select--suelto[class$="ui-select--suelto"] { min-width: min(var(--ancho-min-desplegable-suelto), 100%); }
 
 /* Código (16-11-2026): la única tipografía monoespaciada permitida. Para
    fragmentos de código, rutas de API, variables o comandos que el usuario

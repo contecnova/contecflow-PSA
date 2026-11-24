@@ -57,6 +57,8 @@ export const RUTAS: RutaDeclarada[] = [
   ...con('cuaderno.usar', ['/notebook']),
   // Revisiones posteriores a la implantación (migración 206): las mías, todas (acotadas) e informes.
   ...con('pir.ver', ['/pir']),
+  // Certificaciones (migración 212, docs/CERTIFICACIONES.md): panel, programas, matriz, auditorías y NIS2.
+  ...con('certificaciones.ver', ['/certificaciones']),
   ...con('proyectos.panel', ['/projects-dashboard']),
   ...con('proyectos.gobierno', ['/deliverables', '/changes', '/risks', '/git', '/esign']),
   ...con('equipo.ver', ['/team-dashboard', '/resources/planning', '/alm/altas-y-bajas']),

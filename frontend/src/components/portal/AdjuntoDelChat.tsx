@@ -4,7 +4,8 @@
  * El fichero NUNCA llega por un enlace público: se pide a la API con la sesión
  * (que comprueba que participas en la conversación y eres de la misma empresa)
  * y se pinta desde un blob. Las imágenes salen en miniatura y se amplían en un
- * modal; el resto, como ficha con nombre, tamaño y botón de descarga. Un
+ * modal; el resto, como ficha con nombre, tamaño y botón de descarga (con las
+ * clases del chat interno, `chat-att*`, «un solo chat» 24-11-2026). Un
  * adjunto en cuarentena (antivirus/DLP) se ve pero no se descarga.
  */
 import { useEffect, useRef, useState } from 'react'
@@ -13,6 +14,7 @@ import { Button, IconButton, Modal, Pulsable } from '../ui'
 import { downloadBlob } from '../../utils/helpers'
 import type { PortalAdjuntoDeMensaje } from '../../services/api/tipos-alm'
 import { tamanoLegible } from './chatDelPortalApi'
+import '../chat/chat.css'
 
 type T = (clave: string, vars?: Record<string, string | number>) => string
 
@@ -67,10 +69,8 @@ export default function AdjuntoDelChat({ adjunto, cargar, t, onError }: Props) {
 
   if (adjunto.is_quarantined) {
     return (
-      <div className="chat-portal-adjunto chat-portal-adjunto--cuarentena" role="note">
-        <AlertTriangle size={14} aria-hidden="true" />
-        <span className="chat-portal-adjunto__nombre">{adjunto.name}</span>
-        <span>{t('governedconversations.adjunto_cuarentena')}</span>
+      <div className="chat-att chat-att--quarantine" role="note">
+        <AlertTriangle size={13} aria-hidden="true" /> {adjunto.name} · {t('governedconversations.adjunto_cuarentena')}
       </div>
     )
   }
@@ -78,7 +78,7 @@ export default function AdjuntoDelChat({ adjunto, cargar, t, onError }: Props) {
   if (esImagen && url) {
     return (
       <>
-        <Pulsable className="chat-portal-adjunto__miniatura" onClick={() => setAmpliada(true)}
+        <Pulsable className="chat-att-img" onClick={() => setAmpliada(true)}
           aria-label={t('governedconversations.ver_imagen', { name: adjunto.name })}>
           <img src={url} alt={adjunto.name} loading="lazy" />
         </Pulsable>
@@ -97,10 +97,12 @@ export default function AdjuntoDelChat({ adjunto, cargar, t, onError }: Props) {
   }
 
   return (
-    <div className="chat-portal-adjunto">
-      <FileText size={15} aria-hidden="true" />
-      <span className="chat-portal-adjunto__nombre" title={adjunto.name}>{adjunto.name}</span>
-      <span className="chat-portal-adjunto__tamano">{tamanoLegible(adjunto.size_bytes)}</span>
+    <div className="chat-att">
+      <FileText size={15} className="u-accent" aria-hidden="true" />
+      <div className="u-flex1-min0">
+        <div className="chat-att__name" title={adjunto.name}>{adjunto.name}</div>
+        <div className="u-text3">{tamanoLegible(adjunto.size_bytes)}{adjunto.mime_type ? ` · ${adjunto.mime_type.split('/')[1] || adjunto.mime_type}` : ''}</div>
+      </div>
       <IconButton variante="caja" tamano="xs" ariaLabel={t('governedconversations.descargar')} onClick={descargar} disabled={bajando}>
         <Download size={13} aria-hidden="true" />
       </IconButton>

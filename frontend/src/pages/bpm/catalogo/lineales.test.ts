@@ -10,9 +10,9 @@ import zh from './textosLineales/zh'
 const CATEGORIAS_DE_LA_PAGINA = ['proyectos', 'finanzas', 'rrhh', 'servicedesk', 'crm', 'admin']
 const t = (k: string) => k
 
-describe('procesos lineales del catálogo (los 40 sembrados por el backend; 24-11-2026: + portal_conversation)', () => {
-  it('son 40, sin colisión con los procesos de diagrama propio', () => {
-    expect(ESTRUCTURA_LINEAL).toHaveLength(40)
+describe('procesos lineales del catálogo (los 43 sembrados por el backend; 24-11-2026: + portal_conversation y 3 de Certificaciones)', () => {
+  it('son 43, sin colisión con los procesos de diagrama propio', () => {
+    expect(ESTRUCTURA_LINEAL).toHaveLength(43)
     const propios = new Set(ESTRUCTURA_CATALOGO.map((e) => e.id))
     const ids = ESTRUCTURA_LINEAL.map((e) => e.id)
     expect(new Set(ids).size).toBe(ids.length)
@@ -56,7 +56,7 @@ describe('procesos lineales del catálogo (los 40 sembrados por el backend; 24-1
     const sin = construirCatalogo(zhPropio, t)
     expect(sin.some((p) => p.id === 'invoice_workflow')).toBe(false)
     const con = construirCatalogo(zhPropio, t, zh)
-    expect(con.length).toBe(sin.length + 40)  // 24-11-2026: + portal_conversation
+    expect(con.length).toBe(sin.length + 43)  // 24-11-2026: + portal_conversation; + 3 de Certificaciones (migración 212)
   })
 
   it('no inventa responsable ni SLA que el origen no tiene', () => {

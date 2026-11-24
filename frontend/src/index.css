@@ -172,6 +172,9 @@
      filtros medía lo que su opción más larga: «Unidad» salía estrecha y
      «Proyecto» ancha en la misma pantalla. Todos miden este ancho
      (sin pasar del hueco que tengan); en rejillas y columnas siguen al 100 %. */
+  /* Texto de un campo sin rellenar (texto de ejemplo de Input/Textarea/fecha y desplegable
+     sin elegir): UN solo color en toda la aplicación (24-11-2026). */
+  --texto-campo-vacio: var(--text-1);
   --ancho-min-desplegable:       320px;
   --ancho-min-desplegable-suelto: 200px;
   /* Icono dentro de un campo (Input `icono`/`iconoFinal`, Buscador). */
@@ -395,7 +398,7 @@ input, textarea, select {
   font-family: var(--font-sans);
   color: var(--text-1);
 }
-input::placeholder, textarea::placeholder { color: var(--text-3); }
+input::placeholder, textarea::placeholder { color: var(--texto-campo-vacio); opacity: 1; }
 
 /* ── Animations ───────────────────────────────────────────────── */
 @keyframes fadeUp {
@@ -1130,7 +1133,7 @@ input::placeholder, textarea::placeholder { color: var(--text-3); }
   border-color: color-mix(in srgb, var(--accent) 50%, transparent);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 10%, transparent);
 }
-.form-field::placeholder { color: var(--text-3); }
+.form-field::placeholder { color: var(--texto-campo-vacio); opacity: 1; }
 .form-field:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .form-label {

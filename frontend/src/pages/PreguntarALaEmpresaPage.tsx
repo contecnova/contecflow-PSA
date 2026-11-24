@@ -23,6 +23,7 @@ import { useAppT } from '../i18n/AppLangContext'
 import { useAuth } from '../context/AuthContext'
 import { localeActivo, extractErr } from '../utils/helpers'
 import DateInput from '../components/ui/DateInput'
+import { FilaDeMensaje } from '../components/chat'
 import AnomaliasDeMetrica from '../components/conectores/AnomaliasDeMetrica'
 import './PreguntarALaEmpresaPage.css'
 import { TOOLTIP_SUPERFICIE_2 } from '../constants/estilosGrafico'
@@ -81,6 +82,8 @@ function Preguntar({ fuentePorDefecto, preguntaInicial }: { fuentePorDefecto: st
   const [error, setError] = useState<string | null>(null)
   const [pensando, setPensando] = useState(false)
   const [conversacion, setConversacion] = useState<string | null>(null)
+  /** La última pregunta enviada, con su hora (burbuja propia). */
+  const [preguntada, setPreguntada] = useState<{ texto: string; fecha: string } | null>(null)
   const cancelar = useRef<AbortController | null>(null)
 
   useEffect(() => {
@@ -95,6 +98,7 @@ function Preguntar({ fuentePorDefecto, preguntaInicial }: { fuentePorDefecto: st
     const ctrl = new AbortController()
     cancelar.current = ctrl
     setPensando(true); setProgreso([]); setTexto(''); setRespuesta(null); setError(null)
+    setPreguntada({ texto: q, fecha: new Date().toISOString() })
     try {
       // apiStream: el cliente API en versión flujo (CSRF, cookies, refresco de sesión).
       const resp = await apiStream('/conectores/contecintelligence/preguntar/directo', {
@@ -148,7 +152,7 @@ function Preguntar({ fuentePorDefecto, preguntaInicial }: { fuentePorDefecto: st
               </Select>
             )}
           {conversacion && (
-            <Button size="xs" variant="ghost" onClick={() => { setConversacion(null); setRespuesta(null); setTexto('') }}>{t('ci.nueva_conversacion')}</Button>
+            <Button size="xs" variant="ghost" onClick={() => { setConversacion(null); setRespuesta(null); setTexto(''); setPreguntada(null) }}>{t('ci.nueva_conversacion')}</Button>
           )}
         </div>
         <div className="u-row-8">
@@ -159,11 +163,23 @@ function Preguntar({ fuentePorDefecto, preguntaInicial }: { fuentePorDefecto: st
         </div>
       </form>
 
-      {(pensando || progreso.length > 0) && !respuesta && (
-        <div className="pae-caja" aria-live="polite">
-          <div className="u-row-center-8">{pensando && <Spinner size={16} />}<strong className="u-sm">{t('ci.calculando')}</strong></div>
-          <ol className="pae-sub pae-progreso">{progreso.slice(-8).map((p, i) => <li key={i}>{p}</li>)}</ol>
-          {texto && <div className="pae-text-sm">{texto}</div>}
+      {/* 24-11-2026 (burbujas «como WhatsApp»): la pregunta (tuya) a la derecha y el avance
+          del asistente a la izquierda, con la fila de todos los chats. La respuesta final, con
+          gráfico y tabla, sigue a todo el ancho debajo. */}
+      {preguntada && (
+        <div className="pae-conversacion" role="log" aria-live="polite" aria-label={t('ci.pregunta')}>
+          <FilaDeMensaje propio autor={t('chat.tu')} fecha={preguntada.fecha}
+            textos={{ mensajeDe: t('chat.message_from', { author: t('chat.tu') }) }}
+            cuerpo={<div className="chat-msg__body">{preguntada.texto}</div>} />
+          {(pensando || progreso.length > 0) && !respuesta && (
+            <FilaDeMensaje autor="ContecIntelligence" fecha={null} esBot
+              textos={{ mensajeDe: t('chat.message_from', { author: 'ContecIntelligence' }) }}
+              cuerpo={<div>
+                <div className="u-row-center-8">{pensando && <Spinner size={16} />}<strong className="u-sm">{t('ci.calculando')}</strong></div>
+                <ol className="pae-sub pae-progreso">{progreso.slice(-8).map((p, i) => <li key={i}>{p}</li>)}</ol>
+                {texto && <div className="chat-msg__body">{texto}</div>}
+              </div>} />
+          )}
         </div>
       )}
       {error && <div className="pae-caja pae-row-danger" role="alert"><ShieldAlert size={16} />{error}</div>}

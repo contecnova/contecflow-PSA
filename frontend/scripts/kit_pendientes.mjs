@@ -184,6 +184,58 @@ function escribirPlan(lista) {
   fs.writeFileSync(PLAN, L.join('\n'))
 }
 
+// ── Un solo chat (24-11-2026, docs/GUIA_DE_DISENO.md §«Un solo chat») ──────────
+// Los chats del portal (los dos lados) usan las piezas del chat interno de
+// src/components/chat (pantalla, lista, cabecera, fila de mensaje y editor). Falla si un
+// chat del portal deja de importarlas o vuelve a pintar su propia lista, burbuja o editor.
+export const CHATS_DEL_PORTAL = [
+  'src/components/portal/GovernedConversations.tsx',
+  'src/components/portal/GovernedConversationsPiezas.tsx',
+  'src/components/portal/ChatColaboracionDelPortal.tsx',
+  'src/components/portal/MensajeDelChatEnVivo.tsx',
+  'src/pages/portal-client/PortalAsistenteYChat.tsx',
+  'src/components/servicedesk/BandejaDeCanales.tsx',
+]
+// 24-11-2026 (burbujas «como WhatsApp»: propio a la derecha, ajeno a la izquierda): también
+// el resto de chats de la aplicación (chat interno, panel flotante, llamada y asistentes de IA)
+// pintan sus mensajes con FilaDeMensaje (y, si escriben, con EditorDeChat).
+export const OTROS_CHATS = [
+  'src/pages/chat/Mensajes.tsx',
+  'src/pages/chat/PanelDeConversacion.tsx',
+  'src/components/layout/GlobalChatPanel.tsx',
+  'src/components/layout/NexusAssistPanel.tsx',
+  'src/pages/portal-client/PortalAIChatWidget.tsx',
+  'src/pages/NexusAgentPage.tsx',
+  'src/pages/PreguntarALaEmpresaPage.tsx',
+  'src/pages/CallPage.tsx',
+]
+const MARCADO_PROPIO_DE_CHAT = /chat-portal-(burbuja|acciones|reaccion|contexto|cita|herramientas|escribiendo)|goveconv-(cardstyle5|grid-1|row-6)|portalad-sx[45]|ConversationListItem|sdm-chat__msg|chat-thread__msg|glchpa-box-1[45]|global-chat-panel-m1[3-6]|portal-aichat-widget-m[12]|neaspa-stack-4|nexus-assist-panel-m[3467]|call-msg__(meta|body)/
+export function comprobarChatUnico(raiz = RAIZ) {
+  const fallos = []
+  for (const rel of [...CHATS_DEL_PORTAL, ...OTROS_CHATS]) {
+    const fichero = path.join(raiz, rel)
+    if (!fs.existsSync(fichero)) { fallos.push(`chat: falta ${rel}`); continue }
+    const texto = fs.readFileSync(fichero, 'utf8')
+    if (!/from '(\.\.\/)+(components\/)?chat'/.test(texto)) fallos.push(`chat: ${rel} no usa las piezas de src/components/chat`)
+    const propio = MARCADO_PROPIO_DE_CHAT.exec(texto)
+    if (propio) fallos.push(`chat: ${rel} pinta su propio chat (${propio[0]}); usa src/components/chat`)
+    if (OTROS_CHATS.includes(rel) && !/FilaDeMensaje|MessageBubble/.test(texto)) fallos.push(`chat: ${rel} no pinta sus mensajes con FilaDeMensaje (burbujas)`)
+  }
+  // Toda fila de mensaje dice de quién es (propio a la derecha, ajeno a la izquierda).
+  for (const rel of [...CHATS_DEL_PORTAL, ...OTROS_CHATS]) {
+    const fichero = path.join(raiz, rel)
+    if (!fs.existsSync(fichero)) continue
+    const texto = fs.readFileSync(fichero, 'utf8')
+    // Se miran los primeros props de cada <FilaDeMensaje (hasta 400 caracteres): `propio` o `esBot`
+    // van al principio, antes de los textos y las funciones.
+    for (const m of texto.matchAll(/<FilaDeMensaje\b/g)) {
+      const props = texto.slice(m.index, m.index + 400)
+      if (!/\bpropio\b|\besBot\b/.test(props)) fallos.push(`chat: ${rel} tiene una FilaDeMensaje sin \`propio\` (o \`esBot\`)`)
+    }
+  }
+  return fallos
+}
+
 // ── Principal ────────────────────────────────────────────────────────────────
 
 const previo = fs.existsSync(FICHERO) ? JSON.parse(fs.readFileSync(FICHERO, 'utf8')) : null
@@ -194,7 +246,7 @@ if (!previo && modo !== 'regenerar') {
 const actualEslint = await recuentoEslint()
 const actualCss = recuentoCss(RAIZ)
 const actualCampos = recuentoCampos(RAIZ)
-const nuevos = []
+const nuevos = [...comprobarChatUnico()]
 const lista = {
   _leeme: 'Excepciones temporales de la migración al kit: cupo de incumplimientos por regla y fichero. Solo puede encoger. Regenera con node scripts/kit_pendientes.mjs (ver cabecera del script).',
   eslint: combinar(previo?.eslint, actualEslint, nuevos, 'eslint'),

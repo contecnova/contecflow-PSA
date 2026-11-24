@@ -111,6 +111,7 @@ Mapa de la pantalla Configuración y del menú por defecto. Guía de uso: README
 | | `recertificacion` Recertificación de accesos: lo que le toca revisar al responsable | `seguridad.recertificar` (admin, PM, jefe de equipo, RRHH) | `/settings/recertificacion` |
 | | `mfa` Mi verificación en dos pasos | todos | `/mfa` |
 | | `grc` GRC y segregación de funciones | admin | `/grc` |
+| | `certificaciones` Certificaciones: avisos de vencimiento (certificados, auditorías, evidencias), caducidad y aprobación de evidencias, acceso temporal de auditores, autoridad y plazos NIS2, proyecto de las CAPA (24-11-2026, migración 212, docs/CERTIFICACIONES.md §8) | `certificaciones.administrar` (admin) | nuevo |
 | | `chat-admin` Administración del chat (y meses de retención propuestos `CHAT_RETENTION_PROPOSED_MONTHS`) | admin | `/settings/chat-admin` (no estaba en el menú) |
 | Portal de clientes | `public-forms` Formularios públicos | admin, pm | `/public-forms` |
 | | `portal-translations` Traducciones del portal | admin | Service desk → Configuración → Traducciones del portal |
@@ -118,11 +119,11 @@ Mapa de la pantalla Configuración y del menú por defecto. Guía de uso: README
 | Alertas y métricas | `alert-config` Alertas · `metrics` Métricas | admin | pestañas |
 | Sistema | `runtime-flags` Config. dinámica · `log-level` · `system-state` | admin | pestañas |
 
-Son 12 grupos y 58 secciones (19-11-2026, contadas en el catálogo
-`SECCIONES` de `frontend/src/pages/settings/catalogoDeAjustes.tsx`: integraciones
-10; empresa, proyectos y service desk 7; IA 6; personas 5; seguridad 4;
-finanzas y sistema 3; aprobaciones, portal y alertas 2. La tabla muestra las de
-la reorganización y las movidas después; el «67» anterior estaba mal contado).
+Son 12 grupos y 70 secciones (24-11-2026, contadas en `SECCIONES_DE_AJUSTES` de
+`frontend/src/pages/settings/catalogoDeAjustes.tsx`: integraciones 13; service desk 9;
+empresa, personas y proyectos 7; IA y seguridad 6; finanzas 4; aprobaciones, portal y sistema 3;
+alertas 2. Nuevas desde el 19-11-2026, entre otras: chat del portal y Certificaciones).
+El grupo de menú nuevo «Cumplimiento» lleva a la pantalla de Certificaciones, no a Configuración.
 
 **Valores de negocio que eran fijos (19-11-2026, `app/services/settings_service/valores_de_negocio.py`).**
 Ajustes por empresa del registro en vivo, validados al guardarlos (código

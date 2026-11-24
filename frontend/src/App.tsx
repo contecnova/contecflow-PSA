@@ -101,6 +101,9 @@ const DemandaPage            = lazy(() => import('./pages/DemandaPage'))
 const CuadernoPage           = lazy(() => import('./pages/CuadernoPage'))
 // PIR (migración 206, docs/PIR.md): revisiones posteriores a la implantación.
 const PirPage                = lazy(() => import('./pages/PirPage'))
+// Certificaciones (migración 212, docs/CERTIFICACIONES.md) y la vista pública del auditor externo.
+const CertificacionesPage    = lazy(() => import('./pages/CertificacionesPage'))
+const AuditorPublicoPage     = lazy(() => import('./pages/AuditorPublicoPage'))
 const PlanificacionDeRecursosPage = lazy(() => import('./pages/PlanificacionDeRecursosPage'))
 const GitPage                = lazy(() => import('./pages/GitPage'))
 const SprintChartsPage       = lazy(() => import('./pages/SprintChartsPage'))
@@ -539,6 +542,8 @@ function AppRoutes() {
       <Route path="/invoices" element={<ProtectedRoute><Layout><InvoicesPage /></Layout></ProtectedRoute>} />
       <Route path="/portal" element={<PortalClientePage />} />
       <Route path="/portal/view/:token" element={<PortalPublicViewPage />} />
+      {/* Migración 212: acceso temporal de solo lectura del auditor externo (token; todo queda registrado). */}
+      <Route path="/auditor/:token" element={<AuditorPublicoPage />} />
       <Route path="/portal/reset-password" element={<PortalRestablecerContrasenaPage />} />
 
       <Route path="/sprints" element={<ProtectedRoute><Layout><SprintsPage /></Layout></ProtectedRoute>} />
@@ -551,6 +556,7 @@ function AppRoutes() {
       <Route path="/demand" element={<ProtectedRoute><Layout><DemandaPage /></Layout></ProtectedRoute>} />
       <Route path="/notebook" element={<ProtectedRoute><Layout><CuadernoPage /></Layout></ProtectedRoute>} />
       <Route path="/pir" element={<ProtectedRoute><Layout><PirPage /></Layout></ProtectedRoute>} />
+      <Route path="/certificaciones" element={<ProtectedRoute><Layout><CertificacionesPage /></Layout></ProtectedRoute>} />
       <Route path="/resources/planning" element={<ProtectedRoute><Layout><PlanificacionDeRecursosPage /></Layout></ProtectedRoute>} />
       <Route path="/git" element={<ProtectedRoute><Layout><GitPage /></Layout></ProtectedRoute>} />
       <Route path="/sprint-charts" element={<ProtectedRoute><Layout><SprintChartsPage /></Layout></ProtectedRoute>} />

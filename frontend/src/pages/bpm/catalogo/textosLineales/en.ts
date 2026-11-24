@@ -439,7 +439,7 @@ const textos: TextosLineales = {
   },
   "portal_conversation": {
     "name": "Portal conversation (chat and calls)",
-    "description": "Operator-customer chat (formal conversations and collaboration chat): validated attachments (content, AV/DLP, types and size per company); voice or video call started only by the operator, the customer accepts or declines; not recorded.",
+    "description": "Operator-customer chat (formal conversations, collaboration chat and Support live chat): validated attachments (content, AV/DLP, types and size per company); voice or video call started only by the operator, the customer accepts or declines; not recorded.",
     "steps": [
       "Customer message",
       "Validate attachments (content, AV/DLP)",
@@ -449,6 +449,48 @@ const textos: TextosLineales = {
       "Customer accepts or declines",
       "Call (not recorded) and wrap-up",
       "Conversation handled"
+    ]
+  },
+  "cert_program": {
+    "name": "Certification programme",
+    "description": "Scope, statement of applicability, implementation, independent testing, audits and certificate (ISO 27001, TISAX, NIS2, SOX, J-SOX, IEC 62443).",
+    "steps": [
+      "Scope and objectives",
+      "Gap and risk analysis",
+      "Statement of applicability",
+      "Control implementation",
+      "Effectiveness testing (another person)",
+      "Internal audit",
+      "Management review",
+      "Certification audit",
+      "Certificate in force"
+    ]
+  },
+  "cert_audit_capa": {
+    "name": "Audit, finding and corrective action",
+    "description": "From the audit to closing the finding: corrective action as a task, effectiveness check and closure by another person.",
+    "steps": [
+      "Audit planned",
+      "Samples and fieldwork",
+      "Finding recorded",
+      "Corrective action (task)",
+      "Action done",
+      "Effectiveness check (another person)",
+      "Finding corrected",
+      "Closure (not the corrector)"
+    ]
+  },
+  "nis2_incident": {
+    "name": "NIS2 reportable incident",
+    "description": "Significant incident from the Service Desk with the 24 h, 72 h and 1 month clocks and the log of communications to the authority.",
+    "steps": [
+      "Incident detected (ticket)",
+      "Significance assessment",
+      "Early warning (24 h)",
+      "Notification (72 h)",
+      "Intermediate reports",
+      "Final report (1 month)",
+      "Closure and lessons"
     ]
   }
 }

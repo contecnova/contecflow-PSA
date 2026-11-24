@@ -50,3 +50,14 @@ def test_el_arranque_sincroniza_el_catalogo_bpm():
     import app.main as m
 
     assert "_sincronizar_catalogo_bpm(_is_testing)" in inspect.getsource(m.lifespan)
+
+
+def test_el_arranque_siembra_los_roles_de_sistema_de_todas_las_empresas():
+    """24-11-2026: el superadmin (sin empresa activa) veía «Roles y permisos» vacío."""
+    import inspect
+    import app.main as m
+    from app.services.advanced_config_service import semillas
+
+    assert "sembrar_roles_de_sistema_en_todas(db)" in inspect.getsource(m._sincronizar_catalogo_bpm)
+    fuente = inspect.getsource(semillas.sembrar_roles_de_sistema_en_todas)
+    assert "con_empresa" in fuente and "seed_system_roles(db, org)" in fuente

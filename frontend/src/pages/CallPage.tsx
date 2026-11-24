@@ -31,22 +31,24 @@ import type { Room, RemoteTrack } from 'livekit-client'
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom'
 import {
   Mic, MicOff, Video, VideoOff, Monitor, Phone, MessageSquare,
-  Captions, Disc, Users, X, Send, Hand, AudioLines,
+  Captions, Disc, Users, X, Hand, AudioLines,
   type LucideIcon,
 } from 'lucide-react'
 import { collabApi } from '../services/collaborationApi'
 import { useAppT } from '../i18n/AppLangContext'
-import { extractErr, localeActivo } from '../utils/helpers'
+import { extractErr } from '../utils/helpers'
 import StatusBadge from '../components/ui/StatusBadge'
 import { CLOCK_TICK_MS } from '../constants/timings'
 import './CallPage.css'
-import { Input, Pulsable } from '../components/ui'
+import { Pulsable } from '../components/ui'
+import { EditorDeChat, FilaDeMensaje, MensajeDeSistema } from '../components/chat'
 import { useGrabacionPorTrozos } from '../components/reuniones/grabacionPorTrozos'
 import { BannerDelAsistente, ModalActivarAsistente, useAsistenteEnLlamada } from '../components/reuniones/AsistenteEnLlamada'
 
 type TFn = (moduleOrFullKey: string, keyOrParams?: string | Record<string, unknown>) => string
 
 interface ChatItem {
+  /** ISO de la hora del mensaje (la fila la formatea). */
   time: string
   name: string
   body: string
@@ -228,13 +230,13 @@ export default function CallPage(): JSX.Element {
     function handleDataMessage(msg: { type?: string; body?: string; emoji?: string; text?: string }, sender: { name?: string; identity?: string } | undefined) {
       if (msg.type === 'chat') {
         setChatItems(prev => [...prev, {
-          time: new Date().toLocaleTimeString(localeActivo(), { hour: '2-digit', minute: '2-digit' }),
+          time: new Date().toISOString(),
           name: sender?.name || sender?.identity || t('call.other'),
           body: msg.body || '', me: false,
         }])
       } else if (msg.type === 'reaction') {
         setChatItems(prev => [...prev, {
-          time: new Date().toLocaleTimeString(localeActivo(), { hour: '2-digit', minute: '2-digit' }),
+          time: new Date().toISOString(),
           name: sender?.name || t('call.other'),
           body: `${t('call.reacted')} ${msg.emoji}`,
           me: false, reaction: true,
@@ -486,7 +488,7 @@ export default function CallPage(): JSX.Element {
   )
 }
 
-function now() { return new Date().toLocaleTimeString(localeActivo(), { hour: '2-digit', minute: '2-digit' }) }
+function now() { return new Date().toISOString() }
 
 function etiquetaCalidad(q: string, t: TFn): string {
   const claves: Record<string, string> = {
@@ -572,22 +574,30 @@ function ChatLateral({ items, value, onChange, onSend, onClose, t }: {
         <h2 className="call-side__title">{t('call.meeting_chat')}</h2>
         <Pulsable /* eslint-disable-line contec/sin-boton-de-icono-propio -- excepción: videollamada: paleta oscura propia (--call-*) */ type="button" onClick={onClose} className="call-side__close" aria-label={t('call.cerrar_chat')} title={t('call.cerrar_chat')}><X size={14} aria-hidden="true" /></Pulsable>
       </div>
-      <div className="call-side__body" aria-live="polite">
+      {/* 24-11-2026 (burbujas «como WhatsApp»): la fila y el editor de todos los chats; lo
+          tuyo a la derecha, lo de los demás a la izquierda y las reacciones en pastilla. */}
+      <div className="call-side__body" role="log" aria-live="polite" aria-label={t('call.meeting_chat')}>
         {items.length === 0 && <div className="call-side__empty">{t('call.no_messages_yet')}</div>}
-        {items.map((m, i) => (
-          <div key={i} className="u-mb-10">
-            <div className="call-msg__meta">{m.time} {m.name}</div>
-            <div className="call-msg__body">{m.body}</div>
-          </div>
-        ))}
+        {items.map((m, i) => {
+          if (m.reaction) return <MensajeDeSistema key={i}>{m.name}: {m.body}</MensajeDeSistema>
+          const previo = items[i - 1]
+          return (
+            <FilaDeMensaje key={i} autor={m.name} fecha={m.time} propio={m.me}
+              compacto={!!previo && !previo.reaction && previo.name === m.name && previo.me === m.me}
+              textos={{ mensajeDe: t('chat.message_from', { author: m.name }) }}
+              cuerpo={<div className="chat-msg__body">{m.body}</div>} />
+          )
+        })}
       </div>
-      <div className="call-side__form">
-        <Input aria-label={t('call.write_placeholder')} value={value} onChange={e => onChange(e.target.value)}
-          onKeyDown={e => { if (e.key === 'Enter') onSend() }}
-          placeholder={t('call.write_placeholder')}
-          className="u-flex1-min0" inputClassName="call-side__input" />
-        <Pulsable /* eslint-disable-line contec/sin-boton-de-icono-propio -- excepción: videollamada: botón de envío relleno del compositor */ type="button" onClick={onSend} className="call-side__send" aria-label={t('call.enviar')} title={t('call.enviar')}><Send size={13} aria-hidden="true" /></Pulsable>
-      </div>
+      <EditorDeChat
+        valor={value}
+        onCambiar={onChange}
+        onEnviar={onSend}
+        etiquetaCampo={t('call.write_placeholder')}
+        placeholder={t('call.write_placeholder')}
+        etiquetaEnviar={t('call.enviar')}
+        etiquetaEmoji={t('governedconversations.insertar_emoji')}
+      />
     </aside>
   )
 }

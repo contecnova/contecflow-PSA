@@ -1,8 +1,8 @@
 """Los procesos que el backend siembra en castellano son traducibles en el frontend.
 
-`PROCESS_CATALOGUE` siembra 56 procesos con nombre, descripción y pasos en
+`PROCESS_CATALOGUE` siembra 59 procesos con nombre, descripción y pasos en
 castellano. 16 tienen diagrama propio en el catálogo del frontend
-(`pages/bpm/catalogo/estructura.ts`); los otros 40 viven en
+(`pages/bpm/catalogo/estructura.ts`); los otros 43 viven en
 `estructuraLineal.ts` con sus textos por idioma en `textosLineales/`. Si se
 añade un proceso a la semilla sin darle textos en los tres idiomas, o se cambia
 su castellano en un sitio y no en el otro, este test lo detecta.
@@ -44,7 +44,7 @@ def test_cada_proceso_sembrado_tiene_diagrama_propio_o_es_lineal():
     assert claves <= propios | set(lineales)
     # Ninguno queda sin traducir: los que no tienen diagrama propio son los lineales.
     assert set(lineales) == claves - propios
-    assert len(lineales) == 40  # 24-11-2026: + portal_conversation (chat del portal)
+    assert len(lineales) == 43  # 24-11-2026: + portal_conversation (chat del portal); + 3 de Certificaciones (migración 212)
 
 
 @pytest.mark.parametrize("idioma", ("es", "en", "zh"))

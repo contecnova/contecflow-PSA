@@ -7,6 +7,11 @@
   `X-Hub-Signature-256` con el secreto de la empresa del numero).
 - Chat en vivo del portal: el cliente habla con el asistente y pide una
   persona; los agentes lo atienden desde su bandeja de conversaciones.
+  24-11-2026 (docs/portal/CHAT_DEL_PORTAL.md §10): imagenes y ficheros,
+  reacciones, citas, editar/borrar con rastro y llamadas que SOLO inicia el
+  operador (`clientes.llamar`); la ruta del cliente para iniciar responde
+  siempre 403 `portal_llamada_solo_operador` y grabar, 409
+  `portal_llamada_no_se_graba`.
 
 Los webhooks no llevan sesion: se autentican por firma y la empresa sale del
 workspace o del numero. El chat del portal va con la sesion del cliente; la
@@ -14,7 +19,7 @@ bandeja, con la del agente y su empresa.
 """
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, File, Form, Query, Request, UploadFile
 from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
@@ -29,12 +34,28 @@ from app.core.responses import APIListResponse, APIResponse
 from app.db.session import get_db, sesion_de_sistema
 from app.models.user import User
 from app.services.service_desk import canal_slack, canal_whatsapp, conversaciones
+# 24-11-2026: chat en vivo completo (docs/portal/CHAT_DEL_PORTAL.md §10).
+from app.services.service_desk import chat_en_vivo as _vivo
 
 router = APIRouter(prefix="/channels", tags=["Service Desk - Canales"])
 
 
 class MensajeIn(BaseModel):
     body: str = Field(..., min_length=1, max_length=conversaciones.MAX_MENSAJE)
+    # 24-11-2026: responder citando (mensaje de la misma conversacion).
+    reply_to_message_id: Optional[str] = Field(None, max_length=36)
+
+
+class EdicionIn(BaseModel):
+    body: str = Field(..., min_length=1, max_length=conversaciones.MAX_MENSAJE)
+
+
+class ReaccionIn(BaseModel):
+    emoji: str = Field(..., min_length=1, max_length=16)
+
+
+class LlamadaIn(BaseModel):
+    kind: str = Field("audio", pattern="^(audio|video)$")
 
 
 class RespuestaIn(MensajeIn):
@@ -133,7 +154,8 @@ def livechat_send(conv_id: str, payload: MensajeIn, db: Session = Depends(get_db
     if conv.status == "closed":
         raise error_con_codigo(409, "conversacion_cerrada")
     return APIResponse.ok(data=conversaciones.mensaje_del_cliente(db, conv, payload.body, client_user=client,
-                                                                  con_bot=True))
+                                                                  con_bot=True,
+                                                                  reply_to=payload.reply_to_message_id))
 
 
 @router.post("/livechat/{conv_id}/agent", summary="Portal: pedir hablar con una persona")
@@ -142,7 +164,113 @@ def livechat_agent(conv_id: str, db: Session = Depends(get_db), client=Depends(g
     return APIResponse.ok(data=conversaciones.serializar(db, conv))
 
 
+# ── Chat en vivo completo: lado del cliente (24-11-2026) ──────────────────────
+
+def _fichero(datos: bytes, mime: str, nombre: str):
+    """Siempre como descarga, con el tipo real, `nosniff` y sin cache (como el chat del portal)."""
+    from urllib.parse import quote
+    from fastapi.responses import Response
+    return Response(content=datos, media_type=mime, headers={
+        "Content-Disposition": "attachment; filename*=UTF-8''" + quote(nombre or "archivo"),
+        "X-Content-Type-Options": "nosniff",
+        "Cache-Control": "private, no-store",
+    })
+
+
+@router.get("/livechat/settings", summary="Portal: ajustes del chat en vivo (adjuntos; nunca llamar)")
+def livechat_settings(db: Session = Depends(get_db), client=Depends(get_current_portal_client)):
+    return APIResponse.ok(data=_vivo.ajustes_salida(db, client.organization_id))
+
+
+@router.get("/livechat/calls/ringing", summary="Portal: llamadas del equipo que suenan en mi chat en vivo")
+def livechat_ringing(db: Session = Depends(get_db), client=Depends(get_current_portal_client)):
+    return APIListResponse.ok(items=_vivo.sonando_para_cliente(db, client))
+
+
+@router.post("/livechat/{conv_id}/attachments", summary="Portal: enviar imagen o fichero")
+def livechat_upload(conv_id: str, file: UploadFile = File(...), caption: Optional[str] = Form(None),
+                    reply_to_message_id: Optional[str] = Form(None), db: Session = Depends(get_db),
+                    client=Depends(get_current_portal_client)):
+    conv = _vivo.conversacion_del_cliente(db, conv_id, client)
+    m = _vivo.subir(db, conv, file, caption, reply_to_message_id, cliente=client)
+    return APIResponse.ok(data=conversaciones.serializar_para_cliente(db, conv, m))
+
+
+@router.get("/livechat/{conv_id}/attachments/{attachment_id}", summary="Portal: descargar un adjunto del chat")
+def livechat_download(conv_id: str, attachment_id: str, db: Session = Depends(get_db),
+                      client=Depends(get_current_portal_client)):
+    conv = _vivo.conversacion_del_cliente(db, conv_id, client)
+    return _fichero(*_vivo.descargar(db, conv, attachment_id, cliente=client))
+
+
+@router.put("/livechat/{conv_id}/messages/{message_id}", summary="Portal: editar el propio mensaje")
+def livechat_edit(conv_id: str, message_id: str, payload: EdicionIn, db: Session = Depends(get_db),
+                  client=Depends(get_current_portal_client)):
+    conv = _vivo.conversacion_del_cliente(db, conv_id, client)
+    m = _vivo.editar(db, conv, message_id, payload.body, cliente=client)
+    return APIResponse.ok(data=conversaciones.serializar_para_cliente(db, conv, m))
+
+
+@router.delete("/livechat/{conv_id}/messages/{message_id}", summary="Portal: borrar el propio mensaje")
+def livechat_delete(conv_id: str, message_id: str, db: Session = Depends(get_db),
+                    client=Depends(get_current_portal_client)):
+    conv = _vivo.conversacion_del_cliente(db, conv_id, client)
+    m = _vivo.borrar(db, conv, message_id, cliente=client)
+    return APIResponse.ok(data=conversaciones.serializar_para_cliente(db, conv, m))
+
+
+@router.post("/livechat/{conv_id}/messages/{message_id}/reactions", summary="Portal: poner o quitar una reacción")
+def livechat_react(conv_id: str, message_id: str, payload: ReaccionIn, db: Session = Depends(get_db),
+                   client=Depends(get_current_portal_client)):
+    conv = _vivo.conversacion_del_cliente(db, conv_id, client)
+    return APIResponse.ok(data=_vivo.reaccionar(db, conv, message_id, payload.emoji, cliente=client))
+
+
+@router.get("/livechat/{conv_id}/calls", summary="Portal: llamadas de mi chat en vivo")
+def livechat_calls(conv_id: str, db: Session = Depends(get_db), client=Depends(get_current_portal_client)):
+    return APIListResponse.ok(items=_vivo.listar_llamadas(db, _vivo.conversacion_del_cliente(db, conv_id, client)))
+
+
+@router.post("/livechat/{conv_id}/calls", summary="Portal: el cliente NO puede iniciar llamadas (siempre 403)")
+def livechat_call_start_denied(conv_id: str, payload: Optional[LlamadaIn] = None, db: Session = Depends(get_db),
+                               client=Depends(get_current_portal_client)):
+    """«Solo el operador llama», impuesto en el servidor: 403 `portal_llamada_solo_operador`
+    siempre, y el intento queda en la auditoria (`livechat.call_start_denied`)."""
+    _vivo.iniciar_como_cliente(db, conv_id, client, payload.kind if payload else None)
+
+
+@router.post("/livechat/{conv_id}/calls/{call_id}/accept", summary="Portal: aceptar la llamada del equipo")
+def livechat_call_accept(conv_id: str, call_id: str, db: Session = Depends(get_db),
+                         client=Depends(get_current_portal_client)):
+    conv = _vivo.conversacion_del_cliente(db, conv_id, client)
+    return APIResponse.ok(data=_vivo.aceptar(db, conv, call_id, client))
+
+
+@router.post("/livechat/{conv_id}/calls/{call_id}/decline", summary="Portal: rechazar la llamada del equipo")
+def livechat_call_decline(conv_id: str, call_id: str, db: Session = Depends(get_db),
+                          client=Depends(get_current_portal_client)):
+    conv = _vivo.conversacion_del_cliente(db, conv_id, client)
+    return APIResponse.ok(data=_vivo.rechazar(db, conv, call_id, client))
+
+
+@router.post("/livechat/{conv_id}/calls/{call_id}/end", summary="Portal: colgar")
+def livechat_call_end(conv_id: str, call_id: str, db: Session = Depends(get_db),
+                      client=Depends(get_current_portal_client)):
+    conv = _vivo.conversacion_del_cliente(db, conv_id, client)
+    return APIResponse.ok(data=_vivo.colgar(db, conv, call_id, cliente=client))
+
+
+@router.post("/livechat/{conv_id}/calls/{call_id}/recording", summary="Portal: grabar (nunca: 409)")
+def livechat_call_recording(conv_id: str, call_id: str, db: Session = Depends(get_db),
+                            client=Depends(get_current_portal_client)):
+    _vivo.grabar_denegado(db, _vivo.conversacion_del_cliente(db, conv_id, client), call_id, cliente=client)
+
+
 # ── Bandeja del agente ────────────────────────────────────────────────────────
+
+@router.get("/chat-settings", summary="Ajustes del chat en vivo para el operador (adjuntos, plazo, llamar)")
+def operator_chat_settings(db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("sd.completo"))):
+    return APIResponse.ok(data=_vivo.ajustes_salida(db, current_user.organization_id, current_user))
 
 @router.get("/conversations", summary="Conversaciones de los canales de la empresa")
 def list_conversations(status: Optional[str] = Query(None, pattern="^(bot|waiting_agent|agent|closed)$"),
@@ -168,8 +296,8 @@ def take_conversation(conv_id: str, db: Session = Depends(get_db), current_user:
 def reply_conversation(conv_id: str, payload: RespuestaIn, db: Session = Depends(get_db),
                        current_user: User = Depends(requiere_capacidad("sd.completo"))):
     m = conversaciones.responder(db, conv_id, current_user, payload.body, client_text=payload.client_text,
-                                 client_language=payload.client_language)
-    return APIResponse.ok(data=conversaciones.serializar_mensaje(m))
+                                 client_language=payload.client_language, reply_to=payload.reply_to_message_id)
+    return APIResponse.ok(data=conversaciones.serializar_mensaje(m, db))
 
 
 @router.post("/conversations/{conv_id}/attachments", summary="Enviar un adjunto del ticket por el canal")
@@ -190,6 +318,89 @@ def ticket_channel_conversations(ticket_id: str, db: Session = Depends(get_db),
 @router.post("/conversations/{conv_id}/close", summary="Cerrar la conversación")
 def close_conversation(conv_id: str, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("sd.completo"))):
     return APIResponse.ok(data=conversaciones.serializar(db, conversaciones.cerrar(db, conv_id, current_user)))
+
+
+# ── Chat en vivo completo: lado del operador (24-11-2026) ─────────────────────
+
+@router.post("/conversations/{conv_id}/files", summary="Chat en vivo: enviar imagen o fichero al cliente")
+def operator_upload(conv_id: str, file: UploadFile = File(...), caption: Optional[str] = Form(None),
+                    reply_to_message_id: Optional[str] = Form(None), db: Session = Depends(get_db),
+                    current_user: User = Depends(requiere_capacidad("sd.completo"))):
+    conv = _vivo.conversacion_del_operador(db, conv_id, current_user, "portal_adjunto_no_disponible")
+    m = _vivo.subir(db, conv, file, caption, reply_to_message_id, usuario=current_user)
+    return APIResponse.ok(data=conversaciones.serializar_mensaje(m, db))
+
+
+@router.get("/conversations/{conv_id}/files/{attachment_id}", summary="Chat en vivo: descargar un adjunto")
+def operator_download(conv_id: str, attachment_id: str, db: Session = Depends(get_db),
+                      current_user: User = Depends(requiere_capacidad("sd.completo"))):
+    conv = _vivo.conversacion_del_operador(db, conv_id, current_user, "portal_adjunto_no_disponible")
+    return _fichero(*_vivo.descargar(db, conv, attachment_id, usuario=current_user))
+
+
+@router.put("/conversations/{conv_id}/messages/{message_id}", summary="Chat en vivo: editar el propio mensaje")
+def operator_edit(conv_id: str, message_id: str, payload: EdicionIn, db: Session = Depends(get_db),
+                  current_user: User = Depends(requiere_capacidad("sd.completo"))):
+    conv = _vivo.conversacion_del_operador(db, conv_id, current_user)
+    return APIResponse.ok(data=conversaciones.serializar_mensaje(
+        _vivo.editar(db, conv, message_id, payload.body, usuario=current_user), db))
+
+
+@router.delete("/conversations/{conv_id}/messages/{message_id}", summary="Chat en vivo: borrar el propio mensaje")
+def operator_delete(conv_id: str, message_id: str, db: Session = Depends(get_db),
+                    current_user: User = Depends(requiere_capacidad("sd.completo"))):
+    conv = _vivo.conversacion_del_operador(db, conv_id, current_user)
+    return APIResponse.ok(data=conversaciones.serializar_mensaje(
+        _vivo.borrar(db, conv, message_id, usuario=current_user), db))
+
+
+@router.post("/conversations/{conv_id}/messages/{message_id}/reactions", summary="Chat en vivo: reacción")
+def operator_react(conv_id: str, message_id: str, payload: ReaccionIn, db: Session = Depends(get_db),
+                   current_user: User = Depends(requiere_capacidad("sd.completo"))):
+    conv = _vivo.conversacion_del_operador(db, conv_id, current_user)
+    return APIResponse.ok(data=_vivo.reaccionar(db, conv, message_id, payload.emoji, usuario=current_user))
+
+
+@router.get("/conversations/{conv_id}/messages/{message_id}/versions", summary="Chat en vivo: rastro de un mensaje")
+def operator_versions(conv_id: str, message_id: str, db: Session = Depends(get_db),
+                      current_user: User = Depends(requiere_capacidad("sd.completo"))):
+    conv = _vivo.conversacion_del_operador(db, conv_id, current_user)
+    return APIListResponse.ok(items=_vivo.versiones(db, conv, message_id))
+
+
+@router.get("/conversations/{conv_id}/calls", summary="Chat en vivo: llamadas de la conversación")
+def operator_calls(conv_id: str, db: Session = Depends(get_db),
+                   current_user: User = Depends(requiere_capacidad("sd.completo"))):
+    conv = _vivo.conversacion_del_operador(db, conv_id, current_user, "portal_llamada_no_disponible")
+    return APIListResponse.ok(items=_vivo.listar_llamadas(db, conv))
+
+
+@router.post("/conversations/{conv_id}/calls", summary="Chat en vivo: llamar o videollamar al cliente (solo operador)")
+def operator_call_start(conv_id: str, payload: LlamadaIn, db: Session = Depends(get_db),
+                        current_user: User = Depends(requiere_capacidad("clientes.llamar"))):
+    conv = _vivo.conversacion_del_operador(db, conv_id, current_user, "portal_llamada_no_disponible")
+    return APIResponse.ok(data=_vivo.iniciar_llamada(db, conv, payload.kind, current_user))
+
+
+@router.post("/conversations/{conv_id}/calls/{call_id}/join", summary="Chat en vivo: entrar en una llamada en curso")
+def operator_call_join(conv_id: str, call_id: str, db: Session = Depends(get_db),
+                       current_user: User = Depends(requiere_capacidad("clientes.llamar"))):
+    conv = _vivo.conversacion_del_operador(db, conv_id, current_user, "portal_llamada_no_disponible")
+    return APIResponse.ok(data=_vivo.unirse(db, conv, call_id, current_user))
+
+
+@router.post("/conversations/{conv_id}/calls/{call_id}/end", summary="Chat en vivo: colgar o cancelar la llamada")
+def operator_call_end(conv_id: str, call_id: str, db: Session = Depends(get_db),
+                      current_user: User = Depends(requiere_capacidad("sd.completo"))):
+    conv = _vivo.conversacion_del_operador(db, conv_id, current_user, "portal_llamada_no_disponible")
+    return APIResponse.ok(data=_vivo.colgar(db, conv, call_id, usuario=current_user))
+
+
+@router.post("/conversations/{conv_id}/calls/{call_id}/recording", summary="Chat en vivo: grabar (nunca: 409)")
+def operator_call_recording(conv_id: str, call_id: str, db: Session = Depends(get_db),
+                            current_user: User = Depends(requiere_capacidad("sd.completo"))):
+    conv = _vivo.conversacion_del_operador(db, conv_id, current_user, "portal_llamada_no_disponible")
+    _vivo.grabar_denegado(db, conv, call_id, usuario=current_user)
 
 
 @router.get("/status", summary="Qué canales tiene configurados la empresa (admin)")

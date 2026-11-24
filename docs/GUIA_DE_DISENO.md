@@ -531,6 +531,9 @@ marca su uso en `style`.
   «Unidad» y «Proyecto» salían de anchos distintos en la misma pantalla). En una
   rejilla o columna se estiran como siempre. Un `Select` con clase propia (p. ej.
   el selector de periodo) fija su ancho en su CSS.
+  Corrección (24-11-2026, tarde): el ancho **exacto** lo fija `SelectorDeContexto` (320 px, nunca más que el hueco);
+  fuera de él solo hay un mínimo común. Se quitó un `contain: inline-size` global que dejaba los desplegables a 0 px
+  dentro de contenedores que se ajustan a su contenido.
 - **Alineación de filas con campos (24-11-2026).** Nada bajo un control puede
   alargar un campo que comparte fila con botones u otros campos: la ayuda larga
   va debajo de la fila (no en `hint` del campo) y las filas con etiquetas se
@@ -733,6 +736,69 @@ elegir un rojo, medirlo también sobre su propio `-bg`, no solo sobre las
 superficies.
 
 ---
+
+## 17. Un solo chat: las mismas piezas en el interno y en el portal
+
+24-11-2026. Todos los chats (el interno y los tres del portal: conversaciones formales, pestaña «Chat» y chat en
+vivo de Soporte, en el lado del operador y en el del cliente) son LA MISMA pantalla, con las piezas de
+`frontend/src/components/chat/` (extraídas del chat interno sin cambiarlo): `PantallaDeChat`, `ListaDeChats` /
+`FilaDeConversacion`, `PanelDeChat` / `CabeceraDeConversacion` / `ZonaDeMensajes`, `FilaDeMensaje` (burbujas, §17.1; acciones en barra
+flotante junto a la burbuja, al pasar el ratón o enfocar) y `EditorDeChat` (un único cuadro: texto,
+@ y emoji arriba a la derecha, clip abajo a la izquierda, enviar abajo a la derecha).
+
+- No se pinta un chat «propio»: ni burbujas con iconos dentro, ni tarjetas de conversación con insignias, ni un
+  `Textarea` con etiqueta y un botón «Enviar» aparte. Lo que difiere por permisos se pasa por props (acciones,
+  botones de llamada solo al operador, notas internas, aprobar, historial).
+- Las etiquetas junto al nombre usan `EtiquetaDeAutor` (el estilo de la de bot del interno); el estado de entrega,
+  `EstadoDeEntrega`; un indicador de la conversación (p. ej. «Con supervisión», solo al operador), `IndicadorDeCabecera`
+  con su explicación.
+- Vigilante: `scripts/kit_pendientes.mjs` (`comprobarChatUnico`) y `src/__tests__/chatEnVivoYChatUnico.test.ts`.
+  Detalle por chat: `docs/portal/CHAT_DEL_PORTAL.md` §11.
+
+### 17.1 Burbujas: propio a la derecha, ajeno a la izquierda
+
+24-11-2026 (pedido del usuario: «como en WhatsApp o Teams, en todos los chats de todo tipo»). `FilaDeMensaje` pinta
+burbujas en TODOS los chats: el interno (y su hilo), el panel flotante, los tres del portal en los dos lados, la
+bandeja de canales, el chat de la llamada y los asistentes de IA (NexusAssist, asistente del portal, widget de IA del
+portal, Nexus Agent y «Preguntar a la empresa»).
+
+- **Propio** (`propio`): lo que escribe quien mira va a la **derecha**, burbuja con el acento suave del tema
+  (`color-mix` de `--accent` al 18 % sobre `--surface-2`, opaco; texto `--text-1`, enlaces en `--text-1` subrayados
+  para no bajar de AA), sin avatar ni nombre.
+- **Ajeno**: los demás (personas, cliente, bot) a la **izquierda**, burbuja de superficie (`--surface-2` con borde
+  `--surface-4`), avatar y nombre dentro de la burbuja; en un directo 1:1 del interno y del panel flotante se omite el
+  nombre (`mostrarNombre={false}`).
+- **Dentro de la burbuja**: cita, texto (o traducción), adjuntos (imágenes en miniatura, como mucho el ancho de la
+  burbuja), tarjetas y, abajo a la derecha y pequeño, insignias («Cliente», GRC, nota interna), fijado, «editado», hora
+  y estado (`EstadoDeEntrega`: ✓ enviado, ✓✓ leído en `--info`; el texto va para el lector de pantalla y en el `title`).
+- **Debajo**: las reacciones en pastillas. **Ancho máximo** de la burbuja ~70 % (85 % por debajo de 560 px).
+- **Agrupación**: mensajes seguidos del mismo autor (menos de 5 min y el mismo día) van compactos: sin repetir avatar
+  ni nombre y con 2 px de separación; el primero del grupo lleva la «cola» (esquina de 4 px hacia su lado).
+- **Separadores de día** (`SeparadorDeDia` + `cambiaDeDia`): «Hoy», «Ayer» (en el idioma activo, `Intl.RelativeTimeFormat`)
+  o la fecha larga, en una pastilla centrada.
+- **Mensajes de sistema** (`MensajeDeSistema`): pastilla discreta centrada (p. ej. «El cliente pide hablar con una
+  persona», reacciones de la llamada).
+- **Barra de acciones**: horizontal, al pasar el ratón o al enfocar, junto a la burbuja: a su **izquierda** en las
+  propias y a su **derecha** en las ajenas. Si no cabe en la fila o en la ventana, sube encima de la burbuja y se mete
+  hacia dentro: nunca tapa el texto ni desborda.
+- **Quién es «propio»** lo decide quien usa la fila: chat interno, hilo y panel flotante, el usuario actual frente al
+  autor (`user_id`); conversaciones formales y pestaña «Chat» del portal, el usuario del equipo (operador) o el
+  usuario del portal (cliente) frente al remitente; chat en vivo, en el cliente sus mensajes (`customer`) y en la
+  bandeja el operador actual (`author_user_id`), con cliente, bot y compañeros a la izquierda; llamada, lo enviado
+  desde este navegador; asistentes de IA, la pregunta es propia y la respuesta del asistente (`esBot`) es ajena.
+- **Accesibilidad**: el orden de lectura es el cronológico (la derecha/izquierda es solo visual); cada burbuja es un
+  `article` con nombre «Mensaje de {autor}, {hora}»; colores solo con tokens, AA en temas claro y oscuro.
+- **Ejemplo**:
+
+  ```tsx
+  <FilaDeMensaje autor={autor} fecha={m.sent_at} propio={m.user_id === usuario.id}
+    compacto={compacto} textos={{ mensajeDe: t('chat.message_from', { author: autor }) }}
+    cuerpo={<TextoConEnlaces texto={m.body} className="chat-msg__body" />}
+    pie={propio ? <EstadoDeEntrega leido={leido} textoLeido={…} textoEnviado={…} /> : null} />
+  ```
+
+- Vigilante: `comprobarChatUnico` también mira los chats de la aplicación (`OTROS_CHATS`) y que cada
+  `<FilaDeMensaje` lleve `propio` o `esBot`.
 
 ## 16. Arranque de una solución nueva
 

@@ -38,7 +38,7 @@ class ServiceItemTask(Base):
     __tablename__ = "sd_service_item_tasks"
 
     id = Column(String(36), primary_key=True, default=_id)
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     service_item_id = Column(String(36), ForeignKey("sd_service_items.id", ondelete="CASCADE"), nullable=False, index=True)
     title = Column(String(300), nullable=False)
     description = Column(Text, nullable=True)
@@ -56,7 +56,7 @@ class SLARule(Base):
     __tablename__ = "sd_sla_rules"
 
     id = Column(String(36), primary_key=True, default=_id)
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     name = Column(String(150), nullable=False)
     is_active = Column(Boolean, nullable=False, default=True, server_default="1")
     sort_order = Column(Integer, nullable=False, default=0, server_default="0")
@@ -79,7 +79,7 @@ class OLATarget(Base):
     __table_args__ = (UniqueConstraint("group_id", "priority", name="uq_sd_ola_targets_group_priority"),)
 
     id = Column(String(36), primary_key=True, default=_id)
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     group_id = Column(String(36), ForeignKey("sd_agent_groups.id", ondelete="CASCADE"), nullable=False, index=True)
     priority = Column(String(20), nullable=False)
     hours = Column(Float, nullable=False)
@@ -90,7 +90,7 @@ class TicketLifecycle(Base):
     __table_args__ = (UniqueConstraint("organization_id", "ticket_type", name="uq_sd_lifecycle_org_type"),)
 
     id = Column(String(36), primary_key=True, default=_id)
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     ticket_type = Column(String(30), nullable=False)
     name = Column(String(150), nullable=False)
     is_active = Column(Boolean, nullable=False, default=True, server_default="1")
@@ -104,7 +104,7 @@ class TicketLifecycleState(Base):
     __table_args__ = (UniqueConstraint("lifecycle_id", "key", name="uq_sd_lifecycle_state_key"),)
 
     id = Column(String(36), primary_key=True, default=_id)
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     lifecycle_id = Column(String(36), ForeignKey("sd_ticket_lifecycles.id", ondelete="CASCADE"), nullable=False, index=True)
     key = Column(String(50), nullable=False)
     label = Column(String(100), nullable=False)
@@ -120,7 +120,7 @@ class TicketLifecycleTransition(Base):
     __table_args__ = (UniqueConstraint("lifecycle_id", "from_key", "to_key", name="uq_sd_lifecycle_transition"),)
 
     id = Column(String(36), primary_key=True, default=_id)
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     lifecycle_id = Column(String(36), ForeignKey("sd_ticket_lifecycles.id", ondelete="CASCADE"), nullable=False, index=True)
     from_key = Column(String(50), nullable=False)
     to_key = Column(String(50), nullable=False)
@@ -130,7 +130,7 @@ class ChannelConversation(Base):
     __tablename__ = "sd_channel_conversations"
 
     id = Column(String(36), primary_key=True, default=_id)
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     channel = Column(String(20), nullable=False, index=True)          # whatsapp | livechat | slack | teams
     external_id = Column(String(255), nullable=True, index=True)      # telefono, sesion, canal+hilo
     ticket_id = Column(String(36), ForeignKey("sd_tickets.id", ondelete="SET NULL"), nullable=True, index=True)
@@ -154,7 +154,7 @@ class ChannelMessage(Base):
     __table_args__ = (UniqueConstraint("conversation_id", "external_message_id", name="uq_sd_channel_message_ext"),)
 
     id = Column(String(36), primary_key=True, default=_id)
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     conversation_id = Column(String(36), ForeignKey("sd_channel_conversations.id", ondelete="CASCADE"), nullable=False, index=True)
     direction = Column(String(3), nullable=False)          # in | out
     author_type = Column(String(10), nullable=False)       # customer | agent | bot | system
@@ -171,6 +171,105 @@ class ChannelMessage(Base):
     attachment_document_id = Column(String(36), ForeignKey("documents.id", ondelete="SET NULL"), nullable=True)
     delivery_status = Column(String(20), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+    # Migracion 211 (chat en vivo completo, docs/portal/CHAT_DEL_PORTAL.md §10):
+    # responder citando, editar y borrar (logico) con rastro.
+    reply_to_message_id = Column(String(36), ForeignKey("sd_channel_messages.id", ondelete="SET NULL"),
+                                 nullable=True, index=True)
+    edited_at = Column(DateTime(timezone=True), nullable=True)
+    deleted_at = Column(DateTime(timezone=True), nullable=True, index=True)
+    deleted_by_user_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    deleted_by_client_id = Column(String(36), ForeignKey("client_users.id", ondelete="SET NULL"), nullable=True,
+                                  index=True)
+
+
+# ── Chat en vivo completo (migracion 211, 24-11-2026) ─────────────────────────
+# Lo mismo que el chat del portal (`portal_conversation_*`), sobre las
+# conversaciones del chat en vivo de Soporte. Solo para `channel == "livechat"`.
+
+class ChannelMessageVersion(Base):
+    """Texto ANTERIOR de cada edicion o borrado (el rastro; lo ve el equipo)."""
+    __tablename__ = "sd_channel_message_versions"
+
+    id = Column(String(36), primary_key=True, default=_id)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+    conversation_id = Column(String(36), ForeignKey("sd_channel_conversations.id", ondelete="CASCADE"), nullable=False,
+                             index=True)
+    message_id = Column(String(36), ForeignKey("sd_channel_messages.id", ondelete="CASCADE"), nullable=False, index=True)
+    body = Column(Text, nullable=True)
+    change_type = Column(String(10), nullable=False, default="edit", server_default="edit")  # edit | delete
+    edited_by_user_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    edited_by_client_id = Column(String(36), ForeignKey("client_users.id", ondelete="SET NULL"), nullable=True, index=True)
+    edited_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
+class ChannelAttachment(Base):
+    """Imagen o fichero del chat en vivo. Vive en el almacen de objetos con la clave
+    `livechat/<empresa>/<conversacion>/...`; solo se descarga por la API (cliente de
+    la conversacion u operador de la misma empresa). Borrar la fila borra el
+    fichero al confirmar (`app/db/portal_chat_borrado.py`)."""
+    __tablename__ = "sd_channel_attachments"
+
+    id = Column(String(36), primary_key=True, default=_id)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+    conversation_id = Column(String(36), ForeignKey("sd_channel_conversations.id", ondelete="CASCADE"), nullable=False,
+                             index=True)
+    message_id = Column(String(36), ForeignKey("sd_channel_messages.id", ondelete="CASCADE"), nullable=True, index=True)
+    uploaded_by_user_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    uploaded_by_client_id = Column(String(36), ForeignKey("client_users.id", ondelete="SET NULL"), nullable=True, index=True)
+    name = Column(String(255), nullable=False)
+    mime_type = Column(String(160), nullable=True)
+    size_bytes = Column(Integer, nullable=False, default=0, server_default="0")
+    storage_provider = Column(String(40), nullable=False, default="local", server_default="local")
+    storage_key = Column(String(800), nullable=False)
+    sha256 = Column(String(64), nullable=True)
+    av_status = Column(String(40), nullable=False, default="pending", server_default="pending")
+    dlp_status = Column(String(40), nullable=False, default="pending", server_default="pending")
+    is_quarantined = Column(Boolean, nullable=False, default=False, server_default="0")
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False, index=True)
+    deleted_at = Column(DateTime(timezone=True), nullable=True)
+
+
+class ChannelReaction(Base):
+    """Reaccion con emoji de un operador o del cliente. Una por (empresa, mensaje, autor, emoji)."""
+    __tablename__ = "sd_channel_reactions"
+    __table_args__ = (
+        UniqueConstraint("organization_id", "message_id", "user_id", "emoji", name="uq_sd_channel_reaction_user"),
+        UniqueConstraint("organization_id", "message_id", "client_user_id", "emoji", name="uq_sd_channel_reaction_client"),
+    )
+
+    id = Column(String(36), primary_key=True, default=_id)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+    conversation_id = Column(String(36), ForeignKey("sd_channel_conversations.id", ondelete="CASCADE"), nullable=False,
+                             index=True)
+    message_id = Column(String(36), ForeignKey("sd_channel_messages.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True)
+    client_user_id = Column(String(36), ForeignKey("client_users.id", ondelete="CASCADE"), nullable=True, index=True)
+    emoji = Column(String(32), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
+class ChannelCall(Base):
+    """Llamada o videollamada del chat en vivo. SOLO la inicia un operador
+    (`clientes.llamar`); el cliente acepta, rechaza o cuelga. Sin grabacion ni
+    transcripcion. Estados: ringing, active, declined, missed, ended."""
+    __tablename__ = "sd_channel_calls"
+
+    id = Column(String(36), primary_key=True, default=_id)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+    conversation_id = Column(String(36), ForeignKey("sd_channel_conversations.id", ondelete="CASCADE"), nullable=False,
+                             index=True)
+    initiated_by_user_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    kind = Column(String(10), nullable=False, default="audio", server_default="audio")  # audio | video
+    status = Column(String(20), nullable=False, default="ringing", server_default="ringing", index=True)
+    livekit_room = Column(String(160), nullable=False)
+    answered_by_client_id = Column(String(36), ForeignKey("client_users.id", ondelete="SET NULL"), nullable=True, index=True)
+    declined_by_client_id = Column(String(36), ForeignKey("client_users.id", ondelete="SET NULL"), nullable=True, index=True)
+    ended_by_user_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    ended_by_client_id = Column(String(36), ForeignKey("client_users.id", ondelete="SET NULL"), nullable=True, index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False, index=True)
+    answered_at = Column(DateTime(timezone=True), nullable=True)
+    ended_at = Column(DateTime(timezone=True), nullable=True)
+    duration_seconds = Column(Integer, nullable=False, default=0, server_default="0")
 
 
 class CIClass(Base):
@@ -178,7 +277,7 @@ class CIClass(Base):
     __table_args__ = (UniqueConstraint("organization_id", "key", name="uq_sd_ci_class_org_key"),)
 
     id = Column(String(36), primary_key=True, default=_id)
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     key = Column(String(50), nullable=False)
     label = Column(String(100), nullable=False)
     # Clase base (`CIType`) que entienden el descubrimiento, el impacto y la topologia.
@@ -193,7 +292,7 @@ class PortalAssistantAction(Base):
     __tablename__ = "sd_portal_assistant_actions"
 
     id = Column(String(36), primary_key=True, default=_id)
-    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     client_user_id = Column(String(36), ForeignKey("client_users.id", ondelete="CASCADE"), nullable=False, index=True)
     action = Column(String(40), nullable=False)            # ticket_status | catalog_request | password_reset
     params_json = Column(Text, nullable=True)

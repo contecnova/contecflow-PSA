@@ -119,6 +119,8 @@ Horas en `DEFAULT_TIMEZONE`. Día de la semana en notación Celery (0 = domingo)
 | `reuniones-sondeo` | `reuniones_sondeo` | cada 15 min | organización | Asistente de reuniones: recoge Teams/Meet terminadas, manda bots de calendario y renueva la suscripción de Graph |
 | `reuniones-retencion` | `reuniones_retencion` | diaria 03:40 | organización | Asistente de reuniones: borra audio y transcripciones caducados (respeta el bloqueo legal) |
 | `demanda-plazos` | `demanda_plazos` | cada hora :10 | organización | Flujo de demanda: avisa al acercarse y al vencer el plazo de cada fase (migración 195) |
+| `cert-vencimientos` | `cert_vencimientos` | diaria 07:35 | organización | Certificaciones (migración 212, docs/CERTIFICACIONES.md): avisos de certificados por vencer y auditoría del ciclo, evidencias que caducan y CAPA vencidas (una vez cada uno); evidencia de las tareas enlazadas cerradas |
+| `cert-nis2-relojes` | `cert_nis2_relojes` | cada 15 min | organización | Certificaciones: avisos de los relojes NIS2 (6 h antes y al vencer la alerta de 24 h, la notificación de 72 h y el informe final), una vez cada uno |
 | `pir-vencidas` | `pir_vencidas` | diaria 07:20 | organización | PIR (migración 206, docs/PIR.md): aviso previo (`aviso_dias_antes`) y aviso de vencida, una vez cada uno, al responsable y al dueño del cambio o PM |
 
 ## Límites y reintentos

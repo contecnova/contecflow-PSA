@@ -264,7 +264,14 @@ export interface MensajeDeCanal { id: string; direction: 'in' | 'out'; author_ty
   /** Traducción en tiempo real (16-11-2026): idioma del mensaje. */
   language?: string | null
   /** 17-11-2026: cómo se entregó (sent | template | failed | outside_window) y el adjunto que lleva. */
-  delivery_status?: string | null; attachment_document_id?: string | null; attachment_name?: string | null }
+  delivery_status?: string | null; attachment_document_id?: string | null; attachment_name?: string | null
+  /** 24-11-2026 (chat en vivo completo, docs/portal/CHAT_DEL_PORTAL.md §10): autor, cita, edición,
+   *  borrado, adjuntos (imágenes y ficheros por la API) y reacciones. */
+  author_user_id?: string | null; author_name?: string | null
+  edited_at?: string | null; is_deleted?: boolean
+  attachments?: { id: string; name: string; mime_type: string | null; size_bytes: number; is_quarantined: boolean; is_image?: boolean }[]
+  reactions?: { emoji: string; user_id: string | null; client_user_id: string | null }[]
+  reply_to?: { id: string; author_name: string | null; author_type: string; body: string; is_deleted: boolean } | null }
 /** Documento del ticket que se puede enviar por el canal (17-11-2026). */
 export interface AdjuntoDelTicket { id: string; title: string; file_name: string; mime_type: string | null; size: number | null }
 
@@ -280,8 +287,8 @@ export const canalesApi = {
     D<{ conversations: Conversacion[]; attachments: AdjuntoDelTicket[] }>(api.get(`/sd/channels/tickets/${ticketId}/conversations`)),
   tomar: (id: string) => D<Conversacion>(api.post(`/sd/channels/conversations/${id}/take`)),
   /** `salida`: la vista previa revisada (`client_text`/`client_language`); es lo que recibe el cliente (16-11-2026). */
-  responder: (id: string, body: string, salida?: { client_text: string; client_language: string } | null) =>
-    D<MensajeDeCanal>(api.post(`/sd/channels/conversations/${id}/reply`, { body, ...(salida ?? {}) })),
+  responder: (id: string, body: string, salida?: { client_text: string; client_language: string } | null, replyTo?: string | null) =>
+    D<MensajeDeCanal>(api.post(`/sd/channels/conversations/${id}/reply`, { body, ...(salida ?? {}), reply_to_message_id: replyTo || undefined })),
   cerrar: (id: string) => D<Conversacion>(api.post(`/sd/channels/conversations/${id}/close`)),
   estado: () => D<{ slack: boolean; slack_threads?: boolean; teams: boolean; whatsapp: boolean; livechat: boolean; endpoints: Record<string, string> }>(api.get('/sd/channels/status')),
 }

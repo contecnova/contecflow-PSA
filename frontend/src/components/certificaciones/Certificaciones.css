@@ -1,0 +1,86 @@
+/* Certificaciones (migración 212, docs/CERTIFICACIONES.md). Solo tokens del diseño estándar. */
+
+.cert-apagado {
+  color: var(--text-2);
+  font-size: var(--text-sm);
+}
+
+.cert-rejilla {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.cert-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.cert-bloque__titulo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 12px;
+  font-size: var(--text-md);
+}
+
+.cert-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.cert-aviso {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--surface-4);
+  font-size: var(--text-sm);
+}
+
+.cert-aviso--peligro {
+  color: var(--danger);
+  background: var(--danger-bg);
+  border-color: var(--danger-border);
+}
+
+.cert-celda {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.cert-marcos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.cert-matriz {
+  overflow-x: auto;
+}
+
+.cert-reloj {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: var(--text-sm);
+}
+
+.cert-texto {
+  white-space: pre-wrap;
+  font-size: var(--text-sm);
+  color: var(--text-1);
+}
+
+.cert-token {
+  word-break: break-all;
+  padding: 8px;
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+}

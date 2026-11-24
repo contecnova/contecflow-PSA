@@ -1,4 +1,4 @@
-import { type CSSProperties, useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { nexusAgentApi, sdKbApi } from '../../services/api'
 import type { Conversacion, FuenteDeRespuesta } from '../../services/api/tipos-analitica'
@@ -6,6 +6,7 @@ import { useConfirm } from '../../context/ConfirmContext'
 import { useAppLang } from '../../i18n/AppLangContext'
 import { Plus, Trash2, X } from 'lucide-react'
 import { Checkbox, Pulsable, Textarea, IconButton } from '../ui'
+import { EditorDeChat, FilaDeMensaje } from '../chat'
 import './NexusAssistPanel.css'
 
 const LAST_CONV_KEY = 'nexusassist_last_conversation_id'
@@ -29,11 +30,12 @@ interface ChatMessage {
   // Revisión 2026-11: artículos citados y si se aplicó la corrección de un experto.
   sources?: FuenteDeRespuesta[]
   correction?: boolean
+  created_at?: string | null
 }
 
 /** Los mensajes guardados de una conversación, sin los de herramientas (no se pintan). */
 const mensajesDe = (c: Conversacion): ChatMessage[] =>
-  c.messages.flatMap(m => (m.role === 'tool' ? [] : [{ id: m.id, role: m.role, content: m.content }]))
+  c.messages.flatMap(m => (m.role === 'tool' ? [] : [{ id: m.id, role: m.role, content: m.content, created_at: m.created_at }]))
 
 interface Props {
   open: boolean
@@ -138,7 +140,7 @@ export default function ContecflowAssistPanel({ open, onClose, context }: Props)
   const sendMessage = async (text: string) => {
     if (!text.trim() || loading) return
     const userText = text.trim(); setInput(''); setLoading(true)
-    setMessages(prev => [...prev, { role: 'user', content: userText }])
+    setMessages(prev => [...prev, { role: 'user', content: userText, created_at: new Date().toISOString() }])
     try {
       const { data } = await nexusAgentApi.chat({
         message: userText,
@@ -146,7 +148,7 @@ export default function ContecflowAssistPanel({ open, onClose, context }: Props)
         ..._entityCtx,
       })
       setConvId(data.conversation_id)
-      setMessages(prev => [...prev, { id: data.message_id || undefined, role: 'assistant', content: data.message, sources: data.sources || [], correction: !!data.correction_applied }])
+      setMessages(prev => [...prev, { id: data.message_id || undefined, role: 'assistant', content: data.message, sources: data.sources || [], correction: !!data.correction_applied, created_at: new Date().toISOString() }])
       qc.invalidateQueries({ queryKey: ['ai-conversations'] })
     } catch {
       setMessages(prev => [...prev, { role: 'assistant', content: t('nexusassist.error_conexion') }])
@@ -211,36 +213,38 @@ export default function ContecflowAssistPanel({ open, onClose, context }: Props)
             ))}
           </div>
         )}
-        {messages.map((m, i) => (
-          <div className={`neaspa-stack-4 ${m.role === 'user' ? 'nexus-assist-panel-m3' : 'nexus-assist-panel-m4'}`} key={i}>
-            <div className={`neaspa-box-12 nexus-assist-panel-e5 ${m.role === 'user' ? 'nexus-assist-panel-m6' : 'nexus-assist-panel-m7'}`} style={{ '--nexus-assist-panel-border': `.5px solid ${m.role === 'user' ? 'color-mix(in srgb, var(--accent) 25%, transparent)' : 'var(--surface-4)'}` } as CSSProperties}>
-              {m.content}
-            </div>
-            {m.role === 'assistant' && i > 0 && messages[i - 1]?.role === 'user' && (
-              <PieDeRespuesta mensaje={m} pregunta={messages[i - 1].content} />
-            )}
-          </div>
-        ))}
+        {/* 24-11-2026 (burbujas «como WhatsApp»): la fila de todos los chats; lo tuyo a la
+            derecha y el asistente a la izquierda. */}
+        {messages.map((m, i) => {
+          const propio = m.role === 'user'
+          const autor = propio ? t('chat.tu') : 'NexusAssist'
+          return (
+            <FilaDeMensaje key={m.id || i} propio={propio} esBot={!propio} autor={autor} fecha={m.created_at}
+              compacto={i > 0 && messages[i - 1].role === m.role}
+              textos={{ mensajeDe: t('chat.message_from', { author: autor }) }}
+              cuerpo={<div className="chat-msg__body">{m.content}</div>}
+              extras={m.role === 'assistant' && i > 0 && messages[i - 1]?.role === 'user'
+                ? <PieDeRespuesta mensaje={m} pregunta={messages[i - 1].content} />
+                : null} />
+          )
+        })}
         {loading && (
-          <div className="neaspa-row-3">
-            {[0,1,2].map(i => (
-              <div className="neaspa-box-13 nexus-assist-panel-e8" key={i} style={{ '--nexus-assist-panel-animation': `bounce ${1.4}s ease-in-out ${i*0.2}s infinite` } as CSSProperties} />
-            ))}
-          </div>
+          <FilaDeMensaje autor="NexusAssist" fecha={null} esBot
+            textos={{ mensajeDe: t('chat.message_from', { author: 'NexusAssist' }) }}
+            cuerpo={<div className="chat-msg__pensando" role="status">{t('chat.pensando')}</div>} />
         )}
         <div ref={bottomRef} />
       </div>
-      <div className="neaspa-box-8">
-        <div className="neaspa-row-4">
-          <Textarea aria-label={t('nexusassist.escribe_aqui')} value={input} onChange={e => setInput(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(input) } }}
-            placeholder={t('nexusassist.escribe_aqui')} rows={2}
-            className="u-flex1-min0" inputClassName="neaspa-box-9" />
-          <Pulsable className={`neaspa-box-14 nexusass-sx2 ${!input.trim() || loading ? 'nexus-assist-panel-m9' : 'nexus-assist-panel-m10'}`} onClick={() => sendMessage(input)} disabled={!input.trim() || loading}>↑</Pulsable>
-        </div>
-        <div className="neaspa-box-10">{t('nexusassist.enter_enviar_shift_enter_nueva_linea')}</div>
-      </div>
-      <style>{`@keyframes bounce{0%,80%,100%{transform:scale(0)}40%{transform:scale(1)}}`}</style>
+      <EditorDeChat
+        valor={input}
+        onCambiar={setInput}
+        onEnviar={() => { void sendMessage(input) }}
+        etiquetaCampo={t('nexusassist.escribe_aqui')}
+        placeholder={t('nexusassist.escribe_aqui')}
+        etiquetaEnviar={t('chat.send')}
+        etiquetaEmoji={t('governedconversations.insertar_emoji')}
+        desactivado={loading}
+      />
     </div>
   )
 }

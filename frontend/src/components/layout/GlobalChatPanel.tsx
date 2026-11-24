@@ -1,7 +1,8 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import React, { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { MessageSquare, Send, X, ExternalLink, Plus, User, Minus, Volume2, VolumeX, Hash, Users } from 'lucide-react'
-import { Buscador, Checkbox, EmptyState, IconButton, Pulsable, Select, Textarea } from '../ui'
+import { MessageSquare, X, ExternalLink, Plus, User, Minus, Volume2, VolumeX, Hash, Users } from 'lucide-react'
+import { Buscador, Checkbox, EmptyState, IconButton, Pulsable, Select, TextoConEnlaces } from '../ui'
+import { EditorDeChat, Escribiendo, FilaDeMensaje, SeparadorDeDia, cambiaDeDia } from '../chat'
 import { collabApi } from '../../services/collaborationApi'
 import { useToast } from '../../context/ToastContext'
 import { useAuth } from '../../context/AuthContext'
@@ -34,6 +35,7 @@ interface ChatMessage {
   author_id?: string
   author_name?: string
   body?: string
+  sent_at?: string | null
   [key: string]: unknown
 }
 
@@ -592,17 +594,23 @@ export default function GlobalChatPanel({ open, unread = 0, onClose, onOpenFull 
             </h3>
 
             <div ref={messagesRef} onScroll={onMessagesScroll} className="glchpa-stack-3">
-              {messages.map(m => {
+              {/* 24-11-2026 (burbujas «como WhatsApp»): la fila de todos los chats; lo tuyo a la
+                  derecha y lo de los demás a la izquierda, con separador de día. */}
+              {messages.map((m, i) => {
                 const mine = !!user?.id && (m.user_id ?? m.author_id) === user.id
+                const autor = m.author_name || t('chat.user')
+                const previo = messages[i - 1]
+                const nuevoDia = cambiaDeDia(previo?.sent_at, m.sent_at)
+                const quien = (x: ChatMessage) => x.user_id ?? x.author_id ?? x.author_name
                 return (
-                  <div className={`glchpa-box-14 ${mine ? 'global-chat-panel-m13' : 'global-chat-panel-m14'}`} key={m.id}>
-                    <div className="glchpa-box-8">
-                      {m.author_name || t('chat.user')}
-                    </div>
-                    <div className={`glchpa-box-15 ${mine ? 'global-chat-panel-m15' : 'global-chat-panel-m16'}`}>
-                      {m.body || ''}
-                    </div>
-                  </div>
+                  <Fragment key={m.id}>
+                    {nuevoDia && <SeparadorDeDia fecha={m.sent_at} />}
+                    <FilaDeMensaje autor={autor} fecha={m.sent_at} propio={mine}
+                      mostrarNombre={activeConv?.kind !== 'direct'}
+                      compacto={!!previo && !nuevoDia && quien(previo) === quien(m)}
+                      textos={{ mensajeDe: t('chat.message_from', { author: autor }) }}
+                      cuerpo={<TextoConEnlaces texto={m.body || ''} className="chat-msg__body" />} />
+                  </Fragment>
                 )
               })}
               {activeConvId && messages.length === 0 && (
@@ -617,37 +625,18 @@ export default function GlobalChatPanel({ open, unread = 0, onClose, onOpenFull 
               )}
             </div>
 
-            <div className="glchpa-row-13">
-              {typingLabel && (
-                <div className="glchpa-box-9">
-                  {typingLabel}
-                </div>
-              )}
-              <Textarea
-                className="u-flex1-min0"
-                ref={composerRef}
-                aria-label={activeConvId ? t('globalchat.escribe_mensaje') : t('globalchat.selecciona_una_conversacion')}
-                value={draft}
-                onChange={(e) => setDraft(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault()
-                    if (activeConvId && draft.trim() && !send.isPending) send.mutate()
-                  }
-                }}
-                placeholder={activeConvId ? t('globalchat.escribe_mensaje') : t('globalchat.selecciona_una_conversacion')}
-                disabled={!activeConvId}
-                rows={2}
-                inputClassName="glchpa-fieldstyle4"
-              />
-              <IconButton className={`glchpa-box-16 ${!activeConvId || !draft.trim() || send.isPending ? 'global-chat-panel-m17' : 'global-chat-panel-m18'}`}
-                ariaLabel={t('chat.send')}
-                onClick={() => send.mutate()}
-                disabled={!activeConvId || !draft.trim() || send.isPending}
-              >
-                <Send size={14} aria-hidden="true" />
-              </IconButton>
-            </div>
+            <Escribiendo texto={typingLabel || null} />
+            <EditorDeChat
+              campoRef={composerRef}
+              valor={draft}
+              onCambiar={setDraft}
+              onEnviar={() => { if (activeConvId && draft.trim() && !send.isPending) send.mutate() }}
+              etiquetaCampo={activeConvId ? t('globalchat.escribe_mensaje') : t('globalchat.selecciona_una_conversacion')}
+              placeholder={activeConvId ? t('globalchat.escribe_mensaje') : t('globalchat.selecciona_una_conversacion')}
+              etiquetaEnviar={t('chat.send')}
+              etiquetaEmoji={t('governedconversations.insertar_emoji')}
+              desactivado={!activeConvId}
+            />
           </div>
         </div>
       </div>

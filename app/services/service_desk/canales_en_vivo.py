@@ -14,8 +14,11 @@ por los WebSocket que ya existen:
   conversaciones de su empresa (las mismas que le ensena `GET /conversations`).
   Manda `channel_typing` y `channel_read` de una conversacion de su empresa.
 
-Eventos: `message` (mensaje nuevo, ya en la forma que ve cada lado), `typing`
-(escribiendo…), `read` (leido hasta) y `status` (traspaso a agente, cierre).
+Eventos: `message` (mensaje nuevo, ya en la forma que ve cada lado; con
+`change` = `edited` | `deleted` si cambia uno), `typing` (escribiendo…), `read`
+(leido hasta), `status` (traspaso a agente, cierre) y, desde el 24-11-2026
+(chat en vivo completo), `reaction` (`message_id`) y `call` (`call_id`,
+`status`, `kind`).
 
 Se empuja DESPUES de confirmar (`db.commit()`): el otro lado puede pedir los
 mensajes en cuanto le llega el aviso. Con Redis (`REDIS_URL`) llega a todos los
@@ -126,21 +129,42 @@ def _al_cliente(conv, evento: str, datos: dict) -> None:
         "type": "livechat", "event": evento, "conversation_id": conv.id, "ts": _ahora().isoformat(), **datos})
 
 
-def avisar_mensaje(db, conv, mensaje) -> None:
-    """Mensaje nuevo: al cliente (como lo ve el) y a los operadores de la bandeja."""
+def avisar_mensaje(db, conv, mensaje, cambio: Optional[str] = None) -> None:
+    """Mensaje nuevo (o editado/borrado, `cambio`): al cliente (como lo ve el) y a los
+    operadores de la bandeja. 24-11-2026: con adjuntos, reacciones, cita y autor."""
     from app.services.service_desk import conversaciones
     try:
-        _a_operadores(conv, "message", {"message": conversaciones.serializar_mensaje(mensaje),
-                                        "conversation": conversaciones.serializar(db, conv)})
+        extra = {"change": cambio} if cambio else {}
+        _a_operadores(conv, "message", {"message": conversaciones.serializar_mensaje(mensaje, db),
+                                        "conversation": conversaciones.serializar(db, conv), **extra})
         if conv.channel == "livechat":
-            para_cliente = conversaciones.serializar_mensaje(mensaje)
-            if mensaje.author_type == "agent":
-                from app.services.traduccion.salida import texto_para_cliente
-                para_cliente["body"] = texto_para_cliente(db, conv.organization_id, "channel_message", mensaje.id,
-                                                          mensaje.body)
-            _al_cliente(conv, "message", {"message": para_cliente})
+            _al_cliente(conv, "message", {"message": conversaciones.serializar_para_cliente(db, conv, mensaje),
+                                          **extra})
     except Exception:
         logger.debug("canales en vivo: aviso de mensaje no enviado", exc_info=True)
+
+
+def avisar_cambio(db, conv, mensaje, cambio: str) -> None:
+    """Mensaje editado o borrado (chat en vivo completo, 24-11-2026)."""
+    avisar_mensaje(db, conv, mensaje, cambio)
+
+
+def avisar_reaccion(conv, message_id: str) -> None:
+    """Reacciones de un mensaje cambiadas: cada lado vuelve a pedir los mensajes."""
+    try:
+        _a_operadores(conv, "reaction", {"message_id": message_id})
+        _al_cliente(conv, "reaction", {"message_id": message_id})
+    except Exception:
+        logger.debug("canales en vivo: aviso de reaccion no enviado", exc_info=True)
+
+
+def avisar_llamada(conv, datos: dict) -> None:
+    """Llamada del chat en vivo: `call_id`, `status` y `kind` (sin tokens ni contenido)."""
+    try:
+        _a_operadores(conv, "call", datos)
+        _al_cliente(conv, "call", datos)
+    except Exception:
+        logger.debug("canales en vivo: aviso de llamada no enviado", exc_info=True)
 
 
 def avisar_estado(db, conv) -> None:

@@ -151,7 +151,8 @@ def _guardar_adjuntos(db: Session, conv: ChannelConversation, ticket: Ticket, m:
 def mensaje_del_cliente(db: Session, conv: ChannelConversation, texto: str, *, client_user=None,
                         telefono: Optional[str] = None, external_message_id: Optional[str] = None,
                         con_bot: bool = False, autor_usuario=None, autor_nombre: Optional[str] = None,
-                        adjunto=None, nota_de_adjunto: Optional[str] = None) -> dict:
+                        adjunto=None, nota_de_adjunto: Optional[str] = None,
+                        reply_to: Optional[str] = None) -> dict:
     """Lo que escribe el cliente: se guarda, va al ticket y, en modo `bot`, se contesta.
 
     `autor_usuario` / `autor_nombre` (hilos de Slack): quien escribio, si no es
@@ -160,9 +161,13 @@ def mensaje_del_cliente(db: Session, conv: ChannelConversation, texto: str, *, c
 
     Devuelve `{"message": ..., "bot": [...articulos...] | None, "duplicate": bool}`.
     """
+    if reply_to:
+        from app.services.service_desk.chat_en_vivo import validar_cita
+        reply_to = validar_cita(db, conv, reply_to)
     m = anotar(db, conv, "in", "customer", texto, external_message_id=external_message_id)
     if m is None:
         return {"message": None, "bot": None, "duplicate": True}
+    m.reply_to_message_id = reply_to
     sugerencias = None
     respuesta_del_bot = None
     if con_bot and conv.status == "bot":
@@ -203,7 +208,7 @@ def mensaje_del_cliente(db: Session, conv: ChannelConversation, texto: str, *, c
     canales_en_vivo.avisar_mensaje(db, conv, m)
     if respuesta_del_bot is not None:
         canales_en_vivo.avisar_mensaje(db, conv, respuesta_del_bot)
-    return {"message": serializar_mensaje(m), "bot": sugerencias, "duplicate": False}
+    return {"message": serializar_mensaje(m, db), "bot": sugerencias, "duplicate": False}
 
 
 def pedir_agente(db: Session, conv: ChannelConversation, client_user=None) -> ChannelConversation:
@@ -212,7 +217,8 @@ def pedir_agente(db: Session, conv: ChannelConversation, client_user=None) -> Ch
         raise error_con_codigo(409, "conversacion_cerrada")
     if conv.status == "bot":
         primeros = [m.body for m in db.query(ChannelMessage).filter(
-            ChannelMessage.conversation_id == conv.id, ChannelMessage.author_type == "customer")
+            ChannelMessage.conversation_id == conv.id, ChannelMessage.author_type == "customer",
+            ChannelMessage.deleted_at.is_(None))
             .order_by(ChannelMessage.created_at).all()]
         _asegurar_ticket(db, conv, "\n".join(primeros) or conv.channel, client_user=client_user)
         conv.status = "waiting_agent"
@@ -277,7 +283,7 @@ def tomar(db: Session, conv_id: str, agente) -> ChannelConversation:
 
 
 def responder(db: Session, conv_id: str, agente, texto: str, *, client_text: Optional[str] = None,
-              client_language: Optional[str] = None) -> ChannelMessage:
+              client_language: Optional[str] = None, reply_to: Optional[str] = None) -> ChannelMessage:
     """El agente contesta: va al cliente por su canal y al ticket como comentario publico.
 
     Traduccion en tiempo real (16-11-2026): sale en el idioma del cliente
@@ -296,6 +302,10 @@ def responder(db: Session, conv_id: str, agente, texto: str, *, client_text: Opt
     if conv.status == "closed":
         raise error_con_codigo(409, "conversacion_cerrada")
     salida_por_canales.exigir_que_se_pueda_enviar(db, conv)
+    if reply_to:
+        # 24-11-2026 (chat en vivo completo): responder citando, de la misma conversacion.
+        from app.services.service_desk.chat_en_vivo import validar_cita
+        reply_to = validar_cita(db, conv, reply_to)
     if conv.status != "agent":
         conv.status, conv.assigned_user_id = "agent", agente.id
     canal = conv.channel if conv.channel in CANALES else "livechat"
@@ -303,6 +313,7 @@ def responder(db: Session, conv_id: str, agente, texto: str, *, client_text: Opt
                             texto_cliente=client_text, idioma_cliente=client_language)
     m = anotar(db, conv, "out", "agent", prep.cuerpo, author_user_id=agente.id)
     m.language = prep.idioma
+    m.reply_to_message_id = reply_to
     _salida.anotar_autor(db, conv.organization_id, "channel_message", m.id, prep, agente, "channel_message")
     if conv.ticket_id:
         from app.services.service_desk.comment_service import add_internal_comment
@@ -404,16 +415,12 @@ def mensajes(db: Session, conv: ChannelConversation, desde: Optional[str] = None
         if ultimo is not None:
             q = q.filter(ChannelMessage.created_at > ultimo.created_at)
     filas = q.order_by(ChannelMessage.created_at).limit(tope).all()
+    # 24-11-2026: adjuntos, reacciones, citas y autores de todos en pocas consultas.
+    from app.services.service_desk.chat_en_vivo import extras as _extras
+    todos = _extras(db, filas)
     if not para_cliente:
-        return [serializar_mensaje(m, db) for m in filas]
-    from app.services.traduccion.salida import texto_para_cliente
-    salida = []
-    for m in filas:
-        datos = serializar_mensaje(m, db)
-        if m.author_type == "agent":
-            datos["body"] = texto_para_cliente(db, conv.organization_id, "channel_message", m.id, m.body)
-        salida.append(datos)
-    return salida
+        return [serializar_mensaje(m, db, todos.get(m.id)) for m in filas]
+    return [serializar_para_cliente(db, conv, m, todos.get(m.id)) for m in filas]
 
 
 def _nombre_del_adjunto(db: Session, document_id: str) -> Optional[str]:
@@ -423,13 +430,36 @@ def _nombre_del_adjunto(db: Session, document_id: str) -> Optional[str]:
     return fila[0] if fila else None
 
 
-def serializar_mensaje(m: ChannelMessage, db: Optional[Session] = None) -> dict:
-    datos = {"id": m.id, "direction": m.direction, "author_type": m.author_type, "body": m.body,
+def serializar_mensaje(m: ChannelMessage, db: Optional[Session] = None, extras: Optional[dict] = None) -> dict:
+    """24-11-2026 (chat en vivo completo): con `db`, también adjuntos, reacciones,
+    cita (`reply_to`) y autor; un mensaje borrado no lleva su texto."""
+    borrado = m.deleted_at is not None
+    datos = {"id": m.id, "direction": m.direction, "author_type": m.author_type,
+             "author_user_id": m.author_user_id, "body": "" if borrado else m.body,
              "language": m.language, "delivery_status": m.delivery_status,
              "attachment_document_id": m.attachment_document_id,
+             "edited_at": _iso(m.edited_at), "is_deleted": borrado,
              "created_at": m.created_at.isoformat() if m.created_at else None}
     if db is not None and m.attachment_document_id:
         datos["attachment_name"] = _nombre_del_adjunto(db, m.attachment_document_id)
+    if db is not None and extras is None:
+        from app.services.service_desk.chat_en_vivo import extras as _extras
+        extras = _extras(db, [m]).get(m.id)
+    if extras:
+        datos.update({"attachments": [] if borrado else extras.get("attachments", []),
+                      "reactions": [] if borrado else extras.get("reactions", []),
+                      "reply_to": extras.get("reply_to"), "author_name": extras.get("author_name")})
+    return datos
+
+
+def serializar_para_cliente(db: Session, conv: ChannelConversation, m: ChannelMessage,
+                            extras: Optional[dict] = None) -> dict:
+    """Lo que ve el cliente: el texto del agente en su idioma (con el original si la
+    empresa lo quiere), salvo si el agente lo edito o borro (entonces, tal cual)."""
+    datos = serializar_mensaje(m, db, extras)
+    if m.author_type == "agent" and not m.edited_at and m.deleted_at is None:
+        from app.services.traduccion.salida import texto_para_cliente
+        datos["body"] = texto_para_cliente(db, conv.organization_id, "channel_message", m.id, m.body)
     return datos
 
 

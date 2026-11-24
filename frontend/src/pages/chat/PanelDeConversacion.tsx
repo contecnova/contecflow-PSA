@@ -8,20 +8,22 @@ import {
   type SetStateAction,
   type DragEvent as ReactDragEvent,
   type ClipboardEvent as ReactClipboardEvent,
+  Fragment,
   useEffect,
   useReducer,
   useRef,
   useState,
 } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Hash, MessageSquare, Users, Send, Paperclip, AtSign, Phone, Video, MoreVertical, Pencil, X, ChevronLeft } from 'lucide-react'
+import { Hash, MessageSquare, Users, AtSign, MoreVertical, Pencil } from 'lucide-react'
 import { useToast } from '../../context/ToastContext'
 import { confirmar } from '../../context/ConfirmContext'
 import { useChatRealtime } from '../../context/ChatRealtimeContext'
 import { collabApi } from '../../services/collaborationApi'
 import { useAppLang } from '../../i18n/AppLangContext'
 import { extractErr } from '../../utils/helpers'
-import { EmptyState, Textarea, IconButton } from '../../components/ui'
+import { EmptyState } from '../../components/ui'
+import { AvisoDelEditor, BotonesDeLlamada, CabeceraDeConversacion, EditorDeChat, PanelDeChat, PanelVacio, SeparadorDeDia, ZonaDeMensajes, cambiaDeDia } from '../../components/chat'
 import { POLL_FREQUENT_MS, TYPING_IDLE_MS, TYPING_SWEEP_MS } from '../../constants/timings'
 import { CHAT_MESSAGES_PAGE_SIZE } from '../../constants/pagination'
 import { type ChatBot, type Conv, IconBtn, type LinkPicker, type Msg, tituloConv, type TypingDetail, type UserLike } from './compartido'
@@ -227,12 +229,10 @@ export function ConversationPane({ onBack, newConvAction, conv, currentUser, _bo
 
   if (!conv) {
     return (
-      <div className="chat-pane-empty">
-        <EmptyState icon={<MessageSquare size={28} />}
-          title={traducir('chat.selecciona_una_conversacion')}
-          description={traducir('chat.selecciona_desc')}
-          action={newConvAction} />
-      </div>
+      <PanelVacio icono={<MessageSquare size={28} />}
+        titulo={traducir('chat.selecciona_una_conversacion')}
+        descripcion={traducir('chat.selecciona_desc')}
+        accion={newConvAction} />
     )
   }
 
@@ -332,11 +332,10 @@ export function ConversationPane({ onBack, newConvAction, conv, currentUser, _bo
     }
   }
 
+  // 24-11-2026 («un solo chat»): panel, cabecera y zona de mensajes de components/chat (los mismos del portal).
   return (
-    <div
-      role="region"
-      aria-label={traducir('chat.conversacion')}
-      className="chat-pane"
+    <PanelDeChat
+      etiqueta={traducir('chat.conversacion')}
       onDragEnter={onDragEnter}
       onDragOver={onDragOver}
       onDragLeave={onDragLeave}
@@ -348,20 +347,18 @@ export function ConversationPane({ onBack, newConvAction, conv, currentUser, _bo
         </div>
       )}
       {/* Header */}
-      <div className={`chat-pane__head${onBack ? ' chat-pane__head--back' : ''}`}>
-        <div className="chat-pane__title-wrap">
-          {onBack && <IconBtn onClick={onBack} title={traducir('chat.back')}><ChevronLeft size={16} aria-hidden="true" /></IconBtn>}
+      <CabeceraDeConversacion
+        titulo={tituloConv(conv)}
+        onVolver={onBack}
+        etiquetaVolver={traducir('chat.back')}
+        icono={<>
           {conv.kind === 'channel' && <Hash size={18} aria-hidden="true" />}
           {conv.kind === 'direct' && <MessageSquare size={18} aria-hidden="true" />}
           {conv.kind === 'group' && <Users size={18} aria-hidden="true" />}
-          <div className="u-min0">
-            <h2 className="chat-pane__title">{tituloConv(conv)}</h2>
-            {conv.channel_type && <div className="u-text3-xs">{traducir('chat.channel_type', { type: traducir(`chat.channel_type_${conv.channel_type}`, conv.channel_type) })}</div>}
-          </div>
-        </div>
-        <div className="chat-pane__actions">
-          <IconBtn onClick={() => onCallStart('audio')} title={traducir('chat.llamada_de_voz')}><Phone size={15} aria-hidden="true" /></IconBtn>
-          <IconBtn onClick={() => onCallStart('video')} title={traducir('chat.video_call')}><Video size={15} aria-hidden="true" /></IconBtn>
+        </>}
+        subtitulo={conv.channel_type ? traducir('chat.channel_type', { type: traducir(`chat.channel_type_${conv.channel_type}`, conv.channel_type) }) : null}
+        acciones={<>
+          <BotonesDeLlamada onLlamar={onCallStart} etiquetaVoz={traducir('chat.llamada_de_voz')} etiquetaVideo={traducir('chat.video_call')} />
           <IconBtn onClick={() => setPanelUi({ headerMenuOpen: !headerMenuOpen })} title={traducir('chat.mas_acciones')} expanded={headerMenuOpen}><MoreVertical size={15} aria-hidden="true" /></IconBtn>
           {headerMenuOpen && (
             <ConvHeaderMenu
@@ -371,8 +368,8 @@ export function ConversationPane({ onBack, newConvAction, conv, currentUser, _bo
               onAddMembers={() => setPanelUi({ headerMenuOpen: false, showAddMembers: true })}
             />
           )}
-        </div>
-      </div>
+        </>}
+      />
       {showAddMembers && conv.kind === 'group' && (
         <AddGroupMembersModal
           conv={conv}
@@ -388,7 +385,7 @@ export function ConversationPane({ onBack, newConvAction, conv, currentUser, _bo
       )}
 
       {/* Messages */}
-      <div className="chat-pane__messages" role="log" aria-live="polite" aria-label={traducir('chat.messages')}>
+      <ZonaDeMensajes etiqueta={traducir('chat.messages')}>
         {isLoading && <Loader />}
         {!isLoading && messages.length === 0 && (
           <EmptyState icon={<MessageSquare size={28} />}
@@ -397,10 +394,16 @@ export function ConversationPane({ onBack, newConvAction, conv, currentUser, _bo
         )}
         {messages.map((m, i) => {
           const prev = messages[i - 1]
-          const compact = prev && prev.user_id === m.user_id && (+new Date(m.sent_at) - +new Date(prev.sent_at)) < 5 * 60_000
+          // 24-11-2026 (burbujas): separador al cambiar de día; agrupa por autor (persona, cliente o bot).
+          const nuevoDia = cambiaDeDia(prev?.sent_at, m.sent_at)
+          const autorDe = (x: typeof m) => x.user_id || (x.client_user_id ? `c:${x.client_user_id}` : `b:${x.bot_id || ''}`)
+          const compact = !!prev && !nuevoDia && autorDe(prev) === autorDe(m) && (+new Date(m.sent_at) - +new Date(prev.sent_at)) < 5 * 60_000
           return (
-            <MessageBubble key={m.id} msg={m} compact={compact}
-              isMine={m.user_id === currentUser?.id}
+            <Fragment key={m.id}>
+            {nuevoDia && <SeparadorDeDia fecha={m.sent_at} />}
+            <MessageBubble msg={m} compact={compact}
+              isMine={!!currentUser?.id && m.user_id === currentUser.id}
+              showName={conv.kind !== 'direct'}
               onReact={(emoji) => react.mutate({ id: m.id, emoji })}
               onEdit={() => { setEditing({ id: m.id, body: m.body || '' }); setDraft(m.body || ''); composerRef.current?.focus() }}
               onDelete={async () => { if (await confirmar({ message: traducir('chat.delete_message_confirm'), danger: true, confirmLabel: traducir('chat.delete') })) delMsg.mutate(m.id) }}
@@ -409,10 +412,11 @@ export function ConversationPane({ onBack, newConvAction, conv, currentUser, _bo
               onReplyThread={() => setActiveThreadRoot(m.id)}
               onLink={(kind) => setPanelUi({ linkPicker: { messageId: m.id, kind } })}
             />
+            </Fragment>
           )
         })}
         <div ref={messagesEndRef} />
-      </div>
+      </ZonaDeMensajes>
 
       {/* Typing indicator */}
       {Object.keys(typingUsers).length > 0 && (
@@ -421,66 +425,37 @@ export function ConversationPane({ onBack, newConvAction, conv, currentUser, _bo
         </div>
       )}
 
-      {/* Composer */}
-      <div className="chat-composer">
-        {showSlashMenu && (
-          <SlashMenu draft={draft} onPick={(cmd) => setDraft(`/${cmd} `)} />
-        )}
-        {mentionState && mentionState.items?.length > 0 && (
-          <MentionMenu items={mentionState.items} onPick={insertMention} />
-        )}
-        {activeThreadRoot && (
-          <div className="chat-hint-bar">
-            <MessageSquare size={12} aria-hidden="true" /> {traducir('chat.replying_in_thread')}
-            <IconButton variante="caja" onClick={() => setActiveThreadRoot(null)} className="chat-icon-close--end" ariaLabel={traducir('chat.cancel_reply')}>
-              <X size={12} aria-hidden="true" />
-            </IconButton>
-          </div>
-        )}
-        {editing && (
-          <div className="chat-hint-bar">
-            <Pencil size={12} aria-hidden="true" /> {traducir('chat.editing_message')}
-            <IconButton variante="caja" onClick={() => { setEditing(null); setDraft('') }} className="chat-icon-close--end" ariaLabel={traducir('chat.cancel_edit')}>
-              <X size={12} aria-hidden="true" />
-            </IconButton>
-          </div>
-        )}
-        <div className="chat-composer__box">
-          {/* Patrón label+input: el click en el label abre el selector sin
-              depender de programmatic .click() (más fiable cross-browser) */}
-          <label title={traducir('chat.attach_file')} className="chat-attach">
-            <Paperclip size={16} aria-hidden="true" />
-            <input ref={fileRef} type="file" aria-label={traducir('chat.attach_file')}
-              className="u-sr-only"
-              onChange={e => {
-                const f = e.target.files?.[0]
-                if (f) handleFile(f)
-              }} />
-          </label>
-          <Textarea
-            ref={composerRef}
-            className="u-flex1-min0"
-            data-chat-composer
-            aria-label={traducir('chat.message_in', { title: tituloConv(conv) })}
-            value={draft}
-            onChange={e => setDraft(e.target.value)}
-            onKeyDown={e => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault()
-                handleSend()
-              }
-            }}
-            onPaste={onPaste}
-            placeholder={traducir('chat.composer_placeholder', { title: tituloConv(conv) })}
-            rows={1}
-            inputClassName="chat-composer__input"
-          />
-          <IconBtn onClick={() => setDraft(d => d + '@')} title={traducir('chat.mention')}><AtSign size={16} aria-hidden="true" /></IconBtn>
-          <IconBtn onClick={handleSend} title={traducir('chat.send')} variant="primary">
-            <Send size={16} aria-hidden="true" />
-          </IconBtn>
-        </div>
-      </div>
+      {/* Composer — 24-11-2026 («un solo chat»): `EditorDeChat` (components/chat), el mismo de los chats del portal. */}
+      <EditorDeChat
+        campoRef={composerRef}
+        marcaDeCompositor
+        valor={draft}
+        onCambiar={setDraft}
+        onEnviar={handleSend}
+        onPegar={onPaste}
+        etiquetaCampo={traducir('chat.message_in', { title: tituloConv(conv) })}
+        placeholder={traducir('chat.composer_placeholder', { title: tituloConv(conv) })}
+        etiquetaEnviar={traducir('chat.send')}
+        adjuntar={{ etiqueta: traducir('chat.attach_file'), onFichero: handleFile }}
+        mencion={<IconBtn onClick={() => setDraft(d => d + '@')} title={traducir('chat.mention')}><AtSign size={16} aria-hidden="true" /></IconBtn>}
+        etiquetaEmoji={traducir('governedconversations.insertar_emoji')}
+        encima={<>
+          {showSlashMenu && (
+            <SlashMenu draft={draft} onPick={(cmd) => setDraft(`/${cmd} `)} />
+          )}
+          {mentionState && mentionState.items?.length > 0 && (
+            <MentionMenu items={mentionState.items} onPick={insertMention} />
+          )}
+          {activeThreadRoot && (
+            <AvisoDelEditor icono={<MessageSquare size={12} aria-hidden="true" />} texto={traducir('chat.replying_in_thread')}
+              etiquetaCancelar={traducir('chat.cancel_reply')} onCancelar={() => setActiveThreadRoot(null)} />
+          )}
+          {editing && (
+            <AvisoDelEditor icono={<Pencil size={12} aria-hidden="true" />} texto={traducir('chat.editing_message')}
+              etiquetaCancelar={traducir('chat.cancel_edit')} onCancelar={() => { setEditing(null); setDraft('') }} />
+          )}
+        </>}
+      />
 
       {/* Thread side panel */}
       {activeThreadRoot && (
@@ -504,6 +479,6 @@ export function ConversationPane({ onBack, newConvAction, conv, currentUser, _bo
           }}
         />
       )}
-    </div>
+    </PanelDeChat>
   )
 }

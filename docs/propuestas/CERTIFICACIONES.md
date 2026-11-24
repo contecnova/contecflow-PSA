@@ -1,7 +1,26 @@
 # Propuesta: módulo de Certificaciones y cumplimiento continuo
 
-**Estado:** aparcada a la espera de decisiones (ver §8). Redactada el 24-11-2026.
+**Estado:** en marcha desde el 24-11-2026; decisiones tomadas (ver §8). Redactada el 24-11-2026.
 **Normas objetivo:** TISAX, NIS2, ISO/IEC 27001:2022, SOX, J-SOX e ISA/IEC 62443.
+
+## Estado de lo hecho (24-11-2026)
+
+| Parte | Estado |
+|---|---|
+| §3.1 Catálogo y biblioteca única, versionado, migración de ISO 27001/SOC 2 del GRC | ✅ Hecho (migraciones 212 y 213; `catalogo.py`) |
+| §3.2 Programa por empresa (alcance, objetivos y niveles, SL por zona, gobierno) | ✅ Hecho |
+| §3.3 Declaración de aplicabilidad, pruebas SOX, matriz cruzada, cumplimiento continuo | ✅ Hecho (12 medidas automáticas) |
+| §3.4 Evidencias sobre Documentos con aprobación, caducidad y evidencia del sistema | ✅ Hecho |
+| §3.5 Auditorías, hallazgos y CAPA como tareas | ✅ Hecho |
+| §3.6 Auditores, empresas colaboradoras, acceso temporal de solo lectura registrado | ✅ Hecho (enlace `/auditor/:token`, no cuenta del portal de clientes) |
+| §3.7 Certificados y etiquetas con su ciclo y avisos | ✅ Hecho |
+| §3.8 NIS2: relojes 24 h/72 h/1 mes, plantillas, comunicaciones, proveedores críticos | ✅ Hecho (el envío a la autoridad se hace fuera y se registra) |
+| §3.9 Panel y paquete del auditor firmado | ✅ Hecho |
+| §3.10 GRC del módulo (auditoría, RGPD, retención, capacidades, SoD, Configuración) | ✅ Hecho |
+| §4 Plantillas y generación automática con parámetros de alcance | ✅ Hecho (contenido: fase 3; generación: `generacion.py`) |
+| §5 Certificar contecflow (fase 4) | ⏳ Pendiente |
+
+Manual técnico: [docs/CERTIFICACIONES.md](../CERTIFICACIONES.md) (§13: lo que queda fuera y por qué). Manual de uso: README §15.9.
 
 La idea tiene dos caras que se resuelven con **un único módulo**:
 
@@ -251,3 +270,17 @@ general obligatoria al final. GRC, documentación y BPM se actualizan en cada fa
    - ¿Aceptas cambiar el flujo de trabajo con revisión independiente por versión antes de producción? Sin ella no
      se pasa SOX, ISO 27001 ni 62443-4-1.
 4. **Niveles:** ¿TISAX AL2 o AL3? ¿Qué partes de 62443 y qué SL objetivo?
+
+### Decisiones tomadas (24-11-2026)
+
+1. **Catálogo:** identificador de cada control con descripción redactada por nosotros. Cada empresa puede importar el
+   texto oficial con licencia. NIS2 y SOX van enteras.
+2. **Auditores externos:** acceso temporal de solo lectura por el portal, limitado al programa que les toque y con
+   todo lo que consultan auditado; también pueden recibir el paquete exportado y firmado.
+3. **Certificar contecflow:**
+   - alcance SaaS e instalado en casa del cliente;
+   - revisión independiente **por versión** antes de producción (no por commit), SBOM y versiones firmadas;
+   - en el día a día se sigue sin ramas.
+4. **Niveles:**
+   - TISAX AL3 con protección de prototipos;
+   - IEC 62443 completa (2-1, 3-2, 3-3, 4-1 y 4-2), con SL objetivo configurable por zona.

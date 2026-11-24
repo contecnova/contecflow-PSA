@@ -43,11 +43,11 @@ Medido importando `app.main` y recorriendo `app.routes` y su grafo
 | Entrada e identidad (login, MFA, SSO, SAML, refresco, contraseña, portal, OAuth) | 29 | 2 |
 | Webhooks y canales con firma o secreto | 28 | 1 |
 | SCIM (token de la empresa) | 13 | 0 |
-| Enlaces y tokens propios (formularios, enlaces firmados, BI, aprobaciones, agente CMDB) | 13 | 0 |
+| Enlaces y tokens propios (formularios, enlaces firmados, BI, aprobaciones, agente CMDB, auditor de Certificaciones) | 15 | 0 |
 | WebSocket (ticket de un uso; JWT solo fuera de producción) | 6 | 0 |
 | Públicas por slug (status page) | 2 | 0 |
 | Sin credencial: JS estáticos, health, ayudas | 10 | 10 |
-| **Total** | **101** | **13** |
+| **Total** | **103** | **13** |
 
 Ninguna ruta se encontró sin verificar su credencial. Las de firma ya se habían
 revisado en auditorías anteriores (2026-08, 2026-11 y 2026-11b), y esta pasada
@@ -137,6 +137,8 @@ misma en todo el grafo, el endpoint ya filtra por esa empresa.
 |---|---|---|
 | `GET /forms/public/{token}` y `POST …/submit` | token del formulario activo (envío: 10/min) | sistema; **publica** la del formulario (sella el ticket o lead) |
 | `GET /portal/view/{token}` | token firmado del proyecto | sistema; **publica** la del proyecto |
+| `GET /certificaciones/auditor/{token}` | token del acceso temporal del auditor (solo su huella SHA-256 en `cert_accesos`; vigente, sin revocar, auditor activo) | sistema; **publica** la del acceso (migración 212; cada consulta en `cert_accesos_registro` y en auditoría) |
+| `GET /certificaciones/auditor/{token}/paquete` | ídem | sistema; **publica** la del acceso; deja traza en `cert_paquetes` |
 | `GET /collaboration/files/by-token/{token}` | token firmado de descarga | sistema; la del adjunto |
 | `GET /bi/bookmarks/shared/{share_token}` | token de enlace compartido | sistema; la del marcador |
 | `GET /bi/embed/sdk-config` y `GET /bi/embed/view` | token de embebido de la empresa `org` | sistema; `org` verificada con su token |

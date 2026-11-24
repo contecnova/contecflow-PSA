@@ -67,7 +67,7 @@ PROCESS_CATALOGUE: list[dict] = [
     # solo inicia el operador (el cliente acepta o rechaza; 403 si intenta llamar).
     {"key": "portal_conversation", "category": "servicedesk", "icon": "💬",
      "name": "Conversación del portal (chat y llamadas)",
-     "description": "Chat operador-cliente (conversaciones formales y chat de colaboración): adjuntos validados (contenido, AV/DLP, tipos y tamaño por empresa); llamada o videollamada solo iniciada por el operador, el cliente acepta o rechaza; sin grabación.",
+     "description": "Chat operador-cliente (conversaciones formales, chat de colaboración y chat en vivo de Soporte): adjuntos validados (contenido, AV/DLP, tipos y tamaño por empresa); llamada o videollamada solo iniciada por el operador, el cliente acepta o rechaza; sin grabación.",
      "steps": ["Mensaje del cliente", "Validar adjuntos (contenido, AV/DLP)", "Política GRC y aprobación", "Respuesta del operador", "Operador inicia llamada o videollamada", "Cliente acepta o rechaza", "Llamada (sin grabación) y cierre", "Conversación atendida"]},
     {"key": "escalation_routing", "category": "servicedesk", "icon": "🚨",
      "name": "Escalado",
@@ -277,6 +277,19 @@ PROCESS_CATALOGUE: list[dict] = [
      "name": "Revisión Data Governance",
      "description": "Aprobación de datasets y políticas de acceso.",
      "steps": ["Catalogar", "Clasificar", "Aprobación", "Publicado", "Auditoría"]},
+    # ── Certificaciones (migración 212, docs/CERTIFICACIONES.md) ──────────────
+    {"key": "cert_program", "category": "admin", "icon": "🏅",
+     "name": "Programa de certificación",
+     "description": "Alcance, declaración de aplicabilidad, implantación, pruebas independientes, auditorías y certificado (ISO 27001, TISAX, NIS2, SOX, J-SOX, IEC 62443).",
+     "steps": ["Alcance y objetivos", "Análisis de carencias y riesgos", "Declaración de aplicabilidad", "Implantación de controles", "Pruebas de eficacia (otra persona)", "Auditoría interna", "Revisión por la dirección", "Auditoría de certificación", "Certificado vigente"]},
+    {"key": "cert_audit_capa", "category": "admin", "icon": "🔎",
+     "name": "Auditoría, hallazgo y acción correctiva",
+     "description": "De la auditoría al cierre del hallazgo: acción correctiva como tarea, verificación de eficacia y cierre por otra persona.",
+     "steps": ["Auditoría planificada", "Muestras y trabajo de campo", "Hallazgo registrado", "Acción correctiva (tarea)", "Acción hecha", "Verificación de eficacia (otra persona)", "Hallazgo corregido", "Cierre (no quien corrigió)"]},
+    {"key": "nis2_incident", "category": "admin", "icon": "🚨",
+     "name": "Incidente notificable NIS2",
+     "description": "Incidente significativo desde el Service Desk con los relojes de 24 h, 72 h y 1 mes y el registro de comunicaciones a la autoridad.",
+     "steps": ["Incidente detectado (ticket)", "Evaluación de significatividad", "Alerta temprana (24 h)", "Notificación (72 h)", "Informes intermedios", "Informe final (1 mes)", "Cierre y lecciones"]},
 ]
 
 

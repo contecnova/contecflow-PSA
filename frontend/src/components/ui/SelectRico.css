@@ -30,7 +30,7 @@
 .sr-control:disabled { opacity: 0.55; cursor: not-allowed; }
 .sr-control--error { border-color: var(--danger-border); }
 
-.sr-placeholder { color: var(--text-3); flex: 1; }
+.sr-placeholder { color: var(--texto-campo-vacio); flex: 1; }
 .sr-flecha { margin-left: auto; flex: none; color: var(--text-3); transition: transform 0.15s ease; }
 .sr-flecha--abierta { transform: rotate(180deg); }
 

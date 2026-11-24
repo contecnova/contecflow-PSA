@@ -113,6 +113,10 @@ Barridos (recuentos comentados en cada test):
 | `cambios.responsables` | admin, pm, team_lead, hr | 7 |
 | `cartera.gestionar` | admin, pm | 12 |
 | `cartera.usar` | admin, pm, team_lead, hr, employee | 3 |
+| `certificaciones.administrar` | admin | 11 (migración 212, docs/CERTIFICACIONES.md §12) |
+| `certificaciones.auditar` | admin, pm, team_lead | 14 |
+| `certificaciones.gestionar` | admin, pm | 23 |
+| `certificaciones.ver` | admin, pm, team_lead, hr | 23 |
 | `clientes.dirigir` | admin, pm | 2 |
 | `clientes.gestionar` | admin, pm, team_lead, hr | 47 |
 | `cmdb.administrar` | admin | 21 |

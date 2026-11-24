@@ -527,12 +527,10 @@ export function LoginScreen({ _changeLang, _currentLang }: { _changeLang?: (code
           </p>
           <form onSubmit={e => { e.preventDefault(); void handleLogin() }} className="u-stack-14">
             <div>
-              <label htmlFor={`${idPrefix}-email`} id={`${idPrefix}-email-etiqueta`} className="poclco-labelstyle">{t('login_email')}</label>
-              <Input id={`${idPrefix}-email`} aria-labelledby={`${idPrefix}-email-etiqueta`} type="email" autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} placeholder={t('login_email_placeholder')} inputClassName="poclco-fieldstyle" />
+              <Input label={t('login_email')} id={`${idPrefix}-email`} type="email" autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} placeholder={t('login_email_placeholder')} />
             </div>
             <div>
-              <label htmlFor={`${idPrefix}-password`} id={`${idPrefix}-password-etiqueta`} className="poclco-labelstyle">{t('login_password')}</label>
-              <Input id={`${idPrefix}-password`} aria-labelledby={`${idPrefix}-password-etiqueta`} type="password" autoComplete="current-password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" inputClassName="poclco-fieldstyle" />
+              <Input label={t('login_password')} id={`${idPrefix}-password`} type="password" autoComplete="current-password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" />
             </div>
             {error && (
               <div className="poclco-box-14">{error}</div>
@@ -541,7 +539,10 @@ export function LoginScreen({ _changeLang, _currentLang }: { _changeLang?: (code
               {loading ? t('login_loading') : t('login_btn')}
             </Button>
           </form>
-          <Button variant="ghost" onClick={() => { setError(''); setOlvido(true) }}>{t('portal_recuperar.enlace')}</Button>
+          {/* 24-11-2026: enlace, centrado y separado de «Entrar» (antes un botón con borde pegado al formulario). */}
+          <div className="poclco-olvido">
+            <Button variant="link" onClick={() => { setError(''); setOlvido(true) }}>{t('portal_recuperar.enlace')}</Button>
+          </div>
           </>)}
         </div>
       </div>

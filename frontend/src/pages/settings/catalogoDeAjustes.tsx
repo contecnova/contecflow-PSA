@@ -189,6 +189,8 @@ export const SECCIONES_DE_AJUSTES: SeccionDeAjustes[] = [
   { id: 'recertificacion', grupo: 'seguridad', capacidad: 'seguridad.recertificar', componente: pagina(() => import('../settings-sections/RecertificacionSection')) },
   { id: 'mfa', grupo: 'seguridad', rutaAntigua: '/mfa', componente: pagina(() => import('../MFAPage')) },
   { id: 'grc', grupo: 'seguridad', capacidad: ADMIN, rutaAntigua: '/grc', componente: pagina(() => import('../GrcPage')) },
+  // Migración 212 (docs/CERTIFICACIONES.md): avisos, caducidad de evidencias, acceso de auditores, NIS2 y CAPA.
+  { id: 'certificaciones', grupo: 'seguridad', capacidad: 'certificaciones.administrar', envolver: true, componente: pagina(() => import('../../components/certificaciones/ConfigCertificaciones')) },
   // 19-11-2026: también los meses de retención propuestos (CHAT_RETENTION_PROPOSED_MONTHS, grupo audit).
   { id: 'chat-admin', grupo: 'seguridad', capacidad: ADMIN, componente: pagina(() => import('../ChatAdminPage')) },
 

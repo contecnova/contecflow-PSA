@@ -1,48 +1,29 @@
-// Piezas de la bandeja de conversaciones gobernadas (item, burbuja, redactor y modal de alta). 23-11-2026: troceado de GovernedConversations sin cambio de comportamiento.
-import { type CSSProperties, useEffect, useRef, useState, useId } from 'react'
-import { fmtDateTime } from '../../utils/helpers'
-import { useDialogo, Button, Checkbox, GrupoDeOpciones, IconButton, Pulsable, REACCIONES_RAPIDAS, Select, SelectorDeEmoji, Input, Textarea, TextoConEnlaces } from '../ui'
-import { Check, CheckCheck, History, Paperclip, Pencil, Reply, Trash2, X, Send } from 'lucide-react'
+// Piezas de la bandeja de conversaciones gobernadas (burbuja, redactor y modal de alta). 23-11-2026: troceado de GovernedConversations sin cambio de comportamiento.
+// 24-11-2026 («un solo chat»): la fila de la lista es `FilaDeConversacion` de components/chat (se fue la fila de lista propia).
+import { useEffect, useState, useId } from 'react'
+import { useDialogo, Button, Checkbox, GrupoDeOpciones, Select, Input, Textarea, TextoConEnlaces } from '../ui'
+import { type AccionDeMensaje, AvisoDelEditor, EditorDeChat, EstadoDeEntrega, EtiquetaDeAutor, FilaDeMensaje, agruparReacciones, cambiaDeDia } from '../chat'
+import { Check, History, Pencil, Reply, Trash2, X } from 'lucide-react'
 import type { PortalAjustesDelChat } from '../../services/api/tipos-alm'
 import AdjuntoDelChat from './AdjuntoDelChat'
 import type { ChatDelPortalApi } from './chatDelPortalApi'
-import StatusBadge from '../ui/StatusBadge'
-import { type Conversation, GRC_LABEL, type Message, type Mode, type ProjectOption, SOURCE_KEY, TOPIC_OPTIONS, type UserOption, etiquetaDeTema, useTextoConversacion } from './GovernedConversationsComun'
+import { GRC_LABEL, type Message, type Mode, type ProjectOption, TOPIC_OPTIONS, type UserOption, etiquetaDeTema, useTextoConversacion } from './GovernedConversationsComun'
 
-interface ConversationListItemProps {
-  conversation: Conversation
-  selected: boolean
-  onSelect: (id: string) => void
-  mode: Mode
-}
-
-export function ConversationListItem({ conversation, selected, onSelect, mode }: ConversationListItemProps) {
-  const t = useTextoConversacion(mode)
-  const unread = mode === 'team' ? conversation.unread_for_team : conversation.unread_for_client
-  const lastPreview = conversation.last_message?.body || conversation.title
-  return (
-    <Pulsable className={`goveconv-box-13 governed-sx1 governed-conversations-e1 ${selected ? 'governed-conversations-m2' : 'governed-conversations-m3'}`}
-      onClick={() => onSelect(conversation.id)}
-      style={{ '--governed-conversations-border': `1px solid ${selected ? 'var(--accent)' : 'var(--surface-4)'}` } as CSSProperties}
-    >
-      <div className="goveconv-row-1">
-        <div className="goveconv-txt-1">{conversation.title || t('governedconversations.sin_titulo')}</div>
-        <div className="goveconv-txt-2">{fmtDateTime(conversation.last_message_at || conversation.created_at)}</div>
-      </div>
-      <div className="goveconv-row-2">
-        <StatusBadge color={conversation.source === 'legacy_client_message' ? 'var(--warning)' : 'var(--accent)'}>{SOURCE_KEY[conversation.source] ? t(SOURCE_KEY[conversation.source]) : conversation.source}</StatusBadge>
-        {conversation.pending_review_count > 0 && <StatusBadge color="var(--warning)">{conversation.pending_review_count} {t('governedconversations.revision')}</StatusBadge>}
-        {conversation.is_sla_breached && <StatusBadge color="var(--danger)">{t('governedconversations.sla_vencido')}</StatusBadge>}
-        {unread > 0 && <StatusBadge color="var(--danger)">{unread} {t('governedconversations.sin_leer')}</StatusBadge>}
-      </div>
-      <div className="goveconv-txt-3">{lastPreview ? String(lastPreview).slice(0, 120) : t('governedconversations.sin_mensajes')}</div>
-    </Pulsable>
-  )
+/** Mismo autor en menos de 5 min y el mismo día: fila compacta, como en el chat interno. */
+export function esCompacto(previo: Message | undefined, m: Message): boolean {
+  if (!previo || previo.is_deleted || m.is_deleted) return false
+  if (cambiaDeDia(previo.created_at, m.created_at)) return false
+  const mismo = previo.sender_type === m.sender_type
+    && (previo.sender_user_id || previo.sender_client_id) === (m.sender_user_id || m.sender_client_id)
+  return mismo && !!previo.created_at && !!m.created_at
+    && Date.parse(m.created_at) - Date.parse(previo.created_at) < 5 * 60_000
 }
 
 interface MessageBubbleProps {
   message: Message
   mode: Mode
+  /** Fila compacta (mismo autor seguido), como en el chat interno. */
+  compact?: boolean
   onReview: (message: Message, decision: 'approved' | 'rejected') => void
   /** 24-11-2026: chat del portal completo. */
   conversationId?: string
@@ -60,117 +41,67 @@ interface MessageBubbleProps {
   onError?: (e: unknown) => void
 }
 
-function agruparReacciones(message: Message, viewerUserId?: string | null, viewerClientId?: string | null) {
-  const grupos: Record<string, { n: number; mia: boolean }> = {}
-  for (const r of message.reactions || []) {
-    const g = grupos[r.emoji] || (grupos[r.emoji] = { n: 0, mia: false })
-    g.n += 1
-    if ((viewerUserId && r.user_id === viewerUserId) || (viewerClientId && r.client_user_id === viewerClientId)) g.mia = true
-  }
-  return Object.entries(grupos)
-}
-
-export function MessageBubble({ message, mode, onReview, conversationId, api, isMine, viewerUserId, viewerClientId, onReply, onEdit, onDelete, onReact, onHistory, onError }: MessageBubbleProps) {
+// 24-11-2026 («un solo chat»): la fila y el editor son los del chat interno
+// (`FilaDeMensaje` y `EditorDeChat` de components/chat). Aquí solo se dicen las
+// acciones de cada lado (el cliente no ve notas internas, historial ni aprobar)
+// y lo propio de las conversaciones gobernadas (insignias GRC, revisión).
+export function MessageBubble({ message, mode, compact, onReview, conversationId, api, isMine, viewerUserId, viewerClientId, onReply, onEdit, onDelete, onReact, onHistory, onError }: MessageBubbleProps) {
   const t = useTextoConversacion(mode)
   const grcCfg = GRC_LABEL[message.grc_status]
   const grc = grcCfg ? { text: t(grcCfg.text), color: grcCfg.color } : { text: message.grc_status, color: 'var(--text-2)' }
-  const alignSelf = message.sender_type === 'client' ? 'flex-start' : 'flex-end'
-  const bubbleBg = message.sender_type === 'client' ? 'var(--surface-1)' : 'var(--accent-muted)'
-  const borderColor = message.grc_status === 'pending_review' ? 'var(--warning-border)' : 'var(--surface-4)'
   const borrado = !!message.is_deleted
   const nativo = message.source !== 'legacy_client_message'
   const interactivo = nativo && !borrado && !!api && !!conversationId
-  const reacciones = agruparReacciones(message, viewerUserId, viewerClientId)
+  const soloAdjunto = message.message_type === 'attachment' && !!message.body && (message.attachments || []).some(a => a.name === message.body)
+  const historial: AccionDeMensaje[] = mode === 'team' && onHistory && (message.edited_at || borrado)
+    ? [{ clave: 'historial', etiqueta: t('governedconversations.ver_historial'), icono: <History size={13} aria-hidden="true" />, onClick: () => onHistory(message) }]
+    : []
+  const acciones: AccionDeMensaje[] = !interactivo ? [] : [
+    { clave: 'responder', etiqueta: t('governedconversations.responder'), icono: <Reply size={13} aria-hidden="true" />, onClick: () => onReply?.(message) },
+    ...(isMine && (message.message_type === 'text' || message.message_type === 'attachment') ? [
+      { clave: 'editar', etiqueta: t('governedconversations.editar'), icono: <Pencil size={13} aria-hidden="true" />, onClick: () => onEdit?.(message) },
+      { clave: 'borrar', etiqueta: t('governedconversations.borrar'), icono: <Trash2 size={13} aria-hidden="true" />, onClick: () => onDelete?.(message), peligro: true },
+    ] : []),
+    ...historial,
+  ]
   return (
-    <div className="goveconv-stack-1 governed-conversations-e4" style={{ '--governed-conversations-align-items': alignSelf } as CSSProperties}>
-      <div role="article" aria-label={t('governedconversations.mensaje_de', { name: message.sender_name })}
-        className={`goveconv-box-14 governed-sx2 governed-conversations-e5 chat-portal-burbuja${borrado ? ' chat-portal-burbuja--borrada' : ''}`}
-        style={{ '--governed-conversations-background': bubbleBg, '--governed-conversations-border': `1px solid ${borderColor}` } as CSSProperties}>
-        <div className="goveconv-row-1">
-          <div className="u-sm-700">{message.sender_name}</div>
-          <div className="u-text3-2xs">
-            {fmtDateTime(message.created_at)}
-            {message.edited_at && !borrado && <span className="chat-portal-editado"> · {t('governedconversations.editado')}</span>}
-          </div>
-        </div>
-        <div className="goveconv-row-2">
-          <StatusBadge color={message.sender_type === 'client' ? 'var(--warning)' : 'var(--accent)'}>{t(message.sender_type === 'client' ? 'governedconversations.remitente_cliente' : 'governedconversations.remitente_equipo')}</StatusBadge>
-          <StatusBadge color={grc.color}>{grc.text}</StatusBadge>
-          {message.is_internal_note && <StatusBadge color="var(--danger)">{t('governedconversations.interna')}</StatusBadge>}
-          {message.is_redacted && <StatusBadge color="var(--accent)">{t('governedconversations.redactada')}</StatusBadge>}
-          {message.source === 'legacy_client_message' && <StatusBadge color="var(--warning)">{t('governedconversations.origen_anterior')}</StatusBadge>}
-        </div>
-        {message.reply_to && (
-          <blockquote className="chat-portal-cita">
-            <span className="u-sm-700">{message.reply_to.sender_name}</span>
-            <span className="chat-portal-cita__texto">{message.reply_to.is_deleted ? t('governedconversations.mensaje_borrado') : message.reply_to.body}</span>
-          </blockquote>
-        )}
-        {borrado ? (
-          <div className="chat-portal-borrado">{t('governedconversations.mensaje_borrado')}</div>
-        ) : (
-          (message.message_type !== 'attachment' || (message.body && !(message.attachments || []).some(a => a.name === message.body))) && (
-            <TextoConEnlaces texto={message.body} className="goveconv-txt-4 chat-portal-texto" />
-          )
-        )}
+    <FilaDeMensaje
+      autor={message.sender_name || '?'}
+      fecha={message.created_at}
+      // 24-11-2026 (burbujas): lo de quien mira (equipo: su usuario; cliente: su usuario del portal) a la derecha.
+      propio={!!isMine}
+      compacto={compact}
+      borrado={borrado}
+      editado={!!message.edited_at && !borrado}
+      textos={{
+        mensajeDe: t('governedconversations.mensaje_de', { name: message.sender_name }),
+        acciones: t('governedconversations.acciones_del_mensaje'),
+        editado: t('governedconversations.editado'),
+        eliminado: t('governedconversations.mensaje_borrado'),
+        reaccion: (emoji, n) => t('governedconversations.reaccion_de', { emoji, n }),
+        reaccionarCon: (emoji) => t('governedconversations.reaccionar_con', { emoji }),
+      }}
+      insignias={<>
+        {/* Con el estilo de la etiqueta de bot del chat interno. El estado GRC solo lo ve el equipo. */}
+        {message.sender_type === 'client' && <EtiquetaDeAutor>{t('governedconversations.remitente_cliente')}</EtiquetaDeAutor>}
+        {mode === 'team' && message.grc_status !== 'allowed' && <EtiquetaDeAutor>{grc.text}</EtiquetaDeAutor>}
+        {message.is_internal_note && <EtiquetaDeAutor>{t('governedconversations.interna')}</EtiquetaDeAutor>}
+        {mode === 'team' && message.is_redacted && <EtiquetaDeAutor>{t('governedconversations.redactada')}</EtiquetaDeAutor>}
+        {!nativo && <EtiquetaDeAutor>{t('governedconversations.origen_anterior')}</EtiquetaDeAutor>}
+      </>}
+      cita={message.reply_to ? { autor: message.reply_to.sender_name, texto: message.reply_to.body, borrada: message.reply_to.is_deleted } : null}
+      cuerpo={borrado
+        ? <div className="chat-msg__body">{t('governedconversations.mensaje_borrado')}</div>
+        : (!soloAdjunto && <TextoConEnlaces texto={message.body} className="chat-msg__body" />)}
+      extras={<>
         {!borrado && (message.attachments || []).length > 0 && api && conversationId && (
-          <div className="chat-portal-adjuntos">
+          <div className="chat-msg__attachments">
             {(message.attachments || []).map(a => (
               <AdjuntoDelChat key={a.id} adjunto={a} cargar={(id) => api.adjunto(conversationId, id)} t={t} onError={onError || (() => undefined)} />
             ))}
           </div>
         )}
-        {message.moderation_notes && mode === 'team' && <div className="goveconv-box-1">{t('governedconversations.moderacion')} {message.moderation_notes}</div>}
-        {reacciones.length > 0 && (
-          <div className="chat-portal-reacciones">
-            {reacciones.map(([emoji, g]) => (
-              <Pulsable key={emoji} type="button" className={`chat-portal-reaccion${g.mia ? ' chat-portal-reaccion--mia' : ''}`}
-                aria-pressed={g.mia} onClick={() => interactivo && onReact?.(message, emoji)}
-                aria-label={t('governedconversations.reaccion_de', { emoji, n: g.n })}>{emoji} <span>{g.n}</span></Pulsable>
-            ))}
-          </div>
-        )}
-        {interactivo && (
-          <div className="chat-portal-acciones" role="toolbar" aria-label={t('governedconversations.acciones_del_mensaje')}>
-            {REACCIONES_RAPIDAS.slice(0, 4).map(e => (
-              <Pulsable key={e} type="button" className="chat-portal-reaccion-rapida" onClick={() => onReact?.(message, e)}
-                aria-label={t('governedconversations.reaccionar_con', { emoji: e })}>{e}</Pulsable>
-            ))}
-            <SelectorDeEmoji tamano="xs" ariaLabel={t('governedconversations.reaccionar')} onElegir={e => onReact?.(message, e)} />
-            <IconButton variante="caja" tamano="xs" ariaLabel={t('governedconversations.responder')} onClick={() => onReply?.(message)}>
-              <Reply size={13} aria-hidden="true" />
-            </IconButton>
-            {isMine && (message.message_type === 'text' || message.message_type === 'attachment') && (
-              <>
-                <IconButton variante="caja" tamano="xs" ariaLabel={t('governedconversations.editar')} onClick={() => onEdit?.(message)}>
-                  <Pencil size={13} aria-hidden="true" />
-                </IconButton>
-                <IconButton variante="caja" tamano="xs" tono="peligro" ariaLabel={t('governedconversations.borrar')} onClick={() => onDelete?.(message)}>
-                  <Trash2 size={13} aria-hidden="true" />
-                </IconButton>
-              </>
-            )}
-            {mode === 'team' && message.edited_at && onHistory && (
-              <IconButton variante="caja" tamano="xs" ariaLabel={t('governedconversations.ver_historial')} onClick={() => onHistory(message)}>
-                <History size={13} aria-hidden="true" />
-              </IconButton>
-            )}
-          </div>
-        )}
-        {mode === 'team' && borrado && onHistory && (
-          <div className="chat-portal-acciones">
-            <IconButton variante="caja" tamano="xs" ariaLabel={t('governedconversations.ver_historial')} onClick={() => onHistory(message)}>
-              <History size={13} aria-hidden="true" />
-            </IconButton>
-          </div>
-        )}
-        {isMine && !borrado && nativo && (
-          <div className="chat-portal-estado" aria-live="polite">
-            {message.read_at
-              ? <><CheckCheck size={12} aria-hidden="true" /> {t('governedconversations.leido')}</>
-              : <><Check size={12} aria-hidden="true" /> {t('governedconversations.enviado')}</>}
-          </div>
-        )}
+        {message.moderation_notes && mode === 'team' && <div className="u-text3-xs">{t('governedconversations.moderacion')} {message.moderation_notes}</div>}
         {mode === 'team' && message.grc_status === 'pending_review' && (
           <div className="goveconv-row-3">
             <Button size="sm" icon={<Check size={13} />} onClick={() => onReview(message, 'approved')}>
@@ -181,8 +112,15 @@ export function MessageBubble({ message, mode, onReview, conversationId, api, is
             </Button>
           </div>
         )}
-      </div>
-    </div>
+      </>}
+      reacciones={agruparReacciones(message.reactions, { userId: viewerUserId, clientId: viewerClientId })}
+      onReaccionar={interactivo ? (emoji) => onReact?.(message, emoji) : undefined}
+      acciones={acciones}
+      accionesSiBorrado={historial}
+      pie={isMine && !borrado && nativo ? (
+        <EstadoDeEntrega leido={!!message.read_at} textoLeido={t('governedconversations.leido')} textoEnviado={t('governedconversations.enviado')} />
+      ) : null}
+    />
   )
 }
 
@@ -208,57 +146,42 @@ interface ConversationComposerProps {
 }
 
 export function ConversationComposer({ mode, value, onChange, onSend, sending, canInternalNotes, isInternalNote, onToggleInternalNote, disabled, replyTo, onCancelReply, editing, onCancelEdit, onAttach, attaching, settings, onTyping }: ConversationComposerProps) {
-  const idCampo = useId()
   const t = useTextoConversacion(mode)
-  const fichero = useRef<HTMLInputElement | null>(null)
   const adjuntos = !!settings?.attachments_enabled && !!onAttach && !editing
-  const aceptados = (settings?.allowed_extensions || []).join(',')
   const escribir = (v: string) => {
     onChange(v)
     if (v.trim()) onTyping?.()
   }
+  const placeholder = t(mode === 'team' ? 'governedconversations.ph_equipo' : 'governedconversations.ph_cliente')
   return (
-    <div className="goveconv-cardstyle">
-      {replyTo && !editing && (
-        <div className="chat-portal-contexto" role="status">
-          <Reply size={13} aria-hidden="true" />
-          <span className="chat-portal-contexto__texto">{t('governedconversations.respondiendo_a', { name: replyTo.sender_name })}: {replyTo.is_deleted ? t('governedconversations.mensaje_borrado') : String(replyTo.body || '').slice(0, 120)}</span>
-          <IconButton ariaLabel={t('governedconversations.cancelar_respuesta')} onClick={onCancelReply}><X size={13} aria-hidden="true" /></IconButton>
-        </div>
-      )}
-      {editing && (
-        <div className="chat-portal-contexto" role="status">
-          <Pencil size={13} aria-hidden="true" />
-          <span className="chat-portal-contexto__texto">{t('governedconversations.editando')}</span>
-          <IconButton ariaLabel={t('governedconversations.cancelar_edicion')} onClick={onCancelEdit}><X size={13} aria-hidden="true" /></IconButton>
-        </div>
-      )}
-      <Textarea label={t('mentions.reply')} id={`${idCampo}-1`} value={value} onChange={(event) => escribir(event.target.value)} rows={4}
-        onKeyDown={(e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && value.trim() && !disabled) { e.preventDefault(); onSend() } }}
-        placeholder={t(mode === 'team' ? 'governedconversations.ph_equipo' : 'governedconversations.ph_cliente')} />
-      <div className="goveconv-row-4">
-        <div className="chat-portal-herramientas">
-          <SelectorDeEmoji ariaLabel={t('governedconversations.insertar_emoji')} disabled={disabled} onElegir={e => escribir(`${value}${e}`)} />
-          {adjuntos && (
-            <>
-              <input ref={fichero} type="file" className="chat-portal-oculto" accept={aceptados} aria-hidden="true" tabIndex={-1}
-                onChange={(e) => { const f = e.target.files?.[0]; if (f) onAttach?.(f); e.target.value = '' }} />
-              <IconButton variante="caja" ariaLabel={t('governedconversations.adjuntar')} disabled={disabled || attaching} onClick={() => fichero.current?.click()}>
-                <Paperclip size={15} aria-hidden="true" />
-              </IconButton>
-              <span className="u-text3-2xs">{t('governedconversations.adjunto_limite', { mb: settings?.max_file_mb ?? 0 })}</span>
-            </>
-          )}
-          {!editing && (
-            <Checkbox className={`goveconv-box-15 ${canInternalNotes ? 'governed-conversations-m6' : 'governed-conversations-m7'}`}
-              label={t('governedconversations.enviar_como_nota_interna')} checked={isInternalNote} onChange={(marcado) => onToggleInternalNote(marcado)} />
-          )}
-        </div>
-        <Button icon={editing ? <Check size={13} /> : <Send size={13} />} onClick={onSend} loading={sending || attaching} disabled={disabled || !value.trim()}>
-          {editing ? t('governedconversations.guardar_edicion') : t('governedconversations.enviar_mensaje')}
-        </Button>
-      </div>
-    </div>
+    <EditorDeChat
+      valor={value}
+      onCambiar={escribir}
+      onEnviar={() => { if (value.trim() && !disabled && !sending && !attaching) onSend() }}
+      etiquetaCampo={placeholder}
+      placeholder={placeholder}
+      etiquetaEnviar={editing ? t('governedconversations.guardar_edicion') : t('governedconversations.enviar_mensaje')}
+      desactivado={disabled}
+      adjuntar={adjuntos ? {
+        etiqueta: `${t('governedconversations.adjuntar')} · ${t('governedconversations.adjunto_limite', { mb: settings?.max_file_mb ?? 0 })}`,
+        aceptar: (settings?.allowed_extensions || []).join(','), onFichero: (f) => onAttach?.(f), desactivado: attaching,
+      } : null}
+      etiquetaEmoji={t('governedconversations.insertar_emoji')}
+      encima={<>
+        {replyTo && !editing && (
+          <AvisoDelEditor icono={<Reply size={12} aria-hidden="true" />}
+            texto={`${t('governedconversations.respondiendo_a', { name: replyTo.sender_name })}: ${replyTo.is_deleted ? t('governedconversations.mensaje_borrado') : String(replyTo.body || '').slice(0, 120)}`}
+            etiquetaCancelar={t('governedconversations.cancelar_respuesta')} onCancelar={() => onCancelReply?.()} />
+        )}
+        {editing && (
+          <AvisoDelEditor icono={<Pencil size={12} aria-hidden="true" />} texto={t('governedconversations.editando')}
+            etiquetaCancelar={t('governedconversations.cancelar_edicion')} onCancelar={() => onCancelEdit?.()} />
+        )}
+        {!editing && canInternalNotes && (
+          <Checkbox label={t('governedconversations.enviar_como_nota_interna')} checked={isInternalNote} onChange={(marcado) => onToggleInternalNote(marcado)} />
+        )}
+      </>}
+    />
   )
 }
 

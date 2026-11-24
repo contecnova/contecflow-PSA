@@ -1,5 +1,8 @@
 /* SelectorDeContexto: tarjeta con los campos de contexto de la pantalla. Sin anchos propios:
    el ancho de los desplegables lo da el kit (--ancho-min-desplegable). */
 .ui-contexto { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px; }
-.ui-contexto__campos { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; min-width: 0; }
+.ui-contexto__campos { display: flex; flex: 1 1 auto; flex-wrap: wrap; align-items: flex-end; gap: 12px; min-width: 0; }
 .ui-contexto__acciones { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+/* 24-11-2026: todos los desplegables del selector de contexto miden lo mismo en todas las
+   pantallas (antes una regla global con `contain` los dejaba a 0 px dentro de esta tarjeta). */
+.ui-contexto__campos > .ui-field:has(> select) { width: var(--ancho-min-desplegable); max-width: 100%; }

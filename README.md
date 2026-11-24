@@ -1757,8 +1757,9 @@ Dónde se consulta:
 - Una política por empresa y tipo de registro: cuántos días se guarda. Nace apagada.
 - La **vista previa** dice cuántos registros borraría hoy y cuántos salva un bloqueo, antes de activarla.
 - Ninguna política puede bajar de `RETENTION_MIN_DAYS` (30).
-- Tipos: los 54 de `TIPOS` en `app/db/bloqueo_legal.py` (medido el 24-11-2026; entre ellos, del chat del portal,
-  `portal_conversation_attachments`, `portal_conversation_message_versions` y `portal_conversation_calls`,
+- Tipos: los 57 de `TIPOS` en `app/db/bloqueo_legal.py` (medido el 24-11-2026, con la 211; entre ellos, del chat del portal,
+  `portal_conversation_attachments`, `portal_conversation_message_versions` y `portal_conversation_calls`, y del
+  chat en vivo de Soporte (migración 211) `sd_channel_attachments`, `sd_channel_message_versions` y `sd_channel_calls`,
   ver [docs/portal/CHAT_DEL_PORTAL.md](docs/portal/CHAT_DEL_PORTAL.md)):
   - Trabajo y clientes: `tickets` (cerrados), `documents` (archivados), `client_contacts` (desactivados),
     `overtime_requests` (cerradas), `demand_requests` (cerrados), `public_form_submissions`, `meetings`,
@@ -1897,6 +1898,56 @@ Detalle en [§38](#38-inteligencia-artificial).
 - El worker solo ejecuta una lista blanca de funciones en segundo plano.
 - Las credenciales delegadas no gestionan credenciales ([§8.4](#84-claves-de-api-y-tokens-de-desarrollador)).
 - Las métricas no llevan datos personales (etiqueta `empresa` = slug o id).
+
+### 15.9 Certificaciones y cumplimiento continuo
+
+**Para quién:** dirección, responsables de seguridad y cumplimiento, PM y jefes de equipo (ver, gestionar,
+auditar; la configuración y el RGPD de auditores, dirección). Menú **Cumplimiento › Certificaciones**
+(`/certificaciones`). Manual técnico: [docs/CERTIFICACIONES.md](docs/CERTIFICACIONES.md); contenido:
+[docs/CERTIFICACIONES_CONTENIDO.md](docs/CERTIFICACIONES_CONTENIDO.md).
+
+Un punto de control, como Licencias, para implantar y mantener ISO 27001, TISAX (AL2/AL3 y prototipos), NIS2,
+SOX, J-SOX e IEC 62443 (y SOC 2, que viene del GRC) **sin repetir trabajo**: una biblioteca única de controles en
+la que un control implantado una vez cuenta para todas las normas que lo exigen.
+
+Paso a paso:
+
+1. **Programa desde plantilla** (pestaña Programas › «Generar desde plantilla»): elige la plantilla (una por norma
+   o el programa integrado), rellena el alcance (sedes, planta OT, dónde cotiza, nivel TISAX, protección de
+   prototipos, SL objetivo, entidad NIS2, producto propio), responsable y patrocinador de la dirección. Se crean el
+   programa, un **proyecto** con fases y tareas RACI (solo lo que aplica; el plan lo calcula el planificador), la
+   **declaración de aplicabilidad** y las **políticas, procedimientos y registros** en Documentos con aprobación.
+2. **Declaración de aplicabilidad** (pestaña Aplicabilidad): por control, si aplica (excluir exige justificación),
+   estado de implantación, responsable, tareas, evidencias y pruebas. Si una sede es distinta, crea su fila.
+3. **Implantar y probar**: al cerrar las tareas enlazadas se aporta su evidencia. Las pruebas de diseño y de
+   eficacia operativa (población, muestra, resultado) y la eficacia las registra **otra persona**: quien implantó no
+   puede (segregación de funciones).
+4. **Cumplimiento continuo** (botón «Medir» o cada noche): lo que la plataforma mide (MFA, contraseñas, registro de
+   auditoría, SoD, recertificación, proveedores, CMDB, vulnerabilidades, CAB, incidentes, retención, copias) se
+   marca solo en verde o rojo y deja su evidencia firmada con huella.
+5. **Matriz** (pestaña Matriz): control × norma × sede × estado (cumple, en curso, pendiente, no cumple, caducado,
+   no aplica) con totales por norma.
+6. **Evidencias**: sobre Documentos (versiones, aprobación, permisos, retención y bloqueo legal). Una evidencia no
+   aprobada o caducada no cuenta; antes de caducar llega un aviso.
+7. **Auditorías, hallazgos y CAPA**: planifica auditorías (internas, fase 1 y 2, seguimiento, renovación, cliente,
+   regulatoria), registra hallazgos y sus acciones correctivas, que nacen como **tareas**. Quien hizo la acción no
+   verifica su eficacia; quien corrigió el hallazgo no lo cierra.
+8. **Auditores y empresas colaboradoras**: fichas con cualificación, independencia, conflictos y NDA. «Conceder
+   acceso» da al auditor un **enlace temporal de solo lectura** a un programa (`/auditor/…`, se muestra una vez); todo
+   lo que consulta queda registrado y se puede revocar. También puede descargar el **paquete firmado**.
+9. **Certificados**: número, entidad, alcance, validez, ENX en TISAX; el ciclo (seguimiento año 1 y 2, renovación)
+   se calcula y avisa como las licencias.
+10. **NIS2**: desde un ticket del Service Desk, el incidente notificable muestra sus relojes (24 h, 72 h, 1 mes),
+    propone el texto para la autoridad y registra cada comunicación.
+11. **Panel y paquete del auditor**: avance por norma, carencias, hallazgos, CAPA vencidas, certificados por
+    vencer, cobertura de evidencias; «Paquete del auditor» descarga todo firmado (Ed25519).
+
+Configuración › Seguridad y GRC › **Certificaciones**: días de aviso, caducidad de evidencias, exigir aprobación,
+duración máxima del acceso de auditores, autoridad y plazos NIS2, proyecto de las CAPA. La biblioteca (pestaña
+Biblioteca) permite a la dirección importar el **texto oficial con licencia** de su empresa y corregir
+identificadores sin perder los enlaces. GRC: todo queda en la auditoría; retención y bloqueo legal de evidencias,
+auditorías, programas, incidentes y auditores; RGPD de auditores externos. Procesos BPM: «Programa de
+certificación», «Auditoría, hallazgo y acción correctiva» e «Incidente notificable NIS2».
 
 ---
 
@@ -4188,6 +4239,13 @@ Tipos que se abren y se aplican solos: documentos (por categoría), gastos, part
 
 El panel flotante del chat (icono de la barra superior) permite leer y responder sin salir de la pantalla; **abrir completo** lleva a `/chat`.
 
+**Cómo se ve.** Como en WhatsApp o Teams, en todos los chats (interno, panel flotante, hilos, chat de la llamada,
+chats del portal, chat en vivo de Soporte y asistentes de IA): **lo que escribes tú, a la derecha** en una burbuja con
+el color del tema; **lo de los demás, a la izquierda** con su inicial y su nombre (en un mensaje directo no se repite
+el nombre). La hora, «editado» y ✓ enviado / ✓✓ leído van dentro de la burbuja, abajo a la derecha; las reacciones,
+debajo; los mensajes seguidos de la misma persona, juntos; un separador marca cada día («Hoy», «Ayer» o la fecha) y
+los avisos del sistema salen centrados. Diseño: [docs/GUIA_DE_DISENO.md](docs/GUIA_DE_DISENO.md) §17.1.
+
 ### 37.2 Llamadas y videollamadas
 
 - Los botones de teléfono y vídeo de una conversación inician una llamada y abren su ventana (`/chat/call/:callId`): micrófono, cámara, compartir pantalla, subtítulos, participantes y salir.
@@ -4715,6 +4773,7 @@ Este README es la guía principal. Los documentos siguientes amplían una parte 
 | [docs/seguridad/politicas_de_cuenta.md](docs/seguridad/politicas_de_cuenta.md) | Contraseñas, bloqueo, MFA, sesiones, restricciones por IP, restablecimiento. |
 | [docs/seguridad/entrada_y_salida.md](docs/seguridad/entrada_y_salida.md) | Subidas de ficheros, salidas de red (SSRF), correo con IP fijada. |
 | [docs/seguridad/rutas_anonimas.md](docs/seguridad/rutas_anonimas.md) | Rutas sin sesión y cómo fijan el contexto de empresa. |
+| [docs/seguridad/empresa_obligatoria.md](docs/seguridad/empresa_obligatoria.md) | Empresa obligatoria en todas las filas: excepciones, deducción, migración 208 y procesos de fondo. |
 | [docs/seguridad/guardas_por_capacidad.md](docs/seguridad/guardas_por_capacidad.md) | Qué capacidad exige cada ruta de la API. |
 | [docs/integraciones/pruebas_de_conexion.md](docs/integraciones/pruebas_de_conexion.md) | Qué comprueba cada botón de prueba de conexión. |
 | [docs/integraciones/MCP.md](docs/integraciones/MCP.md) | Servidor MCP para agentes de código. |
@@ -4734,6 +4793,10 @@ Este README es la guía principal. Los documentos siguientes amplían una parte 
 | [docs/BPM.md](docs/BPM.md) | BPM: motor de procesos. |
 | [docs/CUADERNO.md](docs/CUADERNO.md) | Mi cuaderno. |
 | [docs/ASISTENTE_DE_REUNIONES.md](docs/ASISTENTE_DE_REUNIONES.md) | Asistente de reuniones. |
+| [docs/portal/CHAT_DEL_PORTAL.md](docs/portal/CHAT_DEL_PORTAL.md) | Chats del portal (formal, «Chat» y chat en vivo): funciones, llamadas solo desde el operador y GRC. |
+| [docs/CERTIFICACIONES.md](docs/CERTIFICACIONES.md) | Certificaciones y cumplimiento continuo: manual técnico (modelo, API, capacidades, SoD, GRC, migraciones 212 y 213). |
+| [docs/CERTIFICACIONES_CONTENIDO.md](docs/CERTIFICACIONES_CONTENIDO.md) | Contenido de Certificaciones: controles, correspondencias entre normas y plantillas. |
+| [docs/propuestas/CERTIFICACIONES.md](docs/propuestas/CERTIFICACIONES.md) | Diseño y decisiones del módulo de Certificaciones. |
 
 **Desarrollo**
 

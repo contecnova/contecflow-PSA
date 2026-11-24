@@ -29,6 +29,7 @@ import { Button, Card, Checkbox, EmptyState, Pulsable, Section, Spinner, Textare
 import StatusBadge from '../components/ui/StatusBadge'
 import type { StatusBadgeKind } from '../components/ui/StatusBadge'
 import MarkdownText from '../components/ui/MarkdownText'
+import { FilaDeMensaje } from '../components/chat'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import {
@@ -414,9 +415,16 @@ export default function ContecflowAgentPage() {
                     </StatusBadge>
                   ) : undefined}
                 >
-                  <div className="nexus-resultado">
-                    <MarkdownText text={result.result ?? ''} />
-                  </div>
+                  {/* 24-11-2026 (burbujas «como WhatsApp»): la instrucción (tuya) a la derecha y la
+                      respuesta del agente a la izquierda, con la fila de todos los chats. */}
+                  {(result.instruction ?? instruction).trim() && (
+                    <FilaDeMensaje propio autor={t('chat.tu')} fecha={result.created_at}
+                      textos={{ mensajeDe: t('chat.message_from', { author: t('chat.tu') }) }}
+                      cuerpo={<div className="chat-msg__body">{result.instruction ?? instruction}</div>} />
+                  )}
+                  <FilaDeMensaje autor="Nexus Agent" fecha={null} esBot
+                    textos={{ mensajeDe: t('chat.message_from', { author: 'Nexus Agent' }) }}
+                    cuerpo={<div className="nexus-resultado"><MarkdownText text={result.result ?? ''} /></div>} />
                   {(result.steps?.length ?? 0) > 0 && (
                     <div className="nexus-pasos">
                       <div className="nexus-etiqueta">{t('nexusagent.pasos_ejecutados', { n: result.steps?.length ?? 0 })}</div>

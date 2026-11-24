@@ -1,0 +1,529 @@
+/* Piezas compartidas del chat (24-11-2026, «un solo chat»; docs/GUIA_DE_DISENO.md §«Un solo chat»).
+   24-11-2026 (tarde): las filas pasan a BURBUJAS (propio a la derecha, ajeno a la izquierda); ver más abajo.
+   Salen de pages/ChatPage.css SIN cambios: la fila de mensaje con su barra flotante de acciones, el editor
+   (clip abajo a la izquierda, @ o emoji y enviar a la derecha, todo dentro del cuadro), el «escribiendo…» y
+   los avisos de responder/editar. Las usan el chat interno y los tres chats del portal (los dos lados). */
+
+.chat-icon-close--end { margin-left: auto; }
+.chat-hint-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  margin-bottom: 6px;
+  background: var(--accent-muted);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+}
+.chat-typing {
+  padding: 0 22px;
+  height: 22px;
+  font-size: var(--text-xs);
+  color: var(--text-3);
+  font-style: italic;
+}
+.chat-composer {
+  padding: 10px 18px 14px;
+  border-top: 1px solid var(--surface-4);
+  background: var(--surface-1);
+  position: relative;
+}
+.chat-composer__box {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: var(--surface-3);
+  border: 1px solid var(--surface-4);
+  border-radius: 12px;
+  padding: 8px 10px;
+}
+.chat-composer__box:focus-within { border-color: var(--accent); }
+/* 24-11-2026 (el mismo editor en todos los chats): texto con la @ y el emoji
+   arriba a la derecha; abajo, el clip a la izquierda y enviar a la derecha. */
+.chat-composer__fila {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+.chat-composer__herramientas {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+.chat-composer__pie {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.chat-composer__input {
+  flex: 1;
+  min-width: 0;
+  resize: none;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text-1);
+  font-size: var(--text-base);
+  font-family: inherit;
+  max-height: 200px;
+}
+.chat-attach {
+  position: relative;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text-2);
+  cursor: pointer;
+}
+.chat-attach:hover { background: var(--surface-4); }
+.chat-attach:focus-within {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.chat-enviar {
+  width: 32px;
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--on-accent);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+/* ── Burbujas (24-11-2026, pedido del usuario: «como WhatsApp o Teams»).
+   Lo propio a la DERECHA (acento suave del tema, sin avatar); lo ajeno a la IZQUIERDA (superficie,
+   avatar y nombre). Hora, «editado», insignias y estado dentro de la burbuja abajo a la derecha.
+   Colores solo con tokens de src/index.css: el texto es --text-1/--text-2 sobre una mezcla opaca
+   del acento con --surface-2, legible (AA) en los temas claro y oscuro. */
+.chat-msg {
+  --burbuja-propia: color-mix(in srgb, var(--accent) 18%, var(--surface-2));
+  --burbuja-propia-borde: color-mix(in srgb, var(--accent) 32%, var(--surface-2));
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 10px;
+  position: relative;
+}
+.chat-msg--propio { justify-content: flex-end; }
+.chat-msg--compact { margin-top: 2px; }
+.chat-msg__avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: linear-gradient(135deg, var(--accent), var(--purple));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--text-sm);
+  font-weight: 800;
+  color: var(--on-accent-light);
+}
+.chat-msg__avatar--bot { background: linear-gradient(135deg, var(--purple), var(--accent)); }
+.chat-msg__avatar-gap { width: 32px; flex-shrink: 0; }
+/* Columna de la burbuja y sus reacciones: ~70 % del ancho como mucho. */
+.chat-msg__columna {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  max-width: 70%;
+  min-width: 0;
+}
+.chat-msg--propio .chat-msg__columna { align-items: flex-end; }
+.chat-msg__burbuja {
+  position: relative;
+  max-width: 100%;
+  min-width: 64px;
+  padding: 6px 10px 4px;
+  border-radius: 12px;
+  background: var(--surface-2);
+  border: 1px solid var(--surface-4);
+  color: var(--text-1);
+  overflow-wrap: anywhere;
+}
+.chat-msg--propio .chat-msg__burbuja {
+  background: var(--burbuja-propia);
+  border-color: var(--burbuja-propia-borde);
+}
+/* El primero de un grupo lleva la «cola» hacia su lado. */
+.chat-msg--ajeno:not(.chat-msg--compact) .chat-msg__burbuja { border-top-left-radius: 4px; }
+.chat-msg--propio:not(.chat-msg--compact) .chat-msg__burbuja { border-top-right-radius: 4px; }
+.chat-msg__autor {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-bottom: 2px;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  color: var(--text-2);
+}
+.chat-msg__bot-tag {
+  font-size: var(--text-2xs);
+  padding: 0 5px;
+  background: var(--accent-muted);
+  color: var(--text-1);
+  border: 1px solid var(--accent-border-soft);
+  border-radius: 4px;
+  font-weight: 700;
+}
+.chat-msg__body {
+  font-size: var(--text-sm);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: var(--text-1);
+  font-style: normal;
+}
+.chat-msg--deleted .chat-msg__burbuja {
+  background: transparent;
+  border-style: dashed;
+}
+.chat-msg--deleted .chat-msg__body {
+  color: var(--text-2);
+  font-style: italic;
+}
+.chat-msg__body a {
+  color: var(--accent);
+  text-decoration: underline;
+}
+/* En la propia, el enlace con el color del texto (el acento sobre el acento no llega a AA). */
+.chat-msg--propio .chat-msg__body a { color: var(--text-1); }
+/* Hora, «editado», insignias y estado: abajo a la derecha dentro de la burbuja. */
+.chat-msg__pie {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 4px 6px;
+  margin-top: 2px;
+  font-size: var(--text-2xs);
+  color: var(--text-2);
+  line-height: 1.4;
+}
+.chat-msg__estado {
+  display: inline-flex;
+  align-items: center;
+  color: var(--text-2);
+}
+.chat-msg__estado--leido { color: var(--info); }
+.chat-msg__cita {
+  margin: 2px 0 6px;
+  padding: 4px 8px;
+  border-left: 3px solid var(--accent);
+  background: color-mix(in srgb, var(--text-1) 6%, transparent);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+}
+.chat-msg__cita-texto { color: var(--text-2); }
+.chat-msg__attachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+.chat-msg__reactions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: -4px;
+  padding: 0 6px;
+  position: relative;
+}
+.chat-reaction {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 7px;
+  border-radius: var(--radius-full);
+  background: var(--surface-2);
+  border: 1px solid var(--surface-4);
+  font-size: var(--text-xs);
+  cursor: pointer;
+  font-family: inherit;
+  color: var(--text-1);
+  box-shadow: var(--shadow-sm);
+}
+.chat-reaction[aria-pressed="true"] { border-color: var(--accent); }
+/* Barra de acciones: horizontal y junto a la burbuja (a la izquierda en las propias, a la derecha
+   en las ajenas). Si no cabe al lado, FilaDeMensaje la sube encima (`--arriba`) y la mete hacia
+   dentro: nunca tapa el texto ni desborda la ventana. */
+.chat-msg__actions {
+  position: absolute;
+  top: 0;
+  z-index: 5;
+  width: max-content;
+  max-width: calc(100vw - 32px);
+  white-space: nowrap;
+  display: flex;
+  flex-flow: row nowrap;
+  gap: 2px;
+  background: var(--surface-2);
+  border: 1px solid var(--surface-4);
+  border-radius: var(--radius-sm);
+  padding: 2px;
+  box-shadow: var(--shadow-sm);
+}
+.chat-msg--ajeno .chat-msg__actions { left: calc(100% + 6px); }
+.chat-msg--propio .chat-msg__actions { right: calc(100% + 6px); }
+.chat-msg__actions--arriba { top: auto; bottom: calc(100% + 4px); }
+.chat-msg--ajeno .chat-msg__actions--arriba { left: 0; }
+.chat-msg--propio .chat-msg__actions--arriba { right: 0; }
+.chat-msg__emoji {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  font-size: var(--text-md);
+}
+/* Mensajes de sistema y separadores de día: pastilla discreta centrada. */
+.chat-sistema,
+.chat-dia {
+  display: flex;
+  justify-content: center;
+  margin: 12px 0 4px;
+}
+.chat-sistema__pastilla,
+.chat-dia__pastilla {
+  max-width: 80%;
+  padding: 2px 10px;
+  border-radius: var(--radius-full);
+  background: var(--surface-2);
+  border: 1px solid var(--surface-4);
+  color: var(--text-2);
+  font-size: var(--text-xs);
+  text-align: center;
+}
+.chat-dia__pastilla { font-weight: 600; }
+/* Indicador «pensando…» de los asistentes (burbuja ajena). */
+.chat-msg__pensando { color: var(--text-2); font-style: italic; font-size: var(--text-sm); }
+@media (prefers-reduced-motion: no-preference) {
+  .chat-msg__pensando { animation: chat-pensando 1.4s ease-in-out infinite; }
+}
+@keyframes chat-pensando {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+@media (width <= 560px) {
+  .chat-msg__columna { max-width: 85%; }
+}
+
+/* ── Pantalla del chat (24-11-2026, «un solo chat»): raíz, lista de conversaciones,
+   panel con su cabecera y zona de mensajes. Salen de pages/ChatPage.css sin cambios. */
+.chat-root {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  background: var(--surface-0);
+  color: var(--text-1);
+}
+.chat-list {
+  width: 300px;
+  flex-shrink: 0;
+  background: var(--surface-1);
+  border-right: 1px solid var(--surface-4);
+  display: flex;
+  flex-direction: column;
+}
+.chat-list--narrow { width: auto; flex: 1; min-width: 0; }
+.chat-list__search {
+  padding: 14px 14px 8px;
+  border-bottom: 1px solid var(--surface-4);
+}
+.chat-list__scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 6px;
+}
+.chat-section-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 4px 10px;
+  background: none;
+  border: none;
+  cursor: default;
+  font-family: inherit;
+  color: var(--text-3);
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+.chat-section-btn__count { color: var(--text-3); }
+.chat-conv-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 7px 10px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+  text-align: left;
+  color: var(--text-1);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  cursor: pointer;
+  position: relative;
+}
+.chat-conv-row:hover { background: var(--surface-3); }
+.chat-conv-row[aria-current="true"] {
+  background: var(--accent-muted);
+  color: var(--accent);
+}
+.chat-avatar {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent), var(--purple));
+  color: var(--on-accent-light);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--text-2xs);
+  font-weight: 800;
+  flex-shrink: 0;
+}
+.chat-ellipsis {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.chat-pane {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  position: relative;
+}
+.chat-pane__head {
+  height: 56px;
+  padding: 0 18px;
+  flex-shrink: 0;
+  gap: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--surface-4);
+  background: var(--surface-1);
+}
+.chat-pane__title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.chat-pane__title {
+  margin: 0;
+  font-size: var(--text-md);
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.chat-pane__actions {
+  display: flex;
+  gap: 8px;
+  position: relative;
+  flex-shrink: 0;
+}
+.chat-pane__messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px 18px;
+  background: var(--surface-0);
+}
+.chat-search-box { position: relative; }
+/* La misma pantalla dentro de otra página (portal, bandeja de Service Desk): alto propio. */
+.chat-root--incrustada {
+  height: min(72vh, 760px);
+  min-height: 420px;
+  border: 1px solid var(--surface-4);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+/* No leídos al final de la fila de la lista. */
+.chat-conv-row__sin-leer {
+  margin-left: auto;
+  min-width: 18px;
+  padding: 0 5px;
+  border-radius: var(--radius-full);
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  text-align: center;
+}
+/* Indicador de la cabecera («Con supervisión»): la etiqueta del chat interno junto al título. */
+.chat-pane__indicador { margin-left: 8px; vertical-align: middle; cursor: help; }
+@media (width <= 760px) {
+  .chat-root--incrustada .chat-list { width: 38%; min-width: 140px; }
+}
+.chat-pane-empty {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+/* Adjuntos (los del chat interno; también los del portal, que se bajan por la API). */
+.chat-att {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--surface-3);
+  border: 1px solid var(--surface-4);
+  border-radius: 8px;
+  font-size: var(--text-xs);
+  text-decoration: none;
+  color: var(--text-1);
+  max-width: min(360px, 100%);
+}
+.chat-att:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.chat-att--quarantine {
+  padding: 6px 10px;
+  background: var(--danger-bg);
+  border-color: var(--danger-border);
+  color: var(--danger);
+  max-width: none;
+}
+.chat-att__name {
+  font-weight: 600;
+  color: var(--text-1);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.chat-att-img {
+  display: block;
+  max-width: min(320px, 100%);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  border: 1px solid var(--surface-4);
+  padding: 0;
+  cursor: zoom-in;
+  background: none;
+}
+.chat-att-img img {
+  display: block;
+  width: 100%;
+  max-height: 240px;
+  object-fit: cover;
+}

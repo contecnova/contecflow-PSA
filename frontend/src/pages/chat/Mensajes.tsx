@@ -3,6 +3,8 @@
  * Troceado de ChatPage.tsx sin cambio de comportamiento (23-11-2026).
  */
 import { type CSSProperties, type ReactNode, useEffect, useState } from 'react'
+import { type AccionDeMensaje, FilaDeMensaje, cambiaDeDia } from '../../components/chat'
+import { useAuth } from '../../context/AuthContext'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
@@ -14,7 +16,6 @@ import {
   Sparkles,
   Megaphone,
   Zap,
-  Bot,
   FileText,
   AlertCircle,
   Trash2,
@@ -29,7 +30,7 @@ import {
 } from 'lucide-react'
 import { collabApi } from '../../services/collaborationApi'
 import { useAppLang } from '../../i18n/AppLangContext'
-import { fmtDateTime, fmtNumber } from '../../utils/helpers'
+import { fmtNumber } from '../../utils/helpers'
 import { sanitizeUrl } from '../../utils/security'
 import { Button, Pulsable, Input, IconButton, TextoConEnlaces } from '../../components/ui'
 import TextoTraducido from '../../components/traduccion/TextoTraducido'
@@ -40,7 +41,6 @@ import {
   type Attachment,
   type BotMeta,
   type Conv,
-  fmtHora,
   IconBtn,
   type Msg,
   type Reaction,
@@ -50,61 +50,70 @@ import {
 import { LinkedEntityChips } from './BusquedaYEnlaces'
 
 // ── Message bubble with hover actions ────────────────────────────────────────
-export function MessageBubble({ msg, compact, isMine, onReact, onEdit, onDelete, onPin, onSave, onReplyThread, onLink }: {
-  msg: Msg; compact?: boolean; isMine: boolean; onReact: (emoji: string) => void;
+// 24-11-2026 («un solo chat»): la fila y su barra flotante son `FilaDeMensaje`
+// (components/chat), la misma pieza que usan los chats del portal. Aquí solo se
+// dicen las acciones del chat interno y lo que va bajo el texto.
+// 24-11-2026 (burbujas «como WhatsApp o Teams»): lo propio (`isMine`: autor = usuario
+// actual) a la derecha; en un directo (1:1) no se repite el nombre del otro.
+export function MessageBubble({ msg, compact, isMine, showName = true, onReact, onEdit, onDelete, onPin, onSave, onReplyThread, onLink }: {
+  msg: Msg; compact?: boolean; isMine: boolean; showName?: boolean; onReact: (emoji: string) => void;
   onEdit: () => void; onDelete: () => void; onPin: () => void; onSave: () => void;
   onReplyThread: () => void; onLink: (kind: string) => void
 }) {
   const { t: traducir } = useAppLang()
-  const [showActions, setShowActions] = useState(false)
   const author = msg.author_name || (msg.bot_id ? traducir('chat.bot') : traducir('chat.user'))
   const deleted = msg.status === 'deleted'
   // Traducción en tiempo real (16-11-2026): «Traducir» bajo demanda al idioma de la interfaz.
   const trad = useTraducirBajoDemanda(msg.id)
   const puedeTraducir = trad.disponible && !deleted && !!msg.body?.trim()
+  const acciones: AccionDeMensaje[] = [
+    { clave: 'hilo', etiqueta: traducir('chat.reply_in_thread'), icono: <MessageSquare size={13} aria-hidden="true" />, onClick: onReplyThread },
+    ...(puedeTraducir ? [{
+      clave: 'traducir',
+      etiqueta: trad.traduccion ? traducir('traduccion_admin.chat_quitar_traduccion') : traducir('traduccion_admin.chat_traducir'),
+      icono: <Languages size={13} aria-hidden="true" />, onClick: trad.traduccion ? trad.quitar : trad.pedir,
+    }] : []),
+    { clave: 'fijar', etiqueta: traducir('chat.pin'), icono: <Pin size={13} aria-hidden="true" />, onClick: onPin },
+    { clave: 'guardar', etiqueta: traducir('chat.save'), icono: <Bookmark size={13} aria-hidden="true" />, onClick: onSave },
+    { clave: 'tarea', etiqueta: traducir('chat.link_task'), icono: <ListChecks size={13} aria-hidden="true" />, onClick: () => onLink && onLink('task') },
+    { clave: 'ticket', etiqueta: traducir('chat.link_ticket'), icono: <Headphones size={13} aria-hidden="true" />, onClick: () => onLink && onLink('ticket') },
+    { clave: 'entregable', etiqueta: traducir('chat.link_deliverable'), icono: <FileText size={13} aria-hidden="true" />, onClick: () => onLink && onLink('deliverable') },
+    { clave: 'riesgo', etiqueta: traducir('chat.link_risk'), icono: <AlertCircle size={13} aria-hidden="true" />, onClick: () => onLink && onLink('risk') },
+    ...(isMine ? [
+      { clave: 'editar', etiqueta: traducir('chat.edit'), icono: <Pencil size={13} aria-hidden="true" />, onClick: onEdit },
+      { clave: 'borrar', etiqueta: traducir('chat.delete'), icono: <Trash2 size={13} aria-hidden="true" />, onClick: onDelete, peligro: true },
+    ] : []),
+  ]
 
   return (
-    <div
-      role="article"
-      aria-label={traducir('chat.message_from', { author })}
-      onMouseEnter={() => setShowActions(true)}
-      onMouseLeave={() => setShowActions(false)}
-      onFocus={() => setShowActions(true)}
-      onBlur={() => setShowActions(false)}
-      className={`chat-msg${compact ? ' chat-msg--compact' : ''}${deleted ? ' chat-msg--deleted' : ''}`}
-    >
-      {!compact ? (
-        <div className={`chat-msg__avatar${msg.bot_id ? ' chat-msg__avatar--bot' : ''}`} aria-hidden="true">
-          {msg.bot_id ? <Bot size={16} /> : (author?.charAt(0)?.toUpperCase() || '?')}
-        </div>
+    <FilaDeMensaje
+      autor={author}
+      fecha={msg.sent_at}
+      propio={isMine}
+      mostrarNombre={showName}
+      compacto={compact}
+      borrado={deleted}
+      esBot={!!msg.bot_id}
+      editado={!!msg.edited_at}
+      fijado={msg.is_pinned ? <Pin size={11} className="u-warning" role="img" aria-label={traducir('chat.pinned')} /> : null}
+      textos={{
+        mensajeDe: traducir('chat.message_from', { author }),
+        acciones: traducir('chat.message_actions'),
+        editado: traducir('chat.edited'),
+        eliminado: traducir('chat.mensaje_eliminado'),
+        bot: traducir('chat.bot_tag'),
+        reaccion: (emoji, n) => traducir('chat.reaction_label', { emoji, count: n }),
+        reaccionarCon: (emoji) => traducir('chat.react_with', { emoji }),
+      }}
+      // 24-11-2026 (chat del portal): la cita del mensaje al que responde.
+      cita={msg.reply_to ? { autor: msg.reply_to.author_name || traducir('chat.user'), texto: msg.reply_to.body, borrada: msg.reply_to.is_deleted } : null}
+      cuerpo={trad.traduccion || trad.cargando ? (
+        <TextoTraducido original={msg.body || ''} traduccion={trad.traduccion} cargando={trad.cargando} className="chat-msg__body" />
       ) : (
-        <div className="chat-msg__avatar-gap" />
+        // 24-11-2026: enlaces seguros (http/https/www, saneados, `noopener`).
+        <TextoConEnlaces texto={msg.body || ''} className="chat-msg__body" />
       )}
-      <div className="u-flex1-min0">
-        {!compact && (
-          <div className="chat-msg__meta">
-            <span className="u-sm-700">{author}</span>
-            {msg.bot_id && <span className="chat-msg__bot-tag">{traducir('chat.bot_tag')}</span>}
-            <time className="u-text3-xs" dateTime={msg.sent_at} title={fmtDateTime(msg.sent_at)}>
-              {fmtHora(msg.sent_at)}
-            </time>
-            {msg.is_pinned && <Pin size={11} className="u-warning" role="img" aria-label={traducir('chat.pinned')} />}
-            {msg.edited_at && <span className="u-text3-xs">{traducir('chat.edited')}</span>}
-          </div>
-        )}
-        {msg.reply_to && (
-          // 24-11-2026 (chat del portal): la cita del mensaje al que responde.
-          <blockquote className="chat-msg__cita">
-            <span className="u-sm-700">{msg.reply_to.author_name || traducir('chat.user')}</span>{' '}
-            <span className="u-text2-sm">{msg.reply_to.is_deleted ? traducir('chat.mensaje_eliminado') : msg.reply_to.body}</span>
-          </blockquote>
-        )}
-        {trad.traduccion || trad.cargando ? (
-          <TextoTraducido original={msg.body || ''} traduccion={trad.traduccion} cargando={trad.cargando} className="chat-msg__body" />
-        ) : (
-          // 24-11-2026: enlaces seguros (http/https/www, saneados, `noopener`).
-          <TextoConEnlaces texto={msg.body || ''} className="chat-msg__body" />
-        )}
+      extras={<>
         {msg.metadata_json?.card && <BotCard meta={msg.metadata_json} />}
         {(msg.linked_task_id || msg.linked_ticket_id || msg.linked_deliverable_id || msg.linked_risk_id) && (
           <LinkedEntityChips msg={msg} />
@@ -114,39 +123,11 @@ export function MessageBubble({ msg, compact, isMine, onReact, onEdit, onDelete,
             {msg.attachments.map(a => <AttachmentChip key={a.id} att={a} />)}
           </div>
         )}
-        {msg.reactions?.length > 0 && (
-          <div className="chat-msg__reactions">
-            {Object.entries(groupReactions(msg.reactions)).map(([emoji, users]) => (
-              <Pulsable type="button" key={emoji} onClick={() => onReact(emoji)} className="chat-reaction"
-                aria-label={traducir('chat.reaction_label', { emoji, count: users.length })}>{emoji} <span>{users.length}</span></Pulsable>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {showActions && !deleted && (
-        <div className="chat-msg__actions" role="toolbar" aria-label={traducir('chat.message_actions')}>
-          {['👍', '❤️', '😂', '🎉'].map(e => (
-            <Pulsable type="button" key={e} onClick={() => onReact(e)} className="chat-msg__emoji" aria-label={traducir('chat.react_with', { emoji: e })}>{e}</Pulsable>
-          ))}
-          <IconBtn onClick={onReplyThread} title={traducir('chat.reply_in_thread')}><MessageSquare size={13} aria-hidden="true" /></IconBtn>
-          {puedeTraducir && (
-            <IconBtn onClick={trad.traduccion ? trad.quitar : trad.pedir}
-              title={trad.traduccion ? traducir('traduccion_admin.chat_quitar_traduccion') : traducir('traduccion_admin.chat_traducir')}>
-              <Languages size={13} aria-hidden="true" />
-            </IconBtn>
-          )}
-          <IconBtn onClick={onPin} title={traducir('chat.pin')}><Pin size={13} aria-hidden="true" /></IconBtn>
-          <IconBtn onClick={onSave} title={traducir('chat.save')}><Bookmark size={13} aria-hidden="true" /></IconBtn>
-          <IconBtn onClick={() => onLink && onLink('task')} title={traducir('chat.link_task')}><ListChecks size={13} aria-hidden="true" /></IconBtn>
-          <IconBtn onClick={() => onLink && onLink('ticket')} title={traducir('chat.link_ticket')}><Headphones size={13} aria-hidden="true" /></IconBtn>
-          <IconBtn onClick={() => onLink && onLink('deliverable')} title={traducir('chat.link_deliverable')}><FileText size={13} aria-hidden="true" /></IconBtn>
-          <IconBtn onClick={() => onLink && onLink('risk')} title={traducir('chat.link_risk')}><AlertCircle size={13} aria-hidden="true" /></IconBtn>
-          {isMine && <IconBtn onClick={onEdit} title={traducir('chat.edit')}><Pencil size={13} aria-hidden="true" /></IconBtn>}
-          {isMine && <IconBtn onClick={onDelete} title={traducir('chat.delete')} variant="danger"><Trash2 size={13} aria-hidden="true" /></IconBtn>}
-        </div>
-      )}
-    </div>
+      </>}
+      reacciones={Object.entries(groupReactions(msg.reactions || [])).map(([emoji, users]) => ({ emoji, n: users.length }))}
+      onReaccionar={onReact}
+      acciones={acciones}
+    />
   )
 }
 
@@ -295,6 +276,7 @@ export function MentionMenu({ items, onPick }: { items: UserLike[]; onPick: (it:
 // ── Thread side panel ──────────────────────────────────────────────────────
 export function ThreadPanel({ conv, rootId, onClose }: { conv: Conv; rootId: string; onClose: () => void }) {
   const { t: traducir } = useAppLang()
+  const { user } = useAuth()
   const qc = useQueryClient()
   const [reply, setReply] = useState('')
   const { data: thread = [] } = useQuery({
@@ -319,12 +301,20 @@ export function ThreadPanel({ conv, rootId, onClose }: { conv: Conv; rootId: str
       </div>
       <div className="chat-thread__body">
         {thread.length === 0 && <div className="u-text3-xs">{traducir('chat.sin_respuestas_todavia')}</div>}
-        {thread.map(m => (
-          <div key={m.id} className="u-mb-14">
-            <div className="u-text3-xs">{m.author_name || traducir('chat.user')} · <time dateTime={m.sent_at} title={fmtDateTime(m.sent_at)}>{fmtHora(m.sent_at)}</time></div>
-            <div className="chat-thread__msg">{m.body}</div>
-          </div>
-        ))}
+        {/* 24-11-2026 (burbujas): las respuestas del hilo, con la misma fila que el chat. */}
+        {thread.map((m, i) => {
+          const autor = m.author_name || traducir('chat.user')
+          const previo = thread[i - 1]
+          return (
+            <FilaDeMensaje key={m.id} autor={autor} fecha={m.sent_at}
+              propio={!!user?.id && m.user_id === user.id}
+              compacto={!!previo && previo.user_id === m.user_id && !cambiaDeDia(previo.sent_at, m.sent_at)}
+              esBot={!!m.bot_id}
+              textos={{ mensajeDe: traducir('chat.message_from', { author: autor }), editado: traducir('chat.edited') }}
+              editado={!!m.edited_at}
+              cuerpo={<TextoConEnlaces texto={m.body || ''} className="chat-msg__body" />} />
+          )
+        })}
       </div>
       <div className="chat-thread__foot">
         <Input aria-label={traducir('chat.reply_in_thread_placeholder')} value={reply} onChange={e => setReply(e.target.value)}

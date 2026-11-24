@@ -505,10 +505,30 @@ def _sincronizar_catalogo_bpm(_is_testing) -> None:
             n = sincronizar_catalogo_sembrado(db)
             if n:
                 logger.info("   BPM: %s procesos sembrados puestos al día con el catálogo", n)
+            # 24-11-2026: roles de sistema en todas las empresas (antes solo al abrir
+            # la pantalla con una sesión con empresa: el superadmin la veía vacía).
+            from app.services.advanced_config_service.semillas import sembrar_roles_de_sistema_en_todas
+            sembrar_roles_de_sistema_en_todas(db)
         finally:
             db.close()
     except Exception:
         logger.warning("BPM: no se pudo sincronizar el catálogo sembrado", exc_info=True)
+    # 24-11-2026 (migración 212): lo mismo con la biblioteca de Certificaciones sembrada
+    # (marcos, controles y correspondencias que nadie ha editado; docs/CERTIFICACIONES.md).
+    try:
+        from app.db.contexto_de_tenant import declarar_sistema
+        from app.db.session import SessionLocal
+        from app.services.certificaciones.catalogo import sincronizar_sembrado
+        db = SessionLocal()
+        declarar_sistema(db, "arranque: sincronizar la biblioteca de Certificaciones sembrada de cada empresa")
+        try:
+            n = sincronizar_sembrado(db)
+            if n:
+                logger.info("   Certificaciones: %s elementos de la biblioteca puestos al día", n)
+        finally:
+            db.close()
+    except Exception:
+        logger.warning("Certificaciones: no se pudo sincronizar la biblioteca sembrada", exc_info=True)
 
 
 def _parar_planificador_de_colaboracion() -> None:

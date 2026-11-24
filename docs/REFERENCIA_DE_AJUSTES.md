@@ -16,6 +16,8 @@ Este documento lo comprueba `tests/test_readme_ajustes_completo.py`: cada campo 
 2. **Ajustes en vivo (tabla de BD `app_settings`, se editan en Configuración).** `app/services/settings_service/`::RUNTIME_FLAG_GROUPS declara **443 claves en 32 grupos** (medido el 2026-11-23 en `_catalogo.py`): `sla`, `service_desk`, `automations`, `tenants`, `audit`, `risk`, `health`, `proyectos`, `semantic`, `password_policy`, `account_security`, `locale`, `tokens`, `key_rotation`, `ai`, `conectores`, `lecciones`, `gastos`, `licencias_uso`, `licencias_integracion`, `politicas`, `presupuestos`, `alm`, `traduccion`, `feature_flags`, `storage`, `security_network`, `ui_branding`, `observability`, `informes`, `timeouts`, `semaforos`. Dos claves existen solo ahí y no tienen campo en `Settings`: `SLACK_TEAM_ID` y `TEAMS_TENANT_ID` (vinculan un espacio de trabajo de Slack o un tenant de Teams a una empresa). La resolución es **fila de la organización → fila global (`organization_id IS NULL`) → `settings.<KEY>` del entorno**. Las lecturas se cachean en proceso durante 60 s; las escrituras invalidan en local y entre workers mediante pub/sub de Redis (`app/core/settings_pubsub.py`, no hace nada sin `REDIS_URL`). No toda variable de entorno tiene un ajuste en vivo: solo son editables las claves listadas ahí.
 
 
+Algunos módulos guardan su configuración por empresa en una tabla propia, fuera de estas dos capas, y la documentan en su manual: PIR (`pir_configuracion`, docs/PIR.md) y Certificaciones (`cert_configuracion`, [docs/CERTIFICACIONES.md](CERTIFICACIONES.md) §8: avisos, caducidad y aprobación de evidencias, acceso de auditores, plazos NIS2, proyecto de las CAPA).
+
 ## 2. Variables de entorno (`Settings`)
 
 Total medido: **735 campos de `Settings`**.

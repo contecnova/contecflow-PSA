@@ -1,0 +1,86 @@
+# Contenido redactado por contecflow. ISO/IEC 27001, IEC 62443, VDA ISA (TISAX) y COSO tienen derechos
+# de autor: aquí solo hay identificadores y descripciones propias. NIS2 y la ley SOX son públicas.
+# Ver docs/CERTIFICACIONES_CONTENIDO.md.
+# Catálogo de marcos. `niveles` = valores válidos del campo `nivel` en las correspondencias.
+- clave: iso27001
+  nombre: ISO/IEC 27001:2022
+  version: 2022 (incluye la modificación 1:2024)
+  publico: false
+  niveles:
+  - clausulas
+  - anexo_a
+  descripcion: 'Sistema de gestión de seguridad de la información certificable: cláusulas 4 a 10 y los 93 controles
+    del Anexo A.'
+- clave: tisax
+  nombre: TISAX (catálogo VDA ISA)
+  version: ISA 6
+  publico: false
+  niveles:
+  - AL2
+  - AL3
+  - prototipos
+  descripcion: Evaluación de seguridad de la información del sector de automoción (ENX). AL2 y AL3 evalúan los mismos
+    requisitos de seguridad de la información con distinta profundidad; el módulo de prototipos exige AL3.
+- clave: nis2
+  nombre: NIS2 — Directiva (UE) 2022/2555
+  version: 2022/2555
+  publico: true
+  niveles:
+  - gobernanza
+  - medidas
+  - notificacion
+  - registro
+  descripcion: 'Directiva de ciberseguridad de la UE para entidades esenciales e importantes. No es certificable:
+    se demuestra ante la autoridad.'
+- clave: sox
+  nombre: Ley Sarbanes-Oxley (SOX)
+  version: 2002 (secciones 302, 404, 802 y 906)
+  publico: true
+  niveles:
+  - ley
+  - entidad
+  - itgc
+  - cierre
+  - aplicacion
+  descripcion: Control interno sobre la información financiera de sociedades cotizadas en EE. UU. Los códigos ITGC/FC/ELC/ITAC
+    son un catálogo de referencia propio; los de sección son de la ley.
+- clave: jsox
+  nombre: J-SOX (Ley de Instrumentos Financieros y Mercados de Japón)
+  version: Normas de evaluación y auditoría revisadas en 2023 (vigentes desde el ejercicio 2024)
+  publico: true
+  niveles:
+  - ley
+  - entidad
+  - itgc
+  - cierre
+  - aplicacion
+  descripcion: Régimen japonés de informe y auditoría del control interno sobre la información financiera. Los códigos
+    FIEA son artículos de la ley; el resto, catálogo de referencia propio.
+- clave: iec62443
+  nombre: ISA/IEC 62443
+  version: 2-1:2024, 3-2:2020, 3-3:2013, 4-1:2018, 4-2:2019
+  publico: false
+  niveles:
+  - 2-1
+  - 3-2
+  - 3-3
+  - 4-1
+  - 4-2
+  descripcion: Ciberseguridad de sistemas de automatización y control industrial. Cada parte es un nivel; el nivel
+    de seguridad objetivo (SL-T) se fija por zona en el programa.
+  partes:
+  - clave: 2-1
+    nombre: Programa de seguridad del propietario del activo
+    ids: SPE 1–SPE 8
+  - clave: 3-2
+    nombre: Evaluación de riesgos y diseño de zonas y conductos
+    ids: ZCR 1–ZCR 7
+  - clave: 3-3
+    nombre: Requisitos de seguridad del sistema y niveles de seguridad
+    ids: SR 1.1–SR 7.8 (FR1–FR7)
+  - clave: 4-1
+    nombre: Ciclo de vida de desarrollo seguro del producto
+    ids: SM, SR, SD, SI, SVV, DM, SUM, SG
+  - clave: 4-2
+    nombre: Requisitos técnicos de seguridad de componentes
+    ids: CR y requisitos por tipo SAR/EDR/HDR/NDR
